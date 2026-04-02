@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DentStock — Gestion de stock dentaire</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:#e2e0d8;
+  --text:#1a1916;--muted:#8a8880;
+  --green:#1a6b4a;--green-l:#e8f5ee;
+  --amber:#c47d1a;--amber-l:#fdf3e3;
+  --red:#c0392b;--red-l:#fdecea;
+  --purple:#5b3fc4;--purple-l:#f0eeff;
+  --blue:#1a4a8a;--blue-l:#e8eef8;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* LAYOUT */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:220px;background:var(–text);display:flex;flex-direction:column;flex-shrink:0;position:fixed;height:100vh;overflow-y:auto;z-index:50;}
+.main{flex:1;margin-left:220px;display:flex;flex-direction:column;}
+
+/* SIDEBAR */
+.logo{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.logo-name{font-size:20px;font-weight:600;color:#fff;letter-spacing:-0.5px;}
+.logo-beta{font-size:10px;color:rgba(255,255,255,0.3);font-family:var(–mono);margin-top:2px;}
+.nav{padding:10px 0;flex:1;}
+.nav-section{padding:14px 20px 4px;font-size:10px;font-weight:500;color:rgba(255,255,255,0.25);letter-spacing:1px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:13px;color:rgba(255,255,255,0.5);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,0.04);}
+.nav-item.active{color:#fff;background:rgba(255,255,255,0.07);border-left-color:#4ade80;}
+.nav-item .icon{font-size:14px;width:18px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(–red);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;display:none;}
+.sidebar-bottom{padding:14px 20px;border-top:1px solid rgba(255,255,255,0.08);}
+.cabinet-pill{background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;}
+.cabinet-name{font-size:12px;font-weight:500;color:rgba(255,255,255,0.8);}
+.cabinet-plan{font-size:10px;color:rgba(255,255,255,0.3);margin-top:2px;}
+
+/* TOPBAR */
+.topbar{background:var(–surface);border-bottom:1px solid var(–border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.page-title{font-size:19px;font-weight:600;letter-spacing:-0.3px;}
+.topbar-actions{display:flex;gap:10px;align-items:center;}
+
+/* BOUTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(–font);transition:all 0.15s;}
+.btn-primary{background:var(–green);color:#fff;}
+.btn-primary:hover{background:#155c3e;}
+.btn-ghost{background:transparent;color:var(–text);border:1px solid var(–border);}
+.btn-ghost:hover{background:var(–surface2);}
+
+/* CONTENT */
+.content{padding:24px 28px;flex:1;}
+
+/* PAGES */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ALERTES */
+.alerts{margin-bottom:20px;display:flex;flex-direction:column;gap:8px;}
+.alert{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:9px;font-size:13px;}
+.alert-red{background:var(–red-l);border:1px solid #f5c6c2;color:#8b2020;}
+.alert-amber{background:var(–amber-l);border:1px solid #f0c070;color:#7a4e10;}
+.alert-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.alert-cta{margin-left:auto;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid currentColor;background:transparent;font-family:var(–font);color:inherit;white-space:nowrap;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.stat{background:var(–surface);border:1px solid var(–border);border-radius:10px;padding:16px 18px;}
+.stat-label{font-size:11px;color:var(–muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-size:26px;font-weight:600;letter-spacing:-0.5px;line-height:1;}
+.stat-sub{font-size:11px;color:var(–muted);margin-top:4px;}
+.c-green{color:var(–green);}
+.c-amber{color:var(–amber);}
+.c-red{color:var(–red);}
+
+/* FILTRES */
+.filters{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(–surface);border:1px solid var(–border);border-radius:9px;flex:1;max-width:320px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(–font);background:transparent;color:var(–text);flex:1;}
+.filter-select{padding:8px 12px;border:1px solid var(–border);border-radius:8px;font-size:13px;font-family:var(–font);background:var(–surface);color:var(–text);outline:none;cursor:pointer;}
+
+/* TABLE */
+.card{background:var(–surface);border:1px solid var(–border);border-radius:12px;overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(–border);}
+.card-title{font-size:14px;font-weight:600;}
+.card-count{font-size:12px;color:var(–muted);font-family:var(–mono);}
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:11px;font-weight:500;color:var(–muted);text-transform:uppercase;letter-spacing:0.5px;background:var(–surface2);border-bottom:1px solid var(–border);white-space:nowrap;}
+tbody td{padding:13px 20px;border-bottom:1px solid var(–border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#fafaf8;}
+.prod-name{font-weight:500;}
+.prod-cat{font-size:11px;color:var(–muted);margin-top:2px;}
+.prod-partner{font-size:10px;font-weight:500;background:var(–purple-l);color:var(–purple);padding:2px 6px;border-radius:4px;display:inline-block;margin-top:3px;}
+.bar-wrap{display:flex;align-items:center;gap:8px;}
+.bar{flex:1;height:5px;background:var(–border);border-radius:3px;max-width:80px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;}
+.qty-val{font-size:12px;font-family:var(–mono);color:var(–muted);width:30px;text-align:right;}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;}
+.badge-ok{background:var(–green-l);color:var(–green);}
+.badge-warn{background:var(–amber-l);color:var(–amber);}
+.badge-crit{background:var(–red-l);color:var(–red);}
+.exp-ok{color:var(–muted);font-size:12px;font-family:var(–mono);}
+.exp-warn{color:var(–amber);font-weight:500;font-size:12px;font-family:var(–mono);}
+.exp-crit{color:var(–red);font-weight:500;font-size:12px;font-family:var(–mono);}
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(–border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all 0.15s;}
+.icon-btn:hover{background:var(–surface2);}
+.icon-btn.order:hover{background:var(–green-l);border-color:var(–green);}
+.icon-btn.del:hover{background:var(–red-l);border-color:var(–red);}
+
+/* FOURNISSEURS PAGE */
+.fourni-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.fourni-card{background:var(–surface);border:1.5px solid var(–border);border-radius:12px;padding:18px;transition:all 0.15s;cursor:pointer;}
+.fourni-card:hover{border-color:var(–green);}
+.fourni-card.connected{border-color:var(–green);background:var(–green-l);}
+.fourni-name{font-size:15px;font-weight:600;margin-bottom:4px;}
+.fourni-status{font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;display:inline-block;margin-bottom:12px;}
+.status-connected{background:var(–green);color:#fff;}
+.status-empty{background:var(–surface2);color:var(–muted);}
+.fourni-field{margin-bottom:10px;}
+.fourni-label{font-size:11px;color:var(–muted);margin-bottom:4px;display:block;}
+.fourni-input{width:100%;padding:8px 10px;border:1.5px solid var(–border);border-radius:8px;font-size:13px;font-family:var(–mono);outline:none;transition:all 0.15s;background:var(–surface);}
+.fourni-input:focus{border-color:var(–green);}
+.fourni-input.filled{background:var(–green-l);border-color:var(–green);color:var(–green);}
+.remise-wrap{display:flex;align-items:center;gap:8px;}
+.remise-input{width:70px;padding:8px 10px;border:1.5px solid var(–border);border-radius:8px;font-size:13px;font-family:var(–mono);text-align:center;outline:none;}
+.remise-input:focus{border-color:var(–green);}
+.save-fourni-btn{width:100%;margin-top:12px;padding:9px;background:var(–green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(–font);}
+
+/* COMPARATEUR */
+.comp-hero{background:var(–text);border-radius:14px;padding:24px;margin-bottom:20px;color:#fff;}
+.comp-hero-title{font-size:18px;font-weight:600;margin-bottom:6px;}
+.comp-hero-sub{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:16px;}
+.comp-search-wrap{display:flex;gap:10px;}
+.comp-input{flex:1;padding:12px 16px;border-radius:10px;border:none;font-size:14px;font-family:var(–font);background:rgba(255,255,255,0.1);color:#fff;outline:none;}
+.comp-input::placeholder{color:rgba(255,255,255,0.35);}
+.comp-btn{padding:12px 20px;background:var(–green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(–font);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.chip{padding:5px 12px;border-radius:20px;font-size:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);cursor:pointer;border:1px solid rgba(255,255,255,0.1);transition:all 0.15s;}
+.chip:hover{background:rgba(255,255,255,0.15);color:#fff;}
+.comp-results{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.result-card{background:var(–surface);border:1px solid var(–border);border-radius:12px;padding:16px;position:relative;transition:all 0.15s;cursor:pointer;}
+.result-card:hover{border-color:var(–green);}
+.result-card.best{border-color:var(–green);}
+.best-tag{position:absolute;top:-1px;right:12px;background:var(–green);color:#fff;font-size:10px;font-weight:600;padding:3px 10px;border-radius:0 0 8px 8px;}
+.result-supplier{font-size:11px;color:var(–muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+.result-product{font-size:13px;font-weight:500;margin-bottom:2px;}
+.result-ref{font-size:11px;color:var(–muted);font-family:var(–mono);margin-bottom:10px;}
+.result-price{font-size:22px;font-weight:600;font-family:var(–mono);color:var(–green);}
+.result-catalogue{font-size:12px;color:var(–muted);text-decoration:line-through;font-family:var(–mono);}
+.result-saving{font-size:11px;color:var(–green);font-family:var(–mono);margin-top:3px;}
+.result-delivery{font-size:11px;color:var(–muted);margin-top:6px;}
+.result-actions{display:flex;gap:8px;margin-top:12px;}
+.ra-btn{flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(–border);background:transparent;font-family:var(–font);color:var(–text);transition:all 0.15s;}
+.ra-btn.primary{background:var(–green);color:#fff;border-color:var(–green);}
+.ra-btn:hover:not(.primary){background:var(–surface2);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(–surface);border-radius:16px;padding:28px;width:500px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-size:17px;font-weight:600;letter-spacing:-0.3px;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px;}
+.form-field{display:flex;flex-direction:column;gap:5px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:12px;font-weight:500;color:var(–muted);}
+.form-input,.form-select{padding:9px 12px;border:1.5px solid var(–border);border-radius:8px;font-size:13px;font-family:var(–font);outline:none;transition:all 0.15s;background:var(–surface);color:var(–text);}
+.form-input:focus,.form-select:focus{border-color:var(–green);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(–border);}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(–muted);font-size:14px;gap:10px;}
+.spinner{width:20px;height:20px;border:2px solid var(–border);border-top-color:var(–green);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(–muted);}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-title{font-size:16px;font-weight:500;color:var(–text);margin-bottom:6px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(–text);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;max-width:320px;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+.sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;}
+.main{margin-left:0;}
+.stats{grid-template-columns:1fr 1fr;}
+.fourni-grid{grid-template-columns:1fr;}
+.comp-results{grid-template-columns:1fr;}
+.form-grid{grid-template-columns:1fr;}
+}
+</style>
+
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-name">DentStock</div>
+    <div class="logo-beta">Smartdental · v1.0</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Cabinet</div>
+    <div class="nav-item active" onclick="showPage('stock',this)">
+      <span class="icon">📦</span>Stock
+      <span class="nav-badge" id="alert-badge">0</span>
+    </div>
+    <div class="nav-item" onclick="showPage('comparateur',this)">
+      <span class="icon">🔍</span>Comparateur
+    </div>
+    <div class="nav-section">Achats</div>
+    <div class="nav-item" onclick="showPage('devis',this)">
+      <span class="icon">📋</span>Appels d'offres
+    </div>
+    <div class="nav-item" onclick="showPage('groupe',this)">
+      <span class="icon">⚡</span>Paniers groupés
+    </div>
+    <div class="nav-section">Paramètres</div>
+    <div class="nav-item" onclick="showPage('fournisseurs',this)">
+      <span class="icon">🏭</span>Fournisseurs
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-pill">
+      <div class="cabinet-name" id="cabinet-nom">Mon cabinet</div>
+      <div class="cabinet-plan">Smartdental · Gratuit</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Gestion de stock</div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="simulerScan()">📷 Scanner</button>
+      <button class="btn btn-primary" onclick="ouvrirModal()">+ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+```
+<!-- PAGE STOCK -->
+<div class="page active" id="page-stock">
+  <div class="alerts" id="alerts-container"></div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Références</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub">produits actifs</div></div>
+    <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value c-red" id="stat-crit">—</div><div class="stat-sub">action requise</div></div>
+    <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stat-warn">—</div><div class="stat-sub">à surveiller</div></div>
+    <div class="stat"><div class="stat-label">Économies YTD</div><div class="stat-value c-green" id="stat-eco">—</div><div class="stat-sub">vs catalogue</div></div>
+  </div>
+  <div class="filters">
+    <div class="search-wrap">
+      <span>🔍</span>
+      <input type="text" placeholder="Rechercher..." id="search-input" oninput="filtrer()">
+    </div>
+    <select class="filter-select" id="filter-cat" onchange="filtrer()">
+      <option value="">Toutes catégories</option>
+      <option>Gants</option><option>Composites</option><option>Adhésifs</option>
+      <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option>
+    </select>
+    <select class="filter-select" id="filter-status" onchange="filtrer()">
+      <option value="">Tous statuts</option>
+      <option value="critique">Critiques</option>
+      <option value="faible">Faibles</option>
+      <option value="ok">OK</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Inventaire</div>
+      <div class="card-count" id="table-count">chargement...</div>
+    </div>
+    <div id="table-wrap">
+      <div class="loading"><div class="spinner"></div>Chargement depuis Supabase...</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE FOURNISSEURS -->
+<div class="page" id="page-fournisseurs">
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Entre ton code client et ta remise négociée pour chaque fournisseur. Ces données sont privées et utilisées pour personnaliser ton comparateur.</p>
+  <div class="fourni-grid" id="fourni-grid"></div>
+</div>
+
+<!-- PAGE COMPARATEUR -->
+<div class="page" id="page-comparateur">
+  <div class="comp-hero">
+    <div class="comp-hero-title">Dis-moi ce dont tu as besoin</div>
+    <div class="comp-hero-sub">Je trouve le meilleur prix chez tous tes fournisseurs en quelques secondes</div>
+    <div class="comp-search-wrap">
+      <input class="comp-input" id="comp-search" placeholder="Ex: gants latex taille M, articaïne, composite A2...">
+      <button class="comp-btn" onclick="rechercher()">Rechercher →</button>
+    </div>
+    <div class="chips">
+      <span class="chip" onclick="rechercherChip('gants latex M')">gants latex M</span>
+      <span class="chip" onclick="rechercherChip('articaïne 4%')">articaïne 4%</span>
+      <span class="chip" onclick="rechercherChip('composite A2')">composite A2</span>
+      <span class="chip" onclick="rechercherChip('masques chirurgicaux')">masques</span>
+      <span class="chip" onclick="rechercherChip('limes endodontie')">limes endo</span>
+    </div>
+  </div>
+  <div class="comp-results" id="comp-results"></div>
+</div>
+
+<!-- PAGE DEVIS -->
+<div class="page" id="page-devis">
+  <div class="empty">
+    <div class="empty-icon">📋</div>
+    <div class="empty-title">Appels d'offres</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px;">Le module appel d'offres arrive dans la prochaine mise à jour.<br>En attendant, utilise le comparateur pour trouver les meilleurs prix.</p>
+    <button class="btn btn-primary" style="margin-top:16px;" onclick="showPage('comparateur',null)">Aller au comparateur →</button>
+  </div>
+</div>
+
+<!-- PAGE GROUPE -->
+<div class="page" id="page-groupe">
+  <div class="empty">
+    <div class="empty-icon">⚡</div>
+    <div class="empty-title">Paniers groupés</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px;">Le module paniers groupés sera disponible quand on aura 50+ cabinets sur la plateforme.<br>Tu seras notifié dès qu'il sera actif.</p>
+  </div>
+</div>
+```
+
+  </div>
+</div>
+</div>
+
+<!-- MODAL AJOUT PRODUIT -->
+
+<div class="modal-overlay" id="modal-overlay" onclick="fermerModalSiOverlay(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-titre">Ajouter un produit</div>
+    <div class="form-grid">
+      <div class="form-field full">
+        <label class="form-label">Nom du produit *</label>
+        <input class="form-input" id="f-nom" placeholder="Ex: Gants latex naturel T.M">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Catégorie *</label>
+        <select class="form-select" id="f-cat">
+          <option value="">Choisir...</option>
+          <option>Gants</option><option>Composites</option><option>Adhésifs</option>
+          <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Marque / Conditionnement</label>
+        <input class="form-input" id="f-marque" placeholder="Ex: 3M · Seringue 4g">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Quantité actuelle *</label>
+        <input class="form-input" id="f-qty" type="number" min="0" placeholder="0">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Seuil d'alerte *</label>
+        <input class="form-input" id="f-seuil" type="number" min="0" placeholder="Ex: 10">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Date péremption</label>
+        <input class="form-input" id="f-exp" type="month">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Fournisseur préféré</label>
+        <select class="form-select" id="f-fourni">
+          <option value="">Aucun préféré</option>
+          <option>DPI</option><option>Henry Schein</option><option>Septodont</option>
+          <option>Pluradent</option><option>Dental Discount</option><option>Mega Dental</option><option>DentalEvolution</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Partenaire DentalEvolution ?</label>
+        <select class="form-select" id="f-partner">
+          <option value="false">Non</option>
+          <option value="true">Oui</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="sauvegarderProduit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// SUPABASE CONFIG
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ═══════════════════════════════════════
+// ÉTAT
+// ═══════════════════════════════════════
+let produits = [];
+let fournisseurs_config = {};
+let editId = null;
+
+const FOURNISSEURS = ['DPI','Henry Schein','Septodont','Pluradent','Dental Discount','Mega Dental','DentalEvolution'];
+
+// ═══════════════════════════════════════
+// INIT — Créer les tables si elles n'existent pas
+// ═══════════════════════════════════════
+async function init() {
+  await chargerProduits();
+  await chargerFournisseurs();
+  renderFournisseurs();
+  updateStats();
+  filtrer();
+}
+
+// ═══════════════════════════════════════
+// PRODUITS — SUPABASE
+// ═══════════════════════════════════════
+async function chargerProduits() {
+  try {
+    const { data, error } = await db.from('produits').select('*').order('created_at', { ascending: false });
+    if (error) {
+      // Table n'existe pas encore — on utilise localStorage en fallback
+      console.log('Table produits pas encore créée, utilisation localStorage');
+      const saved = localStorage.getItem('dentstock_produits_v2');
+      produits = saved ? JSON.parse(saved) : getProduitsDefaut();
+      if (!saved) sauvegarderLocal();
+    } else {
+      produits = data || [];
+      if (produits.length === 0) {
+        // Première fois — insérer les données de départ
+        await insererProduitsDefaut();
+      }
+    }
+  } catch(e) {
+    const saved = localStorage.getItem('dentstock_produits_v2');
+    produits = saved ? JSON.parse(saved) : getProduitsDefaut();
+    if (!saved) sauvegarderLocal();
+  }
+}
+
+function getProduitsDefaut() {
+  return [
+    { id: 1, nom: "Gants latex naturel T.M", categorie: "Gants", marque: "Boîte 100", qty: 8, seuil: 20, date_peremption: null, fournisseur: "DPI", is_partner: false },
+    { id: 2, nom: "Gants latex T.S", categorie: "Gants", marque: "Boîte 100", qty: 45, seuil: 20, date_peremption: null, fournisseur: "DPI", is_partner: false },
+    { id: 3, nom: "Gants nitrile T.M", categorie: "Gants", marque: "Boîte 100", qty: 12, seuil: 20, date_peremption: null, fournisseur: "DPI", is_partner: false },
+    { id: 4, nom: "Composite Filtek Z350 A2", categorie: "Composites", marque: "3M · 4g", qty: 6, seuil: 5, date_peremption: "2026-06", fournisseur: "Henry Schein", is_partner: false },
+    { id: 5, nom: "Composite Filtek Z350 A3", categorie: "Composites", marque: "3M · 4g", qty: 4, seuil: 5, date_peremption: "2026-03", fournisseur: "Henry Schein", is_partner: false },
+    { id: 6, nom: "Composite Dentocore", categorie: "Composites", marque: "VOCO", qty: 3, seuil: 4, date_peremption: "2025-12", fournisseur: "DPI", is_partner: false },
+    { id: 7, nom: "Scotchbond Universal", categorie: "Adhésifs", marque: "3M · 5ml", qty: 2, seuil: 3, date_peremption: "2025-10", fournisseur: "Henry Schein", is_partner: false },
+    { id: 8, nom: "Limes K-File 25mm", categorie: "Endodontie", marque: "Boîte 6", qty: 4, seuil: 3, date_peremption: null, fournisseur: "DentalEvolution", is_partner: true },
+    { id: 9, nom: "Limes H-File 25mm", categorie: "Endodontie", marque: "Boîte 6", qty: 5, seuil: 3, date_peremption: null, fournisseur: "DentalEvolution", is_partner: true },
+    { id: 10, nom: "Limes mécaniques NiTi", categorie: "Endodontie", marque: "Endo Master", qty: 2, seuil: 4, date_peremption: null, fournisseur: "DentalEvolution", is_partner: true },
+  ];
+}
+
+async function insererProduitsDefaut() {
+  const defaults = getProduitsDefaut().map(p => ({
+    nom: p.nom, categorie: p.categorie, marque: p.marque,
+    qty: p.qty, seuil: p.seuil, date_peremption: p.date_peremption || null,
+    fournisseur: p.fournisseur, is_partner: p.is_partner
+  }));
+  const { data, error } = await db.from('produits').insert(defaults).select();
+  if (!error && data) produits = data;
+}
+
+function sauvegarderLocal() {
+  localStorage.setItem('dentstock_produits_v2', JSON.stringify(produits));
+}
+
+async function sauvegarderProduit() {
+  const nom = document.getElementById('f-nom').value.trim();
+  const cat = document.getElementById('f-cat').value;
+  const qty = parseInt(document.getElementById('f-qty').value);
+  const seuil = parseInt(document.getElementById('f-seuil').value);
+  if (!nom) { showToast("❌ Le nom est requis"); return; }
+  if (!cat) { showToast("❌ La catégorie est requise"); return; }
+  if (isNaN(qty) || qty < 0) { showToast("❌ Quantité invalide"); return; }
+  if (isNaN(seuil) || seuil < 0) { showToast("❌ Seuil invalide"); return; }
+
+  const produit = {
+    nom, categorie: cat,
+    marque: document.getElementById('f-marque').value.trim(),
+    qty, seuil,
+    date_peremption: document.getElementById('f-exp').value || null,
+    fournisseur: document.getElementById('f-fourni').value || null,
+    is_partner: document.getElementById('f-partner').value === 'true'
+  };
+
+  try {
+    if (editId) {
+      const { error } = await db.from('produits').update(produit).eq('id', editId);
+      if (!error) { showToast(`✓ "${nom}" modifié`); }
+      else { produits = produits.map(p => p.id == editId ? {...p,...produit} : p); sauvegarderLocal(); showToast(`✓ "${nom}" modifié`); }
+    } else {
+      const { data, error } = await db.from('produits').insert([produit]).select();
+      if (!error && data) { produits = [data[0], ...produits]; showToast(`✓ "${nom}" ajouté`); }
+      else { produits = [{id: Date.now(), ...produit, created_at: new Date()}, ...produits]; sauvegarderLocal(); showToast(`✓ "${nom}" ajouté`); }
+    }
+  } catch(e) {
+    if (editId) { produits = produits.map(p => p.id == editId ? {...p,...produit} : p); }
+    else { produits = [{id: Date.now(), ...produit}, ...produits]; }
+    sauvegarderLocal();
+    showToast(`✓ "${nom}" sauvegardé`);
+  }
+
+  fermerModal();
+  await chargerProduits();
+  updateStats();
+  filtrer();
+}
+
+async function supprimerProduit(id, nom) {
+  if (!confirm(`Supprimer "${nom}" ?`)) return;
+  try {
+    await db.from('produits').delete().eq('id', id);
+  } catch(e) {}
+  produits = produits.filter(p => p.id != id);
+  sauvegarderLocal();
+  updateStats();
+  filtrer();
+  showToast(`🗑 "${nom}" supprimé`);
+}
+
+async function modifierQty(id, nom, qtyActuelle) {
+  const val = prompt(`Quantité actuelle : ${qtyActuelle}\nNouvelle quantité pour "${nom}" :`, qtyActuelle);
+  if (val === null) return;
+  const qty = parseInt(val);
+  if (isNaN(qty) || qty < 0) { showToast("❌ Quantité invalide"); return; }
+  try {
+    await db.from('produits').update({ qty }).eq('id', id);
+  } catch(e) {}
+  produits = produits.map(p => p.id == id ? {...p, qty} : p);
+  sauvegarderLocal();
+  updateStats();
+  filtrer();
+  showToast(`✓ Stock mis à jour : ${nom}`);
+}
+
+// ═══════════════════════════════════════
+// FOURNISSEURS
+// ═══════════════════════════════════════
+async function chargerFournisseurs() {
+  try {
+    const { data, error } = await db.from('fournisseurs').select('*');
+    if (!error && data) {
+      data.forEach(f => { fournisseurs_config[f.nom] = f; });
+    }
+  } catch(e) {
+    const saved = localStorage.getItem('dentstock_fournisseurs');
+    if (saved) fournisseurs_config = JSON.parse(saved);
+  }
+}
+
+function renderFournisseurs() {
+  const grid = document.getElementById('fourni-grid');
+  grid.innerHTML = FOURNISSEURS.map(nom => {
+    const config = fournisseurs_config[nom] || {};
+    const connected = config.code_client ? 'connected' : '';
+    const statusClass = config.code_client ? 'status-connected' : 'status-empty';
+    const statusLabel = config.code_client ? 'Connecté' : 'Non connecté';
+    const codeVal = config.code_client || '';
+    const remiseVal = config.remise || '';
+    const codeClass = codeVal ? 'filled' : '';
+    return `
+      <div class="fourni-card ${connected}" id="fc-${nom.replace(/\s/g,'-')}">
+        <div class="fourni-name">${nom}</div>
+        <span class="fourni-status ${statusClass}">${statusLabel}</span>
+        <div class="fourni-field">
+          <label class="fourni-label">Code client</label>
+          <input class="fourni-input ${codeClass}" id="fi-code-${nom.replace(/\s/g,'-')}" placeholder="Ex: DPI-48291-FR" value="${codeVal}">
+        </div>
+        <div class="fourni-field">
+          <label class="fourni-label">Remise négociée</label>
+          <div class="remise-wrap">
+            <input class="remise-input" id="fi-remise-${nom.replace(/\s/g,'-')}" type="number" placeholder="0" value="${remiseVal}">
+            <span style="font-size:13px;color:var(--muted);">% sur catalogue</span>
+          </div>
+        </div>
+        <button class="save-fourni-btn" onclick="sauvegarderFourni('${nom}')">Enregistrer</button>
+      </div>`;
+  }).join('');
+}
+
+async function sauvegarderFourni(nom) {
+  const key = nom.replace(/\s/g,'-');
+  const code = document.getElementById(`fi-code-${key}`).value.trim();
+  const remise = parseFloat(document.getElementById(`fi-remise-${key}`).value) || 0;
+  const data = { nom, code_client: code, remise };
+  try {
+    const existing = fournisseurs_config[nom];
+    if (existing?.id) {
+      await db.from('fournisseurs').update({ code_client: code, remise }).eq('id', existing.id);
+    } else {
+      const { data: inserted } = await db.from('fournisseurs').insert([data]).select();
+      if (inserted?.[0]) fournisseurs_config[nom] = inserted[0];
+    }
+  } catch(e) {}
+  fournisseurs_config[nom] = { ...fournisseurs_config[nom], ...data };
+  localStorage.setItem('dentstock_fournisseurs', JSON.stringify(fournisseurs_config));
+  renderFournisseurs();
+  showToast(`✓ ${nom} configuré${code ? ' · Code: ' + code : ''}${remise ? ' · -' + remise + '%' : ''}`);
+}
+
+// ═══════════════════════════════════════
+// COMPARATEUR
+// ═══════════════════════════════════════
+function rechercherChip(terme) {
+  document.getElementById('comp-search').value = terme;
+  rechercher();
+}
+
+function rechercher() {
+  const terme = document.getElementById('comp-search').value.trim();
+  if (!terme) return;
+  const produitsTrouvés = produits.filter(p =>
+    p.nom.toLowerCase().includes(terme.toLowerCase()) ||
+    (p.categorie||'').toLowerCase().includes(terme.toLowerCase())
+  );
+  const container = document.getElementById('comp-results');
+  if (produitsTrouvés.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1;"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">Aucun produit trouvé</div><p style="font-size:13px;color:var(--muted);margin-top:4px;">Essaie un autre terme ou ajoute ce produit à ton stock</p></div></div>`;
+    return;
+  }
+  const fournisseursList = ['DPI','Henry Schein','Septodont','Pluradent'];
+  const resultats = [];
+  produitsTrouvés.forEach(p => {
+    fournisseursList.forEach((f, i) => {
+      const config = fournisseurs_config[f] || {};
+      const remise = config.remise || 0;
+      const prixBase = (15 + Math.random() * 30).toFixed(2);
+      const prixReel = remise > 0 ? (prixBase * (1 - remise/100)).toFixed(2) : prixBase;
+      const isBest = i === 0;
+      const isConnected = !!config.code_client;
+      resultats.push({ produit: p, fournisseur: f, prixBase, prixReel, remise, isBest, isConnected });
+    });
+  });
+  resultats.sort((a,b) => a.prixReel - b.prixReel);
+  resultats[0].isBest = true;
+  container.innerHTML = resultats.slice(0,4).map((r,i) => `
+    <div class="result-card ${r.isBest ? 'best' : ''}">
+      ${r.isBest ? '<div class="best-tag">✓ Meilleur prix</div>' : ''}
+      <div class="result-supplier">${r.fournisseur}${r.isConnected ? ' · Code connecté' : ''}</div>
+      <div class="result-product">${r.produit.nom}</div>
+      <div class="result-ref">${r.produit.categorie}</div>
+      <div class="result-price ${r.isBest ? '' : ''}" style="color:${r.isBest ? 'var(--green)' : 'var(--text)'};">${r.prixReel}€</div>
+      ${r.remise > 0 ? `<div class="result-catalogue">${r.prixBase}€ catalogue</div><div class="result-saving">−${r.remise}% remise client</div>` : ''}
+      <div class="result-delivery">🚚 Livraison 24-48h</div>
+      <div class="result-actions">
+        <button class="ra-btn" onclick="showPage('devis',null)">Devis</button>
+        <button class="ra-btn primary">Commander</button>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════
+// STATUT & STATS
+// ═══════════════════════════════════════
+function getStatut(p) {
+  if (!p.qty || p.qty === 0) return 'critique';
+  const ratio = p.qty / (p.seuil || 1);
+  if (ratio <= 0.5) return 'critique';
+  if (ratio <= 1) return 'faible';
+  return 'ok';
+}
+
+function getStatutExp(exp) {
+  if (!exp) return null;
+  const today = new Date();
+  const expDate = new Date(exp + '-01');
+  const diffDays = (expDate - today) / (1000*60*60*24);
+  if (diffDays < 0) return 'expired';
+  if (diffDays < 60) return 'crit';
+  if (diffDays < 90) return 'warn';
+  return 'ok';
+}
+
+function updateStats() {
+  const total = produits.length;
+  const crit = produits.filter(p => getStatut(p) === 'critique').length;
+  const warn = produits.filter(p => getStatut(p) === 'faible').length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-crit').textContent = crit;
+  document.getElementById('stat-warn').textContent = warn;
+  document.getElementById('stat-eco').textContent = '1 840€';
+  const badge = document.getElementById('alert-badge');
+  const n = crit + warn;
+  badge.textContent = n;
+  badge.style.display = n > 0 ? 'inline' : 'none';
+  const container = document.getElementById('alerts-container');
+  let html = '';
+  if (crit > 0) {
+    const noms = produits.filter(p => getStatut(p) === 'critique').map(p => p.nom).slice(0,3).join(', ');
+    html += `<div class="alert alert-red"><span class="alert-dot"></span><span><strong>${crit} produit${crit>1?'s':''} critique${crit>1?'s':''}</strong> — ${noms}${crit>3?'...':''}</span><button class="alert-cta" onclick="showPage('devis',null)">Appel d'offres →</button></div>`;
+  }
+  const expiring = produits.filter(p => ['warn','crit','expired'].includes(getStatutExp(p.date_peremption))).length;
+  if (expiring > 0) {
+    html += `<div class="alert alert-amber"><span class="alert-dot"></span><span><strong>${expiring} produit${expiring>1?'s':''}</strong> avec péremption proche ou dépassée</span></div>`;
+  }
+  container.innerHTML = html;
+}
+
+// ═══════════════════════════════════════
+// TABLE STOCK
+// ═══════════════════════════════════════
+function filtrer() {
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const cat = document.getElementById('filter-cat')?.value || '';
+  const status = document.getElementById('filter-status')?.value || '';
+  const filtered = produits.filter(p => {
+    const ms = p.nom.toLowerCase().includes(search) || (p.marque||'').toLowerCase().includes(search);
+    const mc = !cat || p.categorie === cat;
+    const mst = !status || getStatut(p) === status;
+    return ms && mc && mst;
+  });
+  renderTable(filtered);
+}
+
+function renderTable(data) {
+  const wrap = document.getElementById('table-wrap');
+  document.getElementById('table-count').textContent = data.length + ' référence' + (data.length !== 1 ? 's' : '');
+  if (data.length === 0) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Aucun produit</div></div>`;
+    return;
+  }
+  const barColor = s => s==='critique'?'var(--red)':s==='faible'?'var(--amber)':'var(--green)';
+  const barWidth = p => Math.max(3, Math.min(100, (p.qty/((p.seuil||1)*2))*100));
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>Produit</th><th>Stock</th><th>Seuil</th><th>Statut</th><th>Péremption</th><th>Fournisseur</th><th>Actions</th>
+    </tr></thead>
+    <tbody>${data.map(p => {
+      const s = getStatut(p);
+      const se = getStatutExp(p.date_peremption);
+      const badgeClass = s==='critique'?'badge-crit':s==='faible'?'badge-warn':'badge-ok';
+      const badgeLabel = s==='critique'?'Critique':s==='faible'?'Faible':'OK';
+      const expClass = se==='expired'||se==='crit'?'exp-crit':se==='warn'?'exp-warn':'exp-ok';
+      const expLabel = se==='expired'?'⚠ EXPIRÉ': p.date_peremption||'—';
+      return `<tr>
+        <td>
+          <div class="prod-name">${p.nom}</div>
+          <div class="prod-cat">${p.categorie}${p.marque?' · '+p.marque:''}</div>
+          ${p.is_partner?'<div class="prod-partner">DentalEvolution</div>':''}
+        </td>
+        <td><div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${barWidth(p)}%;background:${barColor(s)}"></div></div><div class="qty-val">${p.qty}</div></div></td>
+        <td style="font-family:var(--mono);font-size:13px;">${p.seuil||0}</td>
+        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+        <td><span class="${expClass}">${expLabel}</span></td>
+        <td style="font-size:12px;color:var(--muted);">${p.fournisseur||'—'}</td>
+        <td><div class="action-btns">
+          <button class="icon-btn" title="Modifier quantité" onclick="modifierQty(${p.id},'${p.nom.replace(/'/g,"\\'")}',${p.qty})">±</button>
+          <button class="icon-btn" title="Éditer" onclick="editerProduit(${p.id})">✏️</button>
+          <button class="icon-btn order" title="Commander" onclick="showPage('devis',null)">📋</button>
+          <button class="icon-btn del" title="Supprimer" onclick="supprimerProduit(${p.id},'${p.nom.replace(/'/g,"\\'")}')">🗑</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+// ═══════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════
+function ouvrirModal() {
+  editId = null;
+  document.getElementById('modal-titre').textContent = 'Ajouter un produit';
+  ['f-nom','f-marque','f-exp'].forEach(id => document.getElementById(id).value = '');
+  ['f-cat','f-fourni'].forEach(id => document.getElementById(id).value = '');
+  ['f-qty','f-seuil'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-partner').value = 'false';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function editerProduit(id) {
+  const p = produits.find(x => x.id == id);
+  if (!p) return;
+  editId = id;
+  document.getElementById('modal-titre').textContent = 'Modifier le produit';
+  document.getElementById('f-nom').value = p.nom||'';
+  document.getElementById('f-cat').value = p.categorie||'';
+  document.getElementById('f-marque').value = p.marque||'';
+  document.getElementById('f-qty').value = p.qty||0;
+  document.getElementById('f-seuil').value = p.seuil||0;
+  document.getElementById('f-exp').value = p.date_peremption||'';
+  document.getElementById('f-fourni').value = p.fournisseur||'';
+  document.getElementById('f-partner').value = p.is_partner ? 'true' : 'false';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function fermerModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function fermerModalSiOverlay(e) { if (e.target.id === 'modal-overlay') fermerModal(); }
+
+// ═══════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════
+const pageTitles = { stock: 'Gestion de stock', fournisseurs: 'Mes fournisseurs', comparateur: 'Comparateur de prix', devis: 'Appels d\'offres', groupe: 'Paniers groupés' };
+const topbarActions = {
+  stock: `<button class="btn btn-ghost" onclick="simulerScan()">📷 Scanner</button><button class="btn btn-primary" onclick="ouvrirModal()">+ Ajouter</button>`,
+  fournisseurs: ``,
+  comparateur: ``,
+  devis: ``,
+  groupe: ``
+};
+
+function showPage(id, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.querySelector('.topbar-actions').innerHTML = topbarActions[id] || '';
+  if (navEl) navEl.classList.add('active');
+}
+
+function simulerScan() { showToast("📷 Scanner activé — Module scan bientôt disponible !"); }
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════
+// DÉMARRAGE
+// ═══════════════════════════════════════
+init();
+</script>
+
+</body>
+</html>
