@@ -1130,23 +1130,29 @@ function ouvrirOverlayScan() {
   if(!document.getElementById('scan-overlay')) {
     const ov = document.createElement('div');
     ov.id = 'scan-overlay';
-    ov.style.cssText = 'display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;align-items:center;justify-content:center;';
+    ov.style.cssText = 'display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;';
     ov.innerHTML = `
-      <button onclick="fermerScan()" style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:10;">✕</button>
-      <div id="scan-status" style="color:#c8f060;font-family:'Syne',sans-serif;font-size:16px;font-weight:600;margin-bottom:16px;text-align:center;">Pointez vers le code-barres</div>
-      <div style="position:relative;width:280px;height:220px;">
-        <video id="scan-video" style="width:100%;height:100%;border-radius:16px;object-fit:cover;" autoplay muted playsinline></video>
-        <div style="position:absolute;inset:0;pointer-events:none;">
-          <div style="position:absolute;top:0;left:0;width:24px;height:24px;border-top:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:6px 0 0 0;"></div>
-          <div style="position:absolute;top:0;right:0;width:24px;height:24px;border-top:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 6px 0 0;"></div>
-          <div style="position:absolute;bottom:0;left:0;width:24px;height:24px;border-bottom:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:0 0 0 6px;"></div>
-          <div style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-bottom:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 0 6px 0;"></div>
+      <button onclick="fermerScan()" style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:20px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:10;">✕</button>
+      <div style="position:relative;flex:1;overflow:hidden;">
+        <video id="scan-video" style="width:100%;height:100%;object-fit:cover;" autoplay muted playsinline></video>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+          <div style="width:75vw;max-width:320px;height:50vw;max-height:200px;position:relative;">
+            <div style="position:absolute;top:0;left:0;width:28px;height:28px;border-top:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:8px 0 0 0;"></div>
+            <div style="position:absolute;top:0;right:0;width:28px;height:28px;border-top:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 8px 0 0;"></div>
+            <div style="position:absolute;bottom:0;left:0;width:28px;height:28px;border-bottom:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:0 0 0 8px;"></div>
+            <div style="position:absolute;bottom:0;right:0;width:28px;height:28px;border-bottom:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 0 8px 0;"></div>
+            <div style="position:absolute;top:50%;left:5%;right:5%;height:2px;background:linear-gradient(90deg,transparent,#c8f060,transparent);animation:scanAnim 2s ease-in-out infinite;"></div>
+          </div>
         </div>
-        <div id="scan-flash" style="position:absolute;inset:0;background:rgba(200,240,96,0.35);opacity:0;transition:opacity 0.15s;pointer-events:none;border-radius:16px;"></div>
+        <div id="scan-flash" style="position:absolute;inset:0;background:rgba(200,240,96,0.35);opacity:0;transition:opacity 0.15s;pointer-events:none;"></div>
+        <div id="scan-status" style="position:absolute;top:16px;left:0;right:0;text-align:center;color:#c8f060;font-family:'Syne',sans-serif;font-size:15px;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.8);">Pointez vers le code-barres</div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:10px;">Scanette USB aussi supportée</div>
-      <div id="scan-result-panel" style="display:none;background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:20px;width:300px;margin-top:16px;color:#f0ede8;max-height:60vh;overflow-y:auto;"></div>`;
+      <div id="scan-result-panel" style="display:none;background:#1a1917;border-top:1px solid #2e2c29;padding:20px;color:#f0ede8;max-height:55vh;overflow-y:auto;"></div>`;
     document.body.appendChild(ov);
+    // Animation CSS
+    const st = document.createElement('style');
+    st.textContent = '@keyframes scanAnim{0%,100%{transform:translateY(-30px);opacity:0.3;}50%{transform:translateY(30px);opacity:1;}}';
+    document.head.appendChild(st);
   }
 
   const overlay = document.getElementById('scan-overlay');
@@ -1155,28 +1161,32 @@ function ouvrirOverlayScan() {
   overlay.style.display = 'flex';
   document.getElementById('scan-status').textContent = 'Pointez vers le code-barres';
 
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
-  .then(stream => {
-    const video = document.getElementById('scan-video');
-    video.srcObject = stream;
-    window._scanStream = stream;
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    window._codeReader = codeReader;
-    window._scanPaused = false;
-    codeReader.decodeFromStream(stream, video, (result, err) => {
+  // Utiliser decodeFromVideoDevice pour meilleure compatibilité mobile
+  const codeReader = new ZXing.BrowserMultiFormatReader();
+  window._codeReader = codeReader;
+  window._scanPaused = false;
+
+  // Trouver la caméra arrière
+  codeReader.listVideoInputDevices().then(devices => {
+    let camId = undefined;
+    // Préférer caméra arrière
+    const back = devices.find(d => /back|rear|environment/i.test(d.label));
+    if(back) camId = back.deviceId;
+    else if(devices.length > 0) camId = devices[devices.length-1].deviceId; // dernière = souvent arrière
+
+    codeReader.decodeFromVideoDevice(camId, 'scan-video', (result, err) => {
       if(result && !window._scanPaused) {
         window._scanPaused = true;
         // BIP
-        try { const ctx=new AudioContext();const o=ctx.createOscillator();o.frequency.value=1800;o.connect(ctx.destination);o.start();setTimeout(()=>o.stop(),100); } catch(e){}
+        try { const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();o.frequency.value=1800;o.connect(ctx.destination);o.start();setTimeout(()=>o.stop(),100); } catch(e){}
         // Vibration
         navigator.vibrate && navigator.vibrate(100);
         // Flash
-        const fl=document.getElementById('scan-flash'); fl.style.opacity='1'; setTimeout(()=>fl.style.opacity='0',300);
+        const fl=document.getElementById('scan-flash'); if(fl){fl.style.opacity='1'; setTimeout(()=>fl.style.opacity='0',300);}
         traiterCodeBarre(result.getText());
       }
     });
-  })
-  .catch(err => {
+  }).catch(err => {
     if(err.name==='NotAllowedError') showToast('❌ Autorise la caméra dans les paramètres du navigateur');
     else if(err.name==='NotFoundError') showToast('❌ Pas de caméra détectée — utilise une scanette USB');
     else showToast('❌ Caméra : ' + err.message);
@@ -1187,7 +1197,6 @@ function ouvrirOverlayScan() {
 function fermerScan() {
   const ov = document.getElementById('scan-overlay');
   if(ov) ov.style.display = 'none';
-  if(window._scanStream) { window._scanStream.getTracks().forEach(t=>t.stop()); window._scanStream=null; }
   if(window._codeReader) { try{window._codeReader.reset();}catch(e){} window._codeReader=null; }
 }
 
@@ -1207,22 +1216,26 @@ function traiterCodeBarre(code) {
   const prixMoyen = getPrixMoyen(code);
   const prixInfo = prixMoyen ? `<div style="font-size:11px;color:#c8f060;margin-bottom:8px;">Prix moyen d'achat : ${prixMoyen}€</div>` : '';
 
+  const today = new Date().toISOString().slice(0,10);
+
   if(produitStock) {
     // PRODUIT CONNU — ajuster stock + prix
+    const inp = 'padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;';
     panel.innerHTML = `
       <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ ${produitStock.nom}</div>
       <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">${produitStock.categorie||''} · ${produitStock.marque||''}</div>
       <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">Stock actuel : <strong style="color:#f0ede8">${produitStock.qty}</strong></div>
       ${prixInfo}
       <div style="font-size:11px;color:#6b6760;margin:8px 0 4px;">Quantité :</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
         <button onclick="document.getElementById('scan-q').stepDown()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">−</button>
-        <input id="scan-q" type="number" value="1" min="1" style="width:60px;text-align:center;padding:6px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:16px;font-weight:700;">
+        <input id="scan-q" type="number" value="1" min="1" style="width:60px;text-align:center;${inp}font-size:16px;font-weight:700;">
         <button onclick="document.getElementById('scan-q').stepUp()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">+</button>
       </div>
+      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date péremption :</div>
+      <input id="scan-exp-exist" type="month" value="${produitStock.date_peremption||''}" style="width:100%;${inp}margin-bottom:6px;">
       <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total (facultatif) :</div>
-      <input id="scan-prix" type="number" step="0.01" min="0" placeholder="Ex: 24.90€"
-        style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:10px;font-size:13px;">
+      <input id="scan-prix" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="width:100%;${inp}margin-bottom:10px;">
       <div style="display:flex;gap:8px;">
         <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','retirer','${code}')"
           style="flex:1;padding:10px;background:#242220;color:#f05050;border:1px solid #f05050;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">− Utilisé</button>
@@ -1232,24 +1245,26 @@ function traiterCodeBarre(code) {
       <button onclick="scanContinuer()" style="width:100%;margin-top:8px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
   } else {
     // PRODUIT INCONNU — formulaire complet
+    const inp = 'width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
     panel.innerHTML = `
       <div style="font-weight:700;font-size:16px;color:#f0a030;margin-bottom:4px;">🆕 Nouveau produit</div>
-      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:10px;">${code}</div>
-      <input id="scan-nom" placeholder="Nom du produit *" style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;">
-      <select id="scan-cat" style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;">
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;">${code}</div>
+      <div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Entré le : ${today}</div>
+      <input id="scan-nom" placeholder="Nom du produit *" style="${inp}">
+      <select id="scan-cat" style="${inp}">
         <option value="">Catégorie...</option>
         <option>Gants</option><option>Composites</option><option>Adhésifs</option>
         <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
       </select>
-      <input id="scan-marque" placeholder="Marque / conditionnement" style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;">
+      <input id="scan-marque" placeholder="Marque / conditionnement" style="${inp}">
       <div style="display:flex;gap:6px;margin-bottom:6px;">
         <input id="scan-qty-new" type="number" value="1" min="1" placeholder="Qté" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
-        <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+        <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil alerte" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
       </div>
-      <input id="scan-exp" type="month" style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;" placeholder="Date péremption">
-      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total (facultatif) :</div>
-      <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€"
-        style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:10px;font-size:13px;">
+      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date de péremption :</div>
+      <input id="scan-exp" type="month" style="${inp}">
+      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total :</div>
+      <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${inp}margin-bottom:10px;">
       <button onclick="scanAjouterComplet('${code}')"
         style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
       <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
@@ -1259,17 +1274,23 @@ function traiterCodeBarre(code) {
 function scanAction(id, nom, action, code) {
   const qte = parseInt(document.getElementById('scan-q')?.value) || 1;
   const prixTotal = parseFloat(document.getElementById('scan-prix')?.value) || 0;
+  const expNew = document.getElementById('scan-exp-exist')?.value || null;
   const p = produits.find(x => x.id == id);
   if(!p) return;
   const newQty = action==='ajouter' ? p.qty+qte : Math.max(0, p.qty-qte);
+  const today = new Date().toISOString().slice(0,10);
   // Enregistrer prix si renseigné
   if(prixTotal > 0 && code) {
     if(!historiqueAchats[code]) historiqueAchats[code] = [];
-    historiqueAchats[code].push({prix_total: prixTotal, qte: qte, prix_unit: +(prixTotal/qte).toFixed(2), date: new Date().toISOString().slice(0,10)});
+    historiqueAchats[code].push({prix_total: prixTotal, qte: qte, prix_unit: +(prixTotal/qte).toFixed(2), date: today});
     sauverAchats();
   }
-  if(db) { try { db.from('produits').update({qty:newQty}).eq('id',id); } catch(e){} }
-  produits = produits.map(x => x.id==id ? {...x, qty:newQty, code_barre:code||x.code_barre} : x);
+  // Mise à jour : qty, code_barre, date péremption, date entrée stock
+  const updates = {qty:newQty, code_barre:code||p.code_barre};
+  if(expNew) updates.date_peremption = expNew;
+  if(action==='ajouter') updates.date_entree = today;
+  if(db) { try { db.from('produits').update(updates).eq('id',id); } catch(e){} }
+  produits = produits.map(x => x.id==id ? {...x, ...updates} : x);
   localStorage.setItem('amilo_produits', JSON.stringify(produits));
   updateStats(); filtrer();
   const sign = action==='ajouter' ? '+' : '-';
@@ -1288,7 +1309,8 @@ async function scanAjouterComplet(code) {
   const seuil = parseInt(document.getElementById('scan-seuil')?.value) || 5;
   const exp = document.getElementById('scan-exp')?.value || null;
   const prixTotal = parseFloat(document.getElementById('scan-prix-new')?.value) || 0;
-  const nouveau = {nom, categorie:cat, marque, qty, seuil, date_peremption:exp, fournisseur:'', is_partner:false, code_barre:code};
+  const today = new Date().toISOString().slice(0,10);
+  const nouveau = {nom, categorie:cat, marque, qty, seuil, date_peremption:exp, fournisseur:'', is_partner:false, code_barre:code, date_entree:today};
   // Enregistrer prix
   if(prixTotal > 0) {
     if(!historiqueAchats[code]) historiqueAchats[code] = [];
