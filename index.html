@@ -683,23 +683,24 @@ async function chargerProduits() {
     filtrer();
   }
   // Ensuite essayer Supabase en arrière-plan (optionnel)
-  try {
-    const {data, error} = await Promise.race([
-      db.from('produits').select('*').order('created_at', {ascending: false}),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
-    ]);
-    if (!error && data && data.length > 0) {
-      produits = data;
-      localStorage.setItem('amilo_produits', JSON.stringify(produits));
-      updateStats();
-      filtrer();
-    }
-  } catch(e) {
-    console.log('Supabase non disponible, localStorage utilisé');
+  if (db) {
+    try {
+      const {data, error} = await Promise.race([
+        db.from('produits').select('*').order('created_at', {ascending: false}),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+      ]);
+      if (!error && data && data.length > 0) {
+        produits = data;
+        localStorage.setItem('amilo_produits', JSON.stringify(produits));
+        updateStats();
+        filtrer();
+      }
+    } catch(e) {}
   }
 }
 
 async function insererDefaut() {
+  if(!db) return;
   try {
     const {data} = await db.from('produits').insert(getProduitsDefaut()).select();
     if(data) produits = data;
@@ -718,21 +719,21 @@ async function sauvegarderProduit() {
   const p = {nom,categorie:cat,marque:document.getElementById('f-marque').value.trim(),qty,seuil,date_peremption:document.getElementById('f-exp').value||null,fournisseur:document.getElementById('f-fourni').value||null,is_partner:document.getElementById('f-partner').value==='true'};
   try {
     if(editId){
-      await db.from('produits').update(p).eq('id',editId);
+      if(db) await db.from('produits').update(p).eq('id',editId);
       produits = produits.map(x=>x.id==editId?{...x,...p}:x);
       showToast(`✓ "${nom}" modifié`);
     } else {
-      const {data} = await db.from('produits').insert([p]).select();
-      if(data) produits = [data[0],...produits];
-      else produits = [{id:Date.now(),...p},...produits];
+      let inserted = false;
+      if(db) { try { const {data} = await db.from('produits').insert([p]).select(); if(data) { produits = [data[0],...produits]; inserted=true; } } catch(e){} }
+      if(!inserted) produits = [{id:Date.now(),...p},...produits];
       showToast(`✓ "${nom}" ajouté`);
     }
   } catch(e) {
     if(editId) produits=produits.map(x=>x.id==editId?{...x,...p}:x);
     else produits=[{id:Date.now(),...p},...produits];
-    localStorage.setItem('amilo_produits',JSON.stringify(produits));
     showToast(`✓ "${nom}" sauvegardé`);
   }
+  localStorage.setItem('amilo_produits',JSON.stringify(produits));
   fermerModal();
   updateStats();
   filtrer();
@@ -740,7 +741,7 @@ async function sauvegarderProduit() {
 
 async function supprimerProduit(id,nom) {
   if(!confirm(`Supprimer "${nom}" ?`)) return;
-  try { await db.from('produits').delete().eq('id',id); } catch(e){}
+  if(db) { try { await db.from('produits').delete().eq('id',id); } catch(e){} }
   produits = produits.filter(p=>p.id!=id);
   localStorage.setItem('amilo_produits',JSON.stringify(produits));
   updateStats(); filtrer();
@@ -752,7 +753,7 @@ async function modifierQty(id,nom,qtyActuelle) {
   if(val===null) return;
   const qty = parseInt(val);
   if(isNaN(qty)||qty<0){showToast("❌ Invalide");return;}
-  try { await db.from('produits').update({qty}).eq('id',id); } catch(e){}
+  if(db) { try { await db.from('produits').update({qty}).eq('id',id); } catch(e){} }
   produits = produits.map(p=>p.id==id?{...p,qty}:p);
   localStorage.setItem('amilo_produits',JSON.stringify(produits));
   updateStats(); filtrer();
@@ -935,7 +936,7 @@ function traiterCommande(texte) {
 }
 
 async function modifierQtyDirecte(id, nom, newQty, action, qte) {
-  try { await db.from('produits').update({qty:newQty}).eq('id',id); } catch(e){}
+  if(db) { try { await db.from('produits').update({qty:newQty}).eq('id',id); } catch(e){} }
   produits = produits.map(p=>p.id==id?{...p,qty:newQty}:p);
   localStorage.setItem('amilo_produits',JSON.stringify(produits));
   updateStats(); filtrer();
@@ -978,13 +979,14 @@ function validerPhoto() {
 // FOURNISSEURS
 // ═══════════════════════════════════
 async function chargerFournisseurs() {
-  try {
-    const {data} = await db.from('fournisseurs').select('*');
-    if(data) data.forEach(f=>{fournisseurs_config[f.nom]=f;});
-  } catch(e) {
-    const s = localStorage.getItem('amilo_fournisseurs');
-    if(s) fournisseurs_config=JSON.parse(s);
+  if(db) {
+    try {
+      const {data} = await db.from('fournisseurs').select('*');
+      if(data) { data.forEach(f=>{fournisseurs_config[f.nom]=f;}); return; }
+    } catch(e) {}
   }
+  const s = localStorage.getItem('amilo_fournisseurs');
+  if(s) fournisseurs_config=JSON.parse(s);
 }
 
 function renderFournisseurs() {
@@ -1020,9 +1022,11 @@ async function sauvegarderFourni(nom) {
   });
   const data = {nom,code_client:code,...remises};
   try {
-    const ex = fournisseurs_config[nom];
-    if(ex?.id) await db.from('fournisseurs').update(data).eq('id',ex.id);
-    else { const {data:ins} = await db.from('fournisseurs').insert([data]).select(); if(ins?.[0]) fournisseurs_config[nom]=ins[0]; }
+    if(db) {
+      const ex = fournisseurs_config[nom];
+      if(ex?.id) await db.from('fournisseurs').update(data).eq('id',ex.id);
+      else { const {data:ins} = await db.from('fournisseurs').insert([data]).select(); if(ins?.[0]) fournisseurs_config[nom]=ins[0]; }
+    }
   } catch(e){}
   fournisseurs_config[nom]={...fournisseurs_config[nom],...data};
   localStorage.setItem('amilo_fournisseurs',JSON.stringify(fournisseurs_config));
@@ -1066,7 +1070,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // NAVIGATION
 // ═══════════════════════════════════
 const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:"Appels d'offres",groupe:'Paniers groupés',fournisseurs:'Fournisseurs'};
-const actions = {stock:`
+const actions = {
   stock:`<button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``
 };
@@ -1092,11 +1096,17 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════
+// SCAN (stubs si scan.js vide)
+// ═══════════════════════════════════
+if(typeof demarrerCamera==='undefined') window.demarrerCamera=function(){showToast("📷 Scanner non disponible");};
+if(typeof fermerScan==='undefined') window.fermerScan=function(){document.getElementById('scan-overlay').style.display='none';};
+
+// ═══════════════════════════════════
 // START
 // ═══════════════════════════════════
 init();
 </script>
-<script src="/scan.js"></script><script src="/scan.js"></script></body>
+<script src="/scan.js"></script></body>
 </html>
 
 
