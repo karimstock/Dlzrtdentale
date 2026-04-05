@@ -573,12 +573,14 @@ tbody tr:hover td{background:var(--surface2);}
 // ═══════════════════════════════════
 // SUPABASE
 // ═══════════════════════════════════
-const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 let produits = [];
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
 let fournisseurs_config = {};
 let editId = null;
 let recognition = null;
@@ -633,17 +635,19 @@ async function init() {
   renderFournisseurs();
 
   // ÉTAPE 3 : Essayer Supabase en arrière-plan
-  try {
-    const timeout = new Promise((_, r) => setTimeout(() => r('timeout'), 2000));
-    const query = db.from('produits').select('*').order('created_at', {ascending: false});
-    const {data, error} = await Promise.race([query, timeout.then(() => ({data: null, error: 'timeout'}))]);
-    if (!error && data && data.length > 0) {
-      produits = data;
-      localStorage.setItem('amilo_produits', JSON.stringify(produits));
-      updateStats();
-      filtrer();
-    }
-  } catch(e) {}
+  if (db) {
+    try {
+      const timeout = new Promise((_, r) => setTimeout(() => r('timeout'), 2000));
+      const query = db.from('produits').select('*').order('created_at', {ascending: false});
+      const {data, error} = await Promise.race([query, timeout.then(() => ({data: null, error: 'timeout'}))]);
+      if (!error && data && data.length > 0) {
+        produits = data;
+        localStorage.setItem('amilo_produits', JSON.stringify(produits));
+        updateStats();
+        filtrer();
+      }
+    } catch(e) {}
+  }
 }
 
 // ═══════════════════════════════════
