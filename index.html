@@ -616,12 +616,34 @@ const DICTIONNAIRE = {
 // INIT
 // ═══════════════════════════════════
 async function init() {
-  await chargerProduits();
-  await chargerFournisseurs();
-  renderFournisseurs();
+  // ÉTAPE 1 : Afficher immédiatement depuis localStorage
+  const saved = localStorage.getItem('amilo_produits');
+  if (saved) {
+    produits = JSON.parse(saved);
+  } else {
+    produits = getProduitsDefaut().map((p,i) => ({...p, id: i+1}));
+    localStorage.setItem('amilo_produits', JSON.stringify(produits));
+  }
   updateStats();
   filtrer();
   initVocal();
+
+  // ÉTAPE 2 : Charger les fournisseurs
+  await chargerFournisseurs();
+  renderFournisseurs();
+
+  // ÉTAPE 3 : Essayer Supabase en arrière-plan
+  try {
+    const timeout = new Promise((_, r) => setTimeout(() => r('timeout'), 2000));
+    const query = db.from('produits').select('*').order('created_at', {ascending: false});
+    const {data, error} = await Promise.race([query, timeout.then(() => ({data: null, error: 'timeout'}))]);
+    if (!error && data && data.length > 0) {
+      produits = data;
+      localStorage.setItem('amilo_produits', JSON.stringify(produits));
+      updateStats();
+      filtrer();
+    }
+  } catch(e) {}
 }
 
 // ═══════════════════════════════════
