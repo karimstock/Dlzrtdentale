@@ -1208,67 +1208,115 @@ function scanContinuer() {
 
 function traiterCodeBarre(code) {
   document.getElementById('scan-status').textContent = '✓ Code détecté : ' + code;
-  // Chercher dans stock local par code_barre ou par nom
   const produitStock = produits.find(p => p.code_barre === code);
   const panel = document.getElementById('scan-result-panel');
   panel.style.display = 'block';
 
+  if(produitStock) {
+    afficherProduitConnu(produitStock, code, panel);
+  } else {
+    // Chercher dans Open Food Facts
+    panel.innerHTML = '<div style="text-align:center;padding:16px;color:#6b6760;"><div style="margin-bottom:8px;">🔍 Recherche du produit...</div><div style="width:24px;height:24px;border:2px solid #2e2c29;border-top-color:#c8f060;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;"></div></div>';
+    fetch('https://world.openfoodfacts.org/api/v0/product/' + code + '.json')
+    .then(r => r.json())
+    .then(data => {
+      if(data.status === 1 && data.product) {
+        const p = data.product;
+        const info = {
+          nom: p.product_name_fr || p.product_name || 'Produit ' + code,
+          cat: 'Autre',
+          marque: p.brands || ''
+        };
+        afficherNouveauProduit(info, code, panel);
+      } else {
+        afficherSaisieManuelle(code, panel);
+      }
+    }).catch(() => afficherSaisieManuelle(code, panel));
+  }
+}
+
+function afficherProduitConnu(produitStock, code, panel) {
   const prixMoyen = getPrixMoyen(code);
   const prixInfo = prixMoyen ? `<div style="font-size:11px;color:#c8f060;margin-bottom:8px;">Prix moyen d'achat : ${prixMoyen}€</div>` : '';
+  const inp = 'padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;';
+  panel.innerHTML = `
+    <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ ${produitStock.nom}</div>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">${produitStock.categorie||''} · ${produitStock.marque||''}</div>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">Stock actuel : <strong style="color:#f0ede8">${produitStock.qty}</strong></div>
+    ${prixInfo}
+    <div style="font-size:11px;color:#6b6760;margin:8px 0 4px;">Quantité :</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <button onclick="document.getElementById('scan-q').stepDown()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">−</button>
+      <input id="scan-q" type="number" value="1" min="1" style="width:60px;text-align:center;${inp}font-size:16px;font-weight:700;">
+      <button onclick="document.getElementById('scan-q').stepUp()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">+</button>
+    </div>
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date péremption :</div>
+    <input id="scan-exp-exist" type="month" value="${produitStock.date_peremption||''}" style="width:100%;${inp}margin-bottom:6px;">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total (facultatif) :</div>
+    <input id="scan-prix" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="width:100%;${inp}margin-bottom:10px;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','retirer','${code}')"
+        style="flex:1;padding:10px;background:#242220;color:#f05050;border:1px solid #f05050;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">− Utilisé</button>
+      <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','ajouter','${code}')"
+        style="flex:1;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Reçu</button>
+    </div>
+    <button onclick="scanContinuer()" style="width:100%;margin-top:8px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
+}
 
+function afficherNouveauProduit(info, code, panel) {
   const today = new Date().toISOString().slice(0,10);
+  const inp = 'width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
+  const nomSafe = (info.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const marqueSafe = (info.marque||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  panel.innerHTML = `
+    <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ Produit trouvé</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;">${code}</div>
+    <div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Entré le : ${today}</div>
+    <input id="scan-nom" value="${nomSafe}" placeholder="Nom du produit *" style="${inp}">
+    <select id="scan-cat" style="${inp}">
+      <option value="${info.cat||'Autre'}">${info.cat||'Autre'}</option>
+      <option>Gants</option><option>Composites</option><option>Adhésifs</option>
+      <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
+    </select>
+    <input id="scan-marque" value="${marqueSafe}" placeholder="Marque / conditionnement" style="${inp}">
+    <div style="display:flex;gap:6px;margin-bottom:6px;">
+      <input id="scan-qty-new" type="number" value="1" min="1" placeholder="Qté" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+      <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil alerte" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+    </div>
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date de péremption :</div>
+    <input id="scan-exp" type="month" style="${inp}">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total :</div>
+    <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${inp}margin-bottom:10px;">
+    <button onclick="scanAjouterComplet('${code}')"
+      style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
+    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
+}
 
-  if(produitStock) {
-    // PRODUIT CONNU — ajuster stock + prix
-    const inp = 'padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;';
-    panel.innerHTML = `
-      <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ ${produitStock.nom}</div>
-      <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">${produitStock.categorie||''} · ${produitStock.marque||''}</div>
-      <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">Stock actuel : <strong style="color:#f0ede8">${produitStock.qty}</strong></div>
-      ${prixInfo}
-      <div style="font-size:11px;color:#6b6760;margin:8px 0 4px;">Quantité :</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <button onclick="document.getElementById('scan-q').stepDown()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">−</button>
-        <input id="scan-q" type="number" value="1" min="1" style="width:60px;text-align:center;${inp}font-size:16px;font-weight:700;">
-        <button onclick="document.getElementById('scan-q').stepUp()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">+</button>
-      </div>
-      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date péremption :</div>
-      <input id="scan-exp-exist" type="month" value="${produitStock.date_peremption||''}" style="width:100%;${inp}margin-bottom:6px;">
-      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total (facultatif) :</div>
-      <input id="scan-prix" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="width:100%;${inp}margin-bottom:10px;">
-      <div style="display:flex;gap:8px;">
-        <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','retirer','${code}')"
-          style="flex:1;padding:10px;background:#242220;color:#f05050;border:1px solid #f05050;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">− Utilisé</button>
-        <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','ajouter','${code}')"
-          style="flex:1;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Reçu</button>
-      </div>
-      <button onclick="scanContinuer()" style="width:100%;margin-top:8px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
-  } else {
-    // PRODUIT INCONNU — formulaire complet
-    const inp = 'width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
-    panel.innerHTML = `
-      <div style="font-weight:700;font-size:16px;color:#f0a030;margin-bottom:4px;">🆕 Nouveau produit</div>
-      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;">${code}</div>
-      <div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Entré le : ${today}</div>
-      <input id="scan-nom" placeholder="Nom du produit *" style="${inp}">
-      <select id="scan-cat" style="${inp}">
-        <option value="">Catégorie...</option>
-        <option>Gants</option><option>Composites</option><option>Adhésifs</option>
-        <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
-      </select>
-      <input id="scan-marque" placeholder="Marque / conditionnement" style="${inp}">
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <input id="scan-qty-new" type="number" value="1" min="1" placeholder="Qté" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
-        <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil alerte" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
-      </div>
-      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date de péremption :</div>
-      <input id="scan-exp" type="month" style="${inp}">
-      <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total :</div>
-      <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${inp}margin-bottom:10px;">
-      <button onclick="scanAjouterComplet('${code}')"
-        style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
-      <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
-  }
+function afficherSaisieManuelle(code, panel) {
+  const today = new Date().toISOString().slice(0,10);
+  const inp = 'width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
+  panel.innerHTML = `
+    <div style="font-weight:700;font-size:16px;color:#f0a030;margin-bottom:4px;">🆕 Produit non référencé</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;">${code}</div>
+    <div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Entré le : ${today}</div>
+    <input id="scan-nom" placeholder="Nom du produit *" style="${inp}">
+    <select id="scan-cat" style="${inp}">
+      <option value="">Catégorie...</option>
+      <option>Gants</option><option>Composites</option><option>Adhésifs</option>
+      <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
+    </select>
+    <input id="scan-marque" placeholder="Marque / conditionnement" style="${inp}">
+    <div style="display:flex;gap:6px;margin-bottom:6px;">
+      <input id="scan-qty-new" type="number" value="1" min="1" placeholder="Qté" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+      <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil alerte" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+    </div>
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date de péremption :</div>
+    <input id="scan-exp" type="month" style="${inp}">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total :</div>
+    <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${inp}margin-bottom:10px;">
+    <button onclick="scanAjouterComplet('${code}')"
+      style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
+    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
 }
 
 function scanAction(id, nom, action, code) {
