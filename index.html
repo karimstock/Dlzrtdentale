@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#c8f060"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI — Gestion de stock dentaire</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -269,6 +270,39 @@ tbody tr:hover td{background:var(--surface2);}
   .form-grid{grid-template-columns:1fr;}
   .vocal-fab{bottom:80px;}
 }
+
+/* ── SCAN OVERLAY ── */
+.scan-overlay{position:fixed;inset:0;background:#000;z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;}
+.scan-overlay.open{display:flex;}
+.scan-close{position:absolute;top:20px;right:20px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;z-index:10;backdrop-filter:blur(4px);}
+.scan-header{position:absolute;top:24px;left:0;right:0;text-align:center;z-index:5;}
+.scan-header-text{font-family:var(--font-display);font-size:16px;font-weight:600;color:#c8f060;}
+.scan-header-sub{font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;}
+.scan-video-wrap{position:relative;width:280px;height:280px;border-radius:16px;overflow:hidden;}
+.scan-video-wrap video{width:100%;height:100%;object-fit:cover;}
+.scan-corners{position:absolute;inset:0;pointer-events:none;}
+.scan-corners::before,.scan-corners::after,.scan-corner-bl,.scan-corner-br{content:'';position:absolute;width:40px;height:40px;border-color:#c8f060;border-style:solid;}
+.scan-corners::before{top:0;left:0;border-width:3px 0 0 3px;border-radius:8px 0 0 0;}
+.scan-corners::after{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 8px 0 0;}
+.scan-corner-bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 8px;}
+.scan-corner-br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 8px 0;}
+.scan-line{position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,#c8f060,transparent);top:50%;animation:scanMove 2s ease-in-out infinite;box-shadow:0 0 12px rgba(200,240,96,0.6);}
+@keyframes scanMove{0%,100%{top:20%;}50%{top:80%;};}
+.scan-flash{position:absolute;inset:0;background:rgba(200,240,96,0.3);opacity:0;transition:opacity 0.15s;pointer-events:none;border-radius:16px;}
+.scan-flash.active{opacity:1;}
+.scan-result-panel{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:24px;transform:translateY(100%);transition:transform 0.3s;z-index:10;}
+.scan-result-panel.show{transform:translateY(0);}
+.scan-result-name{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.scan-result-meta{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.scan-result-code{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:12px;}
+.scan-qty-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.scan-qty-btn{width:44px;height:44px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.scan-qty-val{font-family:var(--font-display);font-size:28px;font-weight:700;min-width:40px;text-align:center;}
+.scan-actions{display:flex;gap:10px;}
+.scan-actions .btn{flex:1;justify-content:center;}
+.scan-unknown{text-align:center;padding:8px 0;}
+.scan-unknown-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.scan-unknown-sub{font-size:12px;color:var(--muted);margin-bottom:12px;}
 </style>
 </head>
 <body>
@@ -509,11 +543,7 @@ tbody tr:hover td{background:var(--surface2);}
         <div class="photo-option-title">Photo du stock</div>
         <div class="photo-option-sub">IA compte et reconnaît</div>
       </div>
-    </div><div class="photo-option" onclick="demarrerCamera()">
-        <div class="photo-option-icon">📷</div>
-        <div class="photo-option-title">Scanner code-barres</div>
-        <div class="photo-option-sub">Caméra ou scanner USB</div>
-      </div>
+    </div>
     <div class="photo-result" id="photo-result">
       <div class="photo-result-title">✓ IA a détecté ces produits</div>
       <div id="photo-items"></div>
@@ -557,7 +587,25 @@ tbody tr:hover td{background:var(--surface2);}
   </div>
 </div>
 
-<div id="scan-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:300;flex-direction:column;align-items:center;justify-content:center;" ><button onclick="fermerScan()" style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:20px;width:40px;height:40px;border-radius:50%;cursor:pointer;"></button><div style="color:#c8f060;font-size:16px;font-weight:600;margin-bottom:20px;">Pointez la cam�ra vers le code-barres</div><video id="scan-video" style="width:300px;height:200px;border:2px solid #c8f060;border-radius:12px;" autoplay muted playsinline></video><div style="width:300px;height:2px;background:#c8f060;margin:10px 0;animation:scan-line 1.5s ease-in-out infinite;"></div><div id="scan-result-panel" style="display:none;background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:20px;width:300px;margin-top:16px;"></div></div><!-- MOBILE NAV -->
+<!-- SCAN OVERLAY -->
+<div class="scan-overlay" id="scan-overlay">
+  <button class="scan-close" onclick="fermerScan()">✕</button>
+  <div class="scan-header">
+    <div class="scan-header-text">Pointez vers le code-barres</div>
+    <div class="scan-header-sub">Scanner caméra ou USB actif</div>
+  </div>
+  <div class="scan-video-wrap">
+    <video id="scan-video" autoplay muted playsinline></video>
+    <div class="scan-corners"></div>
+    <div class="scan-corner-bl"></div>
+    <div class="scan-corner-br"></div>
+    <div class="scan-line"></div>
+    <div class="scan-flash" id="scan-flash"></div>
+  </div>
+  <div class="scan-result-panel" id="scan-result-panel"></div>
+</div>
+
+<!-- MOBILE NAV -->
 <nav class="mobile-nav">
   <div class="mobile-nav-inner">
     <button class="mnav-item active" onclick="showPage('stock',this)"><span class="mnav-icon">📦</span>Stock</button>
@@ -1096,10 +1144,246 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════
-// SCAN (stubs si scan.js vide)
+// BASE DENTAIRE CODES-BARRES
 // ═══════════════════════════════════
-if(typeof demarrerCamera==='undefined') window.demarrerCamera=function(){showToast("📷 Scanner non disponible");};
-if(typeof fermerScan==='undefined') window.fermerScan=function(){document.getElementById('scan-overlay').style.display='none';};
+const DENTAL_DB = {
+  '3614730065149':{nom:'Gants latex naturel T.M',categorie:'Gants',marque:'Boîte 100'},
+  '3614730065156':{nom:'Gants latex T.S',categorie:'Gants',marque:'Boîte 100'},
+  '3614730065163':{nom:'Gants nitrile T.M',categorie:'Gants',marque:'Boîte 100'},
+  '5011559036578':{nom:'Composite Filtek Z350 A2',categorie:'Composites',marque:'3M · 4g'},
+  '5011559036585':{nom:'Composite Filtek Z350 A3',categorie:'Composites',marque:'3M · 4g'},
+  '4024024095048':{nom:'Composite Dentocore',categorie:'Composites',marque:'VOCO'},
+  '5011559052516':{nom:'Scotchbond Universal',categorie:'Adhésifs',marque:'3M · 5ml'},
+  '3660742025012':{nom:'Articaïne 4% 1/100',categorie:'Anesthésiants',marque:'Septodont · Boîte 50'},
+  '5011559070862':{nom:'Limes K-File 25mm',categorie:'Endodontie',marque:'Boîte 6'},
+  '5011559070879':{nom:'Limes H-File 25mm',categorie:'Endodontie',marque:'Boîte 6'},
+};
+
+// ═══════════════════════════════════
+// SCANNER — CAMÉRA + ZXing
+// ═══════════════════════════════════
+let scanReader = null;
+let scanStream = null;
+let scanActive = false;
+
+async function demarrerCamera() {
+  // Demander permission caméra
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  } catch(e) {
+    if(e.name === 'NotAllowedError') {
+      showToast("❌ Accès caméra refusé — autorise la caméra dans les paramètres du navigateur");
+    } else if(e.name === 'NotFoundError') {
+      showToast("❌ Aucune caméra détectée");
+    } else {
+      showToast("❌ Erreur caméra : " + e.message);
+    }
+    return;
+  }
+
+  // Ouvrir overlay
+  const overlay = document.getElementById('scan-overlay');
+  const video = document.getElementById('scan-video');
+  const panel = document.getElementById('scan-result-panel');
+  overlay.classList.add('open');
+  panel.classList.remove('show');
+  video.srcObject = scanStream;
+  scanActive = true;
+
+  // ZXing reader
+  if(typeof ZXing !== 'undefined') {
+    try {
+      scanReader = new ZXing.BrowserMultiFormatReader();
+      scanReader.decodeFromVideoElement(video, (result, err) => {
+        if(result && scanActive) {
+          scanActive = false;
+          onCodeDetecte(result.getText());
+        }
+      });
+    } catch(e) {
+      console.warn('ZXing init error:', e);
+    }
+  }
+}
+
+function fermerScan() {
+  scanActive = false;
+  const overlay = document.getElementById('scan-overlay');
+  overlay.classList.remove('open');
+  // Arrêter la caméra
+  if(scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+  // Reset ZXing
+  if(scanReader) {
+    try { scanReader.reset(); } catch(e){}
+    scanReader = null;
+  }
+  document.getElementById('scan-video').srcObject = null;
+}
+
+// ═══════════════════════════════════
+// SCANNER — DÉTECTION CODE
+// ═══════════════════════════════════
+function onCodeDetecte(code) {
+  // BIP sonore
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 1800;
+    osc.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => osc.stop(), 100);
+  } catch(e){}
+
+  // Vibration
+  if(navigator.vibrate) navigator.vibrate(100);
+
+  // Flash vert
+  const flash = document.getElementById('scan-flash');
+  flash.classList.add('active');
+  setTimeout(() => flash.classList.remove('active'), 300);
+
+  // Chercher dans DENTAL_DB puis dans produits locaux
+  const panel = document.getElementById('scan-result-panel');
+  const dbMatch = DENTAL_DB[code];
+  const localMatch = produits.find(p => {
+    if(dbMatch) return p.nom.toLowerCase().includes(dbMatch.nom.toLowerCase().split(' ')[0]);
+    return false;
+  });
+
+  if(dbMatch && localMatch) {
+    // Produit trouvé — afficher panel stock
+    let scanQty = 1;
+    panel.innerHTML = `
+      <div class="scan-result-name">${localMatch.nom}</div>
+      <div class="scan-result-meta">${localMatch.categorie}${localMatch.marque?' · '+localMatch.marque:''} · Stock: ${localMatch.qty}</div>
+      <div class="scan-result-code">${code}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Quantité à ajouter/retirer :</div>
+      <div class="scan-qty-row">
+        <button class="scan-qty-btn" onclick="scanQtyChange(-1)">−</button>
+        <div class="scan-qty-val" id="scan-qty-val">1</div>
+        <button class="scan-qty-btn" onclick="scanQtyChange(1)">+</button>
+      </div>
+      <div class="scan-actions">
+        <button class="btn btn-accent" onclick="scanValider(${localMatch.id},'${localMatch.nom.replace(/'/g,"\\'")}','ajouter')">+ Entrée stock</button>
+        <button class="btn btn-red" onclick="scanValider(${localMatch.id},'${localMatch.nom.replace(/'/g,"\\'")}','retirer')">− Sortie stock</button>
+      </div>`;
+    panel.classList.add('show');
+  } else if(dbMatch) {
+    // Connu dans DENTAL_DB mais pas en stock local
+    panel.innerHTML = `
+      <div class="scan-result-name">${dbMatch.nom}</div>
+      <div class="scan-result-meta">${dbMatch.categorie} · ${dbMatch.marque}</div>
+      <div class="scan-result-code">${code}</div>
+      <div style="font-size:12px;color:var(--amber);margin-bottom:12px;">Produit non encore dans votre stock</div>
+      <div class="scan-actions">
+        <button class="btn btn-accent" onclick="scanAjouterNouveau('${dbMatch.nom.replace(/'/g,"\\'")}','${dbMatch.categorie}','${dbMatch.marque.replace(/'/g,"\\'")}')">+ Ajouter au stock</button>
+        <button class="btn btn-ghost" onclick="scanContinuer()">Scanner suivant</button>
+      </div>`;
+    panel.classList.add('show');
+  } else {
+    // Code inconnu
+    panel.innerHTML = `
+      <div class="scan-unknown">
+        <div class="scan-unknown-title">Code non reconnu</div>
+        <div class="scan-unknown-sub">${code}</div>
+      </div>
+      <div class="scan-actions">
+        <button class="btn btn-accent" onclick="scanSaisieManuelle('${code}')">Saisie manuelle</button>
+        <button class="btn btn-ghost" onclick="scanContinuer()">Scanner suivant</button>
+      </div>`;
+    panel.classList.add('show');
+  }
+}
+
+window._scanQty = 1;
+function scanQtyChange(delta) {
+  window._scanQty = Math.max(1, window._scanQty + delta);
+  document.getElementById('scan-qty-val').textContent = window._scanQty;
+}
+
+function scanValider(id, nom, action) {
+  const q = window._scanQty;
+  const p = produits.find(x => x.id == id);
+  if(!p) return;
+  const newQty = action === 'ajouter' ? p.qty + q : Math.max(0, p.qty - q);
+  if(db) { try { db.from('produits').update({qty:newQty}).eq('id',id); } catch(e){} }
+  produits = produits.map(x => x.id == id ? {...x, qty: newQty} : x);
+  localStorage.setItem('amilo_produits', JSON.stringify(produits));
+  updateStats(); filtrer();
+  const sign = action === 'ajouter' ? '+' : '-';
+  showToast(`✓ ${nom} : ${sign}${q} · Stock : ${newQty}`);
+  window._scanQty = 1;
+  scanContinuer();
+}
+
+function scanAjouterNouveau(nom, cat, marque) {
+  fermerScan();
+  ouvrirModal();
+  document.getElementById('f-nom').value = nom;
+  document.getElementById('f-cat').value = cat;
+  document.getElementById('f-marque').value = marque;
+  document.getElementById('f-qty').value = 1;
+  document.getElementById('f-seuil').value = 5;
+}
+
+function scanSaisieManuelle(code) {
+  fermerScan();
+  ouvrirModal();
+  document.getElementById('f-nom').value = '';
+  document.getElementById('f-marque').value = 'Code: ' + code;
+}
+
+function scanContinuer() {
+  document.getElementById('scan-result-panel').classList.remove('show');
+  scanActive = true;
+  // Re-démarrer la détection ZXing
+  if(scanReader && document.getElementById('scan-video').srcObject) {
+    try {
+      scanReader.decodeFromVideoElement(document.getElementById('scan-video'), (result, err) => {
+        if(result && scanActive) {
+          scanActive = false;
+          onCodeDetecte(result.getText());
+        }
+      });
+    } catch(e){}
+  }
+}
+
+// ═══════════════════════════════════
+// SCANNER USB/PC — keypress rapide
+// ═══════════════════════════════════
+let scanBuffer = '';
+let scanTimeout = null;
+document.addEventListener('keydown', function(e) {
+  // Ignorer si un input/select/textarea est focus
+  const tag = document.activeElement?.tagName;
+  if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+  if(e.key === 'Enter' && scanBuffer.length >= 8) {
+    e.preventDefault();
+    const code = scanBuffer;
+    scanBuffer = '';
+    clearTimeout(scanTimeout);
+    onCodeDetecte(code);
+    // Ouvrir le panel si pas déjà ouvert
+    if(!document.getElementById('scan-overlay').classList.contains('open')) {
+      document.getElementById('scan-overlay').classList.add('open');
+      document.getElementById('scan-result-panel').classList.add('show');
+    }
+    return;
+  }
+
+  if(/^\d$/.test(e.key)) {
+    scanBuffer += e.key;
+    clearTimeout(scanTimeout);
+    scanTimeout = setTimeout(() => { scanBuffer = ''; }, 200);
+  } else if(e.key !== 'Enter') {
+    scanBuffer = '';
+  }
+});
 
 // ═══════════════════════════════════
 // START
