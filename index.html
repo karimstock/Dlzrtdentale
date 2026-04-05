@@ -643,22 +643,34 @@ function getProduitsDefaut() {
 }
 
 async function chargerProduits() {
-  // Charger immédiatement depuis localStorage/défaut
-  const s = localStorage.getItem('amilo_produits');
-  produits = s ? JSON.parse(s) : getProduitsDefaut().map((p,i)=>({...p,id:i+1}));
-  if(!s) localStorage.setItem('amilo_produits',JSON.stringify(produits));
-  // Tenter Supabase avec timeout 3s en arrière-plan
+  // D'abord afficher le localStorage immédiatement
+  const saved = localStorage.getItem('amilo_produits');
+  if (saved) {
+    produits = JSON.parse(saved);
+    updateStats();
+    filtrer();
+  } else {
+    // Afficher les produits par défaut SANS attendre Supabase
+    produits = getProduitsDefaut().map((p,i) => ({...p, id: i+1}));
+    localStorage.setItem('amilo_produits', JSON.stringify(produits));
+    updateStats();
+    filtrer();
+  }
+  // Ensuite essayer Supabase en arrière-plan (optionnel)
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(()=>ctrl.abort(),3000);
-    const {data,error} = await db.from('produits').select('*').order('created_at',{ascending:false}).abortSignal(ctrl.signal);
-    clearTimeout(timer);
-    if (error || !data) throw error;
-    produits = data;
-    if (produits.length === 0) await insererDefaut();
-    localStorage.setItem('amilo_produits',JSON.stringify(produits));
-    updateStats();filtrer();
-  } catch(e) {}
+    const {data, error} = await Promise.race([
+      db.from('produits').select('*').order('created_at', {ascending: false}),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+    ]);
+    if (!error && data && data.length > 0) {
+      produits = data;
+      localStorage.setItem('amilo_produits', JSON.stringify(produits));
+      updateStats();
+      filtrer();
+    }
+  } catch(e) {
+    console.log('Supabase non disponible, localStorage utilisé');
+  }
 }
 
 async function insererDefaut() {
