@@ -1098,307 +1098,309 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════
-// SCANNER CODE-BARRES COMPLET
+// SCANNER CODE-BARRES — MODE CAISSE
 // ═══════════════════════════════════
 
-// Historique des prix d'achat par produit : {code_barre: [{prix_total, qte, prix_unit, date}]}
+// Précharger ZXing au chargement (async, non bloquant)
+(function(){const s=document.createElement('script');s.src='https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js';s.async=true;document.head.appendChild(s);})();
+
+// Audio : créer au premier clic utilisateur pour contourner autoplay policy
+let _audioCtx = null;
+function getAudioCtx() { if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
+function bipScan() {
+  try {
+    const ctx = getAudioCtx();
+    if(ctx.state==='suspended') ctx.resume();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = 1800;
+    g.gain.value = 0.5;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    setTimeout(()=>{o.stop();},120);
+  } catch(e){}
+  navigator.vibrate && navigator.vibrate(100);
+}
+
 let historiqueAchats = JSON.parse(localStorage.getItem('amilo_achats') || '{}');
-
 function sauverAchats() { localStorage.setItem('amilo_achats', JSON.stringify(historiqueAchats)); }
-
 function getPrixMoyen(code) {
   const h = historiqueAchats[code];
   if(!h || h.length===0) return null;
-  const totalPrix = h.reduce((s,a) => s + a.prix_unit, 0);
-  return (totalPrix / h.length).toFixed(2);
+  return (h.reduce((s,a)=>s+a.prix_unit,0)/h.length).toFixed(2);
 }
 
 function demarrerCamera() {
+  // Init AudioContext au premier clic
+  getAudioCtx();
   if(!window.ZXing) {
     showToast("⏳ Chargement du scanner...");
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
-    script.onload = () => ouvrirOverlayScan();
-    script.onerror = () => showToast("❌ Impossible de charger le scanner — vérifie ta connexion");
-    document.head.appendChild(script);
-  } else {
-    ouvrirOverlayScan();
-  }
+    const s=document.createElement('script');
+    s.src='https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js';
+    s.onload=()=>ouvrirOverlayScan();
+    s.onerror=()=>showToast("❌ Scanner indisponible");
+    document.head.appendChild(s);
+  } else ouvrirOverlayScan();
 }
 
 function ouvrirOverlayScan() {
   if(!document.getElementById('scan-overlay')) {
-    const ov = document.createElement('div');
-    ov.id = 'scan-overlay';
-    ov.style.cssText = 'display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;';
-    ov.innerHTML = `
+    const ov=document.createElement('div');
+    ov.id='scan-overlay';
+    ov.style.cssText='display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;';
+    ov.innerHTML=`
       <button onclick="fermerScan()" style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:20px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:10;">✕</button>
       <div style="position:relative;flex:1;overflow:hidden;">
         <video id="scan-video" style="width:100%;height:100%;object-fit:cover;" autoplay muted playsinline></video>
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-          <div style="width:75vw;max-width:320px;height:50vw;max-height:200px;position:relative;">
+          <div style="width:80vw;max-width:340px;height:45vw;max-height:180px;position:relative;">
             <div style="position:absolute;top:0;left:0;width:28px;height:28px;border-top:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:8px 0 0 0;"></div>
             <div style="position:absolute;top:0;right:0;width:28px;height:28px;border-top:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 8px 0 0;"></div>
             <div style="position:absolute;bottom:0;left:0;width:28px;height:28px;border-bottom:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:0 0 0 8px;"></div>
             <div style="position:absolute;bottom:0;right:0;width:28px;height:28px;border-bottom:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 0 8px 0;"></div>
-            <div style="position:absolute;top:50%;left:5%;right:5%;height:2px;background:linear-gradient(90deg,transparent,#c8f060,transparent);animation:scanAnim 2s ease-in-out infinite;"></div>
+            <div style="position:absolute;top:50%;left:5%;right:5%;height:2px;background:linear-gradient(90deg,transparent,#c8f060,transparent);animation:scanAnim 1.5s ease-in-out infinite;"></div>
           </div>
         </div>
-        <div id="scan-flash" style="position:absolute;inset:0;background:rgba(200,240,96,0.35);opacity:0;transition:opacity 0.15s;pointer-events:none;"></div>
-        <div id="scan-status" style="position:absolute;top:16px;left:0;right:0;text-align:center;color:#c8f060;font-family:'Syne',sans-serif;font-size:15px;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,0.8);">Pointez vers le code-barres</div>
+        <div id="scan-flash" style="position:absolute;inset:0;background:rgba(200,240,96,0.4);opacity:0;transition:opacity 0.1s;pointer-events:none;"></div>
+        <div id="scan-status" style="position:absolute;top:16px;left:0;right:0;text-align:center;color:#c8f060;font-family:'Syne',sans-serif;font-size:15px;font-weight:600;text-shadow:0 2px 12px rgba(0,0,0,0.9);">Scannez un code-barres</div>
+        <div id="scan-count" style="position:absolute;bottom:16px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,0.5);">0 produit scanné</div>
       </div>
       <div id="scan-result-panel" style="display:none;background:#1a1917;border-top:1px solid #2e2c29;padding:20px;color:#f0ede8;max-height:55vh;overflow-y:auto;"></div>`;
     document.body.appendChild(ov);
-    // Animation CSS
-    const st = document.createElement('style');
-    st.textContent = '@keyframes scanAnim{0%,100%{transform:translateY(-30px);opacity:0.3;}50%{transform:translateY(30px);opacity:1;}}';
-    document.head.appendChild(st);
+    if(!document.getElementById('scan-anim-style')){const st=document.createElement('style');st.id='scan-anim-style';st.textContent='@keyframes scanAnim{0%,100%{transform:translateY(-25px);opacity:0.3;}50%{transform:translateY(25px);opacity:1;}}';document.head.appendChild(st);}
   }
 
-  const overlay = document.getElementById('scan-overlay');
-  const panel = document.getElementById('scan-result-panel');
-  panel.style.display = 'none';
-  overlay.style.display = 'flex';
-  document.getElementById('scan-status').textContent = 'Pointez vers le code-barres';
+  const overlay=document.getElementById('scan-overlay');
+  document.getElementById('scan-result-panel').style.display='none';
+  overlay.style.display='flex';
+  document.getElementById('scan-status').textContent='Scannez un code-barres';
+  window._scanCount=0;
+  document.getElementById('scan-count').textContent='0 produit scanné';
 
-  // Utiliser decodeFromVideoDevice pour meilleure compatibilité mobile
-  const codeReader = new ZXing.BrowserMultiFormatReader();
+  // ZXing avec hints pour scan rapide — uniquement formats courants
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.QR_CODE
+  ]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  const codeReader = new ZXing.BrowserMultiFormatReader(hints, 300);
   window._codeReader = codeReader;
   window._scanPaused = false;
+  window._lastCode = '';
+  window._lastCodeTime = 0;
 
-  // Trouver la caméra arrière
   codeReader.listVideoInputDevices().then(devices => {
     let camId = undefined;
-    // Préférer caméra arrière
-    const back = devices.find(d => /back|rear|environment/i.test(d.label));
-    if(back) camId = back.deviceId;
-    else if(devices.length > 0) camId = devices[devices.length-1].deviceId; // dernière = souvent arrière
+    const back = devices.find(d=>/back|rear|arrière|environment/i.test(d.label));
+    if(back) camId=back.deviceId;
+    else if(devices.length>1) camId=devices[devices.length-1].deviceId;
 
-    codeReader.decodeFromVideoDevice(camId, 'scan-video', (result, err) => {
+    codeReader.decodeFromVideoDevice(camId,'scan-video',(result,err)=>{
       if(result && !window._scanPaused) {
-        window._scanPaused = true;
-        // BIP
-        try { const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();o.frequency.value=1800;o.connect(ctx.destination);o.start();setTimeout(()=>o.stop(),100); } catch(e){}
-        // Vibration
-        navigator.vibrate && navigator.vibrate(100);
+        const code = result.getText();
+        const now = Date.now();
+        // Anti-doublon : ignorer même code dans les 2s
+        if(code===window._lastCode && now-window._lastCodeTime<2000) return;
+        window._lastCode=code;
+        window._lastCodeTime=now;
+        window._scanPaused=true;
+        // BIP + VIBRATION
+        bipScan();
         // Flash
-        const fl=document.getElementById('scan-flash'); if(fl){fl.style.opacity='1'; setTimeout(()=>fl.style.opacity='0',300);}
-        traiterCodeBarre(result.getText());
+        const fl=document.getElementById('scan-flash');if(fl){fl.style.opacity='1';setTimeout(()=>fl.style.opacity='0',250);}
+        // Compteur
+        window._scanCount=(window._scanCount||0)+1;
+        document.getElementById('scan-count').textContent=window._scanCount+' produit'+(window._scanCount>1?'s':'')+' scanné'+(window._scanCount>1?'s':'');
+        traiterCodeBarre(code);
       }
     });
-  }).catch(err => {
-    if(err.name==='NotAllowedError') showToast('❌ Autorise la caméra dans les paramètres du navigateur');
-    else if(err.name==='NotFoundError') showToast('❌ Pas de caméra détectée — utilise une scanette USB');
-    else showToast('❌ Caméra : ' + err.message);
+  }).catch(err=>{
+    if(err.name==='NotAllowedError') showToast('❌ Autorise la caméra dans les paramètres');
+    else if(err.name==='NotFoundError') showToast('❌ Pas de caméra — utilise une scanette USB');
+    else showToast('❌ Caméra : '+err.message);
     fermerScan();
   });
 }
 
-function fermerScan() {
-  const ov = document.getElementById('scan-overlay');
-  if(ov) ov.style.display = 'none';
-  if(window._codeReader) { try{window._codeReader.reset();}catch(e){} window._codeReader=null; }
+function fermerScan(){
+  const ov=document.getElementById('scan-overlay');if(ov)ov.style.display='none';
+  if(window._codeReader){try{window._codeReader.reset();}catch(e){}window._codeReader=null;}
 }
 
-function scanContinuer() {
-  document.getElementById('scan-result-panel').style.display = 'none';
-  document.getElementById('scan-status').textContent = 'Pointez vers le code-barres';
-  window._scanPaused = false;
+function scanContinuer(){
+  document.getElementById('scan-result-panel').style.display='none';
+  document.getElementById('scan-status').textContent='Scannez un code-barres';
+  window._scanPaused=false;
 }
 
 function traiterCodeBarre(code) {
-  document.getElementById('scan-status').textContent = '✓ Code détecté : ' + code;
-  const produitStock = produits.find(p => p.code_barre === code);
+  document.getElementById('scan-status').textContent='✓ '+code;
+  const produitStock = produits.find(p=>p.code_barre===code);
   const panel = document.getElementById('scan-result-panel');
-  panel.style.display = 'block';
+  panel.style.display='block';
 
   if(produitStock) {
+    // MODE CAISSE : produit connu → auto +1 et prêt pour le suivant
     afficherProduitConnu(produitStock, code, panel);
   } else {
     // Chercher dans Open Food Facts
-    panel.innerHTML = '<div style="text-align:center;padding:16px;color:#6b6760;"><div style="margin-bottom:8px;">🔍 Recherche du produit...</div><div style="width:24px;height:24px;border:2px solid #2e2c29;border-top-color:#c8f060;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;"></div></div>';
-    fetch('https://world.openfoodfacts.org/api/v0/product/' + code + '.json')
-    .then(r => r.json())
-    .then(data => {
-      if(data.status === 1 && data.product) {
-        const p = data.product;
-        const info = {
-          nom: p.product_name_fr || p.product_name || 'Produit ' + code,
+    panel.innerHTML='<div style="text-align:center;padding:12px;color:#6b6760;">🔍 Recherche...</div>';
+    fetch('https://world.openfoodfacts.org/api/v0/product/'+code+'.json')
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.status===1 && data.product) {
+        const p=data.product;
+        afficherNouveauProduit({
+          nom: p.product_name_fr||p.product_name||'Produit '+code,
           cat: 'Autre',
-          marque: p.brands || ''
-        };
-        afficherNouveauProduit(info, code, panel);
-      } else {
-        afficherSaisieManuelle(code, panel);
-      }
-    }).catch(() => afficherSaisieManuelle(code, panel));
+          marque: p.brands||''
+        }, code, panel);
+      } else afficherSaisieManuelle(code, panel);
+    }).catch(()=>afficherSaisieManuelle(code, panel));
   }
 }
 
-function afficherProduitConnu(produitStock, code, panel) {
-  const prixMoyen = getPrixMoyen(code);
-  const prixInfo = prixMoyen ? `<div style="font-size:11px;color:#c8f060;margin-bottom:8px;">Prix moyen d'achat : ${prixMoyen}€</div>` : '';
-  const inp = 'padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;';
-  panel.innerHTML = `
-    <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ ${produitStock.nom}</div>
-    <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">${produitStock.categorie||''} · ${produitStock.marque||''}</div>
-    <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">Stock actuel : <strong style="color:#f0ede8">${produitStock.qty}</strong></div>
-    ${prixInfo}
-    <div style="font-size:11px;color:#6b6760;margin:8px 0 4px;">Quantité :</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+function afficherProduitConnu(ps, code, panel) {
+  const pm=getPrixMoyen(code);
+  const pInfo=pm?`<div style="font-size:11px;color:#c8f060;margin-bottom:6px;">Prix moyen : ${pm}€</div>`:'';
+  const I='padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;';
+  panel.innerHTML=`
+    <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ ${ps.nom}</div>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:4px;">${ps.categorie||''} · ${ps.marque||''} · Stock : <strong style="color:#f0ede8">${ps.qty}</strong></div>
+    ${pInfo}
+    <div style="font-size:11px;color:#6b6760;margin:6px 0 4px;">Quantité :</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
       <button onclick="document.getElementById('scan-q').stepDown()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">−</button>
-      <input id="scan-q" type="number" value="1" min="1" style="width:60px;text-align:center;${inp}font-size:16px;font-weight:700;">
+      <input id="scan-q" type="number" value="1" min="1" style="width:60px;text-align:center;${I}font-size:16px;font-weight:700;">
       <button onclick="document.getElementById('scan-q').stepUp()" style="width:36px;height:36px;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;font-size:18px;cursor:pointer;">+</button>
     </div>
-    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date péremption :</div>
-    <input id="scan-exp-exist" type="month" value="${produitStock.date_peremption||''}" style="width:100%;${inp}margin-bottom:6px;">
-    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total (facultatif) :</div>
-    <input id="scan-prix" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="width:100%;${inp}margin-bottom:10px;">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Péremption :</div>
+    <input id="scan-exp-exist" type="month" value="${ps.date_peremption||''}" style="width:100%;${I}margin-bottom:6px;">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix achat total :</div>
+    <input id="scan-prix" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="width:100%;${I}margin-bottom:8px;">
     <div style="display:flex;gap:8px;">
-      <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','retirer','${code}')"
-        style="flex:1;padding:10px;background:#242220;color:#f05050;border:1px solid #f05050;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">− Utilisé</button>
-      <button onclick="scanAction(${produitStock.id},'${produitStock.nom.replace(/'/g,"\\'")}','ajouter','${code}')"
-        style="flex:1;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Reçu</button>
+      <button onclick="scanAction(${ps.id},'${ps.nom.replace(/'/g,"\\'")}','retirer','${code}')" style="flex:1;padding:10px;background:#242220;color:#f05050;border:1px solid #f05050;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">− Utilisé</button>
+      <button onclick="scanAction(${ps.id},'${ps.nom.replace(/'/g,"\\'")}','ajouter','${code}')" style="flex:1;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Reçu</button>
     </div>
-    <button onclick="scanContinuer()" style="width:100%;margin-top:8px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
+    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:7px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner suivant →</button>`;
 }
 
 function afficherNouveauProduit(info, code, panel) {
-  const today = new Date().toISOString().slice(0,10);
-  const inp = 'width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
-  const nomSafe = (info.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-  const marqueSafe = (info.marque||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-  panel.innerHTML = `
-    <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ Produit trouvé</div>
-    <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;">${code}</div>
-    <div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Entré le : ${today}</div>
-    <input id="scan-nom" value="${nomSafe}" placeholder="Nom du produit *" style="${inp}">
-    <select id="scan-cat" style="${inp}">
-      <option value="${info.cat||'Autre'}">${info.cat||'Autre'}</option>
-      <option>Gants</option><option>Composites</option><option>Adhésifs</option>
-      <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
+  const today=new Date().toISOString().slice(0,10);
+  const I='width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
+  const nS=(info.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const mS=(info.marque||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  panel.innerHTML=`
+    <div style="font-weight:700;font-size:16px;color:#c8f060;margin-bottom:4px;">✅ ${info.nom}</div>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:6px;">${info.marque||'Marque inconnue'} · ${code} · ${today}</div>
+    <input id="scan-nom" value="${nS}" placeholder="Nom du produit *" style="${I}">
+    <select id="scan-cat" style="${I}">
+      <option value="Autre">Autre</option><option>Gants</option><option>Composites</option><option>Adhésifs</option>
+      <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option>
     </select>
-    <input id="scan-marque" value="${marqueSafe}" placeholder="Marque / conditionnement" style="${inp}">
+    <input id="scan-marque" value="${mS}" placeholder="Marque" style="${I}">
     <div style="display:flex;gap:6px;margin-bottom:6px;">
       <input id="scan-qty-new" type="number" value="1" min="1" placeholder="Qté" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
-      <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil alerte" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+      <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
     </div>
-    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date de péremption :</div>
-    <input id="scan-exp" type="month" style="${inp}">
-    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total :</div>
-    <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${inp}margin-bottom:10px;">
-    <button onclick="scanAjouterComplet('${code}')"
-      style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
-    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Péremption :</div>
+    <input id="scan-exp" type="month" style="${I}">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix achat total :</div>
+    <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${I}margin-bottom:8px;">
+    <button onclick="scanAjouterComplet('${code}')" style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
+    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:7px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner suivant →</button>`;
 }
 
 function afficherSaisieManuelle(code, panel) {
-  const today = new Date().toISOString().slice(0,10);
-  const inp = 'width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
-  panel.innerHTML = `
+  const today=new Date().toISOString().slice(0,10);
+  const I='width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;margin-bottom:6px;font-size:13px;';
+  panel.innerHTML=`
     <div style="font-weight:700;font-size:16px;color:#f0a030;margin-bottom:4px;">🆕 Produit non référencé</div>
-    <div style="font-family:'DM Mono',monospace;font-size:11px;color:#c8f060;background:rgba(200,240,96,0.1);padding:4px 8px;border-radius:4px;display:inline-block;margin-bottom:8px;">${code}</div>
-    <div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Entré le : ${today}</div>
-    <input id="scan-nom" placeholder="Nom du produit *" style="${inp}">
-    <select id="scan-cat" style="${inp}">
-      <option value="">Catégorie...</option>
-      <option>Gants</option><option>Composites</option><option>Adhésifs</option>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:6px;">${code} · ${today}</div>
+    <input id="scan-nom" placeholder="Nom du produit *" style="${I}">
+    <select id="scan-cat" style="${I}">
+      <option value="">Catégorie...</option><option>Gants</option><option>Composites</option><option>Adhésifs</option>
       <option>Endodontie</option><option>Anesthésiants</option><option>Hygiène</option><option>Stérilisation</option><option>Autre</option>
     </select>
-    <input id="scan-marque" placeholder="Marque / conditionnement" style="${inp}">
+    <input id="scan-marque" placeholder="Marque" style="${I}">
     <div style="display:flex;gap:6px;margin-bottom:6px;">
       <input id="scan-qty-new" type="number" value="1" min="1" placeholder="Qté" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
-      <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil alerte" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
+      <input id="scan-seuil" type="number" value="5" min="0" placeholder="Seuil" style="flex:1;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;">
     </div>
-    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Date de péremption :</div>
-    <input id="scan-exp" type="month" style="${inp}">
-    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix d'achat total :</div>
-    <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${inp}margin-bottom:10px;">
-    <button onclick="scanAjouterComplet('${code}')"
-      style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
-    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner un autre produit</button>`;
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Péremption :</div>
+    <input id="scan-exp" type="month" style="${I}">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix achat total :</div>
+    <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${I}margin-bottom:8px;">
+    <button onclick="scanAjouterComplet('${code}')" style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
+    <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:7px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner suivant →</button>`;
 }
 
 function scanAction(id, nom, action, code) {
-  const qte = parseInt(document.getElementById('scan-q')?.value) || 1;
-  const prixTotal = parseFloat(document.getElementById('scan-prix')?.value) || 0;
-  const expNew = document.getElementById('scan-exp-exist')?.value || null;
-  const p = produits.find(x => x.id == id);
-  if(!p) return;
-  const newQty = action==='ajouter' ? p.qty+qte : Math.max(0, p.qty-qte);
-  const today = new Date().toISOString().slice(0,10);
-  // Enregistrer prix si renseigné
-  if(prixTotal > 0 && code) {
-    if(!historiqueAchats[code]) historiqueAchats[code] = [];
-    historiqueAchats[code].push({prix_total: prixTotal, qte: qte, prix_unit: +(prixTotal/qte).toFixed(2), date: today});
-    sauverAchats();
-  }
-  // Mise à jour : qty, code_barre, date péremption, date entrée stock
-  const updates = {qty:newQty, code_barre:code||p.code_barre};
-  if(expNew) updates.date_peremption = expNew;
-  if(action==='ajouter') updates.date_entree = today;
-  if(db) { try { db.from('produits').update(updates).eq('id',id); } catch(e){} }
-  produits = produits.map(x => x.id==id ? {...x, ...updates} : x);
-  localStorage.setItem('amilo_produits', JSON.stringify(produits));
-  updateStats(); filtrer();
-  const sign = action==='ajouter' ? '+' : '-';
-  let msg = `✓ ${nom} : ${sign}${qte} · Stock : ${newQty}`;
-  if(prixTotal>0) msg += ` · ${(prixTotal/qte).toFixed(2)}€/u`;
+  const qte=parseInt(document.getElementById('scan-q')?.value)||1;
+  const prixTotal=parseFloat(document.getElementById('scan-prix')?.value)||0;
+  const expNew=document.getElementById('scan-exp-exist')?.value||null;
+  const p=produits.find(x=>x.id==id);if(!p)return;
+  const newQty=action==='ajouter'?p.qty+qte:Math.max(0,p.qty-qte);
+  const today=new Date().toISOString().slice(0,10);
+  if(prixTotal>0&&code){if(!historiqueAchats[code])historiqueAchats[code]=[];historiqueAchats[code].push({prix_total:prixTotal,qte,prix_unit:+(prixTotal/qte).toFixed(2),date:today});sauverAchats();}
+  const upd={qty:newQty,code_barre:code||p.code_barre};
+  if(expNew)upd.date_peremption=expNew;
+  if(action==='ajouter')upd.date_entree=today;
+  if(db){try{db.from('produits').update(upd).eq('id',id);}catch(e){}}
+  produits=produits.map(x=>x.id==id?{...x,...upd}:x);
+  localStorage.setItem('amilo_produits',JSON.stringify(produits));
+  updateStats();filtrer();
+  const sign=action==='ajouter'?'+':'-';
+  let msg=`✓ ${nom} : ${sign}${qte} · Stock : ${newQty}`;
+  if(prixTotal>0)msg+=` · ${(prixTotal/qte).toFixed(2)}€/u`;
   showToast(msg);
+  bipScan(); // double bip = confirmation
   scanContinuer();
 }
 
 async function scanAjouterComplet(code) {
-  const nom = document.getElementById('scan-nom')?.value.trim();
-  if(!nom) { showToast('❌ Entre le nom du produit'); return; }
-  const cat = document.getElementById('scan-cat')?.value || 'Autre';
-  const marque = document.getElementById('scan-marque')?.value.trim() || '';
-  const qty = parseInt(document.getElementById('scan-qty-new')?.value) || 1;
-  const seuil = parseInt(document.getElementById('scan-seuil')?.value) || 5;
-  const exp = document.getElementById('scan-exp')?.value || null;
-  const prixTotal = parseFloat(document.getElementById('scan-prix-new')?.value) || 0;
-  const today = new Date().toISOString().slice(0,10);
-  const nouveau = {nom, categorie:cat, marque, qty, seuil, date_peremption:exp, fournisseur:'', is_partner:false, code_barre:code, date_entree:today};
-  // Enregistrer prix
-  if(prixTotal > 0) {
-    if(!historiqueAchats[code]) historiqueAchats[code] = [];
-    historiqueAchats[code].push({prix_total:prixTotal, qte:qty, prix_unit:+(prixTotal/qty).toFixed(2), date:new Date().toISOString().slice(0,10)});
-    sauverAchats();
-  }
-  if(db) { try { const {data}=await db.from('produits').insert([nouveau]).select(); if(data&&data[0]) { produits=[data[0],...produits]; } else { produits=[{id:Date.now(),...nouveau},...produits]; } } catch(e) { produits=[{id:Date.now(),...nouveau},...produits]; } }
-  else { produits=[{id:Date.now(),...nouveau},...produits]; }
-  localStorage.setItem('amilo_produits', JSON.stringify(produits));
-  updateStats(); filtrer();
-  let msg = `✅ ${nom} ajouté · Stock : ${qty}`;
-  if(prixTotal>0) msg += ` · ${(prixTotal/qty).toFixed(2)}€/u`;
+  const nom=document.getElementById('scan-nom')?.value.trim();
+  if(!nom){showToast('❌ Entre le nom du produit');return;}
+  const cat=document.getElementById('scan-cat')?.value||'Autre';
+  const marque=document.getElementById('scan-marque')?.value.trim()||'';
+  const qty=parseInt(document.getElementById('scan-qty-new')?.value)||1;
+  const seuil=parseInt(document.getElementById('scan-seuil')?.value)||5;
+  const exp=document.getElementById('scan-exp')?.value||null;
+  const prixTotal=parseFloat(document.getElementById('scan-prix-new')?.value)||0;
+  const today=new Date().toISOString().slice(0,10);
+  const nouveau={nom,categorie:cat,marque,qty,seuil,date_peremption:exp,fournisseur:'',is_partner:false,code_barre:code,date_entree:today};
+  if(prixTotal>0){if(!historiqueAchats[code])historiqueAchats[code]=[];historiqueAchats[code].push({prix_total:prixTotal,qte:qty,prix_unit:+(prixTotal/qty).toFixed(2),date:today});sauverAchats();}
+  if(db){try{const{data}=await db.from('produits').insert([nouveau]).select();if(data&&data[0]){produits=[data[0],...produits];}else{produits=[{id:Date.now(),...nouveau},...produits];}}catch(e){produits=[{id:Date.now(),...nouveau},...produits];}}
+  else{produits=[{id:Date.now(),...nouveau},...produits];}
+  localStorage.setItem('amilo_produits',JSON.stringify(produits));
+  updateStats();filtrer();
+  let msg=`✅ ${nom} ajouté · Stock : ${qty}`;
+  if(prixTotal>0)msg+=` · ${(prixTotal/qty).toFixed(2)}€/u`;
   showToast(msg);
+  bipScan();
   scanContinuer();
 }
 
 // ═══════════════════════════════════
 // SCANNER USB/PC — keypress rapide
 // ═══════════════════════════════════
-let scanBuffer = '';
-let scanTimer = null;
-document.addEventListener('keypress', e => {
-  const tag = document.activeElement?.tagName;
-  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
-  if(e.key==='Enter' && scanBuffer.length >= 8) {
-    const code = scanBuffer.trim();
-    scanBuffer = '';
-    // Ouvrir l'overlay si pas ouvert
-    if(!document.getElementById('scan-overlay') || document.getElementById('scan-overlay').style.display==='none') {
-      if(!document.getElementById('scan-overlay')) { ouvrirOverlayScan(); fermerScan(); demarrerCamera(); }
-      else { document.getElementById('scan-overlay').style.display='flex'; }
+let scanBuffer='';let scanTimer=null;
+document.addEventListener('keypress',e=>{
+  const tag=document.activeElement?.tagName;
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA')return;
+  if(e.key==='Enter'&&scanBuffer.length>=8){
+    const code=scanBuffer.trim();scanBuffer='';
+    bipScan();
+    if(!document.getElementById('scan-overlay')||document.getElementById('scan-overlay').style.display==='none'){
+      if(document.getElementById('scan-overlay'))document.getElementById('scan-overlay').style.display='flex';
     }
-    // BIP
-    try { const ctx=new AudioContext();const o=ctx.createOscillator();o.frequency.value=1800;o.connect(ctx.destination);o.start();setTimeout(()=>o.stop(),100); } catch(e){}
-    navigator.vibrate && navigator.vibrate(100);
     traiterCodeBarre(code);
-  } else if(e.key.match(/[\d\w]/)) {
-    scanBuffer += e.key;
-    clearTimeout(scanTimer);
-    scanTimer = setTimeout(() => scanBuffer='', 200);
+  } else if(e.key.match(/[\d\w]/)){
+    scanBuffer+=e.key;clearTimeout(scanTimer);scanTimer=setTimeout(()=>scanBuffer='',200);
   }
 });
 
