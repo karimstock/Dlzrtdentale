@@ -643,16 +643,22 @@ function getProduitsDefaut() {
 }
 
 async function chargerProduits() {
+  // Charger immédiatement depuis localStorage/défaut
+  const s = localStorage.getItem('amilo_produits');
+  produits = s ? JSON.parse(s) : getProduitsDefaut().map((p,i)=>({...p,id:i+1}));
+  if(!s) localStorage.setItem('amilo_produits',JSON.stringify(produits));
+  // Tenter Supabase avec timeout 3s en arrière-plan
   try {
-    const {data,error} = await db.from('produits').select('*').order('created_at',{ascending:false});
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(),3000);
+    const {data,error} = await db.from('produits').select('*').order('created_at',{ascending:false}).abortSignal(ctrl.signal);
+    clearTimeout(timer);
     if (error || !data) throw error;
     produits = data;
     if (produits.length === 0) await insererDefaut();
-  } catch(e) {
-    const s = localStorage.getItem('amilo_produits');
-    produits = s ? JSON.parse(s) : getProduitsDefaut().map((p,i)=>({...p,id:i+1}));
-    if(!s) localStorage.setItem('amilo_produits',JSON.stringify(produits));
-  }
+    localStorage.setItem('amilo_produits',JSON.stringify(produits));
+    updateStats();filtrer();
+  } catch(e) {}
 }
 
 async function insererDefaut() {
