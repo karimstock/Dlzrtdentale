@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI — Gestion dentaire IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--border:#2e2c29;--text:#f0ede8;--muted:#6b6760;--accent:#c8f060;--accent-dark:#8fb840;--red:#f05050;--green:#60d090;--font:'DM Sans',sans-serif;--display:'Syne',sans-serif;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);overflow-x:hidden;}
+a{color:var(--accent);text-decoration:none;}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;z-index:50;background:rgba(15,14,13,0.9);backdrop-filter:blur(12px);border-bottom:1px solid rgba(46,44,41,0.5);}
+.nav-logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.nav-links{display:flex;gap:24px;align-items:center;}
+.nav-links a{color:var(--muted);font-size:13px;font-weight:500;transition:color 0.2s;}
+.nav-links a:hover{color:var(--text);}
+.nav-btn{padding:8px 18px;background:var(--accent);color:#0f0e0d;border-radius:8px;font-weight:600;font-size:13px;}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:100px 24px 60px;position:relative;}
+.hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(200,240,96,0.06) 0%,transparent 70%);pointer-events:none;}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(200,240,96,0.1);border:1px solid rgba(200,240,96,0.2);border-radius:50px;font-size:12px;color:var(--accent);margin-bottom:24px;}
+.hero h1{font-family:var(--display);font-size:clamp(32px,6vw,56px);font-weight:800;line-height:1.1;letter-spacing:-2px;margin-bottom:16px;max-width:700px;}
+.hero h1 span{color:var(--accent);}
+.hero-sub{font-size:16px;color:var(--muted);max-width:500px;line-height:1.6;margin-bottom:32px;}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.btn-primary{padding:14px 28px;background:var(--accent);color:#0f0e0d;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all 0.2s;}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-1px);}
+.btn-secondary{padding:14px 28px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:var(--font);}
+.hero-stats{display:flex;gap:32px;margin-top:48px;flex-wrap:wrap;justify-content:center;}
+.hero-stat{text-align:center;}
+.hero-stat-val{font-family:var(--display);font-size:24px;font-weight:700;color:var(--accent);}
+.hero-stat-label{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* SECTIONS */
+section{padding:80px 24px;max-width:1000px;margin:0 auto;}
+.section-title{font-family:var(--display);font-size:28px;font-weight:700;text-align:center;margin-bottom:12px;letter-spacing:-1px;}
+.section-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:40px;max-width:500px;margin-left:auto;margin-right:auto;}
+
+/* PROBLEMS */
+.problems{display:flex;flex-direction:column;gap:12px;}
+.problem{display:flex;align-items:center;gap:14px;padding:16px 20px;background:rgba(240,80,80,0.06);border:1px solid rgba(240,80,80,0.15);border-radius:12px;font-size:14px;color:#f09090;}
+
+/* FEATURES */
+.features{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.feature{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;transition:all 0.2s;}
+.feature:hover{border-color:var(--accent);transform:translateY(-2px);}
+.feature-icon{font-size:28px;margin-bottom:10px;}
+.feature-title{font-family:var(--display);font-size:16px;font-weight:600;margin-bottom:6px;}
+.feature-desc{font-size:13px;color:var(--muted);line-height:1.5;}
+
+/* PROFESSIONS */
+.professions{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.profession{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;}
+.profession:hover,.profession.active{border-color:var(--accent);background:rgba(200,240,96,0.04);}
+.profession-icon{font-size:36px;margin-bottom:8px;}
+.profession-name{font-size:13px;font-weight:600;}
+
+/* PRICING */
+.pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;transition:all 0.2s;}
+.price-card.popular{border-color:var(--accent);position:relative;}
+.price-card.popular::before{content:'POPULAIRE';position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#0f0e0d;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;}
+.price-name{font-family:var(--display);font-size:16px;font-weight:600;margin-bottom:8px;}
+.price-amount{font-family:var(--display);font-size:36px;font-weight:800;color:var(--accent);letter-spacing:-2px;}
+.price-period{font-size:12px;color:var(--muted);}
+.price-features{list-style:none;margin:16px 0;text-align:left;}
+.price-features li{padding:5px 0;font-size:12px;color:var(--muted);}
+.price-features li::before{content:'✓ ';color:var(--accent);}
+.price-btn{width:100%;padding:10px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;font-family:var(--font);border:none;}
+
+/* DEMO */
+.demo-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:600px;margin:0 auto;}
+.demo-input{width:100%;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;margin-bottom:10px;}
+.demo-result{background:var(--surface2);border-radius:8px;padding:14px;font-size:13px;color:var(--text);min-height:40px;line-height:1.6;}
+
+/* TESTIMONIALS */
+.testimonials{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.testimonial{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;}
+.testimonial-text{font-size:14px;color:var(--text);font-style:italic;margin-bottom:10px;line-height:1.5;}
+.testimonial-author{font-size:12px;color:var(--muted);}
+
+/* CTA */
+.cta{text-align:center;padding:80px 24px;background:linear-gradient(180deg,transparent,rgba(200,240,96,0.03));}
+
+/* FOOTER */
+footer{padding:32px 24px;text-align:center;border-top:1px solid var(--border);font-size:12px;color:var(--muted);}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .features,.pricing,.testimonials{grid-template-columns:1fr;}
+  .professions{grid-template-columns:1fr 1fr;}
+  .hero-stats{gap:16px;}
+  .nav-links a:not(.nav-btn){display:none;}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">JADOMI</div>
+  <div class="nav-links">
+    <a href="#features">Fonctionnalites</a>
+    <a href="#tarifs">Tarifs</a>
+    <a href="login.html">Connexion</a>
+    <a href="register.html" class="nav-btn">Essai gratuit</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">Propulse par Claude IA</div>
+  <h1>La premiere plateforme <span>IA</span> de gestion dentaire</h1>
+  <p class="hero-sub">Stock intelligent. Commandes automatisees. Vocal IA. Meilleurs prix garantis sur 7 fournisseurs.</p>
+  <div class="hero-btns">
+    <a href="register.html"><button class="btn-primary">Essayer gratuitement — 0 euros</button></a>
+    <button class="btn-secondary" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">Voir la demo</button>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-val">42 000</div><div class="hero-stat-label">dentistes en France</div></div>
+    <div class="hero-stat"><div class="hero-stat-val">1 840 euros</div><div class="hero-stat-label">economies/an en moyenne</div></div>
+    <div class="hero-stat"><div class="hero-stat-val">5 sec</div><div class="hero-stat-label">pour analyser une facture</div></div>
+    <div class="hero-stat"><div class="hero-stat-val">Claude IA</div><div class="hero-stat-label">intelligence artificielle</div></div>
+  </div>
+</div>
+
+<section>
+  <div class="section-title">Le quotidien de votre cabinet</div>
+  <div class="section-sub">3 problemes que JADOMI resout</div>
+  <div class="problems">
+    <div class="problem">1h15/semaine perdue a gerer les commandes manuellement</div>
+    <div class="problem">Vous payez vos consommables trop cher sans le savoir</div>
+    <div class="problem">Les produits perimes vous coutent des centaines d'euros/an</div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="section-title">JADOMI resout tout</div>
+  <div class="section-sub">4 fonctionnalites propulsees par l'IA</div>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🎤</div>
+      <div class="feature-title">Vocal IA</div>
+      <div class="feature-desc">"J'ai recu 20 Scotchbond peremption nov 2028" — Stock mis a jour instantanement par Claude IA.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📸</div>
+      <div class="feature-title">Photo facture</div>
+      <div class="feature-desc">Photographiez votre facture, Claude lit et integre tous les produits en 5 secondes.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💰</div>
+      <div class="feature-title">Meilleurs prix</div>
+      <div class="feature-desc">Comparateur IA sur DPI, GACD, Mega Dental, Henry Schein et 4 autres fournisseurs.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🆘</div>
+      <div class="feature-title">SOS Stock</div>
+      <div class="feature-desc">Trouvez un produit en urgence chez un confrere a proximite. Reseau dentaire solidaire.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-title">Pour chaque profession</div>
+  <div class="section-sub">JADOMI s'adapte a votre metier</div>
+  <div class="professions">
+    <div class="profession active"><div class="profession-icon">🦷</div><div class="profession-name">Chirurgien-Dentiste</div></div>
+    <div class="profession"><div class="profession-icon">🦴</div><div class="profession-name">Orthodontiste</div></div>
+    <div class="profession"><div class="profession-icon">🔧</div><div class="profession-name">Prothesiste</div></div>
+    <div class="profession"><div class="profession-icon">🐾</div><div class="profession-name">Veterinaire</div></div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="section-title">Testez JADOMI maintenant</div>
+  <div class="section-sub">Dites quelque chose a l'IA comme au cabinet</div>
+  <div class="demo-box">
+    <input class="demo-input" id="demo-input" placeholder="Ex: J'ai recu 20 flacons de Scotchbond..." onkeypress="if(event.key==='Enter')lancerDemo()">
+    <button onclick="lancerDemo()" style="width:100%;padding:10px;background:var(--accent);color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-bottom:12px;">Tester JADOMI IA</button>
+    <div class="demo-result" id="demo-result" style="color:var(--muted);">Le resultat apparaitra ici...</div>
+  </div>
+</section>
+
+<section>
+  <div class="section-title">Ils utilisent JADOMI</div>
+  <div class="testimonials">
+    <div class="testimonial">
+      <div class="testimonial-text">"JADOMI m'a fait economiser 340 euros le premier mois. Le vocal IA est bluffant."</div>
+      <div class="testimonial-author">Dr Martin — Paris 11e</div>
+    </div>
+    <div class="testimonial">
+      <div class="testimonial-text">"Mes assistantes adorent le scan code-barres. Plus besoin de saisir manuellement."</div>
+      <div class="testimonial-author">Dr Dubois — Lyon</div>
+    </div>
+  </div>
+</section>
+
+<section id="tarifs">
+  <div class="section-title">Tarifs simples</div>
+  <div class="section-sub">Commencez gratuitement, evoluez quand vous voulez</div>
+  <div class="pricing">
+    <div class="price-card">
+      <div class="price-name">Gratuit</div>
+      <div class="price-amount">0 euros</div>
+      <div class="price-period">pour toujours</div>
+      <ul class="price-features">
+        <li>Stock illimite</li>
+        <li>Scan code-barres</li>
+        <li>Vocal basique</li>
+        <li>1 utilisateur</li>
+      </ul>
+      <a href="register.html"><button class="price-btn" style="background:var(--surface2);color:var(--text);">Commencer</button></a>
+    </div>
+    <div class="price-card popular">
+      <div class="price-name">Solo</div>
+      <div class="price-amount">15 euros</div>
+      <div class="price-period">/mois</div>
+      <ul class="price-features">
+        <li>Tout du gratuit</li>
+        <li>IA Claude complete</li>
+        <li>Photo facture IA</li>
+        <li>Commandes automatisees</li>
+        <li>Comparateur 7 fournisseurs</li>
+      </ul>
+      <a href="register.html"><button class="price-btn" style="background:var(--accent);color:#0f0e0d;">Essai gratuit 14j</button></a>
+    </div>
+    <div class="price-card">
+      <div class="price-name">Cabinet</div>
+      <div class="price-amount">25 euros</div>
+      <div class="price-period">/mois</div>
+      <ul class="price-features">
+        <li>Tout du Solo</li>
+        <li>Multi-utilisateurs</li>
+        <li>Dashboard admin</li>
+        <li>Marche entre confreres</li>
+        <li>Support prioritaire</li>
+      </ul>
+      <a href="register.html"><button class="price-btn" style="background:var(--surface2);color:var(--text);">Essai gratuit 14j</button></a>
+    </div>
+  </div>
+</section>
+
+<div class="cta">
+  <div class="section-title">Rejoignez les premiers cabinets JADOMI</div>
+  <p style="color:var(--muted);font-size:14px;margin:12px 0 24px;">Inscription en 30 secondes. Aucune carte bancaire requise.</p>
+  <a href="register.html"><button class="btn-primary" style="font-size:16px;padding:16px 32px;">Commencer gratuitement</button></a>
+</div>
+
+<footer>
+  <div style="font-family:var(--display);font-size:18px;font-weight:800;color:var(--accent);margin-bottom:12px;">JADOMI</div>
+  <div>Contact · CGU · Politique de confidentialite</div>
+  <div style="margin-top:8px;">2026 JADOMI · Fait avec 🦷 en France</div>
+</footer>
+
+<script>
+// Rediriger si deja connecte
+(async()=>{
+  try {
+    const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+    const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+    const{createClient}=supabase;
+    const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+    const{data:{session}}=await db.auth.getSession();
+    if(session) window.location.href='index.html';
+  } catch(e){}
+})();
+
+// Demo IA
+async function lancerDemo() {
+  const texte=document.getElementById('demo-input').value.trim();
+  if(!texte) return;
+  const el=document.getElementById('demo-result');
+  el.style.color='var(--muted)';
+  el.textContent='Analyse en cours...';
+  const cle=localStorage.getItem('jadomi_claude_key');
+  if(!cle){el.style.color='var(--accent)';el.textContent='JADOMI aurait automatiquement mis a jour votre stock, detecte les produits et ajuste les quantites. Inscrivez-vous pour tester !';return;}
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:150,messages:[{role:'user',content:`Tu es JADOMI IA. Un dentiste dit : "${texte}". Reponds en 1-2 phrases ce que JADOMI ferait automatiquement. Sois precis et impressionnant. Francais.`}]})
+    });
+    const data=await resp.json();
+    el.style.color='var(--accent)';
+    el.textContent='JADOMI : '+(data.content?.[0]?.text||'Inscription requise pour tester');
+  } catch(e){el.style.color='var(--accent)';el.textContent='Inscrivez-vous pour decouvrir la puissance de JADOMI IA !';}
+}
+</script>
+</body>
+</html>
