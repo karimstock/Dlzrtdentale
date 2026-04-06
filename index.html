@@ -1452,165 +1452,169 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════
-// SCANNER CODE-BARRES — MODE CAISSE
+// SCANNER — QUAGGA2 ULTRA-RAPIDE
 // ═══════════════════════════════════
 
-// Précharger ZXing au chargement (async, non bloquant)
-(function(){const s=document.createElement('script');s.src='https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js';s.async=true;document.head.appendChild(s);})();
+// Précharger Quagga2 + ZXing fallback
+(function(){
+  const q=document.createElement('script');q.src='https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js';q.async=true;document.head.appendChild(q);
+  const z=document.createElement('script');z.src='https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js';z.async=true;document.head.appendChild(z);
+})();
 
-// Audio : créer au premier clic utilisateur pour contourner autoplay policy
-let _audioCtx = null;
-function getAudioCtx() { if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
-function bipScan() {
-  try {
-    const ctx = getAudioCtx();
-    if(ctx.state==='suspended') ctx.resume();
-    // Bip fort type caisse
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'square';
-    o.frequency.value = 2400;
-    g.gain.value = 1.0;
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start();
-    g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-    setTimeout(()=>{o.stop();},160);
-  } catch(e){ console.warn('bip error',e); }
-  navigator.vibrate && navigator.vibrate([80,30,80]);
+// Audio
+let _audioCtx=null;
+function getAudioCtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();return _audioCtx;}
+function bipScan(){
+  try{const ctx=getAudioCtx();if(ctx.state==='suspended')ctx.resume();const o=ctx.createOscillator();const g=ctx.createGain();o.type='square';o.frequency.value=2400;g.gain.value=1.0;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.15);setTimeout(()=>o.stop(),160);}catch(e){}
+  navigator.vibrate&&navigator.vibrate([80,30,80]);
 }
 
-// Parser GS1 : extraire date péremption des QR/DataMatrix dentaires
-function parseGS1(raw) {
-  const result = {code: raw, exp: null, lot: null, gtin: null};
-  // Supprimer le ]d2 ou ]Q3 header si présent
-  let s = raw.replace(/^\].[0-9]/, '');
-  // GS1 Application Identifiers
-  // (01) = GTIN 14 digits, (17) = expiry YYMMDD, (10) = lot
-  const m01 = s.match(/01(\d{14})/);
-  if(m01) result.gtin = m01[1];
-  const m17 = s.match(/17(\d{6})/);
-  if(m17) {
-    const yy = m17[1].substring(0,2);
-    const mm = m17[1].substring(2,4);
-    const dd = m17[1].substring(4,6);
-    const year = parseInt(yy) < 70 ? 2000+parseInt(yy) : 1900+parseInt(yy);
-    result.exp = year+'-'+mm;
-  }
-  const m10 = s.match(/10([^\x1d]{1,20})/);
-  if(m10) result.lot = m10[1];
-  // Si pas de AI trouvé, essayer format simple GTIN
-  if(!result.gtin && /^\d{8,14}$/.test(s)) result.gtin = s;
-  return result;
+// Parser GS1
+function parseGS1(raw){
+  const r={code:raw,exp:null,lot:null,gtin:null};
+  let s=raw.replace(/^\].[0-9]/,'');
+  const m01=s.match(/01(\d{14})/);if(m01)r.gtin=m01[1];
+  const m17=s.match(/17(\d{6})/);
+  if(m17){const yy=m17[1].substring(0,2),mm=m17[1].substring(2,4);r.exp=(parseInt(yy)<70?2000+parseInt(yy):1900+parseInt(yy))+'-'+mm;}
+  const m10=s.match(/10([^\x1d]{1,20})/);if(m10)r.lot=m10[1];
+  if(!r.gtin&&/^\d{8,14}$/.test(s))r.gtin=s;
+  return r;
 }
 
-let historiqueAchats = JSON.parse(localStorage.getItem('amilo_achats') || '{}');
-function sauverAchats() { localStorage.setItem('amilo_achats', JSON.stringify(historiqueAchats)); }
-function getPrixMoyen(code) {
-  const h = historiqueAchats[code];
-  if(!h || h.length===0) return null;
-  return (h.reduce((s,a)=>s+a.prix_unit,0)/h.length).toFixed(2);
-}
+let historiqueAchats=JSON.parse(localStorage.getItem('amilo_achats')||'{}');
+function sauverAchats(){localStorage.setItem('amilo_achats',JSON.stringify(historiqueAchats));}
+function getPrixMoyen(code){const h=historiqueAchats[code];if(!h||h.length===0)return null;return(h.reduce((s,a)=>s+a.prix_unit,0)/h.length).toFixed(2);}
 
-function demarrerCamera() {
-  // Init AudioContext au premier clic
+function demarrerCamera(){
   getAudioCtx();
-  if(!window.ZXing) {
-    showToast("⏳ Chargement du scanner...");
-    const s=document.createElement('script');
-    s.src='https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js';
-    s.onload=()=>ouvrirOverlayScan();
-    s.onerror=()=>showToast("❌ Scanner indisponible");
-    document.head.appendChild(s);
-  } else ouvrirOverlayScan();
+  ouvrirOverlayScan();
 }
 
-function ouvrirOverlayScan() {
-  if(!document.getElementById('scan-overlay')) {
-    const ov=document.createElement('div');
-    ov.id='scan-overlay';
+function ouvrirOverlayScan(){
+  if(!document.getElementById('scan-overlay')){
+    const ov=document.createElement('div');ov.id='scan-overlay';
     ov.style.cssText='display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;';
     ov.innerHTML=`
-      <button onclick="fermerScan()" style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:20px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:10;">✕</button>
-      <div style="position:relative;flex:1;overflow:hidden;">
-        <video id="scan-video" style="width:100%;height:100%;object-fit:cover;" autoplay muted playsinline></video>
+      <div style="position:absolute;top:0;left:0;right:0;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent);z-index:10;">
+        <div style="color:#c8f060;font-size:15px;font-weight:600;">📷 Scanner</div>
+        <div id="scan-count" style="font-size:11px;color:rgba(255,255,255,0.5);">0 scanné</div>
+        <button onclick="fermerScan()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer;">✕</button>
+      </div>
+      <div id="scan-viewport" style="position:relative;flex:1;overflow:hidden;">
+        <div id="scan-camera"></div>
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-          <div style="width:80vw;max-width:340px;height:45vw;max-height:180px;position:relative;">
-            <div style="position:absolute;top:0;left:0;width:28px;height:28px;border-top:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:8px 0 0 0;"></div>
-            <div style="position:absolute;top:0;right:0;width:28px;height:28px;border-top:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 8px 0 0;"></div>
-            <div style="position:absolute;bottom:0;left:0;width:28px;height:28px;border-bottom:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:0 0 0 8px;"></div>
-            <div style="position:absolute;bottom:0;right:0;width:28px;height:28px;border-bottom:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 0 8px 0;"></div>
-            <div style="position:absolute;top:50%;left:5%;right:5%;height:2px;background:linear-gradient(90deg,transparent,#c8f060,transparent);animation:scanAnim 1.5s ease-in-out infinite;"></div>
+          <div style="width:85vw;max-width:360px;height:50vw;max-height:200px;position:relative;">
+            <div style="position:absolute;top:0;left:0;width:26px;height:26px;border-top:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:4px 0 0 0;"></div>
+            <div style="position:absolute;top:0;right:0;width:26px;height:26px;border-top:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 4px 0 0;"></div>
+            <div style="position:absolute;bottom:0;left:0;width:26px;height:26px;border-bottom:3px solid #c8f060;border-left:3px solid #c8f060;border-radius:0 0 0 4px;"></div>
+            <div style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-bottom:3px solid #c8f060;border-right:3px solid #c8f060;border-radius:0 0 4px 0;"></div>
+            <div style="position:absolute;left:4px;right:4px;height:2px;background:linear-gradient(to right,transparent,#c8f060,transparent);top:50%;animation:scanLaser 1.5s ease-in-out infinite;"></div>
           </div>
         </div>
         <div id="scan-flash" style="position:absolute;inset:0;background:rgba(200,240,96,0.4);opacity:0;transition:opacity 0.1s;pointer-events:none;"></div>
-        <div id="scan-status" style="position:absolute;top:16px;left:0;right:0;text-align:center;color:#c8f060;font-family:'Syne',sans-serif;font-size:15px;font-weight:600;text-shadow:0 2px 12px rgba(0,0,0,0.9);">Scannez un code-barres</div>
-        <div id="scan-count" style="position:absolute;bottom:16px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,0.5);">0 produit scanné</div>
+        <div id="scan-status" style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#fff;font-size:12px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">Pointez vers le code-barres</div>
       </div>
-      <div id="scan-result-panel" style="display:none;background:#1a1917;border-top:1px solid #2e2c29;padding:20px;color:#f0ede8;max-height:55vh;overflow-y:auto;"></div>`;
+      <div id="scan-result-panel" style="display:none;background:#1a1917;border-top:1px solid #2e2c29;padding:16px;color:#f0ede8;max-height:50vh;overflow-y:auto;"></div>`;
     document.body.appendChild(ov);
-    if(!document.getElementById('scan-anim-style')){const st=document.createElement('style');st.id='scan-anim-style';st.textContent='@keyframes scanAnim{0%,100%{transform:translateY(-25px);opacity:0.3;}50%{transform:translateY(25px);opacity:1;}}';document.head.appendChild(st);}
+    if(!document.getElementById('scan-css')){const st=document.createElement('style');st.id='scan-css';st.textContent='@keyframes scanLaser{0%,100%{top:20%;opacity:0.3;}50%{top:80%;opacity:1;}} #scan-camera video,#scan-camera canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important;object-fit:cover!important;}#scan-camera{position:absolute;inset:0;}';document.head.appendChild(st);}
   }
-
-  const overlay=document.getElementById('scan-overlay');
+  const ov=document.getElementById('scan-overlay');
   document.getElementById('scan-result-panel').style.display='none';
-  overlay.style.display='flex';
-  document.getElementById('scan-status').textContent='Scannez un code-barres';
-  window._scanCount=0;
-  document.getElementById('scan-count').textContent='0 produit scanné';
+  ov.style.display='flex';
+  document.getElementById('scan-status').textContent='Pointez vers le code-barres';
+  window._scanCount=0;window._scanPaused=false;window._lastCode='';window._lastCodeTime=0;
+  document.getElementById('scan-count').textContent='0 scanné';
 
-  // ZXing avec hints pour scan rapide — uniquement formats courants
-  const hints = new Map();
-  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-    ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
-    ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX,
-    ZXing.BarcodeFormat.AZTEC, ZXing.BarcodeFormat.PDF_417
-  ]);
-  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-  const codeReader = new ZXing.BrowserMultiFormatReader(hints, 300);
-  window._codeReader = codeReader;
-  window._scanPaused = false;
-  window._lastCode = '';
-  window._lastCodeTime = 0;
+  // Tenter Quagga2 d'abord (ultra-rapide pour EAN)
+  if(window.Quagga) demarrerQuagga();
+  else if(window.ZXing) demarrerZXingFallback();
+  else {
+    // Attendre le chargement
+    showToast('⏳ Chargement...');
+    const check=setInterval(()=>{
+      if(window.Quagga){clearInterval(check);demarrerQuagga();}
+      else if(window.ZXing){clearInterval(check);demarrerZXingFallback();}
+    },200);
+    setTimeout(()=>clearInterval(check),8000);
+  }
+}
 
-  codeReader.listVideoInputDevices().then(devices => {
-    let camId = undefined;
-    const back = devices.find(d=>/back|rear|arrière|environment/i.test(d.label));
-    if(back) camId=back.deviceId;
-    else if(devices.length>1) camId=devices[devices.length-1].deviceId;
+function demarrerQuagga(){
+  Quagga.init({
+    inputStream:{
+      type:'LiveStream',
+      target:document.getElementById('scan-camera'),
+      constraints:{
+        facingMode:'environment',
+        width:{ideal:1280},height:{ideal:720}
+      }
+    },
+    frequency:15,
+    numOfWorkers:navigator.hardwareConcurrency||2,
+    locate:true,
+    decoder:{
+      readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader','code_39_reader'],
+      multiple:false
+    },
+    locator:{halfSample:true,patchSize:'medium'}
+  },function(err){
+    if(err){console.warn('Quagga failed, trying ZXing',err);if(window.ZXing)demarrerZXingFallback();else showToast('❌ Scanner non disponible');return;}
+    Quagga.start();
+    Quagga.onDetected(onQuaggaDetected);
+  });
+}
 
-    codeReader.decodeFromVideoDevice(camId,'scan-video',(result,err)=>{
-      if(result && !window._scanPaused) {
-        const code = result.getText();
-        const now = Date.now();
-        // Anti-doublon : ignorer même code dans les 2s
-        if(code===window._lastCode && now-window._lastCodeTime<2000) return;
-        window._lastCode=code;
-        window._lastCodeTime=now;
-        window._scanPaused=true;
-        // BIP + VIBRATION
-        bipScan();
-        // Flash
-        const fl=document.getElementById('scan-flash');if(fl){fl.style.opacity='1';setTimeout(()=>fl.style.opacity='0',250);}
-        // Compteur
-        window._scanCount=(window._scanCount||0)+1;
-        document.getElementById('scan-count').textContent=window._scanCount+' produit'+(window._scanCount>1?'s':'')+' scanné'+(window._scanCount>1?'s':'');
-        traiterCodeBarre(code);
+function onQuaggaDetected(data){
+  if(window._scanPaused)return;
+  const code=data.codeResult.code;
+  if(!code||code.length<8)return;
+  // Vérifier la confiance (Quagga donne des faux positifs)
+  const errs=data.codeResult.decodedCodes?.filter(d=>d.error!==undefined).map(d=>d.error)||[];
+  const avgErr=errs.length?errs.reduce((a,b)=>a+b,0)/errs.length:1;
+  if(avgErr>0.25)return; // trop d'erreurs = faux positif
+  const now=Date.now();
+  if(code===window._lastCode&&now-window._lastCodeTime<2000)return;
+  window._lastCode=code;window._lastCodeTime=now;window._scanPaused=true;
+  onCodeScanned(code);
+}
+
+function demarrerZXingFallback(){
+  const hints=new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.DATA_MATRIX]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+  const reader=new ZXing.BrowserMultiFormatReader(hints,250);
+  window._codeReader=reader;
+  // Injecter une video pour ZXing
+  const cam=document.getElementById('scan-camera');
+  cam.innerHTML='<video id="scan-video-zx" style="width:100%;height:100%;object-fit:cover;" autoplay muted playsinline></video>';
+  reader.listVideoInputDevices().then(devs=>{
+    let id;const back=devs.find(d=>/back|rear|environment/i.test(d.label));
+    if(back)id=back.deviceId;else if(devs.length>0)id=devs[devs.length-1].deviceId;
+    reader.decodeFromVideoDevice(id,'scan-video-zx',(result)=>{
+      if(result&&!window._scanPaused){
+        const code=result.getText();const now=Date.now();
+        if(code===window._lastCode&&now-window._lastCodeTime<2000)return;
+        window._lastCode=code;window._lastCodeTime=now;window._scanPaused=true;
+        onCodeScanned(code);
       }
     });
-  }).catch(err=>{
-    if(err.name==='NotAllowedError') showToast('❌ Autorise la caméra dans les paramètres');
-    else if(err.name==='NotFoundError') showToast('❌ Pas de caméra — utilise une scanette USB');
-    else showToast('❌ Caméra : '+err.message);
-    fermerScan();
-  });
+  }).catch(err=>{showToast('❌ Caméra : '+err.message);fermerScan();});
+}
+
+function onCodeScanned(code){
+  bipScan();
+  const fl=document.getElementById('scan-flash');if(fl){fl.style.opacity='1';setTimeout(()=>fl.style.opacity='0',200);}
+  window._scanCount=(window._scanCount||0)+1;
+  document.getElementById('scan-count').textContent=window._scanCount+' scanné'+(window._scanCount>1?'s':'');
+  traiterCodeBarre(code);
 }
 
 function fermerScan(){
   const ov=document.getElementById('scan-overlay');if(ov)ov.style.display='none';
+  if(window.Quagga){try{Quagga.stop();Quagga.offDetected(onQuaggaDetected);}catch(e){}}
   if(window._codeReader){try{window._codeReader.reset();}catch(e){}window._codeReader=null;}
+  // Nettoyer la caméra
+  const cam=document.getElementById('scan-camera');if(cam)cam.innerHTML='';
 }
 
 function scanContinuer(){
