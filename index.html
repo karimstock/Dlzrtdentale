@@ -961,81 +961,166 @@ function simulerVocal(texte) {
   setTimeout(()=>traiterCommande(texte),500);
 }
 
-// Extraction quantité langage naturel
-const MOTS_NOMBRES = {un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,quelques:3,plusieurs:3};
-const UNITES_IGNOREES = /\b(boite|boites|seringue|seringues|carpule|carpules|sachet|sachets|flacon|flacons|tube|tubes|paire|paires)\b/g;
+// ═══════════════════════════════════
+// VOCAL — LANGAGE NATUREL COMPLET
+// ═══════════════════════════════════
+const MOTS_NOMBRES = {un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,onze:11,douze:12,quinze:15,vingt:20,trente:30,quarante:40,cinquante:50,cent:100,quelques:3,plusieurs:3};
 
 function extraireQuantite(texte) {
-  const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  // Chiffres
-  const num = t.match(/\b(\d+)\b/);
+  const t=texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const num=t.match(/\b(\d+)\b/);
   if(num) return parseInt(num[1]);
-  // Mots
   for(const [mot,val] of Object.entries(MOTS_NOMBRES)) {
-    if(t.includes(mot)) return val;
+    const re=new RegExp('\\b'+mot+'\\b');
+    if(re.test(t)) return val;
   }
   return 1;
 }
 
+function norm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+
 function traiterCommande(texte) {
-  const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const quantite = extraireQuantite(texte);
+  const t=norm(texte);
+
+  // COMMANDE/PANIER → traitement spécial
+  if(t.match(/commande|commander|acheter|prepare.+panier|besoin de|meilleur prix|moins cher|panier/)) {
+    traiterCommandeAchat(texte);
+    return;
+  }
+
+  const quantite=extraireQuantite(texte);
 
   // Détecter l'action
   let action='';
-  if(t.match(/utilis|consomm|pose|mis\b|ouvert|pris|retire|applique|fait|passe|enleve/)) action='utilise';
-  else if(t.match(/livraison|recu|arrive|rentre|ajoute|nouvelle boite|commande.+arrive/)) action='ajoute';
+  if(t.match(/utilis|consomm|pose|mis\b|ouvert|pris|retire|applique|fini\b|enleve|passee?/)) action='utilise';
+  else if(t.match(/livraison|recu|arrive|rentre|ajoute|nouvelle boite|receptionne|commande.+arrive/)) action='ajoute';
   else if(t.match(/reste|il y a|j.ai\s+\d|stock est|quantite/)) action='set';
   else if(t.match(/rupture|critique|manque|plus de|montre.+rupture|affiche.+critique/)) {
     document.getElementById('filter-status').value='critique';filtrer();
     fermerVocal();showToast('📋 Produits critiques affichés');return;
   }
 
-  // Chercher le produit
-  const resultat = rechercherProduitVocal(texte);
+  // Chercher le produit dans le catalogue + stock
+  const resultat=rechercherProduitVocal(texte);
 
-  if(resultat?.stock && action) {
-    const p = resultat.stock;
-    const oldQty = p.qty;
-    let newQty = p.qty;
-    if(action==='utilise') newQty = Math.max(0, p.qty - quantite);
-    else if(action==='ajoute') newQty = p.qty + quantite;
-    else if(action==='set') newQty = quantite;
-    modifierQtyDirecte(p.id, p.nom, newQty, action, quantite, oldQty);
+  // Aussi chercher directement dans le stock par mots
+  let stockDirect = null;
+  if(!resultat?.stock) {
+    const mots=norm(texte).split(/\s+/).filter(m=>m.length>2 && !['boite','boites','une','des','les','dans','avec','pour','j\'ai'].includes(m));
+    // Score chaque produit
+    let best=null, bestScore=0;
+    for(const p of produits) {
+      const pn=norm(p.nom);
+      let score=0;
+      for(const m of mots) { if(pn.includes(m)) score+=m.length; }
+      if(score>bestScore){bestScore=score;best=p;}
+    }
+    if(best && bestScore>=3) stockDirect=best;
+  }
+
+  const produitStock = resultat?.stock || stockDirect;
+
+  if(produitStock && action) {
+    const oldQty=produitStock.qty;
+    let newQty=oldQty;
+    if(action==='utilise') newQty=Math.max(0,oldQty-quantite);
+    else if(action==='ajoute') newQty=oldQty+quantite;
+    else if(action==='set') newQty=quantite;
+    modifierQtyDirecte(produitStock.id,produitStock.nom,newQty,action,quantite,oldQty);
     fermerVocal();
-  } else if(resultat?.stock && !action) {
-    selectionnerProduitVocal(resultat.stock.id, resultat.stock.nom);
-  } else if(resultat?.catalogue && !resultat.stock) {
-    showToast('⚠️ ' + resultat.catalogue.nom + ' pas dans le stock');
+  } else if(produitStock && !action) {
+    selectionnerProduitVocal(produitStock.id,produitStock.nom);
+  } else if(resultat?.catalogue && !produitStock) {
+    showToast('⚠️ '+resultat.catalogue.nom+' pas dans le stock');
     fermerVocal();
   } else {
-    // Correspondances partielles dans le stock
-    const mots = texte.toLowerCase().split(' ').filter(m=>m.length>2);
-    const matches = produits.filter(p => mots.some(m =>
-      p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(m)
-    ));
-    if(matches.length > 1) afficherClarificationVocale(matches, texte, action, quantite);
-    else if(matches.length === 1) {
+    // Correspondances partielles
+    const mots=norm(texte).split(/\s+/).filter(m=>m.length>2);
+    const matches=produits.filter(p=>mots.some(m=>norm(p.nom).includes(m)));
+    if(matches.length>1) afficherClarificationVocale(matches,texte,action,quantite);
+    else if(matches.length===1) {
       if(action) {
-        const p = matches[0]; const oldQty = p.qty;
-        let nq = action==='utilise' ? Math.max(0,p.qty-quantite) : action==='ajoute' ? p.qty+quantite : quantite;
-        modifierQtyDirecte(p.id, p.nom, nq, action, quantite, oldQty);
+        const p=matches[0];const old=p.qty;
+        let nq=action==='utilise'?Math.max(0,p.qty-quantite):action==='ajoute'?p.qty+quantite:quantite;
+        modifierQtyDirecte(p.id,p.nom,nq,action,quantite,old);
         fermerVocal();
-      } else selectionnerProduitVocal(matches[0].id, matches[0].nom);
+      } else selectionnerProduitVocal(matches[0].id,matches[0].nom);
     } else { showToast('🤔 Produit non reconnu — essaie autrement'); fermerVocal(); }
   }
 }
 
-function afficherClarificationVocale(matches, texte, action, quantite) {
-  const display = document.getElementById('vocal-display');
+// ═══════════════════════════════════
+// VOCAL — PANIER / COMMANDE
+// ═══════════════════════════════════
+function traiterCommandeAchat(texte) {
+  const t=norm(texte);
+  const lignes=[];
+  const dejaVu=new Set();
+
+  for(const pc of DENTAL_CATALOGUE) {
+    for(const syn of pc.synonymes) {
+      const s=norm(syn);
+      if(t.includes(s) && !dejaVu.has(pc.nom)) {
+        // Extraire quantité autour du synonyme
+        const re=new RegExp('(\\d+)\\s*(?:boites?\\s+(?:de\\s+)?)?'+s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'|'+s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*(?:x\\s*)?(\\d+)','i');
+        const match=t.match(re);
+        const qte=match?parseInt(match[1]||match[2]):extraireQuantite(texte);
+        lignes.push({nom:pc.nom,qte,cat:pc.cat,marque:pc.marque});
+        dejaVu.add(pc.nom);
+        break;
+      }
+    }
+  }
+
+  const display=document.getElementById('vocal-display');
   display.classList.remove('empty');
-  // Stocker action et quantité pour les utiliser après sélection
-  window._vocalAction = action;
-  window._vocalQte = quantite;
-  display.innerHTML = `
+
+  if(lignes.length>0) {
+    window._panierVocal=lignes;
+    display.innerHTML=`
+      <div style="color:#c8f060;font-weight:700;font-size:15px;margin-bottom:10px;">🛒 Panier préparé :</div>
+      ${lignes.map(l=>`
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2e2c29;font-size:13px;">
+          <span style="color:#f0ede8;">${l.nom}</span>
+          <span style="color:#c8f060;font-weight:600;">×${l.qte}</span>
+        </div>`).join('')}
+      <div style="margin-top:10px;font-size:12px;color:#6b6760;">${lignes.length} produit${lignes.length>1?'s':''} · Estimation en cours...</div>
+      <button onclick="validerPanierVocal()"
+        style="width:100%;margin-top:12px;padding:12px;background:#c8f060;color:#0f0e0d;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;">
+        ✅ Valider le panier
+      </button>
+      <button onclick="fermerVocal()"
+        style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">
+        Annuler
+      </button>`;
+  } else {
+    display.innerHTML='<div style="color:#f0a030;">🤔 Aucun produit reconnu dans la commande.<br><span style="font-size:12px;color:#6b6760;">Essaie : "10 boîtes nitrile, 5 fuji, 3 mordançage"</span></div>';
+  }
+}
+
+function validerPanierVocal() {
+  const lignes=window._panierVocal;
+  if(!lignes||!lignes.length) return;
+  // Sauvegarder le panier dans localStorage
+  localStorage.setItem('amilo_panier',JSON.stringify(lignes));
+  const noms=lignes.map(l=>l.nom+' ×'+l.qte).join(', ');
+  showToast('🛒 Panier sauvegardé : '+lignes.length+' produit'+(lignes.length>1?'s':''));
+  bipScan();
+  fermerVocal();
+}
+
+// ═══════════════════════════════════
+// VOCAL — CLARIFICATION + ACTIONS
+// ═══════════════════════════════════
+function afficherClarificationVocale(matches,texte,action,quantite) {
+  const display=document.getElementById('vocal-display');
+  display.classList.remove('empty');
+  window._vocalAction=action;
+  window._vocalQte=quantite;
+  display.innerHTML=`
     <div style="margin-bottom:10px;color:#f0a030;">🤔 Lequel voulez-vous ?</div>
-    ${matches.slice(0,4).map(p => {
-      const nSafe = p.nom.replace(/'/g,"\\'");
+    ${matches.slice(0,4).map(p=>{
+      const nSafe=p.nom.replace(/'/g,"\\'");
       return `<button onclick="choisirProduitVocal(${p.id},'${nSafe}')"
         style="display:block;width:100%;margin-bottom:6px;padding:12px;background:#242220;color:#c8f060;border:1px solid #c8f060;border-radius:10px;cursor:pointer;text-align:left;font-size:14px;">
         ${p.nom} <span style="color:#6b6760;font-size:11px;">· Stock: ${p.qty}</span>
@@ -1043,27 +1128,24 @@ function afficherClarificationVocale(matches, texte, action, quantite) {
     }).join('')}`;
 }
 
-function choisirProduitVocal(id, nom) {
-  const action = window._vocalAction;
-  const qte = window._vocalQte || 1;
+function choisirProduitVocal(id,nom) {
+  const action=window._vocalAction;
+  const qte=window._vocalQte||1;
   if(action) {
-    const p = produits.find(x=>x.id==id); if(!p) return;
-    const oldQty = p.qty;
-    let nq = action==='utilise' ? Math.max(0,p.qty-qte) : action==='ajoute' ? p.qty+qte : qte;
-    modifierQtyDirecte(id, nom, nq, action, qte, oldQty);
+    const p=produits.find(x=>x.id==id);if(!p)return;
+    let nq=action==='utilise'?Math.max(0,p.qty-qte):action==='ajoute'?p.qty+qte:qte;
+    modifierQtyDirecte(id,nom,nq,action,qte,p.qty);
     fermerVocal();
-  } else {
-    selectionnerProduitVocal(id, nom);
-  }
+  } else selectionnerProduitVocal(id,nom);
 }
 
-function selectionnerProduitVocal(id, nom) {
-  const display = document.getElementById('vocal-display');
-  const nSafe = nom.replace(/'/g,"\\'");
-  const p = produits.find(x=>x.id==id);
-  const stockInfo = p ? ` <span style="color:#6b6760;font-size:12px;">Stock: ${p.qty}</span>` : '';
-  display.innerHTML = `
-    <div style="color:#c8f060;font-weight:700;margin-bottom:12px;">✅ ${nom}${stockInfo}</div>
+function selectionnerProduitVocal(id,nom) {
+  const display=document.getElementById('vocal-display');
+  const nSafe=nom.replace(/'/g,"\\'");
+  const p=produits.find(x=>x.id==id);
+  const sq=p?p.qty:'?';
+  display.innerHTML=`
+    <div style="color:#c8f060;font-weight:700;margin-bottom:12px;">✅ ${nom} <span style="color:#6b6760;font-size:12px;">Stock: ${sq}</span></div>
     <div style="display:flex;gap:8px;">
       <button onclick="modifierQtyVocal(${id},'${nSafe}','utilise',1)"
         style="flex:1;padding:12px;background:#f05050;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;">− Utilisé 1</button>
@@ -1072,24 +1154,23 @@ function selectionnerProduitVocal(id, nom) {
     </div>`;
 }
 
-function modifierQtyVocal(id, nom, action, qte) {
-  const p = produits.find(x=>x.id==id); if(!p) return;
-  const oldQty = p.qty;
-  const newQty = action==='utilise' ? Math.max(0, p.qty-qte) : p.qty+qte;
-  modifierQtyDirecte(id, nom, newQty, action, qte, oldQty);
+function modifierQtyVocal(id,nom,action,qte) {
+  const p=produits.find(x=>x.id==id);if(!p)return;
+  modifierQtyDirecte(id,nom,action==='utilise'?Math.max(0,p.qty-qte):p.qty+qte,action,qte,p.qty);
   fermerVocal();
 }
 
-function modifierQtyDirecte(id, nom, newQty, action, qte, oldQty) {
-  if(db){try{db.from('produits').update({qty:newQty}).eq('id',id);}catch(e){}}
-  produits = produits.map(p=>p.id==id ? {...p, qty:newQty} : p);
-  localStorage.setItem('amilo_produits', JSON.stringify(produits));
-  updateStats(); filtrer();
-  // Toast avec ancien → nouveau stock
-  const old = oldQty !== undefined ? oldQty : '?';
-  const sign = action==='utilise' ? '-' : action==='ajoute' ? '+' : '=';
+function modifierQtyDirecte(id,nom,newQty,action,qte,oldQty) {
+  // Mise à jour immédiate localStorage
+  produits=produits.map(p=>p.id==id?{...p,qty:newQty}:p);
+  localStorage.setItem('amilo_produits',JSON.stringify(produits));
+  updateStats();filtrer();
+  // Toast clair : ancien → nouveau
+  const old=oldQty!==undefined?oldQty:'?';
   showToast(`✓ ${nom} · Stock : ${old} → ${newQty}`);
   bipScan();
+  // Sync Supabase en arrière-plan
+  if(db){try{db.from('produits').update({qty:newQty}).eq('id',id);}catch(e){}}
 }
 
 function ouvrirVocal() { document.getElementById('vocal-modal').classList.add('open'); }
