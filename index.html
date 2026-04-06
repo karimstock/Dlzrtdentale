@@ -1664,11 +1664,13 @@ function demarrerQuagga(){
       target:document.getElementById('scan-camera'),
       constraints:{
         facingMode:'environment',
-        width:{ideal:1280},height:{ideal:720}
+        width:{ideal:1280},height:{ideal:720},
+        focusMode:'continuous',
+        zoom:1.0
       }
     },
-    frequency:15,
-    numOfWorkers:navigator.hardwareConcurrency||2,
+    frequency:20,
+    numOfWorkers:navigator.hardwareConcurrency||4,
     locate:true,
     decoder:{
       readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader','code_39_reader'],
@@ -1679,6 +1681,16 @@ function demarrerQuagga(){
     if(err){console.warn('Quagga failed, trying ZXing',err);if(window.ZXing)demarrerZXingFallback();else showToast('❌ Scanner non disponible');return;}
     Quagga.start();
     Quagga.onDetected(onQuaggaDetected);
+    // Dessiner les zones de détection
+    Quagga.onProcessed(function(result){
+      const drawingCanvas=Quagga.canvas.dom.overlay;
+      if(!drawingCanvas)return;
+      const ctx=drawingCanvas.getContext('2d');
+      ctx.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);
+      if(result&&result.box){
+        Quagga.ImageDebug.drawPath(result.box,{x:0,y:1},ctx,{color:'#c8f060',lineWidth:2});
+      }
+    });
   });
 }
 
@@ -1689,7 +1701,7 @@ function onQuaggaDetected(data){
   // Vérifier la confiance (Quagga donne des faux positifs)
   const errs=data.codeResult.decodedCodes?.filter(d=>d.error!==undefined).map(d=>d.error)||[];
   const avgErr=errs.length?errs.reduce((a,b)=>a+b,0)/errs.length:1;
-  if(avgErr>0.25)return; // trop d'erreurs = faux positif
+  if(avgErr>0.15)return; // trop d'erreurs = faux positif
   const now=Date.now();
   if(code===window._lastCode&&now-window._lastCodeTime<2000)return;
   window._lastCode=code;window._lastCodeTime=now;window._scanPaused=true;
