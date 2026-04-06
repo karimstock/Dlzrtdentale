@@ -1098,14 +1098,141 @@ function traiterCommandeAchat(texte) {
   }
 }
 
-function validerPanierVocal() {
+// ═══════════════════════════════════
+// INTELLIGENCE PRIX — MODULE COMPLET
+// ═══════════════════════════════════
+const JADOMI_CLAUDE_KEY = ''; // Clé API Anthropic (laisser vide = estimation locale)
+const PRIX_CATALOGUE = {
+  'Gants':{min:4,max:12,moy:7},'Composites':{min:18,max:45,moy:28},
+  'Adhésifs':{min:25,max:55,moy:35},'Anesthésiants':{min:15,max:40,moy:25},
+  'Endodontie':{min:8,max:35,moy:18},'Ciments':{min:12,max:40,moy:22},
+  'Empreintes':{min:15,max:50,moy:30},'Consommables':{min:3,max:15,moy:8},
+  'Protection':{min:5,max:20,moy:10},'Prothèse':{min:10,max:30,moy:18},
+};
+
+async function validerPanierVocal() {
   const lignes=window._panierVocal;
   if(!lignes||!lignes.length) return;
-  // Sauvegarder le panier dans localStorage
   localStorage.setItem('amilo_panier',JSON.stringify(lignes));
-  const noms=lignes.map(l=>l.nom+' ×'+l.qte).join(', ');
-  showToast('🛒 Panier sauvegardé : '+lignes.length+' produit'+(lignes.length>1?'s':''));
+
+  const display=document.getElementById('vocal-display');
+  display.classList.remove('empty');
+  display.innerHTML='<div style="text-align:center;padding:16px;"><div style="color:#c8f060;font-weight:600;margin-bottom:8px;">🔍 Recherche des meilleurs prix...</div><div style="width:24px;height:24px;border:2px solid #2e2c29;border-top-color:#c8f060;border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;"></div></div>';
+
+  // 3 recherches EN PARALLÈLE
+  const [cache,marche,prixIA] = await Promise.all([
+    rechercherPanierCache(lignes),
+    rechercherMarcheDentiste(lignes),
+    rechercherPrixClaudeAPI(lignes)
+  ]);
+
+  const offres=[];
+  if(cache) offres.push({source:'cache',label:'⚡ Négocié il y a '+cache.age+'j',fournisseur:cache.meilleur_fournisseur,prix:cache.prix_total,economie:cache.economie,detail:cache.detail||[]});
+  if(marche&&marche.length>0) offres.push({source:'marche',label:'🏪 Confrère JADOMI',fournisseur:'Marché dentaire',prix:marche.reduce((t,p)=>t+p.prix_total,0),economie:marche.reduce((t,p)=>t+p.economie,0),detail:marche});
+  if(prixIA) { offres.push({source:'ia',label:'🤖 Prix temps réel',fournisseur:prixIA.meilleur_fournisseur||'Web',prix:prixIA.prix_total,economie:prixIA.economie||0,detail:prixIA.detail||[]}); sauvegarderPanierCache(lignes,prixIA); }
+  if(offres.length===0) offres.push(estimerPrixLocal(lignes));
+
+  offres.sort((a,b)=>a.prix-b.prix);
+  const best=offres[0];
+
+  display.innerHTML=`
+    <div style="color:#c8f060;font-weight:700;font-size:15px;margin-bottom:12px;">🎯 Meilleure offre trouvée !</div>
+    <div style="background:#0f0e0d;border:1px solid #c8f060;border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:11px;color:#60d090;margin-bottom:4px;">${best.label}</div>
+      <div style="font-size:24px;font-weight:700;color:#c8f060;font-family:'Syne',sans-serif;">${best.prix.toFixed(2)}€</div>
+      <div style="font-size:12px;color:#60d090;">chez ${best.fournisseur} · Économie ~${best.economie.toFixed(0)}€</div>
+    </div>
+    ${best.detail.length?`<div style="margin-bottom:10px;">${best.detail.map(d=>`
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2e2c29;font-size:12px;">
+        <span style="color:#f0ede8;">${d.produit||d.nom||''}</span>
+        <span style="color:#c8f060;">${(d.prix_total||d.prix||0).toFixed(2)}€</span>
+      </div>`).join('')}</div>`:''}
+    ${offres.length>1?`<div style="font-size:11px;color:#6b6760;margin-bottom:6px;">Autres options :</div>${offres.slice(1).map(o=>`
+      <div style="display:flex;justify-content:space-between;padding:6px;background:#1a1917;border-radius:6px;margin-bottom:4px;font-size:12px;">
+        <span style="color:#f0ede8;">${o.label} · ${o.fournisseur}</span>
+        <span style="color:#6b6760;">${o.prix.toFixed(2)}€</span>
+      </div>`).join('')}`:''}
+    <button onclick="commanderMeilleureOffre('${best.fournisseur.replace(/'/g,"\\'")}','${best.source}')"
+      style="width:100%;margin-top:12px;padding:14px;background:#c8f060;color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 4px 16px rgba(200,240,96,0.3);">
+      📧 Commander chez ${best.fournisseur} →
+    </button>
+    <button onclick="fermerVocal()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Fermer</button>`;
+
   bipScan();
+  if('Notification' in window){
+    if(Notification.permission==='granted') new Notification('🛒 JADOMI · Panier prêt !',{body:best.prix.toFixed(2)+'€ chez '+best.fournisseur});
+    else if(Notification.permission!=='denied') Notification.requestPermission();
+  }
+}
+
+function estimerPrixLocal(lignes) {
+  let total=0;const detail=[];
+  for(const l of lignes){
+    const ref=PRIX_CATALOGUE[l.cat]||PRIX_CATALOGUE['Consommables'];
+    const pu=ref.moy*0.85;
+    const pl=pu*l.qte;total+=pl;
+    detail.push({produit:l.nom+' ×'+l.qte,prix_total:pl,fournisseur:'Estimation'});
+  }
+  return {source:'local',label:'📊 Estimation catalogue',fournisseur:'Meilleur fournisseur',prix:total,economie:total*0.15,detail};
+}
+
+async function rechercherPanierCache(lignes) {
+  const c=JSON.parse(localStorage.getItem('amilo_prix_cache')||'{}');
+  const key=lignes.map(l=>l.nom).sort().join('|');
+  if(c[key]&&(Date.now()-c[key].ts<7*86400000)) return {...c[key].data,age:Math.floor((Date.now()-c[key].ts)/86400000)};
+  if(!db) return null;
+  try{
+    const{data}=await db.from('prix_cache').select('*').gte('created_at',new Date(Date.now()-7*86400000).toISOString()).order('prix_total',{ascending:true}).limit(1);
+    if(data&&data[0]){const age=Math.floor((Date.now()-new Date(data[0].created_at).getTime())/86400000);return{meilleur_fournisseur:data[0].fournisseur,prix_total:data[0].prix_total,economie:data[0].economie||0,detail:data[0].detail||[],age};}
+    return null;
+  }catch(e){return null;}
+}
+
+function sauvegarderPanierCache(lignes,prixData) {
+  const c=JSON.parse(localStorage.getItem('amilo_prix_cache')||'{}');
+  const key=lignes.map(l=>l.nom).sort().join('|');
+  c[key]={ts:Date.now(),data:prixData};
+  localStorage.setItem('amilo_prix_cache',JSON.stringify(c));
+  if(db){try{db.from('prix_cache').insert([{produits:lignes.map(l=>l.nom+' ×'+l.qte).join(', '),fournisseur:prixData.meilleur_fournisseur,prix_total:prixData.prix_total,economie:prixData.economie,detail:prixData.detail}]);}catch(e){}}
+}
+
+async function rechercherMarcheDentiste(lignes) {
+  if(!db) return null;
+  try{
+    const res=[];
+    for(const l of lignes){
+      const mot=l.nom.split(' ')[0];
+      const{data}=await db.from('marche').select('*').ilike('produit_nom','%'+mot+'%').eq('statut','en_vente').gte('quantite',l.qte).order('prix_vendeur',{ascending:true}).limit(1);
+      if(data&&data[0]) res.push({produit:l.nom+' ×'+l.qte,nom:l.nom,qte:l.qte,prix_total:data[0].prix_vendeur*l.qte,economie:(data[0].prix_vendeur*0.3)*l.qte,vendeur:data[0].vendeur_cabinet});
+    }
+    return res.length>0?res:null;
+  }catch(e){return null;}
+}
+
+async function rechercherPrixClaudeAPI(lignes) {
+  if(!JADOMI_CLAUDE_KEY) return null;
+  try{
+    const pl=lignes.map(l=>l.qte+'x '+l.nom).join(', ');
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':JADOMI_CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}],messages:[{role:'user',content:'Cherche les prix actuels de ces produits dentaires chez DPI, GACD, Mega Dental, Henry Schein, Dental Click.\nProduits : '+pl+'\nRéponds UNIQUEMENT en JSON : {"meilleur_fournisseur":"nom","prix_total":0.00,"economie":0.00,"detail":[{"produit":"nom","prix":0.00,"fournisseur":"nom"}]}'}]})
+    });
+    const data=await resp.json();
+    const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
+    const m=text.match(/\{[\s\S]*\}/);
+    if(m) return JSON.parse(m[0]);
+    return null;
+  }catch(e){console.warn('Claude API:',e);return null;}
+}
+
+function commanderMeilleureOffre(fournisseur,source) {
+  const lignes=window._panierVocal||JSON.parse(localStorage.getItem('amilo_panier')||'[]');
+  const corps=lignes.map(l=>l.nom+' ×'+l.qte).join('\n');
+  const sujet=encodeURIComponent('Commande JADOMI — '+lignes.length+' produits');
+  const body=encodeURIComponent('Bonjour,\n\nJe souhaite commander :\n\n'+corps+'\n\nMerci de me faire parvenir un devis.\n\nCordialement');
+  window.open('mailto:?subject='+sujet+'&body='+body);
+  showToast('📧 Email de commande préparé');
   fermerVocal();
 }
 
