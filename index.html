@@ -310,7 +310,7 @@ tbody tr:hover td{background:var(--surface2);}
   <div class="topbar">
     <div class="page-title" id="page-title">Stock</div>
     <div class="topbar-right" id="topbar-actions">
-      <button onclick="demarrerCamera()" style="width:46px;height:46px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 2px 12px rgba(200,240,96,0.3);transition:transform 0.15s;" onmousedown="this.style.transform='scale(0.92)'" onmouseup="this.style.transform=''" ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform=''">📷</button>
+      <button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button>
       <button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button>
       <button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>
     </div>
@@ -1073,7 +1073,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:"Appels d'offres",groupe:'Paniers groupés',fournisseurs:'Fournisseurs'};
 const actions = {
-  stock:`<button onclick="demarrerCamera()" style="width:46px;height:46px;border-radius:50%;background:#c8f060;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 2px 12px rgba(200,240,96,0.3);">📷</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
+  stock:`<button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``
 };
 
@@ -1360,7 +1360,7 @@ function afficherNouveauProduit(info, code, panel) {
     <input id="scan-exp" type="month" value="${expVal}" style="${I}">
     <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix achat total :</div>
     <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${I}margin-bottom:8px;">
-    <button onclick="scanAjouterComplet(window._scanCurrentCode)" style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
+    <button onclick="scanAjouterComplet(window._scanCurrentCode)" style="width:100%;padding:16px;background:#c8f060;color:#0f0e0d;border:none;border-radius:50px;font-weight:700;cursor:pointer;font-size:16px;box-shadow:0 4px 16px rgba(200,240,96,0.4);letter-spacing:0.5px;">✅ Ajouter au stock</button>
     <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:7px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner suivant →</button>`;
 }
 
@@ -1388,7 +1388,7 @@ function afficherSaisieManuelle(code, panel) {
     <input id="scan-exp" type="month" value="${expVal}" style="${I}">
     <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix achat total :</div>
     <input id="scan-prix-new" type="number" step="0.01" min="0" placeholder="Ex: 24.90€" style="${I}margin-bottom:8px;">
-    <button onclick="scanAjouterComplet(window._scanCurrentCode)" style="width:100%;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Ajouter au stock</button>
+    <button onclick="scanAjouterComplet(window._scanCurrentCode)" style="width:100%;padding:16px;background:#c8f060;color:#0f0e0d;border:none;border-radius:50px;font-weight:700;cursor:pointer;font-size:16px;box-shadow:0 4px 16px rgba(200,240,96,0.4);letter-spacing:0.5px;">✅ Ajouter au stock</button>
     <button onclick="scanContinuer()" style="width:100%;margin-top:6px;padding:7px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Scanner suivant →</button>`;
 }
 
@@ -1415,7 +1415,7 @@ function scanAction(id, nom, action, code) {
   scanContinuer();
 }
 
-async function scanAjouterComplet(code) {
+function scanAjouterComplet(code) {
   const nom=document.getElementById('scan-nom')?.value.trim();
   if(!nom){showToast('❌ Entre le nom du produit');return;}
   const cat=document.getElementById('scan-cat')?.value||'Autre';
@@ -1427,8 +1427,8 @@ async function scanAjouterComplet(code) {
   const today=new Date().toISOString().slice(0,10);
   const nouveau={nom,categorie:cat,marque,qty,seuil,date_peremption:exp,fournisseur:'',is_partner:false,code_barre:code,date_entree:today};
   if(prixTotal>0){if(!historiqueAchats[code])historiqueAchats[code]=[];historiqueAchats[code].push({prix_total:prixTotal,qte:qty,prix_unit:+(prixTotal/qty).toFixed(2),date:today});sauverAchats();}
-  if(db){try{const{data}=await db.from('produits').insert([nouveau]).select();if(data&&data[0]){produits=[data[0],...produits];}else{produits=[{id:Date.now(),...nouveau},...produits];}}catch(e){produits=[{id:Date.now(),...nouveau},...produits];}}
-  else{produits=[{id:Date.now(),...nouveau},...produits];}
+  // Ajouter localement IMMÉDIATEMENT (pas d'await)
+  produits=[{id:Date.now(),...nouveau},...produits];
   localStorage.setItem('amilo_produits',JSON.stringify(produits));
   updateStats();filtrer();
   let msg=`✅ ${nom} ajouté · Stock : ${qty}`;
@@ -1436,6 +1436,8 @@ async function scanAjouterComplet(code) {
   showToast(msg);
   bipScan();
   scanContinuer();
+  // Sync Supabase en arrière-plan (fire & forget)
+  if(db){try{db.from('produits').insert([nouveau]).select();}catch(e){}}
 }
 
 // ═══════════════════════════════════
