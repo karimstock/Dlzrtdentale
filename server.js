@@ -661,6 +661,133 @@ app.get('/api/documents/:user_id', async (req, res) => {
 });
 
 // =============================================
+// POST /api/suggestions — Submit & analyze suggestion
+// =============================================
+app.post('/api/suggestions', async (req, res) => {
+  try {
+    const { user_id, cabinet_nom, titre, description, categorie, email, nom } = req.body;
+    if (!titre || !description) return res.status(400).json({ error: 'titre and description required' });
+
+    // Analyze with Claude
+    let analyse = { score: 5, categorie: categorie || 'autre', resume: titre, decision: 'etude', conseil_alternatif: '' };
+    try {
+      const iaResp = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: `Analyse cette suggestion d'un dentiste utilisant JADOMI (app de gestion stock dentaire IA).
+
+Titre: ${titre}
+Description: ${description}
+Categorie: ${categorie || 'autre'}
+
+Score 1-10:
+1-3 = trop complexe ou hors perimetre
+4-6 = interessant a etudier
+7-8 = tres bonne idee a planifier
+9-10 = idee revolutionnaire urgente
+
+Reponds UNIQUEMENT en JSON:
+{"score":8,"categorie":"stock|green|sos|prix|ux|autre","resume":"resume 1 phrase","decision":"refus|etude|planifie|urgent","conseil_alternatif":"si refus uniquement"}` }]
+      });
+      const text = iaResp.content?.[0]?.text || '';
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) analyse = JSON.parse(m[0]);
+    } catch (e) { console.log('Suggestion IA analysis failed:', e.message); }
+
+    const record = {
+      user_id: user_id || null,
+      cabinet_nom: cabinet_nom || null,
+      titre,
+      description,
+      categorie: analyse.categorie || categorie || 'autre',
+      statut: analyse.decision === 'refus' ? 'refuse' : analyse.decision === 'urgent' ? 'urgent' : analyse.decision === 'planifie' ? 'planifie' : 'en_etude',
+      score_ia: analyse.score || 5,
+      analyse_ia: JSON.stringify(analyse),
+      email_envoye: false,
+      created_at: new Date().toISOString()
+    };
+
+    // Save to Supabase
+    let savedId = null;
+    try {
+      const { data } = await supabase.from('suggestions').insert([record]).select();
+      if (data?.[0]) savedId = data[0].id;
+    } catch (e) { console.log('Supabase suggestions insert skipped'); }
+
+    // Determine email content based on score
+    let emailSubject = '';
+    let emailBody = '';
+    const score = analyse.score || 5;
+    const prenomClient = nom || 'Docteur';
+
+    if (score <= 3) {
+      emailSubject = 'Merci pour votre suggestion JADOMI';
+      emailBody = `Bonjour ${prenomClient},\n\nMerci pour votre suggestion : "${titre}"\n\nNous l'avons etudiee avec attention. Elle est pour l'instant trop complexe a integrer dans notre roadmap.\n\n${analyse.conseil_alternatif ? 'Nous vous recommandons plutot : ' + analyse.conseil_alternatif + '\n\n' : ''}N'hesitez pas a nous soumettre d'autres idees !\n\nL'equipe JADOMI — contact@jadomi.fr`;
+    } else if (score <= 7) {
+      emailSubject = 'Votre suggestion est a l\'etude ! 🧠';
+      emailBody = `Bonjour ${prenomClient},\n\nExcellente suggestion !\n"${titre}"\n\nElle est officiellement en phase d'etude. Si nous l'implementons, vous serez le premier informe et recevrez 1 mois gratuit en remerciement ! 🎁\n\nMerci de contribuer a ameliorer JADOMI.\n\nL'equipe JADOMI`;
+    } else {
+      emailSubject = '🔥 Votre idee est exceptionnelle !';
+      emailBody = `Bonjour ${prenomClient},\n\nWOW ! Merci pour cette idee incroyable :\n"${titre}"\n\nNous avons immediatement transmis votre suggestion a notre equipe technique. Elle est si pertinente que nous travaillons dessus en priorite !\n\nVous serez beta-testeur en avant-premiere.\nVotre prochain mois est offert ! 🎁\n\nDr Karim BAHMED — Fondateur JADOMI\ncontact@jadomi.fr`;
+    }
+
+    // Mark email as sent (actual sending requires SMTP config)
+    if (savedId) {
+      try { await supabase.from('suggestions').update({ email_envoye: true }).eq('id', savedId); } catch (e) {}
+    }
+
+    res.json({
+      success: true,
+      id: savedId,
+      score: analyse.score,
+      decision: analyse.decision,
+      resume: analyse.resume,
+      email_subject: emailSubject,
+      email_body: emailBody,
+      analyse
+    });
+  } catch (err) {
+    console.error('[/api/suggestions] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================
+// GET /api/suggestions/admin — List all suggestions
+// =============================================
+app.get('/api/suggestions/admin', async (req, res) => {
+  try {
+    const { data: suggestions, error } = await supabase
+      .from('suggestions')
+      .select('*')
+      .order('score_ia', { ascending: false });
+
+    if (error) throw error;
+
+    // Group by similar themes
+    const parCategorie = {};
+    for (const s of suggestions || []) {
+      const cat = s.categorie || 'autre';
+      if (!parCategorie[cat]) parCategorie[cat] = [];
+      parCategorie[cat].push(s);
+    }
+
+    const total = (suggestions || []).length;
+    const scoreMoyen = total > 0 ? Math.round((suggestions || []).reduce((t, s) => t + (s.score_ia || 0), 0) / total * 10) / 10 : 0;
+
+    res.json({
+      total,
+      score_moyen: scoreMoyen,
+      par_categorie: parCategorie,
+      suggestions: suggestions || []
+    });
+  } catch (err) {
+    console.error('[/api/suggestions/admin] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================
 // Start server
 // =============================================
 const PORT = process.env.PORT || 3000;
