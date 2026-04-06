@@ -294,6 +294,9 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-section">Achats</div>
     <div class="nav-item" onclick="showPage('devis',this)"><span class="ni">📋</span>Appels d'offres</div>
     <div class="nav-item" onclick="showPage('groupe',this)"><span class="ni">⚡</span>Paniers groupés</div>
+    <div class="nav-section">Communauté</div>
+    <div class="nav-item" onclick="showPage('marche',this)"><span class="ni">🏪</span>Marché</div>
+    <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
     <div class="nav-section">Paramètres</div>
     <div class="nav-item" onclick="showPage('fournisseurs',this)"><span class="ni">🏭</span>Fournisseurs</div>
   </nav>
@@ -485,6 +488,23 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="fourni-grid" id="fourni-grid"></div>
     </div>
 
+    <!-- MARCHÉ DENTAIRE -->
+    <div class="page" id="page-marche">
+      <div class="alert alert-accent" style="margin-bottom:16px;"><span class="alert-dot"></span><span>🏪 Vendez vos surplus, achetez à prix réduit entre confrères · Anonymat total</span></div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button class="btn btn-accent" onclick="ouvrirVenteModal()">+ Mettre en vente</button>
+        <button class="btn btn-ghost" onclick="chargerMarche()">🔄 Actualiser</button>
+      </div>
+      <div id="marche-liste" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <!-- SOS STOCK -->
+    <div class="page" id="page-sos">
+      <div class="alert alert-red" style="margin-bottom:16px;"><span class="alert-dot"></span><span>🆘 Trouvez un produit en urgence chez un confrère à proximité</span></div>
+      <button class="btn btn-red" onclick="ouvrirSOSModal()" style="margin-bottom:16px;">🆘 Lancer un SOS</button>
+      <div id="sos-liste" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
   </div>
 </div>
 </div>
@@ -574,6 +594,9 @@ tbody tr:hover td{background:var(--surface2);}
 </div>
 
 <!-- MOBILE NAV -->
+<!-- SOS FLOATING BUTTON -->
+<button onclick="ouvrirSOSModal()" style="position:fixed;bottom:160px;right:16px;width:52px;height:52px;border-radius:50%;background:#f05050;border:none;font-size:20px;color:#fff;cursor:pointer;box-shadow:0 4px 12px rgba(240,80,80,0.4);z-index:99;">🆘</button>
+
 <nav class="mobile-nav">
   <div class="mobile-nav-inner">
     <button class="mnav-item active" onclick="showPage('stock',this)"><span class="mnav-icon">📦</span>Stock</button>
@@ -718,8 +741,10 @@ async function init() {
     if(el){el.style.display='block';const inp=document.getElementById('input-api-key');if(inp)inp.value=localStorage.getItem('jadomi_claude_key')||'';}
   }
 
-  // Vérifier statut IA
+  // Vérifier statut IA + charger modules
   verifierStatutIA();
+  chargerMarche();
+  chargerSOS();
 
   // ÉTAPE 2 : Charger les fournisseurs
   await chargerFournisseurs();
@@ -935,6 +960,7 @@ function renderTable(data) {
           <button class="icon-btn" title="Modifier quantité" onclick="modifierQty(${p.id},'${p.nom.replace(/'/g,"\\'")}',${p.qty})">±</button>
           <button class="icon-btn" title="Éditer" onclick="editerProduit(${p.id})">✏️</button>
           <button class="icon-btn cmd" title="Commander" onclick="showPage('devis',null)">📋</button>
+          <button class="icon-btn" title="Vendre" onclick="ouvrirVenteModalProduit(${p.id})" style="color:#60d090;">🏪</button>
           <button class="icon-btn del" title="Supprimer" onclick="supprimerProduit(${p.id},'${p.nom.replace(/'/g,"\\'")}')">🗑</button>
         </div></td>
       </tr>`;
@@ -1664,7 +1690,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:"Appels d'offres",groupe:'Paniers groupés',fournisseurs:'Fournisseurs'};
+const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:"Appels d'offres",groupe:'Paniers groupés',fournisseurs:'Fournisseurs',marche:'Marché dentaire',sos:'SOS Stock'};
 const actions = {
   stock:`<button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``
@@ -1688,6 +1714,211 @@ function showToast(msg) {
   t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══════════════════════════════════
+// ═══════════════════════════════════
+// MARCHÉ DENTAIRE
+// ═══════════════════════════════════
+let marcheItems=JSON.parse(localStorage.getItem('amilo_marche')||'[]');
+function sauverMarche(){localStorage.setItem('amilo_marche',JSON.stringify(marcheItems));}
+
+async function suggererPrixVente(produit) {
+  const cle=getCleAPI();
+  if(!cle) return {prix_suggere:0,reduction:'?',message:'Configure la clé API'};
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,messages:[{role:'user',content:`Produit dentaire à vendre :
+Nom: ${produit.nom}, Stock: ${produit.qty}, Péremption: ${produit.date_peremption||'inconnue'}, Aujourd'hui: ${new Date().toISOString().slice(0,10)}
+Suggère un prix de vente en JSON uniquement : {"prix_suggere":0.00,"reduction":"pourcentage","message":"explication courte"}`}]})
+    });
+    const data=await resp.json();
+    const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
+    return m?JSON.parse(m[0]):{prix_suggere:0,reduction:'?',message:'Estimation indisponible'};
+  } catch(e){return {prix_suggere:0,reduction:'?',message:'Erreur IA'};}
+}
+
+async function ouvrirVenteModalProduit(id) {
+  const p=produits.find(x=>x.id==id);if(!p)return;
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:24px;max-width:400px;width:100%;">
+    <div style="font-weight:700;color:#c8f060;font-size:16px;margin-bottom:12px;">🏪 Vendre : ${p.nom}</div>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:12px;">Stock: ${p.qty} · ${p.date_peremption?'Exp: '+p.date_peremption:'Pas de date'}</div>
+    <div id="prix-ia-loading" style="color:#6b6760;font-size:12px;margin-bottom:12px;">🤖 Calcul du prix optimal...</div>
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Quantité à vendre :</div>
+    <input id="vente-qty" type="number" value="1" min="1" max="${p.qty}" style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:14px;margin-bottom:8px;">
+    <div style="font-size:11px;color:#6b6760;margin-bottom:4px;">Prix de vente (€) :</div>
+    <input id="vente-prix" type="number" step="0.01" min="0" placeholder="Prix par unité" style="width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:14px;margin-bottom:4px;">
+    <div id="vente-commission" style="font-size:11px;color:#6b6760;margin-bottom:12px;"></div>
+    <button onclick="validerVente(${p.id})" style="width:100%;padding:12px;background:#c8f060;color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;">🏪 Mettre en vente</button>
+    <button onclick="this.closest('div').parentElement.remove()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Annuler</button>
+  </div>`;
+  document.body.appendChild(modal);
+  // Calcul IA du prix
+  const suggestion=await suggererPrixVente(p);
+  const el=document.getElementById('prix-ia-loading');
+  if(el) el.innerHTML=`<span style="color:#c8f060;">🤖 Prix suggéré : ${suggestion.prix_suggere}€</span><br><span style="font-size:10px;">${suggestion.message}</span>`;
+  const prixInput=document.getElementById('vente-prix');
+  if(prixInput&&suggestion.prix_suggere>0) prixInput.value=suggestion.prix_suggere;
+  // Calcul commission live
+  prixInput?.addEventListener('input',()=>{
+    const v=parseFloat(prixInput.value)||0;
+    const q=parseInt(document.getElementById('vente-qty')?.value)||1;
+    const comm=(v*q*0.1).toFixed(2);
+    const net=(v*q-v*q*0.1).toFixed(2);
+    document.getElementById('vente-commission').innerHTML=`Commission 10% : ${comm}€ · Vous recevez : <span style="color:#c8f060;">${net}€</span>`;
+  });
+  prixInput?.dispatchEvent(new Event('input'));
+}
+
+function ouvrirVenteModal(){
+  // Sélectionner un produit à vendre
+  const choices=produits.filter(p=>p.qty>0).slice(0,10);
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:70vh;overflow-y:auto;">
+    <div style="font-weight:700;color:#c8f060;font-size:16px;margin-bottom:12px;">🏪 Que voulez-vous vendre ?</div>
+    ${choices.map(p=>`<button onclick="this.closest('div').parentElement.remove();ouvrirVenteModalProduit(${p.id})" style="display:block;width:100%;margin-bottom:6px;padding:10px;background:#242220;color:#f0ede8;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;text-align:left;font-size:13px;">${p.nom} <span style="color:#6b6760;">· Stock: ${p.qty}</span></button>`).join('')}
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+function validerVente(id) {
+  const p=produits.find(x=>x.id==id);if(!p)return;
+  const qty=parseInt(document.getElementById('vente-qty')?.value)||1;
+  const prix=parseFloat(document.getElementById('vente-prix')?.value)||0;
+  if(prix<=0){showToast('❌ Entre un prix');return;}
+  const num=getNumeroJadomi();
+  const item={id:Date.now(),produit_nom:p.nom,categorie:p.categorie,quantite:qty,date_peremption:p.date_peremption,prix_vendeur:prix,statut:'en_vente',vendeur_numero:num,commission:(prix*qty*0.1).toFixed(2),created_at:new Date().toISOString()};
+  marcheItems.push(item);sauverMarche();
+  if(db){try{db.from('marche').insert([item]);}catch(e){}}
+  showToast('🏪 '+p.nom+' mis en vente à '+prix+'€ !');
+  bipScan();
+  document.querySelector('div[style*="z-index:200"]')?.remove();
+  chargerMarche();
+}
+
+function chargerMarche() {
+  const liste=document.getElementById('marche-liste');if(!liste)return;
+  if(marcheItems.filter(m=>m.statut==='en_vente').length===0){
+    liste.innerHTML='<div class="empty"><div class="empty-icon">🏪</div><div class="empty-title">Aucun produit en vente</div><div class="empty-sub">Mettez un produit en vente depuis votre stock</div></div>';
+    return;
+  }
+  liste.innerHTML=marcheItems.filter(m=>m.statut==='en_vente').map(m=>`
+    <div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-weight:600;color:#f0ede8;font-size:14px;">${m.produit_nom}</div>
+        <div style="font-size:11px;color:#6b6760;">${m.categorie||''} · ×${m.quantite} · ${m.date_peremption||'Pas de date'}</div>
+        <div style="font-size:12px;color:#c8f060;font-weight:600;margin-top:4px;">${m.prix_vendeur}€/u · 💚 Confrère</div>
+      </div>
+      <button onclick="retirerDuMarche(${m.id})" style="padding:6px 12px;background:#242220;color:#f05050;border:1px solid #f05050;border-radius:8px;font-size:11px;cursor:pointer;">Retirer</button>
+    </div>`).join('');
+}
+
+function retirerDuMarche(id) {
+  marcheItems=marcheItems.filter(m=>m.id!==id);sauverMarche();
+  if(db){try{db.from('marche').delete().eq('id',id);}catch(e){}}
+  chargerMarche();showToast('🏪 Produit retiré du marché');
+}
+
+// ═══════════════════════════════════
+// SOS STOCK
+// ═══════════════════════════════════
+let sosItems=JSON.parse(localStorage.getItem('amilo_sos')||'[]');
+function sauverSOS(){localStorage.setItem('amilo_sos',JSON.stringify(sosItems));}
+
+async function genererMessageSOS(produit,urgence) {
+  const cle=getCleAPI();
+  if(!cle) return 'Recherche urgente : '+produit;
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:150,messages:[{role:'user',content:`Génère un message SOS dentaire court pour un confrère qui cherche : Produit: ${produit}, Urgence: ${urgence}. Anonymat: numéro cabinet uniquement. Message concis et professionnel en français, 2 lignes max.`}]})
+    });
+    const data=await resp.json();
+    return data.content?.[0]?.text||'Recherche urgente : '+produit;
+  } catch(e){return 'Recherche urgente : '+produit;}
+}
+
+function ouvrirSOSModal() {
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  const I='width:100%;padding:8px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:13px;margin-bottom:8px;';
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:24px;max-width:400px;width:100%;">
+    <div style="font-weight:700;color:#f05050;font-size:16px;margin-bottom:12px;">🆘 SOS Stock</div>
+    <div style="font-size:12px;color:#6b6760;margin-bottom:12px;">Trouvez un produit en urgence chez un confrère</div>
+    <input id="sos-produit" placeholder="Quel produit cherchez-vous ? *" style="${I}">
+    <input id="sos-qty" type="number" value="1" min="1" placeholder="Quantité" style="${I}">
+    <select id="sos-urgence" style="${I}">
+      <option value="critique">🔴 Patient en salle — URGENT</option>
+      <option value="urgent">🟠 Besoin dans les 2h</option>
+      <option value="normal" selected>🟡 Besoin aujourd'hui</option>
+    </select>
+    <select id="sos-rayon" style="${I}">
+      <option value="2">📍 2 km</option>
+      <option value="5" selected>📍 5 km</option>
+      <option value="10">📍 10 km</option>
+      <option value="20">📍 20 km</option>
+    </select>
+    <button onclick="envoyerSOS()" style="width:100%;padding:12px;background:#f05050;color:#fff;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;">🆘 Envoyer le SOS</button>
+    <button onclick="this.closest('div').parentElement.remove()" style="width:100%;margin-top:6px;padding:8px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:12px;">Annuler</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function envoyerSOS() {
+  const produit=document.getElementById('sos-produit')?.value.trim();
+  if(!produit){showToast('❌ Entrez le nom du produit');return;}
+  const qty=parseInt(document.getElementById('sos-qty')?.value)||1;
+  const urgence=document.getElementById('sos-urgence')?.value||'normal';
+  const rayon=parseInt(document.getElementById('sos-rayon')?.value)||5;
+  const num=getNumeroJadomi();
+  const msg=await genererMessageSOS(produit,urgence);
+  const commPct=urgence==='critique'?15:urgence==='urgent'?12:10;
+  const sos={id:Date.now(),produit_nom:produit,quantite_besoin:qty,urgence,cabinet_numero:num,statut:'en_attente',rayon_km:rayon,message_ia:msg,commission_pct:commPct,created_at:new Date().toISOString()};
+  sosItems.push(sos);sauverSOS();
+  if(db){try{db.from('sos_stock').insert([sos]);}catch(e){}}
+  showToast('🆘 SOS envoyé ! Les confrères à '+rayon+'km seront notifiés');
+  bipScan();
+  document.querySelector('div[style*="z-index:200"]')?.remove();
+  chargerSOS();
+  // Vérifier si un produit du marché correspond
+  const match=marcheItems.find(m=>m.statut==='en_vente'&&norm(m.produit_nom).includes(norm(produit.split(' ')[0])));
+  if(match) showToast('💡 Ce produit est disponible sur le Marché JADOMI !');
+}
+
+function chargerSOS() {
+  const liste=document.getElementById('sos-liste');if(!liste)return;
+  const actifs=sosItems.filter(s=>s.statut==='en_attente');
+  if(actifs.length===0){
+    liste.innerHTML='<div class="empty"><div class="empty-icon">🆘</div><div class="empty-title">Aucun SOS en cours</div><div class="empty-sub">Lancez un SOS quand vous avez besoin d\'un produit en urgence</div></div>';
+    return;
+  }
+  liste.innerHTML=actifs.map(s=>{
+    const urg=s.urgence==='critique'?'🔴':s.urgence==='urgent'?'🟠':'🟡';
+    return `<div style="background:#1a1917;border:1px solid ${s.urgence==='critique'?'rgba(240,80,80,0.3)':'#2e2c29'};border-radius:12px;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-weight:600;color:#f0ede8;font-size:14px;">${urg} ${s.produit_nom}</div>
+        <span style="font-size:11px;color:#6b6760;">×${s.quantite_besoin} · ${s.rayon_km}km</span>
+      </div>
+      <div style="font-size:12px;color:#6b6760;margin-bottom:8px;">${s.message_ia||''}</div>
+      <div style="display:flex;gap:8px;">
+        <span style="font-size:11px;color:#6b6760;">Commission: ${s.commission_pct||10}%</span>
+        <button onclick="annulerSOS(${s.id})" style="margin-left:auto;padding:4px 10px;background:transparent;color:#f05050;border:1px solid #f05050;border-radius:6px;font-size:11px;cursor:pointer;">Annuler</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function annulerSOS(id) {
+  sosItems=sosItems.filter(s=>s.id!==id);sauverSOS();
+  if(db){try{db.from('sos_stock').delete().eq('id',id);}catch(e){}}
+  chargerSOS();showToast('🆘 SOS annulé');
 }
 
 // ═══════════════════════════════════
