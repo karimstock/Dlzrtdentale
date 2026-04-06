@@ -299,6 +299,7 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
     <div class="nav-section">Paramètres</div>
     <div class="nav-item" onclick="showPage('fournisseurs',this)"><span class="ni">🏭</span>Fournisseurs</div>
+    <div class="nav-item" onclick="showPage('admin',this)" id="nav-admin" style="display:none;"><span class="ni">⚙️</span>Admin</div>
   </nav>
   <div class="sidebar-bottom">
     <div class="cabinet-card">
@@ -464,21 +465,50 @@ tbody tr:hover td{background:var(--surface2);}
       </div>
     </div>
 
-    <!-- APPELS D'OFFRES -->
+    <!-- COMMANDES / PANIER -->
     <div class="page" id="page-devis">
-      <div class="empty">
-        <div class="empty-icon">📋</div>
-        <div class="empty-title">Appels d'offres</div>
-        <p class="empty-sub" style="margin-top:8px;">Module en cours de développement.<br>Bientôt disponible !</p>
+      <div class="alert alert-accent" style="margin-bottom:16px;"><span class="alert-dot"></span><span>📋 Préparez votre commande — JADOMI négocie le meilleur prix</span></div>
+      <div id="panier-contenu"></div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-accent" onclick="optimiserPanierIA()">🤖 Optimiser le panier IA</button>
+      </div>
+      <div id="panier-optimise" style="margin-top:16px;"></div>
+    </div>
+
+    <!-- IMPORT STOCK -->
+    <div class="page" id="page-groupe">
+      <div style="text-align:center;padding:20px;">
+        <div style="font-size:48px;margin-bottom:12px;">📥</div>
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;">Importer mon stock</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Vous utilisez déjà une autre plateforme ?<br>Importez en 2 minutes. Zéro saisie manuelle. ✨</p>
+        <div id="drop-import" style="border:2px dashed #2e2c29;border-radius:12px;padding:24px;cursor:pointer;margin-bottom:16px;transition:all 0.2s;" onclick="document.getElementById('input-import').click()">
+          <div style="font-size:32px;">📁</div>
+          <div style="color:#6b6760;font-size:13px;margin-top:6px;">Glissez votre fichier ici</div>
+          <div style="color:#3e3c39;font-size:11px;margin-top:2px;">CSV, Excel (.xlsx) — Scan&Stock, autre plateforme</div>
+          <input type="file" id="input-import" accept=".csv,.xlsx,.xls" style="display:none;" onchange="importerFichierStock(this.files[0])">
+        </div>
+        <div id="import-resultat"></div>
       </div>
     </div>
 
-    <!-- PANIERS GROUPÉS -->
-    <div class="page" id="page-groupe">
-      <div class="empty">
-        <div class="empty-icon">⚡</div>
-        <div class="empty-title">Paniers groupés</div>
-        <p class="empty-sub" style="margin-top:8px;">Disponible dès 50 cabinets inscrits.<br>Tu seras notifié !</p>
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+      <div id="admin-login-form" style="text-align:center;padding:40px 20px;">
+        <div style="font-size:36px;margin-bottom:12px;">🔒</div>
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:16px;">Admin JADOMI</div>
+        <input id="admin-pass" type="password" placeholder="Mot de passe admin" style="padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;width:200px;margin-bottom:12px;text-align:center;" onkeypress="if(event.key==='Enter')loginAdmin()">
+        <br><button onclick="loginAdmin()" class="btn btn-accent">Connexion</button>
+      </div>
+      <div id="admin-dashboard" style="display:none;">
+        <div class="stats" style="margin-bottom:16px;">
+          <div class="stat"><div class="stat-label">Produits en vente</div><div class="stat-value c-green" id="admin-marche">0</div></div>
+          <div class="stat"><div class="stat-label">SOS actifs</div><div class="stat-value c-red" id="admin-sos">0</div></div>
+          <div class="stat"><div class="stat-label">Commissions dues</div><div class="stat-value c-accent" id="admin-comm">0€</div></div>
+          <div class="stat"><div class="stat-label">Produits stock</div><div class="stat-value" id="admin-stock">0</div></div>
+        </div>
+        <button class="btn btn-accent" onclick="genererRapportAdmin()" style="margin-bottom:16px;">🤖 Rapport admin IA</button>
+        <div id="admin-rapport"></div>
+        <div id="revenus-jadomi" style="margin-top:16px;"></div>
       </div>
     </div>
 
@@ -745,6 +775,7 @@ async function init() {
   verifierStatutIA();
   chargerMarche();
   chargerSOS();
+  chargerPanier();
 
   // ÉTAPE 2 : Charger les fournisseurs
   await chargerFournisseurs();
@@ -1690,7 +1721,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:"Appels d'offres",groupe:'Paniers groupés',fournisseurs:'Fournisseurs',marche:'Marché dentaire',sos:'SOS Stock'};
+const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',marche:'Marché dentaire',sos:'SOS Stock',admin:'Admin JADOMI'};
 const actions = {
   stock:`<button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``
@@ -1717,6 +1748,169 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════
+// ═══════════════════════════════════
+// IMPORT STOCK (CSV/Excel via IA)
+// ═══════════════════════════════════
+async function importerFichierStock(file) {
+  if(!file)return;
+  const cle=getCleAPI();
+  const zone=document.getElementById('drop-import');
+  const res=document.getElementById('import-resultat');
+  zone.innerHTML='<div style="color:#c8f060;font-size:13px;padding:12px;">🤖 Analyse du fichier...</div>';
+  try {
+    const text=await file.text();
+    if(cle) {
+      // Analyse IA
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:`Analyse ce fichier d'export de stock dentaire et retourne UNIQUEMENT ce JSON :
+{"produits":[{"nom":"nom normalisé","quantite":1,"date_peremption":"2026-03","fournisseur":"","categorie":"Gants|Composites|etc"}],"source_detectee":"Scan&Stock|autre","nb_reconnus":0,"nb_total":0}
+
+Contenu du fichier :
+${text.slice(0,3000)}`}]})
+      });
+      const data=await resp.json();
+      const t=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
+      const m=t.match(/\{[\s\S]*\}/);
+      if(m) {
+        const result=JSON.parse(m[0]);
+        afficherResultatImport(result);
+      } else throw new Error('Analyse impossible');
+    } else {
+      // Fallback simple : parser CSV
+      const lines=text.split('\n').filter(l=>l.trim());
+      const prods=lines.slice(1).map(l=>{const cols=l.split(/[,;\t]/);return{nom:cols[0]?.trim()||'',quantite:parseInt(cols[1])||1,date_peremption:cols[2]?.trim()||null,fournisseur:cols[3]?.trim()||'',categorie:'Autre'};}).filter(p=>p.nom);
+      afficherResultatImport({produits:prods,source_detectee:'CSV',nb_reconnus:prods.length,nb_total:prods.length});
+    }
+  } catch(e){showToast('❌ Erreur import : '+e.message);}
+  zone.innerHTML='<div style="font-size:32px;">📁</div><div style="color:#6b6760;font-size:13px;margin-top:6px;">Glissez votre fichier ici</div><input type="file" id="input-import" accept=".csv,.xlsx,.xls" style="display:none;" onchange="importerFichierStock(this.files[0])">';
+}
+
+function afficherResultatImport(result) {
+  const res=document.getElementById('import-resultat');
+  window._importData=result;
+  res.innerHTML=`
+    <div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;text-align:left;">
+      <div style="font-weight:600;color:#c8f060;margin-bottom:8px;">✅ ${result.nb_reconnus||result.produits.length} produits détectés</div>
+      <div style="font-size:11px;color:#6b6760;margin-bottom:12px;">Source : ${result.source_detectee||'CSV'}</div>
+      <div style="max-height:200px;overflow-y:auto;">
+      ${result.produits.slice(0,20).map(p=>`
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2e2c29;font-size:12px;">
+          <span style="color:#f0ede8;">${p.nom}</span>
+          <span style="color:#c8f060;">×${p.quantite}${p.date_peremption?' · '+p.date_peremption:''}</span>
+        </div>`).join('')}
+      </div>
+      <button onclick="validerImport()" style="width:100%;margin-top:12px;padding:12px;background:#c8f060;color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;">✅ Importer ${result.produits.length} produits</button>
+    </div>`;
+}
+
+function validerImport() {
+  const data=window._importData;if(!data)return;
+  for(const p of data.produits) {
+    const nv={nom:p.nom,categorie:p.categorie||'Autre',marque:'',qty:p.quantite||1,seuil:5,date_peremption:p.date_peremption||null,fournisseur:p.fournisseur||'',is_partner:false,date_entree:new Date().toISOString().slice(0,10)};
+    produits=[{id:Date.now()+Math.random(),...nv},...produits];
+    enrichirCatalogueVocal(nv);
+    if(db){try{db.from('produits').insert([nv]).select();}catch(e){}}
+  }
+  localStorage.setItem('amilo_produits',JSON.stringify(produits));
+  updateStats();filtrer();
+  showToast('✅ '+data.produits.length+' produits importés !');
+  bipScan();
+  document.getElementById('import-resultat').innerHTML='';
+}
+
+// ═══════════════════════════════════
+// COMMANDES — OPTIMISEUR PANIER IA
+// ═══════════════════════════════════
+function chargerPanier() {
+  const el=document.getElementById('panier-contenu');if(!el)return;
+  const panier=JSON.parse(localStorage.getItem('amilo_panier')||'[]');
+  if(!panier.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Panier vide</div><div class="empty-sub">Utilisez le vocal : "commande 10 gants, 5 scotchbond"</div></div>';return;}
+  el.innerHTML=panier.map((l,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#1a1917;border:1px solid #2e2c29;border-radius:8px;margin-bottom:6px;">
+      <div style="color:#f0ede8;font-size:13px;">${l.nom} <span style="color:#c8f060;">×${l.qte}</span></div>
+      <button onclick="retirerDuPanier(${i})" style="background:transparent;border:none;color:#f05050;cursor:pointer;">✕</button>
+    </div>`).join('');
+}
+
+function retirerDuPanier(i) {
+  const panier=JSON.parse(localStorage.getItem('amilo_panier')||'[]');
+  panier.splice(i,1);
+  localStorage.setItem('amilo_panier',JSON.stringify(panier));
+  chargerPanier();
+}
+
+async function optimiserPanierIA() {
+  const panier=JSON.parse(localStorage.getItem('amilo_panier')||'[]');
+  if(!panier.length){showToast('📋 Panier vide');return;}
+  const cle=getCleAPI();
+  const el=document.getElementById('panier-optimise');
+  el.innerHTML='<div style="color:#6b6760;font-size:12px;padding:12px;">🤖 Optimisation en cours...</div>';
+  if(cle) {
+    try {
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Optimise ce panier dentaire.
+Produits : ${panier.map(l=>l.qte+'x '+l.nom).join(', ')}
+Fournisseurs : DPI (livraison gratuite >150€), GACD (>100€), Mega Dental (>120€)
+Retourne JSON : {"meilleur_fournisseur":"nom","economie_frais_port":0.00,"conseil":"conseil court"}`}]})
+      });
+      const data=await resp.json();
+      const t=data.content?.[0]?.text||'';
+      const m=t.match(/\{[\s\S]*\}/);
+      if(m) {
+        const r=JSON.parse(m[0]);
+        el.innerHTML=`<div style="background:#0f0e0d;border:1px solid #c8f060;border-radius:12px;padding:14px;">
+          <div style="color:#c8f060;font-weight:700;margin-bottom:6px;">💡 ${r.meilleur_fournisseur}</div>
+          <div style="font-size:12px;color:#f0ede8;margin-bottom:4px;">${r.conseil}</div>
+          <div style="font-size:11px;color:#60d090;">Économie frais port : ${r.economie_frais_port}€</div>
+          <button onclick="commanderMeilleureOffre('${r.meilleur_fournisseur.replace(/'/g,"\\'")}','ia')" style="width:100%;margin-top:10px;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📧 Commander chez ${r.meilleur_fournisseur}</button>
+        </div>`;
+      }
+    } catch(e){el.innerHTML='<div style="color:#f0a030;font-size:12px;">Estimation locale utilisée</div>';}
+  }
+}
+
+// ═══════════════════════════════════
+// ADMIN JADOMI
+// ═══════════════════════════════════
+function loginAdmin() {
+  const pass=document.getElementById('admin-pass')?.value;
+  const stored=localStorage.getItem('jadomi_admin_key')||'jadomi2026';
+  if(pass===stored) {
+    document.getElementById('admin-login-form').style.display='none';
+    document.getElementById('admin-dashboard').style.display='block';
+    document.getElementById('nav-admin').style.display='';
+    // KPIs
+    document.getElementById('admin-marche').textContent=marcheItems.filter(m=>m.statut==='en_vente').length;
+    document.getElementById('admin-sos').textContent=sosItems.filter(s=>s.statut==='en_attente').length;
+    const totalComm=marcheItems.reduce((t,m)=>t+parseFloat(m.commission||0),0);
+    document.getElementById('admin-comm').textContent=totalComm.toFixed(2)+'€';
+    document.getElementById('admin-stock').textContent=produits.length;
+    showToast('✅ Connecté en admin');
+  } else showToast('❌ Mot de passe incorrect');
+}
+
+async function genererRapportAdmin() {
+  const cle=getCleAPI();if(!cle){showToast('⚠️ Clé API requise');return;}
+  const el=document.getElementById('admin-rapport');
+  el.innerHTML='<div style="color:#6b6760;font-size:12px;">🤖 Génération...</div>';
+  try {
+    const stats={produits:produits.length,marche:marcheItems.length,sos:sosItems.length,commissions:marcheItems.reduce((t,m)=>t+parseFloat(m.commission||0),0)};
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:`Génère un rapport admin JADOMI concis :
+Stats: ${JSON.stringify(stats)}
+Résumé avec KPIs et actions prioritaires. 2-3 paragraphes max. Français professionnel.`}]})
+    });
+    const data=await resp.json();
+    el.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;margin-top:12px;">
+      <div style="font-weight:700;color:#c8f060;margin-bottom:8px;">📊 Rapport admin IA</div>
+      <div style="color:#f0ede8;font-size:13px;line-height:1.7;white-space:pre-wrap;">${data.content?.[0]?.text||'Erreur'}</div>
+    </div>`;
+  } catch(e){el.innerHTML='<div style="color:#f05050;">Erreur</div>';}
+}
+
 // ═══════════════════════════════════
 // MARCHÉ DENTAIRE
 // ═══════════════════════════════════
