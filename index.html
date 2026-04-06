@@ -933,7 +933,7 @@ function initVocal() {
       const display = document.getElementById('vocal-display');
       display.textContent = transcript;
       display.classList.remove('empty');
-      if(e.results[0].isFinal) traiterCommande(transcript);
+      if(e.results[0].isFinal) dispatchVocal(transcript);
     };
     recognition.onend = () => { isListening=false; updateVocalUI(); };
     recognition.onerror = () => { isListening=false; updateVocalUI(); showToast("❌ Micro non disponible"); };
@@ -958,7 +958,7 @@ function simulerVocal(texte) {
   const display = document.getElementById('vocal-display');
   display.textContent = texte;
   display.classList.remove('empty');
-  setTimeout(()=>traiterCommande(texte),500);
+  setTimeout(()=>dispatchVocal(texte),500);
 }
 
 // ═══════════════════════════════════
@@ -979,6 +979,124 @@ function extraireQuantite(texte) {
 
 function norm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 
+// Dispatcher : Claude API si clé dispo, sinon fallback local
+function dispatchVocal(texte) {
+  if(JADOMI_CLAUDE_KEY) traiterCommandeIA(texte);
+  else traiterCommande(texte);
+}
+
+// ═══════════════════════════════════
+// VOCAL IA — CLAUDE API
+// ═══════════════════════════════════
+async function traiterCommandeIA(texte) {
+  const display=document.getElementById('vocal-display');
+  display.classList.remove('empty');
+  display.innerHTML='<div style="color:#6b6760;font-size:13px;">🤖 JADOMI analyse...</div>';
+
+  try {
+    const stockActuel=produits.map(p=>p.nom+' (stock:'+p.qty+', id:'+p.id+(p.date_peremption?', exp:'+p.date_peremption:'')+')').join('\n');
+
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':JADOMI_CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:`Tu es l'assistant IA de JADOMI, gestion de stock dentaire.
+
+Stock actuel du cabinet :
+${stockActuel}
+
+Le dentiste dit : "${texte}"
+
+Retourne UNIQUEMENT ce JSON sans texte autour :
+{"action":"utilise|ajoute|set|commande|filtre|inconnu","produits":[{"id":123,"nom":"nom exact","quantite":1,"date_peremption":null,"nouveau":false}],"message":"confirmation courte"}
+
+RÈGLES :
+- "j'ai reçu 20 flacons de Scotchbond qui périme en nov 2028" → action:"ajoute", quantite:20, date_peremption:"2028-11"
+- "j'ai utilisé 5 boîtes de gants" → action:"utilise", quantite:5
+- "j'ai ajouté un nouveau produit Duralan péremption mars 2026" → action:"ajoute", nouveau:true, date_peremption:"2026-03"
+- "commande 10 gants, 5 scotchbond, meilleur prix" → action:"commande"
+- "montre les ruptures" ou "plus de composite" → action:"filtre"
+- Dates : "novembre 2028"="2028-11", "mars 2026"="2026-03", "fin 2027"="2027-12"
+- id doit correspondre exactement au stock. Si nouveau → id:null
+- "un/une"=1, "deux"=2, "trois"=3, "dix"=10, "vingt"=20`}]
+      })
+    });
+
+    const data=await resp.json();
+    const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
+    const jsonMatch=text.match(/\{[\s\S]*\}/);
+    if(!jsonMatch) throw new Error('Réponse IA invalide');
+    const res=JSON.parse(jsonMatch[0]);
+
+    // Appliquer les actions
+    if(res.action==='filtre') {
+      document.getElementById('filter-status').value='critique';filtrer();
+      fermerVocal();showToast('📋 '+res.message);return;
+    }
+
+    if(res.action==='commande' && res.produits?.length) {
+      window._panierVocal=res.produits.map(p=>({nom:p.nom,qte:p.quantite,cat:'Autre',marque:''}));
+      validerPanierVocal();
+      return;
+    }
+
+    for(const p of (res.produits||[])) {
+      if(res.action==='utilise' && p.id) {
+        const pr=produits.find(x=>x.id===p.id);
+        if(pr) modifierQtyDirecte(p.id,p.nom,Math.max(0,pr.qty-p.quantite),'utilise',p.quantite,pr.qty);
+      } else if(res.action==='ajoute') {
+        if(p.nouveau || !p.id) {
+          // Nouveau produit
+          const nv={nom:p.nom,categorie:p.categorie||'Autre',marque:p.marque||'',qty:p.quantite,seuil:5,date_peremption:p.date_peremption||null,fournisseur:'',is_partner:false,date_entree:new Date().toISOString().slice(0,10)};
+          produits=[{id:Date.now(),...nv},...produits];
+          localStorage.setItem('amilo_produits',JSON.stringify(produits));
+          enrichirCatalogueVocal(nv);
+          updateStats();filtrer();
+          if(db){try{db.from('produits').insert([nv]).select();}catch(e){}}
+        } else {
+          const pr=produits.find(x=>x.id===p.id);
+          if(pr) {
+            const nq=pr.qty+p.quantite;
+            const upd={qty:nq};
+            if(p.date_peremption) upd.date_peremption=p.date_peremption;
+            upd.date_entree=new Date().toISOString().slice(0,10);
+            produits=produits.map(x=>x.id===p.id?{...x,...upd}:x);
+            localStorage.setItem('amilo_produits',JSON.stringify(produits));
+            updateStats();filtrer();
+            if(db){try{db.from('produits').update(upd).eq('id',p.id);}catch(e){}}
+          }
+        }
+      } else if(res.action==='set' && p.id) {
+        const pr=produits.find(x=>x.id===p.id);
+        if(pr) modifierQtyDirecte(p.id,p.nom,p.quantite,'set',p.quantite,pr.qty);
+      }
+    }
+
+    // Confirmation
+    display.innerHTML=`
+      <div style="color:#c8f060;font-weight:600;margin-bottom:8px;">✅ ${res.message||'Action effectuée'}</div>
+      ${(res.produits||[]).map(p=>`
+        <div style="padding:6px 0;border-bottom:1px solid #2e2c29;font-size:12px;color:#f0ede8;">
+          ${p.nom} · ${res.action==='utilise'?'-':'+'}${p.quantite}
+          ${p.date_peremption?' · Exp: '+p.date_peremption:''}
+          ${p.nouveau?' · <span style="color:#f0a030;">Nouveau</span>':''}
+        </div>`).join('')}`;
+    bipScan();
+    setTimeout(()=>fermerVocal(),3000);
+
+  } catch(e) {
+    console.warn('Vocal IA error:',e);
+    // Fallback sur le traitement local
+    display.innerHTML='<div style="color:#f0a030;font-size:12px;">🔄 Fallback local...</div>';
+    setTimeout(()=>traiterCommande(texte),300);
+  }
+}
+
+// ═══════════════════════════════════
+// VOCAL LOCAL — FALLBACK SANS API
+// ═══════════════════════════════════
 function traiterCommande(texte) {
   const t=norm(texte);
 
