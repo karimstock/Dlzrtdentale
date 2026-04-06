@@ -847,52 +847,43 @@ function upgraderPlan(plan) {
 // INIT
 // ═══════════════════════════════════
 async function init() {
-  // Vérifier plan
-  await verifierPlan();
-
-  // ÉTAPE 1 : Afficher immédiatement depuis localStorage
+  // ÉTAPE 1 : Affichage INSTANTANÉ depuis localStorage
   const saved = localStorage.getItem('amilo_produits');
-  if (saved) {
-    produits = JSON.parse(saved);
-  } else {
-    produits = getProduitsDefaut().map((p,i) => ({...p, id: i+1}));
-    localStorage.setItem('amilo_produits', JSON.stringify(produits));
-  }
+  produits = saved ? JSON.parse(saved) : getProduitsDefaut().map((p,i)=>({...p,id:i+1}));
+  if(!saved) localStorage.setItem('amilo_produits',JSON.stringify(produits));
   updateStats();
   filtrer();
   initVocal();
   attacherEvenementsDropZone();
+  chargerMarche();
+  chargerSOS();
+  chargerPanier();
+  chargerHistoriqueFactures();
+  renderFournisseurs();
 
-  // Admin : afficher config API en localhost
+  // Admin : config API en localhost
   if(location.hostname==='localhost'||location.hostname==='127.0.0.1') {
     const el=document.getElementById('admin-api-key');
     if(el){el.style.display='block';const inp=document.getElementById('input-api-key');if(inp)inp.value=localStorage.getItem('jadomi_claude_key')||'';}
   }
 
-  // Vérifier statut IA + charger modules
-  verifierStatutIA();
-  chargerMarche();
-  chargerSOS();
-  chargerPanier();
-  chargerHistoriqueFactures();
+  // ÉTAPE 2 : Tout le reste en arrière-plan (AUCUN await bloquant)
+  verifierPlan().catch(()=>{});
+  verifierStatutIA().catch(()=>{});
+  chargerFournisseurs().then(()=>renderFournisseurs()).catch(()=>{});
 
-  // ÉTAPE 2 : Charger les fournisseurs
-  await chargerFournisseurs();
-  renderFournisseurs();
-
-  // ÉTAPE 3 : Essayer Supabase en arrière-plan
-  if (db) {
+  // ÉTAPE 3 : Supabase sync avec timeout 3s
+  if(db) {
     try {
-      const timeout = new Promise((_, r) => setTimeout(() => r('timeout'), 2000));
-      const query = db.from('produits').select('*').order('created_at', {ascending: false});
-      const {data, error} = await Promise.race([query, timeout.then(() => ({data: null, error: 'timeout'}))]);
-      if (!error && data && data.length > 0) {
-        produits = data;
-        localStorage.setItem('amilo_produits', JSON.stringify(produits));
-        updateStats();
-        filtrer();
+      const timeout=new Promise((_,r)=>setTimeout(()=>r('timeout'),3000));
+      const query=db.from('produits').select('*').order('created_at',{ascending:false});
+      const result=await Promise.race([query,timeout]);
+      if(result?.data?.length>0) {
+        produits=result.data;
+        localStorage.setItem('amilo_produits',JSON.stringify(produits));
+        updateStats();filtrer();
       }
-    } catch(e) {}
+    } catch(e){console.log('Supabase offline — localStorage utilisé');}
   }
 }
 
