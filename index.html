@@ -1749,6 +1749,54 @@ function showToast(msg) {
 
 // ═══════════════════════════════════
 // ═══════════════════════════════════
+// CALCUL MARGE IA AUTOMATIQUE
+// ═══════════════════════════════════
+async function calculerMargeOptimale(contexte) {
+  const cle=getCleAPI();
+  if(!cle) return {commission_recommandee:contexte.montant*0.1,commission_pct:10,marge_jadomi:contexte.montant*0.1,revenu_dentiste_net:contexte.montant*0.9,justification:'Commission standard 10%',attractif:true};
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Consultant financier JADOMI (GPO dentaire).
+Transaction : ${JSON.stringify(contexte)}
+Coûts JADOMI : ~105€/mois (API+serveur).
+Calcule la commission optimale. JSON uniquement :
+{"commission_recommandee":0.00,"commission_pct":0,"marge_jadomi":0.00,"revenu_dentiste_net":0.00,"justification":"court","attractif":true}`}]})
+    });
+    const data=await resp.json();
+    const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
+    return m?JSON.parse(m[0]):{commission_recommandee:contexte.montant*0.1,commission_pct:10,marge_jadomi:contexte.montant*0.1,revenu_dentiste_net:contexte.montant*0.9,justification:'Standard',attractif:true};
+  } catch(e){return {commission_recommandee:contexte.montant*0.1,commission_pct:10,marge_jadomi:contexte.montant*0.1,revenu_dentiste_net:contexte.montant*0.9,justification:'Standard',attractif:true};}
+}
+
+async function afficherRevenusJADOMI() {
+  const el=document.getElementById('revenus-jadomi');if(!el)return;
+  const totalComm=marcheItems.reduce((t,m)=>t+parseFloat(m.commission||0),0);
+  const cle=getCleAPI();
+  if(!cle){el.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;"><div style="color:#c8f060;font-weight:700;margin-bottom:8px;">💰 Revenus JADOMI</div><div style="font-size:22px;font-weight:700;color:#c8f060;">${totalComm.toFixed(2)}€</div><div style="font-size:11px;color:#6b6760;">Commissions totales</div></div>`;return;}
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Analyse rentabilité JADOMI :
+Commissions : ${totalComm}€, Charges : 105€/mois, Produits marché : ${marcheItems.length}, SOS : ${sosItems.length}, Stock : ${produits.length}
+JSON : {"revenu_total":0,"charges":105,"marge_nette":0,"seuil_rentabilite":"X dentistes","conseil":"court"}`}]})
+    });
+    const data=await resp.json();
+    const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
+    const a=m?JSON.parse(m[0]):{revenu_total:totalComm,charges:105,marge_nette:totalComm-105,seuil_rentabilite:'?',conseil:''};
+    el.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;">
+      <div style="color:#c8f060;font-weight:700;font-size:15px;margin-bottom:12px;">💰 Revenus JADOMI</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#c8f060;">${a.revenu_total}€</div><div style="font-size:11px;color:#6b6760;">Revenu total</div></div>
+        <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:${a.marge_nette>=0?'#60d090':'#f05050'};">${a.marge_nette}€</div><div style="font-size:11px;color:#6b6760;">Marge nette</div></div>
+      </div>
+      ${a.conseil?`<div style="background:#0f0e0d;border-radius:8px;padding:10px;font-size:12px;color:#f0ede8;">📊 ${a.conseil}</div>`:''}
+      <div style="font-size:11px;color:#6b6760;margin-top:8px;">Seuil rentabilité : ${a.seuil_rentabilite}</div>
+    </div>`;
+  } catch(e){}
+}
+
+// ═══════════════════════════════════
 // IMPORT STOCK (CSV/Excel via IA)
 // ═══════════════════════════════════
 async function importerFichierStock(file) {
@@ -1887,6 +1935,7 @@ function loginAdmin() {
     const totalComm=marcheItems.reduce((t,m)=>t+parseFloat(m.commission||0),0);
     document.getElementById('admin-comm').textContent=totalComm.toFixed(2)+'€';
     document.getElementById('admin-stock').textContent=produits.length;
+    afficherRevenusJADOMI();
     showToast('✅ Connecté en admin');
   } else showToast('❌ Mot de passe incorrect');
 }
