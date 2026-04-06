@@ -81,12 +81,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <button class="btn-ghost" onclick="retourEtape1()">Retour</button>
   </div>
 
-  <!-- ÉTAPE 3 : Succès -->
+  <!-- ÉTAPE 3 : Succès + Contrat -->
   <div class="step" id="step3">
     <div class="success">
       <div class="success-icon">🎉</div>
       <div class="success-title">Bienvenue dans JADOMI !</div>
       <div class="success-sub" id="welcome-msg">Votre espace est pret.</div>
+      <div id="contrat-status" style="font-size:12px;color:var(--muted);margin-bottom:12px;display:none;"></div>
+      <div id="contrat-link" style="display:none;margin-bottom:12px;">
+        <a id="lien-contrat" href="#" target="_blank" style="display:inline-block;padding:10px 20px;background:rgba(200,240,96,0.1);border:1px solid rgba(200,240,96,0.3);border-radius:8px;color:var(--accent);font-weight:600;font-size:13px;">📄 Signer mon contrat →</a>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Un email avec le lien vous a ete envoye</div>
+      </div>
       <button class="btn" onclick="window.location.href='index.html'">Acceder a JADOMI</button>
     </div>
   </div>
@@ -163,6 +168,43 @@ function afficherSucces(prenom,nom){
   document.getElementById('step3').classList.add('active');
   document.getElementById('step-subtitle').textContent='';
   document.getElementById('welcome-msg').textContent='Bienvenue Dr '+nom+' ! Votre espace JADOMI est pret.';
+  // Generate contract
+  genererContratInscription(prenom,nom);
+}
+
+async function genererContratInscription(prenom,nom) {
+  const status=document.getElementById('contrat-status');
+  const linkWrap=document.getElementById('contrat-link');
+  status.style.display='block';
+  status.textContent='📄 Generation de votre contrat...';
+  const email=document.getElementById('email').value.trim();
+  const cabinet=document.getElementById('cabinet').value.trim();
+  const params=new URLSearchParams(window.location.search);
+  const plan=params.get('plan')||'decouverte';
+  const prixMap={decouverte:0,solo:29,cabinet:39,multi:79,enterprise:149};
+  const prix=prixMap[plan]||0;
+  try {
+    const resp=await fetch('/api/contrats/generer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      nom:prenom+' '+nom,email,cabinet_nom:cabinet,plan,periodicite:'mensuel',prix_mensuel:prix
+    })});
+    const data=await resp.json();
+    if(data.success&&data.lien_signature) {
+      status.style.color='#c8f060';
+      status.textContent='✅ Contrat genere ! Signez-le pour activer votre compte.';
+      linkWrap.style.display='block';
+      document.getElementById('lien-contrat').href=data.lien_signature;
+      // Save locally
+      const docs=JSON.parse(localStorage.getItem('jadomi_documents')||'[]');
+      docs.push({id:Date.now(),type:'contrat_abonnement',nom:data.num_contrat||'Contrat '+plan,signe:false,token_signature:data.token,contenu_html:data.contenu_html,created_at:new Date().toISOString()});
+      localStorage.setItem('jadomi_documents',JSON.stringify(docs));
+      const contrats=JSON.parse(localStorage.getItem('jadomi_contrats')||'[]');
+      contrats.push({id:Date.now(),plan,periodicite:'mensuel',prix_mensuel:prix,statut:'en_attente_signature',cabinet_nom:cabinet,date_debut:new Date().toISOString(),signature_contrat:data.token});
+      localStorage.setItem('jadomi_contrats',JSON.stringify(contrats));
+    } else throw new Error('Erreur generation');
+  } catch(e) {
+    status.style.color='#6b6760';
+    status.textContent='Contrat disponible dans "Mes documents" apres connexion.';
+  }
 }
 </script>
 </body>
