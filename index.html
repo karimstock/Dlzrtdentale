@@ -305,7 +305,7 @@ tbody tr:hover td{background:var(--surface2);}
   <div class="sidebar-bottom">
     <div class="cabinet-card">
       <div class="cabinet-name">Mon cabinet</div>
-      <div class="cabinet-plan">JADOMI · Solo · Gratuit</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI · Decouverte</div>
     </div>
     <div id="ia-status" style="font-size:10px;color:var(--muted);margin-top:8px;padding:4px 0;border-top:1px solid var(--border);">🟡 JADOMI · Chargement...</div>
     <div id="admin-api-key" style="display:none;margin-top:10px;">
@@ -762,13 +762,93 @@ function rechercherProduitVocal(texte) {
 }
 
 // ═══════════════════════════════════
+// PLANS & ABONNEMENTS
+// ═══════════════════════════════════
+async function verifierPlan() {
+  try {
+    // Supabase auth
+    if(db) {
+      const{data:{session}}=await db.auth.getSession();
+      if(session) {
+        const{data:user}=await db.from('users').select('*').eq('id',session.user.id).single();
+        if(user) { window.planActuel=user.plan;window.userInfo=user;
+          if(user.plan==='decouverte') {
+            const now=new Date(),exp=new Date(user.date_expiration);
+            const jours=Math.ceil((exp-now)/(1000*60*60*24));
+            if(now>exp){afficherModalUpgrade('expire');return;}
+            else if(jours<=7) showToast('⚠️ Il vous reste '+jours+' jour(s) d\'essai gratuit');
+            const pe=document.getElementById('cabinet-plan');
+            if(pe) pe.innerHTML='JADOMI · Decouverte · <span style="color:#f0a030;">'+jours+'j restants</span>';
+          } else {
+            const pe=document.getElementById('cabinet-plan');
+            if(pe) pe.innerHTML='JADOMI · '+user.plan.charAt(0).toUpperCase()+user.plan.slice(1)+' · <span style="color:#c8f060;">Actif</span>';
+          }
+          return;
+        }
+      }
+    }
+    // Fallback localStorage
+    const sess=JSON.parse(localStorage.getItem('jadomi_session')||'null');
+    if(sess) {
+      window.planActuel=sess.plan||'decouverte';window.userInfo=sess;
+      const exp=new Date(sess.date_expiration||Date.now()+30*86400000);
+      const jours=Math.ceil((exp-new Date())/(1000*60*60*24));
+      if(sess.plan==='decouverte'&&new Date()>exp){afficherModalUpgrade('expire');return;}
+      const pe=document.getElementById('cabinet-plan');
+      if(pe&&sess.plan==='decouverte') pe.innerHTML='JADOMI · Decouverte · <span style="color:#f0a030;">'+Math.max(0,jours)+'j restants</span>';
+      else if(pe) pe.innerHTML='JADOMI · '+(sess.plan||'Solo')+' · <span style="color:#c8f060;">Actif</span>';
+    }
+  } catch(e){console.log('Plan:',e);}
+}
+
+function afficherModalUpgrade(raison) {
+  if(document.getElementById('modal-upgrade'))document.getElementById('modal-upgrade').remove();
+  const m=document.createElement('div');m.id='modal-upgrade';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.innerHTML=`<div style="background:#1a1917;border:1px solid #c8f060;border-radius:20px;padding:32px;max-width:420px;width:100%;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">🦷</div>
+    <div style="font-weight:700;font-size:20px;color:#c8f060;margin-bottom:8px;">${raison==='expire'?'Votre mois gratuit est termine !':'Passez a la version complete'}</div>
+    <div style="color:#6b6760;font-size:13px;margin-bottom:28px;line-height:1.6;">Continuez a profiter de JADOMI IA sans interruption.<br>Sans engagement. Resiliable a tout moment.</div>
+    <div style="background:#0f0e0d;border:2px solid #c8f060;border-radius:12px;padding:20px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-weight:700;color:#c8f060;font-size:16px;">Solo</div>
+        <div style="background:#c8f060;color:#0f0e0d;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">POPULAIRE</div>
+      </div>
+      <div style="font-size:32px;font-weight:700;color:#f0ede8;margin-bottom:4px;">29€<span style="font-size:14px;color:#6b6760;">/mois</span></div>
+      <div style="font-size:11px;color:#6b6760;margin-bottom:16px;line-height:1.5;">IA JADOMI complete · Vocal · Photo facture<br>Commandes · Marche · SOS · 1 utilisateur</div>
+      <button onclick="upgraderPlan('solo')" style="width:100%;padding:12px;background:#c8f060;color:#0f0e0d;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;">Continuer en Solo →</button>
+    </div>
+    <div style="background:#0f0e0d;border:1px solid #2e2c29;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <div style="font-weight:700;color:#f0ede8;font-size:16px;margin-bottom:8px;">Cabinet</div>
+      <div style="font-size:32px;font-weight:700;color:#f0ede8;margin-bottom:4px;">39€<span style="font-size:14px;color:#6b6760;">/mois</span></div>
+      <div style="font-size:11px;color:#6b6760;margin-bottom:16px;line-height:1.5;">Tout du Solo · 5 utilisateurs<br>Dashboard admin · Support prioritaire</div>
+      <button onclick="upgraderPlan('cabinet')" style="width:100%;padding:12px;background:#242220;color:#f0ede8;border:1px solid #2e2c29;border-radius:10px;cursor:pointer;">Passer en Cabinet →</button>
+    </div>
+    <div style="font-size:11px;color:#3e3c39;">Paiement securise · Sans engagement</div>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+function upgraderPlan(plan) {
+  // Stripe à connecter plus tard — pour l'instant simuler
+  const sess=JSON.parse(localStorage.getItem('jadomi_session')||'{}');
+  sess.plan=plan;sess.date_expiration=new Date(Date.now()+365*86400000).toISOString();
+  localStorage.setItem('jadomi_session',JSON.stringify(sess));
+  if(db&&window.userInfo){try{db.from('users').update({plan,date_expiration:sess.date_expiration}).eq('id',window.userInfo.id);}catch(e){}}
+  window.planActuel=plan;
+  const m=document.getElementById('modal-upgrade');if(m)m.remove();
+  const pe=document.getElementById('cabinet-plan');
+  if(pe) pe.innerHTML='JADOMI · '+plan.charAt(0).toUpperCase()+plan.slice(1)+' · <span style="color:#c8f060;">Actif</span>';
+  showToast('✅ Plan '+plan+' active ! (Stripe bientot)');
+  bipScan();
+}
+
+// ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
 async function init() {
-  // Vérifier session (Supabase ou localStorage)
-  try {
-    if(db) { const{data:{session}}=await db.auth.getSession(); if(!session && !localStorage.getItem('jadomi_session')) { /* pas de redirection pour garder l'app accessible en demo */ } }
-  } catch(e){}
+  // Vérifier plan
+  await verifierPlan();
 
   // ÉTAPE 1 : Afficher immédiatement depuis localStorage
   const saved = localStorage.getItem('amilo_produits');
