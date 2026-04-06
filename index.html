@@ -294,6 +294,7 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-section">Achats</div>
     <div class="nav-item" onclick="showPage('devis',this)"><span class="ni">📋</span>Appels d'offres</div>
     <div class="nav-item" onclick="showPage('groupe',this)"><span class="ni">⚡</span>Paniers groupés</div>
+    <div class="nav-item" onclick="showPage('factures',this)"><span class="ni">📄</span>Factures</div>
     <div class="nav-section">Communauté</div>
     <div class="nav-item" onclick="showPage('marche',this)"><span class="ni">🏪</span>Marché</div>
     <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
@@ -516,6 +517,18 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="page" id="page-fournisseurs">
       <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Entre ton code client et tes remises par catégorie. Données 100% privées.</p>
       <div class="fourni-grid" id="fourni-grid"></div>
+    </div>
+
+    <!-- FACTURES -->
+    <div class="page" id="page-factures">
+      <div id="drop-facture-page" style="border:2px dashed #2e2c29;border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:16px;transition:all 0.2s;" onclick="document.getElementById('input-facture-page').click()">
+        <div style="font-size:28px;">📄</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:6px;">Glissez une facture ici ou cliquez</div>
+        <div style="color:#3e3c39;font-size:11px;margin-top:2px;">PDF, JPG, PNG — analysé par IA en 5 secondes</div>
+        <input type="file" id="input-facture-page" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="traiterFichierFacture(this.files[0])">
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Historique des factures</div>
+      <div id="factures-historique"></div>
     </div>
 
     <!-- MARCHÉ DENTAIRE -->
@@ -781,6 +794,7 @@ async function init() {
   chargerMarche();
   chargerSOS();
   chargerPanier();
+  chargerHistoriqueFactures();
 
   // ÉTAPE 2 : Charger les fournisseurs
   await chargerFournisseurs();
@@ -997,6 +1011,7 @@ function renderTable(data) {
           <button class="icon-btn" title="Éditer" onclick="editerProduit(${p.id})">✏️</button>
           <button class="icon-btn cmd" title="Commander" onclick="showPage('devis',null)">📋</button>
           <button class="icon-btn" title="Vendre" onclick="ouvrirVenteModalProduit(${p.id})" style="color:#60d090;">🏪</button>
+          ${s==='critique'?'<button class="icon-btn" title="SOS" onclick="ouvrirSOSModalProduit(\''+p.nom.replace(/'/g,"\\\\'")+'\\')" style="color:#f05050;">🆘</button>':''}
           <button class="icon-btn del" title="Supprimer" onclick="supprimerProduit(${p.id},'${p.nom.replace(/'/g,"\\'")}')">🗑</button>
         </div></td>
       </tr>`;
@@ -1638,6 +1653,7 @@ function ajouterTousProduitsFacture() {
   localStorage.setItem('amilo_produits',JSON.stringify(produits));
   updateStats();filtrer();
   showToast('✅ '+facture.produits.length+' produits ajoutés depuis la facture !');
+  sauverFactureHistorique(facture);
   bipScan();
   fermerPhoto();
 }
@@ -1736,7 +1752,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',marche:'Marché dentaire',sos:'SOS Stock',admin:'Admin JADOMI'};
+const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'Marché dentaire',sos:'SOS Stock',admin:'Admin JADOMI'};
 const actions = {
   stock:`<button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``
@@ -2136,6 +2152,59 @@ function annulerSOS(id) {
   sosItems=sosItems.filter(s=>s.id!==id);sauverSOS();
   if(db){try{db.from('sos_stock').delete().eq('id',id);}catch(e){}}
   chargerSOS();showToast('🆘 SOS annulé');
+}
+
+function ouvrirSOSModalProduit(nom) {
+  ouvrirSOSModal();
+  setTimeout(()=>{const el=document.getElementById('sos-produit');if(el)el.value=nom;},100);
+}
+
+// ═══════════════════════════════════
+// FACTURES — HISTORIQUE
+// ═══════════════════════════════════
+let facturesHistorique=JSON.parse(localStorage.getItem('amilo_factures_hist')||'[]');
+
+function sauverFactureHistorique(facture) {
+  facturesHistorique.push({id:Date.now(),fournisseur:facture.fournisseur||'?',date_facture:facture.date_facture||new Date().toISOString().slice(0,10),nb_produits:facture.produits?.length||0,montant_ttc:facture.montant_ttc||0,created_at:new Date().toISOString()});
+  localStorage.setItem('amilo_factures_hist',JSON.stringify(facturesHistorique));
+  chargerHistoriqueFactures();
+}
+
+function chargerHistoriqueFactures() {
+  const el=document.getElementById('factures-historique');if(!el)return;
+  if(!facturesHistorique.length){el.innerHTML='<div class="empty"><div class="empty-icon">📄</div><div class="empty-title">Aucune facture importée</div><div class="empty-sub">Glissez une facture ci-dessus</div></div>';return;}
+  // Stats par fournisseur
+  const parFourni={};
+  facturesHistorique.forEach(f=>{if(!parFourni[f.fournisseur])parFourni[f.fournisseur]=0;parFourni[f.fournisseur]+=parseFloat(f.montant_ttc)||0;});
+  const statsHTML=Object.entries(parFourni).map(([f,m])=>`<span style="background:var(--surface2);padding:4px 10px;border-radius:6px;font-size:11px;">${f} : ${m.toFixed(0)}€</span>`).join(' ');
+  el.innerHTML=`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${statsHTML}</div>
+    ${facturesHistorique.slice().reverse().map(f=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+        <div>
+          <div style="font-weight:500;font-size:13px;">${f.fournisseur}</div>
+          <div style="font-size:11px;color:var(--muted);">${f.date_facture} · ${f.nb_produits} produits</div>
+        </div>
+        <div style="font-weight:600;color:var(--accent);font-size:14px;">${f.montant_ttc}€</div>
+      </div>`).join('')}`;
+}
+
+// ═══════════════════════════════════
+// COMMANDES — ENVOI EMAIL
+// ═══════════════════════════════════
+async function envoyerCommandeEmail(fournisseur,lignes) {
+  // Utilise genererEmailNegociation si clé API dispo
+  if(getCleAPI()) {
+    genererEmailNegociation(fournisseur,lignes);
+    return;
+  }
+  // Sinon email simple
+  const num=getNumeroJadomi();
+  const corps=lignes.map(l=>l.qte+'x '+l.nom).join('\n');
+  const sujet=encodeURIComponent('Commande '+num+' — '+fournisseur);
+  const body=encodeURIComponent('Bonjour,\n\nCabinet '+num+' souhaite commander :\n\n'+corps+'\n\nMerci pour votre meilleur prix et délai.\n\nCordialement,\nL\'équipe JADOMI');
+  window.open('mailto:?subject='+sujet+'&body='+body);
+  showToast('📧 Email de commande préparé');
 }
 
 // ═══════════════════════════════════
