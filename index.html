@@ -1081,16 +1081,12 @@ async function traiterCommandeIA(texte) {
     <div style="width:8px;height:8px;border-radius:50%;background:#c8f060;animation:pulse-red 1s infinite;"></div>JADOMI IA analyse...</div>`;
 
   try {
-    const cle=getCleAPI(); if(!cle) throw new Error('Pas de clé API');
     const stockActuel=produits.slice(0,50).map(p=>p.nom+'(id:'+p.id+',stock:'+p.qty+(p.date_peremption?',exp:'+p.date_peremption:'')+')').join('\n');
 
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:800,
-        system:`Tu es l'IA de JADOMI, app de stock dentaire française.
+    const data=await appelClaudeAPI({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:800,
+      system:`Tu es l'IA de JADOMI, app de stock dentaire française.
 
 STOCK ACTUEL :
 ${stockActuel}
@@ -1109,12 +1105,8 @@ JAMAIS mettre une année dans quantite.
 
 Réponds UNIQUEMENT JSON :
 {"action":"utilise|ajoute|set|commande|alerte|inconnu","produits":[{"id":123,"nom":"nom exact","quantite":1,"date_peremption":null,"nouveau":false}],"message":"confirmation courte"}`,
-        messages:[{role:'user',content:'Le dentiste dit : "'+texte+'"'}]
-      })
+      messages:[{role:'user',content:'Le dentiste dit : "'+texte+'"'}]
     });
-
-    if(!resp.ok) throw new Error('API '+resp.status);
-    const data=await resp.json();
     const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
     const jsonMatch=text.match(/\{[\s\S]*\}/);
     if(!jsonMatch) throw new Error('JSON invalide');
@@ -1291,11 +1283,42 @@ function traiterCommandeAchat(texte) {
 // ═══════════════════════════════════
 // INTELLIGENCE PRIX — MODULE COMPLET
 // ═══════════════════════════════════
-// Clé API sécurisée — stockée dans localStorage, jamais dans le code source
+// CLAUDE API — Proxy serveur sécurisé
+// ═══════════════════════════════════
 function getCleAPI() {
-  const cle = localStorage.getItem('jadomi_claude_key');
-  if(!cle) { showToast('⚠️ Clé API non configurée'); return null; }
-  return cle;
+  // Retourne true si proxy dispo OU clé locale configurée
+  return true;
+}
+async function appelClaudeAPI(opts) {
+  // opts = {model, max_tokens, messages, system, tools}
+  try {
+    // D'abord essayer le proxy serveur (clé côté serveur, jamais exposée)
+    const resp = await fetch('/api/claude', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(opts)
+    });
+    if(resp.ok) return await resp.json();
+    // Si proxy indisponible, fallback clé locale
+    const cle = localStorage.getItem('jadomi_claude_key');
+    if(!cle) throw new Error('API indisponible');
+    const resp2 = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify(opts)
+    });
+    return await resp2.json();
+  } catch(e) {
+    // Dernier fallback : clé locale directe
+    const cle = localStorage.getItem('jadomi_claude_key');
+    if(!cle) { showToast('⚠️ IA non disponible'); throw e; }
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify(opts)
+    });
+    return await resp.json();
+  }
 }
 const PRIX_CATALOGUE = {
   'Gants':{min:4,max:12,moy:7},'Composites':{min:18,max:45,moy:28},
@@ -1405,16 +1428,9 @@ async function rechercherMarcheDentiste(lignes) {
 }
 
 async function rechercherPrixClaudeAPI(lignes) {
-  const cleAPI=getCleAPI();
-  if(!cleAPI) return null;
   try{
     const pl=lignes.map(l=>l.qte+'x '+l.nom).join(', ');
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cleAPI,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}],messages:[{role:'user',content:'Cherche les prix actuels de ces produits dentaires chez DPI, GACD, Mega Dental, Henry Schein, Dental Click.\nProduits : '+pl+'\nRéponds UNIQUEMENT en JSON : {"meilleur_fournisseur":"nom","prix_total":0.00,"economie":0.00,"detail":[{"produit":"nom","prix":0.00,"fournisseur":"nom"}]}'}]})
-    });
-    const data=await resp.json();
+    const data=await appelClaudeAPI({model:'claude-sonnet-4-20250514',max_tokens:1000,tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}],messages:[{role:'user',content:'Cherche les prix actuels de ces produits dentaires chez DPI, GACD, Mega Dental, Henry Schein, Dental Click.\nProduits : '+pl+'\nRéponds UNIQUEMENT en JSON : {"meilleur_fournisseur":"nom","prix_total":0.00,"economie":0.00,"detail":[{"produit":"nom","prix":0.00,"fournisseur":"nom"}]}'}]});
     const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
     const m=text.match(/\{[\s\S]*\}/);
     if(m) return JSON.parse(m[0]);
@@ -1558,22 +1574,16 @@ function traiterFichierPhoto(file) {
 
 async function lireFactureIA(imageBase64,mimeType) {
   try {
-    const cle=getCleAPI();if(!cle)return;
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:2000,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:mimeType||'image/jpeg',data:imageBase64}},
-          {type:'text',text:`Analyse cette facture/bon de livraison dentaire.
+    const data=await appelClaudeAPI({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:2000,
+      messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:mimeType||'image/jpeg',data:imageBase64}},
+        {type:'text',text:`Analyse cette facture/bon de livraison dentaire.
 Retourne UNIQUEMENT ce JSON :
 {"fournisseur":"nom","date_facture":"2026-01-15","produits":[{"nom":"nom produit","quantite":1,"prix_unitaire":0.00,"prix_total":0.00,"date_peremption":null}],"montant_ht":0.00,"montant_ttc":0.00}`}
-        ]}]
-      })
+      ]}]
     });
-    const data=await resp.json();
     const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
     const m=text.match(/\{[\s\S]*\}/);
     if(!m) throw new Error('Pas de JSON');
@@ -1757,18 +1767,12 @@ function showToast(msg) {
 // CALCUL MARGE IA AUTOMATIQUE
 // ═══════════════════════════════════
 async function calculerMargeOptimale(contexte) {
-  const cle=getCleAPI();
-  if(!cle) return {commission_recommandee:contexte.montant*0.1,commission_pct:10,marge_jadomi:contexte.montant*0.1,revenu_dentiste_net:contexte.montant*0.9,justification:'Commission standard 10%',attractif:true};
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Consultant financier JADOMI (GPO dentaire).
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Consultant financier JADOMI (GPO dentaire).
 Transaction : ${JSON.stringify(contexte)}
 Coûts JADOMI : ~105€/mois (API+serveur).
 Calcule la commission optimale. JSON uniquement :
-{"commission_recommandee":0.00,"commission_pct":0,"marge_jadomi":0.00,"revenu_dentiste_net":0.00,"justification":"court","attractif":true}`}]})
-    });
-    const data=await resp.json();
+{"commission_recommandee":0.00,"commission_pct":0,"marge_jadomi":0.00,"revenu_dentiste_net":0.00,"justification":"court","attractif":true}`}]});
     const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
     return m?JSON.parse(m[0]):{commission_recommandee:contexte.montant*0.1,commission_pct:10,marge_jadomi:contexte.montant*0.1,revenu_dentiste_net:contexte.montant*0.9,justification:'Standard',attractif:true};
   } catch(e){return {commission_recommandee:contexte.montant*0.1,commission_pct:10,marge_jadomi:contexte.montant*0.1,revenu_dentiste_net:contexte.montant*0.9,justification:'Standard',attractif:true};}
@@ -1777,16 +1781,10 @@ Calcule la commission optimale. JSON uniquement :
 async function afficherRevenusJADOMI() {
   const el=document.getElementById('revenus-jadomi');if(!el)return;
   const totalComm=marcheItems.reduce((t,m)=>t+parseFloat(m.commission||0),0);
-  const cle=getCleAPI();
-  if(!cle){el.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;"><div style="color:#c8f060;font-weight:700;margin-bottom:8px;">💰 Revenus JADOMI</div><div style="font-size:22px;font-weight:700;color:#c8f060;">${totalComm.toFixed(2)}€</div><div style="font-size:11px;color:#6b6760;">Commissions totales</div></div>`;return;}
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Analyse rentabilité JADOMI :
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Analyse rentabilité JADOMI :
 Commissions : ${totalComm}€, Charges : 105€/mois, Produits marché : ${marcheItems.length}, SOS : ${sosItems.length}, Stock : ${produits.length}
-JSON : {"revenu_total":0,"charges":105,"marge_nette":0,"seuil_rentabilite":"X dentistes","conseil":"court"}`}]})
-    });
-    const data=await resp.json();
+JSON : {"revenu_total":0,"charges":105,"marge_nette":0,"seuil_rentabilite":"X dentistes","conseil":"court"}`}]});
     const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
     const a=m?JSON.parse(m[0]):{revenu_total:totalComm,charges:105,marge_nette:totalComm-105,seuil_rentabilite:'?',conseil:''};
     el.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;">
@@ -1806,30 +1804,25 @@ JSON : {"revenu_total":0,"charges":105,"marge_nette":0,"seuil_rentabilite":"X de
 // ═══════════════════════════════════
 async function importerFichierStock(file) {
   if(!file)return;
-  const cle=getCleAPI();
   const zone=document.getElementById('drop-import');
   const res=document.getElementById('import-resultat');
   zone.innerHTML='<div style="color:#c8f060;font-size:13px;padding:12px;">🤖 Analyse du fichier...</div>';
   try {
     const text=await file.text();
-    if(cle) {
+    try {
       // Analyse IA
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:`Analyse ce fichier d'export de stock dentaire et retourne UNIQUEMENT ce JSON :
+      const data=await appelClaudeAPI({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:`Analyse ce fichier d'export de stock dentaire et retourne UNIQUEMENT ce JSON :
 {"produits":[{"nom":"nom normalisé","quantite":1,"date_peremption":"2026-03","fournisseur":"","categorie":"Gants|Composites|etc"}],"source_detectee":"Scan&Stock|autre","nb_reconnus":0,"nb_total":0}
 
 Contenu du fichier :
-${text.slice(0,3000)}`}]})
-      });
-      const data=await resp.json();
+${text.slice(0,3000)}`}]});
       const t=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
       const m=t.match(/\{[\s\S]*\}/);
       if(m) {
         const result=JSON.parse(m[0]);
         afficherResultatImport(result);
       } else throw new Error('Analyse impossible');
-    } else {
+    } catch(e) {
       // Fallback simple : parser CSV
       const lines=text.split('\n').filter(l=>l.trim());
       const prods=lines.slice(1).map(l=>{const cols=l.split(/[,;\t]/);return{nom:cols[0]?.trim()||'',quantite:parseInt(cols[1])||1,date_peremption:cols[2]?.trim()||null,fournisseur:cols[3]?.trim()||'',categorie:'Autre'};}).filter(p=>p.nom);
@@ -1896,32 +1889,25 @@ function retirerDuPanier(i) {
 async function optimiserPanierIA() {
   const panier=JSON.parse(localStorage.getItem('amilo_panier')||'[]');
   if(!panier.length){showToast('📋 Panier vide');return;}
-  const cle=getCleAPI();
   const el=document.getElementById('panier-optimise');
   el.innerHTML='<div style="color:#6b6760;font-size:12px;padding:12px;">🤖 Optimisation en cours...</div>';
-  if(cle) {
-    try {
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Optimise ce panier dentaire.
+  try {
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:`Optimise ce panier dentaire.
 Produits : ${panier.map(l=>l.qte+'x '+l.nom).join(', ')}
 Fournisseurs : DPI (livraison gratuite >150€), GACD (>100€), Mega Dental (>120€)
-Retourne JSON : {"meilleur_fournisseur":"nom","economie_frais_port":0.00,"conseil":"conseil court"}`}]})
-      });
-      const data=await resp.json();
-      const t=data.content?.[0]?.text||'';
-      const m=t.match(/\{[\s\S]*\}/);
-      if(m) {
-        const r=JSON.parse(m[0]);
-        el.innerHTML=`<div style="background:#0f0e0d;border:1px solid #c8f060;border-radius:12px;padding:14px;">
-          <div style="color:#c8f060;font-weight:700;margin-bottom:6px;">💡 ${r.meilleur_fournisseur}</div>
-          <div style="font-size:12px;color:#f0ede8;margin-bottom:4px;">${r.conseil}</div>
-          <div style="font-size:11px;color:#60d090;">Économie frais port : ${r.economie_frais_port}€</div>
-          <button onclick="commanderMeilleureOffre('${r.meilleur_fournisseur.replace(/'/g,"\\'")}','ia')" style="width:100%;margin-top:10px;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📧 Commander chez ${r.meilleur_fournisseur}</button>
-        </div>`;
-      }
-    } catch(e){el.innerHTML='<div style="color:#f0a030;font-size:12px;">Estimation locale utilisée</div>';}
-  }
+Retourne JSON : {"meilleur_fournisseur":"nom","economie_frais_port":0.00,"conseil":"conseil court"}`}]});
+    const t=data.content?.[0]?.text||'';
+    const m=t.match(/\{[\s\S]*\}/);
+    if(m) {
+      const r=JSON.parse(m[0]);
+      el.innerHTML=`<div style="background:#0f0e0d;border:1px solid #c8f060;border-radius:12px;padding:14px;">
+        <div style="color:#c8f060;font-weight:700;margin-bottom:6px;">💡 ${r.meilleur_fournisseur}</div>
+        <div style="font-size:12px;color:#f0ede8;margin-bottom:4px;">${r.conseil}</div>
+        <div style="font-size:11px;color:#60d090;">Économie frais port : ${r.economie_frais_port}€</div>
+        <button onclick="commanderMeilleureOffre('${r.meilleur_fournisseur.replace(/'/g,"\\'")}','ia')" style="width:100%;margin-top:10px;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📧 Commander chez ${r.meilleur_fournisseur}</button>
+      </div>`;
+    }
+  } catch(e){el.innerHTML='<div style="color:#f0a030;font-size:12px;">Estimation locale utilisée</div>';}
 }
 
 // ═══════════════════════════════════
@@ -1946,18 +1932,13 @@ function loginAdmin() {
 }
 
 async function genererRapportAdmin() {
-  const cle=getCleAPI();if(!cle){showToast('⚠️ Clé API requise');return;}
   const el=document.getElementById('admin-rapport');
   el.innerHTML='<div style="color:#6b6760;font-size:12px;">🤖 Génération...</div>';
   try {
     const stats={produits:produits.length,marche:marcheItems.length,sos:sosItems.length,commissions:marcheItems.reduce((t,m)=>t+parseFloat(m.commission||0),0)};
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:`Génère un rapport admin JADOMI concis :
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:500,messages:[{role:'user',content:`Génère un rapport admin JADOMI concis :
 Stats: ${JSON.stringify(stats)}
-Résumé avec KPIs et actions prioritaires. 2-3 paragraphes max. Français professionnel.`}]})
-    });
-    const data=await resp.json();
+Résumé avec KPIs et actions prioritaires. 2-3 paragraphes max. Français professionnel.`}]});
     el.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:12px;padding:16px;margin-top:12px;">
       <div style="font-weight:700;color:#c8f060;margin-bottom:8px;">📊 Rapport admin IA</div>
       <div style="color:#f0ede8;font-size:13px;line-height:1.7;white-space:pre-wrap;">${data.content?.[0]?.text||'Erreur'}</div>
@@ -1972,16 +1953,10 @@ let marcheItems=JSON.parse(localStorage.getItem('amilo_marche')||'[]');
 function sauverMarche(){localStorage.setItem('amilo_marche',JSON.stringify(marcheItems));}
 
 async function suggererPrixVente(produit) {
-  const cle=getCleAPI();
-  if(!cle) return {prix_suggere:0,reduction:'?',message:'Configure la clé API'};
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,messages:[{role:'user',content:`Produit dentaire à vendre :
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:200,messages:[{role:'user',content:`Produit dentaire à vendre :
 Nom: ${produit.nom}, Stock: ${produit.qty}, Péremption: ${produit.date_peremption||'inconnue'}, Aujourd'hui: ${new Date().toISOString().slice(0,10)}
-Suggère un prix de vente en JSON uniquement : {"prix_suggere":0.00,"reduction":"pourcentage","message":"explication courte"}`}]})
-    });
-    const data=await resp.json();
+Suggère un prix de vente en JSON uniquement : {"prix_suggere":0.00,"reduction":"pourcentage","message":"explication courte"}`}]});
     const m=data.content?.[0]?.text?.match(/\{[\s\S]*\}/);
     return m?JSON.parse(m[0]):{prix_suggere:0,reduction:'?',message:'Estimation indisponible'};
   } catch(e){return {prix_suggere:0,reduction:'?',message:'Erreur IA'};}
@@ -2080,14 +2055,8 @@ let sosItems=JSON.parse(localStorage.getItem('amilo_sos')||'[]');
 function sauverSOS(){localStorage.setItem('amilo_sos',JSON.stringify(sosItems));}
 
 async function genererMessageSOS(produit,urgence) {
-  const cle=getCleAPI();
-  if(!cle) return 'Recherche urgente : '+produit;
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:150,messages:[{role:'user',content:`Génère un message SOS dentaire court pour un confrère qui cherche : Produit: ${produit}, Urgence: ${urgence}. Anonymat: numéro cabinet uniquement. Message concis et professionnel en français, 2 lignes max.`}]})
-    });
-    const data=await resp.json();
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:150,messages:[{role:'user',content:`Génère un message SOS dentaire court pour un confrère qui cherche : Produit: ${produit}, Urgence: ${urgence}. Anonymat: numéro cabinet uniquement. Message concis et professionnel en français, 2 lignes max.`}]});
     return data.content?.[0]?.text||'Recherche urgente : '+produit;
   } catch(e){return 'Recherche urgente : '+produit;}
 }
@@ -2173,15 +2142,10 @@ function annulerSOS(id) {
 // RAPPORT IA MENSUEL
 // ═══════════════════════════════════
 async function genererRapportIA() {
-  const cle=getCleAPI();
-  if(!cle){showToast('⚠️ Clé API requise pour le rapport IA');return;}
   showToast('🤖 Génération du rapport...');
   const stockInfo=produits.map(p=>p.nom+': stock='+p.qty+', seuil='+p.seuil+(p.date_peremption?', exp='+p.date_peremption:'')).join('\n');
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1500,messages:[{role:'user',content:`Tu es consultant en gestion de cabinet dentaire.
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:1500,messages:[{role:'user',content:`Tu es consultant en gestion de cabinet dentaire.
 
 Stock actuel :
 ${stockInfo}
@@ -2192,9 +2156,7 @@ Génère un rapport mensuel concis :
 3. 💰 Optimisations possibles
 4. 📊 Résumé en 2 lignes
 
-Réponds en français, style concis et professionnel.`}]})
-    });
-    const data=await resp.json();
+Réponds en français, style concis et professionnel.`}]});
     const rapport=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'Erreur';
     const modal=document.createElement('div');
     modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -2216,21 +2178,15 @@ Réponds en français, style concis et professionnel.`}]})
 const getNumeroJadomi=()=>{let n=localStorage.getItem('jadomi_numero');if(!n){n='JADOMI-'+Math.random().toString(36).substr(2,8).toUpperCase();localStorage.setItem('jadomi_numero',n);}return n;};
 
 async function genererEmailNegociation(fournisseur,lignes) {
-  const cle=getCleAPI();if(!cle){showToast('⚠️ Clé API requise');return;}
   const num=getNumeroJadomi();
   const lp=lignes.map(l=>'- '+l.qte+'x '+l.nom).join('\n');
   try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:`Rédige un email de demande de prix à ${fournisseur} pour :
+    const data=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:`Rédige un email de demande de prix à ${fournisseur} pour :
 ${lp}
 
 RÈGLES : Utiliser UNIQUEMENT le numéro client ${num}. JAMAIS le nom du dentiste ni l'adresse. Mentionner qu'on compare plusieurs fournisseurs. Demander meilleur prix et délai. Signature : L'équipe JADOMI
 
-Format : Objet: [objet]\nCorps: [corps]`}]})
-    });
-    const data=await resp.json();
+Format : Objet: [objet]\nCorps: [corps]`}]);
     const emailTexte=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
     const modal=document.createElement('div');
     modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -2261,15 +2217,9 @@ function envoyerEmailNego(fournisseur) {
 // ═══════════════════════════════════
 async function verifierStatutIA() {
   const el=document.getElementById('ia-status');if(!el)return;
-  const cle=getCleAPI();
-  if(!cle){el.innerHTML='🟡 JADOMI · Mode local (pas de clé API)';return;}
   try {
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:5,messages:[{role:'user',content:'ok'}]})
-    });
-    el.innerHTML=r.ok?'🟢 JADOMI IA · En ligne':'🟡 JADOMI · Mode local';
+    const r=await appelClaudeAPI({model:'claude-haiku-4-5-20251001',max_tokens:5,messages:[{role:'user',content:'ok'}]});
+    el.innerHTML=r?'🟢 JADOMI IA · En ligne':'🟡 JADOMI · Mode local';
   } catch(e){el.innerHTML='🟡 JADOMI · Mode local';}
 }
 
