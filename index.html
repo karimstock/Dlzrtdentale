@@ -961,86 +961,134 @@ function simulerVocal(texte) {
   setTimeout(()=>traiterCommande(texte),500);
 }
 
+// Extraction quantité langage naturel
+const MOTS_NOMBRES = {un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,quelques:3,plusieurs:3};
+const UNITES_IGNOREES = /\b(boite|boites|seringue|seringues|carpule|carpules|sachet|sachets|flacon|flacons|tube|tubes|paire|paires)\b/g;
+
+function extraireQuantite(texte) {
+  const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  // Chiffres
+  const num = t.match(/\b(\d+)\b/);
+  if(num) return parseInt(num[1]);
+  // Mots
+  for(const [mot,val] of Object.entries(MOTS_NOMBRES)) {
+    if(t.includes(mot)) return val;
+  }
+  return 1;
+}
+
 function traiterCommande(texte) {
   const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  let quantite=1;
-  const numMatch=t.match(/\b(\d+)\b/);
-  if(numMatch) quantite=parseInt(numMatch[1]);
+  const quantite = extraireQuantite(texte);
 
   // Détecter l'action
   let action='';
-  if(t.match(/utilis|consomm|pose|mis|enleve|retire/)) action='utilise';
-  else if(t.match(/livraison|recu|ajout|ajoute|rentre|arrive/)) action='ajoute';
-  else if(t.match(/reste|il y a|stock est|quantite est/)) action='set';
-  else if(t.match(/rupture|critique|manque|plus de/)) {
+  if(t.match(/utilis|consomm|pose|mis\b|ouvert|pris|retire|applique|fait|passe|enleve/)) action='utilise';
+  else if(t.match(/livraison|recu|arrive|rentre|ajoute|nouvelle boite|commande.+arrive/)) action='ajoute';
+  else if(t.match(/reste|il y a|j.ai\s+\d|stock est|quantite/)) action='set';
+  else if(t.match(/rupture|critique|manque|plus de|montre.+rupture|affiche.+critique/)) {
     document.getElementById('filter-status').value='critique';filtrer();
     fermerVocal();showToast('📋 Produits critiques affichés');return;
   }
 
   // Chercher le produit
-  const resultat=rechercherProduitVocal(texte);
+  const resultat = rechercherProduitVocal(texte);
 
   if(resultat?.stock && action) {
-    const p=resultat.stock;
-    let newQty=p.qty;
-    if(action==='utilise') newQty=Math.max(0,p.qty-quantite);
-    else if(action==='ajoute') newQty=p.qty+quantite;
-    else if(action==='set') newQty=quantite;
-    modifierQtyDirecte(p.id,p.nom,newQty,action,quantite);
+    const p = resultat.stock;
+    const oldQty = p.qty;
+    let newQty = p.qty;
+    if(action==='utilise') newQty = Math.max(0, p.qty - quantite);
+    else if(action==='ajoute') newQty = p.qty + quantite;
+    else if(action==='set') newQty = quantite;
+    modifierQtyDirecte(p.id, p.nom, newQty, action, quantite, oldQty);
     fermerVocal();
   } else if(resultat?.stock && !action) {
-    selectionnerProduitVocal(resultat.stock.id,resultat.stock.nom);
+    selectionnerProduitVocal(resultat.stock.id, resultat.stock.nom);
   } else if(resultat?.catalogue && !resultat.stock) {
-    showToast('⚠️ '+resultat.catalogue.nom+' n\'est pas dans votre stock');
+    showToast('⚠️ ' + resultat.catalogue.nom + ' pas dans le stock');
     fermerVocal();
   } else {
-    // Chercher correspondances partielles
-    const mots=texte.toLowerCase().split(' ').filter(m=>m.length>2);
-    const matches=produits.filter(p=>mots.some(m=>p.nom.toLowerCase().includes(m)));
-    if(matches.length>1) afficherClarificationVocale(matches,texte);
-    else if(matches.length===1) selectionnerProduitVocal(matches[0].id,matches[0].nom);
-    else { showToast('🤔 Produit non reconnu dans JADOMI'); fermerVocal(); }
+    // Correspondances partielles dans le stock
+    const mots = texte.toLowerCase().split(' ').filter(m=>m.length>2);
+    const matches = produits.filter(p => mots.some(m =>
+      p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(m)
+    ));
+    if(matches.length > 1) afficherClarificationVocale(matches, texte, action, quantite);
+    else if(matches.length === 1) {
+      if(action) {
+        const p = matches[0]; const oldQty = p.qty;
+        let nq = action==='utilise' ? Math.max(0,p.qty-quantite) : action==='ajoute' ? p.qty+quantite : quantite;
+        modifierQtyDirecte(p.id, p.nom, nq, action, quantite, oldQty);
+        fermerVocal();
+      } else selectionnerProduitVocal(matches[0].id, matches[0].nom);
+    } else { showToast('🤔 Produit non reconnu — essaie autrement'); fermerVocal(); }
   }
 }
 
-function afficherClarificationVocale(matches, texte) {
-  const display=document.getElementById('vocal-display');
+function afficherClarificationVocale(matches, texte, action, quantite) {
+  const display = document.getElementById('vocal-display');
   display.classList.remove('empty');
-  display.innerHTML=`
-    <div style="margin-bottom:10px;color:#f0a030;">🤔 Plusieurs produits pour "${texte}"<br>Lequel ?</div>
-    ${matches.slice(0,4).map(p=>`
-      <button onclick="selectionnerProduitVocal(${p.id},'${p.nom.replace(/'/g,"\\'")}')"
-        style="display:block;width:100%;margin-bottom:6px;padding:10px;background:#242220;color:#c8f060;border:1px solid #c8f060;border-radius:8px;cursor:pointer;text-align:left;font-size:14px;">
+  // Stocker action et quantité pour les utiliser après sélection
+  window._vocalAction = action;
+  window._vocalQte = quantite;
+  display.innerHTML = `
+    <div style="margin-bottom:10px;color:#f0a030;">🤔 Lequel voulez-vous ?</div>
+    ${matches.slice(0,4).map(p => {
+      const nSafe = p.nom.replace(/'/g,"\\'");
+      return `<button onclick="choisirProduitVocal(${p.id},'${nSafe}')"
+        style="display:block;width:100%;margin-bottom:6px;padding:12px;background:#242220;color:#c8f060;border:1px solid #c8f060;border-radius:10px;cursor:pointer;text-align:left;font-size:14px;">
         ${p.nom} <span style="color:#6b6760;font-size:11px;">· Stock: ${p.qty}</span>
-      </button>`).join('')}`;
+      </button>`;
+    }).join('')}`;
+}
+
+function choisirProduitVocal(id, nom) {
+  const action = window._vocalAction;
+  const qte = window._vocalQte || 1;
+  if(action) {
+    const p = produits.find(x=>x.id==id); if(!p) return;
+    const oldQty = p.qty;
+    let nq = action==='utilise' ? Math.max(0,p.qty-qte) : action==='ajoute' ? p.qty+qte : qte;
+    modifierQtyDirecte(id, nom, nq, action, qte, oldQty);
+    fermerVocal();
+  } else {
+    selectionnerProduitVocal(id, nom);
+  }
 }
 
 function selectionnerProduitVocal(id, nom) {
-  const display=document.getElementById('vocal-display');
-  display.innerHTML=`
-    <div style="color:#c8f060;font-weight:700;margin-bottom:12px;">✅ ${nom}</div>
+  const display = document.getElementById('vocal-display');
+  const nSafe = nom.replace(/'/g,"\\'");
+  const p = produits.find(x=>x.id==id);
+  const stockInfo = p ? ` <span style="color:#6b6760;font-size:12px;">Stock: ${p.qty}</span>` : '';
+  display.innerHTML = `
+    <div style="color:#c8f060;font-weight:700;margin-bottom:12px;">✅ ${nom}${stockInfo}</div>
     <div style="display:flex;gap:8px;">
-      <button onclick="modifierQtyVocal(${id},'${nom.replace(/'/g,"\\'")}','utilise',1)"
-        style="flex:1;padding:10px;background:#f05050;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">− Utilisé 1</button>
-      <button onclick="modifierQtyVocal(${id},'${nom.replace(/'/g,"\\'")}','ajoute',1)"
-        style="flex:1;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">+ Reçu 1</button>
+      <button onclick="modifierQtyVocal(${id},'${nSafe}','utilise',1)"
+        style="flex:1;padding:12px;background:#f05050;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;">− Utilisé 1</button>
+      <button onclick="modifierQtyVocal(${id},'${nSafe}','ajoute',1)"
+        style="flex:1;padding:12px;background:#c8f060;color:#0f0e0d;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;">+ Reçu 1</button>
     </div>`;
 }
 
-function modifierQtyVocal(id,nom,action,qte) {
-  const p=produits.find(x=>x.id==id);if(!p)return;
-  const newQty=action==='utilise'?Math.max(0,p.qty-qte):p.qty+qte;
-  modifierQtyDirecte(id,nom,newQty,action,qte);
+function modifierQtyVocal(id, nom, action, qte) {
+  const p = produits.find(x=>x.id==id); if(!p) return;
+  const oldQty = p.qty;
+  const newQty = action==='utilise' ? Math.max(0, p.qty-qte) : p.qty+qte;
+  modifierQtyDirecte(id, nom, newQty, action, qte, oldQty);
   fermerVocal();
 }
 
-function modifierQtyDirecte(id, nom, newQty, action, qte) {
+function modifierQtyDirecte(id, nom, newQty, action, qte, oldQty) {
   if(db){try{db.from('produits').update({qty:newQty}).eq('id',id);}catch(e){}}
-  produits=produits.map(p=>p.id==id?{...p,qty:newQty}:p);
-  localStorage.setItem('amilo_produits',JSON.stringify(produits));
-  updateStats();filtrer();
-  const msg=action==='utilise'?`✓ ${nom} : -${qte} · Stock : ${newQty}`:action==='ajoute'?`✓ ${nom} : +${qte} · Stock : ${newQty}`:`✓ ${nom} : stock = ${newQty}`;
-  showToast(msg);
+  produits = produits.map(p=>p.id==id ? {...p, qty:newQty} : p);
+  localStorage.setItem('amilo_produits', JSON.stringify(produits));
+  updateStats(); filtrer();
+  // Toast avec ancien → nouveau stock
+  const old = oldQty !== undefined ? oldQty : '?';
+  const sign = action==='utilise' ? '-' : action==='ajoute' ? '+' : '=';
+  showToast(`✓ ${nom} · Stock : ${old} → ${newQty}`);
   bipScan();
 }
 
