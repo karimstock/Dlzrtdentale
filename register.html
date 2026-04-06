@@ -134,10 +134,15 @@ async function inscrire(){
   if(pass.length<6){showError('Mot de passe : 6 caracteres minimum');return;}
   document.getElementById('error').style.display='none';
 
+  // Plan depuis URL ou defaut decouverte
+  const params=new URLSearchParams(window.location.search);
+  const plan=params.get('plan')||'decouverte';
+  const dateExp=new Date();dateExp.setDate(dateExp.getDate()+30);
+
   try{
     const{data,error}=await db.auth.signUp({
       email,password:pass,
-      options:{data:{nom:prenom+' '+nom,profession:selectedProfession,cabinet,ville}}
+      options:{data:{nom:prenom+' '+nom,profession:selectedProfession,cabinet,ville,plan,date_expiration:dateExp.toISOString()}}
     });
     if(error) throw error;
     afficherSucces(prenom,nom);
@@ -145,7 +150,7 @@ async function inscrire(){
     // Fallback localStorage
     const users=JSON.parse(localStorage.getItem('jadomi_users')||'[]');
     if(users.find(u=>u.email===email)){showError('Cet email est deja utilise');return;}
-    const user={id:Date.now(),email,password:pass,nom:prenom+' '+nom,profession:selectedProfession,cabinet,ville,plan:'gratuit',created_at:new Date().toISOString()};
+    const user={id:Date.now(),email,password:pass,nom:prenom+' '+nom,profession:selectedProfession,cabinet,ville,plan,date_inscription:new Date().toISOString(),date_expiration:dateExp.toISOString(),created_at:new Date().toISOString()};
     users.push(user);
     localStorage.setItem('jadomi_users',JSON.stringify(users));
     localStorage.setItem('jadomi_session',JSON.stringify(user));
