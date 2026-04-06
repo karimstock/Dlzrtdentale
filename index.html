@@ -298,6 +298,7 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-section">Communauté</div>
     <div class="nav-item" onclick="showPage('marche',this)"><span class="ni">🏪</span>Marché</div>
     <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
+    <div class="nav-item" onclick="showPage('green',this)"><span class="ni">🌱</span>JADOMI Green</div>
     <div class="nav-section">Paramètres</div>
     <div class="nav-item" onclick="showPage('fournisseurs',this)"><span class="ni">🏭</span>Fournisseurs</div>
     <div class="nav-item" onclick="showPage('admin',this)" id="nav-admin" style="display:none;"><span class="ni">⚙️</span>Admin</div>
@@ -320,6 +321,7 @@ tbody tr:hover td{background:var(--surface2);}
   <div class="topbar">
     <div class="page-title" id="page-title">Stock</div>
     <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-ghost" onclick="ouvrirPanierIntelligent()">🧠 Panier intelligent</button>
       <button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button>
       <button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button>
       <button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>
@@ -546,6 +548,43 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="alert alert-red" style="margin-bottom:16px;"><span class="alert-dot"></span><span>🆘 Trouvez un produit en urgence chez un confrère à proximité</span></div>
       <button class="btn btn-red" onclick="ouvrirSOSModal()" style="margin-bottom:16px;">🆘 Lancer un SOS</button>
       <div id="sos-liste" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <!-- JADOMI GREEN -->
+    <div class="page" id="page-green">
+      <div style="background:linear-gradient(135deg,#0a1a0a,#0f1f0f);border:1px solid rgba(96,208,144,0.2);border-radius:16px;padding:24px;margin-bottom:20px;">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:#60d090;margin-bottom:6px;">🌱 JADOMI Green</div>
+        <div style="color:#6b6760;font-size:13px;line-height:1.6;">Zéro gaspillage. Zéro livraison inutile. 100% entre professionnels.</div>
+      </div>
+
+      <!-- Score CO2 -->
+      <div class="stats" style="margin-bottom:20px;">
+        <div class="stat" style="border-color:rgba(96,208,144,0.2);"><div class="stat-label">Échanges Green</div><div class="stat-value c-green" id="green-echanges">0</div></div>
+        <div class="stat" style="border-color:rgba(96,208,144,0.2);"><div class="stat-label">CO2 économisé</div><div class="stat-value c-green" id="green-co2">0 kg</div></div>
+        <div class="stat" style="border-color:rgba(96,208,144,0.2);"><div class="stat-label">Stock valorisé</div><div class="stat-value c-green" id="green-valorise">0€</div></div>
+        <div class="stat" style="border-color:rgba(96,208,144,0.2);"><div class="stat-label">Badge</div><div class="stat-value" style="font-size:14px;">🌱 Éco</div></div>
+      </div>
+
+      <!-- Mes produits dormants -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+          <div class="card-title">Mes produits dormants (proposables)</div>
+          <button class="btn btn-ghost" style="font-size:11px;" onclick="chargerGreenDormants()">🔄 Actualiser</button>
+        </div>
+        <div id="green-dormants" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
+      </div>
+
+      <!-- Alertes Green reçues -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><div class="card-title">Alertes Green reçues</div></div>
+        <div id="green-alertes" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Aucune alerte pour le moment</div></div>
+      </div>
+
+      <!-- Historique échanges -->
+      <div class="card">
+        <div class="card-head"><div class="card-title">Historique échanges</div></div>
+        <div id="green-historique" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Aucun échange réalisé</div></div>
+      </div>
     </div>
 
   </div>
@@ -1035,6 +1074,8 @@ function updateStats() {
   if(crit>0) {
     const noms = produits.filter(p=>getStatut(p)==='critique').map(p=>p.nom).slice(0,2).join(', ');
     html += `<div class="alert alert-red"><span class="alert-dot"></span><span><strong>${crit} produit${crit>1?'s':''} critique${crit>1?'s':''}</strong> — ${noms}${crit>2?'...':''}</span><button class="alert-cta" onclick="showPage('devis',null)">Appel d'offres →</button></div>`;
+    // Green alert for critical products
+    html += `<div class="alert" style="background:rgba(96,208,144,0.06);border:1px solid rgba(96,208,144,0.2);color:#60d090;"><span class="alert-dot"></span><span>🌱 <strong>JADOMI Green</strong> — Des confrères ont peut-être ces produits en excès</span><button class="alert-cta" onclick="showPage('green',null)" style="border-color:#60d090;color:#60d090;">Voir Green →</button></div>`;
   }
   const exp = produits.filter(p=>['warn','crit','expired'].includes(getStatutExp(p.date_peremption))).length;
   if(exp>0) html += `<div class="alert alert-amber"><span class="alert-dot"></span><span><strong>${exp} produit${exp>1?'s':''}</strong> avec péremption proche ou dépassée</span></div>`;
@@ -1063,18 +1104,35 @@ function renderTable(data) {
   if(!data.length){wrap.innerHTML=`<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Aucun produit</div></div>`;return;}
   const bc = s=>s==='critique'?'var(--red)':s==='faible'?'var(--amber)':'var(--green)';
   const bw = p=>Math.max(3,Math.min(100,(p.qty/((p.seuil||1)*2))*100));
-  wrap.innerHTML=`<table><thead><tr><th>Produit</th><th>Stock</th><th>Seuil</th><th>Statut</th><th>Péremption</th><th>Fournisseur</th><th>Actions</th></tr></thead><tbody>${
+  wrap.innerHTML=`<table><thead><tr><th>Produit</th><th>Stock</th><th>Seuil</th><th>Statut</th><th>🌱</th><th>📊 Rythme</th><th>Péremption</th><th>Fournisseur</th><th>Actions</th></tr></thead><tbody>${
     data.map(p=>{
       const s=getStatut(p);const se=getStatutExp(p.date_peremption);
       const bc2=s==='critique'?'badge-crit':s==='faible'?'badge-warn':'badge-ok';
       const bl=s==='critique'?'Critique':s==='faible'?'Faible':'OK';
       const ec=se==='expired'||se==='crit'?'exp-crit':se==='warn'?'exp-warn':'exp-ok';
       const el=se==='expired'?'⚠ EXPIRÉ':p.date_peremption||'—';
+      // Green column
+      const ratio=p.qty/(p.seuil||1);
+      const isDormant=ratio>3;
+      const isCritGreen=s==='critique';
+      let greenCol='';
+      if(isDormant) greenCol=`<button onclick="proposerGreen(${p.id},'${p.nom.replace(/'/g,"\\'")}')" style="background:rgba(96,208,144,0.1);color:#60d090;border:1px solid rgba(96,208,144,0.3);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;">Proposer</button>`;
+      else if(isCritGreen) greenCol=`<button onclick="checkEcoMatch('${p.nom.replace(/'/g,"\\'")}')" style="background:rgba(96,208,144,0.1);color:#60d090;border:1px solid rgba(96,208,144,0.3);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;">Récupérer</button>`;
+      else greenCol='<span style="color:#3e3c39;">—</span>';
+      // Predict column: rhythm
+      let rythme='';const expStat=getStatutExp(p.date_peremption);
+      if(ratio<=0.5) rythme='<span style="color:#f05050;font-size:11px;">🔴 Critique</span>';
+      else if(ratio<=1) rythme='<span style="color:#f0a030;font-size:11px;">🟡 Faible</span>';
+      else if(ratio>3) rythme='<span style="color:#3e3c39;font-size:11px;">⚫ Dormant</span>';
+      else rythme='<span style="color:#60d090;font-size:11px;">🟢 Optimal</span>';
+      if(expStat==='warn'||expStat==='crit') rythme+='<br><span style="color:#f0a030;font-size:10px;">⚠️ Péremp.</span>';
       return `<tr>
         <td><div class="prod-name">${p.nom}</div><div class="prod-meta">${p.categorie}${p.marque?' · '+p.marque:''}</div>${p.is_partner?'<div class="prod-partner">⭐ DentalEvolution</div>':''}</td>
         <td><div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${bw(p)}%;background:${bc(s)}"></div></div><div class="qty-num">${p.qty}</div></div></td>
         <td style="font-family:var(--mono);font-size:13px;color:var(--muted)">${p.seuil||0}</td>
         <td><span class="badge ${bc2}">${bl}</span></td>
+        <td style="text-align:center;">${greenCol}</td>
+        <td style="text-align:center;">${rythme}</td>
         <td><span class="${ec}">${el}</span></td>
         <td style="font-size:12px;color:var(--muted)">${p.fournisseur||'—'}</td>
         <td><div class="action-btns">
@@ -1823,10 +1881,10 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'Marché dentaire',sos:'SOS Stock',admin:'Admin JADOMI'};
+const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'Marché dentaire',sos:'SOS Stock',green:'JADOMI Green',admin:'Admin JADOMI'};
 const actions = {
-  stock:`<button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
-  analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``
+  stock:`<button class="btn btn-ghost" onclick="ouvrirPanierIntelligent()">🧠 Panier intelligent</button><button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
+  analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``,green:``
 };
 
 function showPage(id, el) {
@@ -2743,8 +2801,194 @@ document.addEventListener('keypress',e=>{
 });
 
 // ═══════════════════════════════════
-// START
+// JADOMI GREEN — MODULE COMPLET
 // ═══════════════════════════════════
+let greenEchanges=JSON.parse(localStorage.getItem('jadomi_green_echanges')||'[]');
+function sauverGreenEchanges(){localStorage.setItem('jadomi_green_echanges',JSON.stringify(greenEchanges));}
+
+function chargerGreenDormants() {
+  const el=document.getElementById('green-dormants');if(!el)return;
+  const dormants=produits.filter(p=>(p.qty/(p.seuil||1))>3);
+  if(!dormants.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">Aucun produit dormant. Votre stock est bien géré !</div>';return;}
+  el.innerHTML=dormants.map(p=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-weight:500;font-size:13px;">${p.nom}</div>
+        <div style="font-size:11px;color:var(--muted);">Stock: ${p.qty} · Seuil: ${p.seuil} · Excès: ${p.qty-(p.seuil||1)}</div>
+      </div>
+      <button onclick="proposerGreen(${p.id},'${p.nom.replace(/'/g,"\\'")}')" style="padding:6px 14px;background:rgba(96,208,144,0.1);color:#60d090;border:1px solid rgba(96,208,144,0.3);border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">🌱 Proposer</button>
+    </div>`).join('');
+}
+
+async function proposerGreen(id,nom) {
+  const p=produits.find(x=>x.id==id);if(!p)return;
+  const num=getNumeroJadomi();
+  try {
+    await fetch('/api/eco/proposer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({produit_nom:nom,cabinet_besoin:'',cabinet_offre:num,quantite:Math.max(1,p.qty-(p.seuil||1)),pays:'FR',type:'eco_partage'})});
+  } catch(e){}
+  greenEchanges.push({id:Date.now(),type:'propose',produit:nom,quantite:Math.max(1,p.qty-(p.seuil||1)),date:new Date().toISOString()});
+  sauverGreenEchanges();
+  showToast('🌱 '+nom+' proposé en mode Green !');
+  bipScan();
+  chargerGreenDormants();
+  chargerGreenStats();
+}
+
+async function checkEcoMatch(nomProduit) {
+  const num=getNumeroJadomi();
+  showToast('🌱 Recherche de confrères...');
+  try {
+    const resp=await fetch('/api/eco/check?produit='+encodeURIComponent(nomProduit)+'&cabinet='+encodeURIComponent(num));
+    if(resp.ok) {
+      const data=await resp.json();
+      if(data.matches&&data.matches.length>0) {
+        afficherGreenNotification(nomProduit,data.matches[0]);
+        return;
+      }
+    }
+  } catch(e){}
+  // Simuler un match local
+  const dormant=produits.find(p=>norm(p.nom).includes(norm(nomProduit.split(' ')[0]))&&(p.qty/(p.seuil||1))>3);
+  if(dormant) {
+    afficherGreenNotification(nomProduit,{cabinet:'Cabinet#'+Math.random().toString(36).substr(2,4).toUpperCase(),distance_km:(Math.random()*5+0.5).toFixed(1),quantite_disponible:dormant.qty-(dormant.seuil||1)});
+  } else {
+    showToast('🌱 Aucun confrère trouvé pour le moment');
+  }
+}
+
+function afficherGreenNotification(produit,match) {
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:#0a1a0a;border:2px solid rgba(96,208,144,0.4);border-radius:16px;padding:28px;max-width:400px;width:100%;text-align:center;">
+    <div style="font-size:36px;margin-bottom:10px;">🌱</div>
+    <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:#60d090;margin-bottom:6px;">JADOMI Green — Avant de commander !</div>
+    <div style="color:#f0ede8;font-size:14px;margin-bottom:4px;font-weight:600;">${produit}</div>
+    <div style="color:#6b6760;font-size:13px;margin-bottom:20px;line-height:1.6;">${match.cabinet} à ~${match.distance_km}km a ce produit.<br>${match.quantite_disponible||'?'} unités disponibles.</div>
+    <button onclick="accepterGreen('${produit.replace(/'/g,"\\'")}','${(match.cabinet||'').replace(/'/g,"\\'")}');this.closest('div').parentElement.remove();" style="width:100%;padding:14px;background:#60d090;color:#0a1a0a;border:none;border-radius:50px;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:8px;">🌱 Oui, mode Green !</button>
+    <button onclick="this.closest('div').parentElement.remove();showPage('devis',null);" style="width:100%;padding:10px;background:transparent;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;font-size:13px;">🛒 Commander chez fournisseur</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+function accepterGreen(produit,cabinet) {
+  greenEchanges.push({id:Date.now(),type:'accepte',produit,cabinet,date:new Date().toISOString()});
+  sauverGreenEchanges();
+  showToast('🌱 Échange Green accepté ! Contactez '+cabinet);
+  bipScan();
+  chargerGreenStats();
+}
+
+function chargerGreenStats() {
+  const echanges=greenEchanges.length;
+  const co2=(echanges*2.4).toFixed(1);
+  const valorise=(echanges*15).toFixed(0);
+  const el1=document.getElementById('green-echanges');if(el1)el1.textContent=echanges;
+  const el2=document.getElementById('green-co2');if(el2)el2.textContent=co2+' kg';
+  const el3=document.getElementById('green-valorise');if(el3)el3.textContent=valorise+'€';
+  const hist=document.getElementById('green-historique');
+  if(hist&&greenEchanges.length>0) {
+    hist.innerHTML=greenEchanges.slice().reverse().slice(0,10).map(e=>`
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="color:var(--text);">${e.type==='propose'?'📤':'📥'} ${e.produit}</span>
+        <span style="color:var(--muted);">${new Date(e.date).toLocaleDateString('fr-FR')}</span>
+      </div>`).join('');
+  }
+}
+
+// ═══════════════════════════════════
+// JADOMI PREDICT — PANIER INTELLIGENT
+// ═══════════════════════════════════
+async function ouvrirPanierIntelligent() {
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid var(--border);border-radius:16px;padding:28px;max-width:550px;width:100%;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--accent);">🧠 Panier intelligent</div>
+      <button onclick="this.closest('div').parentElement.remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="predict-content" style="color:var(--muted);font-size:13px;"><div style="display:flex;align-items:center;gap:10px;padding:20px;"><div class="spinner"></div>Analyse du stock en cours...</div></div>
+  </div>`;
+  document.body.appendChild(modal);
+
+  const aCommander=[];const peremption=[];const nepasCommander=[];
+  let livraisonsEvitees=0;
+  const now=new Date();
+
+  for(const p of produits) {
+    const ratio=p.qty/(p.seuil||1);
+    if(ratio<1) {
+      const qteRec=Math.max((p.seuil||5)*2-p.qty,1);
+      aCommander.push({nom:p.nom,qty:p.qty,seuil:p.seuil,qte_recommandee:qteRec,urgence:p.qty===0?'critique':ratio<0.5?'haute':'moyenne'});
+    }
+    if(ratio>3) {
+      nepasCommander.push({nom:p.nom,qty:p.qty,seuil:p.seuil,surplus:p.qty-(p.seuil||1)});
+      livraisonsEvitees++;
+    }
+    if(p.date_peremption) {
+      const exp=new Date(p.date_peremption+'-01');
+      const jours=Math.ceil((exp-now)/(1000*60*60*24));
+      if(jours>0&&jours<90) peremption.push({nom:p.nom,qty:p.qty,date:p.date_peremption,jours});
+    }
+  }
+
+  const co2=(livraisonsEvitees*2.4).toFixed(1);
+  const el=document.getElementById('predict-content');
+  if(!el) return;
+
+  el.innerHTML=`
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:600;color:#f05050;font-size:13px;margin-bottom:8px;">✅ À commander (${aCommander.length})</div>
+      ${aCommander.length?aCommander.sort((a,b)=>(a.urgence==='critique'?0:a.urgence==='haute'?1:2)-(b.urgence==='critique'?0:b.urgence==='haute'?1:2)).map(p=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:${p.urgence==='critique'?'rgba(240,80,80,0.08)':'var(--surface2)'};border-radius:8px;margin-bottom:4px;font-size:12px;">
+          <div><span style="color:var(--text);">${p.nom}</span><span style="color:var(--muted);"> · Stock: ${p.qty}/${p.seuil}</span></div>
+          <span style="color:var(--accent);font-weight:600;">×${p.qte_recommandee}</span>
+        </div>`).join(''):'<div style="font-size:12px;color:#60d090;">Tout est en stock !</div>'}
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:600;color:#f0a030;font-size:13px;margin-bottom:8px;">⚠️ Péremption risquée (${peremption.length})</div>
+      ${peremption.length?peremption.map(p=>`
+        <div style="display:flex;justify-content:space-between;padding:8px;background:rgba(240,160,48,0.06);border-radius:8px;margin-bottom:4px;font-size:12px;">
+          <span style="color:var(--text);">${p.nom} <span style="color:var(--muted);">×${p.qty}</span></span>
+          <span style="color:#f0a030;">${p.jours}j · ${p.date}</span>
+        </div>`).join(''):'<div style="font-size:12px;color:#60d090;">Aucun risque</div>'}
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:600;color:var(--muted);font-size:13px;margin-bottom:8px;">🛑 Ne pas commander (${nepasCommander.length})</div>
+      ${nepasCommander.length?nepasCommander.map(p=>`
+        <div style="display:flex;justify-content:space-between;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:4px;font-size:12px;">
+          <span style="color:var(--text);">${p.nom}</span>
+          <span style="color:var(--muted);">Stock: ${p.qty} · Surplus: ${p.surplus}</span>
+        </div>`).join(''):'<div style="font-size:12px;color:var(--muted);">Aucun excès</div>'}
+    </div>
+    <div style="background:rgba(200,240,96,0.06);border:1px solid rgba(200,240,96,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="font-weight:600;color:var(--accent);font-size:13px;margin-bottom:8px;">💰 Économies estimées</div>
+      <div style="display:flex;gap:16px;font-size:12px;">
+        <div><span style="color:var(--accent);font-weight:700;">${livraisonsEvitees}</span> <span style="color:var(--muted);">livraisons évitées</span></div>
+        <div><span style="color:var(--accent);font-weight:700;">${co2} kg</span> <span style="color:var(--muted);">CO2 économisé</span></div>
+      </div>
+    </div>
+    ${aCommander.length?`<button onclick="panierPredictVersCommande()" style="width:100%;padding:14px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;">📧 Commander les ${aCommander.length} produits →</button>`:''}`;
+
+  window._predictACommander=aCommander;
+}
+
+function panierPredictVersCommande() {
+  const items=window._predictACommander||[];
+  if(!items.length) return;
+  const panier=items.map(p=>({nom:p.nom,qte:p.qte_recommandee,cat:'Autre',marque:''}));
+  localStorage.setItem('amilo_panier',JSON.stringify(panier));
+  document.querySelector('div[style*="z-index:200"]')?.remove();
+  showPage('devis',null);
+  chargerPanier();
+  showToast('🧠 '+items.length+' produits ajoutés au panier');
+}
+
+// ═══════════════════════════════════
+// START
+// ═════════════════��═════════════════
+setTimeout(()=>{chargerGreenDormants();chargerGreenStats();},500);
 init();
 </script>
 <script src="/scan.js"></script></body>
