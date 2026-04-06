@@ -332,6 +332,12 @@ tbody tr:hover td{background:var(--surface2);}
         <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stat-warn">—</div><div class="stat-sub">à surveiller</div></div>
         <div class="stat"><div class="stat-label">Économies YTD</div><div class="stat-value c-accent" id="stat-eco">—</div><div class="stat-sub">vs catalogue</div></div>
       </div>
+      <div id="drop-facture" style="border:2px dashed #2e2c29;border-radius:12px;padding:20px;text-align:center;cursor:pointer;margin-bottom:16px;transition:all 0.2s;">
+        <div style="font-size:24px;">📄</div>
+        <div style="color:#6b6760;font-size:13px;margin-top:4px;">Glissez votre facture ici</div>
+        <div style="color:#3e3c39;font-size:11px;margin-top:2px;">PDF, JPG, PNG — analysé par IA en 5 secondes</div>
+        <input type="file" id="input-facture" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="traiterFichierFacture(this.files[0])">
+      </div>
       <div class="filters">
         <div class="search-wrap">
           <span style="color:var(--muted)">🔍</span>
@@ -571,9 +577,9 @@ tbody tr:hover td{background:var(--surface2);}
 <nav class="mobile-nav">
   <div class="mobile-nav-inner">
     <button class="mnav-item active" onclick="showPage('stock',this)"><span class="mnav-icon">📦</span>Stock</button>
+    <button class="mnav-item" onclick="document.getElementById('input-facture').click()"><span class="mnav-icon">📄</span>Facture</button>
     <button class="mnav-item" onclick="showPage('deals',this)"><span class="mnav-icon">🔥</span>Deals</button>
     <button class="mnav-item" onclick="showPage('analytics',this)"><span class="mnav-icon">📊</span>Analytics</button>
-    <button class="mnav-item" onclick="showPage('fournisseurs',this)"><span class="mnav-icon">🏭</span>Fournisseurs</button>
   </div>
 </nav>
 
@@ -704,6 +710,7 @@ async function init() {
   updateStats();
   filtrer();
   initVocal();
+  attacherEvenementsDropZone();
 
   // Admin : afficher config API en localhost
   if(location.hostname==='localhost'||location.hostname==='127.0.0.1') {
@@ -1444,6 +1451,34 @@ function fermerPhoto() { document.getElementById('photo-modal').classList.remove
 
 function prendrePhotoFacture(){document.getElementById('photo-file-input').click();}
 function uploaderFichierFacture(){document.getElementById('photo-upload-input').click();}
+
+// ═══════════════════════════════════
+// IMPORT FACTURE — DRAG & DROP
+// ═══════════════════════════════════
+function attacherEvenementsDropZone() {
+  const zone=document.getElementById('drop-facture');if(!zone)return;
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.style.borderColor='#c8f060';zone.style.background='rgba(200,240,96,0.05)';});
+  zone.addEventListener('dragleave',()=>{zone.style.borderColor='#2e2c29';zone.style.background='transparent';});
+  zone.addEventListener('drop',e=>{e.preventDefault();zone.style.borderColor='#2e2c29';zone.style.background='transparent';if(e.dataTransfer.files[0])traiterFichierFacture(e.dataTransfer.files[0]);});
+  zone.addEventListener('click',e=>{if(e.target.tagName!=='INPUT')document.getElementById('input-facture').click();});
+}
+
+async function traiterFichierFacture(file) {
+  if(!file)return;
+  const cle=getCleAPI();
+  if(!cle){showToast('⚠️ Configure la clé API Claude pour analyser les factures');return;}
+  const zone=document.getElementById('drop-facture');
+  const origHTML=zone.innerHTML;
+  zone.innerHTML='<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;"><div style="width:16px;height:16px;border:2px solid #2e2c29;border-top-color:#c8f060;border-radius:50%;animation:spin 0.7s linear infinite;"></div><span style="color:#c8f060;font-size:13px;">JADOMI IA analyse '+file.name+'...</span></div>';
+  try {
+    const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const mime=file.type||'image/jpeg';
+    await lireFactureIA(base64,mime);
+  } catch(e){showToast('❌ Erreur : '+e.message);}
+  // Restaurer la zone
+  zone.innerHTML=origHTML;
+  attacherEvenementsDropZone();
+}
 
 function traiterFichierPhoto(file) {
   if(!file) return;
