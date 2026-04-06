@@ -300,6 +300,7 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
     <div class="nav-item" onclick="showPage('green',this)"><span class="ni">🌱</span>JADOMI Green</div>
     <div class="nav-section">Paramètres</div>
+    <div class="nav-item" onclick="showPage('documents',this)"><span class="ni">📄</span>Mes documents</div>
     <div class="nav-item" onclick="showPage('fournisseurs',this)"><span class="ni">🏭</span>Fournisseurs</div>
     <div class="nav-item" onclick="showPage('admin',this)" id="nav-admin" style="display:none;"><span class="ni">⚙️</span>Admin</div>
   </nav>
@@ -587,6 +588,29 @@ tbody tr:hover td{background:var(--surface2);}
       </div>
     </div>
 
+    <!-- MES DOCUMENTS -->
+    <div class="page" id="page-documents">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><div class="card-title">Contrats actifs</div></div>
+        <div id="contrats-actifs" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Tous mes documents</div>
+          <div style="display:flex;gap:6px;">
+            <select id="filter-doc-type" class="filter-select" onchange="chargerDocuments()" style="font-size:11px;padding:5px 8px;">
+              <option value="">Tous types</option>
+              <option value="contrat_abonnement">Contrats</option>
+              <option value="resiliation">Résiliations</option>
+              <option value="devis">Devis</option>
+              <option value="facture">Factures</option>
+            </select>
+          </div>
+        </div>
+        <div id="documents-liste" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
+      </div>
+    </div>
+
   </div>
 </div>
 </div>
@@ -869,17 +893,20 @@ function afficherModalUpgrade(raison) {
 }
 
 function upgraderPlan(plan) {
-  // Stripe à connecter plus tard — pour l'instant simuler
+  const prixMap={solo:29,cabinet:39,multi:79};
+  const prix=prixMap[plan]||29;
+  // Fermer modal upgrade
+  const m=document.getElementById('modal-upgrade');if(m)m.remove();
+  // Ouvrir modal paiement
+  ouvrirPaiement(plan,prix);
+  // Update local
   const sess=JSON.parse(localStorage.getItem('jadomi_session')||'{}');
   sess.plan=plan;sess.date_expiration=new Date(Date.now()+365*86400000).toISOString();
   localStorage.setItem('jadomi_session',JSON.stringify(sess));
   if(db&&window.userInfo){try{db.from('users').update({plan,date_expiration:sess.date_expiration}).eq('id',window.userInfo.id);}catch(e){}}
   window.planActuel=plan;
-  const m=document.getElementById('modal-upgrade');if(m)m.remove();
   const pe=document.getElementById('cabinet-plan');
   if(pe) pe.innerHTML='JADOMI · '+plan.charAt(0).toUpperCase()+plan.slice(1)+' · <span style="color:#c8f060;">Actif</span>';
-  showToast('✅ Plan '+plan+' active ! (Stripe bientot)');
-  bipScan();
 }
 
 // ═══════════════════════════════════
@@ -1881,10 +1908,10 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'Marché dentaire',sos:'SOS Stock',green:'JADOMI Green',admin:'Admin JADOMI'};
+const titles = {stock:'Stock',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'Marché dentaire',sos:'SOS Stock',green:'JADOMI Green',documents:'Mes documents',admin:'Admin JADOMI'};
 const actions = {
   stock:`<button class="btn btn-ghost" onclick="ouvrirPanierIntelligent()">🧠 Panier intelligent</button><button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
-  analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``,green:``
+  analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``,green:``,documents:``
 };
 
 function showPage(id, el) {
@@ -1894,6 +1921,7 @@ function showPage(id, el) {
   document.getElementById('page-title').textContent=titles[id]||id;
   document.getElementById('topbar-actions').innerHTML=actions[id]||'';
   if(el) el.classList.add('active');
+  if(id==='documents') chargerDocuments();
 }
 
 // ═══════════════════════════════════
@@ -2983,6 +3011,196 @@ function panierPredictVersCommande() {
   showPage('devis',null);
   chargerPanier();
   showToast('🧠 '+items.length+' produits ajoutés au panier');
+}
+
+// ═══════════════════════════════════
+// DOCUMENTS & CONTRATS
+// ═══════════════════════════════════
+let mesContrats=JSON.parse(localStorage.getItem('jadomi_contrats')||'[]');
+let mesDocuments=JSON.parse(localStorage.getItem('jadomi_documents')||'[]');
+
+async function chargerDocuments() {
+  const typeFilter=document.getElementById('filter-doc-type')?.value||'';
+  // Try server
+  const userId=window.userInfo?.id||'local';
+  try {
+    const resp=await fetch('/api/documents/'+userId);
+    if(resp.ok){const data=await resp.json();if(data.contrats)mesContrats=data.contrats;if(data.documents)mesDocuments=data.documents;}
+  }catch(e){}
+
+  // Render contrats actifs
+  const actifs=mesContrats.filter(c=>c.statut==='actif'||c.statut==='en_attente_signature');
+  const elActifs=document.getElementById('contrats-actifs');
+  if(elActifs){
+    if(!actifs.length) elActifs.innerHTML='<div style="color:var(--muted);font-size:13px;">Aucun contrat actif</div>';
+    else elActifs.innerHTML=actifs.map(c=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-weight:600;font-size:13px;">${c.cabinet_nom||'Mon cabinet'} · ${(c.plan||'solo').charAt(0).toUpperCase()+(c.plan||'solo').slice(1)} · ${c.prix_mensuel||29}€/mois</div>
+          <div style="font-size:11px;color:var(--muted);">Depuis le ${c.date_debut?new Date(c.date_debut).toLocaleDateString('fr-FR'):''} · ${c.statut==='actif'?'✅ Signé':'⏳ En attente signature'}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          ${c.signature_contrat?`<button onclick="window.open('/api/signature/${c.signature_contrat}','_blank')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">Voir</button>`:''}
+          ${c.statut==='actif'?`<button onclick="ouvrirResiliation('${c.id||''}','${(c.cabinet_nom||'').replace(/'/g,"\\'")}','${c.plan||'solo'}',${c.prix_mensuel||29})" style="padding:5px 10px;background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.3);border-radius:6px;color:#f05050;font-size:11px;cursor:pointer;">Résilier</button>`:''}
+        </div>
+      </div>`).join('');
+  }
+
+  // Render all documents
+  let docs=mesDocuments;
+  if(typeFilter) docs=docs.filter(d=>d.type===typeFilter);
+  const elDocs=document.getElementById('documents-liste');
+  if(elDocs){
+    if(!docs.length) elDocs.innerHTML='<div style="color:var(--muted);font-size:13px;">Aucun document</div>';
+    else elDocs.innerHTML=docs.map(d=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-weight:500;font-size:13px;">📄 ${d.nom||d.type}</div>
+          <div style="font-size:11px;color:var(--muted);">${d.created_at?new Date(d.created_at).toLocaleDateString('fr-FR'):''} · ${d.signe?'✅ Signé':'⏳ Non signé'}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          ${d.token_signature?`<button onclick="window.open('/api/signature/${d.token_signature}','_blank')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">Voir</button>`:''}
+          ${d.contenu_html?`<button onclick="telechargerDocPDF(${d.id||0})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">PDF</button>`:''}
+        </div>
+      </div>`).join('');
+  }
+}
+
+function telechargerDocPDF(docId) {
+  const doc=mesDocuments.find(d=>d.id===docId);
+  if(!doc||!doc.contenu_html) return;
+  const win=window.open('','_blank');
+  win.document.write(doc.contenu_html);
+  win.document.close();
+  setTimeout(()=>win.print(),500);
+}
+
+// ═══════════════════════════════════
+// MODAL PAIEMENT MENSUEL/ANNUEL
+// ═══════════════════════════════════
+function ouvrirPaiement(plan,prixMensuel) {
+  const prixAnnuel=Math.round(prixMensuel*12*0.85);
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:20px;padding:32px;max-width:480px;width:100%;text-align:center;">
+    <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);margin-bottom:20px;">Choisissez votre formule</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div id="opt-mensuel" onclick="selectPeriodicite('mensuel')" style="background:var(--surface2);border:2px solid var(--accent);border-radius:14px;padding:20px;cursor:pointer;transition:all 0.2s;">
+        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px;">MENSUEL</div>
+        <div style="font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--accent);">${prixMensuel}€<span style="font-size:13px;color:var(--muted);">/mois</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;">Résiliable à tout moment</div>
+        <div style="font-size:11px;color:var(--muted);">Sans frais · Sans préavis</div>
+      </div>
+      <div id="opt-annuel" onclick="selectPeriodicite('annuel')" style="background:var(--surface2);border:2px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all 0.2s;">
+        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px;">ANNUEL</div>
+        <div style="font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--accent);">${prixAnnuel}€<span style="font-size:13px;color:var(--muted);">/an</span></div>
+        <div style="font-size:12px;color:var(--green);margin-top:8px;font-weight:600;">-15% 🎉 · 2 mois offerts</div>
+        <div style="font-size:11px;color:var(--muted);">Engagement 12 mois</div>
+      </div>
+    </div>
+    <div id="warn-annuel" style="display:none;background:rgba(240,160,48,0.08);border:1px solid rgba(240,160,48,0.2);border-radius:8px;padding:10px;font-size:12px;color:#f0a030;margin-bottom:12px;">⚠️ Abonnement annuel : engagement 12 mois, non remboursable</div>
+    <button onclick="lancerPaiement('${plan}',${prixMensuel})" style="width:100%;padding:16px;background:var(--accent);color:#0f0e0d;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;">Continuer vers le paiement →</button>
+    <button onclick="this.closest('div').parentElement.remove()" style="width:100%;margin-top:8px;padding:10px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">Annuler</button>
+  </div>`;
+  document.body.appendChild(modal);
+  window._selectedPeriodicite='mensuel';
+}
+
+function selectPeriodicite(type) {
+  window._selectedPeriodicite=type;
+  document.getElementById('opt-mensuel').style.borderColor=type==='mensuel'?'var(--accent)':'var(--border)';
+  document.getElementById('opt-annuel').style.borderColor=type==='annuel'?'var(--accent)':'var(--border)';
+  document.getElementById('warn-annuel').style.display=type==='annuel'?'block':'none';
+}
+
+async function lancerPaiement(plan,prixMensuel) {
+  const periodicite=window._selectedPeriodicite||'mensuel';
+  const sess=JSON.parse(localStorage.getItem('jadomi_session')||'{}');
+  showToast('📄 Génération du contrat...');
+  // 1. Generate contract
+  try {
+    const resp=await fetch('/api/contrats/generer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      user_id:sess.id||null,nom:sess.nom||'Client',email:sess.email||'',cabinet_nom:sess.cabinet||'',plan,periodicite,prix_mensuel:prixMensuel
+    })});
+    const data=await resp.json();
+    if(data.success) {
+      // Save locally
+      mesContrats.push({id:Date.now(),plan,periodicite,prix_mensuel:prixMensuel,prix_annuel:Math.round(prixMensuel*12*0.85),statut:'en_attente_signature',cabinet_nom:sess.cabinet||'Mon cabinet',date_debut:new Date().toISOString(),signature_contrat:data.token});
+      localStorage.setItem('jadomi_contrats',JSON.stringify(mesContrats));
+      mesDocuments.push({id:Date.now(),type:'contrat_abonnement',nom:data.num_contrat||'Contrat '+plan,signe:false,token_signature:data.token,contenu_html:data.contenu_html,created_at:new Date().toISOString()});
+      localStorage.setItem('jadomi_documents',JSON.stringify(mesDocuments));
+      showToast('✅ Contrat généré ! Signez-le pour activer.');
+      // Open signature page
+      window.open(data.lien_signature,'_blank');
+      document.querySelector('div[style*="z-index:9999"]')?.remove();
+    }
+  } catch(e) {
+    showToast('⚠️ Contrat simulé en local');
+    document.querySelector('div[style*="z-index:9999"]')?.remove();
+  }
+  // 2. Then Stripe
+  try {
+    const resp2=await fetch('/api/stripe/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      plan,periodicite,email:sess.email||'',nom:sess.nom||''
+    })});
+    const stripe=await resp2.json();
+    if(stripe.checkout_url) window.open(stripe.checkout_url,'_blank');
+    else if(stripe.simulated) showToast('💳 Stripe sera connecté prochainement');
+  }catch(e){}
+}
+
+// ═══════════════════════════════════
+// RÉSILIATION
+// ═══════════════════════════════════
+function ouvrirResiliation(contratId,cabinetNom,plan,prixMensuel) {
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  const dateFin=new Date();dateFin.setMonth(dateFin.getMonth()+1);
+  const dateFinStr=dateFin.toLocaleDateString('fr-FR');
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid rgba(240,80,80,0.3);border-radius:20px;padding:28px;max-width:440px;width:100%;">
+    <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:#f05050;margin-bottom:12px;">Résilier un contrat</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:6px;">Vous allez résilier le contrat de <strong>${cabinetNom||'Mon cabinet'}</strong> — ${plan.charAt(0).toUpperCase()+plan.slice(1)} ${prixMensuel}€/mois</div>
+    <div style="background:rgba(240,160,48,0.08);border:1px solid rgba(240,160,48,0.2);border-radius:8px;padding:10px;font-size:12px;color:#f0a030;margin:12px 0;line-height:1.6;">
+      ⚠️ Votre abonnement reste actif jusqu'au <strong>${dateFinStr}</strong>.<br>
+      Aucun remboursement pour la période déjà payée.<br>
+      Les autres cabinets ne sont PAS affectés.
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Motif de résiliation (optionnel) :</div>
+    <textarea id="motif-resiliation" placeholder="Dites-nous pourquoi vous partez..." style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;min-height:60px;resize:vertical;font-family:var(--font);margin-bottom:12px;"></textarea>
+    <div style="display:flex;gap:10px;">
+      <button onclick="this.closest('div').parentElement.remove()" style="flex:1;padding:12px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;">Annuler</button>
+      <button onclick="confirmerResiliation('${contratId}','${(cabinetNom||'').replace(/'/g,"\\'")}','${plan}',${prixMensuel})" style="flex:1;padding:12px;background:#f05050;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">Confirmer la résiliation</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function confirmerResiliation(contratId,cabinetNom,plan,prixMensuel) {
+  const motif=document.getElementById('motif-resiliation')?.value||'';
+  const sess=JSON.parse(localStorage.getItem('jadomi_session')||'{}');
+  showToast('📄 Génération du contrat de résiliation...');
+  try {
+    const resp=await fetch('/api/contrats/resilier',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      contrat_id:contratId,motif,user_id:sess.id||null,nom:sess.nom||'Client',email:sess.email||'',cabinet_nom:cabinetNom,plan,prix_mensuel:prixMensuel
+    })});
+    const data=await resp.json();
+    if(data.success) {
+      mesContrats=mesContrats.map(c=>c.id==contratId?{...c,statut:'resiliation_en_cours'}:c);
+      localStorage.setItem('jadomi_contrats',JSON.stringify(mesContrats));
+      mesDocuments.push({id:Date.now(),type:'resiliation',nom:data.num_resiliation||'Résiliation',signe:false,token_signature:data.token,contenu_html:data.contenu_html,created_at:new Date().toISOString()});
+      localStorage.setItem('jadomi_documents',JSON.stringify(mesDocuments));
+      showToast('✅ Résiliation enregistrée. Signez le document.');
+      window.open(data.lien_signature,'_blank');
+    }
+  } catch(e) {
+    showToast('⚠️ Résiliation enregistrée en local');
+    mesContrats=mesContrats.map(c=>c.id==contratId?{...c,statut:'resilie'}:c);
+    localStorage.setItem('jadomi_contrats',JSON.stringify(mesContrats));
+  }
+  document.querySelector('div[style*="z-index:9999"]')?.remove();
+  chargerDocuments();
 }
 
 // ═══════════════════════════════════
