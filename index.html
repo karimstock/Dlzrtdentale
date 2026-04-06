@@ -302,6 +302,7 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="cabinet-name">Mon cabinet</div>
       <div class="cabinet-plan">JADOMI · Solo · Gratuit</div>
     </div>
+    <div id="ia-status" style="font-size:10px;color:var(--muted);margin-top:8px;padding:4px 0;border-top:1px solid var(--border);">🟡 JADOMI · Chargement...</div>
     <div id="admin-api-key" style="display:none;margin-top:10px;">
       <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">🔑 Clé API Claude</div>
       <input id="input-api-key" type="password" placeholder="sk-ant-..." style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--mono);color:var(--text);outline:none;" onchange="localStorage.setItem('jadomi_claude_key',this.value);showToast('✓ Clé API sauvegardée')">
@@ -359,6 +360,9 @@ tbody tr:hover td{background:var(--surface2);}
 
     <!-- ANALYTICS -->
     <div class="page" id="page-analytics">
+      <div style="margin-bottom:16px;">
+        <button onclick="genererRapportIA()" class="btn btn-accent" style="font-size:13px;">🤖 Rapport IA mensuel</button>
+      </div>
       <div class="surpay-alert">
         <div class="surpay-title">💥 Tu paies trop cher sur ces produits</div>
         <div class="surpay-item">
@@ -509,21 +513,21 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="photo-title">📸 Photo intelligente</div>
     <div class="photo-sub">L'IA lit automatiquement tes produits et ajuste le stock</div>
     <div class="photo-options">
-      <div class="photo-option" onclick="simulerPhoto('facture')">
+      <div class="photo-option" onclick="prendrePhotoFacture()">
         <div class="photo-option-icon">🧾</div>
-        <div class="photo-option-title">Bon de livraison</div>
-        <div class="photo-option-sub">Stock monte automatiquement</div>
+        <div class="photo-option-title">Photographier facture</div>
+        <div class="photo-option-sub">IA lit et ajoute au stock</div>
       </div>
-      <div class="photo-option" onclick="simulerPhoto('stock')">
-        <div class="photo-option-icon">📦</div>
-        <div class="photo-option-title">Photo du stock</div>
-        <div class="photo-option-sub">IA compte et reconnaît</div>
+      <div class="photo-option" onclick="uploaderFichierFacture()">
+        <div class="photo-option-icon">📁</div>
+        <div class="photo-option-title">Importer fichier</div>
+        <div class="photo-option-sub">Photo ou PDF de facture</div>
       </div>
     </div>
-    <div class="photo-result" id="photo-result">
-      <div class="photo-result-title">✓ IA a détecté ces produits</div>
+    <input type="file" id="photo-file-input" accept="image/*" capture="environment" style="display:none;" onchange="traiterFichierPhoto(this.files[0])">
+    <input type="file" id="photo-upload-input" accept="image/*,.pdf" style="display:none;" onchange="traiterFichierPhoto(this.files[0])">
+    <div id="photo-result" style="display:none;">
       <div id="photo-items"></div>
-      <button class="btn btn-accent" style="width:100%;margin-top:12px;justify-content:center;" onclick="validerPhoto()">Valider et mettre à jour le stock →</button>
     </div>
   </div>
 </div>
@@ -706,6 +710,9 @@ async function init() {
     const el=document.getElementById('admin-api-key');
     if(el){el.style.display='block';const inp=document.getElementById('input-api-key');if(inp)inp.value=localStorage.getItem('jadomi_claude_key')||'';}
   }
+
+  // Vérifier statut IA
+  verifierStatutIA();
 
   // ÉTAPE 2 : Charger les fournisseurs
   await chargerFournisseurs();
@@ -1001,106 +1008,92 @@ function dispatchVocal(texte) {
 async function traiterCommandeIA(texte) {
   const display=document.getElementById('vocal-display');
   display.classList.remove('empty');
-  display.innerHTML='<div style="color:#6b6760;font-size:13px;">🤖 JADOMI analyse...</div>';
+  display.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:#6b6760;padding:12px;">
+    <div style="width:8px;height:8px;border-radius:50%;background:#c8f060;animation:pulse-red 1s infinite;"></div>JADOMI IA analyse...</div>`;
 
   try {
-    const stockActuel=produits.map(p=>p.nom+' (stock:'+p.qty+', id:'+p.id+(p.date_peremption?', exp:'+p.date_peremption:'')+')').join('\n');
+    const cle=getCleAPI(); if(!cle) throw new Error('Pas de clé API');
+    const stockActuel=produits.slice(0,50).map(p=>p.nom+'(id:'+p.id+',stock:'+p.qty+(p.date_peremption?',exp:'+p.date_peremption:'')+')').join('\n');
 
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':getCleAPI(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        messages:[{role:'user',content:`Tu es l'assistant IA de JADOMI, gestion de stock dentaire.
+        max_tokens:800,
+        system:`Tu es l'IA de JADOMI, app de stock dentaire française.
 
-Stock actuel du cabinet :
+STOCK ACTUEL :
 ${stockActuel}
 
-Le dentiste dit : "${texte}"
+RÈGLES ABSOLUES :
+1. "j'ai reçu 20 flacons de Scotchbond périme nov 2028" → action:ajoute, quantite:20, date_peremption:"2028-11" — JAMAIS mettre 2028 dans quantite
+2. "j'ai utilisé une boîte de gants nitrile" → action:utilise, quantite:1
+3. "j'ai utilisé 5 carpules" → action:utilise, quantite:5
+4. "livraison 10 gants, 5 Fuji Plus" → action:ajoute, 2 produits
+5. "commande 10 nitrile S, 5 Scotchbond meilleur prix" → action:commande
+6. "il reste 3 Fuji" → action:set, quantite:3
+7. "plus de composite" ou "rupture" → action:alerte
 
-Retourne UNIQUEMENT ce JSON sans texte autour :
-{"action":"utilise|ajoute|set|commande|filtre|inconnu","produits":[{"id":123,"nom":"nom exact","quantite":1,"date_peremption":null,"nouveau":false}],"message":"confirmation courte"}
+CONVERSION DATES : "novembre 2028"→"2028-11", "mars 2026"→"2026-03", "fin 2027"→"2027-12", "2028" seul→"2028-12"
+JAMAIS mettre une année dans quantite.
 
-RÈGLES :
-- "j'ai reçu 20 flacons de Scotchbond qui périme en nov 2028" → action:"ajoute", quantite:20, date_peremption:"2028-11"
-- "j'ai utilisé 5 boîtes de gants" → action:"utilise", quantite:5
-- "j'ai ajouté un nouveau produit Duralan péremption mars 2026" → action:"ajoute", nouveau:true, date_peremption:"2026-03"
-- "commande 10 gants, 5 scotchbond, meilleur prix" → action:"commande"
-- "montre les ruptures" ou "plus de composite" → action:"filtre"
-- Dates : "novembre 2028"="2028-11", "mars 2026"="2026-03", "fin 2027"="2027-12"
-- id doit correspondre exactement au stock. Si nouveau → id:null
-- "un/une"=1, "deux"=2, "trois"=3, "dix"=10, "vingt"=20`}]
+Réponds UNIQUEMENT JSON :
+{"action":"utilise|ajoute|set|commande|alerte|inconnu","produits":[{"id":123,"nom":"nom exact","quantite":1,"date_peremption":null,"nouveau":false}],"message":"confirmation courte"}`,
+        messages:[{role:'user',content:'Le dentiste dit : "'+texte+'"'}]
       })
     });
 
+    if(!resp.ok) throw new Error('API '+resp.status);
     const data=await resp.json();
     const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
     const jsonMatch=text.match(/\{[\s\S]*\}/);
-    if(!jsonMatch) throw new Error('Réponse IA invalide');
+    if(!jsonMatch) throw new Error('JSON invalide');
     const res=JSON.parse(jsonMatch[0]);
+    let actions=[];
 
-    // Appliquer les actions
-    if(res.action==='filtre') {
+    if(res.action==='alerte') {
       document.getElementById('filter-status').value='critique';filtrer();
-      fermerVocal();showToast('📋 '+res.message);return;
+      fermerVocal();showToast('📋 '+(res.message||'Produits critiques'));return;
     }
-
     if(res.action==='commande' && res.produits?.length) {
       window._panierVocal=res.produits.map(p=>({nom:p.nom,qte:p.quantite,cat:'Autre',marque:''}));
-      validerPanierVocal();
-      return;
+      fermerVocal();validerPanierVocal();return;
     }
 
     for(const p of (res.produits||[])) {
       if(res.action==='utilise' && p.id) {
         const pr=produits.find(x=>x.id===p.id);
-        if(pr) modifierQtyDirecte(p.id,p.nom,Math.max(0,pr.qty-p.quantite),'utilise',p.quantite,pr.qty);
+        if(pr){const nq=Math.max(0,pr.qty-p.quantite);produits=produits.map(x=>x.id===p.id?{...x,qty:nq}:x);actions.push(pr.nom+': '+pr.qty+' → '+nq);if(db){try{db.from('produits').update({qty:nq}).eq('id',p.id);}catch(e){}}}
       } else if(res.action==='ajoute') {
-        if(p.nouveau || !p.id) {
-          // Nouveau produit
+        if(p.nouveau||!p.id) {
           const nv={nom:p.nom,categorie:p.categorie||'Autre',marque:p.marque||'',qty:p.quantite,seuil:5,date_peremption:p.date_peremption||null,fournisseur:'',is_partner:false,date_entree:new Date().toISOString().slice(0,10)};
-          produits=[{id:Date.now(),...nv},...produits];
-          localStorage.setItem('amilo_produits',JSON.stringify(produits));
-          enrichirCatalogueVocal(nv);
-          updateStats();filtrer();
+          produits=[{id:Date.now(),...nv},...produits];enrichirCatalogueVocal(nv);
+          actions.push(p.nom+' ajouté (×'+p.quantite+')'+(p.date_peremption?' Exp:'+p.date_peremption:''));
           if(db){try{db.from('produits').insert([nv]).select();}catch(e){}}
         } else {
           const pr=produits.find(x=>x.id===p.id);
-          if(pr) {
-            const nq=pr.qty+p.quantite;
-            const upd={qty:nq};
-            if(p.date_peremption) upd.date_peremption=p.date_peremption;
-            upd.date_entree=new Date().toISOString().slice(0,10);
-            produits=produits.map(x=>x.id===p.id?{...x,...upd}:x);
-            localStorage.setItem('amilo_produits',JSON.stringify(produits));
-            updateStats();filtrer();
-            if(db){try{db.from('produits').update(upd).eq('id',p.id);}catch(e){}}
-          }
+          if(pr){const nq=pr.qty+p.quantite;const upd={qty:nq,date_entree:new Date().toISOString().slice(0,10)};if(p.date_peremption)upd.date_peremption=p.date_peremption;produits=produits.map(x=>x.id===p.id?{...x,...upd}:x);actions.push(pr.nom+': '+pr.qty+' → '+nq+(p.date_peremption?' Exp:'+p.date_peremption:''));if(db){try{db.from('produits').update(upd).eq('id',p.id);}catch(e){}}}
         }
       } else if(res.action==='set' && p.id) {
         const pr=produits.find(x=>x.id===p.id);
-        if(pr) modifierQtyDirecte(p.id,p.nom,p.quantite,'set',p.quantite,pr.qty);
+        if(pr){produits=produits.map(x=>x.id===p.id?{...x,qty:p.quantite}:x);actions.push(pr.nom+': stock = '+p.quantite);if(db){try{db.from('produits').update({qty:p.quantite}).eq('id',p.id);}catch(e){}}}
       }
     }
 
-    // Confirmation
+    localStorage.setItem('amilo_produits',JSON.stringify(produits));
+    updateStats();filtrer();
+
     display.innerHTML=`
-      <div style="color:#c8f060;font-weight:600;margin-bottom:8px;">✅ ${res.message||'Action effectuée'}</div>
-      ${(res.produits||[]).map(p=>`
-        <div style="padding:6px 0;border-bottom:1px solid #2e2c29;font-size:12px;color:#f0ede8;">
-          ${p.nom} · ${res.action==='utilise'?'-':'+'}${p.quantite}
-          ${p.date_peremption?' · Exp: '+p.date_peremption:''}
-          ${p.nouveau?' · <span style="color:#f0a030;">Nouveau</span>':''}
-        </div>`).join('')}`;
+      <div style="color:#c8f060;font-weight:600;font-size:14px;margin-bottom:10px;">✅ ${res.message||'Action effectuée'}</div>
+      ${actions.map(a=>`<div style="padding:5px 0;border-bottom:1px solid #2e2c29;font-size:12px;color:#f0ede8;">${a}</div>`).join('')}`;
     bipScan();
     setTimeout(()=>fermerVocal(),3000);
 
   } catch(e) {
-    console.warn('Vocal IA error:',e);
-    // Fallback sur le traitement local
-    display.innerHTML='<div style="color:#f0a030;font-size:12px;">🔄 Fallback local...</div>';
-    setTimeout(()=>traiterCommande(texte),300);
+    console.warn('Vocal IA:',e);
+    display.innerHTML='<div style="color:#f0a030;font-size:12px;">🟡 IA indisponible · Mode local</div>';
+    setTimeout(()=>traiterCommande(texte),500);
   }
 }
 
@@ -1362,12 +1355,18 @@ async function rechercherPrixClaudeAPI(lignes) {
 
 function commanderMeilleureOffre(fournisseur,source) {
   const lignes=window._panierVocal||JSON.parse(localStorage.getItem('amilo_panier')||'[]');
-  const corps=lignes.map(l=>l.nom+' ×'+l.qte).join('\n');
-  const sujet=encodeURIComponent('Commande JADOMI — '+lignes.length+' produits');
-  const body=encodeURIComponent('Bonjour,\n\nJe souhaite commander :\n\n'+corps+'\n\nMerci de me faire parvenir un devis.\n\nCordialement');
-  window.open('mailto:?subject='+sujet+'&body='+body);
-  showToast('📧 Email de commande préparé');
-  fermerVocal();
+  // Si clé API → email IA, sinon email simple
+  if(getCleAPI()) {
+    genererEmailNegociation(fournisseur,lignes);
+    fermerVocal();
+  } else {
+    const corps=lignes.map(l=>l.nom+' ×'+l.qte).join('\n');
+    const sujet=encodeURIComponent('Commande JADOMI — '+lignes.length+' produits');
+    const body=encodeURIComponent('Bonjour,\n\nJe souhaite commander :\n\n'+corps+'\n\nMerci de me faire parvenir un devis.\n\nCordialement');
+    window.open('mailto:?subject='+sujet+'&body='+body);
+    showToast('📧 Email de commande préparé');
+    fermerVocal();
+  }
 }
 
 // ═══════════════════════════════════
@@ -1443,26 +1442,97 @@ function fermerVocal() { document.getElementById('vocal-modal').classList.remove
 function ouvrirPhoto() { document.getElementById('photo-modal').classList.add('open'); document.getElementById('photo-result').classList.remove('show'); } function ouvrirScan() { if(/Android|iPhone|iPad/i.test(navigator.userAgent)) { demarrerCamera(); } else { document.getElementById('scan-overlay').style.display='flex'; } }
 function fermerPhoto() { document.getElementById('photo-modal').classList.remove('open'); }
 
-function simulerPhoto(type) {
-  showToast("📸 Analyse IA en cours...");
-  setTimeout(()=>{
-    const items = type==='facture'
-      ? [{nom:'Gants nitrile T.M',qty:'+10',action:'ajouté',exp:'—'},{nom:'Scotchbond Universal',qty:'+3',action:'ajouté',exp:'06/2027'},{nom:'Articaïne 4%',qty:'+50',action:'ajouté',exp:'12/2026'}]
-      : [{nom:'Gants latex T.M',qty:'8',action:'compté',exp:'—'},{nom:'Composite Filtek A2',qty:'6',action:'compté',exp:'06/2026'},{nom:'Scotchbond Universal',qty:'2',action:'compté',exp:'10/2025'}];
-    document.getElementById('photo-items').innerHTML = items.map(i=>`
-      <div class="photo-item">
-        <span>${i.nom}</span>
-        <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">${i.qty} · ${i.action}${i.exp!=='—'?' · ⏱ '+i.exp:''}</span>
-      </div>`).join('');
-    document.getElementById('photo-result').classList.add('show');
-    showToast("✓ IA a détecté "+items.length+" produits");
-  },1500);
+function prendrePhotoFacture(){document.getElementById('photo-file-input').click();}
+function uploaderFichierFacture(){document.getElementById('photo-upload-input').click();}
+
+function traiterFichierPhoto(file) {
+  if(!file) return;
+  const cle=getCleAPI();
+  if(!cle){showToast('⚠️ Configure la clé API pour l\'analyse IA');return;}
+  showToast('🤖 Analyse IA de la facture...');
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const base64=e.target.result.split(',')[1];
+    const mime=file.type||'image/jpeg';
+    lireFactureIA(base64,mime);
+  };
+  reader.readAsDataURL(file);
 }
 
-function validerPhoto() {
+async function lireFactureIA(imageBase64,mimeType) {
+  try {
+    const cle=getCleAPI();if(!cle)return;
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mimeType||'image/jpeg',data:imageBase64}},
+          {type:'text',text:`Analyse cette facture/bon de livraison dentaire.
+Retourne UNIQUEMENT ce JSON :
+{"fournisseur":"nom","date_facture":"2026-01-15","produits":[{"nom":"nom produit","quantite":1,"prix_unitaire":0.00,"prix_total":0.00,"date_peremption":null}],"montant_ht":0.00,"montant_ttc":0.00}`}
+        ]}]
+      })
+    });
+    const data=await resp.json();
+    const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
+    const m=text.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('Pas de JSON');
+    const facture=JSON.parse(m[0]);
+    afficherProduitsFacture(facture);
+  } catch(e) {
+    showToast('❌ Erreur lecture facture : '+e.message);
+  }
+}
+
+function afficherProduitsFacture(facture) {
+  window._factureIA=facture;
+  const panel=document.getElementById('photo-items');
+  const wrap=document.getElementById('photo-result');
+  wrap.style.display='block';
+  panel.innerHTML=`
+    <div style="font-weight:600;color:var(--accent);margin-bottom:4px;">✅ Facture analysée</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">${facture.fournisseur||'?'} · ${facture.date_facture||''} · ${facture.montant_ttc||'?'}€ TTC</div>
+    ${facture.produits.map((p,i)=>`
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px;">${p.nom}</div>
+        <div style="font-size:11px;color:var(--muted);">Qté: ${p.quantite} · ${p.prix_unitaire||'?'}€/u${p.date_peremption?' · Exp: '+p.date_peremption:''}</div>
+      </div>`).join('')}
+    <button onclick="ajouterTousProduitsFacture()" style="width:100%;padding:12px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;">✅ Tout ajouter au stock (${facture.produits.length})</button>`;
+}
+
+function ajouterTousProduitsFacture() {
+  const facture=window._factureIA;if(!facture)return;
+  for(const p of facture.produits) {
+    const exist=produits.find(x=>norm(x.nom).includes(norm(p.nom.split(' ')[0])));
+    if(exist) {
+      const nq=exist.qty+(p.quantite||1);
+      const upd={qty:nq};
+      if(p.date_peremption)upd.date_peremption=p.date_peremption;
+      upd.date_entree=new Date().toISOString().slice(0,10);
+      produits=produits.map(x=>x.id===exist.id?{...x,...upd}:x);
+      if(db){try{db.from('produits').update(upd).eq('id',exist.id);}catch(e){}}
+    } else {
+      const nv={nom:p.nom,categorie:'Autre',marque:'',qty:p.quantite||1,seuil:5,date_peremption:p.date_peremption||null,fournisseur:facture.fournisseur||'',is_partner:false,date_entree:new Date().toISOString().slice(0,10)};
+      produits=[{id:Date.now()+Math.random(),...nv},...produits];
+      enrichirCatalogueVocal(nv);
+      if(db){try{db.from('produits').insert([nv]).select();}catch(e){}}
+    }
+    // Sauver prix
+    if(p.prix_unitaire && p.prix_unitaire>0) {
+      const code=p.nom.replace(/\s/g,'_');
+      if(!historiqueAchats[code])historiqueAchats[code]=[];
+      historiqueAchats[code].push({prix_total:p.prix_total||p.prix_unitaire*(p.quantite||1),qte:p.quantite||1,prix_unit:p.prix_unitaire,date:facture.date_facture||new Date().toISOString().slice(0,10)});
+      sauverAchats();
+    }
+  }
+  localStorage.setItem('amilo_produits',JSON.stringify(produits));
+  updateStats();filtrer();
+  showToast('✅ '+facture.produits.length+' produits ajoutés depuis la facture !');
+  bipScan();
   fermerPhoto();
-  showToast("✓ Stock mis à jour depuis la photo !");
-  chargerProduits().then(()=>{updateStats();filtrer();});
 }
 
 // ═══════════════════════════════════
@@ -1583,6 +1653,110 @@ function showToast(msg) {
   t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══════════════════════════════════
+// RAPPORT IA MENSUEL
+// ═══════════════════════════════════
+async function genererRapportIA() {
+  const cle=getCleAPI();
+  if(!cle){showToast('⚠️ Clé API requise pour le rapport IA');return;}
+  showToast('🤖 Génération du rapport...');
+  const stockInfo=produits.map(p=>p.nom+': stock='+p.qty+', seuil='+p.seuil+(p.date_peremption?', exp='+p.date_peremption:'')).join('\n');
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1500,messages:[{role:'user',content:`Tu es consultant en gestion de cabinet dentaire.
+
+Stock actuel :
+${stockInfo}
+
+Génère un rapport mensuel concis :
+1. 🚨 Urgences (ruptures et péremptions proches)
+2. 📦 À commander cette semaine
+3. 💰 Optimisations possibles
+4. 📊 Résumé en 2 lignes
+
+Réponds en français, style concis et professionnel.`}]})
+    });
+    const data=await resp.json();
+    const rapport=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'Erreur';
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    modal.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-weight:700;color:#c8f060;font-size:16px;">📊 Rapport JADOMI IA</div>
+        <button onclick="this.closest('div').parentElement.parentElement.remove()" style="background:none;border:none;color:#6b6760;font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <div style="color:#f0ede8;font-size:13px;line-height:1.7;white-space:pre-wrap;">${rapport}</div>
+    </div>`;
+    document.body.appendChild(modal);
+  } catch(e){showToast('❌ Erreur rapport : '+e.message);}
+}
+
+// ═══════════════════════════════════
+// EMAIL NÉGOCIATION IA
+// ═══════════════════════════════════
+const getNumeroJadomi=()=>{let n=localStorage.getItem('jadomi_numero');if(!n){n='JADOMI-'+Math.random().toString(36).substr(2,8).toUpperCase();localStorage.setItem('jadomi_numero',n);}return n;};
+
+async function genererEmailNegociation(fournisseur,lignes) {
+  const cle=getCleAPI();if(!cle){showToast('⚠️ Clé API requise');return;}
+  const num=getNumeroJadomi();
+  const lp=lignes.map(l=>'- '+l.qte+'x '+l.nom).join('\n');
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,messages:[{role:'user',content:`Rédige un email de demande de prix à ${fournisseur} pour :
+${lp}
+
+RÈGLES : Utiliser UNIQUEMENT le numéro client ${num}. JAMAIS le nom du dentiste ni l'adresse. Mentionner qu'on compare plusieurs fournisseurs. Demander meilleur prix et délai. Signature : L'équipe JADOMI
+
+Format : Objet: [objet]\nCorps: [corps]`}]})
+    });
+    const data=await resp.json();
+    const emailTexte=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    modal.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:24px;max-width:500px;width:100%;">
+      <div style="font-weight:700;color:#c8f060;margin-bottom:12px;">✉️ Email négociation · ${num}</div>
+      <textarea id="email-nego-content" style="width:100%;min-height:200px;background:#242220;border:1px solid #2e2c29;border-radius:8px;padding:12px;color:#f0ede8;font-size:12px;resize:vertical;">${emailTexte}</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="envoyerEmailNego('${fournisseur.replace(/'/g,"\\'")}')" style="flex:1;padding:10px;background:#c8f060;color:#0f0e0d;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📧 Envoyer</button>
+        <button onclick="this.closest('div').parentElement.parentElement.remove()" style="padding:10px 16px;background:#242220;color:#6b6760;border:1px solid #2e2c29;border-radius:8px;cursor:pointer;">✕</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  } catch(e){showToast('❌ Erreur : '+e.message);}
+}
+
+function envoyerEmailNego(fournisseur) {
+  const content=document.getElementById('email-nego-content')?.value||'';
+  const sujet=encodeURIComponent('Demande de prix JADOMI — '+getNumeroJadomi());
+  const body=encodeURIComponent(content);
+  window.open('mailto:?subject='+sujet+'&body='+body);
+  showToast('📧 Email préparé pour '+fournisseur);
+  document.querySelector('div[style*="position:fixed"][style*="z-index:200"]')?.remove();
+}
+
+// ═══════════════════════════════════
+// STATUT IA
+// ═══════════════════════════════════
+async function verifierStatutIA() {
+  const el=document.getElementById('ia-status');if(!el)return;
+  const cle=getCleAPI();
+  if(!cle){el.innerHTML='🟡 JADOMI · Mode local (pas de clé API)';return;}
+  try {
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cle,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:5,messages:[{role:'user',content:'ok'}]})
+    });
+    el.innerHTML=r.ok?'🟢 JADOMI IA · En ligne':'🟡 JADOMI · Mode local';
+  } catch(e){el.innerHTML='🟡 JADOMI · Mode local';}
 }
 
 // ═══════════════════════════════════
