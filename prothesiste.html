@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#c8f060">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="JADOMI Prothesiste">
+<title>JADOMI — Espace Prothesiste</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--border:#2e2c29;
+  --text:#f0ede8;--muted:#6b6760;--accent:#c8f060;--accent-dark:#8fb840;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#f05050;--red-l:#2a0f0f;
+  --blue:#60a8f0;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#60d090;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(200,240,96,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#0f0e0d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);}
+.cabinet-name{font-size:13px;font-weight:600;color:var(--text);}
+.cabinet-plan{font-size:11px;color:var(--muted);margin-top:2px;}
+.made-in-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.made-in-fr{background:rgba(96,168,240,0.15);color:var(--blue);border:1px solid rgba(96,168,240,0.3);}
+.made-in-import{background:rgba(240,160,48,0.15);color:var(--amber);border:1px solid rgba(240,160,48,0.3);}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:10px;align-items:center;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.2px;}
+.btn-accent{background:var(--accent);color:#0f0e0d;}
+.btn-accent:hover{background:var(--accent-dark);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-red{background:var(--red);color:#fff;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;font-weight:500;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;line-height:1;letter-spacing:-1px;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:5px;}
+.c-accent{color:var(--accent);}.c-amber{color:var(--amber);}.c-red{color:var(--red);}.c-green{color:var(--green);}.c-blue{color:var(--blue);}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(96,208,144,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-info{background:rgba(96,168,240,0.15);color:var(--blue);}
+.badge-fr{background:rgba(96,168,240,0.15);color:var(--blue);}
+.badge-import{background:rgba(240,160,48,0.15);color:var(--amber);}
+
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+.icon-btn.go:hover{background:rgba(200,240,96,0.1);border-color:var(--accent);color:var(--accent);}
+
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* Modals */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:560px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select,.form-textarea{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-textarea{resize:vertical;min-height:70px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* Rush specific */
+.rush-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+.rush-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;transition:all 0.2s;}
+.rush-card:hover{border-color:var(--accent);}
+.rush-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);border-radius:14px 14px 0 0;}
+.rush-pseudo{font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:6px;}
+.rush-type{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px;}
+.rush-meta{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.rush-tarif{display:flex;align-items:baseline;gap:8px;margin:10px 0;}
+.rush-tarif-val{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--accent);}
+.rush-tarif-sub{font-size:11px;color:var(--muted);}
+.rush-info{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.rush-info span{font-size:11px;background:var(--surface2);padding:3px 8px;border-radius:6px;color:var(--muted);}
+
+/* Etiquette QR */
+.etiquette-wrap{background:#fff;color:#0f0e0d;border-radius:var(--radius);padding:24px;text-align:center;font-family:var(--font);}
+.etiquette-logo{font-family:var(--font-display);font-size:22px;font-weight:800;color:#0f0e0d;letter-spacing:-1px;}
+.etiquette-sub{font-size:11px;color:#6b6760;margin-bottom:16px;}
+.etiquette-qr{margin:16px auto;display:block;max-width:240px;}
+.etiquette-info{font-size:12px;text-align:left;margin-top:12px;border-top:1px dashed #ccc;padding-top:12px;}
+
+/* JADOMI IA chip */
+.ia-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(200,240,96,0.08);border:1px solid rgba(200,240,96,0.3);color:var(--accent);padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;}
+.ia-chip:hover{background:rgba(200,240,96,0.15);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;z-index:300;transition:transform 0.3s;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+@media (max-width:780px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Espace prothesiste</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Activite</div>
+    <div class="nav-item active" onclick="showPage('commandes',this)"><span class="ni">📋</span>Commandes<span class="nav-badge" id="badge-commandes" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('stock',this)"><span class="ni">📦</span>Stock materiaux</div>
+    <div class="nav-item" onclick="showPage('factures',this)"><span class="ni">📄</span>Facturation</div>
+    <div class="nav-item" onclick="showPage('tarifs',this)"><span class="ni">💶</span>Catalogue tarifs</div>
+    <div class="nav-section">Sous-traitance</div>
+    <div class="nav-item" onclick="showPage('rush',this)"><span class="ni">⚡</span>Rush Made in France<span class="nav-badge" id="badge-rush" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('mes-rush',this)"><span class="ni">🚚</span>Mes demandes Rush</div>
+    <div class="nav-section">Profil</div>
+    <div class="nav-item" onclick="showPage('profil',this)"><span class="ni">⚙️</span>Mon labo</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="labo-nom">Mon laboratoire</div>
+      <div class="cabinet-plan" id="labo-pseudo">PROTH-····</div>
+      <div id="made-in-badge-wrap"><span class="made-in-badge made-in-fr">🇫🇷 Made in France</span></div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;padding:4px 0;border-top:1px solid var(--border);">
+      🟢 JADOMI IA · Active
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Commandes</div>
+    <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-accent" onclick="ouvrirModalCommande()">+ Nouvelle commande</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===================== COMMANDES ===================== -->
+    <div class="page active" id="page-commandes">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">En cours</div><div class="stat-value c-accent" id="s-cmd-encours">—</div><div class="stat-sub">travaux actifs</div></div>
+        <div class="stat"><div class="stat-label">Recues</div><div class="stat-value" id="s-cmd-recues">—</div><div class="stat-sub">a traiter</div></div>
+        <div class="stat"><div class="stat-label">Terminees</div><div class="stat-value c-green" id="s-cmd-terminees">—</div><div class="stat-sub">ce mois</div></div>
+        <div class="stat"><div class="stat-label">CA mois</div><div class="stat-value c-accent" id="s-cmd-ca">—</div><div class="stat-sub">€ HT</div></div>
+      </div>
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted)">🔍</span>
+          <input type="text" id="search-cmd" placeholder="Cabinet, dentiste, type..." oninput="filtrerCmd()">
+        </div>
+        <select class="filter-select" id="filter-cmd-statut" onchange="filtrerCmd()">
+          <option value="">Tous statuts</option>
+          <option value="recue">Recue</option>
+          <option value="en_cours">En cours</option>
+          <option value="terminee">Terminee</option>
+          <option value="livree">Livree</option>
+          <option value="facturee">Facturee</option>
+        </select>
+        <span class="ia-chip" onclick="iaPlanifier()">🤖 JADOMI IA · Planifier ma semaine</span>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Commandes</div>
+          <div class="card-count" id="cmd-count">0</div>
+        </div>
+        <table>
+          <thead><tr><th>Cabinet</th><th>Travail</th><th>Matiere</th><th>Recue</th><th>Echeance</th><th>Statut</th><th>Prix</th><th></th></tr></thead>
+          <tbody id="tbl-cmd"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== STOCK ===================== -->
+    <div class="page" id="page-stock">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">References</div><div class="stat-value" id="s-stock-total">—</div><div class="stat-sub">materiaux</div></div>
+        <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value c-red" id="s-stock-crit">—</div><div class="stat-sub">a recommander</div></div>
+        <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="s-stock-warn">—</div><div class="stat-sub">a surveiller</div></div>
+        <div class="stat"><div class="stat-label">Valeur</div><div class="stat-value c-accent" id="s-stock-val">—</div><div class="stat-sub">€ HT</div></div>
+      </div>
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted)">🔍</span>
+          <input type="text" id="search-stock" placeholder="Rechercher materiau..." oninput="filtrerStock()">
+        </div>
+        <select class="filter-select" id="filter-stock-cat" onchange="filtrerStock()">
+          <option value="">Toutes categories</option>
+          <option value="zircone">Zircone</option>
+          <option value="ceramique">Ceramique</option>
+          <option value="alliage">Alliages</option>
+          <option value="resine">Resines</option>
+          <option value="cire">Cires</option>
+          <option value="autre">Autre</option>
+        </select>
+        <span class="ia-chip" onclick="iaConseilStock()">🤖 JADOMI IA · Conseil reappro</span>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Stock materiaux</div>
+          <div class="card-count" id="stock-count">0</div>
+        </div>
+        <table>
+          <thead><tr><th>Materiau</th><th>Categorie</th><th>Quantite</th><th>Seuil</th><th>Fournisseur</th><th>Peremption</th><th></th></tr></thead>
+          <tbody id="tbl-stock"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== FACTURES ===================== -->
+    <div class="page" id="page-factures">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Emises</div><div class="stat-value" id="s-fact-emises">—</div><div class="stat-sub">ce mois</div></div>
+        <div class="stat"><div class="stat-label">Payees</div><div class="stat-value c-green" id="s-fact-payees">—</div></div>
+        <div class="stat"><div class="stat-label">En retard</div><div class="stat-value c-red" id="s-fact-retard">—</div></div>
+        <div class="stat"><div class="stat-label">Total CA</div><div class="stat-value c-accent" id="s-fact-ca">—</div><div class="stat-sub">€ HT</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Factures emises</div>
+          <div class="card-count" id="fact-count">0</div>
+        </div>
+        <table>
+          <thead><tr><th>Numero</th><th>Cabinet</th><th>Emise</th><th>Echeance</th><th>Montant TTC</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="tbl-fact"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== TARIFS ===================== -->
+    <div class="page" id="page-tarifs">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted)">🔍</span>
+          <input type="text" id="search-tarif" placeholder="Type de travail..." oninput="filtrerTarif()">
+        </div>
+        <span class="ia-chip" onclick="iaTarifMarche()">🤖 JADOMI IA · Comparaison marche</span>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Mon catalogue tarifs</div>
+          <div class="card-count" id="tarif-count">0</div>
+        </div>
+        <table>
+          <thead><tr><th>Type de travail</th><th>Matiere</th><th>Prix HT</th><th>Delai</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="tbl-tarif"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== RUSH (marche communautaire) ===================== -->
+    <div class="page" id="page-rush">
+      <div style="background:rgba(200,240,96,0.06);border:1px solid rgba(200,240,96,0.3);border-radius:14px;padding:18px 20px;margin-bottom:18px;">
+        <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--accent);margin-bottom:6px;">⚡ Rush Made in France — sous-traitance entre prothesistes</div>
+        <div style="font-size:13px;color:var(--text);">Anonymat total · adresses chiffrees AES-256 · STL via serveur JADOMI · Commission JADOMI 10% sur travaux uniquement</div>
+      </div>
+      <div class="filters">
+        <select class="filter-select" id="filter-rush-made" onchange="filtrerRush()">
+          <option value="">Tous</option>
+          <option value="FR">🇫🇷 Made in France uniquement</option>
+          <option value="IMPORT">🌍 Import</option>
+        </select>
+        <select class="filter-select" id="filter-rush-mat" onchange="filtrerRush()">
+          <option value="">Toute matiere</option>
+          <option value="zircone">Zircone</option>
+          <option value="ceramique">Ceramique</option>
+          <option value="alliage">Alliage</option>
+          <option value="resine">Resine</option>
+        </select>
+        <span class="ia-chip" onclick="iaMatchRush()">🤖 JADOMI IA · Trouver le meilleur match</span>
+      </div>
+      <div id="rush-grid" class="rush-grid"></div>
+    </div>
+
+    <!-- ===================== MES RUSH ===================== -->
+    <div class="page" id="page-mes-rush">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">En cours</div><div class="stat-value c-accent" id="s-mr-encours">—</div></div>
+        <div class="stat"><div class="stat-label">Livrees</div><div class="stat-value c-green" id="s-mr-livrees">—</div></div>
+        <div class="stat"><div class="stat-label">Commission JADOMI</div><div class="stat-value" id="s-mr-comm">—</div><div class="stat-sub">10% travaux</div></div>
+        <div class="stat"><div class="stat-label">Livraison estimee</div><div class="stat-value c-blue" id="s-mr-liv">—</div><div class="stat-sub">€ via JADOMI IA</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Mes demandes Rush</div>
+          <div class="card-count" id="mr-count">0</div>
+        </div>
+        <table>
+          <thead><tr><th>Token</th><th>Travail</th><th>Made in</th><th>Tarif HT</th><th>Commission</th><th>Livraison</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="tbl-mr"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== PROFIL ===================== -->
+    <div class="page" id="page-profil">
+      <div class="card" style="padding:24px;">
+        <div class="card-title" style="margin-bottom:18px;">Identite laboratoire</div>
+        <div class="form-grid">
+          <div class="form-field"><label class="form-label">Pseudo anonyme</label><input class="form-input" id="p-pseudo" readonly></div>
+          <div class="form-field"><label class="form-label">Raison sociale (privee)</label><input class="form-input" id="p-rs"></div>
+          <div class="form-field"><label class="form-label">Email (prive)</label><input class="form-input" id="p-email"></div>
+          <div class="form-field"><label class="form-label">Ville</label><input class="form-input" id="p-ville"></div>
+          <div class="form-field"><label class="form-label">Code postal</label><input class="form-input" id="p-cp"></div>
+          <div class="form-field"><label class="form-label">Pays</label><input class="form-input" id="p-pays" value="FR"></div>
+          <div class="form-field full">
+            <label class="form-label">Origine fabrication</label>
+            <select class="form-select" id="p-made">
+              <option value="FR">🇫🇷 Made in France</option>
+              <option value="IMPORT">🌍 Import</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-accent" onclick="sauverProfil()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ===================== MODAL : nouvelle commande ===================== -->
+<div class="modal-overlay" id="m-cmd">
+  <div class="modal">
+    <div class="modal-title">Nouvelle commande</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Cabinet</label><input class="form-input" id="c-cabinet"></div>
+      <div class="form-field"><label class="form-label">Dentiste</label><input class="form-input" id="c-dentiste"></div>
+      <div class="form-field"><label class="form-label">Patient (ref)</label><input class="form-input" id="c-patient" placeholder="P-2026-001"></div>
+      <div class="form-field"><label class="form-label">Type travail</label><input class="form-input" id="c-type" placeholder="Couronne zircone"></div>
+      <div class="form-field"><label class="form-label">Matiere</label><input class="form-input" id="c-matiere"></div>
+      <div class="form-field"><label class="form-label">Teinte</label><input class="form-input" id="c-teinte" placeholder="A2"></div>
+      <div class="form-field"><label class="form-label">Quantite</label><input class="form-input" id="c-qte" type="number" value="1"></div>
+      <div class="form-field"><label class="form-label">Prix HT</label><input class="form-input" id="c-prix" type="number"></div>
+      <div class="form-field"><label class="form-label">Reception</label><input class="form-input" id="c-recep" type="date"></div>
+      <div class="form-field"><label class="form-label">Echeance</label><input class="form-input" id="c-ech" type="date"></div>
+      <div class="form-field full"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('m-cmd')">Annuler</button>
+      <button class="btn btn-accent" onclick="sauverCommande()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL : nouveau stock ===================== -->
+<div class="modal-overlay" id="m-stock">
+  <div class="modal">
+    <div class="modal-title">Ajouter un materiau</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Nom</label><input class="form-input" id="st-nom" placeholder="Disque zircone Multilayer A2"></div>
+      <div class="form-field"><label class="form-label">Categorie</label>
+        <select class="form-select" id="st-cat">
+          <option value="zircone">Zircone</option><option value="ceramique">Ceramique</option>
+          <option value="alliage">Alliage</option><option value="resine">Resine</option>
+          <option value="cire">Cire</option><option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Quantite</label><input class="form-input" id="st-qte" type="number" step="0.01"></div>
+      <div class="form-field"><label class="form-label">Unite</label><input class="form-input" id="st-unite" value="unite"></div>
+      <div class="form-field"><label class="form-label">Seuil</label><input class="form-input" id="st-seuil" type="number" step="0.01" value="1"></div>
+      <div class="form-field"><label class="form-label">Fournisseur</label><input class="form-input" id="st-four"></div>
+      <div class="form-field"><label class="form-label">Prix unitaire</label><input class="form-input" id="st-prix" type="number" step="0.01"></div>
+      <div class="form-field"><label class="form-label">Peremption</label><input class="form-input" id="st-perem" type="date"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('m-stock')">Annuler</button>
+      <button class="btn btn-accent" onclick="sauverStock()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL : nouveau tarif ===================== -->
+<div class="modal-overlay" id="m-tarif">
+  <div class="modal">
+    <div class="modal-title">Ajouter au catalogue</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Type de travail</label><input class="form-input" id="t-type" placeholder="Couronne zircone monolithique"></div>
+      <div class="form-field"><label class="form-label">Matiere</label><input class="form-input" id="t-mat"></div>
+      <div class="form-field"><label class="form-label">Prix HT</label><input class="form-input" id="t-prix" type="number" step="0.01"></div>
+      <div class="form-field"><label class="form-label">Delai (jours)</label><input class="form-input" id="t-delai" type="number" value="5"></div>
+      <div class="form-field full"><label class="form-label">Description</label><textarea class="form-textarea" id="t-desc"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('m-tarif')">Annuler</button>
+      <button class="btn btn-accent" onclick="sauverTarif()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL : nouvelle facture ===================== -->
+<div class="modal-overlay" id="m-fact">
+  <div class="modal">
+    <div class="modal-title">Nouvelle facture</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Numero</label><input class="form-input" id="f-num"></div>
+      <div class="form-field"><label class="form-label">Cabinet</label><input class="form-input" id="f-cab"></div>
+      <div class="form-field"><label class="form-label">Dentiste</label><input class="form-input" id="f-dent"></div>
+      <div class="form-field"><label class="form-label">Date emission</label><input class="form-input" id="f-em" type="date"></div>
+      <div class="form-field"><label class="form-label">Date echeance</label><input class="form-input" id="f-ech" type="date"></div>
+      <div class="form-field"><label class="form-label">Montant HT</label><input class="form-input" id="f-ht" type="number" step="0.01" oninput="majTtc()"></div>
+      <div class="form-field"><label class="form-label">TVA %</label><input class="form-input" id="f-tva" type="number" value="20" oninput="majTtc()"></div>
+      <div class="form-field"><label class="form-label">Montant TTC</label><input class="form-input" id="f-ttc" readonly></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('m-fact')">Annuler</button>
+      <button class="btn btn-accent" onclick="sauverFacture()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL : nouvelle demande Rush ===================== -->
+<div class="modal-overlay" id="m-rush">
+  <div class="modal">
+    <div class="modal-title">⚡ Nouvelle demande Rush</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Anonymat total — votre adresse exacte sera chiffree AES-256 et jamais partagee. Seules ville + CP sont visibles par JADOMI IA.</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Type travail</label><input class="form-input" id="r-type" placeholder="Couronne zircone"></div>
+      <div class="form-field"><label class="form-label">Matiere</label>
+        <select class="form-select" id="r-mat">
+          <option value="zircone">Zircone</option><option value="ceramique">Ceramique</option>
+          <option value="alliage">Alliage</option><option value="resine">Resine</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Quantite</label><input class="form-input" id="r-qte" type="number" value="1"></div>
+      <div class="form-field"><label class="form-label">Delai max (jours)</label><input class="form-input" id="r-del" type="number" value="3"></div>
+      <div class="form-field"><label class="form-label">Tarif propose HT</label><input class="form-input" id="r-tarif" type="number" step="0.01" oninput="majCommission()"></div>
+      <div class="form-field"><label class="form-label">Commission JADOMI 10%</label><input class="form-input" id="r-comm" readonly></div>
+      <div class="form-field"><label class="form-label">Ville depart</label><input class="form-input" id="r-ville"></div>
+      <div class="form-field"><label class="form-label">Code postal depart</label><input class="form-input" id="r-cp"></div>
+      <div class="form-field full"><label class="form-label">Adresse exacte (chiffree AES-256)</label><input class="form-input" id="r-adr" placeholder="12 rue ..."></div>
+      <div class="form-field full"><label class="form-label">Description du travail</label><textarea class="form-textarea" id="r-desc"></textarea></div>
+      <div class="form-field full">
+        <label class="form-label">Fichier STL (optionnel · transit serveur JADOMI uniquement)</label>
+        <input class="form-input" id="r-stl" type="file" accept=".stl,.obj,.ply,.3mf,.zip">
+      </div>
+      <div class="form-field full">
+        <button class="btn btn-ghost btn-sm" onclick="iaEstimerLivraison()" type="button">🤖 JADOMI IA · Estimer la livraison</button>
+        <div id="r-est" style="font-size:12px;color:var(--accent);margin-top:8px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('m-rush')">Annuler</button>
+      <button class="btn btn-accent" onclick="sauverRush()">Publier la demande</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL : étiquette QR ===================== -->
+<div class="modal-overlay" id="m-etiquette">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">⚡ Etiquette transporteur</div>
+    <div class="etiquette-wrap" id="etiquette-content">
+      <div class="etiquette-logo">JADOMI Rush</div>
+      <div class="etiquette-sub">Anonyme · Adresse revelee au scan</div>
+      <img id="qr-img" class="etiquette-qr" alt="QR">
+      <div class="etiquette-info">
+        <div><strong>Reference :</strong> <span id="et-ref"></span></div>
+        <div><strong>Sens :</strong> aller</div>
+        <div style="margin-top:6px;font-size:11px;color:#888;">Le transporteur scanne ce QR pour acceder a l'adresse exacte. Les prothesistes ne se voient jamais.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('m-etiquette')">Fermer</button>
+      <button class="btn btn-accent" onclick="imprimerEtiquette()">🖨 Imprimer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// JADOMI Prothesiste — JS principal
+// ═══════════════════════════════════════════════
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+let db = null;
+try { const {createClient} = supabase; db = createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){}
+
+let monProfil = null;
+let commandes = [], stocks = [], factures = [], tarifs = [], rushes = [], mesRushes = [];
+
+const titles = {
+  commandes:'Commandes', stock:'Stock materiaux', factures:'Facturation',
+  tarifs:'Catalogue tarifs', rush:'Rush Made in France',
+  'mes-rush':'Mes demandes Rush', profil:'Mon laboratoire'
+};
+const actions = {
+  commandes: '<button class="btn btn-accent" onclick="ouvrirModalCommande()">+ Nouvelle commande</button>',
+  stock: '<button class="btn btn-accent" onclick="ouvrirModal(\'m-stock\')">+ Materiau</button>',
+  factures: '<button class="btn btn-accent" onclick="ouvrirModalFacture()">+ Facture</button>',
+  tarifs: '<button class="btn btn-accent" onclick="ouvrirModal(\'m-tarif\')">+ Tarif</button>',
+  rush: '<button class="btn btn-accent" onclick="ouvrirModal(\'m-rush\')">+ Demande Rush</button>',
+  'mes-rush': '<button class="btn btn-accent" onclick="ouvrirModal(\'m-rush\')">+ Demande Rush</button>',
+  profil: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.getElementById('page-title').textContent = titles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = actions[id] || '';
+  if (el) el.classList.add('active');
+  if (id === 'commandes') chargerCommandes();
+  if (id === 'stock') chargerStock();
+  if (id === 'factures') chargerFactures();
+  if (id === 'tarifs') chargerTarifs();
+  if (id === 'rush') chargerRush();
+  if (id === 'mes-rush') chargerMesRush();
+  if (id === 'profil') chargerProfil();
+}
+
+function ouvrirModal(id) { document.getElementById(id).classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+function ouvrirModalCommande() { ouvrirModal('m-cmd'); }
+function ouvrirModalFacture() {
+  document.getElementById('f-num').value = 'F-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-5);
+  document.getElementById('f-em').value = new Date().toISOString().slice(0,10);
+  ouvrirModal('m-fact');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// ─── Profil prothesiste ───
+async function initProfil() {
+  // Auth Supabase
+  let user = null;
+  try { const {data:{session}} = await db.auth.getSession(); user = session?.user; } catch(e){}
+  // Fallback localStorage
+  if (!user) {
+    const sess = localStorage.getItem('jadomi_session');
+    if (sess) try { user = JSON.parse(sess); } catch(e){}
+  }
+  // Charger profil prothesiste
+  let prof = null;
+  if (db && user?.id) {
+    try {
+      const {data} = await db.from('prothesistes').select('*').eq('user_id', user.id).maybeSingle();
+      if (data) prof = data;
+    } catch(e){}
+  }
+  if (!prof) {
+    // Fallback local
+    const local = localStorage.getItem('jadomi_prothesiste');
+    if (local) prof = JSON.parse(local);
+  }
+  if (!prof) {
+    // Creer profil par defaut
+    prof = {
+      id: Date.now(),
+      pseudo_anonyme: 'PROTH-' + Math.random().toString(16).slice(2,6).toUpperCase(),
+      raison_sociale: user?.user_metadata?.cabinet || user?.cabinet || 'Mon laboratoire',
+      email: user?.email || '',
+      ville: user?.user_metadata?.ville || user?.ville || '',
+      code_postal: '',
+      pays: 'FR',
+      made_in: 'FR',
+      user_id: user?.id || null,
+    };
+    if (db && user?.id) {
+      try { const {data} = await db.from('prothesistes').insert([prof]).select(); if (data?.[0]) prof = data[0]; } catch(e){}
+    }
+    localStorage.setItem('jadomi_prothesiste', JSON.stringify(prof));
+  }
+  monProfil = prof;
+  document.getElementById('labo-nom').textContent = prof.raison_sociale || 'Mon laboratoire';
+  document.getElementById('labo-pseudo').textContent = prof.pseudo_anonyme;
+  const badgeWrap = document.getElementById('made-in-badge-wrap');
+  badgeWrap.innerHTML = prof.made_in === 'FR'
+    ? '<span class="made-in-badge made-in-fr">🇫🇷 Made in France</span>'
+    : '<span class="made-in-badge made-in-import">🌍 Import</span>';
+}
+
+async function chargerProfil() {
+  if (!monProfil) await initProfil();
+  document.getElementById('p-pseudo').value = monProfil.pseudo_anonyme || '';
+  document.getElementById('p-rs').value = monProfil.raison_sociale || '';
+  document.getElementById('p-email').value = monProfil.email || '';
+  document.getElementById('p-ville').value = monProfil.ville || '';
+  document.getElementById('p-cp').value = monProfil.code_postal || '';
+  document.getElementById('p-pays').value = monProfil.pays || 'FR';
+  document.getElementById('p-made').value = monProfil.made_in || 'FR';
+}
+async function sauverProfil() {
+  monProfil.raison_sociale = document.getElementById('p-rs').value;
+  monProfil.email = document.getElementById('p-email').value;
+  monProfil.ville = document.getElementById('p-ville').value;
+  monProfil.code_postal = document.getElementById('p-cp').value;
+  monProfil.pays = document.getElementById('p-pays').value;
+  monProfil.made_in = document.getElementById('p-made').value;
+  if (db && monProfil.id) {
+    try { await db.from('prothesistes').update(monProfil).eq('id', monProfil.id); } catch(e){}
+  }
+  localStorage.setItem('jadomi_prothesiste', JSON.stringify(monProfil));
+  initProfil();
+  showToast('✓ Profil enregistre');
+}
+
+// ─── Commandes ───
+async function chargerCommandes() {
+  if (!monProfil) await initProfil();
+  if (db && monProfil.id) {
+    try {
+      const {data} = await db.from('prothesiste_commandes').select('*').eq('prothesiste_id', monProfil.id).order('created_at',{ascending:false});
+      commandes = data || [];
+    } catch(e){ commandes = JSON.parse(localStorage.getItem('jadomi_proth_cmd')||'[]'); }
+  } else {
+    commandes = JSON.parse(localStorage.getItem('jadomi_proth_cmd')||'[]');
+  }
+  rendreCmd();
+}
+function filtrerCmd() { rendreCmd(); }
+function rendreCmd() {
+  const q = (document.getElementById('search-cmd')?.value||'').toLowerCase();
+  const fs = document.getElementById('filter-cmd-statut')?.value || '';
+  const list = commandes.filter(c =>
+    (!q || (c.cabinet_nom||'').toLowerCase().includes(q) || (c.dentiste_nom||'').toLowerCase().includes(q) || (c.type_travail||'').toLowerCase().includes(q))
+    && (!fs || c.statut === fs)
+  );
+  const tb = document.getElementById('tbl-cmd');
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">Aucune commande</td></tr>'; }
+  else tb.innerHTML = list.map(c => `
+    <tr>
+      <td><strong>${c.cabinet_nom||'—'}</strong><div style="font-size:11px;color:var(--muted);">${c.dentiste_nom||''}</div></td>
+      <td>${c.type_travail||''}<div style="font-size:11px;color:var(--muted);">${c.patient_ref||''}</div></td>
+      <td>${c.matiere||''}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">${c.date_reception||''}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${c.date_livraison_prevue||''}</td>
+      <td>${badgeStatut(c.statut)}</td>
+      <td><strong>${c.prix_ht||0} €</strong></td>
+      <td><div class="action-btns"><button class="icon-btn go" onclick="avancerCmd(${c.id})" title="Avancer">→</button><button class="icon-btn del" onclick="supprimerCmd(${c.id})">🗑</button></div></td>
+    </tr>`).join('');
+  document.getElementById('cmd-count').textContent = list.length + ' / ' + commandes.length;
+  // stats
+  const ec = commandes.filter(c => c.statut==='en_cours').length;
+  const re = commandes.filter(c => c.statut==='recue').length;
+  const tm = commandes.filter(c => c.statut==='terminee'||c.statut==='livree'||c.statut==='facturee').length;
+  const ca = commandes.reduce((t,c)=>t+(parseFloat(c.prix_ht)||0),0);
+  document.getElementById('s-cmd-encours').textContent = ec;
+  document.getElementById('s-cmd-recues').textContent = re;
+  document.getElementById('s-cmd-terminees').textContent = tm;
+  document.getElementById('s-cmd-ca').textContent = ca.toFixed(0) + ' €';
+  const badge = document.getElementById('badge-commandes');
+  if (re > 0) { badge.style.display='inline-block'; badge.textContent = re; }
+  else badge.style.display='none';
+}
+function badgeStatut(s) {
+  const map = {recue:['badge-info','Recue'], en_cours:['badge-warn','En cours'], terminee:['badge-ok','Terminee'], livree:['badge-ok','Livree'], facturee:['badge-ok','Facturee'], ouverte:['badge-info','Ouverte'], attribuee:['badge-warn','Attribuee'], emise:['badge-info','Emise'], envoyee:['badge-info','Envoyee'], payee:['badge-ok','Payee'], retard:['badge-crit','Retard']};
+  const [c,t] = map[s] || ['badge-info', s||'?'];
+  return `<span class="badge ${c}">${t}</span>`;
+}
+async function sauverCommande() {
+  if (!monProfil) await initProfil();
+  const c = {
+    prothesiste_id: monProfil.id,
+    cabinet_nom: document.getElementById('c-cabinet').value,
+    dentiste_nom: document.getElementById('c-dentiste').value,
+    patient_ref: document.getElementById('c-patient').value,
+    type_travail: document.getElementById('c-type').value,
+    matiere: document.getElementById('c-matiere').value,
+    teinte: document.getElementById('c-teinte').value,
+    quantite: parseInt(document.getElementById('c-qte').value)||1,
+    prix_ht: parseFloat(document.getElementById('c-prix').value)||0,
+    date_reception: document.getElementById('c-recep').value || new Date().toISOString().slice(0,10),
+    date_livraison_prevue: document.getElementById('c-ech').value || null,
+    notes: document.getElementById('c-notes').value,
+    statut: 'recue',
+  };
+  if (db) {
+    try { const {data} = await db.from('prothesiste_commandes').insert([c]).select(); if (data?.[0]) commandes.unshift(data[0]); }
+    catch(e){ c.id = Date.now(); commandes.unshift(c); localStorage.setItem('jadomi_proth_cmd',JSON.stringify(commandes)); }
+  } else { c.id = Date.now(); commandes.unshift(c); localStorage.setItem('jadomi_proth_cmd',JSON.stringify(commandes)); }
+  fermerModal('m-cmd');
+  showToast('✓ Commande enregistree');
+  rendreCmd();
+}
+async function avancerCmd(id) {
+  const c = commandes.find(x=>x.id===id);
+  if (!c) return;
+  const ordre = ['recue','en_cours','terminee','livree','facturee'];
+  const i = ordre.indexOf(c.statut);
+  c.statut = ordre[(i+1) % ordre.length];
+  if (db) try { await db.from('prothesiste_commandes').update({statut:c.statut}).eq('id',id); } catch(e){}
+  rendreCmd();
+}
+async function supprimerCmd(id) {
+  if (!confirm('Supprimer cette commande ?')) return;
+  if (db) try { await db.from('prothesiste_commandes').delete().eq('id',id); } catch(e){}
+  commandes = commandes.filter(c=>c.id!==id);
+  localStorage.setItem('jadomi_proth_cmd',JSON.stringify(commandes));
+  rendreCmd();
+}
+
+// ─── Stock ───
+async function chargerStock() {
+  if (!monProfil) await initProfil();
+  if (db && monProfil.id) {
+    try { const {data} = await db.from('prothesiste_stock').select('*').eq('prothesiste_id', monProfil.id); stocks = data || []; }
+    catch(e){ stocks = JSON.parse(localStorage.getItem('jadomi_proth_stock')||'[]'); }
+  } else stocks = JSON.parse(localStorage.getItem('jadomi_proth_stock')||'[]');
+  rendreStock();
+}
+function filtrerStock() { rendreStock(); }
+function rendreStock() {
+  const q = (document.getElementById('search-stock')?.value||'').toLowerCase();
+  const fc = document.getElementById('filter-stock-cat')?.value || '';
+  const list = stocks.filter(s => (!q || (s.nom||'').toLowerCase().includes(q)) && (!fc || s.categorie===fc));
+  const tb = document.getElementById('tbl-stock');
+  if (!list.length) tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">Aucun materiau</td></tr>';
+  else tb.innerHTML = list.map(s => {
+    const ratio = (s.quantite||0) / (s.seuil||1);
+    const sev = ratio < 1 ? 'crit' : ratio < 2 ? 'warn' : 'ok';
+    return `<tr>
+      <td><strong>${s.nom}</strong></td>
+      <td><span class="badge badge-info">${s.categorie||''}</span></td>
+      <td><strong>${s.quantite||0}</strong> ${s.unite||''}</td>
+      <td>${s.seuil||0}</td>
+      <td>${s.fournisseur||'—'}</td>
+      <td>${s.date_peremption||'—'}</td>
+      <td><div class="action-btns"><button class="icon-btn del" onclick="supprimerStock(${s.id})">🗑</button></div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('stock-count').textContent = list.length + ' / ' + stocks.length;
+  const crit = stocks.filter(s => (s.quantite||0) < (s.seuil||1)).length;
+  const warn = stocks.filter(s => (s.quantite||0) >= (s.seuil||1) && (s.quantite||0) < (s.seuil||1)*2).length;
+  const val = stocks.reduce((t,s)=>t+(parseFloat(s.prix_unitaire)||0)*(parseFloat(s.quantite)||0),0);
+  document.getElementById('s-stock-total').textContent = stocks.length;
+  document.getElementById('s-stock-crit').textContent = crit;
+  document.getElementById('s-stock-warn').textContent = warn;
+  document.getElementById('s-stock-val').textContent = val.toFixed(0)+' €';
+}
+async function sauverStock() {
+  if (!monProfil) await initProfil();
+  const s = {
+    prothesiste_id: monProfil.id,
+    nom: document.getElementById('st-nom').value,
+    categorie: document.getElementById('st-cat').value,
+    quantite: parseFloat(document.getElementById('st-qte').value)||0,
+    unite: document.getElementById('st-unite').value,
+    seuil: parseFloat(document.getElementById('st-seuil').value)||1,
+    fournisseur: document.getElementById('st-four').value,
+    prix_unitaire: parseFloat(document.getElementById('st-prix').value)||0,
+    date_peremption: document.getElementById('st-perem').value || null,
+  };
+  if (db) {
+    try { const {data} = await db.from('prothesiste_stock').insert([s]).select(); if (data?.[0]) stocks.push(data[0]); }
+    catch(e){ s.id=Date.now(); stocks.push(s); localStorage.setItem('jadomi_proth_stock',JSON.stringify(stocks)); }
+  } else { s.id=Date.now(); stocks.push(s); localStorage.setItem('jadomi_proth_stock',JSON.stringify(stocks)); }
+  fermerModal('m-stock');
+  showToast('✓ Materiau ajoute');
+  rendreStock();
+}
+async function supprimerStock(id) {
+  if (!confirm('Supprimer ce materiau ?')) return;
+  if (db) try { await db.from('prothesiste_stock').delete().eq('id',id); } catch(e){}
+  stocks = stocks.filter(s=>s.id!==id);
+  localStorage.setItem('jadomi_proth_stock',JSON.stringify(stocks));
+  rendreStock();
+}
+
+// ─── Factures ───
+function majTtc() {
+  const ht = parseFloat(document.getElementById('f-ht').value)||0;
+  const tva = parseFloat(document.getElementById('f-tva').value)||0;
+  document.getElementById('f-ttc').value = (ht * (1+tva/100)).toFixed(2);
+}
+async function chargerFactures() {
+  if (!monProfil) await initProfil();
+  if (db && monProfil.id) {
+    try { const {data} = await db.from('prothesiste_factures').select('*').eq('prothesiste_id', monProfil.id).order('date_emission',{ascending:false}); factures = data || []; }
+    catch(e){ factures = JSON.parse(localStorage.getItem('jadomi_proth_fact')||'[]'); }
+  } else factures = JSON.parse(localStorage.getItem('jadomi_proth_fact')||'[]');
+  rendreFact();
+}
+function rendreFact() {
+  const tb = document.getElementById('tbl-fact');
+  if (!factures.length) tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">Aucune facture</td></tr>';
+  else tb.innerHTML = factures.map(f => `
+    <tr>
+      <td style="font-family:var(--mono);">${f.numero||''}</td>
+      <td>${f.cabinet_nom||''}<div style="font-size:11px;color:var(--muted);">${f.dentiste_nom||''}</div></td>
+      <td style="font-family:var(--mono);font-size:12px;">${f.date_emission||''}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${f.date_echeance||''}</td>
+      <td><strong>${(f.montant_ttc||0).toFixed?f.montant_ttc.toFixed(2):f.montant_ttc} €</strong></td>
+      <td>${badgeStatut(f.statut)}</td>
+      <td><div class="action-btns"><button class="icon-btn go" onclick="marquerPayee(${f.id})" title="Marquer payee">✓</button><button class="icon-btn del" onclick="supprimerFact(${f.id})">🗑</button></div></td>
+    </tr>`).join('');
+  document.getElementById('fact-count').textContent = factures.length;
+  document.getElementById('s-fact-emises').textContent = factures.filter(f=>f.statut==='emise'||f.statut==='envoyee').length;
+  document.getElementById('s-fact-payees').textContent = factures.filter(f=>f.statut==='payee').length;
+  document.getElementById('s-fact-retard').textContent = factures.filter(f=>f.statut==='retard').length;
+  const ca = factures.reduce((t,f)=>t+(parseFloat(f.montant_ht)||0),0);
+  document.getElementById('s-fact-ca').textContent = ca.toFixed(0)+' €';
+}
+async function sauverFacture() {
+  if (!monProfil) await initProfil();
+  const ht = parseFloat(document.getElementById('f-ht').value)||0;
+  const tva = parseFloat(document.getElementById('f-tva').value)||20;
+  const f = {
+    prothesiste_id: monProfil.id,
+    numero: document.getElementById('f-num').value,
+    cabinet_nom: document.getElementById('f-cab').value,
+    dentiste_nom: document.getElementById('f-dent').value,
+    date_emission: document.getElementById('f-em').value || new Date().toISOString().slice(0,10),
+    date_echeance: document.getElementById('f-ech').value || null,
+    montant_ht: ht, tva_pct: tva, montant_ttc: ht*(1+tva/100),
+    statut: 'emise',
+  };
+  if (db) {
+    try { const {data} = await db.from('prothesiste_factures').insert([f]).select(); if (data?.[0]) factures.unshift(data[0]); }
+    catch(e){ f.id=Date.now(); factures.unshift(f); localStorage.setItem('jadomi_proth_fact',JSON.stringify(factures)); }
+  } else { f.id=Date.now(); factures.unshift(f); localStorage.setItem('jadomi_proth_fact',JSON.stringify(factures)); }
+  fermerModal('m-fact');
+  showToast('✓ Facture creee');
+  rendreFact();
+}
+async function marquerPayee(id) {
+  const f = factures.find(x=>x.id===id); if (!f) return;
+  f.statut = 'payee'; f.date_paiement = new Date().toISOString().slice(0,10);
+  if (db) try { await db.from('prothesiste_factures').update({statut:'payee',date_paiement:f.date_paiement}).eq('id',id); } catch(e){}
+  rendreFact();
+}
+async function supprimerFact(id) {
+  if (!confirm('Supprimer cette facture ?')) return;
+  if (db) try { await db.from('prothesiste_factures').delete().eq('id',id); } catch(e){}
+  factures = factures.filter(f=>f.id!==id);
+  rendreFact();
+}
+
+// ─── Tarifs ───
+async function chargerTarifs() {
+  if (!monProfil) await initProfil();
+  if (db && monProfil.id) {
+    try { const {data} = await db.from('prothesiste_tarifs').select('*').eq('prothesiste_id', monProfil.id); tarifs = data || []; }
+    catch(e){ tarifs = JSON.parse(localStorage.getItem('jadomi_proth_tarif')||'[]'); }
+  } else tarifs = JSON.parse(localStorage.getItem('jadomi_proth_tarif')||'[]');
+  rendreTarif();
+}
+function filtrerTarif() { rendreTarif(); }
+function rendreTarif() {
+  const q = (document.getElementById('search-tarif')?.value||'').toLowerCase();
+  const list = tarifs.filter(t => !q || (t.type_travail||'').toLowerCase().includes(q));
+  const tb = document.getElementById('tbl-tarif');
+  if (!list.length) tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Aucun tarif</td></tr>';
+  else tb.innerHTML = list.map(t => `
+    <tr>
+      <td><strong>${t.type_travail||''}</strong><div style="font-size:11px;color:var(--muted);">${t.description||''}</div></td>
+      <td>${t.matiere||''}</td>
+      <td><strong>${t.prix_ht||0} €</strong></td>
+      <td>${t.delai_jours||0} j</td>
+      <td>${t.actif!==false?'<span class="badge badge-ok">Actif</span>':'<span class="badge badge-warn">Inactif</span>'}</td>
+      <td><div class="action-btns"><button class="icon-btn del" onclick="supprimerTarif(${t.id})">🗑</button></div></td>
+    </tr>`).join('');
+  document.getElementById('tarif-count').textContent = tarifs.length;
+}
+async function sauverTarif() {
+  if (!monProfil) await initProfil();
+  const t = {
+    prothesiste_id: monProfil.id,
+    type_travail: document.getElementById('t-type').value,
+    matiere: document.getElementById('t-mat').value,
+    prix_ht: parseFloat(document.getElementById('t-prix').value)||0,
+    delai_jours: parseInt(document.getElementById('t-delai').value)||5,
+    description: document.getElementById('t-desc').value,
+    actif: true,
+  };
+  if (db) {
+    try { const {data} = await db.from('prothesiste_tarifs').insert([t]).select(); if (data?.[0]) tarifs.push(data[0]); }
+    catch(e){ t.id=Date.now(); tarifs.push(t); localStorage.setItem('jadomi_proth_tarif',JSON.stringify(tarifs)); }
+  } else { t.id=Date.now(); tarifs.push(t); localStorage.setItem('jadomi_proth_tarif',JSON.stringify(tarifs)); }
+  fermerModal('m-tarif');
+  showToast('✓ Tarif ajoute');
+  rendreTarif();
+}
+async function supprimerTarif(id) {
+  if (db) try { await db.from('prothesiste_tarifs').delete().eq('id',id); } catch(e){}
+  tarifs = tarifs.filter(t=>t.id!==id);
+  rendreTarif();
+}
+
+// ─── Rush (marche communautaire anonyme) ───
+async function chargerRush() {
+  try {
+    const r = await fetch('/api/rush/demandes?statut=ouverte');
+    const j = await r.json();
+    rushes = j.demandes || [];
+  } catch(e){ rushes = []; }
+  rendreRush();
+}
+function filtrerRush() { rendreRush(); }
+function rendreRush() {
+  const fm = document.getElementById('filter-rush-made')?.value || '';
+  const ft = document.getElementById('filter-rush-mat')?.value || '';
+  const list = rushes.filter(r => (!fm || r.made_in_demandeur===fm) && (!ft || r.matiere===ft));
+  const grid = document.getElementById('rush-grid');
+  if (!list.length) { grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px;">Aucune demande Rush ouverte. Soyez le premier !</div>'; return; }
+  grid.innerHTML = list.map(r => {
+    const badge = r.made_in_demandeur === 'FR'
+      ? '<span class="badge badge-fr">🇫🇷 Made in France</span>'
+      : '<span class="badge badge-import">🌍 Import</span>';
+    return `<div class="rush-card">
+      <div class="rush-pseudo">${r.token?.slice(0,10)}··· · ${r.ville_depart||''} ${r.cp_depart||''}</div>
+      <div class="rush-type">${r.type_travail}</div>
+      <div class="rush-meta">${r.description||''}</div>
+      <div class="rush-info">${badge} <span>${r.matiere||''}</span> <span>${r.quantite||1}u</span> <span>⏱ ${r.delai_jours||3}j</span></div>
+      <div class="rush-tarif">
+        <span class="rush-tarif-val">${r.tarif_propose} €</span>
+        <span class="rush-tarif-sub">HT · livraison ~${r.livraison_estimee||0}€</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Commission JADOMI : ${r.commission_jadomi||0}€ (10%)</div>
+      <button class="btn btn-accent" style="width:100%;" onclick="proposerOffre('${r.id}','${r.token}')">⚡ Je prends ce travail</button>
+    </div>`;
+  }).join('');
+}
+async function proposerOffre(rushId, token) {
+  if (!monProfil) await initProfil();
+  const tarif = prompt('Votre tarif HT pour ce travail (€) ?');
+  if (!tarif) return;
+  const delai = prompt('Delai (jours) ?', '3');
+  try {
+    const resp = await fetch('/api/rush/offres', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        rush_id: rushId, prothesiste_id: monProfil.id,
+        pseudo_anonyme: monProfil.pseudo_anonyme,
+        tarif: parseFloat(tarif), delai_jours: parseInt(delai)||3,
+        made_in: monProfil.made_in,
+      })
+    });
+    const j = await resp.json();
+    if (j.success) showToast('✓ Offre envoyee anonymement');
+    else showToast('Erreur : ' + (j.error||''));
+  } catch(e){ showToast('Erreur reseau'); }
+}
+
+// ─── Mes Rush ───
+async function chargerMesRush() {
+  if (!monProfil) await initProfil();
+  try {
+    const r = await fetch('/api/rush/demandes?demandeur_id=' + monProfil.id);
+    const j = await r.json();
+    mesRushes = j.demandes || [];
+  } catch(e){ mesRushes = []; }
+  rendreMesRush();
+}
+function rendreMesRush() {
+  const tb = document.getElementById('tbl-mr');
+  if (!mesRushes.length) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">Aucune demande Rush</td></tr>';
+  else tb.innerHTML = mesRushes.map(r => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:11px;">${r.token?.slice(0,8)}···</td>
+      <td><strong>${r.type_travail}</strong><div style="font-size:11px;color:var(--muted);">${r.matiere||''}</div></td>
+      <td>${r.made_in_demandeur==='FR'?'<span class="badge badge-fr">🇫🇷 FR</span>':'<span class="badge badge-import">🌍 Import</span>'}</td>
+      <td><strong>${r.tarif_propose} €</strong></td>
+      <td>${r.commission_jadomi||0} €</td>
+      <td>${r.livraison_estimee||0} €</td>
+      <td>${badgeStatut(r.statut)}</td>
+      <td><div class="action-btns"><button class="icon-btn go" onclick="genererEtiquette(${r.id})" title="Etiquette QR">🏷</button></div></td>
+    </tr>`).join('');
+  document.getElementById('mr-count').textContent = mesRushes.length;
+  document.getElementById('s-mr-encours').textContent = mesRushes.filter(r=>r.statut==='ouverte'||r.statut==='attribuee'||r.statut==='en_cours').length;
+  document.getElementById('s-mr-livrees').textContent = mesRushes.filter(r=>r.statut==='livree').length;
+  document.getElementById('s-mr-comm').textContent = mesRushes.reduce((t,r)=>t+(parseFloat(r.commission_jadomi)||0),0).toFixed(0)+' €';
+  document.getElementById('s-mr-liv').textContent = mesRushes.reduce((t,r)=>t+(parseFloat(r.livraison_estimee)||0),0).toFixed(0)+' €';
+  const badgeR = document.getElementById('badge-rush');
+  const ouv = rushes.length;
+  if (ouv > 0) { badgeR.style.display='inline-block'; badgeR.textContent = ouv; }
+  else badgeR.style.display='none';
+}
+
+// ─── Nouvelle demande Rush ───
+function majCommission() {
+  const t = parseFloat(document.getElementById('r-tarif').value)||0;
+  document.getElementById('r-comm').value = (t*0.10).toFixed(2) + ' €';
+}
+async function iaEstimerLivraison() {
+  const ville = document.getElementById('r-ville').value;
+  const cp = document.getElementById('r-cp').value;
+  if (!ville) { document.getElementById('r-est').textContent = 'Ville requise'; return; }
+  document.getElementById('r-est').textContent = '🤖 JADOMI IA calcule...';
+  try {
+    const resp = await fetch('/api/rush/estimer-livraison', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ville_depart:ville, cp_depart:cp, ville_arrivee:ville, cp_arrivee:cp})
+    });
+    const j = await resp.json();
+    const e = j.estimation || {};
+    document.getElementById('r-est').textContent = `🤖 JADOMI IA : ~${e.cout_eur}€ · ${e.delai_h}h · ${e.mode}`;
+  } catch(e){ document.getElementById('r-est').textContent = 'Erreur estimation'; }
+}
+async function sauverRush() {
+  if (!monProfil) await initProfil();
+  const tarif = parseFloat(document.getElementById('r-tarif').value)||0;
+  const body = {
+    demandeur_id: monProfil.id,
+    type_travail: document.getElementById('r-type').value,
+    description: document.getElementById('r-desc').value,
+    matiere: document.getElementById('r-mat').value,
+    quantite: parseInt(document.getElementById('r-qte').value)||1,
+    delai_jours: parseInt(document.getElementById('r-del').value)||3,
+    tarif_propose: tarif,
+    ville_depart: document.getElementById('r-ville').value,
+    cp_depart: document.getElementById('r-cp').value,
+    adresse_depart: document.getElementById('r-adr').value,
+    made_in_demandeur: monProfil.made_in || 'FR',
+  };
+  if (!body.type_travail || !body.tarif_propose) { showToast('Type et tarif obligatoires'); return; }
+  try {
+    const resp = await fetch('/api/rush/demandes', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const j = await resp.json();
+    if (j.success && j.demande) {
+      // Upload STL si present
+      const file = document.getElementById('r-stl').files[0];
+      if (file) {
+        const fd = new FormData();
+        fd.append('stl', file);
+        fd.append('rush_id', j.demande.id);
+        try { await fetch('/api/rush/upload-stl', {method:'POST', body: fd}); } catch(e){}
+      }
+      showToast('✓ Demande Rush publiee');
+      fermerModal('m-rush');
+      chargerMesRush();
+    } else showToast('Erreur : ' + (j.error||''));
+  } catch(e){ showToast('Erreur reseau'); }
+}
+
+// ─── Etiquette QR ───
+async function genererEtiquette(rushId) {
+  try {
+    const resp = await fetch('/api/rush/etiquette', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rush_id: rushId, sens:'aller'})
+    });
+    const j = await resp.json();
+    if (j.success) {
+      document.getElementById('qr-img').src = j.qr_data_url;
+      document.getElementById('et-ref').textContent = 'RUSH-' + rushId;
+      ouvrirModal('m-etiquette');
+    } else showToast('Erreur etiquette');
+  } catch(e){ showToast('Erreur reseau'); }
+}
+function imprimerEtiquette() {
+  const html = document.getElementById('etiquette-content').outerHTML;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>JADOMI Rush · Etiquette</title><style>body{font-family:sans-serif;padding:20px;}.etiquette-wrap{background:#fff;color:#000;text-align:center;padding:24px;border:2px solid #000;max-width:400px;margin:0 auto;}.etiquette-logo{font-size:24px;font-weight:800;}.etiquette-qr{max-width:240px;margin:16px auto;display:block;}.etiquette-info{font-size:12px;text-align:left;margin-top:12px;border-top:1px dashed #999;padding-top:10px;}</style></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(()=>w.print(), 500);
+}
+
+// ─── JADOMI IA boutons ───
+async function callIA(prompt, max=400) {
+  try {
+    const r = await fetch('/api/claude', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:max, messages:[{role:'user', content:prompt}]})
+    });
+    const j = await r.json();
+    return j.content?.[0]?.text || '';
+  } catch(e){ return ''; }
+}
+async function iaPlanifier() {
+  showToast('🤖 JADOMI IA analyse...');
+  const txt = await callIA(`Tu es JADOMI IA pour un prothesiste dentaire. Voici ses commandes : ${JSON.stringify(commandes.slice(0,10).map(c=>({type:c.type_travail,echeance:c.date_livraison_prevue,statut:c.statut})))}. Donne 3 priorites courtes pour la semaine.`, 300);
+  alert('🤖 JADOMI IA — Planning :\n\n' + (txt||'Pas de reponse'));
+}
+async function iaConseilStock() {
+  showToast('🤖 JADOMI IA analyse stock...');
+  const crit = stocks.filter(s=>(s.quantite||0)<(s.seuil||1));
+  const txt = await callIA(`Tu es JADOMI IA pour un prothesiste. Stock critique : ${JSON.stringify(crit.map(s=>({nom:s.nom,qte:s.quantite,seuil:s.seuil})))}. Propose un reappro chiffre court.`, 300);
+  alert('🤖 JADOMI IA — Reappro :\n\n' + (txt||'Pas de reponse'));
+}
+async function iaTarifMarche() {
+  showToast('🤖 JADOMI IA compare au marche...');
+  const txt = await callIA(`Tu es JADOMI IA. Compare ces tarifs prothese dentaire au marche francais : ${JSON.stringify(tarifs.slice(0,10).map(t=>({type:t.type_travail,prix:t.prix_ht})))}. Reponse courte avec ecart moyen.`, 300);
+  alert('🤖 JADOMI IA — Marche :\n\n' + (txt||'Pas de reponse'));
+}
+async function iaMatchRush() {
+  showToast('🤖 JADOMI IA cherche le meilleur match...');
+  const txt = await callIA(`Tu es JADOMI IA. Voici ${rushes.length} demandes Rush ouvertes. Pour un prothesiste base a ${monProfil?.ville||'Paris'} (${monProfil?.made_in||'FR'}), classe les 3 meilleurs selon proximite et marge. Demandes : ${JSON.stringify(rushes.slice(0,10).map(r=>({type:r.type_travail,ville:r.ville_depart,tarif:r.tarif_propose,made:r.made_in_demandeur})))}.`, 400);
+  alert('🤖 JADOMI IA — Top matches :\n\n' + (txt||'Pas de reponse'));
+}
+
+// ─── Init ───
+(async function init() {
+  await initProfil();
+  await chargerCommandes();
+  // Pre-charger rushes pour le badge
+  try { const r = await fetch('/api/rush/demandes?statut=ouverte'); const j = await r.json(); rushes = j.demandes||[]; const b=document.getElementById('badge-rush'); if(rushes.length){b.style.display='inline-block';b.textContent=rushes.length;} } catch(e){}
+})();
+</script>
+</body>
+</html>

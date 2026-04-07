@@ -53,8 +53,12 @@ const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
 let db;
 try{const{createClient}=supabase;db=createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){}
 
-// Rediriger si deja connecte
-(async()=>{try{const{data:{session}}=await db.auth.getSession();if(session)window.location.href='index.html';}catch(e){}})();
+// Rediriger si deja connecte (prothesiste -> prothesiste.html)
+function destinationPour(user){
+  const prof=user?.user_metadata?.profession||user?.profession||'';
+  return prof==='prothesiste' ? 'prothesiste.html' : 'index.html';
+}
+(async()=>{try{const{data:{session}}=await db.auth.getSession();if(session)window.location.href=destinationPour(session.user);}catch(e){}})();
 
 function showError(msg){const el=document.getElementById('error');el.textContent=msg;el.style.display='block';}
 
@@ -66,12 +70,12 @@ async function login(){
   try{
     const{data,error}=await db.auth.signInWithPassword({email,password:pass});
     if(error) throw error;
-    window.location.href='index.html';
+    window.location.href=destinationPour(data.user);
   }catch(e){
     // Fallback localStorage pour demo
     const users=JSON.parse(localStorage.getItem('jadomi_users')||'[]');
     const user=users.find(u=>u.email===email&&u.password===pass);
-    if(user){localStorage.setItem('jadomi_session',JSON.stringify(user));window.location.href='index.html';}
+    if(user){localStorage.setItem('jadomi_session',JSON.stringify(user));window.location.href=destinationPour(user);}
     else showError(e.message||'Email ou mot de passe incorrect');
   }
 }
