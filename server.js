@@ -820,9 +820,13 @@ try {
 }
 
 // =============================================
-// Start server
+// Start server (skip on Vercel — exporte l'app pour @vercel/node)
 // =============================================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
