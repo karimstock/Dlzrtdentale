@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI — Etiquette livraison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--border:#2e2c29;
+  --text:#f0ede8;--muted:#6b6760;--accent:#c8f060;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+
+.page{max-width:520px;width:100%;}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.toolbar a{color:var(--muted);text-decoration:none;font-size:13px;}
+.toolbar a:hover{color:var(--accent);}
+.btn-print{background:var(--accent);color:#0f0e0d;border:none;padding:10px 20px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;}
+.btn-print:hover{background:#8fb840;}
+
+/* Etiquette A6 (105x148mm) */
+.etiquette{background:#fff;color:#0f0e0d;border-radius:14px;padding:24px;text-align:center;font-family:var(--font);box-shadow:0 30px 80px rgba(0,0,0,0.6);width:100%;}
+.eti-logo{font-family:var(--font-display);font-size:28px;font-weight:800;color:#0f0e0d;letter-spacing:-1.5px;}
+.eti-tag{font-size:11px;color:#6b6760;margin-top:2px;letter-spacing:0.4px;}
+.eti-band{margin:14px 0 16px;background:#0f0e0d;color:#c8f060;font-family:var(--font-display);font-size:12px;font-weight:700;padding:8px;border-radius:6px;letter-spacing:1.2px;}
+.eti-qr{margin:12px auto 18px;display:block;width:220px;height:220px;background:#f7f7f4;border:1px dashed #ccc;border-radius:8px;padding:10px;}
+.eti-qr canvas, .eti-qr img{width:100%;height:100%;}
+.eti-ref{font-family:var(--mono);font-size:14px;color:#0f0e0d;font-weight:600;margin-bottom:6px;}
+.eti-mention{font-size:11px;color:#6b6760;line-height:1.5;border-top:1px dashed #ccc;padding-top:12px;margin-top:8px;}
+.eti-mention b{color:#0f0e0d;}
+.eti-flag{font-size:13px;font-weight:700;color:#0f0e0d;margin-top:8px;letter-spacing:0.4px;}
+.eti-expire{font-family:var(--mono);font-size:10px;color:#a09b94;margin-top:6px;}
+
+.error{background:#2a0f0f;border:1px solid #f05050;color:#f05050;padding:18px;border-radius:8px;text-align:center;font-size:13px;}
+
+@media print {
+  body{background:#fff;padding:0;}
+  .toolbar{display:none;}
+  .page{max-width:none;width:105mm;}
+  .etiquette{box-shadow:none;border:1px solid #ddd;border-radius:0;width:105mm;height:148mm;padding:14px;page-break-inside:avoid;}
+  .eti-qr{width:180px;height:180px;}
+  @page{size:A6;margin:0;}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="toolbar">
+    <a href="/prothesiste.html">← Retour</a>
+    <button class="btn-print" onclick="window.print()">🖨 Imprimer</button>
+  </div>
+
+  <div id="root">
+    <div class="etiquette">
+      <div class="eti-logo">JADOMI</div>
+      <div class="eti-tag">Plateforme dentiste · prothesiste</div>
+      <div class="eti-band">LIVRAISON MEDICALE CONFIDENTIELLE</div>
+      <div class="eti-qr" id="qr-box"></div>
+      <div class="eti-ref" id="ref-txt">Chargement...</div>
+      <div class="eti-mention">
+        Colis a remettre <b>uniquement au transporteur autorise</b>.<br>
+        L'adresse de livraison est <b>chiffree</b> et revelee au transporteur via scan unique du QR code.
+      </div>
+      <div class="eti-flag">🇫🇷 JADOMI MADE IN FRANCE</div>
+      <div class="eti-expire" id="expire-txt"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+const type = params.get('type') || 'commande'; // 'commande' ou 'rush'
+
+async function init() {
+  if (!token) {
+    document.getElementById('root').innerHTML =
+      '<div class="error">Token manquant — ouvrez ce lien depuis votre dashboard JADOMI.</div>';
+    return;
+  }
+
+  // Charger les meta non sensibles
+  const url = type === 'rush'
+    ? '/api/rush/info-etiquette/' + encodeURIComponent(token)
+    : '/api/commandes/info-etiquette/' + encodeURIComponent(token);
+  let info = null;
+  try {
+    const r = await fetch(url);
+    const j = await r.json();
+    if (j.success && j.info) info = j.info;
+  } catch(e) {}
+
+  if (!info) {
+    document.getElementById('root').innerHTML =
+      '<div class="error">QR code invalide ou expire. Generez une nouvelle etiquette depuis votre dashboard.</div>';
+    return;
+  }
+
+  // Reference
+  document.getElementById('ref-txt').textContent = info.reference || (type === 'rush' ? 'RUSH-' : 'CMD-') + (info.id || '');
+
+  // Date d'expiration
+  if (info.qr_expire_at) {
+    const d = new Date(info.qr_expire_at);
+    document.getElementById('expire-txt').textContent =
+      'QR valide jusqu\'au ' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  // Generer le QR
+  const qrUrl = 'https://jadomi.fr/scan/' + token;
+  try {
+    const box = document.getElementById('qr-box');
+    box.innerHTML = '';
+    await QRCode.toCanvas(qrUrl, { width: 220, margin: 1, color: { dark:'#0f0e0d', light:'#f7f7f4' } }, function (err, canvas) {
+      if (!err && canvas) box.appendChild(canvas);
+      else box.innerHTML = '<div style="padding:40px;color:#f05050;font-size:11px;">Erreur QR</div>';
+    });
+  } catch(e) {
+    // Fallback : utiliser toDataURL
+    try {
+      const dataUrl = await QRCode.toDataURL(qrUrl, { width: 220, margin: 1 });
+      document.getElementById('qr-box').innerHTML = '<img src="' + dataUrl + '" alt="QR">';
+    } catch(e2) {}
+  }
+}
+init();
+</script>
+</body>
+</html>
