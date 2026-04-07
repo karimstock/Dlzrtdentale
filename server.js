@@ -788,6 +788,19 @@ app.get('/api/suggestions/admin', async (req, res) => {
 });
 
 // =============================================
+// JADOMI Rush — module sous-traitance prothesistes
+// =============================================
+try {
+  const { createRushRouter } = require('./api/rush');
+  app.use('/api/rush', createRushRouter(supabase));
+  // Servir les STL uploadés
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+  console.log('[JADOMI] Module Rush prothesistes monte sur /api/rush');
+} catch (e) {
+  console.warn('[JADOMI] Module Rush non charge:', e.message);
+}
+
+// =============================================
 // Start server
 // =============================================
 const PORT = process.env.PORT || 3000;
