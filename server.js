@@ -801,6 +801,25 @@ try {
 }
 
 // =============================================
+// JADOMI Plateforme — Routes prothesistes & commandes
+// =============================================
+try {
+  const { createProthesistesRouter } = require('./api/routes/prothesistes');
+  app.use('/api/prothesistes', createProthesistesRouter(supabase));
+  console.log('[JADOMI] Module Prothesistes monte sur /api/prothesistes');
+} catch (e) {
+  console.warn('[JADOMI] Module Prothesistes non charge:', e.message);
+}
+
+try {
+  const { createCommandesRouter } = require('./api/routes/commandes');
+  app.use('/api/commandes', createCommandesRouter(supabase));
+  console.log('[JADOMI] Module Commandes monte sur /api/commandes');
+} catch (e) {
+  console.warn('[JADOMI] Module Commandes non charge:', e.message);
+}
+
+// =============================================
 // Start server
 // =============================================
 const PORT = process.env.PORT || 3000;

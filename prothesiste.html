@@ -145,6 +145,38 @@ tbody tr:hover td{background:var(--surface2);}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;z-index:300;transition:transform 0.3s;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 
+/* Onboarding tarifs JADOMI (full-screen blocking) */
+.onboard-overlay{display:none;position:fixed;inset:0;background:rgba(15,14,13,0.96);z-index:500;backdrop-filter:blur(6px);overflow-y:auto;}
+.onboard-overlay.open{display:block;}
+.onboard-wrap{max-width:980px;margin:0 auto;padding:40px 24px 60px;}
+.onboard-head{text-align:center;margin-bottom:28px;}
+.onboard-logo{font-family:var(--font-display);font-size:34px;font-weight:800;color:var(--accent);letter-spacing:-1.5px;}
+.onboard-title{font-family:var(--font-display);font-size:22px;font-weight:700;margin-top:14px;}
+.onboard-sub{font-size:14px;color:var(--muted);max-width:640px;margin:10px auto 0;line-height:1.6;}
+.onboard-rules{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:18px 22px;margin:24px 0;font-size:13px;line-height:1.7;}
+.onboard-rules b{color:var(--accent);}
+.onboard-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.onboard-grid table{width:100%;}
+.onboard-grid thead th{position:sticky;top:0;}
+.onboard-cat{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--accent);background:var(--surface2);padding:10px 20px;letter-spacing:0.4px;}
+.onboard-foot{margin-top:24px;display:flex;flex-direction:column;gap:14px;align-items:center;}
+.onboard-check{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;cursor:pointer;max-width:640px;}
+.onboard-check input{margin-top:3px;width:18px;height:18px;cursor:pointer;accent-color:var(--accent);}
+.onboard-check span{font-size:13px;line-height:1.5;}
+.onboard-check.error{border-color:var(--red);}
+.onboard-foot .btn{padding:14px 28px;font-size:14px;}
+
+/* Alerte nouvelle commande */
+.alert-banner{position:fixed;top:78px;left:50%;transform:translateX(-50%) translateY(-200px);background:linear-gradient(135deg,#60d090,#8fb840);color:#0f0e0d;padding:14px 22px 14px 18px;border-radius:var(--radius);box-shadow:0 12px 40px rgba(96,208,144,0.35);display:flex;align-items:center;gap:14px;z-index:200;max-width:560px;transition:transform 0.4s cubic-bezier(0.2,0.9,0.3,1.2);font-weight:500;}
+.alert-banner.show{transform:translateX(-50%) translateY(0);}
+.alert-banner .ab-icon{font-size:22px;}
+.alert-banner .ab-msg{font-size:13px;line-height:1.4;}
+.alert-banner .ab-msg b{font-family:var(--font-display);font-weight:700;}
+.alert-banner .ab-close{background:rgba(15,14,13,0.15);border:none;color:#0f0e0d;width:26px;height:26px;border-radius:50%;cursor:pointer;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.alert-banner .ab-close:hover{background:rgba(15,14,13,0.3);}
+.nav-badge.pulse{animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+
 @media (max-width:780px){
   .sidebar{transform:translateX(-100%);}
   .main{margin-left:0;}
@@ -154,6 +186,43 @@ tbody tr:hover td{background:var(--surface2);}
 </style>
 </head>
 <body>
+
+<!-- ===================== ONBOARDING TARIFS JADOMI (bloquant) ===================== -->
+<div class="onboard-overlay" id="onboard-overlay">
+  <div class="onboard-wrap">
+    <div class="onboard-head">
+      <div class="onboard-logo">JADOMI</div>
+      <div class="onboard-title">Bienvenue dans l'espace prothesiste</div>
+      <div class="onboard-sub">Avant d'acceder a votre dashboard, prenez connaissance de la grille tarifaire JADOMI. Vous fixerez ensuite vos tarifs dans les fourchettes proposees.</div>
+    </div>
+    <div class="onboard-rules">
+      <b>Comment ca marche :</b><br>
+      • <b>JADOMI fixe les fourchettes tarifaires</b> (min — max) pour chaque type de travail.<br>
+      • <b>Vous choisissez votre tarif</b> librement dans cette fourchette, selon votre niveau (Standard / Confirme / Expert).<br>
+      • <b>JADOMI prend 10% de commission</b> sur chaque transaction (uniquement sur le tarif travaux, jamais sur la livraison).<br>
+      • Les commandes vous arrivent <b>anonymement</b> via un identifiant JADOMI-XXXXXXXX. La livraison se fait via QR code chiffre.
+    </div>
+    <div class="onboard-grid">
+      <div id="onboard-grid-body">
+        <div style="padding:40px;text-align:center;color:var(--muted);">Chargement de la grille tarifaire JADOMI...</div>
+      </div>
+    </div>
+    <div class="onboard-foot">
+      <label class="onboard-check" id="onboard-check-wrap">
+        <input type="checkbox" id="onboard-accept">
+        <span>J'accepte les conditions tarifaires JADOMI : fourchettes officielles, commission de 10% sur le tarif travaux, et anonymat total entre dentiste et prothesiste.</span>
+      </label>
+      <button class="btn btn-accent" onclick="validerOnboarding()">Acceder a mon dashboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ALERTE NOUVELLE COMMANDE ===================== -->
+<div class="alert-banner" id="alert-banner">
+  <div class="ab-icon">📦</div>
+  <div class="ab-msg" id="alert-banner-msg">Nouvelle commande recue !</div>
+  <button class="ab-close" onclick="fermerAlerteCommande()">×</button>
+</div>
 
 <div class="shell">
 
@@ -1149,12 +1218,148 @@ async function iaMatchRush() {
   alert('🤖 JADOMI IA — Top matches :\n\n' + (txt||'Pas de reponse'));
 }
 
+// ─── Onboarding tarifs JADOMI ───
+async function verifierOnboardingTarifs() {
+  if (!monProfil) return;
+  // tarifs deja acceptes ?
+  if (monProfil.tarifs_acceptes === true) return;
+  // Sinon afficher l'overlay et charger la grille
+  document.getElementById('onboard-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  try {
+    const r = await fetch('/api/prothesistes/catalogue-tarifs?prothesiste_id=' + encodeURIComponent(monProfil.id));
+    const j = await r.json();
+    const liste = j.catalogue || [];
+    if (!liste.length) {
+      document.getElementById('onboard-grid-body').innerHTML =
+        '<div style="padding:40px;text-align:center;color:var(--muted);">Catalogue indisponible. Contactez l\'admin JADOMI.</div>';
+      return;
+    }
+    // Grouper par categorie
+    const groupes = {};
+    liste.forEach(t => { (groupes[t.categorie] = groupes[t.categorie] || []).push(t); });
+    let html = '<table><thead><tr><th>Travail</th><th>Tarif min</th><th>Tarif reference</th><th>Tarif max</th><th>Delai standard</th></tr></thead><tbody>';
+    Object.keys(groupes).forEach(cat => {
+      html += '<tr><td colspan="5" class="onboard-cat">' + cat + '</td></tr>';
+      groupes[cat].forEach(t => {
+        html += '<tr>'
+          + '<td>' + t.nom + '</td>'
+          + '<td><b>' + t.tarif_min + ' €</b></td>'
+          + '<td>' + t.tarif_reference + ' €</td>'
+          + '<td><b style="color:var(--accent)">' + t.tarif_max + ' €</b></td>'
+          + '<td>' + (t.delai_jours_standard || 5) + ' j</td>'
+          + '</tr>';
+      });
+    });
+    html += '</tbody></table>';
+    document.getElementById('onboard-grid-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('onboard-grid-body').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--red);">Erreur chargement grille : ' + e.message + '</div>';
+  }
+}
+
+async function validerOnboarding() {
+  const wrap = document.getElementById('onboard-check-wrap');
+  const ok = document.getElementById('onboard-accept').checked;
+  if (!ok) {
+    wrap.classList.add('error');
+    showToast('Vous devez accepter les conditions tarifaires JADOMI.');
+    return;
+  }
+  wrap.classList.remove('error');
+  try {
+    const r = await fetch('/api/prothesistes/accepter-tarifs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ prothesiste_id: monProfil.id }),
+    });
+    const j = await r.json();
+    if (j.success) {
+      monProfil.tarifs_acceptes = true;
+      monProfil.tarifs_acceptes_at = new Date().toISOString();
+      try { localStorage.setItem('jadomi_prothesiste', JSON.stringify(monProfil)); } catch(e){}
+    }
+  } catch(e) {
+    // En cas d'echec backend, on memorise quand meme localement pour ne pas bloquer
+    monProfil.tarifs_acceptes = true;
+    try { localStorage.setItem('jadomi_prothesiste', JSON.stringify(monProfil)); } catch(e){}
+  }
+  document.getElementById('onboard-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  showToast('Bienvenue ! Vos tarifs sont actifs.');
+}
+
+// ─── Alerte nouvelle commande (polling 30s) ───
+let _commandesVues = new Set();
+let _firstPoll = true;
+let _alertTimer = null;
+async function pollerNotifications() {
+  if (!monProfil?.id) return;
+  try {
+    const r = await fetch('/api/prothesistes/notifications?prothesiste_id=' + encodeURIComponent(monProfil.id));
+    const j = await r.json();
+    if (!j.success) return;
+    const nouvelles = j.nouvelles_commandes || [];
+
+    // Mise a jour badge sur l'onglet Commandes
+    const badge = document.getElementById('badge-commandes');
+    if (badge) {
+      if (nouvelles.length > 0) {
+        badge.style.display = 'inline-block';
+        badge.textContent = nouvelles.length;
+        badge.classList.add('pulse');
+      } else {
+        badge.style.display = 'none';
+        badge.classList.remove('pulse');
+      }
+    }
+
+    // A premier appel, on memorise sans alerter (etat de base)
+    if (_firstPoll) {
+      nouvelles.forEach(c => _commandesVues.add(c.id));
+      _firstPoll = false;
+      return;
+    }
+    // Detecter les nouveautes depuis le dernier poll
+    const fraiches = nouvelles.filter(c => !_commandesVues.has(c.id));
+    fraiches.forEach(c => _commandesVues.add(c.id));
+    if (fraiches.length > 0) {
+      const c = fraiches[0];
+      afficherAlerteCommande(c);
+      // Si on est sur l'onglet commandes, recharger la liste
+      if (document.getElementById('page-commandes').classList.contains('active')) {
+        try { chargerCommandes(); } catch(e){}
+      }
+    }
+  } catch(e) {}
+}
+function afficherAlerteCommande(c) {
+  const ref = c.reference || ('CMD-' + c.id);
+  const tarif = c.tarif_net_prothesiste != null ? Math.round(c.tarif_net_prothesiste) + '€' : '—';
+  const delai = c.delai_jours != null ? (c.delai_jours + ' jours') : '—';
+  document.getElementById('alert-banner-msg').innerHTML =
+    '<b>Nouvelle commande recue !</b><br>Reference ' + ref + ' — Tarif net : ' + tarif + ' — Delai : ' + delai;
+  const banner = document.getElementById('alert-banner');
+  banner.classList.add('show');
+  if (_alertTimer) clearTimeout(_alertTimer);
+  _alertTimer = setTimeout(fermerAlerteCommande, 10000);
+}
+function fermerAlerteCommande() {
+  document.getElementById('alert-banner').classList.remove('show');
+  if (_alertTimer) { clearTimeout(_alertTimer); _alertTimer = null; }
+}
+
 // ─── Init ───
 (async function init() {
   await initProfil();
+  await verifierOnboardingTarifs();
   await chargerCommandes();
   // Pre-charger rushes pour le badge
   try { const r = await fetch('/api/rush/demandes?statut=ouverte'); const j = await r.json(); rushes = j.demandes||[]; const b=document.getElementById('badge-rush'); if(rushes.length){b.style.display='inline-block';b.textContent=rushes.length;} } catch(e){}
+  // Polling notifications nouvelles commandes
+  pollerNotifications();
+  setInterval(pollerNotifications, 30000);
 })();
 </script>
 </body>
