@@ -1,0 +1,2738 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050507">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JADOMI">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/mobile-manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>JADOMI · Stock intelligent pour professionnels de santé</title>
+<!--
+  ============================================================
+  JADOMI — UI mobile premium (entry point /m sur le VPS)
+  ============================================================
+  Servi via Express : app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')))
+
+  CONTRAT D'AUTHENTIFICATION :
+    1. Au chargement, lit localStorage.jadomi_session (format JSON ci-dessous)
+       OU détecte une session Supabase Auth active.
+    2. Si rien → redirect vers /login.html
+
+  Format attendu de localStorage.jadomi_session :
+    {
+      "user_id":      "uuid",       // requis
+      "email":        "string",     // requis
+      "profession":   "chirurgien-dentiste|orthodontiste|prothesiste|veterinaire",
+      "role":         "user|admin",
+      "display_name": "string?",
+      "cabinet_name": "string?"
+    }
+
+  IMPORTANT : pour que les requêtes Supabase sur produits/fournisseurs
+  fonctionnent (RLS), une session Supabase Auth doit aussi exister
+  (sb.auth.signInWithPassword côté login.html). Le jadomi_session sert
+  à pré-remplir l'UI ; les données passent par le SDK Supabase authentifié.
+
+  ROLLBACK : retirer la route /m dans server.js ET supprimer ce fichier.
+  ============================================================
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js" defer></script>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+
+<style>
+/* ============================================================
+   JADOMI — Design System Premium Dark
+   Outfit · Tokens · Components · Screens · Animations
+   ============================================================ */
+
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Le hidden attribute doit toujours gagner sur les display:flex/grid des classes */
+[hidden] { display: none !important; }
+
+:root {
+  /* Couleurs */
+  --bg:           #050507;
+  --surface:      #0D0D10;
+  --surface-2:    #141418;
+  --surface-3:    #1A1A20;
+  --border:       #1E1E26;
+  --border-glow:  #2A2A35;
+  --text:         #F0F0F8;
+  --text-2:       #9090A0;
+  --text-3:       #6B6B80;
+  --text-4:       #3A3A4A;
+
+  --red:    #FF453A;
+  --red-l:  rgba(255, 69, 58, 0.12);
+  --orange: #FF9F0A;
+  --orange-l: rgba(255, 159, 10, 0.12);
+  --green:  #32D74B;
+  --green-l: rgba(50, 215, 75, 0.12);
+  --blue:   #0A84FF;
+  --blue-l: rgba(10, 132, 255, 0.12);
+  --purple: #BF5AF2;
+  --purple-l: rgba(191, 90, 242, 0.12);
+  --teal:   #40C8E0;
+  --teal-l: rgba(64, 200, 224, 0.12);
+
+  /* Profession (override par .accent-*) */
+  --accent: var(--blue);
+  --accent-l: var(--blue-l);
+
+  /* Typo */
+  --font: 'Outfit', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* Spacing & forms */
+  --r-sm: 10px;
+  --r:    16px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+
+  /* Layout */
+  --nav-h: 72px;
+  --topbar-h: 64px;
+  --sidebar-w: 260px;
+
+  /* Easing */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* Profession accents */
+.accent-dentiste     { --accent: #0A84FF; --accent-l: rgba(10,132,255,.12); }
+.accent-orthodontiste{ --accent: #40C8E0; --accent-l: rgba(64,200,224,.12); }
+.accent-prothesiste  { --accent: #FF9F0A; --accent-l: rgba(255,159,10,.12); }
+.accent-veterinaire  { --accent: #32D74B; --accent-l: rgba(50,215,75,.12); }
+.accent-admin        { --accent: #BF5AF2; --accent-l: rgba(191,90,242,.12); }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+body { overscroll-behavior-y: contain; }
+
+button, input, select, textarea {
+  font: inherit; color: inherit; background: none; border: 0; outline: 0;
+}
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; max-width: 100%; }
+
+/* ============================================================
+   SPLASH
+   ============================================================ */
+#splash {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  gap: 24px;
+  transition: opacity .4s var(--ease);
+}
+#splash.hide { opacity: 0; pointer-events: none; }
+.splash-logo {
+  width: 96px; height: 96px;
+  position: relative;
+  animation: pulseGlow 2.4s var(--ease) infinite;
+}
+.splash-logo svg { width: 100%; height: 100%; }
+.splash-text {
+  font-size: 28px; font-weight: 800;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, #0A84FF, #BF5AF2);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.splash-tag {
+  font-size: 12px; color: var(--text-3); font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 24px rgba(191, 90, 242, .35)); transform: scale(1); }
+  50%      { filter: drop-shadow(0 0 48px rgba(10, 132, 255, .55)); transform: scale(1.04); }
+}
+
+/* ============================================================
+   AUTH SCREENS (login + signup)
+   ============================================================ */
+.auth-wrap {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 24px;
+  position: relative;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(10, 132, 255, .12), transparent),
+    radial-gradient(ellipse 50% 30% at 80% 100%, rgba(191, 90, 242, .10), transparent);
+}
+.auth-card {
+  width: 100%; max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 36px 28px 32px;
+  box-shadow: 0 24px 64px -16px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.02) inset;
+  animation: fadeUp .6s var(--ease-out);
+}
+.auth-logo {
+  width: 64px; height: 64px;
+  margin: 0 auto 20px;
+  filter: drop-shadow(0 0 32px rgba(191, 90, 242, .4));
+}
+.auth-title {
+  font-size: 26px; font-weight: 700; text-align: center;
+  letter-spacing: -.02em; margin-bottom: 6px;
+}
+.auth-subtitle {
+  text-align: center; color: var(--text-3); font-size: 14px; margin-bottom: 28px;
+}
+.field {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;
+}
+.field label {
+  font-size: 12px; color: var(--text-3); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.field input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  transition: all .2s var(--ease);
+}
+.field input::placeholder { color: var(--text-4); }
+.field input:focus {
+  border-color: var(--accent);
+  background: var(--surface-3);
+  box-shadow: 0 0 0 4px var(--accent-l);
+}
+.btn-primary {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #0A84FF, #BF5AF2);
+  color: #fff;
+  border-radius: var(--r);
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -.005em;
+  transition: all .2s var(--ease);
+  margin-top: 8px;
+  position: relative; overflow: hidden;
+}
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: .55; pointer-events: none; }
+.btn-ghost {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: var(--r);
+  font-size: 14px; font-weight: 500;
+  margin-top: 8px;
+}
+.btn-ghost:active { background: var(--surface-2); }
+.auth-switch {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.auth-switch a {
+  color: var(--blue);
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-error {
+  background: var(--red-l);
+  border: 1px solid rgba(255, 69, 58, .3);
+  color: var(--red);
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  animation: fadeUp .3s var(--ease-out);
+}
+
+/* ============================================================
+   ONBOARDING — profession picker
+   ============================================================ */
+.onb-wrap {
+  min-height: 100vh; min-height: 100dvh;
+  padding: 40px 24px 80px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(191, 90, 242, .10), transparent);
+}
+.onb-title {
+  font-size: 28px; font-weight: 800; text-align: center;
+  letter-spacing: -.02em; margin-bottom: 8px;
+  max-width: 500px;
+}
+.onb-subtitle {
+  text-align: center; color: var(--text-3); font-size: 15px; margin-bottom: 32px;
+  max-width: 480px;
+}
+.prof-grid {
+  display: grid; gap: 14px;
+  width: 100%; max-width: 500px;
+}
+.prof-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+  display: flex; align-items: center; gap: 16px;
+  cursor: pointer;
+  transition: all .25s var(--ease);
+  position: relative; overflow: hidden;
+}
+.prof-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--prof-color, transparent);
+  opacity: 0; transition: opacity .25s;
+}
+.prof-card:active { transform: scale(.98); }
+.prof-card:hover { border-color: var(--prof-color); }
+.prof-card.selected {
+  border-color: var(--prof-color);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--prof-color) 12%, transparent);
+}
+.prof-icon {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--prof-color) 14%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+  position: relative; z-index: 1;
+}
+.prof-info { flex: 1; position: relative; z-index: 1; }
+.prof-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+.prof-info p { font-size: 13px; color: var(--text-3); }
+.prof-arrow {
+  color: var(--text-4); font-size: 20px;
+  position: relative; z-index: 1;
+}
+
+/* ============================================================
+   APP SHELL — header + bottom nav + sidebar (desktop)
+   ============================================================ */
+.app-shell {
+  display: flex;
+  min-height: 100vh; min-height: 100dvh;
+}
+
+/* Sidebar (desktop only) */
+.sidebar {
+  display: none;
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+  flex-shrink: 0;
+  padding: 24px 16px;
+}
+.sidebar-logo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 8px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.sidebar-logo svg { width: 36px; height: 36px; }
+.sidebar-logo .brand {
+  font-size: 20px; font-weight: 800; letter-spacing: -.01em;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  color: var(--text-2);
+  font-size: 14px; font-weight: 500;
+  transition: all .15s;
+  cursor: pointer;
+}
+.sidebar-item:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-item.active {
+  background: var(--accent-l);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sidebar-item .icon { width: 20px; text-align: center; font-size: 16px; }
+.sidebar-foot {
+  margin-top: auto;
+  padding: 16px 8px 0;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.sidebar-foot .avatar {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 15px; color: #fff;
+}
+.sidebar-foot .who { flex: 1; min-width: 0; }
+.sidebar-foot .who strong { display: block; font-size: 13px; font-weight: 600; }
+.sidebar-foot .who span { display: block; font-size: 11px; color: var(--text-3); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+
+/* Main content area */
+.main {
+  flex: 1;
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+
+/* Topbar */
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  height: var(--topbar-h);
+  padding: 0 20px;
+  padding-top: env(safe-area-inset-top);
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(13, 13, 16, .82);
+  backdrop-filter: saturate(150%) blur(20px);
+  -webkit-backdrop-filter: saturate(150%) blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: .45;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+}
+.topbar-logo svg { width: 32px; height: 32px; flex-shrink: 0; }
+.topbar-brand {
+  display: flex; flex-direction: column; line-height: 1.1;
+}
+.topbar-brand .name {
+  font-size: 18px; font-weight: 800; letter-spacing: -.01em;
+}
+.topbar-brand .sub {
+  font-size: 10px; font-weight: 600; color: var(--accent);
+  letter-spacing: .06em; text-transform: uppercase;
+  margin-top: 2px;
+}
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  transition: all .15s;
+}
+.icon-btn:active { transform: scale(.92); background: var(--surface-3); }
+
+/* Content scroll area */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));
+}
+
+/* Bottom nav (mobile only) */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(10, 10, 14, .92);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: stretch; justify-content: space-around;
+  z-index: 40;
+}
+.nav-tab {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px;
+  color: var(--text-3);
+  font-size: 11px; font-weight: 600;
+  position: relative;
+  padding: 8px 4px;
+  transition: color .2s;
+}
+.nav-tab .ico { font-size: 22px; line-height: 1; }
+.nav-tab.active { color: var(--accent); }
+.nav-tab.active::before {
+  content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--purple));
+  border-radius: 0 0 4px 4px;
+}
+
+/* ============================================================
+   STOCK SCREEN
+   ============================================================ */
+.greeting {
+  margin-bottom: 18px;
+}
+.greeting h1 {
+  font-size: 24px; font-weight: 800; letter-spacing: -.02em;
+  line-height: 1.15;
+}
+.greeting p {
+  font-size: 13px; color: var(--text-3); margin-top: 4px;
+}
+
+/* Stat cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  position: relative; overflow: hidden;
+  animation: fadeUp .5s var(--ease-out) both;
+}
+.stat::after {
+  content: ''; position: absolute;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--stat-glow, var(--accent));
+  filter: blur(40px);
+  opacity: .18;
+  top: -20px; right: -20px;
+  pointer-events: none;
+}
+.stat-label {
+  font-size: 11px; color: var(--text-3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 28px; font-weight: 800; letter-spacing: -.02em;
+  line-height: 1;
+  color: var(--stat-color, var(--text));
+}
+.stat-trend {
+  font-size: 11px; color: var(--text-3); margin-top: 4px;
+}
+.stat:nth-child(1) { animation-delay: .04s; }
+.stat:nth-child(2) { animation-delay: .08s; --stat-color: var(--red); --stat-glow: var(--red); }
+.stat:nth-child(3) { animation-delay: .12s; --stat-color: var(--orange); --stat-glow: var(--orange); }
+.stat:nth-child(4) { animation-delay: .16s; --stat-color: var(--green); --stat-glow: var(--green); }
+
+/* Search bar */
+.search {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  transition: all .2s;
+}
+.search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-l);
+}
+.search .ico { color: var(--text-3); font-size: 16px; }
+.search input {
+  flex: 1; font-size: 14px; font-weight: 500;
+}
+.search input::placeholder { color: var(--text-4); }
+.search .clear {
+  font-size: 16px; color: var(--text-3);
+  padding: 4px 8px;
+  display: none;
+}
+.search.has-value .clear { display: block; }
+
+/* Filter pills */
+.filter-pills {
+  display: flex; gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0 18px;
+  margin: 0 -16px;
+  padding-left: 16px; padding-right: 16px;
+}
+.filter-pills::-webkit-scrollbar { display: none; }
+.pill {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 100px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 13px; font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition: all .2s;
+}
+.pill.active {
+  background: var(--accent-l);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pill .count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: rgba(255,255,255,.06);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.pill.active .count {
+  background: rgba(255,255,255,.14);
+  color: var(--accent);
+}
+
+/* Product cards */
+.products { display: flex; flex-direction: column; gap: 10px; }
+.product {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  display: flex; gap: 14px;
+  position: relative; overflow: hidden;
+  animation: fadeUp .4s var(--ease-out) both;
+}
+.product::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--p-color, var(--text-4));
+}
+.product .glow {
+  position: absolute; right: -30px; top: -30px;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: var(--p-color); filter: blur(50px); opacity: .12;
+  pointer-events: none;
+}
+.product .body { flex: 1; min-width: 0; }
+.product .name {
+  font-size: 15px; font-weight: 700; letter-spacing: -.005em;
+  margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.product .meta {
+  font-size: 12px; color: var(--text-3);
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.product .meta .dot { width: 3px; height: 3px; background: var(--text-4); border-radius: 50%; }
+.bar {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 100px;
+  overflow: hidden;
+  position: relative;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--p-color), color-mix(in srgb, var(--p-color) 60%, transparent));
+  border-radius: 100px;
+  transition: width .8s var(--ease-out);
+  box-shadow: 0 0 12px var(--p-color);
+}
+.product .right {
+  text-align: right;
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;
+  flex-shrink: 0;
+}
+.qty-box {
+  display: flex; align-items: baseline; gap: 4px;
+}
+.qty-num {
+  font-size: 24px; font-weight: 800; line-height: 1;
+  color: var(--p-color);
+  letter-spacing: -.02em;
+}
+.qty-sep { color: var(--text-4); font-size: 14px; font-weight: 500; }
+.qty-max { color: var(--text-3); font-size: 12px; font-weight: 500; }
+.product .actions {
+  display: flex; gap: 6px;
+  margin-top: 8px;
+}
+.action-btn {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all .15s;
+}
+.action-btn:active { transform: scale(.9); }
+.action-btn.danger:active { background: var(--red-l); border-color: var(--red); }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-3);
+}
+.empty-state .icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  filter: grayscale(.3);
+}
+.empty-state h3 {
+  font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 6px;
+}
+.empty-state p {
+  font-size: 13px; max-width: 280px; margin: 0 auto 24px;
+}
+.empty-state .btn-primary { max-width: 240px; margin: 0 auto; }
+
+/* Placeholder screens */
+.coming-soon {
+  text-align: center;
+  padding: 80px 24px;
+}
+.coming-soon .badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 100px;
+  background: var(--accent-l);
+  color: var(--accent);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.coming-soon h2 {
+  font-size: 28px; font-weight: 800; margin-bottom: 8px;
+  letter-spacing: -.02em;
+}
+.coming-soon p {
+  color: var(--text-3); font-size: 14px;
+  max-width: 320px; margin: 0 auto;
+}
+
+/* ============================================================
+   MODAL — add/edit product
+   ============================================================ */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(5, 5, 7, .72);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn .2s;
+}
+.modal {
+  width: 100%; max-width: 520px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: 8px 24px 32px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  animation: slideUp .35s var(--ease-out);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.modal-handle {
+  width: 40px; height: 4px;
+  background: var(--border-glow);
+  border-radius: 100px;
+  margin: 0 auto 18px;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px;
+}
+.modal-header h2 {
+  font-size: 20px; font-weight: 700; letter-spacing: -.01em;
+}
+.modal-form { display: flex; flex-direction: column; gap: 14px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-actions {
+  display: flex; gap: 10px;
+  margin-top: 14px;
+}
+.modal-actions .btn-primary { flex: 2; }
+.modal-actions .btn-ghost { flex: 1; background: var(--surface-2); border: 1px solid var(--border); }
+
+/* ============================================================
+   INSTALL PROMPT (mobile post-login)
+   ============================================================ */
+.install-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(5, 5, 7, .85);
+  backdrop-filter: blur(20px);
+  display: flex; align-items: flex-end;
+  animation: fadeIn .3s;
+}
+.install-sheet {
+  width: 100%;
+  background: var(--surface);
+  border-top: 1px solid var(--border-glow);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: 12px 24px 32px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  animation: slideUp .4s var(--ease-out);
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+.install-sheet::before {
+  content: ''; position: absolute; top: -2px; left: 20%; right: 20%; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--purple), transparent);
+}
+.install-handle {
+  width: 40px; height: 4px;
+  background: var(--border-glow);
+  border-radius: 100px;
+  margin: 0 auto 22px;
+}
+.install-icon {
+  width: 80px; height: 80px;
+  margin: 0 auto 18px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(10, 132, 255, .15), rgba(191, 90, 242, .25));
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 0 32px rgba(191, 90, 242, .4));
+}
+.install-icon svg { width: 56px; height: 56px; }
+.install-title {
+  font-size: 24px; font-weight: 800; text-align: center;
+  letter-spacing: -.02em; margin-bottom: 6px;
+}
+.install-sub {
+  text-align: center; color: var(--text-3); font-size: 14px;
+  margin-bottom: 22px;
+  max-width: 320px; margin-left: auto; margin-right: auto;
+}
+.install-features {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 24px;
+}
+.install-feature {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.install-feature .ico {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.install-feature .ico.b { background: rgba(10, 132, 255, .14); color: var(--blue); }
+.install-feature .ico.p { background: rgba(191, 90, 242, .14); color: var(--purple); }
+.install-feature .ico.g { background: rgba(50, 215, 75, .14); color: var(--green); }
+.install-feature .txt h4 { font-size: 13px; font-weight: 700; margin-bottom: 1px; }
+.install-feature .txt p { font-size: 11px; color: var(--text-3); }
+
+.install-steps {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  margin-bottom: 18px;
+}
+.install-steps h4 {
+  font-size: 12px; color: var(--text-3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  margin-bottom: 12px;
+}
+.install-step {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px;
+  padding: 8px 0;
+}
+.install-step .num {
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  background: var(--purple-l);
+  color: var(--purple);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   DESKTOP INSTALL PAGE
+   ============================================================ */
+.install-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.install-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  min-height: 60vh;
+  position: relative;
+}
+.install-hero::before {
+  content: ''; position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(191, 90, 242, .14), transparent 60%);
+  top: -10%; left: -10%; pointer-events: none;
+}
+.install-mockup {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1;
+}
+.iphone {
+  width: 280px;
+  height: 580px;
+  background: var(--surface);
+  border: 8px solid #1a1a22;
+  border-radius: 50px;
+  position: relative;
+  box-shadow:
+    0 40px 80px -20px rgba(0,0,0,.7),
+    0 0 0 2px rgba(255,255,255,.04),
+    0 0 80px rgba(10, 132, 255, .25);
+  overflow: hidden;
+}
+.iphone::before {
+  content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 110px; height: 26px;
+  background: #050507;
+  border-radius: 100px;
+  z-index: 2;
+}
+.iphone-screen {
+  position: absolute; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  padding: 50px 16px 20px;
+  overflow: hidden;
+}
+.mock-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 4px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.mock-header svg { width: 20px; height: 20px; }
+.mock-header .name { font-size: 13px; font-weight: 800; }
+.mock-header .sub { font-size: 7px; font-weight: 600; color: var(--blue); margin-left: auto; padding: 3px 6px; background: rgba(10,132,255,.14); border-radius: 100px; }
+.mock-stat {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  margin: 10px 0;
+}
+.mock-stat-card {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 8px;
+}
+.mock-stat-card strong { display: block; font-size: 16px; font-weight: 800; margin-top: 2px; }
+.mock-stat-card.r strong { color: var(--red); }
+.mock-stat-card.o strong { color: var(--orange); }
+.mock-product {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 5px;
+  font-size: 9px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-left: 2px solid var(--green);
+}
+.mock-product.crit { border-color: var(--red); }
+.mock-product.warn { border-color: var(--orange); }
+.mock-product b { font-size: 12px; font-weight: 700; }
+.mock-product i { font-style: normal; font-size: 8px; color: var(--text-3); }
+
+.install-text { z-index: 1; }
+.install-text h1 {
+  font-size: 56px; font-weight: 800;
+  letter-spacing: -.03em; line-height: 1.05;
+  margin-bottom: 16px;
+}
+.install-text h1 .grad {
+  background: linear-gradient(135deg, #0A84FF, #BF5AF2);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.install-text p {
+  font-size: 17px; color: var(--text-2);
+  line-height: 1.55;
+  max-width: 460px;
+  margin-bottom: 24px;
+}
+.install-bullets {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 28px;
+}
+.install-bullets li {
+  list-style: none;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px; color: var(--text-2);
+}
+.install-bullets li::before {
+  content: '✓';
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  background: rgba(50, 215, 75, .14);
+  color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px;
+  flex-shrink: 0;
+}
+
+.install-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 56px;
+}
+.install-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 28px 24px;
+  position: relative;
+  transition: all .25s var(--ease);
+}
+.install-card:hover {
+  border-color: var(--border-glow);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px -16px rgba(0,0,0,.5);
+}
+.install-card .badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  font-size: 12px; font-weight: 700;
+  margin-bottom: 16px;
+}
+.install-card.ios .badge { background: rgba(255,255,255,.06); color: var(--text); }
+.install-card.android .badge { background: rgba(50, 215, 75, .14); color: var(--green); }
+.install-card.qr .badge { background: rgba(191, 90, 242, .14); color: var(--purple); }
+.install-card h3 {
+  font-size: 18px; font-weight: 700; margin-bottom: 18px;
+  letter-spacing: -.01em;
+}
+.install-card ol {
+  list-style: none; counter-reset: step;
+}
+.install-card ol li {
+  counter-increment: step;
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px 0;
+  font-size: 13px; color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+}
+.install-card ol li:last-child { border-bottom: 0; }
+.install-card ol li::before {
+  content: counter(step);
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px;
+  flex-shrink: 0;
+}
+.qr-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+}
+.qr-box {
+  width: 180px; height: 180px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  animation: pulseGlow 3s var(--ease) infinite;
+}
+.qr-box svg, .qr-box img { width: 100%; height: 100%; }
+.qr-url {
+  font-size: 13px; color: var(--text-3);
+  font-weight: 600;
+}
+.qr-url strong { color: var(--text); }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+#toast-host {
+  position: fixed;
+  bottom: calc(var(--nav-h) + 20px + env(safe-area-inset-bottom));
+  left: 16px; right: 16px;
+  z-index: 300;
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface-3);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--r);
+  padding: 14px 18px;
+  font-size: 14px; font-weight: 500;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 24px 64px -16px rgba(0,0,0,.6);
+  animation: toastIn .35s var(--ease-out), toastOut .3s var(--ease-out) 2.6s forwards;
+  pointer-events: auto;
+}
+.toast .ico { font-size: 18px; }
+.toast.ok    { border-left: 3px solid var(--green); }
+.toast.err   { border-left: 3px solid var(--red); }
+.toast.info  { border-left: 3px solid var(--blue); }
+.toast.warn  { border-left: 3px solid var(--orange); }
+
+/* ============================================================
+   LOADER
+   ============================================================ */
+.spinner {
+  width: 22px; height: 22px;
+  border: 2px solid rgba(255,255,255,.15);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+.btn-primary .spinner { margin-right: 8px; }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(8px) scale(.98); } }
+
+/* ============================================================
+   RESPONSIVE — desktop layout (> 1024px)
+   ============================================================ */
+@media (min-width: 1024px) {
+  .sidebar { display: flex; }
+  .bottom-nav { display: none; }
+  .topbar { display: none; }
+  .content { padding: 32px 40px; padding-bottom: 32px; }
+  .greeting h1 { font-size: 32px; }
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  .install-hero { min-height: 70vh; }
+  .install-page { padding: 40px 24px; }
+  .modal-backdrop { align-items: center; }
+  .modal { border-radius: var(--r-xl); max-width: 520px; }
+}
+
+@media (max-width: 1023px) {
+  .install-hero {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    text-align: center;
+  }
+  .install-text h1 { font-size: 36px; }
+  .install-text p { margin-left: auto; margin-right: auto; }
+  .install-bullets { max-width: 400px; margin-left: auto; margin-right: auto; }
+  .install-bullets li { text-align: left; }
+  .install-cards { grid-template-columns: 1fr; gap: 14px; }
+  .iphone { width: 240px; height: 500px; }
+}
+
+@media (max-width: 380px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-value { font-size: 24px; }
+  .greeting h1 { font-size: 22px; }
+}
+
+/* ============================================================
+   SCANNER OVERLAY (fullscreen) + bottom sheet result
+   ============================================================ */
+#scan-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #000;
+  display: none;
+  flex-direction: column;
+  font-family: 'Outfit', sans-serif;
+}
+#scan-overlay.active { display: flex; }
+.scan-topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px;
+  background: linear-gradient(to bottom, rgba(0,0,0,.85), transparent);
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+.scan-title { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+.scan-counter { color: rgba(255,255,255,.65); font-size: 12px; font-weight: 500; }
+.scan-close {
+  background: rgba(255,255,255,.18); border: none; color: #fff;
+  width: 38px; height: 38px; border-radius: 50%;
+  font-size: 18px; cursor: pointer; line-height: 1;
+}
+.scan-close:active { background: rgba(255,255,255,.3); }
+.scan-viewport {
+  position: relative; flex: 1; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+#scan-camera { position: absolute; inset: 0; }
+#scan-camera video, #scan-camera canvas {
+  position: absolute; top: 0; left: 0;
+  width: 100% !important; height: 100% !important;
+  object-fit: cover !important;
+}
+.scan-frame {
+  position: relative;
+  width: 80vw; max-width: 380px;
+  height: 50vw; max-height: 220px;
+  pointer-events: none;
+}
+.scan-frame .corner {
+  position: absolute; width: 28px; height: 28px;
+  border-color: #0A84FF; border-style: solid; border-width: 0;
+}
+.scan-frame .tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 6px; }
+.scan-frame .tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 6px; }
+.scan-frame .bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 6px; }
+.scan-frame .br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 6px; }
+.scan-frame .laser {
+  position: absolute; left: 6px; right: 6px; height: 2px;
+  background: linear-gradient(to right, transparent, #0A84FF, #BF5AF2, transparent);
+  top: 50%;
+  animation: scanLaser 1.5s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(10,132,255,.6);
+}
+@keyframes scanLaser {
+  0%, 100% { top: 22%; opacity: .4; }
+  50%      { top: 78%; opacity: 1; }
+}
+#scan-flash {
+  position: absolute; inset: 0;
+  background: rgba(10,132,255,.45);
+  opacity: 0; transition: opacity .12s;
+  pointer-events: none;
+}
+.scan-status {
+  position: absolute; bottom: 24px; left: 0; right: 0;
+  text-align: center; color: #fff; font-size: 13px; font-weight: 500;
+  text-shadow: 0 1px 6px rgba(0,0,0,.9);
+  padding: 0 24px;
+}
+.scan-result-panel {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  max-height: 60vh; overflow-y: auto;
+  padding: 18px 18px max(18px, env(safe-area-inset-bottom));
+  animation: sheetUp .25s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.scan-loading { color: var(--text-2); font-size: 14px; text-align: center; padding: 20px; }
+.scan-sheet { display: flex; flex-direction: column; gap: 14px; }
+.scan-sheet-head { display: flex; flex-direction: column; gap: 6px; }
+.scan-sheet-title { color: var(--text); font-size: 18px; font-weight: 700; }
+.scan-sheet-sub { color: var(--text-2); font-size: 13px; }
+.scan-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600; padding: 5px 10px;
+  border-radius: 20px; width: fit-content;
+}
+.scan-badge.ok   { color: #32D74B; background: rgba(50,215,75,.12); border: 1px solid rgba(50,215,75,.3); }
+.scan-badge.info { color: #40C8E0; background: rgba(64,200,224,.12); border: 1px solid rgba(64,200,224,.3); }
+.scan-badge-inline {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  color: #32D74B; background: rgba(50,215,75,.15);
+  padding: 2px 7px; border-radius: 10px; margin-left: 6px;
+}
+.scan-row { display: flex; flex-direction: column; gap: 6px; }
+.scan-row label { color: var(--text-2); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .3px; }
+.scan-row input,
+.scan-row-2 input {
+  width: 100%; padding: 12px 14px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font-family: inherit; font-size: 15px;
+  -webkit-appearance: none; appearance: none;
+}
+.scan-row input:focus,
+.scan-row-2 input:focus { outline: none; border-color: var(--accent, #0A84FF); }
+.scan-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.scan-row-2 > div { display: flex; flex-direction: column; gap: 6px; }
+.scan-row-2 label { color: var(--text-2); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .3px; }
+.scan-qty { display: flex; align-items: center; gap: 12px; }
+.scan-qty input {
+  flex: 0 0 80px; text-align: center; font-size: 18px; font-weight: 700;
+  padding: 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+}
+.qbtn {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text); font-size: 22px; font-weight: 700; cursor: pointer;
+}
+.qbtn:active { background: var(--surface-3); }
+.scan-actions { display: flex; gap: 10px; margin-top: 4px; }
+.scan-actions button { flex: 1; }
+.scan-add {
+  width: 100%; padding: 16px; font-size: 16px; font-weight: 700;
+  border-radius: 50px; box-shadow: 0 6px 20px rgba(10,132,255,.35);
+}
+.scan-next {
+  width: 100%; margin-top: 4px; padding: 12px;
+  background: transparent; color: var(--text-3);
+  border: 1px solid var(--border); border-radius: 12px;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.scan-source {
+  display: inline-block; font-size: 9px; font-weight: 800;
+  padding: 3px 8px; border-radius: 10px; margin-left: 8px;
+  vertical-align: middle; letter-spacing: .5px;
+}
+.scan-source.jadomi { color: #0A84FF; background: rgba(10,132,255,.15); }
+.scan-source.off    { color: #BF5AF2; background: rgba(191,90,242,.15); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SPLASH
+     ============================================================ -->
+<div id="splash">
+  <div class="splash-logo">
+    <svg viewBox="0 0 512 512">
+      <defs>
+        <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#0A84FF"/>
+          <stop offset="1" stop-color="#BF5AF2"/>
+        </linearGradient>
+      </defs>
+      <path d="M 320 130 L 320 320 Q 320 400 240 400 Q 180 400 160 350" stroke="url(#sg)" stroke-width="42" stroke-linecap="round" fill="none"/>
+      <circle cx="320" cy="130" r="22" fill="#BF5AF2"/>
+    </svg>
+  </div>
+  <div>
+    <div class="splash-text">JADOMI</div>
+    <div class="splash-tag">Stock intelligent</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     (PAS d'écran auth ici — login.html sur la prod gère l'auth)
+     mobile.html lit localStorage.jadomi_session au chargement
+     et redirige vers /login.html si absent.
+     ============================================================ -->
+
+<!-- ============================================================
+     ONBOARDING — profession picker
+     ============================================================ -->
+<div id="onboarding-screen" class="onb-wrap" hidden>
+  <h1 class="onb-title">Quelle est ta profession ?</h1>
+  <p class="onb-subtitle">JADOMI s'adapte automatiquement à ton métier — fournisseurs, catégories et alertes personnalisés.</p>
+  <div class="prof-grid" id="prof-grid">
+    <div class="prof-card" data-prof="chirurgien-dentiste" style="--prof-color:#0A84FF">
+      <div class="prof-icon">🦷</div>
+      <div class="prof-info"><h3>Chirurgien-Dentiste</h3><p>Cabinet dentaire, omnipratique</p></div>
+      <div class="prof-arrow">›</div>
+    </div>
+    <div class="prof-card" data-prof="orthodontiste" style="--prof-color:#40C8E0">
+      <div class="prof-icon">😬</div>
+      <div class="prof-info"><h3>Orthodontiste</h3><p>Cabinet d'orthodontie</p></div>
+      <div class="prof-arrow">›</div>
+    </div>
+    <div class="prof-card" data-prof="prothesiste" style="--prof-color:#FF9F0A">
+      <div class="prof-icon">🛠</div>
+      <div class="prof-info"><h3>Prothésiste dentaire</h3><p>Laboratoire de prothèse</p></div>
+      <div class="prof-arrow">›</div>
+    </div>
+    <div class="prof-card" data-prof="veterinaire" style="--prof-color:#32D74B">
+      <div class="prof-icon">🐾</div>
+      <div class="prof-info"><h3>Vétérinaire</h3><p>Clinique vétérinaire</p></div>
+      <div class="prof-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP SHELL
+     ============================================================ -->
+<div id="app-shell" class="app-shell" hidden>
+
+  <!-- Sidebar (desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 512 512">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs>
+        <path d="M 320 130 L 320 320 Q 320 400 240 400 Q 180 400 160 350" stroke="url(#lg)" stroke-width="42" stroke-linecap="round" fill="none"/>
+        <circle cx="320" cy="130" r="22" fill="#BF5AF2"/>
+      </svg>
+      <span class="brand">JADOMI</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-item active" data-go="stock"><span class="icon">📦</span> Stock</div>
+      <div class="sidebar-item" data-go="scanner"><span class="icon">⬛</span> Scanner</div>
+      <div class="sidebar-item" data-go="deals"><span class="icon">🔥</span> Deals</div>
+      <div class="sidebar-item" data-go="analytics"><span class="icon">📊</span> Analytics</div>
+      <div class="sidebar-item" data-go="install-app"><span class="icon">📱</span> App mobile</div>
+      <div class="sidebar-item" data-go="admin" id="side-admin" hidden><span class="icon">⚙</span> Admin</div>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar" id="side-avatar">?</div>
+      <div class="who">
+        <strong id="side-name">—</strong>
+        <span id="side-prof">—</span>
+      </div>
+      <button class="icon-btn" id="side-logout" title="Déconnexion" style="width:32px;height:32px;font-size:14px">↪</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Topbar (mobile) -->
+    <header class="topbar">
+      <div class="topbar-logo">
+        <svg viewBox="0 0 512 512">
+          <defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs>
+          <path d="M 320 130 L 320 320 Q 320 400 240 400 Q 180 400 160 350" stroke="url(#tg)" stroke-width="42" stroke-linecap="round" fill="none"/>
+          <circle cx="320" cy="130" r="22" fill="#BF5AF2"/>
+        </svg>
+        <div class="topbar-brand">
+          <span class="name">JADOMI</span>
+          <span class="sub" id="top-prof">—</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="top-add" title="Ajouter">＋</button>
+        <button class="icon-btn" id="top-logout" title="Déconnexion">↪</button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content" id="content">
+
+      <!-- ===== STOCK ===== -->
+      <section data-screen="stock">
+        <div class="greeting">
+          <h1 id="hello">Bonjour</h1>
+          <p id="hello-sub">Voici l'état de ton stock aujourd'hui.</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-label">Références</div><div class="stat-value" id="stat-total">0</div><div class="stat-trend">produits suivis</div></div>
+          <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value" id="stat-crit">0</div><div class="stat-trend">à recommander</div></div>
+          <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value" id="stat-low">0</div><div class="stat-trend">stock bas</div></div>
+          <div class="stat"><div class="stat-label">OK</div><div class="stat-value" id="stat-ok">0</div><div class="stat-trend">stock sain</div></div>
+        </div>
+
+        <div class="search" id="search-wrap">
+          <span class="ico">🔍</span>
+          <input id="search-input" type="text" placeholder="Chercher un produit, une marque…">
+          <button class="clear" id="search-clear">✕</button>
+        </div>
+
+        <div class="filter-pills" id="filter-pills">
+          <button class="pill active" data-filter="all">Tous <span class="count" id="cnt-all">0</span></button>
+          <button class="pill" data-filter="critique">Critique <span class="count" id="cnt-crit">0</span></button>
+          <button class="pill" data-filter="faible">Faible <span class="count" id="cnt-low">0</span></button>
+          <button class="pill" data-filter="ok">OK <span class="count" id="cnt-ok">0</span></button>
+        </div>
+
+        <div class="products" id="products"></div>
+      </section>
+
+      <!-- ===== SCANNER ===== -->
+      <section data-screen="scanner" hidden>
+        <div class="greeting">
+          <h1>Scanner</h1>
+          <p>Pointe ta caméra sur un code-barres, JADOMI identifie le produit instantanément.</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-label">Session</div><div class="stat-value" id="scan-session-count">0</div><div class="stat-trend">scanné(s)</div></div>
+          <div class="stat"><div class="stat-label">Stock</div><div class="stat-value" id="scan-session-stock">0</div><div class="stat-trend">références</div></div>
+        </div>
+        <div style="display:flex;justify-content:center;margin:32px 0">
+          <button id="scan-start" class="btn-primary" style="padding:20px 36px;font-size:17px;font-weight:700;border-radius:50px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(10,132,255,.35)">
+            <span style="font-size:22px">📷</span> Démarrer le scan
+          </button>
+        </div>
+        <div style="max-width:480px;margin:0 auto;padding:20px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px">
+          <h3 style="font-size:13px;color:var(--text-2);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">Comment ça marche</h3>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;color:var(--text);font-size:14px">
+            <li style="display:flex;gap:10px"><span style="color:var(--accent,#0A84FF)">✓</span> EAN-13, Code128, QR, DataMatrix supportés</li>
+            <li style="display:flex;gap:10px"><span style="color:var(--accent,#0A84FF)">✓</span> Codes GS1 → péremption + lot lus auto</li>
+            <li style="display:flex;gap:10px"><span style="color:var(--accent,#0A84FF)">✓</span> Lookup base JADOMI + OpenFoodFacts</li>
+            <li style="display:flex;gap:10px"><span style="color:var(--accent,#0A84FF)">✓</span> Ajout au stock en 1 tap</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ===== DEALS (placeholder) ===== -->
+      <section data-screen="deals" hidden>
+        <div class="coming-soon">
+          <div class="badge">Bientôt</div>
+          <h2>Flash Deals</h2>
+          <p>Offres groupées négociées avec les meilleurs fournisseurs de ta profession. Connexion en cours.</p>
+        </div>
+      </section>
+
+      <!-- ===== ANALYTICS (placeholder) ===== -->
+      <section data-screen="analytics" hidden>
+        <div class="coming-soon">
+          <div class="badge">Bientôt</div>
+          <h2>Analytics</h2>
+          <p>Tes économies, ta consommation, tes tendances. Branché sur tes vraies données dès la prochaine version.</p>
+        </div>
+      </section>
+
+      <!-- ===== ADMIN ===== -->
+      <section data-screen="admin" hidden>
+        <div class="greeting">
+          <h1>Admin · JADOMI</h1>
+          <p>Vue d'ensemble Stripe et activité du business.</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-label">Abonnés actifs</div><div class="stat-value" id="adm-abos">—</div><div class="stat-trend">comptes payants</div></div>
+          <div class="stat"><div class="stat-label">MRR</div><div class="stat-value" id="adm-mrr">—</div><div class="stat-trend">revenu mensuel récurrent</div></div>
+          <div class="stat"><div class="stat-label">Revenus mois</div><div class="stat-value" id="adm-revenus">—</div><div class="stat-trend">factures payées</div></div>
+          <div class="stat"><div class="stat-label">Nouveaux 7j</div><div class="stat-value" id="adm-nouveaux">—</div><div class="stat-trend">cette semaine</div></div>
+          <div class="stat"><div class="stat-label">Impayés</div><div class="stat-value" id="adm-impayes">—</div><div class="stat-trend">à relancer</div></div>
+          <div class="stat"><div class="stat-label">Commissions Rush</div><div class="stat-value" id="adm-rush">—</div><div class="stat-trend">ce mois</div></div>
+        </div>
+        <div style="margin-top:24px;display:flex;justify-content:center">
+          <button id="adm-refresh" class="pill" style="padding:12px 20px;font-size:14px;font-weight:600">↻ Rafraîchir</button>
+        </div>
+      </section>
+
+      <!-- ===== INSTALL APP (desktop only nav) ===== -->
+      <section data-screen="install-app" hidden>
+        <div class="install-page">
+          <div class="install-hero">
+            <div class="install-mockup">
+              <div class="iphone">
+                <div class="iphone-screen">
+                  <div class="mock-header">
+                    <svg viewBox="0 0 512 512"><defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs><path d="M 320 130 L 320 320 Q 320 400 240 400 Q 180 400 160 350" stroke="url(#mg)" stroke-width="42" stroke-linecap="round" fill="none"/><circle cx="320" cy="130" r="22" fill="#BF5AF2"/></svg>
+                    <span class="name">JADOMI</span>
+                    <span class="sub">DENTISTE</span>
+                  </div>
+                  <div class="mock-stat">
+                    <div class="mock-stat-card"><span style="font-size:7px;color:#6B6B80">Réfs</span><strong>24</strong></div>
+                    <div class="mock-stat-card r"><span style="font-size:7px;color:#6B6B80">Critique</span><strong>3</strong></div>
+                    <div class="mock-stat-card o"><span style="font-size:7px;color:#6B6B80">Faible</span><strong>5</strong></div>
+                    <div class="mock-stat-card"><span style="font-size:7px;color:#6B6B80">OK</span><strong style="color:#32D74B">16</strong></div>
+                  </div>
+                  <div class="mock-product crit"><div><b>Gants nitrile</b><br><i>DPI · Boîte 100</i></div><div style="text-align:right"><b style="color:#FF453A">2</b><i> /20</i></div></div>
+                  <div class="mock-product warn"><div><b>Composite A2</b><br><i>3M · Filtek</i></div><div style="text-align:right"><b style="color:#FF9F0A">8</b><i> /15</i></div></div>
+                  <div class="mock-product"><div><b>Adhésif universel</b><br><i>Bisco</i></div><div style="text-align:right"><b style="color:#32D74B">12</b><i> /10</i></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="install-text">
+              <h1>JADOMI<br><span class="grad">dans ta poche.</span></h1>
+              <p>L'app mobile premium pour gérer ton stock en quelques tap. Scanner natif, alertes en temps réel, accès hors-ligne.</p>
+              <ul class="install-bullets">
+                <li>Scanner code-barres caméra ultra-rapide</li>
+                <li>Alertes stock critique en push</li>
+                <li>Mode hors-ligne pour le cabinet</li>
+                <li>1 tap depuis ton écran d'accueil</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="install-cards">
+            <div class="install-card ios">
+              <div class="badge">iPhone · Safari</div>
+              <h3>Installer sur iPhone</h3>
+              <ol>
+                <li>Ouvre <strong>jadomi.fr</strong> dans Safari</li>
+                <li>Touche le bouton <strong>Partager</strong> en bas</li>
+                <li>Choisis <strong>« Sur l'écran d'accueil »</strong></li>
+                <li>Confirme avec <strong>Ajouter</strong></li>
+              </ol>
+            </div>
+            <div class="install-card android">
+              <div class="badge">Android · Chrome</div>
+              <h3>Installer sur Android</h3>
+              <ol>
+                <li>Ouvre <strong>jadomi.fr</strong> dans Chrome</li>
+                <li>Touche le menu <strong>⋮</strong> en haut à droite</li>
+                <li>Choisis <strong>« Installer l'application »</strong></li>
+                <li>Confirme avec <strong>Installer</strong></li>
+              </ol>
+            </div>
+            <div class="install-card qr">
+              <div class="badge">Scanne et c'est parti</div>
+              <h3>QR code direct</h3>
+              <div class="qr-wrap">
+                <div class="qr-box" id="qr-box"></div>
+                <div class="qr-url">→ <strong>jadomi.fr</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Bottom nav (mobile) -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" data-go="stock"><span class="ico">📦</span><span>Stock</span></button>
+      <button class="nav-tab" data-go="scanner"><span class="ico">⬛</span><span>Scanner</span></button>
+      <button class="nav-tab" data-go="deals"><span class="ico">🔥</span><span>Deals</span></button>
+      <button class="nav-tab" data-go="analytics"><span class="ico">📊</span><span>Analytics</span></button>
+      <button class="nav-tab" data-go="admin" id="nav-admin" hidden><span class="ico">⚙</span><span>Admin</span></button>
+    </nav>
+  </main>
+</div>
+
+<!-- ============================================================
+     INSTALL PROMPT (mobile post-login bottom sheet)
+     ============================================================ -->
+<div id="install-prompt" class="install-backdrop" hidden>
+  <div class="install-sheet">
+    <div class="install-handle"></div>
+    <div class="install-icon">
+      <svg viewBox="0 0 512 512"><defs><linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#BF5AF2"/></linearGradient></defs><path d="M 320 130 L 320 320 Q 320 400 240 400 Q 180 400 160 350" stroke="url(#ig)" stroke-width="42" stroke-linecap="round" fill="none"/><circle cx="320" cy="130" r="22" fill="#BF5AF2"/></svg>
+    </div>
+    <h2 class="install-title">Installe JADOMI</h2>
+    <p class="install-sub">Accès en 1 tap, scanner caméra natif, alertes en temps réel.</p>
+
+    <div class="install-features">
+      <div class="install-feature"><div class="ico b">⚡</div><div class="txt"><h4>Rapide</h4><p>Démarrage instantané, 1 tap depuis l'écran d'accueil</p></div></div>
+      <div class="install-feature"><div class="ico p">📷</div><div class="txt"><h4>Scanner natif</h4><p>Caméra plein écran pour code-barres et factures</p></div></div>
+      <div class="install-feature"><div class="ico g">🔔</div><div class="txt"><h4>Alertes push</h4><p>Stock critique sans ouvrir l'app</p></div></div>
+    </div>
+
+    <div id="install-android-block" hidden>
+      <button class="btn-primary" id="install-now-btn">Installer maintenant</button>
+    </div>
+
+    <div id="install-ios-block" hidden>
+      <div class="install-steps">
+        <h4>Sur ton iPhone</h4>
+        <div class="install-step"><div class="num">1</div><div>Touche le bouton <strong>Partager</strong> en bas de Safari</div></div>
+        <div class="install-step"><div class="num">2</div><div>Choisis <strong>« Sur l'écran d'accueil »</strong></div></div>
+        <div class="install-step"><div class="num">3</div><div>Confirme avec <strong>Ajouter</strong></div></div>
+      </div>
+    </div>
+
+    <button class="btn-ghost" id="install-later">Plus tard</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL HOST + TOAST HOST
+     ============================================================ -->
+<div id="modal-host"></div>
+<div id="toast-host"></div>
+
+<script>
+/* ============================================================
+   JADOMI · App logic
+   ============================================================ */
+
+// ── Config Supabase ────────────────────────────────────────
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+// ── Référentiel professions ────────────────────────────────
+const PROFESSIONS = {
+  'chirurgien-dentiste': { label: 'Chirurgien-Dentiste', short: 'DENTISTE',     icon: '🦷', color: '#0A84FF', cls: 'accent-dentiste' },
+  'orthodontiste':       { label: 'Orthodontiste',       short: 'ORTHO',        icon: '😬', color: '#40C8E0', cls: 'accent-orthodontiste' },
+  'prothesiste':         { label: 'Prothésiste',         short: 'PROTHÉSISTE',  icon: '🛠', color: '#FF9F0A', cls: 'accent-prothesiste' },
+  'veterinaire':         { label: 'Vétérinaire',         short: 'VÉTO',         icon: '🐾', color: '#32D74B', cls: 'accent-veterinaire' }
+};
+
+// ── État global ────────────────────────────────────────────
+const state = {
+  user: null,
+  profile: null,
+  products: [],
+  filter: 'all',
+  search: '',
+  screen: 'stock'
+};
+
+// ── Endpoints API à ajuster selon ton server.js ────────────
+// TODO Karim : si les chemins réels diffèrent, change ici en 1 ligne.
+const API = {
+  scanLookup:  '/api/scan/lookup',         // lookup produit (Supabase + OpenFoodFacts)
+  adminStats:  '/api/admin/stats',         // dashboard admin (header x-admin-token)
+  claude:      '/api/claude',              // proxy IA Anthropic (POST messages)
+  scanPhoto:   '/api/claude/scan-photo',   // legacy — non utilisé (P3)
+  scanFacture: '/api/claude/scan-facture'  // legacy — non utilisé (P3)
+};
+
+// ── Token admin (front uniquement, doit matcher .env ADMIN_TOKEN) ──
+const ADMIN_TOKEN = 'jadomi_admin_karim_2026';
+
+// ── Helpers DOM ────────────────────────────────────────────
+const $  = (s, p = document) => p.querySelector(s);
+const $$ = (s, p = document) => Array.from(p.querySelectorAll(s));
+const show = el => { if (el) el.hidden = false; };
+const hide = el => { if (el) el.hidden = true; };
+
+// ── Toast ──────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const icons = { ok: '✓', err: '⚠', info: 'ℹ', warn: '⚠' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<span class="ico">${icons[type]}</span><span>${msg}</span>`;
+  $('#toast-host').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ── Vibration safe ─────────────────────────────────────────
+const vibe = (p = 30) => { try { navigator.vibrate?.(p); } catch (_) {} };
+
+// ── Splash off ─────────────────────────────────────────────
+function hideSplash() {
+  const s = $('#splash');
+  s.classList.add('hide');
+  setTimeout(() => hide(s), 500);
+}
+
+// ── Logout ──────────────────────────────────────────────────
+// Vide jadomi_session, déconnecte Supabase Auth, retour à /login.html
+async function logout() {
+  try { await sb.auth.signOut(); } catch (_) {}
+  localStorage.removeItem('jadomi_session');
+  state.user = null;
+  state.profile = null;
+  state.products = [];
+  location.href = '/login.html';
+}
+
+// ── Profil ─────────────────────────────────────────────────
+async function loadProfile() {
+  const { data, error } = await sb
+    .from('profiles')
+    .select('id, email, role, profession, display_name, cabinet_name, is_free_account')
+    .eq('id', state.user.id)
+    .single();
+  if (error) {
+    console.error('loadProfile', error);
+    toast('Impossible de charger ton profil', 'err');
+    return null;
+  }
+  return data;
+}
+
+async function setProfession(profession) {
+  const { error } = await sb
+    .from('profiles')
+    .update({ profession })
+    .eq('id', state.user.id);
+  if (error) { toast('Erreur enregistrement profession', 'err'); return false; }
+  state.profile.profession = profession;
+  return true;
+}
+
+// ── Application visuelle de la profession ─────────────────
+function applyProfession() {
+  const p = state.profile;
+  // Classe accent sur body
+  document.body.className = '';
+  if (p.role === 'admin') {
+    document.body.classList.add('accent-admin');
+    // Révèle l'onglet admin (sidebar + bottom nav)
+    const sa = $('#side-admin'); if (sa) sa.hidden = false;
+    const na = $('#nav-admin');  if (na) na.hidden = false;
+  } else if (p.profession && PROFESSIONS[p.profession]) {
+    document.body.classList.add(PROFESSIONS[p.profession].cls);
+  }
+
+  // Salutation
+  const hour = new Date().getHours();
+  const salut = hour < 12 ? 'Bonjour' : (hour < 18 ? 'Bon après-midi' : 'Bonsoir');
+  const name = p.display_name || (p.cabinet_name ? p.cabinet_name : (p.email?.split('@')[0] || ''));
+  $('#hello').textContent = `${salut}${name ? ', ' + name : ''}`;
+  $('#hello-sub').textContent = p.cabinet_name ? `Voici l'état du stock — ${p.cabinet_name}` : "Voici l'état de ton stock aujourd'hui.";
+
+  // Topbar / sidebar profession label
+  const pInfo = PROFESSIONS[p.profession];
+  $('#top-prof').textContent = pInfo ? pInfo.short : '';
+  $('#side-prof').textContent = pInfo ? pInfo.label : '';
+  $('#side-name').textContent = name || p.email;
+
+  // Avatar initiale
+  const initial = (name || p.email || '?').charAt(0).toUpperCase();
+  $('#side-avatar').textContent = initial;
+}
+
+// ── Stock ──────────────────────────────────────────────────
+function statusOf(p) {
+  if (p.qty <= 0) return 'critique';
+  if (p.qty < (p.seuil || 0)) return 'faible';
+  return 'ok';
+}
+const STATUS_COLOR = { critique: '#FF453A', faible: '#FF9F0A', ok: '#32D74B' };
+
+async function loadProducts() {
+  const { data, error } = await sb
+    .from('produits')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('loadProducts', error);
+    if (error.code === 'PGRST301' || error.message?.includes('row-level')) {
+      toast('Accès stock bloqué — exécute Phase 2 SQL', 'err');
+    } else {
+      toast('Erreur de chargement du stock', 'err');
+    }
+    state.products = [];
+  } else {
+    state.products = data || [];
+  }
+  renderStock();
+}
+
+function renderStock() {
+  const products = state.products;
+  // Stats
+  const total = products.length;
+  const crit  = products.filter(p => statusOf(p) === 'critique').length;
+  const low   = products.filter(p => statusOf(p) === 'faible').length;
+  const ok    = products.filter(p => statusOf(p) === 'ok').length;
+  $('#stat-total').textContent = total;
+  $('#stat-crit').textContent  = crit;
+  $('#stat-low').textContent   = low;
+  $('#stat-ok').textContent    = ok;
+  $('#cnt-all').textContent  = total;
+  $('#cnt-crit').textContent = crit;
+  $('#cnt-low').textContent  = low;
+  $('#cnt-ok').textContent   = ok;
+
+  // Filtrage
+  const q = state.search.toLowerCase().trim();
+  let filtered = products;
+  if (state.filter !== 'all') {
+    filtered = filtered.filter(p => statusOf(p) === state.filter);
+  }
+  if (q) {
+    filtered = filtered.filter(p =>
+      (p.nom || '').toLowerCase().includes(q) ||
+      (p.marque || '').toLowerCase().includes(q) ||
+      (p.fournisseur || '').toLowerCase().includes(q) ||
+      (p.categorie || '').toLowerCase().includes(q)
+    );
+  }
+
+  const host = $('#products');
+  if (filtered.length === 0) {
+    host.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📦</div>
+        <h3>${total === 0 ? 'Aucun produit' : 'Aucun résultat'}</h3>
+        <p>${total === 0 ? 'Commence par ajouter ton premier produit pour suivre ton stock.' : 'Essaie un autre filtre ou une autre recherche.'}</p>
+        ${total === 0 ? '<button class="btn-primary" onclick="openProductModal()">＋ Ajouter un produit</button>' : ''}
+      </div>`;
+    return;
+  }
+
+  host.innerHTML = filtered.map((p, i) => {
+    const st = statusOf(p);
+    const color = STATUS_COLOR[st];
+    const seuil = p.seuil || 1;
+    const pct = Math.min(100, Math.max(0, (p.qty / Math.max(seuil * 1.5, 1)) * 100));
+    return `
+    <div class="product" style="--p-color:${color};animation-delay:${i * 0.04}s">
+      <div class="glow"></div>
+      <div class="body">
+        <div class="name">${escapeHtml(p.nom || 'Sans nom')}</div>
+        <div class="meta">
+          ${p.categorie ? `<span>${escapeHtml(p.categorie)}</span><span class="dot"></span>` : ''}
+          ${p.marque ? `<span>${escapeHtml(p.marque)}</span><span class="dot"></span>` : ''}
+          <span>${escapeHtml(p.fournisseur || '—')}</span>
+        </div>
+        <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="right">
+        <div class="qty-box">
+          <span class="qty-num">${p.qty}</span>
+          <span class="qty-sep">/</span>
+          <span class="qty-max">${p.seuil || '—'}</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn" onclick="editProduct(${p.id})" title="Éditer">✎</button>
+          <button class="action-btn danger" onclick="deleteProduct(${p.id})" title="Supprimer">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+// ── Modal ajout/édition ────────────────────────────────────
+function openProductModal(prod = null) {
+  const isEdit = !!prod;
+  const m = $('#modal-host');
+  m.innerHTML = `
+    <div class="modal-backdrop" id="modal-bd">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <h2>${isEdit ? 'Éditer le produit' : 'Nouveau produit'}</h2>
+          <button class="icon-btn" onclick="closeModal()">✕</button>
+        </div>
+        <form class="modal-form" id="prod-form">
+          <div class="field">
+            <label>Nom du produit</label>
+            <input name="nom" required placeholder="Ex : Gants nitrile T.M" value="${escapeHtml(prod?.nom || '')}">
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Catégorie</label>
+              <input name="categorie" placeholder="Gants" value="${escapeHtml(prod?.categorie || '')}">
+            </div>
+            <div class="field">
+              <label>Marque</label>
+              <input name="marque" placeholder="DPI" value="${escapeHtml(prod?.marque || '')}">
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Quantité</label>
+              <input name="qty" type="number" min="0" required value="${prod?.qty ?? 0}">
+            </div>
+            <div class="field">
+              <label>Seuil d'alerte</label>
+              <input name="seuil" type="number" min="0" required value="${prod?.seuil ?? 5}">
+            </div>
+          </div>
+          <div class="field">
+            <label>Fournisseur</label>
+            <input name="fournisseur" placeholder="DPI, GACD…" value="${escapeHtml(prod?.fournisseur || '')}">
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-ghost" onclick="closeModal()">Annuler</button>
+            <button type="submit" class="btn-primary">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  $('#modal-bd').addEventListener('click', closeModal);
+  $('#prod-form').addEventListener('submit', e => saveProduct(e, prod?.id));
+}
+
+function closeModal() {
+  $('#modal-host').innerHTML = '';
+}
+
+async function saveProduct(e, id) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    nom: fd.get('nom').trim(),
+    categorie: fd.get('categorie').trim() || null,
+    marque: fd.get('marque').trim() || null,
+    qty: parseInt(fd.get('qty')) || 0,
+    seuil: parseInt(fd.get('seuil')) || 0,
+    fournisseur: fd.get('fournisseur').trim() || null,
+    owner_id: state.user.id
+  };
+  let res;
+  if (id) {
+    res = await sb.from('produits').update(payload).eq('id', id);
+  } else {
+    res = await sb.from('produits').insert(payload);
+  }
+  if (res.error) {
+    console.error(res.error);
+    toast('Erreur enregistrement', 'err');
+    return;
+  }
+  closeModal();
+  toast(id ? 'Produit mis à jour' : 'Produit ajouté', 'ok');
+  vibe(40);
+  await loadProducts();
+}
+
+window.editProduct = id => {
+  const p = state.products.find(x => x.id === id);
+  if (p) openProductModal(p);
+};
+window.openProductModal = openProductModal;
+window.closeModal = closeModal;
+
+window.deleteProduct = async id => {
+  if (!confirm('Supprimer ce produit ?')) return;
+  const { error } = await sb.from('produits').delete().eq('id', id);
+  if (error) { toast('Erreur suppression', 'err'); return; }
+  toast('Produit supprimé', 'ok');
+  vibe(40);
+  await loadProducts();
+};
+
+// ── Router ─────────────────────────────────────────────────
+function go(screen) {
+  state.screen = screen;
+  $$('[data-screen]').forEach(s => { s.hidden = s.dataset.screen !== screen; });
+  $$('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.go === screen));
+  $$('.sidebar-item').forEach(t => t.classList.toggle('active', t.dataset.go === screen));
+  if (screen === 'install-app') renderQR();
+  document.querySelector('.content').scrollTop = 0;
+}
+
+// ── QR code (lazy load lib) ────────────────────────────────
+let qrLoaded = false;
+function renderQR() {
+  const box = $('#qr-box');
+  if (!box || box.children.length) return;
+  if (qrLoaded) return drawQR();
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+  s.onload = () => { qrLoaded = true; drawQR(); };
+  document.head.appendChild(s);
+}
+function drawQR() {
+  if (!window.qrcode) return;
+  const qr = window.qrcode(0, 'M');
+  qr.addData('https://jadomi.fr');
+  qr.make();
+  $('#qr-box').innerHTML = qr.createSvgTag({ scalable: true });
+}
+
+// ── Install prompt ─────────────────────────────────────────
+let deferredInstallEvt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallEvt = e;
+});
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isMobile() {
+  return window.innerWidth <= 1024 && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+function isIOS() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function maybeShowInstallPrompt() {
+  if (!isMobile()) return;
+  if (isStandalone()) return;
+  if (localStorage.getItem('jadomi.install_prompt_seen') === 'true') return;
+
+  setTimeout(() => {
+    show($('#install-prompt'));
+    localStorage.setItem('jadomi.install_prompt_seen', 'true');
+    vibe(50);
+    if (isIOS()) {
+      show($('#install-ios-block'));
+      hide($('#install-android-block'));
+    } else {
+      show($('#install-android-block'));
+      hide($('#install-ios-block'));
+    }
+  }, 1800);
+}
+
+function closeInstallPrompt() {
+  hide($('#install-prompt'));
+}
+$('#install-later')?.addEventListener('click', closeInstallPrompt);
+$('#install-prompt')?.addEventListener('click', e => {
+  // tap sur le backdrop (pas sur le sheet) → ferme aussi
+  if (e.target === $('#install-prompt')) closeInstallPrompt();
+});
+$('#install-now-btn')?.addEventListener('click', async () => {
+  if (!deferredInstallEvt) {
+    toast("L'installation n'est pas encore disponible sur ce navigateur", 'warn');
+    closeInstallPrompt();
+    return;
+  }
+  deferredInstallEvt.prompt();
+  const { outcome } = await deferredInstallEvt.userChoice;
+  if (outcome === 'accepted') toast('Merci ! JADOMI s\'installe', 'ok');
+  closeInstallPrompt();
+  deferredInstallEvt = null;
+});
+
+window.addEventListener('appinstalled', () => {
+  localStorage.setItem('jadomi.installed', 'true');
+  toast('JADOMI installé sur ton appareil 🎉', 'ok');
+});
+
+// ── Écrans : onboarding / app ──────────────────────────────
+// (pas d'écran auth ici — login.html s'en charge)
+function showOnboarding() {
+  hide($('#splash'));
+  hide($('#app-shell'));
+  show($('#onboarding-screen'));
+}
+function showApp() {
+  hide($('#splash'));
+  hide($('#onboarding-screen'));
+  show($('#app-shell'));
+}
+
+// ── Lecture de la session JADOMI ────────────────────────────
+// Contrat : localStorage.jadomi_session ou Supabase Auth session.
+// Si rien → redirect /login.html (jamais d'écran auth dans mobile.html).
+function readJadomiSession() {
+  try {
+    const raw = localStorage.getItem('jadomi_session');
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || !p.user_id || !p.email) return null;
+    return p;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ── Bootstrap après login ──────────────────────────────────
+async function bootstrapSession({ user, profileOverride }) {
+  state.user = user;
+
+  // Si le jadomi_session a fourni un profil pré-calculé, on l'utilise
+  // direct (UI plus rapide). Sinon on tape Supabase profiles.
+  if (profileOverride) {
+    state.profile = {
+      id: user.id,
+      email: user.email,
+      profession: profileOverride.profession || null,
+      role: profileOverride.role || 'user',
+      display_name: profileOverride.display_name || null,
+      cabinet_name: profileOverride.cabinet_name || null,
+      is_free_account: !!profileOverride.is_free_account
+    };
+  } else {
+    state.profile = await loadProfile();
+  }
+
+  if (!state.profile) {
+    toast('Profil introuvable, retour au login', 'err');
+    setTimeout(() => location.href = '/login.html', 1500);
+    return;
+  }
+
+  // Admin n'a pas besoin de profession (mais peut quand même l'avoir)
+  if (!state.profile.profession && state.profile.role !== 'admin') {
+    showOnboarding();
+    return;
+  }
+
+  applyProfession();
+  showApp();
+  go('stock');
+  await loadProducts();
+  maybeShowInstallPrompt();
+}
+
+// ── Listeners auth Supabase (logout cross-tabs) ────────────
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') {
+    localStorage.removeItem('jadomi_session');
+    location.href = '/login.html';
+  }
+});
+
+// ── Listeners DOM ──────────────────────────────────────────
+function bindUI() {
+  $('#top-logout').addEventListener('click', logout);
+  $('#side-logout').addEventListener('click', logout);
+  $('#top-add').addEventListener('click', () => openProductModal());
+
+  // Scanner — bouton "Démarrer le scan" depuis l'onglet Scanner
+  const ss = $('#scan-start');
+  if (ss) ss.addEventListener('click', () => ouvrirScanner());
+
+  // Admin — bouton refresh
+  const ar = $('#adm-refresh');
+  if (ar) ar.addEventListener('click', () => loadAdminStats());
+
+  // Side effects sur changement d'onglet (en plus du go() existant)
+  $$('[data-go="scanner"]').forEach(el => el.addEventListener('click', () => {
+    const c = $('#scan-session-stock'); if (c) c.textContent = state.products.length || 0;
+  }));
+  $$('[data-go="admin"]').forEach(el => el.addEventListener('click', () => loadAdminStats()));
+
+  // Profession picker
+  $$('#prof-grid .prof-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      $$('#prof-grid .prof-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      vibe(30);
+      const ok = await setProfession(card.dataset.prof);
+      if (ok) {
+        applyProfession();
+        showApp();
+        go('stock');
+        await loadProducts();
+        maybeShowInstallPrompt();
+      }
+    });
+  });
+
+  // Search
+  $('#search-input').addEventListener('input', e => {
+    state.search = e.target.value;
+    $('#search-wrap').classList.toggle('has-value', !!state.search);
+    renderStock();
+  });
+  $('#search-clear').addEventListener('click', () => {
+    $('#search-input').value = '';
+    state.search = '';
+    $('#search-wrap').classList.remove('has-value');
+    renderStock();
+  });
+
+  // Filter pills
+  $$('.pill').forEach(p => {
+    p.addEventListener('click', () => {
+      $$('.pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      state.filter = p.dataset.filter;
+      renderStock();
+      vibe(20);
+    });
+  });
+
+  // Nav
+  $$('[data-go]').forEach(el => {
+    el.addEventListener('click', () => {
+      go(el.dataset.go);
+      vibe(20);
+    });
+  });
+}
+
+// ============================================================
+// SCANNER (Quagga2 + ZXing) + GS1 + Bottom sheet + Admin stats
+// Porté du desktop index.html, adapté au design mobile JADOMI.
+// ============================================================
+
+// ── Audio context (BIP de confirmation) ────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { _audioCtx = null; }
+  }
+  return _audioCtx;
+}
+function bipScan() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = 2400;
+    g.gain.value = 1.0;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    setTimeout(() => o.stop(), 160);
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([80, 30, 80]);
+}
+
+// ── Parser GS1 (AI 01 GTIN, 17 péremption AAMMJJ, 10 lot) ──
+function parseGS1(raw) {
+  const r = { code: raw, exp: null, lot: null, gtin: null };
+  let s = raw.replace(/^\].[0-9]/, '');
+  const m01 = s.match(/01(\d{14})/); if (m01) r.gtin = m01[1];
+  const m17 = s.match(/17(\d{6})/);
+  if (m17) {
+    const yy = m17[1].substring(0, 2), mm = m17[1].substring(2, 4);
+    r.exp = (parseInt(yy) < 70 ? 2000 + parseInt(yy) : 1900 + parseInt(yy)) + '-' + mm;
+  }
+  const m10 = s.match(/10([^\x1d]{1,20})/); if (m10) r.lot = m10[1];
+  if (!r.gtin && /^\d{8,14}$/.test(s)) r.gtin = s;
+  return r;
+}
+
+// ── État scanner ───────────────────────────────────────────
+const scanState = {
+  count: 0, paused: false, lastCode: '', lastCodeTime: 0,
+  autoExp: null, autoLot: null, currentCode: null,
+  quaggaActive: false, zxingReader: null
+};
+
+// ── Création de l'overlay (idempotent) ─────────────────────
+function buildScanOverlay() {
+  if (document.getElementById('scan-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'scan-overlay';
+  ov.innerHTML = `
+    <div class="scan-topbar">
+      <div class="scan-title">📷 Scanner JADOMI</div>
+      <div class="scan-counter" id="scan-count">0 scanné</div>
+      <button class="scan-close" id="scan-close" aria-label="Fermer">✕</button>
+    </div>
+    <div class="scan-viewport" id="scan-viewport">
+      <div id="scan-camera"></div>
+      <div class="scan-frame">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="laser"></div>
+      </div>
+      <div id="scan-flash"></div>
+      <div id="scan-status" class="scan-status">Pointe vers le code-barres</div>
+    </div>
+    <div id="scan-result-panel" class="scan-result-panel" hidden></div>`;
+  document.body.appendChild(ov);
+  document.getElementById('scan-close').addEventListener('click', fermerScanner);
+}
+
+// ── Ouverture / Fermeture ──────────────────────────────────
+function ouvrirScanner() {
+  // Init audio sur interaction user (iOS requirement)
+  getAudioCtx();
+  buildScanOverlay();
+
+  scanState.count = 0;
+  scanState.paused = false;
+  scanState.lastCode = '';
+  scanState.lastCodeTime = 0;
+  scanState.autoExp = null;
+  scanState.autoLot = null;
+  scanState.currentCode = null;
+
+  const ov = document.getElementById('scan-overlay');
+  document.getElementById('scan-result-panel').hidden = true;
+  document.getElementById('scan-result-panel').innerHTML = '';
+  document.getElementById('scan-count').textContent = '0 scanné';
+  document.getElementById('scan-status').textContent = 'Pointe vers le code-barres';
+  ov.classList.add('active');
+
+  // Démarre Quagga2 d'abord (rapide EAN), fallback ZXing
+  const tryStart = () => {
+    if (window.Quagga) demarrerQuagga();
+    else if (window.ZXing) demarrerZXing();
+    else {
+      toast('⏳ Chargement du scanner…', 'info');
+      const check = setInterval(() => {
+        if (window.Quagga) { clearInterval(check); demarrerQuagga(); }
+        else if (window.ZXing) { clearInterval(check); demarrerZXing(); }
+      }, 200);
+      setTimeout(() => clearInterval(check), 8000);
+    }
+  };
+  tryStart();
+}
+
+function fermerScanner() {
+  scanState.paused = true;
+  // Stop Quagga
+  if (scanState.quaggaActive && window.Quagga) {
+    try { window.Quagga.stop(); } catch (e) {}
+    scanState.quaggaActive = false;
+  }
+  // Stop ZXing
+  if (scanState.zxingReader) {
+    try { scanState.zxingReader.reset(); } catch (e) {}
+    scanState.zxingReader = null;
+  }
+  // Stop tracks (caméra)
+  const cam = document.getElementById('scan-camera');
+  if (cam) {
+    cam.querySelectorAll('video').forEach(v => {
+      try { v.srcObject?.getTracks().forEach(t => t.stop()); } catch (e) {}
+    });
+    cam.innerHTML = '';
+  }
+  const ov = document.getElementById('scan-overlay');
+  if (ov) ov.classList.remove('active');
+}
+
+// ── Démarrage Quagga2 (codes 1D ultra-rapide) ──────────────
+function demarrerQuagga() {
+  const target = document.getElementById('scan-camera');
+  if (!target || !window.Quagga) return;
+  window.Quagga.init({
+    inputStream: {
+      type: 'LiveStream',
+      target,
+      constraints: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    },
+    locator: { patchSize: 'medium', halfSample: true },
+    numOfWorkers: navigator.hardwareConcurrency || 2,
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader', 'upc_reader', 'upc_e_reader']
+    },
+    locate: true
+  }, (err) => {
+    if (err) {
+      console.warn('[Quagga] init err', err);
+      // Fallback ZXing
+      if (window.ZXing) demarrerZXing();
+      else toast('Caméra indisponible', 'err');
+      return;
+    }
+    window.Quagga.start();
+    scanState.quaggaActive = true;
+  });
+  window.Quagga.offDetected();
+  window.Quagga.onDetected((result) => {
+    const code = result?.codeResult?.code;
+    if (code) onCodeDetecte(code);
+  });
+}
+
+// ── Démarrage ZXing (DataMatrix, QR, formats avancés) ──────
+function demarrerZXing() {
+  if (!window.ZXing) { toast('Lecteur ZXing indisponible', 'err'); return; }
+  const target = document.getElementById('scan-camera');
+  if (!target) return;
+  // Crée un <video> pour ZXing
+  let video = target.querySelector('video');
+  if (!video) {
+    video = document.createElement('video');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    video.setAttribute('autoplay', '');
+    target.appendChild(video);
+  }
+  try {
+    const reader = new window.ZXing.BrowserMultiFormatReader();
+    scanState.zxingReader = reader;
+    reader.decodeFromConstraints(
+      { video: { facingMode: 'environment' } },
+      video,
+      (result, err) => {
+        if (result) {
+          const txt = result.getText ? result.getText() : String(result);
+          if (txt) onCodeDetecte(txt);
+        }
+      }
+    );
+  } catch (e) {
+    console.warn('[ZXing] err', e);
+    toast('Caméra refusée ou indisponible', 'err');
+  }
+}
+
+// ── Détection : debounce + parseGS1 + lookup + bottom sheet ─
+async function onCodeDetecte(rawCode) {
+  if (scanState.paused) return;
+  const now = Date.now();
+  // Debounce 1.5s sur même code
+  if (rawCode === scanState.lastCode && now - scanState.lastCodeTime < 1500) return;
+  scanState.lastCode = rawCode;
+  scanState.lastCodeTime = now;
+
+  // Parse GS1
+  const gs1 = parseGS1(rawCode);
+  const code = gs1.gtin || rawCode;
+  scanState.autoExp = gs1.exp || null;
+  scanState.autoLot = gs1.lot || null;
+  scanState.currentCode = code;
+
+  // Feedback instantané : BIP + flash + status
+  bipScan();
+  const flash = document.getElementById('scan-flash');
+  if (flash) {
+    flash.style.opacity = '1';
+    setTimeout(() => { flash.style.opacity = '0'; }, 120);
+  }
+  scanState.count += 1;
+  document.getElementById('scan-count').textContent = scanState.count + ' scanné' + (scanState.count > 1 ? 's' : '');
+  document.getElementById('scan-status').textContent = '✓ ' + code + (scanState.autoExp ? ' · Exp ' + scanState.autoExp : '');
+
+  // Lookup interne JADOMI (state.products) puis API
+  const panel = document.getElementById('scan-result-panel');
+  panel.hidden = false;
+  panel.innerHTML = '<div class="scan-loading">🔍 Recherche…</div>';
+
+  // 1. Match local stock
+  const local = state.products.find(p => p.code_barre === code || p.code_barre === rawCode);
+  if (local) { afficherProduitConnu(local, code); return; }
+
+  // 2. Lookup API (Supabase produits + OpenFoodFacts)
+  try {
+    const r = await fetch(API.scanLookup + '?code=' + encodeURIComponent(code));
+    const d = await r.json();
+    if (d && d.source && d.source !== 'unknown' && d.nom) {
+      afficherProduitTrouve(d, code);
+      return;
+    }
+  } catch (e) { /* network -> manuel */ }
+
+  // 3. Inconnu : saisie manuelle
+  afficherSaisieManuelle(code);
+}
+
+// ── Bottom sheet : produit déjà en stock (UPDATE qty) ──────
+function afficherProduitConnu(prod, code) {
+  const panel = document.getElementById('scan-result-panel');
+  const expVal = scanState.autoExp || prod.date_peremption || '';
+  const expBadge = scanState.autoExp ? '<div class="scan-badge ok">📅 Péremption lue automatiquement</div>' : '';
+  const lotBadge = scanState.autoLot ? '<div class="scan-badge info">Lot : ' + escapeHtml(scanState.autoLot) + '</div>' : '';
+  const nomSafe = escapeHtml(prod.nom);
+  panel.innerHTML = `
+    <div class="scan-sheet">
+      <div class="scan-sheet-head">
+        <div class="scan-sheet-title">✅ ${nomSafe}</div>
+        <div class="scan-sheet-sub">${escapeHtml(prod.categorie || '')} · ${escapeHtml(prod.marque || '')} · Stock actuel <strong>${prod.qty}</strong></div>
+        ${lotBadge}${expBadge}
+      </div>
+      <div class="scan-row">
+        <label>Quantité reçue</label>
+        <div class="scan-qty">
+          <button type="button" class="qbtn" id="sq-minus">−</button>
+          <input id="scan-q" type="number" value="1" min="1">
+          <button type="button" class="qbtn" id="sq-plus">+</button>
+        </div>
+      </div>
+      <div class="scan-row">
+        <label>Date de péremption ${scanState.autoExp ? '<span class="scan-badge-inline">✓ auto</span>' : "(sur l'emballage)"}</label>
+        <input id="scan-exp-exist" type="month" value="${expVal}" placeholder="AAAA-MM">
+      </div>
+      <div class="scan-actions">
+        <button class="btn-ghost" id="sa-utilise">− Utilisé</button>
+        <button class="btn-primary" id="sa-recu">+ Reçu au stock</button>
+      </div>
+      <button class="scan-next" id="sa-next">Scanner suivant →</button>
+    </div>`;
+  // Bind
+  document.getElementById('sq-minus').onclick = () => { const i = document.getElementById('scan-q'); i.value = Math.max(1, (parseInt(i.value) || 1) - 1); };
+  document.getElementById('sq-plus').onclick  = () => { const i = document.getElementById('scan-q'); i.value = (parseInt(i.value) || 1) + 1; };
+  document.getElementById('sa-utilise').onclick = () => scanAction(prod.id, prod.nom, 'utilise', code);
+  document.getElementById('sa-recu').onclick    = () => scanAction(prod.id, prod.nom, 'ajoute', code);
+  document.getElementById('sa-next').onclick    = scanContinuer;
+}
+
+// ── Bottom sheet : produit trouvé via lookup (INSERT) ──────
+function afficherProduitTrouve(info, code) {
+  const panel = document.getElementById('scan-result-panel');
+  const expVal = scanState.autoExp || '';
+  const expBadge = scanState.autoExp ? '<div class="scan-badge ok">📅 Péremption lue automatiquement : ' + scanState.autoExp + '</div>' : '';
+  const lotBadge = scanState.autoLot ? '<div class="scan-badge info">Lot : ' + escapeHtml(scanState.autoLot) + '</div>' : '';
+  const sourceBadge = info.source === 'jadomi' ? '<span class="scan-source jadomi">JADOMI</span>' : '<span class="scan-source off">OpenFoodFacts</span>';
+  panel.innerHTML = `
+    <div class="scan-sheet">
+      <div class="scan-sheet-head">
+        <div class="scan-sheet-title">🆕 ${escapeHtml(info.nom || 'Produit')} ${sourceBadge}</div>
+        <div class="scan-sheet-sub">${escapeHtml(info.marque || 'Marque inconnue')} · ${code}</div>
+        ${lotBadge}${expBadge}
+      </div>
+      <div class="scan-row"><label>Nom</label><input id="scan-nom" value="${escapeHtml(info.nom || '')}"></div>
+      <div class="scan-row-2">
+        <div><label>Catégorie</label><input id="scan-cat" value="${escapeHtml(info.categorie || 'Autre')}"></div>
+        <div><label>Marque</label><input id="scan-marque" value="${escapeHtml(info.marque || '')}"></div>
+      </div>
+      <div class="scan-row-2">
+        <div><label>Quantité</label><input id="scan-qty-new" type="number" value="1" min="1"></div>
+        <div><label>Seuil alerte</label><input id="scan-seuil" type="number" value="5" min="0"></div>
+      </div>
+      <div class="scan-row"><label>Fournisseur</label><input id="scan-fourni" placeholder="DPI, GACD…"></div>
+      <div class="scan-row">
+        <label>Date de péremption ${scanState.autoExp ? '<span class="scan-badge-inline">✓ auto</span>' : "(sur l'emballage)"}</label>
+        <input id="scan-exp" type="month" value="${expVal}" placeholder="AAAA-MM">
+      </div>
+      <button class="btn-primary scan-add" id="sa-add">✅ Ajouter au stock</button>
+      <button class="scan-next" id="sa-next">Scanner suivant →</button>
+    </div>`;
+  document.getElementById('sa-add').onclick = () => scanAjouterComplet(code);
+  document.getElementById('sa-next').onclick = scanContinuer;
+}
+
+// ── Bottom sheet : produit inconnu (saisie manuelle) ───────
+function afficherSaisieManuelle(code) {
+  const panel = document.getElementById('scan-result-panel');
+  const expVal = scanState.autoExp || '';
+  const expBadge = scanState.autoExp ? '<div class="scan-badge ok">📅 Péremption lue automatiquement : ' + scanState.autoExp + '</div>' : '';
+  const lotBadge = scanState.autoLot ? '<div class="scan-badge info">Lot : ' + escapeHtml(scanState.autoLot) + '</div>' : '';
+  panel.innerHTML = `
+    <div class="scan-sheet">
+      <div class="scan-sheet-head">
+        <div class="scan-sheet-title" style="color:var(--orange,#FF9F0A)">🆕 Produit non référencé</div>
+        <div class="scan-sheet-sub">Code : ${code}</div>
+        ${lotBadge}${expBadge}
+      </div>
+      <div class="scan-row"><label>Nom du produit *</label><input id="scan-nom" placeholder="Ex : Limes NiTi 25mm"></div>
+      <div class="scan-row-2">
+        <div><label>Catégorie</label><input id="scan-cat" placeholder="Endodontie"></div>
+        <div><label>Marque</label><input id="scan-marque" placeholder="3M, DPI…"></div>
+      </div>
+      <div class="scan-row-2">
+        <div><label>Quantité</label><input id="scan-qty-new" type="number" value="1" min="1"></div>
+        <div><label>Seuil alerte</label><input id="scan-seuil" type="number" value="5" min="0"></div>
+      </div>
+      <div class="scan-row"><label>Fournisseur</label><input id="scan-fourni" placeholder="DPI, GACD…"></div>
+      <div class="scan-row">
+        <label>Date de péremption ${scanState.autoExp ? '<span class="scan-badge-inline">✓ auto</span>' : "(sur l'emballage)"}</label>
+        <input id="scan-exp" type="month" value="${expVal}" placeholder="AAAA-MM">
+      </div>
+      <button class="btn-primary scan-add" id="sa-add">✅ Ajouter au stock</button>
+      <button class="scan-next" id="sa-next">Scanner suivant →</button>
+    </div>`;
+  document.getElementById('sa-add').onclick = () => scanAjouterComplet(code);
+  document.getElementById('sa-next').onclick = scanContinuer;
+}
+
+// ── Action : utilisé / reçu sur produit existant ───────────
+async function scanAction(id, nom, action, code) {
+  const qte = parseInt(document.getElementById('scan-q')?.value) || 1;
+  const expNew = document.getElementById('scan-exp-exist')?.value || null;
+  const p = state.products.find(x => x.id == id);
+  if (!p) return;
+  const newQty = action === 'ajoute' ? p.qty + qte : Math.max(0, p.qty - qte);
+  const upd = { qty: newQty };
+  if (code && !p.code_barre) upd.code_barre = code;
+  if (expNew) upd.date_peremption = expNew;
+
+  const { error } = await sb.from('produits').update(upd).eq('id', id);
+  if (error) { console.error(error); toast('Erreur mise à jour stock', 'err'); return; }
+
+  // Update local + UI
+  p.qty = newQty;
+  if (upd.code_barre) p.code_barre = upd.code_barre;
+  if (upd.date_peremption) p.date_peremption = upd.date_peremption;
+  renderStock();
+  const sign = action === 'ajoute' ? '+' : '−';
+  toast(`✓ ${nom} : ${sign}${qte} · stock ${newQty}`, 'ok');
+  bipScan();
+  scanContinuer();
+}
+
+// ── Action : insertion d'un nouveau produit ────────────────
+async function scanAjouterComplet(code) {
+  const nom = document.getElementById('scan-nom')?.value.trim();
+  if (!nom) { toast('Entre un nom de produit', 'err'); return; }
+  const payload = {
+    nom,
+    categorie: document.getElementById('scan-cat')?.value.trim() || 'Autre',
+    marque:    document.getElementById('scan-marque')?.value.trim() || null,
+    qty:       parseInt(document.getElementById('scan-qty-new')?.value) || 1,
+    seuil:     parseInt(document.getElementById('scan-seuil')?.value)   || 5,
+    fournisseur: document.getElementById('scan-fourni')?.value.trim() || null,
+    date_peremption: document.getElementById('scan-exp')?.value || null,
+    code_barre: code,
+    owner_id: state.user.id
+  };
+  const { error } = await sb.from('produits').insert(payload);
+  if (error) { console.error(error); toast('Erreur ajout stock : ' + (error.message || ''), 'err'); return; }
+
+  // Refresh stock + feedback
+  await loadProducts();
+  toast(`✓ ${nom} ajouté × ${payload.qty}`, 'ok');
+  bipScan();
+  scanContinuer();
+}
+
+// ── Continuer : reset panel + scan suivant ─────────────────
+function scanContinuer() {
+  const panel = document.getElementById('scan-result-panel');
+  if (panel) { panel.hidden = true; panel.innerHTML = ''; }
+  scanState.lastCode = '';
+  scanState.lastCodeTime = 0;
+  scanState.autoExp = null;
+  scanState.autoLot = null;
+  scanState.currentCode = null;
+  document.getElementById('scan-status').textContent = 'Pointe vers le code-barres';
+}
+
+// ── Admin stats : appel /api/admin/stats ───────────────────
+async function loadAdminStats() {
+  if (state.profile?.role !== 'admin') return;
+  try {
+    const r = await fetch(API.adminStats, { headers: { 'x-admin-token': ADMIN_TOKEN } });
+    if (!r.ok) { toast('Stats admin : HTTP ' + r.status, 'err'); return; }
+    const d = await r.json();
+    const fmtEur = n => (n == null ? '—' : Math.round(n).toLocaleString('fr-FR') + ' €');
+    const fmtNum = n => (n == null ? '—' : String(n));
+    $('#adm-abos').textContent      = fmtNum(d.abonnes_actifs);
+    $('#adm-mrr').textContent       = fmtEur(d.mrr);
+    $('#adm-revenus').textContent   = fmtEur(d.revenus_mois);
+    $('#adm-nouveaux').textContent  = fmtNum(d.nouveaux_semaine);
+    $('#adm-impayes').textContent   = fmtNum(d.impayes);
+    $('#adm-rush').textContent      = fmtEur(d.commissions_rush);
+  } catch (e) { console.error(e); toast('Erreur chargement stats admin', 'err'); }
+}
+
+// ── Init ───────────────────────────────────────────────────
+async function init() {
+  bindUI();
+
+  // 1. Lecture jadomi_session (contrat principal)
+  const jadomi = readJadomiSession();
+
+  // 2. Lecture session Supabase Auth (nécessaire pour RLS sur produits)
+  const { data: { session: sbSession } } = await sb.auth.getSession();
+
+  // 3. Mode dev local (test sans VPS) : ?dev=1 sur localhost/LAN
+  const isLocalDev = /^(localhost|127\.|10\.|192\.168\.)/.test(location.hostname);
+  const wantsDev = location.search.includes('dev=1');
+
+  let bootstrap = null;
+
+  if (sbSession) {
+    // Cas idéal : Supabase Auth actif → RLS marchera. On enrichit avec
+    // jadomi_session si dispo (sinon on chargera profile depuis Supabase).
+    bootstrap = { user: sbSession.user, profileOverride: jadomi || null };
+  } else if (jadomi) {
+    // Pas de session Supabase mais jadomi_session présent.
+    // L'UI s'affichera mais les requêtes RLS échoueront → toast d'avertissement.
+    bootstrap = {
+      user: { id: jadomi.user_id, email: jadomi.email },
+      profileOverride: jadomi
+    };
+    setTimeout(() => toast('Session Supabase manquante — reconnecte-toi pour accéder au stock', 'warn'), 800);
+  } else if (isLocalDev && wantsDev) {
+    // Mode dev local : faux profil pour tester l'UI sans backend
+    bootstrap = {
+      user: { id: 'dev-local', email: 'dev@local' },
+      profileOverride: {
+        profession: 'chirurgien-dentiste',
+        role: 'user',
+        display_name: 'Dev Local',
+        cabinet_name: 'Test Mode',
+        is_free_account: true
+      }
+    };
+  } else {
+    // Aucune session → redirect login
+    setTimeout(() => location.href = '/login.html', 100);
+    return;
+  }
+
+  await bootstrapSession(bootstrap);
+  setTimeout(hideSplash, 400);
+
+  // SW (scope par défaut /, mais ne fait quasi rien — voir mobile-sw.js)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/mobile-sw.js').catch(() => {});
+  }
+}
+
+init();
+</script>
+</body>
+</html>
