@@ -8,8 +8,110 @@ const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// === Security: Helmet (HTTP headers) ===
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: false, // desactive CSP pour ne pas casser les CDN (jsdelivr, unpkg, google fonts)
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
+// === Security: CORS strict ===
+// En production, seules les origines jadomi.fr/.be sont autorisees.
+// En dev/local (sans NODE_ENV=production), toutes origines acceptees.
+const allowedOrigins = [
+  'https://jadomi.fr', 'https://www.jadomi.fr',
+  'https://jadomi.be', 'https://www.jadomi.be'
+];
+app.use(cors({
+  origin: function(origin, cb) {
+    if (!origin) return cb(null, true); // curl, PWA same-origin, server-to-server
+    if (process.env.NODE_ENV !== 'production') return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('Origin ' + origin + ' not allowed by CORS'));
+  },
+  credentials: true
+}));
+
+// === Security: Rate limiting ===
+const rateLimit = require('express-rate-limit');
+
+// Global API : 100 requetes / 15 min / IP (bypass assets statiques et health)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requetes, reessayez dans 15 minutes' },
+  skip: (req) => req.path === '/api/health'
+});
+app.use('/api/', globalLimiter);
+
+// Strict login : 5 tentatives / 15 min / IP
+app.use('/api/auth/login', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, reessayez dans 15 minutes' }
+}));
+
+// Strict register : 3 creations / heure / IP
+app.use('/api/auth/register', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de creations de compte, reessayez dans 1 heure' }
+}));
+
+// Modere forgot-password : 5 / 15 min / IP
+app.use('/api/auth/forgot-password', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes, reessayez dans 15 minutes' }
+}));
+
+// === Performance: in-memory cache helper ===
+const _cache = new Map();
+function getCached(key, fn, ttl = 60000) {
+  const hit = _cache.get(key);
+  if (hit && Date.now() - hit.time < ttl) return hit.data;
+  const data = fn();
+  _cache.set(key, { data, time: Date.now() });
+  return data;
+}
+// Cleanup automatique toutes les 10 min
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _cache) if (now - v.time > 600000) _cache.delete(k);
+}, 600000).unref();
+global.jadomiCache = { get: getCached, map: _cache };
+
+// === Monitoring: health endpoint (bypass rate limit) ===
+app.get('/api/health', (req, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    memory: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+    memory_details: {
+      rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB'
+    },
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
+// app.use(express.json()) deplace plus bas pour permettre raw body sur webhook stripe
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
+app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')));
 app.use(express.static(path.join(__dirname)));
 
 // --- Anthropic Claude client ---
@@ -21,6 +123,63 @@ const anthropic = new Anthropic({
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// === JADOMI Admin module (raw webhook + admin routes + cron) ===
+// Monte AVANT express.json() pour que /api/stripe/webhook recoive le body brut
+try {
+  const mountAdmin = require('./api/admin');
+  mountAdmin(app, supabase, anthropic);
+  console.log('[JADOMI] Module Admin monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Admin non charge:', e.message);
+}
+
+app.use(express.json());
+
+// === JADOMI Email service (OVH Pro) ===
+let emailService = null;
+try {
+  emailService = require('./api/emailService');
+  console.log('[JADOMI] Module emailService charge');
+} catch (e) {
+  console.warn('[JADOMI] emailService non charge:', e.message);
+}
+
+// POST /api/auth/forgot-password — envoi lien de reinitialisation via Supabase
+// Utilise le client supabase anon (resetPasswordForEmail est une methode publique)
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ success: false, error: 'email requis' });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://jadomi.fr/reset-password.html'
+    });
+    if (error) {
+      console.error('[/api/auth/forgot-password]', error.message);
+      return res.json({ success: false, error: error.message });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[/api/auth/forgot-password]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/auth/welcome — envoi email de bienvenue apres inscription
+// Appele par register.html apres signUp Supabase reussi
+app.post('/api/auth/welcome', async (req, res) => {
+  try {
+    if (!emailService) return res.status(503).json({ ok: false, error: 'emailService indisponible' });
+    const { email, prenom, nom, cabinet, plan } = req.body || {};
+    if (!email) return res.status(400).json({ ok: false, error: 'email requis' });
+    const r = await emailService.sendWelcome({ to: email, prenom, nom, cabinet, plan });
+    res.json(r);
+  } catch (err) {
+    console.error('[/api/auth/welcome]', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 
 // --- Stripe (optional — set STRIPE_SECRET_KEY in .env) ---
 let stripe = null;
@@ -36,14 +195,24 @@ try {
 // =============================================
 app.post('/api/claude', async (req, res) => {
   try {
-    const {
+    let {
       messages,
+      message,
+      prompt,
       system,
       model = 'claude-sonnet-4-20250514',
       max_tokens = 1000,
-    } = req.body;
+      tools,
+    } = req.body || {};
 
-    const { tools } = req.body;
+    // Compatibilite : accepte soit {messages: [...]} soit {message: "..."} soit {prompt: "..."}
+    if (!messages && (message || prompt)) {
+      messages = [{ role: 'user', content: String(message || prompt) }];
+    }
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Field "messages" (array), "message" (string) or "prompt" (string) required' });
+    }
+
     const params = { model, max_tokens, messages };
     if (system) params.system = system;
     if (tools) params.tools = tools;
@@ -818,6 +987,55 @@ try {
 } catch (e) {
   console.warn('[JADOMI] Module Commandes non charge:', e.message);
 }
+
+// =============================================
+// Scan lookup (produits internes JADOMI + fallback OpenFoodFacts)
+// Utilise le client supabase global (anon). Si la table `produits` n'existe
+// pas encore ou si rien ne matche, on tombe sur OpenFoodFacts. fetch est
+// natif depuis Node 18.
+// =============================================
+app.get('/api/scan/lookup', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).json({ error: 'code requis' });
+
+  // 1. Lookup interne JADOMI
+  try {
+    const { data } = await supabase
+      .from('produits')
+      .select('nom, categorie, marque, fournisseur, code_barre')
+      .eq('code_barre', code)
+      .single();
+    if (data) {
+      return res.json({
+        source: 'jadomi',
+        nom: data.nom,
+        categorie: data.categorie,
+        marque: data.marque,
+        fournisseur: data.fournisseur
+      });
+    }
+  } catch (e) { /* table absente ou no row -> fallback */ }
+
+  // 2. Fallback OpenFoodFacts
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`);
+    const d = await r.json();
+    if (d && d.status === 1 && d.product) {
+      const p = d.product;
+      const cat = (p.categories_tags && p.categories_tags[0]) ? p.categories_tags[0].replace(/^en:/, '') : 'Produit';
+      return res.json({
+        source: 'openfoodfacts',
+        nom: p.product_name_fr || p.product_name || null,
+        marque: p.brands || null,
+        categorie: cat,
+        image: p.image_url || null
+      });
+    }
+  } catch (e) { /* network ou parse -> unknown */ }
+
+  // 3. Inconnu
+  res.json({ source: 'unknown', code_barre: code, nom: null });
+});
 
 // =============================================
 // Start server (skip on Vercel — exporte l'app pour @vercel/node)
