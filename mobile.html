@@ -47,8 +47,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js" defer></script>
-<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
 /* ============================================================
@@ -2228,7 +2227,7 @@ function bindUI() {
 }
 
 // ============================================================
-// SCANNER (Quagga2 + ZXing) + GS1 + Bottom sheet + Admin stats
+// SCANNER (html5-qrcode) + parser GS1 + bottom sheet + admin stats
 // Porté du desktop index.html, adapté au design mobile JADOMI.
 // ============================================================
 
@@ -2278,7 +2277,7 @@ function parseGS1(raw) {
 const scanState = {
   count: 0, paused: false, lastCode: '', lastCodeTime: 0,
   autoExp: null, autoLot: null, currentCode: null,
-  quaggaActive: false, zxingReader: null
+  html5qr: null
 };
 
 // ── Création de l'overlay (idempotent) ─────────────────────
@@ -2328,129 +2327,68 @@ function ouvrirScanner() {
   document.getElementById('scan-status').textContent = 'Pointe vers le code-barres';
   ov.classList.add('active');
 
-  // Détection iOS/iPadOS (workers Quagga instables sur Safari iOS → ZXing only)
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
+  // Démarre html5-qrcode (compatible Safari iOS, Android, Desktop sans worker cross-origin)
   const tryStart = () => {
-    if (isIOS) {
-      // Safari iOS : ZXing uniquement, Quagga ne marche pas fiablement
-      if (window.ZXing) { demarrerZXing(); return; }
-      toast('⏳ Chargement du scanner…', 'info');
-      const checkIOS = setInterval(() => {
-        if (window.ZXing) { clearInterval(checkIOS); demarrerZXing(); }
-      }, 200);
-      setTimeout(() => {
-        clearInterval(checkIOS);
-        if (!scanState.zxingReader) toast('Scanner indisponible — recharge la page', 'err');
-      }, 8000);
-      return;
-    }
-    // Android / Desktop : Quagga d'abord (rapide EAN), fallback ZXing
-    if (window.Quagga) demarrerQuagga();
-    else if (window.ZXing) demarrerZXing();
-    else {
-      toast('⏳ Chargement du scanner…', 'info');
-      const check = setInterval(() => {
-        if (window.Quagga) { clearInterval(check); demarrerQuagga(); }
-        else if (window.ZXing) { clearInterval(check); demarrerZXing(); }
-      }, 200);
-      setTimeout(() => clearInterval(check), 8000);
-    }
+    if (window.Html5Qrcode) { demarrerScanner(); return; }
+    toast('⏳ Chargement du scanner…', 'info');
+    const check = setInterval(() => {
+      if (window.Html5Qrcode) { clearInterval(check); demarrerScanner(); }
+    }, 200);
+    setTimeout(() => {
+      clearInterval(check);
+      if (!scanState.html5qr) toast('Scanner indisponible — recharge la page', 'err');
+    }, 8000);
   };
   tryStart();
 }
 
 function fermerScanner() {
   scanState.paused = true;
-  // Stop Quagga
-  if (scanState.quaggaActive && window.Quagga) {
-    try { window.Quagga.stop(); } catch (e) {}
-    scanState.quaggaActive = false;
+  // Stop html5-qrcode (gère lui-même l'arrêt du MediaStream et le cleanup du <video>)
+  if (scanState.html5qr) {
+    const inst = scanState.html5qr;
+    scanState.html5qr = null;
+    try {
+      inst.stop().then(() => {
+        try { inst.clear(); } catch (e) {}
+      }).catch(() => {
+        try { inst.clear(); } catch (e) {}
+      });
+    } catch (e) {}
   }
-  // Stop ZXing
-  if (scanState.zxingReader) {
-    try { scanState.zxingReader.reset(); } catch (e) {}
-    scanState.zxingReader = null;
-  }
-  // Stop tracks (caméra)
+  // Belt-and-suspenders : stop tracks restants au cas où
   const cam = document.getElementById('scan-camera');
   if (cam) {
     cam.querySelectorAll('video').forEach(v => {
-      try { v.srcObject?.getTracks().forEach(t => t.stop()); } catch (e) {}
+      try { v.srcObject && v.srcObject.getTracks().forEach(t => t.stop()); } catch (e) {}
     });
-    cam.innerHTML = '';
   }
   const ov = document.getElementById('scan-overlay');
   if (ov) ov.classList.remove('active');
 }
 
-// ── Démarrage Quagga2 (codes 1D ultra-rapide) ──────────────
-function demarrerQuagga() {
-  const target = document.getElementById('scan-camera');
-  if (!target || !window.Quagga) return;
-  window.Quagga.init({
-    inputStream: {
-      type: 'LiveStream',
-      target,
-      constraints: {
-        facingMode: 'environment',
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    },
-    locator: { patchSize: 'medium', halfSample: true },
-    numOfWorkers: navigator.hardwareConcurrency || 2,
-    decoder: {
-      readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'code_39_reader', 'upc_reader', 'upc_e_reader']
-    },
-    locate: true
-  }, (err) => {
-    if (err) {
-      console.warn('[Quagga] init err', err);
-      // Fallback ZXing
-      if (window.ZXing) demarrerZXing();
-      else toast('Caméra indisponible', 'err');
-      return;
-    }
-    window.Quagga.start();
-    scanState.quaggaActive = true;
-  });
-  window.Quagga.offDetected();
-  window.Quagga.onDetected((result) => {
-    const code = result?.codeResult?.code;
-    if (code) onCodeDetecte(code);
-  });
-}
-
-// ── Démarrage scanner secondaire (DataMatrix, QR, formats avancés) ──
-function demarrerZXing() {
-  if (!window.ZXing) { toast('Scanner indisponible — recharge la page', 'err'); return; }
+// ── Démarrage scanner (html5-qrcode) ────────────────────────
+// Lib unique, compatible Safari iOS sans Web Workers cross-origin.
+// Supporte EAN/UPC/Code128/Code39/QR/DataMatrix/PDF417 etc. par défaut.
+function demarrerScanner() {
+  if (!window.Html5Qrcode) {
+    toast('Scanner indisponible — recharge la page', 'err');
+    return;
+  }
   const target = document.getElementById('scan-camera');
   if (!target) return;
-  // Crée un <video> dédié
-  let video = target.querySelector('video');
-  if (!video) {
-    video = document.createElement('video');
-    video.setAttribute('playsinline', '');
-    video.setAttribute('muted', '');
-    video.setAttribute('autoplay', '');
-    video.muted = true;       // iOS exige muted explicite pour autoplay
-    video.playsInline = true;
-    target.appendChild(video);
-  }
 
   // Helper : message d'erreur clair selon le type d'échec caméra
   const handleCameraError = (err) => {
     console.warn('[Scanner] camera err', err);
-    const name = (err && err.name) || '';
-    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    const txt = (typeof err === 'string') ? err : (err && (err.message || err.name)) || '';
+    if (/NotAllowed|Permission/i.test(txt)) {
       toast('Caméra refusée. Active-la dans Réglages → Safari → Caméra', 'err');
-    } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    } else if (/NotFound|DevicesNotFound/i.test(txt)) {
       toast('Aucune caméra détectée sur cet appareil', 'err');
-    } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+    } else if (/NotReadable|TrackStart/i.test(txt)) {
       toast('Caméra utilisée par une autre app', 'err');
-    } else if (name === 'OverconstrainedError') {
+    } else if (/Overconstrained/i.test(txt)) {
       toast('Configuration caméra non supportée', 'err');
     } else {
       toast('Impossible de démarrer la caméra', 'err');
@@ -2458,29 +2396,22 @@ function demarrerZXing() {
   };
 
   try {
-    const reader = new window.ZXing.BrowserMultiFormatReader();
-    scanState.zxingReader = reader;
-    const constraints = {
-      video: {
-        facingMode: { ideal: 'environment' },
-        width:  { ideal: 1280 },
-        height: { ideal: 720 }
+    const scanner = new window.Html5Qrcode('scan-camera', { verbose: false });
+    scanState.html5qr = scanner;
+    scanner.start(
+      { facingMode: { ideal: 'environment' } },
+      {
+        fps: 10,
+        // Pas de qrbox : on scanne tout le viewport (notre overlay .scan-frame est purement visuel)
+        aspectRatio: 1.7777
+      },
+      (decodedText /*, decodedResult */) => {
+        if (decodedText) onCodeDetecte(decodedText);
+      },
+      (/* errorMessage */) => {
+        // Appelée à chaque frame sans détection — on l'ignore (pas une vraie erreur)
       }
-    };
-    const startPromise = reader.decodeFromConstraints(
-      constraints,
-      video,
-      (result, err) => {
-        if (result) {
-          const txt = result.getText ? result.getText() : String(result);
-          if (txt) onCodeDetecte(txt);
-        }
-      }
-    );
-    // decodeFromConstraints retourne une Promise sur ZXing 0.21+
-    if (startPromise && typeof startPromise.catch === 'function') {
-      startPromise.catch(handleCameraError);
-    }
+    ).catch(handleCameraError);
   } catch (e) {
     handleCameraError(e);
   }
