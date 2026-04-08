@@ -47,7 +47,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="/jadomi-scan.js"></script>
 
 <style>
 /* ============================================================
@@ -1651,6 +1651,13 @@ img, svg { display: block; max-width: 100%; }
    JADOMI · App logic
    ============================================================ */
 
+// ── Wrap moteur scan dans namespace JADOMI (masque l'identifiant lib) ──
+(function () {
+  if (typeof window.__JADOMI_SCAN__ === 'undefined') return;
+  window.__JADOMI_SCAN__ = window.__JADOMI_SCAN__;
+  try { delete window.__JADOMI_SCAN__; } catch (e) { try { window.__JADOMI_SCAN__ = undefined; } catch (_) {} }
+})();
+
 // ── Config Supabase ────────────────────────────────────────
 const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
@@ -2227,8 +2234,9 @@ function bindUI() {
 }
 
 // ============================================================
-// SCANNER (html5-qrcode) + parser GS1 + bottom sheet + admin stats
-// Porté du desktop index.html, adapté au design mobile JADOMI.
+// SCANNER JADOMI + parser GS1 + bottom sheet + admin stats
+// Moteur de scan auto-hébergé (jadomi-scan.js) — compatible Safari iOS,
+// Android Chrome, Firefox, Edge sans worker cross-origin.
 // ============================================================
 
 // ── Audio context (BIP de confirmation) ────────────────────
@@ -2277,7 +2285,7 @@ function parseGS1(raw) {
 const scanState = {
   count: 0, paused: false, lastCode: '', lastCodeTime: 0,
   autoExp: null, autoLot: null, currentCode: null,
-  html5qr: null
+  engine: null
 };
 
 // ── Création de l'overlay (idempotent) ─────────────────────
@@ -2327,16 +2335,16 @@ function ouvrirScanner() {
   document.getElementById('scan-status').textContent = 'Pointe vers le code-barres';
   ov.classList.add('active');
 
-  // Démarre html5-qrcode (compatible Safari iOS, Android, Desktop sans worker cross-origin)
+  // Démarre le moteur Scanner JADOMI (compatible Safari iOS, Android, Desktop)
   const tryStart = () => {
-    if (window.Html5Qrcode) { demarrerScanner(); return; }
+    if (window.__JADOMI_SCAN__) { demarrerScanner(); return; }
     toast('⏳ Chargement du scanner…', 'info');
     const check = setInterval(() => {
-      if (window.Html5Qrcode) { clearInterval(check); demarrerScanner(); }
+      if (window.__JADOMI_SCAN__) { clearInterval(check); demarrerScanner(); }
     }, 200);
     setTimeout(() => {
       clearInterval(check);
-      if (!scanState.html5qr) toast('Scanner indisponible — recharge la page', 'err');
+      if (!scanState.engine) toast('Scanner indisponible — recharge la page', 'err');
     }, 8000);
   };
   tryStart();
@@ -2344,10 +2352,10 @@ function ouvrirScanner() {
 
 function fermerScanner() {
   scanState.paused = true;
-  // Stop html5-qrcode (gère lui-même l'arrêt du MediaStream et le cleanup du <video>)
-  if (scanState.html5qr) {
-    const inst = scanState.html5qr;
-    scanState.html5qr = null;
+  // Stop moteur scan (gère l'arrêt MediaStream et le cleanup <video>)
+  if (scanState.engine) {
+    const inst = scanState.engine;
+    scanState.engine = null;
     try {
       inst.stop().then(() => {
         try { inst.clear(); } catch (e) {}
@@ -2367,14 +2375,13 @@ function fermerScanner() {
   if (ov) ov.classList.remove('active');
 }
 
-// ── Démarrage scanner (html5-qrcode) ────────────────────────
-// Lib unique, compatible Safari iOS sans Web Workers cross-origin.
-// Supporte EAN/UPC/Code128/Code39/QR/DataMatrix/PDF417 etc. par défaut.
+// ── Démarrage Scanner JADOMI ────────────────────────────────
+// Moteur auto-hébergé /jadomi-scan.js. Supporte EAN/UPC/Code128/Code39/QR/
+// DataMatrix/PDF417. Pattern iOS-friendly: getCameras() AVANT start() pour
+// déclencher correctement le prompt de permission Safari.
 function demarrerScanner() {
-  if (!window.Html5Qrcode) {
-    toast('Scanner indisponible — recharge la page', 'err');
-    return;
-  }
+  const Engine = window.__JADOMI_SCAN__;
+  if (!Engine) { toast('Scanner indisponible — recharge la page', 'err'); return; }
   const target = document.getElementById('scan-camera');
   if (!target) return;
 
@@ -2395,26 +2402,51 @@ function demarrerScanner() {
     }
   };
 
-  try {
-    const scanner = new window.Html5Qrcode('scan-camera', { verbose: false });
-    scanState.html5qr = scanner;
-    scanner.start(
-      { facingMode: { ideal: 'environment' } },
-      {
-        fps: 10,
-        // Pas de qrbox : on scanne tout le viewport (notre overlay .scan-frame est purement visuel)
-        aspectRatio: 1.7777
-      },
-      (decodedText /*, decodedResult */) => {
-        if (decodedText) onCodeDetecte(decodedText);
-      },
-      (/* errorMessage */) => {
-        // Appelée à chaque frame sans détection — on l'ignore (pas une vraie erreur)
-      }
-    ).catch(handleCameraError);
-  } catch (e) {
-    handleCameraError(e);
-  }
+  // Démarre la lecture sur un device donné (deviceId String OU constraint object)
+  const startWith = (sourceArg) => {
+    try {
+      const inst = new Engine('scan-camera', { verbose: false });
+      scanState.engine = inst;
+      inst.start(
+        sourceArg,
+        {
+          fps: 10,
+          // Pas de qrbox : on scanne tout le viewport (l'overlay .scan-frame est purement visuel)
+          aspectRatio: 1.7777
+        },
+        (decodedText /*, decodedResult */) => {
+          if (decodedText) onCodeDetecte(decodedText);
+        },
+        (/* errorMessage */) => {
+          // Appelée à chaque frame sans détection — on l'ignore
+        }
+      ).catch(handleCameraError);
+    } catch (e) {
+      handleCameraError(e);
+    }
+  };
+
+  // 1. getCameras() déclenche le prompt iOS Safari ET retourne la liste des devices
+  Engine.getCameras().then((devices) => {
+    if (!devices || !devices.length) {
+      toast('Aucune caméra détectée', 'err');
+      return;
+    }
+    // Choisit la caméra arrière (label varie selon iOS/Android) — sinon dernière (souvent rear)
+    const rear = devices.find((d) => /back|rear|environment|arrière/i.test(d.label || '')) || devices[devices.length - 1];
+    startWith(rear.id);
+  }).catch((err) => {
+    // Si getCameras échoue (rare, mais arrive sur certaines anciennes WebView),
+    // fallback direct sur la contrainte facingMode.
+    console.warn('[Scanner] getCameras failed, fallback facingMode', err);
+    const txt = (err && (err.message || err.name)) || '';
+    // Si c'est un refus de permission, on ne fait pas le fallback (inutile)
+    if (/NotAllowed|Permission/i.test(txt)) {
+      handleCameraError(err);
+      return;
+    }
+    startWith({ facingMode: { ideal: 'environment' } });
+  });
 }
 
 // ── Détection : debounce + parseGS1 + lookup + bottom sheet ─
