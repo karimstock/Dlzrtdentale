@@ -1310,7 +1310,8 @@ img, svg { display: block; max-width: 100%; }
   vertical-align: middle; letter-spacing: .5px;
 }
 .scan-source.jadomi { color: #0A84FF; background: rgba(10,132,255,.15); }
-.scan-source.off    { color: #BF5AF2; background: rgba(191,90,242,.15); }
+.scan-source.ia     { color: #FF9F0A; background: rgba(255,159,10,.15); }
+.scan-source.web    { color: #BF5AF2; background: rgba(191,90,242,.15); }
 </style>
 </head>
 <body>
@@ -2327,8 +2328,25 @@ function ouvrirScanner() {
   document.getElementById('scan-status').textContent = 'Pointe vers le code-barres';
   ov.classList.add('active');
 
-  // Démarre Quagga2 d'abord (rapide EAN), fallback ZXing
+  // Détection iOS/iPadOS (workers Quagga instables sur Safari iOS → ZXing only)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
   const tryStart = () => {
+    if (isIOS) {
+      // Safari iOS : ZXing uniquement, Quagga ne marche pas fiablement
+      if (window.ZXing) { demarrerZXing(); return; }
+      toast('⏳ Chargement du scanner…', 'info');
+      const checkIOS = setInterval(() => {
+        if (window.ZXing) { clearInterval(checkIOS); demarrerZXing(); }
+      }, 200);
+      setTimeout(() => {
+        clearInterval(checkIOS);
+        if (!scanState.zxingReader) toast('Scanner indisponible — recharge la page', 'err');
+      }, 8000);
+      return;
+    }
+    // Android / Desktop : Quagga d'abord (rapide EAN), fallback ZXing
     if (window.Quagga) demarrerQuagga();
     else if (window.ZXing) demarrerZXing();
     else {
@@ -2405,25 +2423,52 @@ function demarrerQuagga() {
   });
 }
 
-// ── Démarrage ZXing (DataMatrix, QR, formats avancés) ──────
+// ── Démarrage scanner secondaire (DataMatrix, QR, formats avancés) ──
 function demarrerZXing() {
-  if (!window.ZXing) { toast('Lecteur ZXing indisponible', 'err'); return; }
+  if (!window.ZXing) { toast('Scanner indisponible — recharge la page', 'err'); return; }
   const target = document.getElementById('scan-camera');
   if (!target) return;
-  // Crée un <video> pour ZXing
+  // Crée un <video> dédié
   let video = target.querySelector('video');
   if (!video) {
     video = document.createElement('video');
     video.setAttribute('playsinline', '');
     video.setAttribute('muted', '');
     video.setAttribute('autoplay', '');
+    video.muted = true;       // iOS exige muted explicite pour autoplay
+    video.playsInline = true;
     target.appendChild(video);
   }
+
+  // Helper : message d'erreur clair selon le type d'échec caméra
+  const handleCameraError = (err) => {
+    console.warn('[Scanner] camera err', err);
+    const name = (err && err.name) || '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      toast('Caméra refusée. Active-la dans Réglages → Safari → Caméra', 'err');
+    } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      toast('Aucune caméra détectée sur cet appareil', 'err');
+    } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+      toast('Caméra utilisée par une autre app', 'err');
+    } else if (name === 'OverconstrainedError') {
+      toast('Configuration caméra non supportée', 'err');
+    } else {
+      toast('Impossible de démarrer la caméra', 'err');
+    }
+  };
+
   try {
     const reader = new window.ZXing.BrowserMultiFormatReader();
     scanState.zxingReader = reader;
-    reader.decodeFromConstraints(
-      { video: { facingMode: 'environment' } },
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    };
+    const startPromise = reader.decodeFromConstraints(
+      constraints,
       video,
       (result, err) => {
         if (result) {
@@ -2432,9 +2477,12 @@ function demarrerZXing() {
         }
       }
     );
+    // decodeFromConstraints retourne une Promise sur ZXing 0.21+
+    if (startPromise && typeof startPromise.catch === 'function') {
+      startPromise.catch(handleCameraError);
+    }
   } catch (e) {
-    console.warn('[ZXing] err', e);
-    toast('Caméra refusée ou indisponible', 'err');
+    handleCameraError(e);
   }
 }
 
@@ -2534,7 +2582,9 @@ function afficherProduitTrouve(info, code) {
   const expVal = scanState.autoExp || '';
   const expBadge = scanState.autoExp ? '<div class="scan-badge ok">📅 Péremption lue automatiquement : ' + scanState.autoExp + '</div>' : '';
   const lotBadge = scanState.autoLot ? '<div class="scan-badge info">Lot : ' + escapeHtml(scanState.autoLot) + '</div>' : '';
-  const sourceBadge = info.source === 'jadomi' ? '<span class="scan-source jadomi">JADOMI</span>' : '<span class="scan-source off">OpenFoodFacts</span>';
+  const sourceBadge = info.source === 'jadomi'    ? '<span class="scan-source jadomi">JADOMI</span>'
+                    : info.source === 'jadomi-ia' ? '<span class="scan-source ia">JADOMI IA</span>'
+                    :                               '<span class="scan-source web">Web</span>';
   panel.innerHTML = `
     <div class="scan-sheet">
       <div class="scan-sheet-head">

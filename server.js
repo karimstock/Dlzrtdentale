@@ -994,7 +994,16 @@ try {
 // pas encore ou si rien ne matche, on tombe sur OpenFoodFacts. fetch est
 // natif depuis Node 18.
 // =============================================
-app.get('/api/scan/lookup', async (req, res) => {
+// Rate limiter spécifique au scan : 30 req/min/IP (anti-abus IA fallback)
+const scanLookupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de scans. Réessaye dans 1 minute.' }
+});
+
+app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).json({ error: 'code requis' });
 
@@ -1033,7 +1042,50 @@ app.get('/api/scan/lookup', async (req, res) => {
     }
   } catch (e) { /* network ou parse -> unknown */ }
 
-  // 3. Inconnu
+  // 3. Fallback JADOMI IA (Claude Haiku via api.anthropic.com)
+  //    Identifie les produits dentaires/médicaux/vétérinaires à partir du GTIN.
+  //    Coût : ~$0.001 par appel. Rate-limité à 30/min/IP par scanLookupLimiter.
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (apiKey) {
+    try {
+      const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 250,
+          system: "Tu es expert en produits dentaires, médicaux et vétérinaires. Tu identifies les produits à partir de leur code-barres GTIN/EAN. Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication, sans texte avant ou après.",
+          messages: [{
+            role: 'user',
+            content: 'Code-barres GTIN/EAN: ' + code + '. Identifie ce produit s\'il fait partie du domaine sante (dentaire, medical, veterinaire). Format JSON strict obligatoire: {"nom":"nom exact","marque":"marque fabricant","categorie":"categorie precise","fournisseur":null,"confidence":0.0}. La confidence est entre 0 et 1. Si tu ne reconnais pas ce code, mets confidence a 0 et tous les champs textuels a null.'
+          }]
+        })
+      });
+      if (aiResp.ok) {
+        const aiData = await aiResp.json();
+        const txt = (aiData && aiData.content && aiData.content[0] && aiData.content[0].text) || '';
+        const cleaned = txt.replace(/```json|```/g, '').trim();
+        let json = null;
+        try { json = JSON.parse(cleaned); } catch (_) { /* parse fail -> unknown */ }
+        if (json && typeof json.confidence === 'number' && json.confidence >= 0.4 && json.nom) {
+          return res.json({
+            source: 'jadomi-ia',
+            nom: json.nom,
+            marque: json.marque || null,
+            categorie: json.categorie || 'Autre',
+            fournisseur: json.fournisseur || null,
+            confidence: json.confidence
+          });
+        }
+      }
+    } catch (e) { /* IA fail -> unknown */ }
+  }
+
+  // 4. Inconnu
   res.json({ source: 'unknown', code_barre: code, nom: null });
 });
 
