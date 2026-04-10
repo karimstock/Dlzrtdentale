@@ -48,6 +48,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/jadomi-scan.js"></script>
+<!-- Tesseract.js : OCR navigateur pour lire le texte des emballages (photo IA) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 
 <style>
 /* ============================================================
@@ -2375,6 +2377,134 @@ function fermerScanner() {
   if (ov) ov.classList.remove('active');
 }
 
+// ── Photo IA : OCR local (Tesseract.js) + structuration Claude ─
+// Remplace Claude Vision (peu fiable sur emballages). Tesseract lit
+// le texte dans le navigateur, puis Claude Haiku structure le texte.
+async function ocrPhotoTesseract(file) {
+  if (typeof Tesseract === 'undefined') throw new Error('tesseract_not_loaded');
+  const url = URL.createObjectURL(file);
+  try {
+    const { data } = await Tesseract.recognize(url, 'eng+fra');
+    const texteComplet = (data && data.text) ? data.text : '';
+
+    // Heuristiques locales (utilisées comme indices pour Claude)
+    let datePeremption = null, lot = null, nom = null;
+
+    const dateRegex = /(?:EXP|exp|Exp|PEREMPTION|P[ée]remption|USE\s*BY|BBD|DATE\s*LIMITE)[.:\s]*(\d{2}[\/\-.]\d{2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{2}[\/\-.]\d{2}|\d{2}[\/\-.]\d{4})/;
+    const dm = texteComplet.match(dateRegex);
+    if (dm) datePeremption = dm[1];
+
+    const lotRegex = /(?:LOT|Lot|lot|BATCH|Batch)[.:\s#]*([A-Z0-9][A-Z0-9\-]{2,})/;
+    const lm = texteComplet.match(lotRegex);
+    if (lm) lot = lm[1];
+
+    const lignes = texteComplet
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 3 && !/^\d+[\/\-.]\d+/.test(l));
+    if (lignes.length) nom = lignes[0];
+
+    return { nom, date_peremption: datePeremption, lot, texte_brut: texteComplet };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function remplirFormulairePhotoIA(file) {
+  const btn = document.getElementById('sa-photo-ia');
+  const prog = document.getElementById('sa-photo-progress');
+  if (btn) btn.disabled = true;
+  if (prog) prog.hidden = false;
+
+  try {
+    if (typeof Tesseract === 'undefined') {
+      toast('OCR en cours de chargement, réessaie dans 2s', 'warn');
+      return;
+    }
+
+    // Étape 1 — OCR local
+    const ocr = await ocrPhotoTesseract(file);
+    const texteExtrait = (ocr.texte_brut || '').trim();
+    if (!texteExtrait || texteExtrait.length < 5) {
+      toast('Texte illisible — réessaie avec une photo plus nette', 'warn');
+      return;
+    }
+
+    // Étape 2 — Claude Haiku structure le texte (pas l'image)
+    if (prog) prog.textContent = '🧠 Analyse IA du texte…';
+    const r = await fetch(API.claude || '/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        system: `Tu es JADOMI IA, expert en produits dentaires et médicaux.
+On te donne le TEXTE BRUT extrait par OCR d'un emballage.
+Catégories valides : Endodontie, Composite, Anesthésie, Usage unique, Instruments, Prothèse, Empreinte, Collage, Blanchiment, Hygiène, Stérilisation, Chirurgie, Radiologie, Autre.
+Fournisseurs probables : DPI, GACD, Henry Schein, Mega Dental, Septodont, Autre.
+Réponds UNIQUEMENT en JSON valide, sans markdown.`,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'text',
+            text: `Texte OCR brut :
+"""
+${texteExtrait}
+"""
+
+Pré-extraction locale (indicative) :
+- nom candidat : ${ocr.nom || '(rien)'}
+- date péremption : ${ocr.date_peremption || '(rien)'}
+- lot : ${ocr.lot || '(rien)'}
+
+Retourne strictement :
+{"nom":"...","marque":"...","categorie":"...","fournisseur":"...","date_peremption":"AAAA-MM ou null","lot":"...","confidence":0.0}`
+          }]
+        }]
+      })
+    });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const data = await r.json();
+    const txt = data?.content?.[0]?.text ?? data?.completion ?? data?.text ?? JSON.stringify(data);
+    const match = String(txt).match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('parse_failed');
+    const parsed = JSON.parse(match[0]);
+
+    // Fallback sur OCR local si Claude ne retourne rien
+    const nom       = parsed.nom       || ocr.nom || '';
+    const marque    = parsed.marque    || '';
+    const categorie = parsed.categorie || '';
+    const fourni    = parsed.fournisseur || '';
+    const dateP     = parsed.date_peremption || ocr.date_peremption || '';
+    const lot       = parsed.lot       || ocr.lot || '';
+
+    // Pré-remplissage des champs existants de la sheet
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    setVal('scan-nom', nom);
+    setVal('scan-cat', categorie);
+    setVal('scan-marque', marque);
+    setVal('scan-fourni', fourni);
+    // Date format AAAA-MM pour input type="month"
+    if (dateP) {
+      const m = String(dateP).match(/(\d{4})[\/\-.](\d{2})/) || String(dateP).match(/(\d{2})[\/\-.](\d{4})/);
+      if (m) {
+        const yyyyMm = m[1].length === 4 ? `${m[1]}-${m[2]}` : `${m[2]}-${m[1]}`;
+        setVal('scan-exp', yyyyMm);
+      }
+    }
+    if (lot && !scanState.autoLot) scanState.autoLot = lot;
+
+    toast('✨ Champs remplis par JADOMI IA — vérifie et valide', 'ok');
+
+  } catch (e) {
+    console.error('photo IA OCR+Claude', e);
+    toast('Analyse échouée — saisie manuelle', 'warn');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (prog) { prog.hidden = true; prog.textContent = '🧠 Lecture OCR en cours…'; }
+  }
+}
+
 // ── Démarrage Scanner JADOMI ────────────────────────────────
 // Moteur auto-hébergé /jadomi-scan.js. Supporte EAN/UPC/Code128/Code39/QR/
 // DataMatrix/PDF417. Pattern iOS-friendly: getCameras() AVANT start() pour
@@ -2589,6 +2719,11 @@ function afficherSaisieManuelle(code) {
         <div class="scan-sheet-sub">Code : ${code}</div>
         ${lotBadge}${expBadge}
       </div>
+      <button type="button" class="btn-ghost" id="sa-photo-ia" style="display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--accent,#0A84FF);color:var(--accent,#0A84FF);padding:10px;border-radius:10px;font-weight:600">
+        📸 Remplir via photo IA
+      </button>
+      <input type="file" id="sa-photo-input" accept="image/*" capture="environment" hidden>
+      <div id="sa-photo-progress" hidden style="font-size:12px;color:var(--text-2);text-align:center">🧠 Lecture OCR en cours…</div>
       <div class="scan-row"><label>Nom du produit *</label><input id="scan-nom" placeholder="Ex : Limes NiTi 25mm"></div>
       <div class="scan-row-2">
         <div><label>Catégorie</label><input id="scan-cat" placeholder="Endodontie"></div>
@@ -2608,6 +2743,17 @@ function afficherSaisieManuelle(code) {
     </div>`;
   document.getElementById('sa-add').onclick = () => scanAjouterComplet(code);
   document.getElementById('sa-next').onclick = scanContinuer;
+  // Photo IA : OCR local Tesseract + structuration Claude Haiku
+  const photoBtn = document.getElementById('sa-photo-ia');
+  const photoInput = document.getElementById('sa-photo-input');
+  if (photoBtn && photoInput) {
+    photoBtn.onclick = () => photoInput.click();
+    photoInput.onchange = (e) => {
+      const f = e.target.files?.[0];
+      if (f) remplirFormulairePhotoIA(f);
+      e.target.value = '';
+    };
+  }
 }
 
 // ── Action : utilisé / reçu sur produit existant ───────────
