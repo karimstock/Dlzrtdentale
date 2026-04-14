@@ -1308,7 +1308,7 @@ app.post('/api/mail/test', async (req, res) => {
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
-      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993, authTimeout: 10000, connTimeout: 15000 },
+      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993, authTimeout: 15000, connTimeout: 20000, minTLS: 'TLSv1.2', keepalive: true },
       'OVH': { host: 'ssl0.ovh.net', port: 993 },
       'Orange': { host: 'imap.orange.fr', port: 993 },
       'Free': { host: 'imap.free.fr', port: 993 },
@@ -1316,16 +1316,17 @@ app.post('/api/mail/test', async (req, res) => {
       'Laposte': { host: 'imap.laposte.net', port: 993 },
     };
     const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000 });
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000, keepalive: config.keepalive || false });
 
     await new Promise((resolve, reject) => {
       imap.once('ready', () => { imap.end(); resolve(); });
-      imap.once('error', reject);
+      imap.once('error', (err) => { console.log('IMAP error [' + provider + ']:', err.message, err.code || ''); reject(err); });
+      console.log('IMAP connecting to', config.host, 'for', provider, '...');
       imap.connect();
     });
     res.json({ success: true });
   } catch (e) {
-    res.status(400).json({ error: `Connexion impossible : ${e.message}` });
+    console.log('IMAP test error [' + provider + ']:', e.message, e.source || ''); res.status(400).json({ error: `Connexion impossible : ${e.message}`, code: e.code || null });
   }
 });
 
@@ -1335,7 +1336,7 @@ app.post('/api/mail/scan', async (req, res) => {
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
-      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993, authTimeout: 10000, connTimeout: 15000 },
+      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993, authTimeout: 15000, connTimeout: 20000, minTLS: 'TLSv1.2', keepalive: true },
       'OVH': { host: 'ssl0.ovh.net', port: 993 },
       'Orange': { host: 'imap.orange.fr', port: 993 },
       'Free': { host: 'imap.free.fr', port: 993 },
@@ -1344,7 +1345,7 @@ app.post('/api/mail/scan', async (req, res) => {
     };
     const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
 
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000 });
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000, keepalive: config.keepalive || false });
 
     const documents = [];
 
@@ -1410,13 +1411,14 @@ app.post('/api/mail/scan', async (req, res) => {
         });
       });
 
-      imap.once('error', reject);
+      imap.once('error', (err) => { console.log('IMAP scan error [' + (provider||'?') + ']:', err.message, err.code || ''); reject(err); });
+      console.log('IMAP scan connecting to', config.host, 'for', provider, '...');
       imap.connect();
     });
 
     res.json({ documents, total: documents.length });
   } catch (e) {
-    console.error('mail/scan error:', e.message);
+    console.error('IMAP scan error [' + (provider||'?') + ']:', e.message, e.code || '', e.source || '');
     res.status(400).json({ error: e.message });
   }
 });
