@@ -575,7 +575,28 @@ tbody tr:hover td{background:var(--surface2);}
           <div style="background:rgba(200,240,96,0.08);border-radius:8px;padding:8px;margin-bottom:12px;font-size:11px;color:#c8f060;">
             💡 Gmail : activez la validation en 2 étapes puis créez un "mot de passe d'application" dans myaccount.google.com
           </div>
-          <button id="pc-mail-scan-btn" onclick="pcComptaScanMail()" class="btn btn-accent" style="width:100%;padding:12px;font-size:14px;">🔍 Scanner mes factures 2026</button>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Periode de scan :</label>
+            <select id="pc-scan-type-periode" onchange="pcTogglePeriode()" style="width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:8px;">
+              <option value="mensuel">Mensuel — choisir un mois</option>
+              <option value="annuel">Annuel — choisir une annee</option>
+              <option value="tout">Tout depuis 2024</option>
+            </select>
+            <div id="pc-select-mois" style="display:flex;gap:8px;">
+              <select id="pc-scan-mois" style="flex:1;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <option value="01">Janvier</option><option value="02">Fevrier</option><option value="03">Mars</option><option value="04">Avril</option><option value="05">Mai</option><option value="06">Juin</option><option value="07">Juillet</option><option value="08">Aout</option><option value="09">Septembre</option><option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Decembre</option>
+              </select>
+              <select id="pc-scan-annee-mois" style="flex:1;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+              </select>
+            </div>
+            <div id="pc-select-annee" style="display:none;">
+              <select id="pc-scan-annee" style="width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+              </select>
+            </div>
+          </div>
+          <button id="pc-mail-scan-btn" onclick="pcComptaScanMail()" class="btn btn-accent" style="width:100%;padding:12px;font-size:14px;">🔍 Scanner</button>
           <div id="pc-mail-results" style="display:none;margin-top:16px;"></div>
         </div>
       </div>
@@ -3483,7 +3504,8 @@ async function confirmerResiliation(contratId,cabinetNom,plan,prixMensuel) {
 setTimeout(()=>{chargerGreenDormants();chargerGreenStats();},500);
 init();
 </script>
-<script src="/scan.js">
+<script src="/scan.js"></script>
+<script>
 // COMPTABILITE PC
 let pcComptaDocAnalyse = null;
 
@@ -3582,6 +3604,12 @@ async function pcComptaValiderDoc() {
 
 function pcComptaCancelDoc() { pcComptaDocAnalyse = null; document.getElementById('pc-compta-result').style.display = 'none'; }
 
+function pcTogglePeriode() {
+  const v = document.getElementById('pc-scan-type-periode').value;
+  document.getElementById('pc-select-mois').style.display = v === 'mensuel' ? 'flex' : 'none';
+  document.getElementById('pc-select-annee').style.display = v === 'annuel' ? '' : 'none';
+}
+
 function pcComptaShowMail() {
   const f = document.getElementById('pc-compta-mail-form');
   f.style.display = f.style.display === 'none' ? '' : 'none';
@@ -3595,7 +3623,7 @@ async function pcComptaScanMail() {
   if(!email||!pass) return alert('Renseignez email et mot de passe');
   btn.disabled = true; btn.textContent = 'Scan en cours...';
   try {
-    const resp = await fetch('/api/mail/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email:email, password: pass, provider:provider, userId: pcGetUserId() }) });
+    const resp = await fetch('/api/mail/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email:email, password: pass, provider:provider, userId: pcGetUserId(), periode: document.getElementById('pc-scan-type-periode').value, mois: document.getElementById('pc-scan-mois').value, annee: (document.getElementById('pc-scan-type-periode').value==='mensuel' ? document.getElementById('pc-scan-annee-mois').value : document.getElementById('pc-scan-annee').value) }) });
     const data = await resp.json();
     if(data.error) throw new Error(data.error);
     const rd = document.getElementById('pc-mail-results'); rd.style.display = '';
@@ -3610,7 +3638,7 @@ async function pcComptaScanMail() {
       rd.innerHTML = h; rd._mailData = data.documents;
     }
   } catch(e) { alert('Erreur : '+e.message); }
-  btn.disabled = false; btn.textContent = 'Scanner mes factures 2026';
+  btn.disabled = false; btn.textContent = 'Scanner';
 }
 
 async function pcComptaImportMail() {
@@ -3699,7 +3727,6 @@ async function pcComptaAnalyseReleve(file) {
     rd.innerHTML = h;
   } catch(e) { ld.style.display = 'none'; rd.style.display = ''; rd.innerHTML = '<div style="color:#f05050;">Erreur : '+e.message+'</div>'; }
 }
-
 </script></body>
 </html>
 
