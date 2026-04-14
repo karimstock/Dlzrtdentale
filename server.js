@@ -1513,6 +1513,20 @@ async function getYahooAccessToken(userId) {
   return updated;
 }
 
+app.get('/api/yahoo/account', async (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ error: 'userId requis' });
+  try {
+    const admin = supaAdminOrThrow();
+    const { data: row } = await admin.from('yahoo_oauth_tokens').select('email, updated_at').eq('user_id', userId).maybeSingle();
+    if (!row) return res.json({ connected: false });
+    res.json({ connected: true, email: row.email, updated_at: row.updated_at });
+  } catch (e) {
+    console.error('yahoo/account error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/mail/scan-yahoo', async (req, res) => {
   const { userId, periode, mois, annee } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId requis' });
