@@ -1305,12 +1305,14 @@ app.post('/api/valider-document', async (req, res) => {
 app.get('/api/auth/yahoo', (req, res) => {
   const params = new URLSearchParams({
     client_id: process.env.YAHOO_CLIENT_ID,
-    redirect_uri: process.env.YAHOO_CALLBACK_URL,
+    redirect_uri: 'https://jadomi.fr/api/auth/yahoo/callback',
     response_type: 'code',
-    scope: 'openid email profile mail-r',
-    state: req.query.state || ('jadomi_' + Date.now())
+    scope: 'openid',
+    language: 'fr-fr',
   });
-  res.redirect(`https://api.login.yahoo.com/oauth2/request_auth?${params}`);
+  const url = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}`;
+  console.log('Yahoo OAuth redirect:', url);
+  res.redirect(url);
 });
 
 app.get('/api/auth/yahoo/callback', async (req, res) => {
@@ -1327,7 +1329,7 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: process.env.YAHOO_CALLBACK_URL,
+        redirect_uri: 'https://jadomi.fr/api/auth/yahoo/callback',
       })
     });
 
