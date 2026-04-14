@@ -1609,7 +1609,10 @@ img, svg { display: block; max-width: 100%; }
               <input id="compta-mail-pass" type="password" placeholder="Mot de passe application" style="width:100%;padding:12px;padding-right:44px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;font-size:14px;box-sizing:border-box;">
               <button onclick="comptaToggleMailPass()" type="button" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:20px;padding:0;margin-top:-5px;" id="compta-eye-mail">&#x1F441;&#xFE0F;</button>
             </div>
-            
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:12px;cursor:pointer;">
+              <input type="checkbox" id="compta-remember-mail" checked style="width:16px;height:16px;"> Se souvenir de ces identifiants
+            </label>
+
             <div style="margin-bottom:12px;">
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Periode de scan :</label>
             <select id="compta-scan-type-periode" onchange="mTogglePeriode()" style="width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:8px;">
@@ -3228,16 +3231,20 @@ function comptaToggleMailPass() {
   else { inp.type = 'password'; eye.textContent = '\u{1F441}\uFE0F'; }
 }
 
-function comptaSauvegarderMailConfig(provider, email) {
+function comptaSauvegarderMailConfig(provider, email, password) {
+  if (!document.getElementById('compta-remember-mail').checked) return;
   localStorage.setItem('jadomi_mail_provider', provider);
   localStorage.setItem('jadomi_mail_email', email);
+  localStorage.setItem('jadomi_mail_pass', btoa(password));
 }
 
 function comptaChargerMailConfig() {
   var provider = localStorage.getItem('jadomi_mail_provider');
   var email = localStorage.getItem('jadomi_mail_email');
+  var pass = localStorage.getItem('jadomi_mail_pass');
   if (provider) document.getElementById('compta-mail-provider').value = provider;
   if (email) document.getElementById('compta-mail-email').value = email;
+  if (pass) document.getElementById('compta-mail-pass').value = atob(pass);
   try { mAideMail(); } catch(e) {}
 }
 try { comptaChargerMailConfig(); } catch(e) {}
@@ -3306,7 +3313,7 @@ async function comptaScanMail() {
       return;
     }
 
-    comptaSauvegarderMailConfig(provider, email);
+    comptaSauvegarderMailConfig(provider, email, pass);
     var rd = document.getElementById('compta-mail-results'); rd.hidden = false;
     if(!data.documents||!data.documents.length) { rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>'; }
     else {
