@@ -619,7 +619,10 @@ tbody tr:hover td{background:var(--surface2);}
             <option value="SFR">SFR</option><option value="Laposte">Laposte</option><option value="Autre">Autre</option>
           </select>
           <input id="pc-mail-email" type="email" placeholder="Adresse email" style="width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:13px;box-sizing:border-box;">
-          <input id="pc-mail-pass" type="password" placeholder="Mot de passe application" style="width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:13px;box-sizing:border-box;">
+          <div style="position:relative">
+            <input id="pc-mail-pass" type="password" placeholder="Mot de passe application" style="width:100%;padding:10px;padding-right:40px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:13px;box-sizing:border-box;">
+            <button onclick="pcToggleMailPass()" type="button" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:0;margin-top:-4px;" id="pc-eye-mail">&#x1F441;&#xFE0F;</button>
+          </div>
           
           <div style="margin-bottom:12px;">
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Periode de scan :</label>
@@ -3671,6 +3674,27 @@ function pcAideMail() {
 // Init on load: show default aide
 try { pcAideMail(); } catch(e) {}
 
+function pcToggleMailPass() {
+  var inp = document.getElementById('pc-mail-pass');
+  var eye = document.getElementById('pc-eye-mail');
+  if (inp.type === 'password') { inp.type = 'text'; eye.textContent = '\u{1F648}'; }
+  else { inp.type = 'password'; eye.textContent = '\u{1F441}\uFE0F'; }
+}
+
+function pcSauvegarderMailConfig(provider, email) {
+  localStorage.setItem('jadomi_mail_provider', provider);
+  localStorage.setItem('jadomi_mail_email', email);
+}
+
+function pcChargerMailConfig() {
+  var provider = localStorage.getItem('jadomi_mail_provider');
+  var email = localStorage.getItem('jadomi_mail_email');
+  if (provider) document.getElementById('pc-mail-provider').value = provider;
+  if (email) document.getElementById('pc-mail-email').value = email;
+  try { pcAideMail(); } catch(e) {}
+}
+try { pcChargerMailConfig(); } catch(e) {}
+
 function pcComptaShowMail() {
   const f = document.getElementById('pc-compta-mail-form');
   f.style.display = f.style.display === 'none' ? '' : 'none';
@@ -3735,6 +3759,7 @@ async function pcComptaScanMail() {
       return;
     }
 
+    pcSauvegarderMailConfig(provider, email);
     var rd = document.getElementById('pc-mail-results'); rd.style.display = '';
     if(!data.documents||!data.documents.length) { rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>'; }
     else {
