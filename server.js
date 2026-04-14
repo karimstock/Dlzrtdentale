@@ -1300,6 +1300,68 @@ app.post('/api/valider-document', async (req, res) => {
 });
 
 // =============================================
+// OAuth2 Yahoo
+// =============================================
+app.get('/api/auth/yahoo', (req, res) => {
+  const params = new URLSearchParams({
+    client_id: process.env.YAHOO_CLIENT_ID,
+    redirect_uri: process.env.YAHOO_CALLBACK_URL,
+    response_type: 'code',
+    scope: 'openid email profile mail-r',
+    state: req.query.state || ('jadomi_' + Date.now())
+  });
+  res.redirect(`https://api.login.yahoo.com/oauth2/request_auth?${params}`);
+});
+
+app.get('/api/auth/yahoo/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) return res.redirect('https://jadomi.fr/?yahoo_error=missing_code');
+
+    const tokenResp = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${process.env.YAHOO_CLIENT_ID}:${process.env.YAHOO_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.YAHOO_CALLBACK_URL,
+      })
+    });
+
+    const tokenData = await tokenResp.json();
+    if (!tokenResp.ok || tokenData.error) {
+      console.error('Yahoo token error:', tokenData);
+      return res.redirect('https://jadomi.fr/?yahoo_error=token');
+    }
+
+    const accessToken = tokenData.access_token;
+    // TODO: persister tokenData (access_token / refresh_token / xoauth_yahoo_guid) dans Supabase
+    // via req.query.state pour lier a l'utilisateur connecte.
+    res.redirect('https://jadomi.fr/?yahoo_connected=1');
+  } catch (e) {
+    console.error('Yahoo callback error:', e);
+    res.redirect('https://jadomi.fr/?yahoo_error=exception');
+  }
+});
+
+async function scanMailOAuth2(accessToken, email, userId) {
+  const imap = new Imap({
+    user: email,
+    xoauth2: accessToken,
+    host: 'imap.mail.yahoo.com',
+    port: 993,
+    tls: true,
+    tlsOptions: { rejectUnauthorized: false },
+    connTimeout: 30000,
+    authTimeout: 20000,
+  });
+  return imap;
+}
+
+// =============================================
 // COMPTABILITE — Scan boite mail (IMAP)
 // =============================================
 app.post('/api/mail/test', async (req, res) => {
@@ -1356,15 +1418,24 @@ app.post('/api/mail/scan', async (req, res) => {
 
     const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
 
-    res.setTimeout(120000);
+    res.setTimeout(180000);
     const documents = [];
 
     await new Promise((resolve, reject) => {
+      let settled = false;
+      const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
+
+      // Timeout global 90s — renvoie JSON, pas HTML
+      const timer = setTimeout(() => {
+        console.error('IMAP scan timeout 90s for', provider, email);
+        try { imap.end(); } catch(e) {}
+        settle(() => reject(new Error('Timeout: le scan a pris plus de 90 secondes. Essayez une periode plus courte.')));
+      }, 90000);
+
       imap.once('ready', () => {
         imap.openBox('INBOX', true, (err) => {
-          if (err) { imap.end(); return reject(err); }
+          if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
 
-          // Calculer la date selon la periode choisie
           let sinceDate;
           if (periode === 'mensuel' && mois && annee) {
             sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
@@ -1375,21 +1446,26 @@ app.post('/api/mail/scan', async (req, res) => {
           } else {
             sinceDate = new Date(2026, 0, 1);
           }
-          const imapMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const sinceStr = '1-' + imapMonths[sinceDate.getMonth()] + '-' + sinceDate.getFullYear();
+
+          console.log('IMAP scan search SINCE', sinceDate, 'for', provider);
 
           imap.search([['SINCE', sinceDate]], (err, uids) => {
-            if (err) { imap.end(); return reject(err); }
-            if (!uids || !uids.length) { imap.end(); return resolve(); }
+            if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
+            if (!uids || !uids.length) {
+              console.log('IMAP scan: 0 mails found for', provider);
+              try { imap.end(); } catch(e) {}
+              return settle(() => resolve());
+            }
 
             const toProcess = uids.slice(-50);
-            let done = 0;
+            console.log('IMAP scan: fetching', toProcess.length, 'mails for', provider);
+            const parsePromises = [];
 
             const f = imap.fetch(toProcess, { bodies: '', struct: true });
 
             f.on('message', (msg) => {
-              msg.on('body', async (stream) => {
-                try {
-                  const parsed = await simpleParser(stream);
+              msg.on('body', (stream) => {
+                const p = simpleParser(stream).then(async (parsed) => {
                   for (const att of parsed.attachments || []) {
                     const isPDF = att.contentType && att.contentType.includes('pdf');
                     const isImage = att.contentType && att.contentType.includes('image');
@@ -1407,25 +1483,44 @@ app.post('/api/mail/scan', async (req, res) => {
                             selectionne: analyse.selectionne !== false,
                           });
                         }
-                      } catch(e) { /* skip attachment */ }
+                      } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                     }
                   }
-                } catch(e) { /* skip message */ }
-                done++;
-                if (done >= toProcess.length) { imap.end(); resolve(); }
+                }).catch((e) => { console.error('IMAP scan parse error:', e.message); });
+                parsePromises.push(p);
               });
             });
 
-            f.once('error', (err) => { imap.end(); reject(err); });
+            f.once('error', (err) => {
+              console.error('IMAP fetch error:', err.message);
+              try { imap.end(); } catch(e) {}
+              settle(() => reject(err));
+            });
+
+            f.once('end', () => {
+              console.log('IMAP fetch done, waiting for', parsePromises.length, 'parse jobs...');
+              Promise.all(parsePromises).then(() => {
+                console.log('IMAP scan complete:', documents.length, 'documents found');
+                try { imap.end(); } catch(e) {}
+                settle(() => resolve());
+              }).catch(() => {
+                try { imap.end(); } catch(e) {}
+                settle(() => resolve());
+              });
+            });
           });
         });
       });
 
-      imap.once('error', (err) => { console.error('IMAP scan error [' + (provider||'?') + ']:', err.message, err.code || ''); reject(err); });
+      imap.once('error', (err) => {
+        console.error('IMAP connection error [' + (provider||'?') + ']:', err.message, err.code || '');
+        settle(() => reject(err));
+      });
       console.log('IMAP scan connecting to', config.host, 'for', provider, '...');
       imap.connect();
     });
 
+    console.log('IMAP scan responding with', documents.length, 'documents');
     res.json({ documents, total: documents.length });
   } catch (e) {
     console.error('IMAP scan error [' + (provider||'?') + ']:', e.message, e.code || '', e.source || '');
