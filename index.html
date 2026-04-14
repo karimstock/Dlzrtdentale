@@ -593,9 +593,12 @@ tbody tr:hover td{background:var(--surface2);}
             </div>
             <div id="pc-aide-yahoo" style="display:none;margin-bottom:8px;">
               <div style="font-weight:600;font-size:13px;color:#720e9e;margin-bottom:6px;">Yahoo Mail</div>
-              <button type="button" id="pc-btn-yahoo-oauth" data-uid="" onclick="pcYahooOAuth()" style="display:inline-block;background:#720e9e;color:#fff;padding:10px 14px;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px;">&#x1F7E3; Se connecter avec Yahoo</button>
-              <button onclick="pcScanYahooOAuth()" id="pc-btn-scan-yahoo" style="display:none;margin-left:8px;background:#2d6cdf;color:#fff;border:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;">&#x1F50D; Scanner mes factures Yahoo</button>
-              <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">Ou utilisez un mot de passe d'application IMAP :</div>
+              <div id="pc-yahoo-oauth-status" style="display:none;background:rgba(114,14,158,0.1);border:1px solid #720e9e;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:var(--text);">
+                <strong style="color:#720e9e;">Yahoo identifie :</strong> <span id="pc-yahoo-oauth-email"></span><br>
+                <span style="color:var(--muted);">Entrez maintenant votre mot de passe d'application ci-dessous pour scanner.</span>
+              </div>
+              <button type="button" id="pc-btn-yahoo-oauth" data-uid="" onclick="pcYahooOAuth()" style="display:inline-block;background:#720e9e;color:#fff;padding:10px 14px;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px;">&#x1F7E3; 1. Se connecter avec Yahoo (identifier l'email)</button>
+              <div style="font-size:12px;color:var(--muted);margin:8px 0 6px;"><strong style="color:var(--text);">2. Entrez votre mot de passe d'application Yahoo</strong> :</div>
               <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.8;">
                 <li>Activez d'abord l'IMAP : Yahoo Mail > Parametres > Autres applis > <strong style="color:var(--text);">Activer IMAP</strong></li>
                 <li>Connectez-vous sur <strong style="color:var(--text);">login.yahoo.com</strong></li>
@@ -2201,60 +2204,35 @@ async function pcYahooOAuth() {
   window.location.href = '/api/auth/yahoo?uid=' + encodeURIComponent(uid);
 }
 
-async function pcScanYahooOAuth() {
-  const btn = document.getElementById('pc-btn-scan-yahoo');
-  const periode = (document.getElementById('pc-scan-type-periode')||{}).value || 'mensuel';
-  const mois = (document.getElementById('pc-scan-mois')||{}).value;
-  const annee = periode === 'mensuel'
-    ? (document.getElementById('pc-scan-annee-mois')||{}).value
-    : (document.getElementById('pc-scan-annee')||{}).value;
+async function pcApplyYahooOAuthAccount() {
   try {
-    if (btn) { btn.disabled = true; btn.textContent = 'Scan en cours...'; }
-    try { showToast('Scan Yahoo en cours...'); } catch(e){}
-    const resp = await fetch('/api/mail/scan-yahoo', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ userId: (await pcResolveUid()), periode, mois, annee })
-    });
+    const uid = await pcResolveUid();
+    if (!uid) return;
+    const resp = await fetch('/api/yahoo/account?userId=' + encodeURIComponent(uid));
+    if (!resp.ok) return;
     const data = await resp.json();
-    if (!resp.ok || data.error) throw new Error(data.error || 'Scan echoue');
-    const rd = document.getElementById('pc-mail-results');
-    if (rd) {
-      rd.style.display = '';
-      if (!data.documents || !data.documents.length) {
-        rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>';
-      } else {
-        let h = '<div style="font-weight:700;margin-bottom:12px;">'+data.documents.length+' document(s) trouve(s)</div>';
-        data.documents.forEach(function(d,i) {
-          const a = d.analyse||{};
-          h += '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;margin-bottom:6px;border:1px solid var(--border);"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" '+(d.selectionne?'checked':'')+' data-pcmail-idx="'+i+'" style="width:16px;height:16px;"><div style="flex:1;"><div style="font-weight:600;font-size:13px;">'+(a.fournisseur_ou_etablissement||d.from||'Inconnu')+'</div><div style="font-size:11px;color:var(--muted);">'+(d.filename||'')+' - '+((a.total_ttc||0).toFixed ? (a.total_ttc||0).toFixed(2) : a.total_ttc)+'EUR</div></div></label></div>';
-        });
-        h += '<button onclick="pcComptaImportMail()" class="btn btn-accent" style="width:100%;padding:12px;margin-top:10px;font-size:14px;">Importer la selection</button>';
-        rd.innerHTML = h; rd._mailData = data.documents;
-      }
-    }
-  } catch (e) {
-    try { showToast('Erreur scan Yahoo : ' + e.message); } catch(_){}
-    alert('Erreur scan Yahoo : ' + e.message);
-    console.error(e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '&#x1F50D; Scanner mes factures Yahoo'; }
-  }
+    if (!data || !data.connected || !data.email) return;
+    const sel = document.getElementById('pc-mail-provider'); if (sel) { sel.value = 'Yahoo'; try { pcAideMail(); } catch(e){} }
+    const emailIn = document.getElementById('pc-mail-email'); if (emailIn && !emailIn.value) emailIn.value = data.email;
+    const status = document.getElementById('pc-yahoo-oauth-status');
+    const span = document.getElementById('pc-yahoo-oauth-email');
+    if (status && span) { span.textContent = data.email; status.style.display = ''; }
+    const passIn = document.getElementById('pc-mail-pass'); if (passIn) passIn.focus();
+    console.log('[JADOMI] Yahoo OAuth email applique:', data.email);
+  } catch(e) { console.warn('pcApplyYahooOAuthAccount failed', e); }
 }
 
 window.addEventListener('load', () => {
   try { pcPrimeYahooButton(); } catch(e) { console.warn(e); }
   if (localStorage.getItem('jadomi_yahoo_connected') === '1') {
-    const b = document.getElementById('pc-btn-scan-yahoo');
-    if (b) b.style.display = 'inline-block';
+    try { pcApplyYahooOAuthAccount(); } catch(e){}
   }
   if (window.location.search.includes('yahoo_connected=1')) {
     localStorage.setItem('jadomi_yahoo_connected', '1');
     try { showPage('compta'); } catch(e) {}
-    const sel = document.getElementById('pc-mail-provider'); if (sel) { sel.value = 'Yahoo'; try { pcAideMail(); } catch(e){} }
-    const b = document.getElementById('pc-btn-scan-yahoo'); if (b) b.style.display = 'inline-block';
-    try { showToast('Yahoo Mail connecte !'); } catch(e) {}
-    history.replaceState({}, '', '/');
+    try { pcApplyYahooOAuthAccount(); } catch(e){}
+    try { showToast('Yahoo identifie — entrez le mot de passe d\'application'); } catch(e) {}
+    history.replaceState({}, '', '/index.html');
   }
 });
 
