@@ -593,7 +593,7 @@ tbody tr:hover td{background:var(--surface2);}
             </div>
             <div id="pc-aide-yahoo" style="display:none;margin-bottom:8px;">
               <div style="font-weight:600;font-size:13px;color:#720e9e;margin-bottom:6px;">Yahoo Mail</div>
-              <button type="button" onclick="pcYahooOAuth()" style="display:inline-block;background:#720e9e;color:#fff;padding:10px 14px;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px;">&#x1F7E3; Se connecter avec Yahoo</button>
+              <button type="button" id="pc-btn-yahoo-oauth" data-uid="" onclick="pcYahooOAuth()" style="display:inline-block;background:#720e9e;color:#fff;padding:10px 14px;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px;">&#x1F7E3; Se connecter avec Yahoo</button>
               <button onclick="pcScanYahooOAuth()" id="pc-btn-scan-yahoo" style="display:none;margin-left:8px;background:#2d6cdf;color:#fff;border:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;">&#x1F50D; Scanner mes factures Yahoo</button>
               <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">Ou utilisez un mot de passe d'application IMAP :</div>
               <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.8;">
@@ -2160,8 +2160,7 @@ function showPage(id, el) {
 // ═══════════════════════════════════
 let toastTimer;
 
-async function pcYahooOAuth() {
-  console.log('[JADOMI] pcYahooOAuth click');
+async function pcResolveUid() {
   let uid = (window.userInfo && window.userInfo.id) || '';
   if (!uid) {
     try {
@@ -2174,13 +2173,26 @@ async function pcYahooOAuth() {
   }
   if (!uid && window.supabase) {
     try {
-      const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
-      const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
-      const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const db = window.supabase.createClient('https://vsbomwjzehnfinfjvhqp.supabase.co', 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF');
       const { data:{ session } } = await db.auth.getSession();
-      uid = session && session.user && session.user.id || '';
-    } catch(e) { console.warn('supabase session fetch failed', e); }
+      uid = (session && session.user && session.user.id) || '';
+    } catch(e) { console.warn('[JADOMI] supabase session fetch failed', e); }
   }
+  return uid;
+}
+
+async function pcPrimeYahooButton() {
+  const btn = document.getElementById('pc-btn-yahoo-oauth');
+  if (!btn) return;
+  const uid = await pcResolveUid();
+  btn.dataset.uid = uid || '';
+  console.log('[JADOMI] pcPrimeYahooButton uid=', uid);
+}
+
+async function pcYahooOAuth() {
+  const btn = document.getElementById('pc-btn-yahoo-oauth');
+  let uid = (btn && btn.dataset.uid) || '';
+  if (!uid) uid = await pcResolveUid();
   console.log('[JADOMI] pcYahooOAuth uid=', uid);
   if (!uid) {
     alert('Vous devez etre connecte a JADOMI pour associer un compte Yahoo.');
@@ -2231,6 +2243,7 @@ async function pcScanYahooOAuth() {
 }
 
 window.addEventListener('load', () => {
+  try { pcPrimeYahooButton(); } catch(e) { console.warn(e); }
   if (localStorage.getItem('jadomi_yahoo_connected') === '1') {
     const b = document.getElementById('pc-btn-scan-yahoo');
     if (b) b.style.display = 'inline-block';
