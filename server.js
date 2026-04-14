@@ -809,7 +809,7 @@ app.get('/api/documents/:user_id', async (req, res) => {
     const { user_id } = req.params;
 
     const { data: documents, error } = await supabase
-      .from('documents')
+      .from('documents_compta')
       .select('*')
       .eq('user_id', user_id)
       .order('created_at', { ascending: false });
@@ -1303,8 +1303,8 @@ app.post('/api/valider-document', async (req, res) => {
 // COMPTABILITE — Scan boite mail (IMAP)
 // =============================================
 app.post('/api/mail/test', async (req, res) => {
+  const { email, password, provider } = req.body;
   try {
-    const { email, password, provider } = req.body;
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
@@ -1331,8 +1331,8 @@ app.post('/api/mail/test', async (req, res) => {
 });
 
 app.post('/api/mail/scan', async (req, res) => {
+  const { email, password, provider, userId, periode, mois, annee } = req.body;
   try {
-    const { email, password, provider, userId, periode, mois, annee } = req.body;
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
@@ -1424,8 +1424,8 @@ app.post('/api/mail/scan', async (req, res) => {
 });
 
 app.post('/api/mail/import', async (req, res) => {
+  const { factures, userId } = req.body;
   try {
-    const { factures, userId } = req.body;
     if (!factures || !userId) return res.status(400).json({ error: 'factures et userId requis' });
 
     let imported = 0;
