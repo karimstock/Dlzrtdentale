@@ -1089,6 +1089,474 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
   res.json({ source: 'unknown', code_barre: code, nom: null });
 });
 
+
+// =============================================
+// COMPTABILITE — Analyse document (facture, charge, note de frais...)
+// =============================================
+const Imap = require('imap');
+const { simpleParser } = require('mailparser');
+const pdfParse = require('pdf-parse');
+
+async function analyserDocumentIA(base64Data, mediaType) {
+  const contentBlock = mediaType === 'application/pdf'
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data }}
+    : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data }};
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2000,
+    messages: [{
+      role: 'user',
+      content: [
+        contentBlock,
+        {
+          type: 'text',
+          text: `Tu es un expert-comptable specialise dans les cabinets dentaires francais.
+Analyse ce document financier avec precision maximale.
+
+IDENTIFICATION DU TYPE :
+- "facture_dentaire" : facture fournisseur dentaire (GACD, DPI, Henry Schein, Mega Dental, Septodont, Pierre Rolland, Promodentaire, Anthogyr, Straumann, Nobel, Biomet...)
+- "charge_cabinet" : EDF/Engie, loyer cabinet, telephone pro, internet pro, assurance cabinet, eau, logiciel dentaire, abonnement pro
+- "note_frais_repas" : ticket restaurant, note de frais repas professionnel
+- "note_frais_transport" : billet train/avion, taxi, VTC, essence pro, parking, peage
+- "note_frais_formation" : congres ADF, formation dentaire, seminaire, DPC
+- "note_frais_hebergement" : hotel lors deplacement pro
+- "equipement_medical" : fauteuil dentaire, autoclave, sterilisateur, scanner intraoral, radiologie
+- "equipement_informatique" : ordinateur, tablette, telephone pro, imprimante
+- "equipement_mobilier" : mobilier cabinet, amenagement, travaux
+- "salaire_charges" : bulletin de salaire, cotisations URSSAF, charges sociales
+- "honoraires" : comptable, avocat, consultant
+- "assurance" : assurance RC pro, assurance cabinet
+- "banque_finance" : agios, frais bancaires, remboursement emprunt
+- "impots_taxes" : CFE, TVA, impots professionnels
+- "ticket_caisse" : ticket de caisse, recu paiement
+- "recu" : recu de paiement, justificatif
+- "contrat" : contrat maintenance, contrat de service
+- "devis" : devis fournisseur
+- "bon_livraison" : bon de livraison, bordereau
+- "releve_bancaire" : releve de compte bancaire
+- "personnel" : depense personnelle non deductible (courses, Amazon perso, Netflix, vetements, loisirs)
+- "autre" : document non identifiable
+
+REGLES COMPTABLES :
+- ajouter_au_stock: true UNIQUEMENT si facture_dentaire
+- selectionne: false si personnel detecte
+- deductible_tva: true si professionnel (hors personnel)
+
+JSON uniquement :
+{
+  "type_document": "facture_dentaire",
+  "sous_type": "consommables",
+  "ajouter_au_stock": false,
+  "selectionne": true,
+  "deductible_tva": true,
+  "fournisseur_ou_etablissement": "Nom exact",
+  "numero_document": "FA-2026-001",
+  "date": "AAAA-MM-JJ",
+  "total_ht": 0.00,
+  "tva": 0.00,
+  "total_ttc": 0.00,
+  "mode_paiement": "virement/cb/cheque/especes/inconnu",
+  "description": "Description courte",
+  "note_fiscale": "Info comptable utile",
+  "produits": [
+    {
+      "nom": "Nom exact du produit",
+      "reference": "REF-001",
+      "quantite": 1,
+      "unite": "boite",
+      "prix_unitaire_ht": 0.00,
+      "prix_unitaire_ttc": 0.00,
+      "taux_tva": 20,
+      "remise_pct": 0.00,
+      "prix_total_ttc": 0.00
+    }
+  ]
+}`
+        }
+      ]
+    }]
+  });
+
+  return JSON.parse(response.content[0].text.replace(/```json|```/g,'').trim());
+}
+
+app.post('/api/analyser-document', async (req, res) => {
+  try {
+    const { document, mediaType, userId } = req.body;
+    if (!document || !mediaType) return res.status(400).json({ error: 'document et mediaType requis' });
+
+    const data = await analyserDocumentIA(document, mediaType);
+
+    // Anti-doublon hash
+    const hash = crypto.createHash('md5')
+      .update(`${data.fournisseur_ou_etablissement}_${data.numero_document}_${data.date}_${data.total_ttc}`)
+      .digest('hex');
+
+    const { data: existing } = await supabase.from('documents_compta')
+      .select('id, created_at').eq('hash', hash).maybeSingle();
+
+    if (existing) return res.json({
+      doublon: true,
+      message: `Document deja importe le ${new Date(existing.created_at).toLocaleDateString('fr-FR')}`
+    });
+
+    res.json({ ...data, hash });
+  } catch (e) {
+    console.error('analyser-document error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
+// COMPTABILITE — Valider et sauvegarder document
+// =============================================
+app.post('/api/valider-document', async (req, res) => {
+  try {
+    const { document, userId } = req.body;
+    if (!document || !userId) return res.status(400).json({ error: 'document et userId requis' });
+
+    // Sauvegarder dans documents_compta
+    const { error: insertErr } = await supabase.from('documents_compta').insert({
+      user_id: userId,
+      type_document: document.type_document,
+      sous_type: document.sous_type,
+      fournisseur: document.fournisseur_ou_etablissement,
+      numero_document: document.numero_document,
+      date_document: document.date,
+      total_ht: document.total_ht,
+      tva: document.tva,
+      total_ttc: document.total_ttc,
+      mode_paiement: document.mode_paiement,
+      description: document.description,
+      note_fiscale: document.note_fiscale,
+      deductible_tva: document.deductible_tva,
+      produits: document.produits,
+      hash: document.hash,
+      source: document.source || 'manuel',
+      mois: document.date ? document.date.substring(0, 7) : null,
+    });
+
+    if (insertErr) throw insertErr;
+
+    // Si facture dentaire -> mettre a jour le stock
+    if (document.ajouter_au_stock && document.produits && document.produits.length > 0) {
+      for (const p of document.produits) {
+        let match = null;
+
+        // Chercher par reference
+        if (p.reference) {
+          const { data: refMatch } = await supabase.from('produits')
+            .select('*').eq('reference', p.reference)
+            .eq('owner_id', userId).maybeSingle();
+          match = refMatch;
+        }
+
+        // Sinon chercher par nom (mots-cles)
+        if (!match) {
+          const mots = p.nom.split(' ').filter(m => m.length > 3);
+          for (const mot of mots) {
+            const { data: matches } = await supabase.from('produits')
+              .select('*').ilike('nom', `%${mot}%`).eq('owner_id', userId);
+            if (matches && matches.length > 0) { match = matches[0]; break; }
+          }
+        }
+
+        if (match) {
+          await supabase.from('produits').update({
+            qty: match.qty + p.quantite,
+            prix_achat: p.prix_unitaire_ttc,
+            fournisseur: document.fournisseur_ou_etablissement,
+          }).eq('id', match.id);
+        } else {
+          await supabase.from('produits').insert({
+            nom: p.nom,
+            reference: p.reference,
+            fournisseur: document.fournisseur_ou_etablissement,
+            qty: p.quantite,
+            prix_achat: p.prix_unitaire_ttc,
+            owner_id: userId,
+            categorie: document.sous_type || 'Autre',
+          });
+        }
+
+        // Prix communaute anonymise
+        await supabase.from('prix_communaute').upsert({
+          nom_produit: p.nom,
+          reference: p.reference,
+          fournisseur: document.fournisseur_ou_etablissement,
+          prix_unitaire: p.prix_unitaire_ttc,
+          remise_pct: p.remise_pct,
+          date_achat: document.date,
+        }, { ignoreDuplicates: true });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('valider-document error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
+// COMPTABILITE — Scan boite mail (IMAP)
+// =============================================
+app.post('/api/mail/test', async (req, res) => {
+  try {
+    const { email, password, provider } = req.body;
+    const configs = {
+      'Gmail': { host: 'imap.gmail.com', port: 993 },
+      'Outlook': { host: 'outlook.office365.com', port: 993 },
+      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993 },
+      'OVH': { host: 'ssl0.ovh.net', port: 993 },
+      'Orange': { host: 'imap.orange.fr', port: 993 },
+      'Free': { host: 'imap.free.fr', port: 993 },
+      'SFR': { host: 'imap.sfr.fr', port: 993 },
+      'Laposte': { host: 'imap.laposte.net', port: 993 },
+    };
+    const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false }, connTimeout: 10000, authTimeout: 5000 });
+
+    await new Promise((resolve, reject) => {
+      imap.once('ready', () => { imap.end(); resolve(); });
+      imap.once('error', reject);
+      imap.connect();
+    });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: `Connexion impossible : ${e.message}` });
+  }
+});
+
+app.post('/api/mail/scan', async (req, res) => {
+  try {
+    const { email, password, provider, userId } = req.body;
+    const configs = {
+      'Gmail': { host: 'imap.gmail.com', port: 993 },
+      'Outlook': { host: 'outlook.office365.com', port: 993 },
+      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993 },
+      'OVH': { host: 'ssl0.ovh.net', port: 993 },
+      'Orange': { host: 'imap.orange.fr', port: 993 },
+      'Free': { host: 'imap.free.fr', port: 993 },
+      'SFR': { host: 'imap.sfr.fr', port: 993 },
+      'Laposte': { host: 'imap.laposte.net', port: 993 },
+    };
+    const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
+
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false }, connTimeout: 10000, authTimeout: 5000 });
+
+    const documents = [];
+
+    await new Promise((resolve, reject) => {
+      imap.once('ready', () => {
+        imap.openBox('INBOX', true, (err) => {
+          if (err) { imap.end(); return reject(err); }
+
+          imap.search(['SINCE', 'January 1, 2026'], (err, uids) => {
+            if (err) { imap.end(); return reject(err); }
+            if (!uids || !uids.length) { imap.end(); return resolve(); }
+
+            const toProcess = uids.slice(-200);
+            let done = 0;
+
+            const f = imap.fetch(toProcess, { bodies: '', struct: true });
+
+            f.on('message', (msg) => {
+              msg.on('body', async (stream) => {
+                try {
+                  const parsed = await simpleParser(stream);
+                  for (const att of parsed.attachments || []) {
+                    const isPDF = att.contentType && att.contentType.includes('pdf');
+                    const isImage = att.contentType && att.contentType.includes('image');
+                    if (isPDF || isImage) {
+                      try {
+                        const base64 = att.content.toString('base64');
+                        const analyse = await analyserDocumentIA(base64, att.contentType);
+                        if (analyse && analyse.type_document !== 'personnel') {
+                          documents.push({
+                            from: parsed.from ? parsed.from.text : '',
+                            date_mail: parsed.date,
+                            subject: parsed.subject,
+                            filename: att.filename,
+                            analyse,
+                            selectionne: analyse.selectionne !== false,
+                          });
+                        }
+                      } catch(e) { /* skip attachment */ }
+                    }
+                  }
+                } catch(e) { /* skip message */ }
+                done++;
+                if (done >= toProcess.length) { imap.end(); resolve(); }
+              });
+            });
+
+            f.once('error', (err) => { imap.end(); reject(err); });
+          });
+        });
+      });
+
+      imap.once('error', reject);
+      imap.connect();
+    });
+
+    res.json({ documents, total: documents.length });
+  } catch (e) {
+    console.error('mail/scan error:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/mail/import', async (req, res) => {
+  try {
+    const { factures, userId } = req.body;
+    if (!factures || !userId) return res.status(400).json({ error: 'factures et userId requis' });
+
+    let imported = 0;
+    for (const f of factures) {
+      if (!f.selectionne) continue;
+      const doc = f.analyse || f;
+      doc.source = 'mail';
+      // Reuse valider-document logic
+      const hash = crypto.createHash('md5')
+        .update(`${doc.fournisseur_ou_etablissement}_${doc.numero_document}_${doc.date}_${doc.total_ttc}`)
+        .digest('hex');
+
+      const { data: existing } = await supabase.from('documents_compta')
+        .select('id').eq('hash', hash).maybeSingle();
+      if (existing) continue;
+
+      await supabase.from('documents_compta').insert({
+        user_id: userId,
+        type_document: doc.type_document,
+        sous_type: doc.sous_type,
+        fournisseur: doc.fournisseur_ou_etablissement,
+        numero_document: doc.numero_document,
+        date_document: doc.date,
+        total_ht: doc.total_ht,
+        tva: doc.tva,
+        total_ttc: doc.total_ttc,
+        mode_paiement: doc.mode_paiement,
+        description: doc.description,
+        note_fiscale: doc.note_fiscale,
+        deductible_tva: doc.deductible_tva,
+        produits: doc.produits,
+        hash,
+        source: 'mail',
+        mois: doc.date ? doc.date.substring(0, 7) : null,
+      });
+      imported++;
+    }
+
+    res.json({ success: true, imported });
+  } catch (e) {
+    console.error('mail/import error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
+// COMPTABILITE — Analyse releve bancaire
+// =============================================
+app.post('/api/analyser-releve', async (req, res) => {
+  try {
+    const { pdfBase64, userId } = req.body;
+    if (!pdfBase64) return res.status(400).json({ error: 'pdfBase64 requis' });
+
+    const pdfData = await pdfParse(Buffer.from(pdfBase64, 'base64'));
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: `Expert-comptable cabinet dentaire francais.
+Analyse ce releve bancaire professionnel.
+
+ANONYMISATION STRICTE - Ne retourne JAMAIS :
+- Numero de compte bancaire
+- Solde du compte
+- IBAN ou BIC
+- Nom complet du titulaire
+
+Identifie uniquement les transactions professionnelles.
+
+Texte du releve :
+${pdfData.text}
+
+JSON uniquement :
+{
+  "periode": "MM/AAAA",
+  "transactions": [
+    {
+      "date": "AAAA-MM-JJ",
+      "libelle": "GACD / EDF / LOYER...",
+      "montant": 0.00,
+      "type": "debit/credit",
+      "categorie": "facture_dentaire/charge_cabinet/note_frais/salaire/impots/personnel/autre",
+      "professionnel": true,
+      "selectionne": true,
+      "deductible": true
+    }
+  ]
+}`
+      }]
+    });
+
+    const data = JSON.parse(response.content[0].text.replace(/```json|```/g,'').trim());
+
+    // Matching avec documents existants
+    const { data: docs } = await supabase.from('documents_compta')
+      .select('fournisseur, total_ttc, date_document').eq('user_id', userId);
+
+    const resultat = data.transactions.map(t => {
+      const match = (docs || []).find(d =>
+        Math.abs((d.total_ttc || 0) - t.montant) < 10 ||
+        (d.fournisseur && t.libelle.toLowerCase().includes(d.fournisseur.toLowerCase().split(' ')[0]))
+      );
+      return {
+        ...t,
+        document_trouve: !!match,
+        alerte: !match && t.professionnel && t.type === 'debit'
+          ? `${t.montant}E a ${t.libelle} sans justificatif`
+          : null
+      };
+    });
+
+    res.json({
+      periode: data.periode,
+      transactions: resultat,
+      alertes: resultat.filter(t => t.alerte),
+      documents_manquants: resultat.filter(t => !t.document_trouve && t.professionnel && t.type === 'debit').length,
+      total_pro: resultat.filter(t => t.professionnel && t.type === 'debit').reduce((s, t) => s + t.montant, 0),
+      total_perso: resultat.filter(t => !t.professionnel && t.type === 'debit').reduce((s, t) => s + t.montant, 0),
+    });
+  } catch (e) {
+    console.error('analyser-releve error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
+// COMPTABILITE — Liste documents
+// =============================================
+app.get('/api/factures', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ error: 'userId requis' });
+
+    const { data, error } = await supabase.from('documents_compta')
+      .select('*').eq('user_id', userId).order('date_document', { ascending: false });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (e) {
+    console.error('factures error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // =============================================
 // Start server (skip on Vercel — exporte l'app pour @vercel/node)
 // =============================================
