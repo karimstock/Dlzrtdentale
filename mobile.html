@@ -3224,59 +3224,81 @@ function comptaShowMailForm() {
 }
 
 async function comptaScanMail() {
-  const btn = document.getElementById('compta-mail-scan-btn');
-  const email = document.getElementById('compta-mail-email').value;
-  const pass = document.getElementById('compta-mail-pass').value;
-  const provider = document.getElementById('compta-mail-provider').value;
-  if(!email || !pass) return alert('Renseignez email et mot de passe');
+  var btn = document.getElementById('compta-mail-scan-btn');
+  var email = document.getElementById('compta-mail-email').value;
+  var pass = document.getElementById('compta-mail-pass').value;
+  var provider = document.getElementById('compta-mail-provider').value;
+
+  console.log('JADOMI mail scan:', { provider: provider, email: email, hasPass: !!pass });
+
+  if(!email || !pass) { alert('Renseignez email et mot de passe'); return; }
 
   btn.disabled = true;
-  btn.textContent = '⏳ Scan en cours...';
+  btn.textContent = 'Scan en cours...';
 
   try {
-    const resp = await fetch('/api/mail/scan', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ email, password: pass, provider, userId: state.user?.id, periode: document.getElementById('compta-scan-type-periode').value, mois: document.getElementById('compta-scan-mois').value, annee: (document.getElementById('compta-scan-type-periode').value==='mensuel' ? document.getElementById('compta-scan-annee-mois').value : document.getElementById('compta-scan-annee').value) })
+    var payload = {
+      email: email,
+      password: pass,
+      provider: provider,
+      userId: (state.user ? state.user.id : ''),
+      periode: document.getElementById('compta-scan-type-periode').value,
+      mois: document.getElementById('compta-scan-mois').value,
+      annee: document.getElementById('compta-scan-type-periode').value==='mensuel' ? document.getElementById('compta-scan-annee-mois').value : document.getElementById('compta-scan-annee').value
+    };
+    console.log('JADOMI fetch /api/mail/scan payload:', JSON.stringify({provider: payload.provider, email: payload.email, periode: payload.periode}));
+
+    var resp = await fetch('/api/mail/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-    const data = await resp.json();
+
+    console.log('JADOMI mail scan response status:', resp.status);
+    var data = await resp.json();
+    console.log('JADOMI mail scan response:', JSON.stringify(data).substring(0, 200));
+
     if(data.error) {
       var errMsg = data.error;
+      console.log('JADOMI mail scan error from server:', errMsg, 'provider:', provider);
+
+      // Detection erreur auth — comparaison case-insensitive
       var errLow = errMsg.toLowerCase();
-      if(errLow.indexOf('invalid credentials') >= 0 || errLow.indexOf('authentication failed') >= 0 || errLow.indexOf('login failed') >= 0 || errLow.indexOf('authenticationfailed') >= 0) {
-        if(provider === 'Yahoo') errMsg = 'Mot de passe incorrect. Yahoo necessite un mot de passe d\'application (voir guide ci-dessus)';
-        else if(provider === 'Outlook') errMsg = 'Mot de passe incorrect. Outlook necessite un mot de passe d\'application (voir guide ci-dessus)';
-        else if(provider === 'Gmail') errMsg = 'Mot de passe incorrect. Gmail necessite un mot de passe d\'application (voir guide ci-dessus)';
-        else if(provider === 'OVH' || provider === 'Orange' || provider === 'Free' || provider === 'SFR' || provider === 'Laposte') errMsg = 'Mot de passe incorrect pour ' + provider + '. Verifiez vos identifiants ou activez IMAP';
-        else errMsg = 'Identifiants incorrects pour ' + provider + '. Verifiez votre email et mot de passe';
+      if(errLow.indexOf('invalid credentials') >= 0 || errLow.indexOf('authentication failed') >= 0 || errLow.indexOf('authenticationfailed') >= 0 || errLow.indexOf('login failed') >= 0) {
+        // Message specifique au provider selectionne
+        if(provider === 'Yahoo') {
+          errMsg = 'Mot de passe incorrect. Yahoo necessite un mot de passe d\'application. Activez IMAP dans Yahoo Mail > Parametres > Autres applis';
+        } else if(provider === 'Outlook') {
+          errMsg = 'Mot de passe incorrect. Outlook necessite un mot de passe d\'application (voir guide ci-dessus)';
+        } else if(provider === 'Gmail') {
+          errMsg = 'Mot de passe incorrect. Gmail necessite un mot de passe d\'application (voir guide ci-dessus)';
+        } else {
+          errMsg = 'Identifiants incorrects pour ' + provider + '. Verifiez votre email et mot de passe';
+        }
       }
-      throw new Error(errMsg);
+      alert('Erreur : ' + errMsg);
+      btn.disabled = false;
+      btn.textContent = 'Scanner';
+      return;
     }
 
-    const resultsDiv = document.getElementById('compta-mail-results');
-    resultsDiv.hidden = false;
-
-    if(!data.documents || !data.documents.length) {
-      resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvée dans vos emails 2026.</div>';
-    } else {
-      let html = '<div style="font-weight:700;margin-bottom:12px;">📧 '+data.documents.length+' document(s) trouvé(s)</div>';
-      data.documents.forEach((d,i) => {
-        const a = d.analyse || {};
-        html += '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);">';
-        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
-        html += '<input type="checkbox" '+(d.selectionne?'checked':'')+' data-mail-idx="'+i+'" style="width:18px;height:18px;">';
-        html += '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">'+(a.fournisseur_ou_etablissement||d.from||'Inconnu')+'</div>';
-        html += '<div style="font-size:11px;color:var(--muted);">'+(d.filename||'')+' — '+(a.total_ttc||0).toFixed(2)+'€</div></div>';
-        html += '</label></div>';
+    var rd = document.getElementById('compta-mail-results'); rd.hidden = false;
+    if(!data.documents||!data.documents.length) { rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>'; }
+    else {
+      var h = '<div style="font-weight:700;margin-bottom:12px;">'+data.documents.length+' document(s) trouve(s)</div>';
+      data.documents.forEach(function(d,i) {
+        var a = d.analyse||{};
+        h += '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" '+(d.selectionne?'checked':'')+' data-mail-idx="'+i+'" style="width:18px;height:18px;"><div style="flex:1;"><div style="font-weight:600;font-size:13px;">'+(a.fournisseur_ou_etablissement||d.from||'Inconnu')+'</div><div style="font-size:11px;color:var(--muted);">'+(d.filename||'')+' - '+(a.total_ttc||0).toFixed(2)+'EUR</div></div></label></div>';
       });
-      html += '<button onclick="comptaImportMail()" class="btn-primary" style="width:100%;padding:14px;margin-top:12px;font-size:15px;">✅ Importer la sélection</button>';
-      resultsDiv.innerHTML = html;
-      resultsDiv._mailData = data.documents;
+      h += '<button onclick="comptaImportMail()" class="btn-primary" style="width:100%;padding:14px;margin-top:12px;font-size:15px;">Importer la selection</button>';
+      rd.innerHTML = h; rd._mailData = data.documents;
     }
   } catch(e) {
-    alert('Erreur : '+e.message);
+    console.error('JADOMI mail scan exception:', e);
+    alert('Erreur : ' + e.message);
   }
   btn.disabled = false;
-  btn.textContent = '🔍 Scanner';
+  btn.textContent = 'Scanner';
 }
 
 async function comptaImportMail() {
