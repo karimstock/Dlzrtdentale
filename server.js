@@ -1319,17 +1319,20 @@ app.post('/api/mail/test', async (req, res) => {
       'Laposte': { host: 'imap.laposte.net', port: 993 },
     };
     const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000, keepalive: config.keepalive || false });
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
 
     await new Promise((resolve, reject) => {
       imap.once('ready', () => { imap.end(); resolve(); });
-      imap.once('error', (err) => { console.log('IMAP error [' + provider + ']:', err.message, err.code || ''); reject(err); });
+      imap.once('error', (err) => { console.error('IMAP error [' + provider + ']:', err.message, err.code || ''); reject(err); });
       console.log('IMAP connecting to', config.host, 'for', provider, '...');
       imap.connect();
     });
     res.json({ success: true });
   } catch (e) {
-    console.log('IMAP test error [' + provider + ']:', e.message, e.source || ''); res.status(400).json({ error: `Connexion impossible : ${e.message}`, code: e.code || null });
+    console.error('IMAP test error [' + provider + ']:', e.message, e.source || '');
+    if (!res.headersSent) {
+      res.status(400).json({ error: `Connexion impossible : ${e.message}`, provider: provider, code: e.code || null });
+    }
   }
 });
 
@@ -1351,8 +1354,9 @@ app.post('/api/mail/scan', async (req, res) => {
     };
     const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
 
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000, keepalive: config.keepalive || false });
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
 
+    res.setTimeout(120000);
     const documents = [];
 
     await new Promise((resolve, reject) => {
@@ -1377,7 +1381,7 @@ app.post('/api/mail/scan', async (req, res) => {
             if (err) { imap.end(); return reject(err); }
             if (!uids || !uids.length) { imap.end(); return resolve(); }
 
-            const toProcess = uids.slice(-200);
+            const toProcess = uids.slice(-50);
             let done = 0;
 
             const f = imap.fetch(toProcess, { bodies: '', struct: true });
@@ -1417,7 +1421,7 @@ app.post('/api/mail/scan', async (req, res) => {
         });
       });
 
-      imap.once('error', (err) => { console.log('IMAP scan error [' + (provider||'?') + ']:', err.message, err.code || ''); reject(err); });
+      imap.once('error', (err) => { console.error('IMAP scan error [' + (provider||'?') + ']:', err.message, err.code || ''); reject(err); });
       console.log('IMAP scan connecting to', config.host, 'for', provider, '...');
       imap.connect();
     });
@@ -1425,7 +1429,9 @@ app.post('/api/mail/scan', async (req, res) => {
     res.json({ documents, total: documents.length });
   } catch (e) {
     console.error('IMAP scan error [' + (provider||'?') + ']:', e.message, e.code || '', e.source || '');
-    res.status(400).json({ error: e.message });
+    if (!res.headersSent) {
+      res.status(400).json({ error: e.message, provider: provider });
+    }
   }
 });
 
