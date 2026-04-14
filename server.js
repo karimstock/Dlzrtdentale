@@ -124,6 +124,22 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.s
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// --- Supabase admin (service_role) : bypass RLS, usage server-only, JAMAIS expose au client ---
+// Utilise uniquement pour les tables secretes (ex: yahoo_oauth_tokens).
+let supabaseAdmin = null;
+if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+  console.log('[JADOMI] Supabase admin (service_role) initialise');
+} else {
+  console.warn('[JADOMI] SUPABASE_SERVICE_ROLE_KEY absent — yahoo_oauth_tokens indisponible');
+}
+function supaAdminOrThrow() {
+  if (!supabaseAdmin) throw new Error('SUPABASE_SERVICE_ROLE_KEY non configure sur le serveur');
+  return supabaseAdmin;
+}
+
 // === JADOMI Admin module (raw webhook + admin routes + cron) ===
 // Monte AVANT express.json() pour que /api/stripe/webhook recoive le body brut
 try {
@@ -1361,7 +1377,7 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
 
     if (uid) {
       const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
-      const { error: upErr } = await supabase.from('yahoo_oauth_tokens').upsert({
+      const { error: upErr } = await supaAdminOrThrow().from('yahoo_oauth_tokens').upsert({
         user_id: uid,
         email,
         access_token: tokenData.access_token,
@@ -1460,7 +1476,8 @@ function scanInboxForDocs(imap, periode, mois, annee, provider) {
 }
 
 async function getYahooAccessToken(userId) {
-  const { data: row, error } = await supabase.from('yahoo_oauth_tokens').select('*').eq('user_id', userId).maybeSingle();
+  const admin = supaAdminOrThrow();
+  const { data: row, error } = await admin.from('yahoo_oauth_tokens').select('*').eq('user_id', userId).maybeSingle();
   if (error || !row) throw new Error('Aucun token Yahoo trouve pour cet utilisateur. Reconnectez-vous avec Yahoo.');
   const expired = row.expires_at && new Date(row.expires_at).getTime() < Date.now() + 60000;
   if (!expired) return row;
@@ -1490,7 +1507,7 @@ async function getYahooAccessToken(userId) {
     expires_at: expiresAt,
     updated_at: new Date().toISOString(),
   };
-  await supabase.from('yahoo_oauth_tokens').upsert(updated, { onConflict: 'user_id' });
+  await admin.from('yahoo_oauth_tokens').upsert(updated, { onConflict: 'user_id' });
   return updated;
 }
 
