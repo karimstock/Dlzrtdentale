@@ -1328,16 +1328,18 @@ function decodeState(s) {
 app.get('/api/auth/yahoo', (req, res) => {
   const uid = req.query.uid || '';
   const state = encodeState({ uid, t: Date.now() });
+  // Yahoo: scope override via ?scope=... (utile pour tester mail-r apres verification app)
+  const scope = req.query.scope || process.env.YAHOO_SCOPE || 'openid';
   const params = new URLSearchParams({
     client_id: process.env.YAHOO_CLIENT_ID,
     redirect_uri: 'https://jadomi.fr/api/auth/yahoo/callback',
     response_type: 'code',
-    scope: 'openid',
+    scope,
     language: 'fr-fr',
     state,
   });
   const url = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}`;
-  console.log('Yahoo OAuth redirect for uid=', uid);
+  console.log('Yahoo OAuth redirect for uid=', uid, 'scope=', scope);
   res.redirect(url);
 });
 
@@ -1518,9 +1520,16 @@ app.post('/api/mail/scan-yahoo', async (req, res) => {
     const row = await getYahooAccessToken(userId);
     if (!row.email) return res.status(400).json({ error: 'Email Yahoo inconnu — reconnectez-vous.' });
 
+    const expired = row.expires_at && new Date(row.expires_at).getTime() < Date.now();
+    const authString = `user=${row.email}\x01auth=Bearer ${row.access_token}\x01\x01`;
+    const xoauth2Token = Buffer.from(authString).toString('base64');
+    console.log('[YAHOO-OAUTH] email=', row.email, 'expired=', expired, 'expires_at=', row.expires_at);
+    console.log('[YAHOO-OAUTH] access_token preview:', (row.access_token || '').substring(0, 20) + '...');
+    console.log('[YAHOO-OAUTH] XOAUTH2 base64 length:', xoauth2Token.length);
+
     const imap = new Imap({
       user: row.email,
-      xoauth2: buildXoauth2(row.email, row.access_token),
+      xoauth2: xoauth2Token,
       host: 'imap.mail.yahoo.com',
       port: 993,
       tls: true,
@@ -1535,7 +1544,12 @@ app.post('/api/mail/scan-yahoo', async (req, res) => {
     res.json({ documents, total: documents.length, email: row.email });
   } catch (e) {
     console.error('scan-yahoo error:', e.message);
-    if (!res.headersSent) res.status(400).json({ error: e.message });
+    if (!res.headersSent) {
+      const hint = /invalid credentials|authenticate/i.test(e.message)
+        ? ' (scope OAuth insuffisant : Yahoo exige mail-r pour IMAP. Re-autoriser avec scope=mail-r une fois l\'app verifiee par Yahoo.)'
+        : '';
+      res.status(400).json({ error: e.message + hint });
+    }
   }
 });
 
