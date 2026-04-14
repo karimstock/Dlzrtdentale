@@ -1331,7 +1331,7 @@ app.post('/api/mail/test', async (req, res) => {
 
 app.post('/api/mail/scan', async (req, res) => {
   try {
-    const { email, password, provider, userId } = req.body;
+    const { email, password, provider, userId, periode, mois, annee } = req.body;
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
@@ -1353,7 +1353,20 @@ app.post('/api/mail/scan', async (req, res) => {
         imap.openBox('INBOX', true, (err) => {
           if (err) { imap.end(); return reject(err); }
 
-          imap.search(['SINCE', 'January 1, 2026'], (err, uids) => {
+          // Calculer la date selon la periode choisie
+          let sinceDate;
+          if (periode === 'mensuel' && mois && annee) {
+            sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
+          } else if (periode === 'annuel' && annee) {
+            sinceDate = new Date(parseInt(annee), 0, 1);
+          } else if (periode === 'tout') {
+            sinceDate = new Date(2024, 0, 1);
+          } else {
+            sinceDate = new Date(2026, 0, 1);
+          }
+          const sinceStr = sinceDate.toDateString();
+
+          imap.search(['SINCE', sinceStr], (err, uids) => {
             if (err) { imap.end(); return reject(err); }
             if (!uids || !uids.length) { imap.end(); return resolve(); }
 
