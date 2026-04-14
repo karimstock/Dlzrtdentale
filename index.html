@@ -593,7 +593,8 @@ tbody tr:hover td{background:var(--surface2);}
             </div>
             <div id="pc-aide-yahoo" style="display:none;margin-bottom:8px;">
               <div style="font-weight:600;font-size:13px;color:#720e9e;margin-bottom:6px;">Yahoo Mail</div>
-              <a href="/api/auth/yahoo" style="display:inline-block;background:#720e9e;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;margin-bottom:8px;">&#x1F7E3; Se connecter avec Yahoo</a>
+              <a href="#" onclick="pcYahooOAuth();return false;" style="display:inline-block;background:#720e9e;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;margin-bottom:8px;">&#x1F7E3; Se connecter avec Yahoo</a>
+              <button onclick="pcScanYahooOAuth()" id="pc-btn-scan-yahoo" style="display:none;margin-left:8px;background:#2d6cdf;color:#fff;border:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;">&#x1F50D; Scanner mes factures Yahoo</button>
               <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">Ou utilisez un mot de passe d'application IMAP :</div>
               <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.8;">
                 <li>Activez d'abord l'IMAP : Yahoo Mail > Parametres > Autres applis > <strong style="color:var(--text);">Activer IMAP</strong></li>
@@ -2159,9 +2160,63 @@ function showPage(id, el) {
 // ═══════════════════════════════════
 let toastTimer;
 
+function pcYahooOAuth() {
+  const uid = (window.userInfo && window.userInfo.id) || (JSON.parse(localStorage.getItem('jadomi_session')||'{}').id) || '';
+  if (!uid) { try { showToast('Connectez-vous a JADOMI avant'); } catch(e){} return; }
+  window.location.href = '/api/auth/yahoo?uid=' + encodeURIComponent(uid);
+}
+
+async function pcScanYahooOAuth() {
+  const btn = document.getElementById('pc-btn-scan-yahoo');
+  const periode = (document.getElementById('pc-scan-type-periode')||{}).value || 'mensuel';
+  const mois = (document.getElementById('pc-scan-mois')||{}).value;
+  const annee = periode === 'mensuel'
+    ? (document.getElementById('pc-scan-annee-mois')||{}).value
+    : (document.getElementById('pc-scan-annee')||{}).value;
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Scan en cours...'; }
+    try { showToast('Scan Yahoo en cours...'); } catch(e){}
+    const resp = await fetch('/api/mail/scan-yahoo', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ userId: pcGetUserId(), periode, mois, annee })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || 'Scan echoue');
+    const rd = document.getElementById('pc-mail-results');
+    if (rd) {
+      rd.style.display = '';
+      if (!data.documents || !data.documents.length) {
+        rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>';
+      } else {
+        let h = '<div style="font-weight:700;margin-bottom:12px;">'+data.documents.length+' document(s) trouve(s)</div>';
+        data.documents.forEach(function(d,i) {
+          const a = d.analyse||{};
+          h += '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;margin-bottom:6px;border:1px solid var(--border);"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" '+(d.selectionne?'checked':'')+' data-pcmail-idx="'+i+'" style="width:16px;height:16px;"><div style="flex:1;"><div style="font-weight:600;font-size:13px;">'+(a.fournisseur_ou_etablissement||d.from||'Inconnu')+'</div><div style="font-size:11px;color:var(--muted);">'+(d.filename||'')+' - '+((a.total_ttc||0).toFixed ? (a.total_ttc||0).toFixed(2) : a.total_ttc)+'EUR</div></div></label></div>';
+        });
+        h += '<button onclick="pcComptaImportMail()" class="btn btn-accent" style="width:100%;padding:12px;margin-top:10px;font-size:14px;">Importer la selection</button>';
+        rd.innerHTML = h; rd._mailData = data.documents;
+      }
+    }
+  } catch (e) {
+    try { showToast('Erreur scan Yahoo : ' + e.message); } catch(_){}
+    alert('Erreur scan Yahoo : ' + e.message);
+    console.error(e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#x1F50D; Scanner mes factures Yahoo'; }
+  }
+}
+
 window.addEventListener('load', () => {
+  if (localStorage.getItem('jadomi_yahoo_connected') === '1') {
+    const b = document.getElementById('pc-btn-scan-yahoo');
+    if (b) b.style.display = 'inline-block';
+  }
   if (window.location.search.includes('yahoo_connected=1')) {
+    localStorage.setItem('jadomi_yahoo_connected', '1');
     try { showPage('compta'); } catch(e) {}
+    const sel = document.getElementById('pc-mail-provider'); if (sel) { sel.value = 'Yahoo'; try { pcAideMail(); } catch(e){} }
+    const b = document.getElementById('pc-btn-scan-yahoo'); if (b) b.style.display = 'inline-block';
     try { showToast('Yahoo Mail connecte !'); } catch(e) {}
     history.replaceState({}, '', '/');
   }
