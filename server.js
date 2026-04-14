@@ -1365,7 +1365,7 @@ app.post('/api/mail/scan', async (req, res) => {
           } else {
             sinceDate = new Date(2026, 0, 1);
           }
-          const sinceStr = sinceDate.toDateString();
+          const imapMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const sinceStr = '1-' + imapMonths[sinceDate.getMonth()] + '-' + sinceDate.getFullYear();
 
           imap.search(['SINCE', sinceStr], (err, uids) => {
             if (err) { imap.end(); return reject(err); }
