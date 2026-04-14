@@ -1340,7 +1340,7 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
     const accessToken = tokenData.access_token;
     // TODO: persister tokenData (access_token / refresh_token / xoauth_yahoo_guid) dans Supabase
     // via req.query.state pour lier a l'utilisateur connecte.
-    res.redirect('https://jadomi.fr/?yahoo_connected=1');
+    res.redirect('https://jadomi.fr/?yahoo_connected=1#compta');
   } catch (e) {
     console.error('Yahoo callback error:', e);
     res.redirect('https://jadomi.fr/?yahoo_error=exception');
