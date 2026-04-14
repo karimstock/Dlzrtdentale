@@ -1302,16 +1302,26 @@ app.post('/api/valider-document', async (req, res) => {
 // =============================================
 // OAuth2 Yahoo
 // =============================================
+function encodeState(obj) {
+  return Buffer.from(JSON.stringify(obj)).toString('base64url');
+}
+function decodeState(s) {
+  try { return JSON.parse(Buffer.from(s || '', 'base64url').toString('utf8')); } catch(e) { return {}; }
+}
+
 app.get('/api/auth/yahoo', (req, res) => {
+  const uid = req.query.uid || '';
+  const state = encodeState({ uid, t: Date.now() });
   const params = new URLSearchParams({
     client_id: process.env.YAHOO_CLIENT_ID,
     redirect_uri: 'https://jadomi.fr/api/auth/yahoo/callback',
     response_type: 'code',
     scope: 'openid',
     language: 'fr-fr',
+    state,
   });
   const url = `https://api.login.yahoo.com/oauth2/request_auth?${params.toString()}`;
-  console.log('Yahoo OAuth redirect:', url);
+  console.log('Yahoo OAuth redirect for uid=', uid);
   res.redirect(url);
 });
 
@@ -1339,9 +1349,33 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
       return res.redirect('https://jadomi.fr/?yahoo_error=token');
     }
 
-    const accessToken = tokenData.access_token;
-    // TODO: persister tokenData (access_token / refresh_token / xoauth_yahoo_guid) dans Supabase
-    // via req.query.state pour lier a l'utilisateur connecte.
+    const { uid } = decodeState(req.query.state);
+    let email = null;
+    try {
+      const uiResp = await fetch('https://api.login.yahoo.com/openid/v1/userinfo', {
+        headers: { Authorization: 'Bearer ' + tokenData.access_token }
+      });
+      const ui = await uiResp.json();
+      email = ui.email || (ui.emails && ui.emails[0] && ui.emails[0].handle) || null;
+    } catch (e) { console.warn('Yahoo userinfo failed:', e.message); }
+
+    if (uid) {
+      const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000).toISOString();
+      const { error: upErr } = await supabase.from('yahoo_oauth_tokens').upsert({
+        user_id: uid,
+        email,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        xoauth_yahoo_guid: tokenData.xoauth_yahoo_guid || null,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      if (upErr) console.error('Yahoo token upsert error:', upErr.message);
+      else console.log('Yahoo token stored for uid=', uid, 'email=', email);
+    } else {
+      console.warn('Yahoo callback without uid in state — token not persisted');
+    }
+
     res.redirect('https://jadomi.fr/index.html?yahoo_connected=1#compta');
   } catch (e) {
     console.error('Yahoo callback error:', e);
@@ -1349,19 +1383,144 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
   }
 });
 
-async function scanMailOAuth2(accessToken, email, userId) {
-  const imap = new Imap({
-    user: email,
-    xoauth2: accessToken,
-    host: 'imap.mail.yahoo.com',
-    port: 993,
-    tls: true,
-    tlsOptions: { rejectUnauthorized: false },
-    connTimeout: 30000,
-    authTimeout: 20000,
-  });
-  return imap;
+function buildXoauth2(email, accessToken) {
+  return Buffer.from(`user=${email}\x01auth=Bearer ${accessToken}\x01\x01`).toString('base64');
 }
+
+function scanInboxForDocs(imap, periode, mois, annee, provider) {
+  return new Promise((resolve, reject) => {
+    const documents = [];
+    let settled = false;
+    const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
+    const timer = setTimeout(() => {
+      console.error('IMAP scan timeout 90s for', provider);
+      try { imap.end(); } catch(e) {}
+      settle(() => reject(new Error('Timeout: le scan a pris plus de 90 secondes. Essayez une periode plus courte.')));
+    }, 90000);
+
+    imap.once('ready', () => {
+      imap.openBox('INBOX', true, (err) => {
+        if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
+        let sinceDate;
+        if (periode === 'mensuel' && mois && annee) sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
+        else if (periode === 'annuel' && annee) sinceDate = new Date(parseInt(annee), 0, 1);
+        else if (periode === 'tout') sinceDate = new Date(2024, 0, 1);
+        else sinceDate = new Date(2026, 0, 1);
+
+        console.log('IMAP scan SINCE', sinceDate, 'for', provider);
+        imap.search([['SINCE', sinceDate]], (err, uids) => {
+          if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
+          if (!uids || !uids.length) { try { imap.end(); } catch(e) {} return settle(() => resolve(documents)); }
+          const toProcess = uids.slice(-50);
+          const parsePromises = [];
+          const f = imap.fetch(toProcess, { bodies: '', struct: true });
+          f.on('message', (msg) => {
+            msg.on('body', (stream) => {
+              const p = simpleParser(stream).then(async (parsed) => {
+                for (const att of parsed.attachments || []) {
+                  const isPDF = att.contentType && att.contentType.includes('pdf');
+                  const isImage = att.contentType && att.contentType.includes('image');
+                  if (isPDF || isImage) {
+                    try {
+                      const base64 = att.content.toString('base64');
+                      const analyse = await analyserDocumentIA(base64, att.contentType);
+                      if (analyse && analyse.type_document !== 'personnel') {
+                        documents.push({
+                          from: parsed.from ? parsed.from.text : '',
+                          date_mail: parsed.date,
+                          subject: parsed.subject,
+                          filename: att.filename,
+                          analyse,
+                          selectionne: analyse.selectionne !== false,
+                        });
+                      }
+                    } catch(e) { console.error('IMAP scan attachment error:', e.message); }
+                  }
+                }
+              }).catch((e) => { console.error('IMAP parse error:', e.message); });
+              parsePromises.push(p);
+            });
+          });
+          f.once('error', (err) => { try { imap.end(); } catch(e) {} settle(() => reject(err)); });
+          f.once('end', () => {
+            Promise.all(parsePromises).finally(() => {
+              try { imap.end(); } catch(e) {}
+              settle(() => resolve(documents));
+            });
+          });
+        });
+      });
+    });
+    imap.once('error', (err) => {
+      console.error('IMAP connection error [' + provider + ']:', err.message, err.code || '');
+      settle(() => reject(err));
+    });
+    imap.connect();
+  });
+}
+
+async function getYahooAccessToken(userId) {
+  const { data: row, error } = await supabase.from('yahoo_oauth_tokens').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !row) throw new Error('Aucun token Yahoo trouve pour cet utilisateur. Reconnectez-vous avec Yahoo.');
+  const expired = row.expires_at && new Date(row.expires_at).getTime() < Date.now() + 60000;
+  if (!expired) return row;
+
+  const refreshResp = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(`${process.env.YAHOO_CLIENT_ID}:${process.env.YAHOO_CLIENT_SECRET}`).toString('base64')
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: row.refresh_token,
+      redirect_uri: 'https://jadomi.fr/api/auth/yahoo/callback',
+    })
+  });
+  const t = await refreshResp.json();
+  if (!refreshResp.ok || t.error) {
+    console.error('Yahoo refresh error:', t);
+    throw new Error('Token Yahoo expire et refresh echoue — reconnectez-vous.');
+  }
+  const expiresAt = new Date(Date.now() + (t.expires_in || 3600) * 1000).toISOString();
+  const updated = {
+    ...row,
+    access_token: t.access_token,
+    refresh_token: t.refresh_token || row.refresh_token,
+    expires_at: expiresAt,
+    updated_at: new Date().toISOString(),
+  };
+  await supabase.from('yahoo_oauth_tokens').upsert(updated, { onConflict: 'user_id' });
+  return updated;
+}
+
+app.post('/api/mail/scan-yahoo', async (req, res) => {
+  const { userId, periode, mois, annee } = req.body || {};
+  if (!userId) return res.status(400).json({ error: 'userId requis' });
+  try {
+    const row = await getYahooAccessToken(userId);
+    if (!row.email) return res.status(400).json({ error: 'Email Yahoo inconnu — reconnectez-vous.' });
+
+    const imap = new Imap({
+      user: row.email,
+      xoauth2: buildXoauth2(row.email, row.access_token),
+      host: 'imap.mail.yahoo.com',
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false, servername: 'imap.mail.yahoo.com', minVersion: 'TLSv1.2' },
+      connTimeout: 30000,
+      authTimeout: 20000,
+      keepalive: true,
+    });
+    res.setTimeout(180000);
+    const documents = await scanInboxForDocs(imap, periode, mois, annee, 'Yahoo-OAuth');
+    console.log('Yahoo-OAuth scan complete:', documents.length, 'docs for', row.email);
+    res.json({ documents, total: documents.length, email: row.email });
+  } catch (e) {
+    console.error('scan-yahoo error:', e.message);
+    if (!res.headersSent) res.status(400).json({ error: e.message });
+  }
+});
 
 // =============================================
 // COMPTABILITE — Scan boite mail (IMAP)
