@@ -594,6 +594,7 @@ tbody tr:hover td{background:var(--surface2);}
             <div id="pc-aide-yahoo" style="display:none;margin-bottom:8px;">
               <div style="font-weight:600;font-size:13px;color:#720e9e;margin-bottom:6px;">Yahoo Mail</div>
               <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--muted);line-height:1.8;">
+                <li>Activez d'abord l'IMAP : Yahoo Mail > Parametres > Autres applis > <strong style="color:var(--text);">Activer IMAP</strong></li>
                 <li>Connectez-vous sur <strong style="color:var(--text);">login.yahoo.com</strong></li>
                 <li>Cliquez sur votre avatar puis <strong style="color:var(--text);">Informations du compte</strong></li>
                 <li>Allez dans <strong style="color:var(--text);">Securite du compte</strong></li>
@@ -3687,10 +3688,13 @@ async function pcComptaScanMail() {
     const data = await resp.json();
     if(data.error) {
       var errMsg = data.error;
-      if(errMsg.indexOf('Invalid credentials') >= 0 || errMsg.indexOf('Authentication') >= 0 || errMsg.indexOf('AUTHENTICATIONFAILED') >= 0 || errMsg.indexOf('auth') >= 0) {
-        var prov = document.getElementById('pc-mail-provider').value;
-        var hints = {'Yahoo':'Mot de passe incorrect. Yahoo necessite un mot de passe d\'application (voir guide ci-dessus)','Outlook':'Mot de passe incorrect. Outlook necessite un mot de passe d\'application (voir guide ci-dessus)','Gmail':'Mot de passe incorrect. Gmail necessite un mot de passe d\'application (voir guide ci-dessus)'};
-        errMsg = hints[prov] || 'Identifiants incorrects. Verifiez votre email et mot de passe';
+      var errLow = errMsg.toLowerCase();
+      if(errLow.indexOf('invalid credentials') >= 0 || errLow.indexOf('authentication failed') >= 0 || errLow.indexOf('login failed') >= 0 || errLow.indexOf('authenticationfailed') >= 0) {
+        if(provider === 'Yahoo') errMsg = 'Mot de passe incorrect. Yahoo necessite un mot de passe d\'application (voir guide ci-dessus)';
+        else if(provider === 'Outlook') errMsg = 'Mot de passe incorrect. Outlook necessite un mot de passe d\'application (voir guide ci-dessus)';
+        else if(provider === 'Gmail') errMsg = 'Mot de passe incorrect. Gmail necessite un mot de passe d\'application (voir guide ci-dessus)';
+        else if(provider === 'OVH' || provider === 'Orange' || provider === 'Free' || provider === 'SFR' || provider === 'Laposte') errMsg = 'Mot de passe incorrect pour ' + provider + '. Verifiez vos identifiants ou activez IMAP';
+        else errMsg = 'Identifiants incorrects pour ' + provider + '. Verifiez votre email et mot de passe';
       }
       throw new Error(errMsg);
     }

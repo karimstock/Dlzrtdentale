@@ -1308,7 +1308,7 @@ app.post('/api/mail/test', async (req, res) => {
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
-      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993 },
+      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993, authTimeout: 10000, connTimeout: 15000 },
       'OVH': { host: 'ssl0.ovh.net', port: 993 },
       'Orange': { host: 'imap.orange.fr', port: 993 },
       'Free': { host: 'imap.free.fr', port: 993 },
@@ -1316,7 +1316,7 @@ app.post('/api/mail/test', async (req, res) => {
       'Laposte': { host: 'imap.laposte.net', port: 993 },
     };
     const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false }, connTimeout: 10000, authTimeout: 5000 });
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000 });
 
     await new Promise((resolve, reject) => {
       imap.once('ready', () => { imap.end(); resolve(); });
@@ -1335,7 +1335,7 @@ app.post('/api/mail/scan', async (req, res) => {
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
       'Outlook': { host: 'outlook.office365.com', port: 993 },
-      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993 },
+      'Yahoo': { host: 'imap.mail.yahoo.com', port: 993, authTimeout: 10000, connTimeout: 15000 },
       'OVH': { host: 'ssl0.ovh.net', port: 993 },
       'Orange': { host: 'imap.orange.fr', port: 993 },
       'Free': { host: 'imap.free.fr', port: 993 },
@@ -1344,7 +1344,7 @@ app.post('/api/mail/scan', async (req, res) => {
     };
     const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
 
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false }, connTimeout: 10000, authTimeout: 5000 });
+    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host }, connTimeout: config.connTimeout || 10000, authTimeout: config.authTimeout || 5000 });
 
     const documents = [];
 
