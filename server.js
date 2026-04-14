@@ -1304,6 +1304,9 @@ app.post('/api/valider-document', async (req, res) => {
 // =============================================
 app.post('/api/mail/test', async (req, res) => {
   const { email, password, provider } = req.body;
+  if (!email || !password || !provider) {
+    return res.status(400).json({ error: 'Email, mot de passe et provider requis' });
+  }
   try {
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
@@ -1332,6 +1335,9 @@ app.post('/api/mail/test', async (req, res) => {
 
 app.post('/api/mail/scan', async (req, res) => {
   const { email, password, provider, userId, periode, mois, annee } = req.body;
+  if (!email || !password || !provider) {
+    return res.status(400).json({ error: 'Email, mot de passe et provider requis' });
+  }
   try {
     const configs = {
       'Gmail': { host: 'imap.gmail.com', port: 993 },
@@ -1367,7 +1373,7 @@ app.post('/api/mail/scan', async (req, res) => {
           }
           const imapMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; const sinceStr = '1-' + imapMonths[sinceDate.getMonth()] + '-' + sinceDate.getFullYear();
 
-          imap.search(['SINCE', sinceStr], (err, uids) => {
+          imap.search([['SINCE', sinceDate]], (err, uids) => {
             if (err) { imap.end(); return reject(err); }
             if (!uids || !uids.length) { imap.end(); return resolve(); }
 
