@@ -2294,9 +2294,30 @@ app.post('/api/mail/import', async (req, res) => {
         .digest('hex');
 
       const { data: existing } = await db.from('documents_compta')
-        .select('id').eq('hash', hash).eq('user_id', userId).maybeSingle();
+        .select('id, storage_path').eq('hash', hash).eq('user_id', userId).maybeSingle();
       if (existing) {
-        console.log('[IMPORT] DOUBLON:', doc.fournisseur_ou_etablissement, 'hash:', hash.slice(0, 10));
+        console.log('[IMPORT] DOUBLON:', doc.fournisseur_ou_etablissement, 'hash:', hash.slice(0, 10), '| storage_path:', existing.storage_path || 'MANQUANT');
+        // Re-upload retroactif si le doc existant n'a pas de storage_path
+        if (!existing.storage_path && supabaseAdmin) {
+          const token = f.attachmentToken || doc.attachmentToken;
+          const byHash = pendingAttachmentsByHash.get(hash);
+          const att = byHash || (token ? scanAttachments.get(token) : null);
+          if (att && att.buffer) {
+            const ct = att.contentType || '';
+            const ext = ct.includes('pdf') ? 'pdf' : ct.includes('png') ? 'png' : ct.includes('jpeg') ? 'jpg' : 'bin';
+            const filePath = `${userId}/${hash}.${ext}`;
+            const { error: upErr } = await supabaseAdmin.storage
+              .from('documents-compta')
+              .upload(filePath, att.buffer, { contentType: ct || 'application/pdf', upsert: true });
+            if (!upErr) {
+              await supabaseAdmin.from('documents_compta').update({ storage_path: filePath }).eq('id', existing.id);
+              console.log('[STORAGE] retroactif uploade:', filePath);
+              pendingAttachmentsByHash.delete(hash);
+            } else {
+              console.warn('[STORAGE] retroactif fail:', upErr.message);
+            }
+          }
+        }
         duplicates++;
         continue;
       }
