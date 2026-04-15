@@ -1172,6 +1172,18 @@ REGLES D'EXTRACTION (CRITIQUE) :
 - total_ht / tva : meme regle, null si introuvable, jamais 0 artificiel
 - Si le document est une RELANCE/rappel d'impaye sans montant, extraire fournisseur + date quand meme
 
+REJETER (retourner {"type_document":"personnel","selectionne":false}) si :
+- Image trop petite, logo, icone, avatar, banniere publicitaire, signature email
+- Bouton/badge reseau social (Facebook, LinkedIn, TikTok, Instagram, Twitter, YouTube)
+- Image de tracking (pixel invisible, tracker analytics)
+- Photo personnelle, selfie, capture d'ecran hors contexte pro
+- Aucun fournisseur identifiable, aucune date, aucun montant, aucune description de service
+
+ACCEPTER uniquement si document financier/pro avec AU MINIMUM :
+- Un fournisseur ou emetteur identifiable
+- Une date
+- Un montant OU une description precise d'un service rendu
+
 JSON uniquement :
 {
   "type_document": "facture_dentaire",
@@ -1219,6 +1231,69 @@ JSON uniquement :
     console.warn('analyserDocumentIA: Claude a repondu en texte, piece jointe ignoree. Prefix:', raw.slice(0, 80));
     return null;
   }
+}
+
+// Pre-filtre des pieces jointes: ecarter logos, trackers, images inline avant Claude
+const ATT_IGNORE_KEYWORDS = ['logo','signature','banner','icon','avatar','facebook','twitter','linkedin','instagram','tiktok','youtube','social','tracking','tracker','pixel','unsubscribe'];
+function shouldSkipAttachment(att) {
+  if (!att || !att.contentType) return true;
+  const ct = String(att.contentType).toLowerCase();
+  const isImage = ct.includes('image');
+  const isPDF = ct.includes('pdf');
+  if (!isImage && !isPDF) return true;
+  // Images inline (Content-Disposition: inline) sont presque toujours decoratives
+  if (isImage && String(att.contentDisposition || '').toLowerCase() === 'inline') return true;
+  // Petites images < 50KB = logos/icones
+  if (isImage && typeof att.size === 'number' && att.size < 50000) return true;
+  const name = String(att.filename || '').toLowerCase();
+  if (name && ATT_IGNORE_KEYWORDS.some(k => name.includes(k))) return true;
+  return false;
+}
+
+// Analyse le corps textuel d'un mail quand l'expediteur est un fournisseur connu
+// (EDF, Free Pro, Orange Pro...) qui n'attachent pas toujours la facture en PJ
+async function analyserTexteDocument(texte, fromText, subject) {
+  if (!texte || texte.length < 100) return null;
+  const body = String(texte).slice(0, 6000);
+  const from = String(fromText || '').slice(0, 200);
+  const subj = String(subject || '').slice(0, 200);
+  const prompt = `Tu es un expert-comptable cabinet dentaire FR. Analyse ce mail pour en extraire une facture/avis d'echeance si c'est le cas.
+
+De: ${from}
+Objet: ${subj}
+
+Corps du mail (texte):
+---
+${body}
+---
+
+Meme regles de classification que pour un document attache. Si aucun montant/date/fournisseur extractible, retourne {"type_document":"personnel","selectionne":false}.
+
+Reponse JSON uniquement, meme schema que pour analyse PDF (type_document, fournisseur_ou_etablissement, date, total_ht, tva, total_ttc, description, etc). total_* = null si introuvable (jamais 0).`;
+
+  try {
+    const r = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1500,
+      messages: [{ role: 'user', content: [{ type:'text', text: prompt }] }]
+    });
+    const raw = (r.content[0] && r.content[0].text) || '';
+    const cleaned = raw.replace(/```json|```/g,'').trim();
+    try { return JSON.parse(cleaned); }
+    catch(e1) {
+      const m = cleaned.match(/\{[\s\S]*\}/);
+      if (m) { try { return JSON.parse(m[0]); } catch(e2){} }
+    }
+  } catch(e) { console.error('analyserTexteDocument error:', e.message); }
+  return null;
+}
+
+// Fournisseurs connus pour envoyer des factures dans le corps HTML (pas en PJ)
+const FOURNISSEURS_CORPS_MAIL = ['edf','engie','totalenergies','enedis','free','orange','sfr','bouygues','numericable','numéricable','red by sfr','ovh','ionos'];
+function mailEmaneDUnFournisseurCorps(parsed) {
+  const from = String(parsed.from && parsed.from.text || '').toLowerCase();
+  const subj = String(parsed.subject || '').toLowerCase();
+  return FOURNISSEURS_CORPS_MAIL.some(f => from.includes(f) || subj.includes(f));
 }
 
 app.post('/api/analyser-document', async (req, res) => {
@@ -1520,39 +1595,65 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
               const p = simpleParser(stream).then(async (parsed) => {
                 const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                 sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
+                let pjExploitable = false;
                 for (const att of parsed.attachments || []) {
-                  const isPDF = att.contentType && att.contentType.includes('pdf');
-                  const isImage = att.contentType && att.contentType.includes('image');
-                  if (isPDF || isImage) {
-                    try {
-                      const base64 = att.content.toString('base64');
-                      const analyse = await analyserDocumentIA(base64, att.contentType);
-                      if (analyse && analyse.type_document !== 'personnel') {
-                        const attToken = storeAttachment(userId, att);
-                        documents.push({
-                          from: parsed.from ? parsed.from.text : '',
-                          date_mail: parsed.date,
-                          subject: parsed.subject,
+                  if (shouldSkipAttachment(att)) continue;
+                  pjExploitable = true;
+                  try {
+                    const base64 = att.content.toString('base64');
+                    const analyse = await analyserDocumentIA(base64, att.contentType);
+                    if (analyse && analyse.type_document !== 'personnel') {
+                      const attToken = storeAttachment(userId, att);
+                      documents.push({
+                        from: parsed.from ? parsed.from.text : '',
+                        date_mail: parsed.date,
+                        subject: parsed.subject,
+                        filename: att.filename,
+                        analyse,
+                        attachmentToken: attToken,
+                        selectionne: analyse.selectionne !== false,
+                      });
+                      sendProgress(userId, {
+                        status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
+                        newDocument: {
+                          fournisseur: analyse.fournisseur_ou_etablissement,
+                          total_ttc: analyse.total_ttc,
+                          type_document: analyse.type_document,
+                          date: analyse.date,
                           filename: att.filename,
-                          analyse,
                           attachmentToken: attToken,
                           selectionne: analyse.selectionne !== false,
-                        });
-                        sendProgress(userId, {
-                          status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
-                          newDocument: {
-                            fournisseur: analyse.fournisseur_ou_etablissement,
-                            total_ttc: analyse.total_ttc,
-                            type_document: analyse.type_document,
-                            date: analyse.date,
-                            filename: att.filename,
-                            attachmentToken: attToken,
-                            selectionne: analyse.selectionne !== false,
-                          }
-                        });
-                      }
-                    } catch(e) { console.error('IMAP scan attachment error:', e.message); }
-                  }
+                        }
+                      });
+                    }
+                  } catch(e) { console.error('IMAP scan attachment error:', e.message); }
+                }
+                // Fallback: analyse du corps si pas de PJ exploitable ET emetteur = fournisseur connu
+                if (!pjExploitable && mailEmaneDUnFournisseurCorps(parsed)) {
+                  try {
+                    const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
+                    if (analyse && analyse.type_document !== 'personnel') {
+                      documents.push({
+                        from: parsed.from ? parsed.from.text : '',
+                        date_mail: parsed.date,
+                        subject: parsed.subject,
+                        filename: '(corps du mail)',
+                        analyse,
+                        selectionne: analyse.selectionne !== false,
+                      });
+                      sendProgress(userId, {
+                        status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
+                        newDocument: {
+                          fournisseur: analyse.fournisseur_ou_etablissement,
+                          total_ttc: analyse.total_ttc,
+                          type_document: analyse.type_document,
+                          date: analyse.date,
+                          filename: '(corps du mail)',
+                          selectionne: analyse.selectionne !== false,
+                        }
+                      });
+                    }
+                  } catch(e) { console.error('IMAP body scan error:', e.message); }
                 }
                 done++;
                 sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
@@ -1783,39 +1884,64 @@ app.post('/api/mail/scan', async (req, res) => {
                 const p = simpleParser(stream).then(async (parsed) => {
                   const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                   sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
+                  let pjExploitable = false;
                   for (const att of parsed.attachments || []) {
-                    const isPDF = att.contentType && att.contentType.includes('pdf');
-                    const isImage = att.contentType && att.contentType.includes('image');
-                    if (isPDF || isImage) {
-                      try {
-                        const base64 = att.content.toString('base64');
-                        const analyse = await analyserDocumentIA(base64, att.contentType);
-                        if (analyse && analyse.type_document !== 'personnel') {
-                          const attToken = storeAttachment(userId, att);
-                          documents.push({
-                            from: parsed.from ? parsed.from.text : '',
-                            date_mail: parsed.date,
-                            subject: parsed.subject,
+                    if (shouldSkipAttachment(att)) continue;
+                    pjExploitable = true;
+                    try {
+                      const base64 = att.content.toString('base64');
+                      const analyse = await analyserDocumentIA(base64, att.contentType);
+                      if (analyse && analyse.type_document !== 'personnel') {
+                        const attToken = storeAttachment(userId, att);
+                        documents.push({
+                          from: parsed.from ? parsed.from.text : '',
+                          date_mail: parsed.date,
+                          subject: parsed.subject,
+                          filename: att.filename,
+                          analyse,
+                          attachmentToken: attToken,
+                          selectionne: analyse.selectionne !== false,
+                        });
+                        sendProgress(userId, {
+                          status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj,
+                          newDocument: {
+                            fournisseur: analyse.fournisseur_ou_etablissement,
+                            total_ttc: analyse.total_ttc,
+                            type_document: analyse.type_document,
+                            date: analyse.date,
                             filename: att.filename,
-                            analyse,
                             attachmentToken: attToken,
                             selectionne: analyse.selectionne !== false,
-                          });
-                          sendProgress(userId, {
-                            status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: (parsed.subject||'').slice(0,80),
-                            newDocument: {
-                              fournisseur: analyse.fournisseur_ou_etablissement,
-                              total_ttc: analyse.total_ttc,
-                              type_document: analyse.type_document,
-                              date: analyse.date,
-                              filename: att.filename,
-                              attachmentToken: attToken,
-                              selectionne: analyse.selectionne !== false,
-                            }
-                          });
-                        }
-                      } catch(e) { console.error('IMAP scan attachment error:', e.message); }
-                    }
+                          }
+                        });
+                      }
+                    } catch(e) { console.error('IMAP scan attachment error:', e.message); }
+                  }
+                  if (!pjExploitable && mailEmaneDUnFournisseurCorps(parsed)) {
+                    try {
+                      const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
+                      if (analyse && analyse.type_document !== 'personnel') {
+                        documents.push({
+                          from: parsed.from ? parsed.from.text : '',
+                          date_mail: parsed.date,
+                          subject: parsed.subject,
+                          filename: '(corps du mail)',
+                          analyse,
+                          selectionne: analyse.selectionne !== false,
+                        });
+                        sendProgress(userId, {
+                          status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj,
+                          newDocument: {
+                            fournisseur: analyse.fournisseur_ou_etablissement,
+                            total_ttc: analyse.total_ttc,
+                            type_document: analyse.type_document,
+                            date: analyse.date,
+                            filename: '(corps du mail)',
+                            selectionne: analyse.selectionne !== false,
+                          }
+                        });
+                      }
+                    } catch(e) { console.error('IMAP body scan error:', e.message); }
                   }
                   scanDone++;
                   sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
