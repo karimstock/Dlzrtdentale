@@ -1633,30 +1633,48 @@ function isPdfAttachment(att) {
 
 // Pre-filtre global: mail a-t-il une chance d'etre un document comptable ?
 const REJETER_SUJET = [
-  'messagerie vocale', 'message vocal', 'nouveau message reçu',
-  'appel manqué', 'boite vocale', 'voicemail',
-  'newsletter', 'actualité', 'nos offres', 'promotions',
-  'offre spéciale', 'soldes', 'parrainage',
+  'messagerie vocale', 'message vocal', 'appel manqué',
+  'newsletter', 'nos offres', 'promotions', 'offre spéciale',
+  'soldes', 'commander avant', 'profitez de',
+  'votre avis', 'donnez votre avis', 'satisfaction',
+  'répondez à', 'questionnaire', 'sondage',
   'mot de passe', 'réinitialisation', 'connexion depuis',
-  'alerte sécurité', 'vérification',
-  'votre colis est', 'livraison prévue',
-  'satisfaction client', 'donnez votre avis',
-  'recherche facture', 'pouvez-vous', 'merci de',
-  'rappel rendez-vous', 'confirmation rdv',
-  'je cherche', 'auriez-vous',
+  'rappel rendez-vous', 'confirmation rdv', 'compte rendu',
+  'rapport entretien', 'rapport de visite',
+  'parrainage', 'sponsorisé', 'publicité',
+  'votre colis est en', 'livraison prévue',
+  'recherche facture', 'auriez-vous', 'pouvez-vous',
+  'bonjour karim',
+];
+
+const MOTS_CLES_FINANCIERS_PRECIS = [
+  'facture', 'invoice', 'reçu de paiement', 'receipt',
+  'paiement reçu', 'payment confirmed', 'règlement reçu',
+  'votre commande est confirmée', 'order confirmed',
+  'échéance', 'avis de paiement', "avis d'échéance",
+  'quittance', 'rappel de paiement',
+  'bordereau', 'bon de commande accepté',
+  'avoir', 'remboursement effectué',
+  'prélèvement', 'débit',
+];
+
+const FOURNISSEURS_DENTAIRES = [
+  'gacd', 'dpi', 'henry schein', 'septodont', 'mega dental',
+  'pierre rolland', 'anthogyr', 'straumann',
 ];
 
 function vautLaPeineAnalyser(parsed) {
   const subject = String(parsed.subject || '').toLowerCase();
   const from = String(parsed.from && parsed.from.text || '').toLowerCase();
-  if (REJETER_SUJET.some(m => subject.includes(m))) {
+  const body = String(parsed.text || '').substring(0, 500).toLowerCase();
+  if (REJETER_SUJET.some(m => subject.includes(m) || body.includes(m))) {
     console.log(`[SKIP PRECIS] "${subject}" — non financier`);
     return false;
   }
   const hasPDF = (parsed.attachments || []).some(isPdfAttachment);
   if (hasPDF) return true;
-  if (MOTS_CLES_FACTURE.some(m => subject.includes(m))) return true;
-  if (FOURNISSEURS_CONNUS.some(f => from.includes(f))) return true;
+  if (MOTS_CLES_FINANCIERS_PRECIS.some(m => subject.includes(m))) return true;
+  if (FOURNISSEURS_DENTAIRES.some(f => from.includes(f))) return true;
   return false;
 }
 
