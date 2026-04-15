@@ -3237,7 +3237,7 @@ function mInitPeriodeParDefaut() {
     if (typeof mTogglePeriode === 'function') mTogglePeriode();
   } catch(e) { console.warn('mInitPeriodeParDefaut', e); }
 }
-window.addEventListener('load', () => { try { mInitPeriodeParDefaut(); } catch(e){} });
+window.addEventListener('load', () => { try { mInitPeriodeParDefaut(); } catch(e){} try { mRestaurerScanPrecedent(); } catch(e){} });
 
 function mTogglePeriode() {
   var v = document.getElementById('compta-scan-type-periode').value;
@@ -3311,6 +3311,44 @@ function _mFmtMontant(v) {
 }
 window._mScanLiveDocs = [];
 window._mScanFullDocs = [];
+
+function mSaveScanResults(documents) {
+  try {
+    localStorage.setItem('jadomi_scan_results', JSON.stringify({
+      date: new Date().toISOString(),
+      documents: documents || []
+    }));
+  } catch(e) {}
+}
+
+function mRestaurerScanPrecedent() {
+  try {
+    const saved = localStorage.getItem('jadomi_scan_results');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    const ageMin = (new Date() - new Date(data.date)) / 60000;
+    if (ageMin >= 30 || !data.documents || !data.documents.length) return;
+    const vc = document.getElementById('scan-validation-container');
+    const list = document.getElementById('scan-documents-list');
+    if (!vc || !list) return;
+    list.innerHTML = '';
+    window._mScanLiveDocs = [];
+    window._mScanFullDocs = data.documents.slice();
+    data.documents.forEach(d => {
+      mAjouterDocumentEnTempsReel({
+        fournisseur: (d.analyse && d.analyse.fournisseur_ou_etablissement) || d.from || 'Inconnu',
+        total_ttc: d.analyse && d.analyse.total_ttc,
+        type_document: d.analyse && d.analyse.type_document,
+        date: d.analyse && d.analyse.date,
+        filename: d.filename,
+        attachmentToken: d.attachmentToken,
+        selectionne: d.selectionne !== false,
+      });
+    });
+    vc.style.display = '';
+  } catch(e) {}
+}
+
 function mMajCompteurValidation() {
   const list = document.getElementById('scan-documents-list');
   if (!list) return;
@@ -3363,6 +3401,8 @@ async function mValiderSelectionDocuments() {
     const data = await resp.json();
     if (!resp.ok || data.error) throw new Error(data.error || 'Import echoue');
     alert((data.imported || selected.length) + ' document(s) importe(s)');
+    try { localStorage.removeItem('jadomi_scan_results'); } catch(e){}
+    const vc = document.getElementById('scan-validation-container'); if (vc) vc.style.display = 'none';
   } catch(e) {
     alert('Erreur import : ' + e.message);
   } finally {
@@ -3470,6 +3510,7 @@ async function comptaScanMail() {
 
     comptaSauvegarderMailConfig(provider, email, pass);
     window._mScanFullDocs = (data && data.documents) || [];
+    mSaveScanResults(window._mScanFullDocs);
     var rd = document.getElementById('compta-mail-results'); rd.hidden = true;
     if(!data.documents||!data.documents.length) { rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>'; }
     else {

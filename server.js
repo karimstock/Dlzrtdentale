@@ -2137,21 +2137,23 @@ app.post('/api/mail/import', async (req, res) => {
   try {
     if (!factures || !userId) return res.status(400).json({ error: 'factures et userId requis' });
 
+    const db = supabaseAdmin || supabase;
     let imported = 0;
+    let duplicates = 0;
+    const errors = [];
     for (const f of factures) {
       if (!f.selectionne) continue;
       const doc = f.analyse || f;
       doc.source = 'mail';
-      // Reuse valider-document logic
       const hash = crypto.createHash('md5')
         .update(`${doc.fournisseur_ou_etablissement}_${doc.numero_document}_${doc.date}_${doc.total_ttc}`)
         .digest('hex');
 
-      const { data: existing } = await supabase.from('documents_compta')
+      const { data: existing } = await db.from('documents_compta')
         .select('id').eq('hash', hash).maybeSingle();
-      if (existing) continue;
+      if (existing) { duplicates++; continue; }
 
-      await supabase.from('documents_compta').insert({
+      const { error: insErr } = await db.from('documents_compta').insert({
         user_id: userId,
         type_document: doc.type_document,
         sous_type: doc.sous_type,
@@ -2170,10 +2172,16 @@ app.post('/api/mail/import', async (req, res) => {
         source: 'mail',
         mois: doc.date ? doc.date.substring(0, 7) : null,
       });
-      imported++;
+      if (insErr) {
+        console.error('[IMPORT] insert error for', doc.fournisseur_ou_etablissement, ':', insErr.message);
+        errors.push({ fournisseur: doc.fournisseur_ou_etablissement, error: insErr.message });
+      } else {
+        imported++;
+      }
     }
 
-    res.json({ success: true, imported });
+    console.log('[IMPORT] done — imported:', imported, 'duplicates:', duplicates, 'errors:', errors.length);
+    res.json({ success: true, imported, duplicates, errors });
   } catch (e) {
     console.error('mail/import error:', e.message);
     res.status(500).json({ error: e.message });
