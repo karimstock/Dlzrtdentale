@@ -1262,7 +1262,7 @@ function shouldSkipAttachment(att) {
 
 function subjectDeclencheBodyScan(subject) {
   const s = String(subject || '').toLowerCase();
-  return /facture|invoice|re[çc]u|receipt|echeance|avis\s+d[e']?\s*echeance|paiement|rappel|quittance/.test(s);
+  return /facture|invoice|re[çc]u|receipt|echeance|avis\s+d[e']?\s*echeance|paiement|rappel|quittance|commande|bon\s+de\s+commande|bon\s+de\s+livraison|bordereau/.test(s);
 }
 
 // Analyse le corps textuel d'un mail quand l'expediteur est un fournisseur connu
@@ -1531,6 +1531,10 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 function storeAttachment(userId, att) {
+  if (!att || !att.content || !Buffer.isBuffer(att.content) || att.content.length === 0) {
+    console.warn('[ATT] storeAttachment: content vide ou non-Buffer pour', att && att.filename);
+    return null;
+  }
   const token = crypto.randomBytes(16).toString('hex');
   scanAttachments.set(token, {
     userId,
@@ -1539,6 +1543,7 @@ function storeAttachment(userId, att) {
     buffer: att.content,
     createdAt: Date.now(),
   });
+  console.log('[ATT] stored', att.filename, att.contentType, att.content.length, 'bytes -> token', token.slice(0, 8));
   return token;
 }
 
@@ -1616,9 +1621,13 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
               const p = simpleParser(stream).then(async (parsed) => {
                 const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                 sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
+                const atts = parsed.attachments || [];
+                console.log('[IMAP] mail "' + subj + '" |', atts.length, 'attachments');
                 let pjExploitable = false;
-                for (const att of parsed.attachments || []) {
-                  if (shouldSkipAttachment(att)) continue;
+                for (const att of atts) {
+                  const skip = shouldSkipAttachment(att);
+                  console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| skip:', skip);
+                  if (skip) continue;
                   pjExploitable = true;
                   try {
                     const base64 = att.content.toString('base64');
@@ -1649,10 +1658,13 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                     }
                   } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                 }
-                // Fallback: analyse du corps si pas de PJ exploitable ET
-                // (emetteur = fournisseur connu OU sujet contient facture/invoice/recu/echeance)
-                const declencheBody = mailEmaneDUnFournisseurCorps(parsed) || subjectDeclencheBodyScan(parsed.subject);
-                if (!pjExploitable && declencheBody) {
+                // Scan du corps:
+                // - toujours si sujet contient facture/invoice/recu... (ADDITIF, en plus des PJs)
+                // - ou en fallback si emetteur = fournisseur connu ET aucune PJ exploitable
+                const subjMatch = subjectDeclencheBodyScan(parsed.subject);
+                const fournisseurMatch = mailEmaneDUnFournisseurCorps(parsed);
+                const declencheBody = subjMatch || (!pjExploitable && fournisseurMatch);
+                if (declencheBody) {
                   try {
                     const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
                     if (analyse && analyse.type_document !== 'personnel') {
@@ -1907,9 +1919,13 @@ app.post('/api/mail/scan', async (req, res) => {
                 const p = simpleParser(stream).then(async (parsed) => {
                   const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                   sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
+                  const atts = parsed.attachments || [];
+                  console.log('[IMAP] mail "' + subj + '" |', atts.length, 'attachments');
                   let pjExploitable = false;
-                  for (const att of parsed.attachments || []) {
-                    if (shouldSkipAttachment(att)) continue;
+                  for (const att of atts) {
+                    const skip = shouldSkipAttachment(att);
+                    console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| skip:', skip);
+                    if (skip) continue;
                     pjExploitable = true;
                     try {
                       const base64 = att.content.toString('base64');
@@ -1940,8 +1956,10 @@ app.post('/api/mail/scan', async (req, res) => {
                       }
                     } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                   }
-                  const declencheBody = mailEmaneDUnFournisseurCorps(parsed) || subjectDeclencheBodyScan(parsed.subject);
-                  if (!pjExploitable && declencheBody) {
+                  const subjMatch = subjectDeclencheBodyScan(parsed.subject);
+                  const fournisseurMatch = mailEmaneDUnFournisseurCorps(parsed);
+                  const declencheBody = subjMatch || (!pjExploitable && fournisseurMatch);
+                  if (declencheBody) {
                     try {
                       const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
                       if (analyse && analyse.type_document !== 'personnel') {
