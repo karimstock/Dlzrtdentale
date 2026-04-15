@@ -3859,7 +3859,7 @@ function pcRestaurerScanPrecedent() {
     if (!saved) return;
     const data = JSON.parse(saved);
     const ageMin = (new Date() - new Date(data.date)) / 60000;
-    if (ageMin >= 30 || !data.documents || !data.documents.length) return;
+    if (ageMin >= 120 || !data.documents || !data.documents.length) return;
     const vc = document.getElementById('scan-validation-container');
     const list = document.getElementById('scan-documents-list');
     if (!vc || !list) return;
@@ -3872,10 +3872,11 @@ function pcRestaurerScanPrecedent() {
         total_ttc: d.analyse && d.analyse.total_ttc,
         type_document: d.analyse && d.analyse.type_document,
         date: d.analyse && d.analyse.date,
+        subject: d.subject || '',
         filename: d.filename,
         attachmentToken: d.attachmentToken,
         selectionne: d.selectionne !== false,
-      });
+      }, true);
     });
     vc.style.display = '';
     try { showToast(data.documents.length + ' documents du dernier scan restaures'); } catch(e){}
@@ -3903,7 +3904,7 @@ const _ICONES_TYPE = {
   'devis':'📝','bon_livraison':'📦','releve_bancaire':'🏦','personnel':'👤'
 };
 
-function ajouterDocumentEnTempsReel(doc) {
+function ajouterDocumentEnTempsReel(doc, isRestore) {
   const vc = document.getElementById('scan-validation-container');
   const list = document.getElementById('scan-documents-list');
   if (!vc || !list) {
@@ -3942,6 +3943,26 @@ function ajouterDocumentEnTempsReel(doc) {
   pcUpdateScanCount();
   const displayed = document.querySelectorAll('#scan-documents-list > div').length;
   console.log('[JADOMI] docs recus:', window._scanLiveDocs.length, 'affiches:', displayed);
+
+  if (!isRestore) {
+    try {
+      const persisted = {
+        analyse: {
+          fournisseur_ou_etablissement: doc.fournisseur,
+          total_ttc: doc.total_ttc,
+          type_document: doc.type_document,
+          date: doc.date,
+        },
+        subject: doc.subject || '',
+        filename: doc.filename,
+        attachmentToken: doc.attachmentToken,
+        selectionne: doc.selectionne !== false,
+      };
+      window._scanFullDocs = window._scanFullDocs || [];
+      window._scanFullDocs.push(persisted);
+      pcSaveScanResults(window._scanFullDocs);
+    } catch(e){}
+  }
 }
 
 async function pcValiderSelectionDocuments() {
