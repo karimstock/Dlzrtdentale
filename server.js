@@ -1581,6 +1581,25 @@ setInterval(() => {
   for (const [k, v] of scanAttachments) if (v.createdAt < cutoff) scanAttachments.delete(k);
 }, 10 * 60 * 1000).unref();
 
+// Map persistante indexee par hash (anti-expiration TTL) - videe lors de l'upload Storage
+const pendingAttachmentsByHash = new Map();
+function storeAttachmentByHash(hash, att) {
+  if (!hash || !att || !att.content || !Buffer.isBuffer(att.content)) return;
+  pendingAttachmentsByHash.set(hash, {
+    filename: att.filename || 'document',
+    contentType: att.contentType || 'application/octet-stream',
+    buffer: att.content,
+    createdAt: Date.now(),
+  });
+  console.log('[ATT HASH] stored hash=' + hash.slice(0, 8) + ' size=' + att.content.length);
+}
+function computeDocHash(analyse) {
+  if (!analyse) return null;
+  return require('crypto').createHash('md5')
+    .update(`${analyse.fournisseur_ou_etablissement}_${analyse.numero_document || ''}_${analyse.date || ''}_${analyse.total_ttc || 0}`)
+    .digest('hex');
+}
+
 function storeAttachment(userId, att) {
   if (!att || !att.content || !Buffer.isBuffer(att.content) || att.content.length === 0) {
     console.warn('[ATT] storeAttachment: content vide ou non-Buffer pour', att && att.filename);
@@ -1802,6 +1821,8 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                     const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
                     if (analyse && analyse.type_document !== 'personnel') {
                       const attToken = storeAttachment(userId, att);
+                      const docHash = computeDocHash(analyse);
+                      if (docHash) storeAttachmentByHash(docHash, att);
                       documents.push({
                         from: parsed.from ? parsed.from.text : '',
                         date_mail: parsed.date,
@@ -1809,6 +1830,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                         filename: att.filename,
                         analyse,
                         attachmentToken: attToken,
+                        docHash,
                         selectionne: analyse.selectionne !== false,
                       });
                       sendProgress(userId, {
@@ -2141,6 +2163,8 @@ app.post('/api/mail/scan', async (req, res) => {
                       const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
                       if (analyse && analyse.type_document !== 'personnel') {
                         const attToken = storeAttachment(userId, att);
+                        const docHash = computeDocHash(analyse);
+                        if (docHash) storeAttachmentByHash(docHash, att);
                         documents.push({
                           from: parsed.from ? parsed.from.text : '',
                           date_mail: parsed.date,
@@ -2148,6 +2172,7 @@ app.post('/api/mail/scan', async (req, res) => {
                           filename: att.filename,
                           analyse,
                           attachmentToken: attToken,
+                          docHash,
                           selectionne: analyse.selectionne !== false,
                         });
                         sendProgress(userId, {
@@ -2269,28 +2294,35 @@ app.post('/api/mail/import', async (req, res) => {
         .digest('hex');
 
       const { data: existing } = await db.from('documents_compta')
-        .select('id').eq('hash', hash).maybeSingle();
-      if (existing) { duplicates++; continue; }
+        .select('id').eq('hash', hash).eq('user_id', userId).maybeSingle();
+      if (existing) {
+        console.log('[IMPORT] DOUBLON:', doc.fournisseur_ou_etablissement, 'hash:', hash.slice(0, 10));
+        duplicates++;
+        continue;
+      }
 
-      // Upload PDF/image vers Supabase Storage si attachmentToken present
+      // Upload PDF/image vers Supabase Storage — priorite hash map (pas de TTL)
       let storagePath = null;
       const token = f.attachmentToken || doc.attachmentToken;
-      if (token && supabaseAdmin) {
-        const att = scanAttachments.get(token);
-        if (att && att.buffer) {
-          const ext = (att.contentType && att.contentType.includes('pdf')) ? 'pdf'
-            : (att.contentType && att.contentType.includes('png')) ? 'png'
-            : (att.contentType && att.contentType.includes('jpeg')) ? 'jpg'
-            : 'bin';
-          const filePath = `${userId}/${hash}.${ext}`;
-          const { error: upErr } = await supabaseAdmin.storage
-            .from('documents-compta')
-            .upload(filePath, att.buffer, {
-              contentType: att.contentType || 'application/pdf',
-              upsert: true
-            });
-          if (!upErr) storagePath = filePath;
-          else console.warn('[STORAGE] upload fail:', upErr.message);
+      const byHash = pendingAttachmentsByHash.get(hash);
+      const att = byHash || (token ? scanAttachments.get(token) : null);
+      console.log('[IMPORT] attToken:', token ? token.slice(0, 8) : 'none', '| byHash:', !!byHash, '| att found:', !!att, '| size:', (att && att.buffer && att.buffer.length) || 0);
+      if (att && att.buffer && supabaseAdmin) {
+        const ct = att.contentType || '';
+        const ext = ct.includes('pdf') ? 'pdf' : ct.includes('png') ? 'png' : ct.includes('jpeg') ? 'jpg' : 'bin';
+        const filePath = `${userId}/${hash}.${ext}`;
+        const { error: upErr } = await supabaseAdmin.storage
+          .from('documents-compta')
+          .upload(filePath, att.buffer, {
+            contentType: ct || 'application/pdf',
+            upsert: true
+          });
+        if (!upErr) {
+          storagePath = filePath;
+          console.log('[STORAGE] uploaded', filePath);
+          pendingAttachmentsByHash.delete(hash);
+        } else {
+          console.warn('[STORAGE] upload fail:', upErr.message);
         }
       }
 
