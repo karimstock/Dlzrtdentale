@@ -1788,6 +1788,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           filename: att.filename,
                           attachmentToken: attToken,
                           subject: parsed.subject || '',
+                          date_mail: parsed.date,
                           selectionne: analyse.selectionne !== false,
                         }
                       });
@@ -1821,6 +1822,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           filename: mailPdfFilename || '(corps du mail)',
                           attachmentToken: bodyToken,
                           subject: parsed.subject || '',
+                          date_mail: parsed.date,
                           selectionne: analyse.selectionne !== false,
                         }
                       });
@@ -2215,16 +2217,18 @@ app.post('/api/mail/scan', async (req, res) => {
 });
 
 app.post('/api/mail/import', async (req, res) => {
-  const { factures, userId } = req.body;
+  const { factures, documents, userId } = req.body;
+  const items = factures || documents || [];
   try {
-    if (!factures || !userId) return res.status(400).json({ error: 'factures et userId requis' });
+    if (!items.length || !userId) return res.status(400).json({ error: 'factures et userId requis' });
+    console.log('[IMPORT] userId=', userId, 'items:', items.length);
 
     const db = supabaseAdmin || supabase;
     let imported = 0;
     let duplicates = 0;
     const errors = [];
-    for (const f of factures) {
-      if (!f.selectionne) continue;
+    for (const f of items) {
+      if (f.selectionne === false) continue;
       const doc = f.analyse || f;
       doc.source = 'mail';
       const hash = crypto.createHash('md5')
@@ -2360,10 +2364,12 @@ app.get('/api/factures', async (req, res) => {
     const userId = req.query.userId;
     if (!userId) return res.status(400).json({ error: 'userId requis' });
 
-    const { data, error } = await supabase.from('documents_compta')
+    const db = supabaseAdmin || supabase;
+    const { data, error } = await db.from('documents_compta')
       .select('*').eq('user_id', userId).order('date_document', { ascending: false });
 
     if (error) throw error;
+    console.log('[FACTURES] userId=', userId, 'found:', (data || []).length);
     res.json(data || []);
   } catch (e) {
     console.error('factures error:', e.message);
