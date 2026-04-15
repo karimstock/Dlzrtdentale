@@ -1663,7 +1663,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
           const f = imap.fetch(toProcess, { bodies: '', struct: true });
           f.on('message', (msg) => {
             msg.on('body', (stream) => {
-              const p = simpleParser(stream).then(async (parsed) => {
+              const p = simpleParser(stream, { skipTextToHtml: true, skipImageLinks: true }).then(async (parsed) => {
                 const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                 sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
                 const atts = parsed.attachments || [];
@@ -1687,7 +1687,8 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                 for (const att of atts) {
                   const isPDF = isPdfAttachment(att);
                   const skip = !isPDF || shouldSkipAttachment(att);
-                  console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| pdf:', isPDF, '| skip:', skip);
+                  const contentLen = att && att.content && att.content.length || 0;
+                  console.log('[ATT DEBUG]', att.filename || '(sans nom)', '| pdf:', isPDF, '| size:', att.size, '| contentLen:', contentLen, '| type:', att.contentType, '| skip:', skip);
                   if (skip) continue;
                   pjExploitable = true;
                   if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
@@ -1986,7 +1987,7 @@ app.post('/api/mail/scan', async (req, res) => {
 
             f.on('message', (msg) => {
               msg.on('body', (stream) => {
-                const p = simpleParser(stream).then(async (parsed) => {
+                const p = simpleParser(stream, { skipTextToHtml: true, skipImageLinks: true }).then(async (parsed) => {
                   const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                   sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
                   const atts = parsed.attachments || [];
@@ -2010,7 +2011,8 @@ app.post('/api/mail/scan', async (req, res) => {
                   for (const att of atts) {
                     const isPDF = isPdfAttachment(att);
                     const skip = !isPDF || shouldSkipAttachment(att);
-                    console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| pdf:', isPDF, '| skip:', skip);
+                    const contentLen = att && att.content && att.content.length || 0;
+                  console.log('[ATT DEBUG]', att.filename || '(sans nom)', '| pdf:', isPDF, '| size:', att.size, '| contentLen:', contentLen, '| type:', att.contentType, '| skip:', skip);
                     if (skip) continue;
                     pjExploitable = true;
                     if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {

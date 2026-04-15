@@ -1647,8 +1647,16 @@ img, svg { display: block; max-width: 100%; }
                 <span id="scan-progress-pct">0%</span>
               </div>
             </div>
-            <div id="scan-results-list" style="display:none;margin-top:12px;"></div>
-            <div id="compta-mail-results" hidden style="margin-top:16px;"></div>
+            <div id="scan-validation-container" style="display:none;margin-top:12px;">
+              <h3 style="margin:0 0 4px;font-size:15px;">📋 Vérifiez vos documents</h3>
+              <p style="color:#8892A4;font-size:12px;margin:0 0 10px;">Cochez les documents à importer</p>
+              <div id="scan-documents-list"></div>
+              <div style="position:sticky;bottom:0;background:var(--bg,#0A0F1E);padding:12px 0;border-top:1px solid var(--border);margin-top:10px;">
+                <button type="button" onclick="mValiderSelectionDocuments()" id="scan-validate-btn" disabled style="width:100%;padding:14px;background:#2D6FF4;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;opacity:0.6;">✅ Importer (<span id="count-selectionnes">0</span>)</button>
+              </div>
+            </div>
+            <div id="scan-results-list" style="display:none;"></div>
+            <div id="compta-mail-results" hidden></div>
           </div>
         </div>
 
@@ -3301,22 +3309,65 @@ function _mFmtMontant(v) {
   if (!isFinite(n)) return '— EUR';
   return n.toFixed(2) + ' EUR';
 }
+window._mScanLiveDocs = [];
+window._mScanFullDocs = [];
+function mMajCompteurValidation() {
+  const list = document.getElementById('scan-documents-list');
+  if (!list) return;
+  const checked = list.querySelectorAll('input[type="checkbox"]:checked').length;
+  const cnt = document.getElementById('count-selectionnes');
+  if (cnt) cnt.textContent = checked;
+  const btn = document.getElementById('scan-validate-btn');
+  if (btn) { btn.disabled = checked === 0; btn.style.opacity = checked === 0 ? '0.6' : '1'; }
+}
 function mAjouterDocumentEnTempsReel(doc) {
-  const container = document.getElementById('scan-results-list');
+  const vc = document.getElementById('scan-validation-container');
+  if (vc) vc.style.display = '';
+  const container = document.getElementById('scan-documents-list');
   if (!container) return;
-  container.style.display = 'block';
+  const idx = window._mScanLiveDocs.length;
+  window._mScanLiveDocs.push(doc);
   const wrap = document.createElement('div');
   const seeBtn = doc.attachmentToken
     ? '<button type="button" onclick="mVoirDocument(\'' + doc.attachmentToken + '\')" style="margin-left:auto;background:rgba(45,111,244,0.2);border:none;color:#2D6FF4;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;">&#x1F441;&#xFE0F; Voir</button>'
     : '';
   wrap.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(255,255,255,0.05);border-radius:10px;margin-bottom:6px;border:1px solid var(--border);">'
-    + '<input type="checkbox" ' + (doc.selectionne ? 'checked' : '') + ' style="width:18px;height:18px;flex-shrink:0;">'
+    + '<input type="checkbox" ' + (doc.selectionne ? 'checked' : '') + ' data-scan-idx="' + idx + '" onchange="mMajCompteurValidation()" style="width:18px;height:18px;flex-shrink:0;">'
     + '<span style="min-width:0;">' + _mIconeType(doc.type_document) + ' <strong>' + ((doc.fournisseur && doc.fournisseur.trim()) || 'Inconnu') + '</strong></span>'
     + '<span style="color:#00C853;font-weight:bold;white-space:nowrap;">' + _mFmtMontant(doc.total_ttc) + '</span>'
     + '<span style="font-size:11px;color:#8892A4;white-space:nowrap;">' + (doc.date || '') + '</span>'
     + seeBtn
     + '</div>';
   container.appendChild(wrap.firstChild);
+  mMajCompteurValidation();
+}
+
+async function mValiderSelectionDocuments() {
+  const list = document.getElementById('scan-documents-list');
+  if (!list) return;
+  const full = window._mScanFullDocs && window._mScanFullDocs.length ? window._mScanFullDocs : null;
+  const selected = [];
+  list.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    const idx = parseInt(cb.getAttribute('data-scan-idx'));
+    const ref = full ? full[idx] : window._mScanLiveDocs[idx];
+    if (ref) selected.push(Object.assign({}, ref, { selectionne: true }));
+  });
+  if (!selected.length) return;
+  const btn = document.getElementById('scan-validate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Import en cours...'; }
+  try {
+    const resp = await fetch('/api/mail/import', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ factures: selected, userId: (state && state.user && state.user.id) || '' })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || 'Import echoue');
+    alert((data.imported || selected.length) + ' document(s) importe(s)');
+  } catch(e) {
+    alert('Erreur import : ' + e.message);
+  } finally {
+    if (btn) { btn.innerHTML = '✅ Importer (<span id="count-selectionnes">0</span>)'; mMajCompteurValidation(); }
+  }
 }
 
 let _mScanEvt = null;
@@ -3325,6 +3376,10 @@ function mDemarrerProgressionScan(userId) {
   if (!userId) return;
   const cont = document.getElementById('scan-progress-container'); if (cont) cont.style.display = '';
   const list = document.getElementById('scan-results-list'); if (list) { list.innerHTML=''; list.style.display='none'; }
+  const docsList = document.getElementById('scan-documents-list'); if (docsList) docsList.innerHTML = '';
+  const vc = document.getElementById('scan-validation-container'); if (vc) vc.style.display = 'none';
+  window._mScanLiveDocs = []; window._mScanFullDocs = [];
+  mMajCompteurValidation();
   const bar = document.getElementById('scan-progress-bar');
   const pct = document.getElementById('scan-progress-pct');
   const found = document.getElementById('scan-docs-found');
@@ -3414,7 +3469,8 @@ async function comptaScanMail() {
     }
 
     comptaSauvegarderMailConfig(provider, email, pass);
-    var rd = document.getElementById('compta-mail-results'); rd.hidden = false;
+    window._mScanFullDocs = (data && data.documents) || [];
+    var rd = document.getElementById('compta-mail-results'); rd.hidden = true;
     if(!data.documents||!data.documents.length) { rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>'; }
     else {
       var h = '<div style="font-weight:700;margin-bottom:12px;">'+data.documents.length+' document(s) trouve(s)</div>';
