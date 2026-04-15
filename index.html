@@ -295,7 +295,6 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-item" onclick="showPage('devis',this)"><span class="ni">📋</span>Appels d'offres</div>
     <div class="nav-item" onclick="showPage('groupe',this)"><span class="ni">⚡</span>Paniers groupés</div>
     <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">💰</span>Comptabilité</div>
-    <div class="nav-item" onclick="showPage('factures',this)"><span class="ni">📄</span>Factures</div>
     <div class="nav-section">Communauté</div>
     <div class="nav-item" onclick="showPage('marche',this)"><span class="ni">🏪</span>Marché</div>
     <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
@@ -537,6 +536,19 @@ tbody tr:hover td{background:var(--surface2);}
 
       <!-- TAB: Importer -->
       <div id="pc-compta-import">
+        <div id="zone-import-compta"
+          style="border:2px dashed #2D6FF4;border-radius:16px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;background:#F8FAFF;margin-bottom:16px"
+          onclick="document.getElementById('input-compta-file').click()"
+          ondragover="event.preventDefault();this.style.background='#EEF2FF';this.style.borderColor='#1E40AF'"
+          ondragleave="this.style.background='#F8FAFF';this.style.borderColor='#2D6FF4'"
+          ondrop="event.preventDefault();this.style.background='#F8FAFF';this.style.borderColor='#2D6FF4';if(event.dataTransfer.files.length)pcComptaAnalyseFile(event.dataTransfer.files[0])">
+          <div style="font-size:36px;margin-bottom:8px">📤</div>
+          <div style="font-weight:700;color:#1A2540;font-size:15px">Glissez un fichier ici</div>
+          <div style="color:#6B7280;font-size:13px;margin-top:4px">ou cliquez pour choisir</div>
+          <div style="color:#9CA3AF;font-size:11px;margin-top:8px">PDF · JPG · PNG · Toutes devises converties en €</div>
+        </div>
+        <input type="file" id="input-compta-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="if(this.files[0])pcComptaAnalyseFile(this.files[0])">
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
           <div onclick="pcComptaPhoto()" style="border:1px solid rgba(200,240,96,0.3);background:rgba(200,240,96,0.04);border-radius:12px;padding:20px;text-align:center;cursor:pointer;">
             <div style="font-size:28px;margin-bottom:6px;">📷</div>
@@ -4448,6 +4460,8 @@ async function chargerRecap() {
     const annee = (document.getElementById('select-annee-compta') || {}).value || new Date().getFullYear();
     const resp = await fetch('/api/compta/recap/' + uid + '?annee=' + annee);
     const data = await resp.json();
+    window._docsCompta = [];
+    (data.mois || []).forEach(function(m) { (m.documents || []).forEach(function(d) { window._docsCompta.push(Object.assign({ _mois: m.mois }, d)); }); });
 
     const totalEl = document.getElementById('compta-total-annuel');
     const nbEl = document.getElementById('compta-nb-docs');
@@ -4493,29 +4507,44 @@ async function chargerRecap() {
         nomMoisCap = nm.charAt(0).toUpperCase() + nm.slice(1);
       }
       const docsHTML = m.documents.map(function(doc) {
-        const tagsHTML = (doc.tags && doc.tags.length) ? ('<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">' + doc.tags.map(function(t) { return '<span style="background:#EEF2FF;color:#4F46E5;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500">' + t + '</span>'; }).join('') + '</div>') : '';
-        const commentHTML = doc.commentaire ? ('<div style="font-size:11px;color:#2D6FF4;margin-top:3px">💬 ' + doc.commentaire + '</div>') : '';
-        const descHTML = doc.description ? ('<div style="font-size:11px;color:#6B7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + doc.description + '</div>') : '';
-        const viewBtn = doc.attachmentToken ? ('<button onclick="window.open(\'/api/mail/attachment/' + doc.attachmentToken + '\',\'_blank\')" style="background:#EEF2FF;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px">👁️</button>') : '';
         const moisArg = doc.mois_manuel || doc.mois || m.mois;
         const tagsArg = (doc.tags || []).join(',');
         const commArg = (doc.commentaire || '').replace(/'/g, '').replace(/"/g, '');
-        return '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid #F3F4F6;background:white;color:#1A2540">' +
-          '<span style="font-size:20px;margin-top:2px">' + (iconesCat[doc.type_document] || '📄') + '</span>' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-weight:600;font-size:13px;color:#1A2540;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (doc.fournisseur || 'Inconnu') + '</div>' +
-            '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + (doc.date_document || '—') + ' · ' + (labelsCat[doc.type_document] || 'Autre') + '</div>' +
-            descHTML + commentHTML + tagsHTML +
-          '</div>' +
-          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">' +
-            '<span style="font-weight:700;font-size:14px;color:#1A2540">' + (doc.total_ttc != null ? doc.total_ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€' : '—') + '</span>' +
-            '<div style="display:flex;gap:4px">' + viewBtn +
-              '<button onclick="ouvrirEditDoc(\'' + doc.id + '\',\'' + moisArg + '\',\'' + tagsArg + '\',\'' + commArg + '\')" style="background:#F3F4F6;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px">✏️</button>' +
-              '<button onclick="supprimerDoc(\'' + doc.id + '\')" style="background:#FEE2E2;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px">🗑️</button>' +
+        const deviseBadge = (doc.devise_originale && doc.devise_originale !== 'EUR')
+          ? '<div style="font-size:10px;color:#F59E0B;background:#FEF3C7;padding:2px 6px;border-radius:4px;margin-top:2px;display:inline-block">' + (doc.montant_original || '') + ' ' + doc.devise_originale + '</div>'
+          : '';
+        const descHTML = doc.description ? '<div style="font-size:12px;color:#6B7280;margin-top:6px;padding-top:6px;border-top:1px solid #F3F4F6">' + doc.description + '</div>' : '';
+        const commentHTML = doc.commentaire ? '<div style="font-size:12px;color:#2D6FF4;margin-top:4px">💬 ' + doc.commentaire + '</div>' : '';
+        const tagsHTML = (doc.tags && doc.tags.length)
+          ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">' + doc.tags.map(function(t) { return '<span style="background:#EEF2FF;color:#4F46E5;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500">' + t + '</span>'; }).join('') + '</div>'
+          : '';
+        const voirBtn = doc.attachmentToken
+          ? '<button onclick="window.open(\'/api/mail/attachment/' + doc.attachmentToken + '\',\'_blank\')" style="flex:1;background:#EEF2FF;color:#4F46E5;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">👁️ Voir</button>'
+          : '<button onclick="voirInfosDoc(\'' + doc.id + '\')" style="flex:1;background:#F3F4F6;color:#6B7280;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">ℹ️ Infos</button>';
+        return '<div style="background:white;border:1px solid #E8EDF5;border-radius:12px;padding:14px;margin:8px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);color:#1A2540">' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span style="font-size:22px">' + (iconesCat[doc.type_document] || '📄') + '</span>' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-weight:700;font-size:14px;color:#1A2540;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (doc.fournisseur || 'Inconnu') + '</div>' +
+              '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">' + (doc.date_document || '—') + ' · ' + (labelsCat[doc.type_document] || 'Autre') + '</div>' +
             '</div>' +
+            '<div style="text-align:right;flex-shrink:0">' +
+              '<div style="font-weight:800;font-size:16px;color:#1A2540">' + (doc.total_ttc != null ? doc.total_ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€' : '—') + '</div>' +
+              deviseBadge +
+            '</div>' +
+          '</div>' +
+          descHTML + commentHTML + tagsHTML +
+          '<div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #F3F4F6">' +
+            voirBtn +
+            '<button onclick="ouvrirEditDoc(\'' + doc.id + '\',\'' + moisArg + '\',\'' + tagsArg + '\',\'' + commArg + '\')" style="flex:1;background:#F0FDF4;color:#065F46;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">✏️ Éditer</button>' +
+            '<button onclick="supprimerDoc(\'' + doc.id + '\')" style="background:#FEE2E2;color:#991B1B;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px">🗑️</button>' +
           '</div>' +
         '</div>';
       }).join('');
+      const footerMois = '<div style="display:flex;gap:8px;padding:12px 16px;background:#FAFBFF;border-top:1px solid #F3F4F6">' +
+        '<button onclick="ajouterDocMois(\'' + m.mois + '\')" style="flex:1;background:#EEF2FF;color:#4F46E5;border:none;padding:10px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">➕ Ajouter un document</button>' +
+        '<button onclick="exporterMoisCSV(\'' + m.mois + '\')" style="background:#F0FDF4;color:#065F46;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700">📤 Export</button>' +
+      '</div>';
       const catDuMois = Object.entries(m.par_categorie || {}).sort(function(a, b) { return b[1].total - a[1].total; }).map(function(e) {
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:#FAFBFF;border-bottom:1px solid #F3F4F6;color:#374151">' +
           '<span style="font-size:12px;color:#6B7280">' + (iconesCat[e[0]] || '📄') + ' ' + (labelsCat[e[0]] || e[0]) + ' (' + e[1].count + ')</span>' +
@@ -4530,7 +4559,7 @@ async function chargerRecap() {
           '<div style="text-align:right"><div style="font-weight:800;color:#2D6FF4;font-size:17px">' + m.total.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€</div>' +
           tvaMoisHTML + '<div style="font-size:16px;color:#9CA3AF;margin-top:2px" id="arrow-' + m.mois + '">▼</div></div>' +
         '</div>' +
-        '<div id="mois-' + m.mois + '" style="display:none">' + catDuMois + docsHTML + '</div>' +
+        '<div id="mois-' + m.mois + '" style="display:none">' + catDuMois + docsHTML + footerMois + '</div>' +
       '</div>';
     }).join('') || '<div style="text-align:center;padding:40px;color:#9CA3AF">Aucun document pour cette période</div>';
   } catch(e) { console.error('chargerRecap:', e); }
@@ -4618,6 +4647,27 @@ async function exporterCSVCompta() {
   const uid = await pcResolveUid();
   const annee = (document.getElementById('select-annee-compta') || {}).value || new Date().getFullYear();
   window.open('/api/compta/export/' + uid + '?annee=' + annee, '_blank');
+}
+
+function voirInfosDoc(id) {
+  const doc = (window._docsCompta || []).find(function(d) { return String(d.id) === String(id); });
+  if (!doc) return showToast('Document introuvable');
+  ouvrirEditDoc(doc.id, doc.mois_manuel || doc.mois || doc._mois || '', (doc.tags || []).join(','), (doc.commentaire || '').replace(/'/g, '').replace(/"/g, ''));
+}
+
+function ajouterDocMois(mois) {
+  window._moisCible = mois;
+  switchComptaTabPC('import');
+  showToast('📅 Document sera classé dans ' + mois);
+  const el = document.getElementById('page-compta');
+  if (el && el.scrollTo) el.scrollTo(0, 0);
+  window.scrollTo(0, 0);
+}
+
+async function exporterMoisCSV(mois) {
+  const uid = await pcResolveUid();
+  const annee = (mois || '').split('-')[0] || new Date().getFullYear();
+  window.open('/api/compta/export/' + uid + '?annee=' + annee + '&mois=' + encodeURIComponent(mois), '_blank');
 }
 
 function pcComptaUploadReleve() {
