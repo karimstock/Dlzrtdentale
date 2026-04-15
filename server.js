@@ -1569,9 +1569,28 @@ app.get('/api/mail/attachment/:token', (req, res) => {
   const entry = scanAttachments.get(req.params.token);
   if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
   res.setHeader('Content-Type', entry.contentType);
+  if (entry.contentType && entry.contentType.startsWith('text/html')) {
+    return res.end(entry.buffer);
+  }
   res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(entry.filename) + '"');
   res.end(entry.buffer);
 });
+
+function storeMailBodyAsHtml(userId, parsed) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const body = parsed.html || `<pre style="white-space:pre-wrap;font-family:system-ui,sans-serif;padding:16px">${esc(parsed.text || '')}</pre>`;
+  const header = `<div style="padding:12px 16px;background:#f5f5f5;border-bottom:1px solid #ddd;font-family:system-ui,sans-serif;font-size:13px;color:#333">
+    <div><b>De :</b> ${esc(parsed.from && parsed.from.text)}</div>
+    <div><b>Sujet :</b> ${esc(parsed.subject)}</div>
+    <div><b>Date :</b> ${esc(parsed.date ? new Date(parsed.date).toLocaleString('fr-FR') : '')}</div>
+  </div>`;
+  const full = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(parsed.subject || 'Mail')}</title><base target="_blank"></head><body style="margin:0">${header}${body}</body></html>`;
+  return storeAttachment(userId, {
+    filename: `mail-${Date.now()}.html`,
+    contentType: 'text/html; charset=utf-8',
+    content: Buffer.from(full, 'utf-8'),
+  });
+}
 
 // ============ Server-Sent Events: progression scan mail ============
 const scanProgressClients = new Map();
@@ -1746,13 +1765,14 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                     claudeCalls++;
                     const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
                     if (analyse && analyse.type_document !== 'personnel') {
+                      const bodyToken = mailPdfToken || storeMailBodyAsHtml(userId, parsed);
                       documents.push({
                         from: parsed.from ? parsed.from.text : '',
                         date_mail: parsed.date,
                         subject: parsed.subject,
                         filename: mailPdfFilename || '(corps du mail)',
                         analyse,
-                        attachmentToken: mailPdfToken || null,
+                        attachmentToken: bodyToken,
                         selectionne: analyse.selectionne !== false,
                       });
                       sendProgress(userId, {
@@ -1763,7 +1783,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           type_document: analyse.type_document,
                           date: analyse.date,
                           filename: mailPdfFilename || '(corps du mail)',
-                          attachmentToken: mailPdfToken || null,
+                          attachmentToken: bodyToken,
                           subject: parsed.subject || '',
                           selectionne: analyse.selectionne !== false,
                         }
@@ -2081,13 +2101,14 @@ app.post('/api/mail/scan', async (req, res) => {
                       claudeCalls++;
                       const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
                       if (analyse && analyse.type_document !== 'personnel') {
+                        const bodyToken = mailPdfToken || storeMailBodyAsHtml(userId, parsed);
                         documents.push({
                           from: parsed.from ? parsed.from.text : '',
                           date_mail: parsed.date,
                           subject: parsed.subject,
                           filename: mailPdfFilename || '(corps du mail)',
                           analyse,
-                          attachmentToken: mailPdfToken || null,
+                          attachmentToken: bodyToken,
                           selectionne: analyse.selectionne !== false,
                         });
                         sendProgress(userId, {
@@ -2098,7 +2119,7 @@ app.post('/api/mail/scan', async (req, res) => {
                             type_document: analyse.type_document,
                             date: analyse.date,
                             filename: mailPdfFilename || '(corps du mail)',
-                            attachmentToken: mailPdfToken || null,
+                            attachmentToken: bodyToken,
                             subject: parsed.subject || '',
                             selectionne: analyse.selectionne !== false,
                           }
