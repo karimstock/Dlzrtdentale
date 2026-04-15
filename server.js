@@ -1127,7 +1127,14 @@ async function analyserDocumentIA(base64Data, mediaType) {
         contentBlock,
         {
           type: 'text',
-          text: `Tu es un expert-comptable specialise dans les cabinets dentaires francais.
+          text: `INSTRUCTION CRITIQUE : Tu dois repondre UNIQUEMENT avec un objet JSON valide.
+Pas de texte avant, pas de texte apres, pas d'explication, pas de phrase en francais.
+Si tu ne peux pas analyser le document (image illisible, document vide, pas un document financier),
+retourne EXACTEMENT :
+{"type_document":"autre","selectionne":false,"fournisseur_ou_etablissement":"Inconnu","date":null,"total_ht":null,"tva":null,"total_ttc":null,"produits":[]}
+Ne jamais ecrire "Je ne vois pas", "Je vois que", "Desole", ou tout autre texte. UNIQUEMENT du JSON.
+
+Tu es un expert-comptable specialise dans les cabinets dentaires francais.
 Analyse ce document financier avec precision maximale.
 
 IDENTIFICATION DU TYPE :
@@ -1184,6 +1191,8 @@ ACCEPTER uniquement si document financier/pro avec AU MINIMUM :
 - Une date
 - Un montant OU une description precise d'un service rendu
 
+RAPPEL : TA REPONSE EST UNIQUEMENT LE JSON CI-DESSOUS, RIEN D'AUTRE, PAS DE PROSE.
+
 JSON uniquement :
 {
   "type_document": "facture_dentaire",
@@ -1216,11 +1225,16 @@ JSON uniquement :
 }`
         }
       ]
+    }, {
+      role: 'assistant',
+      content: [{ type: 'text', text: '{' }]
     }]
   });
 
   const raw = (response.content[0] && response.content[0].text) || '';
-  const cleaned = raw.replace(/```json|```/g, '').trim();
+  // Prefill '{' : Claude continue le JSON, on le reconstitue
+  const reconstructed = raw.trim().startsWith('{') ? raw : '{' + raw;
+  const cleaned = reconstructed.replace(/```json|```/g, '').trim();
   try {
     return JSON.parse(cleaned);
   } catch (e1) {
@@ -1228,7 +1242,7 @@ JSON uniquement :
     if (m) {
       try { return JSON.parse(m[0]); } catch (e2) {}
     }
-    console.warn('analyserDocumentIA: Claude a repondu en texte, piece jointe ignoree. Prefix:', raw.slice(0, 80));
+    console.warn('analyserDocumentIA: Claude a repondu en texte, piece jointe ignoree. Prefix:', raw.slice(0, 120));
     return null;
   }
 }
@@ -1238,16 +1252,21 @@ const ATT_IGNORE_KEYWORDS = ['logo','signature','banner','icon','avatar','facebo
 function shouldSkipAttachment(att) {
   if (!att || !att.contentType) return true;
   const ct = String(att.contentType).toLowerCase();
-  const isImage = ct.includes('image');
-  const isPDF = ct.includes('pdf');
-  if (!isImage && !isPDF) return true;
-  // Images inline (Content-Disposition: inline) sont presque toujours decoratives
-  if (isImage && String(att.contentDisposition || '').toLowerCase() === 'inline') return true;
-  // Petites images < 50KB = logos/icones
-  if (isImage && typeof att.size === 'number' && att.size < 50000) return true;
   const name = String(att.filename || '').toLowerCase();
+  const isPDF = ct.includes('pdf') || name.endsWith('.pdf');
+  const isImage = ct.includes('image');
+  // PDFs: toujours analyser, pas de filtre
+  if (isPDF) return false;
+  if (!isImage) return true;
+  if (String(att.contentDisposition || '').toLowerCase() === 'inline') return true;
+  if (typeof att.size === 'number' && att.size < 50000) return true;
   if (name && ATT_IGNORE_KEYWORDS.some(k => name.includes(k))) return true;
   return false;
+}
+
+function subjectDeclencheBodyScan(subject) {
+  const s = String(subject || '').toLowerCase();
+  return /facture|invoice|re[çc]u|receipt|echeance|avis\s+d[e']?\s*echeance|paiement|rappel|quittance/.test(s);
 }
 
 // Analyse le corps textuel d'un mail quand l'expediteur est un fournisseur connu
@@ -1257,7 +1276,11 @@ async function analyserTexteDocument(texte, fromText, subject) {
   const body = String(texte).slice(0, 6000);
   const from = String(fromText || '').slice(0, 200);
   const subj = String(subject || '').slice(0, 200);
-  const prompt = `Tu es un expert-comptable cabinet dentaire FR. Analyse ce mail pour en extraire une facture/avis d'echeance si c'est le cas.
+  const prompt = `INSTRUCTION CRITIQUE : reponse UNIQUEMENT en JSON valide. Aucun texte avant/apres, aucune phrase.
+Si rien d'analysable, retourne EXACTEMENT :
+{"type_document":"autre","selectionne":false,"fournisseur_ou_etablissement":"Inconnu","date":null,"total_ht":null,"tva":null,"total_ttc":null,"produits":[]}
+
+Tu es un expert-comptable cabinet dentaire FR. Analyse ce mail pour en extraire une facture/avis d'echeance si c'est le cas.
 
 De: ${from}
 Objet: ${subj}
@@ -1267,22 +1290,28 @@ Corps du mail (texte):
 ${body}
 ---
 
-Meme regles de classification que pour un document attache. Si aucun montant/date/fournisseur extractible, retourne {"type_document":"personnel","selectionne":false}.
-
-Reponse JSON uniquement, meme schema que pour analyse PDF (type_document, fournisseur_ou_etablissement, date, total_ht, tva, total_ttc, description, etc). total_* = null si introuvable (jamais 0).`;
+Meme regles de classification que pour un document attache.
+Reponse JSON uniquement, meme schema que pour analyse PDF (type_document, fournisseur_ou_etablissement, date, total_ht, tva, total_ttc, description, etc). total_* = null si introuvable (jamais 0).
+RAPPEL : TA REPONSE EST UNIQUEMENT LE JSON, RIEN D'AUTRE.`;
 
   try {
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
-      messages: [{ role: 'user', content: [{ type:'text', text: prompt }] }]
+      messages: [
+        { role: 'user', content: [{ type:'text', text: prompt }] },
+        { role: 'assistant', content: [{ type:'text', text: '{' }] }
+      ]
     });
     const raw = (r.content[0] && r.content[0].text) || '';
-    const cleaned = raw.replace(/```json|```/g,'').trim();
+    // Prefill '{' : Claude continue le JSON, on le reconstitue
+    const reconstructed = raw.trim().startsWith('{') ? raw : '{' + raw;
+    const cleaned = reconstructed.replace(/```json|```/g,'').trim();
     try { return JSON.parse(cleaned); }
     catch(e1) {
       const m = cleaned.match(/\{[\s\S]*\}/);
       if (m) { try { return JSON.parse(m[0]); } catch(e2){} }
+      console.warn('analyserTexteDocument: parse fail. Prefix:', cleaned.slice(0,120));
     }
   } catch(e) { console.error('analyserTexteDocument error:', e.message); }
   return null;
@@ -1628,8 +1657,10 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                     }
                   } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                 }
-                // Fallback: analyse du corps si pas de PJ exploitable ET emetteur = fournisseur connu
-                if (!pjExploitable && mailEmaneDUnFournisseurCorps(parsed)) {
+                // Fallback: analyse du corps si pas de PJ exploitable ET
+                // (emetteur = fournisseur connu OU sujet contient facture/invoice/recu/echeance)
+                const declencheBody = mailEmaneDUnFournisseurCorps(parsed) || subjectDeclencheBodyScan(parsed.subject);
+                if (!pjExploitable && declencheBody) {
                   try {
                     const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
                     if (analyse && analyse.type_document !== 'personnel') {
@@ -1917,7 +1948,8 @@ app.post('/api/mail/scan', async (req, res) => {
                       }
                     } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                   }
-                  if (!pjExploitable && mailEmaneDUnFournisseurCorps(parsed)) {
+                  const declencheBody = mailEmaneDUnFournisseurCorps(parsed) || subjectDeclencheBodyScan(parsed.subject);
+                  if (!pjExploitable && declencheBody) {
                     try {
                       const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
                       if (analyse && analyse.type_document !== 'personnel') {
