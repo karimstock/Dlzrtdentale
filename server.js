@@ -1262,8 +1262,26 @@ function shouldSkipAttachment(att) {
 
 function subjectDeclencheBodyScan(subject) {
   const s = String(subject || '').toLowerCase();
-  return /facture|invoice|re[çc]u|receipt|echeance|avis\s+d[e']?\s*echeance|paiement|rappel|quittance|commande|bon\s+de\s+commande|bon\s+de\s+livraison|bordereau/.test(s);
+  return /facture|invoice|re[çc]u|receipt|echeance|avis\s+d[e']?\s*echeance|paiement|payment|rappel|quittance|commande|order|confirmation|r[eè]glement|bon\s+de\s+commande|bon\s+de\s+livraison|bordereau/.test(s);
 }
+
+// Semaphore: limite concurrence (Claude rate-limit + memoire)
+function createLimiter(max) {
+  let running = 0;
+  const q = [];
+  const next = () => {
+    if (running >= max) return;
+    const job = q.shift();
+    if (!job) return;
+    running++;
+    Promise.resolve().then(job.fn).then(
+      (v) => { running--; job.resolve(v); next(); },
+      (e) => { running--; job.reject(e); next(); }
+    );
+  };
+  return (fn) => new Promise((resolve, reject) => { q.push({ fn, resolve, reject }); next(); });
+}
+const claudeLimiter = createLimiter(20);
 
 // Analyse le corps textuel d'un mail quand l'expediteur est un fournisseur connu
 // (EDF, Free Pro, Orange Pro...) qui n'attachent pas toujours la facture en PJ
@@ -1588,12 +1606,13 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
     const documents = [];
     let settled = false;
     const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
+    const SCAN_TIMEOUT_MS = 10 * 60 * 1000;
     const timer = setTimeout(() => {
-      console.error('IMAP scan timeout 90s for', provider);
+      console.error('IMAP scan timeout for', provider);
       try { imap.end(); } catch(e) {}
-      sendProgress(userId, { status:'error', error:'Timeout 90s' });
-      settle(() => reject(new Error('Timeout: le scan a pris plus de 90 secondes. Essayez une periode plus courte.')));
-    }, 90000);
+      sendProgress(userId, { status:'error', error:'Timeout 10min' });
+      settle(() => reject(new Error('Timeout: le scan a pris plus de 10 minutes. Essayez une periode plus courte.')));
+    }, SCAN_TIMEOUT_MS);
 
     sendProgress(userId, { status:'connecting', total:0, done:0, found:0, current:'Connexion IMAP...' });
 
@@ -1611,7 +1630,9 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
         imap.search([['SINCE', sinceDate]], (err, uids) => {
           if (err) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); return settle(() => reject(err)); }
           if (!uids || !uids.length) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'done', total:0, done:0, found:0, current:'Aucun mail' }); return settle(() => resolve(documents)); }
-          const toProcess = uids.slice(-50);
+          uids.sort((a, b) => b - a); // Plus recents en premier
+          const toProcess = uids;
+          console.log('[IMAP]', toProcess.length, 'mails a scanner pour', provider);
           sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
           let done = 0;
           const parsePromises = [];
@@ -1622,7 +1643,9 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                 const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                 sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
                 const atts = parsed.attachments || [];
-                console.log('[IMAP] mail "' + subj + '" |', atts.length, 'attachments');
+                const fromTxt = (parsed.from && parsed.from.text) || '';
+                const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
+                console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
                 let pjExploitable = false;
                 for (const att of atts) {
                   const skip = shouldSkipAttachment(att);
@@ -1631,7 +1654,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                   pjExploitable = true;
                   try {
                     const base64 = att.content.toString('base64');
-                    const analyse = await analyserDocumentIA(base64, att.contentType);
+                    const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
                     if (analyse && analyse.type_document !== 'personnel') {
                       const attToken = storeAttachment(userId, att);
                       documents.push({
@@ -1666,7 +1689,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                 const declencheBody = subjMatch || (!pjExploitable && fournisseurMatch);
                 if (declencheBody) {
                   try {
-                    const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
+                    const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
                     if (analyse && analyse.type_document !== 'personnel') {
                       documents.push({
                         from: parsed.from ? parsed.from.text : '',
@@ -1791,7 +1814,7 @@ app.post('/api/mail/scan-yahoo', async (req, res) => {
       authTimeout: 20000,
       keepalive: true,
     });
-    res.setTimeout(180000);
+    res.setTimeout(10 * 60 * 1000);
     const documents = await scanInboxForDocs(imap, periode, mois, annee, 'Yahoo-OAuth', userId);
     console.log('Yahoo-OAuth scan complete:', documents.length, 'docs for', row.email);
     res.json({ documents, total: documents.length, email: row.email });
@@ -1863,20 +1886,20 @@ app.post('/api/mail/scan', async (req, res) => {
 
     const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
 
-    res.setTimeout(180000);
+    res.setTimeout(10 * 60 * 1000);
     const documents = [];
 
     await new Promise((resolve, reject) => {
       let settled = false;
       const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
 
-      // Timeout global 90s — renvoie JSON, pas HTML
+      // Timeout global 10 min — renvoie JSON, pas HTML
       const timer = setTimeout(() => {
-        console.error('IMAP scan timeout 90s for', provider, email);
+        console.error('IMAP scan timeout for', provider, email);
         try { imap.end(); } catch(e) {}
-        sendProgress(userId, { status:'error', error:'Timeout 90s' });
-        settle(() => reject(new Error('Timeout: le scan a pris plus de 90 secondes. Essayez une periode plus courte.')));
-      }, 90000);
+        sendProgress(userId, { status:'error', error:'Timeout 10min' });
+        settle(() => reject(new Error('Timeout: le scan a pris plus de 10 minutes. Essayez une periode plus courte.')));
+      }, 10 * 60 * 1000);
 
       sendProgress(userId, { status:'connecting', total:0, done:0, found:0, current:'Connexion IMAP...' });
 
@@ -1906,8 +1929,9 @@ app.post('/api/mail/scan', async (req, res) => {
               return settle(() => resolve());
             }
 
-            const toProcess = uids.slice(-50);
-            console.log('IMAP scan: fetching', toProcess.length, 'mails for', provider);
+            uids.sort((a, b) => b - a); // Plus recents en premier
+            const toProcess = uids;
+            console.log('[IMAP]', toProcess.length, 'mails a scanner pour', provider);
             sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
             let scanDone = 0;
             const parsePromises = [];
@@ -1920,7 +1944,9 @@ app.post('/api/mail/scan', async (req, res) => {
                   const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
                   sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
                   const atts = parsed.attachments || [];
-                  console.log('[IMAP] mail "' + subj + '" |', atts.length, 'attachments');
+                  const fromTxt = (parsed.from && parsed.from.text) || '';
+                  const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
+                  console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
                   let pjExploitable = false;
                   for (const att of atts) {
                     const skip = shouldSkipAttachment(att);
@@ -1929,7 +1955,7 @@ app.post('/api/mail/scan', async (req, res) => {
                     pjExploitable = true;
                     try {
                       const base64 = att.content.toString('base64');
-                      const analyse = await analyserDocumentIA(base64, att.contentType);
+                      const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
                       if (analyse && analyse.type_document !== 'personnel') {
                         const attToken = storeAttachment(userId, att);
                         documents.push({
@@ -1961,7 +1987,7 @@ app.post('/api/mail/scan', async (req, res) => {
                   const declencheBody = subjMatch || (!pjExploitable && fournisseurMatch);
                   if (declencheBody) {
                     try {
-                      const analyse = await analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject);
+                      const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
                       if (analyse && analyse.type_document !== 'personnel') {
                         documents.push({
                           from: parsed.from ? parsed.from.text : '',
