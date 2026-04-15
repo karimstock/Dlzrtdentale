@@ -1121,6 +1121,7 @@ async function analyserDocumentIA(base64Data, mediaType) {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2000,
+    system: 'Tu es un expert-comptable cabinet dentaire FR. Tu reponds UNIQUEMENT en JSON valide commencant par { et finissant par }. Jamais de texte avant ou apres, jamais d\'explication en francais.',
     messages: [{
       role: 'user',
       content: [
@@ -1225,16 +1226,11 @@ JSON uniquement :
 }`
         }
       ]
-    }, {
-      role: 'assistant',
-      content: [{ type: 'text', text: '{' }]
     }]
   });
 
   const raw = (response.content[0] && response.content[0].text) || '';
-  // Prefill '{' : Claude continue le JSON, on le reconstitue
-  const reconstructed = raw.trim().startsWith('{') ? raw : '{' + raw;
-  const cleaned = reconstructed.replace(/```json|```/g, '').trim();
+  const cleaned = raw.replace(/```json|```/g, '').trim();
   try {
     return JSON.parse(cleaned);
   } catch (e1) {
@@ -1298,15 +1294,11 @@ RAPPEL : TA REPONSE EST UNIQUEMENT LE JSON, RIEN D'AUTRE.`;
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
-      messages: [
-        { role: 'user', content: [{ type:'text', text: prompt }] },
-        { role: 'assistant', content: [{ type:'text', text: '{' }] }
-      ]
+      system: 'Tu es un expert-comptable cabinet dentaire FR. Tu reponds UNIQUEMENT en JSON valide commencant par { et finissant par }. Jamais de texte avant ou apres, jamais d\'explication en francais.',
+      messages: [{ role: 'user', content: [{ type:'text', text: prompt }] }]
     });
     const raw = (r.content[0] && r.content[0].text) || '';
-    // Prefill '{' : Claude continue le JSON, on le reconstitue
-    const reconstructed = raw.trim().startsWith('{') ? raw : '{' + raw;
-    const cleaned = reconstructed.replace(/```json|```/g,'').trim();
+    const cleaned = raw.replace(/```json|```/g,'').trim();
     try { return JSON.parse(cleaned); }
     catch(e1) {
       const m = cleaned.match(/\{[\s\S]*\}/);
