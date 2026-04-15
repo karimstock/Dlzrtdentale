@@ -1413,11 +1413,35 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
   }
 });
 
+// ============ Server-Sent Events: progression scan mail ============
+const scanProgressClients = new Map();
+
+app.get('/api/mail/scan-progress', (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).end('userId requis');
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write('event: open\ndata: {"status":"connected"}\n\n');
+  scanProgressClients.set(userId, res);
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch(e){} }, 25000);
+  req.on('close', () => { clearInterval(ping); scanProgressClients.delete(userId); });
+});
+
+function sendProgress(userId, data) {
+  if (!userId) return;
+  const client = scanProgressClients.get(userId);
+  if (!client) return;
+  try { client.write(`data: ${JSON.stringify(data)}\n\n`); } catch(e) {}
+}
+
 function buildXoauth2(email, accessToken) {
   return Buffer.from(`user=${email}\x01auth=Bearer ${accessToken}\x01\x01`).toString('base64');
 }
 
-function scanInboxForDocs(imap, periode, mois, annee, provider) {
+function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
   return new Promise((resolve, reject) => {
     const documents = [];
     let settled = false;
@@ -1425,12 +1449,16 @@ function scanInboxForDocs(imap, periode, mois, annee, provider) {
     const timer = setTimeout(() => {
       console.error('IMAP scan timeout 90s for', provider);
       try { imap.end(); } catch(e) {}
+      sendProgress(userId, { status:'error', error:'Timeout 90s' });
       settle(() => reject(new Error('Timeout: le scan a pris plus de 90 secondes. Essayez une periode plus courte.')));
     }, 90000);
 
+    sendProgress(userId, { status:'connecting', total:0, done:0, found:0, current:'Connexion IMAP...' });
+
     imap.once('ready', () => {
+      sendProgress(userId, { status:'searching', total:0, done:0, found:0, current:'Recherche des mails...' });
       imap.openBox('INBOX', true, (err) => {
-        if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
+        if (err) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); return settle(() => reject(err)); }
         let sinceDate;
         if (periode === 'mensuel' && mois && annee) sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
         else if (periode === 'annuel' && annee) sinceDate = new Date(parseInt(annee), 0, 1);
@@ -1439,14 +1467,18 @@ function scanInboxForDocs(imap, periode, mois, annee, provider) {
 
         console.log('IMAP scan SINCE', sinceDate, 'for', provider);
         imap.search([['SINCE', sinceDate]], (err, uids) => {
-          if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
-          if (!uids || !uids.length) { try { imap.end(); } catch(e) {} return settle(() => resolve(documents)); }
+          if (err) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); return settle(() => reject(err)); }
+          if (!uids || !uids.length) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'done', total:0, done:0, found:0, current:'Aucun mail' }); return settle(() => resolve(documents)); }
           const toProcess = uids.slice(-50);
+          sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
+          let done = 0;
           const parsePromises = [];
           const f = imap.fetch(toProcess, { bodies: '', struct: true });
           f.on('message', (msg) => {
             msg.on('body', (stream) => {
               const p = simpleParser(stream).then(async (parsed) => {
+                const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
+                sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
                 for (const att of parsed.attachments || []) {
                   const isPDF = att.contentType && att.contentType.includes('pdf');
                   const isImage = att.contentType && att.contentType.includes('image');
@@ -1467,14 +1499,17 @@ function scanInboxForDocs(imap, periode, mois, annee, provider) {
                     } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                   }
                 }
-              }).catch((e) => { console.error('IMAP parse error:', e.message); });
+                done++;
+                sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
+              }).catch((e) => { done++; console.error('IMAP parse error:', e.message); });
               parsePromises.push(p);
             });
           });
-          f.once('error', (err) => { try { imap.end(); } catch(e) {} settle(() => reject(err)); });
+          f.once('error', (err) => { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); settle(() => reject(err)); });
           f.once('end', () => {
             Promise.all(parsePromises).finally(() => {
               try { imap.end(); } catch(e) {}
+              sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Termine' });
               settle(() => resolve(documents));
             });
           });
@@ -1483,6 +1518,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider) {
     });
     imap.once('error', (err) => {
       console.error('IMAP connection error [' + provider + ']:', err.message, err.code || '');
+      sendProgress(userId, { status:'error', error: err.message });
       settle(() => reject(err));
     });
     imap.connect();
@@ -1565,7 +1601,7 @@ app.post('/api/mail/scan-yahoo', async (req, res) => {
       keepalive: true,
     });
     res.setTimeout(180000);
-    const documents = await scanInboxForDocs(imap, periode, mois, annee, 'Yahoo-OAuth');
+    const documents = await scanInboxForDocs(imap, periode, mois, annee, 'Yahoo-OAuth', userId);
     console.log('Yahoo-OAuth scan complete:', documents.length, 'docs for', row.email);
     res.json({ documents, total: documents.length, email: row.email });
   } catch (e) {
@@ -1647,12 +1683,16 @@ app.post('/api/mail/scan', async (req, res) => {
       const timer = setTimeout(() => {
         console.error('IMAP scan timeout 90s for', provider, email);
         try { imap.end(); } catch(e) {}
+        sendProgress(userId, { status:'error', error:'Timeout 90s' });
         settle(() => reject(new Error('Timeout: le scan a pris plus de 90 secondes. Essayez une periode plus courte.')));
       }, 90000);
 
+      sendProgress(userId, { status:'connecting', total:0, done:0, found:0, current:'Connexion IMAP...' });
+
       imap.once('ready', () => {
+        sendProgress(userId, { status:'searching', total:0, done:0, found:0, current:'Recherche des mails...' });
         imap.openBox('INBOX', true, (err) => {
-          if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
+          if (err) { try { imap.end(); } catch(e) {} sendProgress(userId,{status:'error',error:err.message}); return settle(() => reject(err)); }
 
           let sinceDate;
           if (periode === 'mensuel' && mois && annee) {
@@ -1677,6 +1717,8 @@ app.post('/api/mail/scan', async (req, res) => {
 
             const toProcess = uids.slice(-50);
             console.log('IMAP scan: fetching', toProcess.length, 'mails for', provider);
+            sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
+            let scanDone = 0;
             const parsePromises = [];
 
             const f = imap.fetch(toProcess, { bodies: '', struct: true });
@@ -1684,6 +1726,8 @@ app.post('/api/mail/scan', async (req, res) => {
             f.on('message', (msg) => {
               msg.on('body', (stream) => {
                 const p = simpleParser(stream).then(async (parsed) => {
+                  const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
+                  sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
                   for (const att of parsed.attachments || []) {
                     const isPDF = att.contentType && att.contentType.includes('pdf');
                     const isImage = att.contentType && att.contentType.includes('image');
@@ -1704,7 +1748,9 @@ app.post('/api/mail/scan', async (req, res) => {
                       } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                     }
                   }
-                }).catch((e) => { console.error('IMAP scan parse error:', e.message); });
+                  scanDone++;
+                  sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
+                }).catch((e) => { scanDone++; console.error('IMAP scan parse error:', e.message); });
                 parsePromises.push(p);
               });
             });
@@ -1717,12 +1763,10 @@ app.post('/api/mail/scan', async (req, res) => {
 
             f.once('end', () => {
               console.log('IMAP fetch done, waiting for', parsePromises.length, 'parse jobs...');
-              Promise.all(parsePromises).then(() => {
+              Promise.all(parsePromises).finally(() => {
                 console.log('IMAP scan complete:', documents.length, 'documents found');
                 try { imap.end(); } catch(e) {}
-                settle(() => resolve());
-              }).catch(() => {
-                try { imap.end(); } catch(e) {}
+                sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Termine' });
                 settle(() => resolve());
               });
             });
@@ -1732,6 +1776,7 @@ app.post('/api/mail/scan', async (req, res) => {
 
       imap.once('error', (err) => {
         console.error('IMAP connection error [' + (provider||'?') + ']:', err.message, err.code || '');
+        sendProgress(userId, { status:'error', error: err.message });
         settle(() => reject(err));
       });
       console.log('IMAP scan connecting to', config.host, 'for', provider, '...');
