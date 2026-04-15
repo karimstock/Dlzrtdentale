@@ -1194,7 +1194,18 @@ JSON uniquement :
     }]
   });
 
-  return JSON.parse(response.content[0].text.replace(/```json|```/g,'').trim());
+  const raw = (response.content[0] && response.content[0].text) || '';
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (e1) {
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) {
+      try { return JSON.parse(m[0]); } catch (e2) {}
+    }
+    console.warn('analyserDocumentIA: Claude a repondu en texte, piece jointe ignoree. Prefix:', raw.slice(0, 80));
+    return null;
+  }
 }
 
 app.post('/api/analyser-document', async (req, res) => {
@@ -1203,6 +1214,7 @@ app.post('/api/analyser-document', async (req, res) => {
     if (!document || !mediaType) return res.status(400).json({ error: 'document et mediaType requis' });
 
     const data = await analyserDocumentIA(document, mediaType);
+    if (!data) return res.status(422).json({ error: 'Document non analysable (Claude n\'a pas retourne de JSON)' });
 
     // Anti-doublon hash
     const hash = crypto.createHash('md5')
