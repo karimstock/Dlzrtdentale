@@ -1683,6 +1683,15 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                   console.log('[SKIP]', subj, '— pas une facture potentielle');
                   return;
                 }
+                // Pre-store du 1er PDF du mail pour le partager avec un eventuel body-scan
+                let mailPdfToken = null;
+                let mailPdfFilename = null;
+                for (const att of atts) {
+                  if (isPdfAttachment(att) && !shouldSkipAttachment(att)) {
+                    const t = storeAttachment(userId, att);
+                    if (t) { mailPdfToken = t; mailPdfFilename = att.filename; break; }
+                  }
+                }
                 let pjExploitable = false;
                 for (const att of atts) {
                   const isPDF = isPdfAttachment(att);
@@ -1740,8 +1749,9 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                         from: parsed.from ? parsed.from.text : '',
                         date_mail: parsed.date,
                         subject: parsed.subject,
-                        filename: '(corps du mail)',
+                        filename: mailPdfFilename || '(corps du mail)',
                         analyse,
+                        attachmentToken: mailPdfToken || null,
                         selectionne: analyse.selectionne !== false,
                       });
                       sendProgress(userId, {
@@ -1751,7 +1761,8 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           total_ttc: analyse.total_ttc,
                           type_document: analyse.type_document,
                           date: analyse.date,
-                          filename: '(corps du mail)',
+                          filename: mailPdfFilename || '(corps du mail)',
+                          attachmentToken: mailPdfToken || null,
                           selectionne: analyse.selectionne !== false,
                         }
                       });
@@ -2007,6 +2018,14 @@ app.post('/api/mail/scan', async (req, res) => {
                     console.log('[SKIP]', subj, '— pas une facture potentielle');
                     return;
                   }
+                  let mailPdfToken = null;
+                  let mailPdfFilename = null;
+                  for (const att of atts) {
+                    if (isPdfAttachment(att) && !shouldSkipAttachment(att)) {
+                      const t = storeAttachment(userId, att);
+                      if (t) { mailPdfToken = t; mailPdfFilename = att.filename; break; }
+                    }
+                  }
                   let pjExploitable = false;
                   for (const att of atts) {
                     const isPDF = isPdfAttachment(att);
@@ -2063,8 +2082,9 @@ app.post('/api/mail/scan', async (req, res) => {
                           from: parsed.from ? parsed.from.text : '',
                           date_mail: parsed.date,
                           subject: parsed.subject,
-                          filename: '(corps du mail)',
+                          filename: mailPdfFilename || '(corps du mail)',
                           analyse,
+                          attachmentToken: mailPdfToken || null,
                           selectionne: analyse.selectionne !== false,
                         });
                         sendProgress(userId, {
@@ -2074,7 +2094,8 @@ app.post('/api/mail/scan', async (req, res) => {
                             total_ttc: analyse.total_ttc,
                             type_document: analyse.type_document,
                             date: analyse.date,
-                            filename: '(corps du mail)',
+                            filename: mailPdfFilename || '(corps du mail)',
+                            attachmentToken: mailPdfToken || null,
                             selectionne: analyse.selectionne !== false,
                           }
                         });
