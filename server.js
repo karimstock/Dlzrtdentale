@@ -2272,6 +2272,28 @@ app.post('/api/mail/import', async (req, res) => {
         .select('id').eq('hash', hash).maybeSingle();
       if (existing) { duplicates++; continue; }
 
+      // Upload PDF/image vers Supabase Storage si attachmentToken present
+      let storagePath = null;
+      const token = f.attachmentToken || doc.attachmentToken;
+      if (token && supabaseAdmin) {
+        const att = scanAttachments.get(token);
+        if (att && att.buffer) {
+          const ext = (att.contentType && att.contentType.includes('pdf')) ? 'pdf'
+            : (att.contentType && att.contentType.includes('png')) ? 'png'
+            : (att.contentType && att.contentType.includes('jpeg')) ? 'jpg'
+            : 'bin';
+          const filePath = `${userId}/${hash}.${ext}`;
+          const { error: upErr } = await supabaseAdmin.storage
+            .from('documents-compta')
+            .upload(filePath, att.buffer, {
+              contentType: att.contentType || 'application/pdf',
+              upsert: true
+            });
+          if (!upErr) storagePath = filePath;
+          else console.warn('[STORAGE] upload fail:', upErr.message);
+        }
+      }
+
       const { error: insErr } = await db.from('documents_compta').insert({
         user_id: userId,
         type_document: doc.type_document,
@@ -2290,6 +2312,7 @@ app.post('/api/mail/import', async (req, res) => {
         hash,
         source: 'mail',
         mois: doc.date ? doc.date.substring(0, 7) : null,
+        storage_path: storagePath,
       });
       if (insErr) {
         console.error('[IMPORT] insert error for', doc.fournisseur_ou_etablissement, ':', insErr.message);
@@ -2535,6 +2558,26 @@ app.get('/api/compta/recap/:userId', async (req, res) => {
         ? Object.values(parMois).reduce((s, m) => s + m.tva_recuperable, 0)
         : 0
     });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/compta/document/:id/pdf', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { data: doc } = await supabaseAdmin
+      .from('documents_compta')
+      .select('storage_path')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!doc || !doc.storage_path) return res.status(404).json({ error: 'PDF non disponible' });
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from('documents-compta')
+      .createSignedUrl(doc.storage_path, 3600);
+    if (error || !signed || !signed.signedUrl) return res.status(404).json({ error: 'URL non generee' });
+    res.redirect(signed.signedUrl);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
