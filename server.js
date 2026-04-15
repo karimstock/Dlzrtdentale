@@ -1192,6 +1192,19 @@ ACCEPTER uniquement si document financier/pro avec AU MINIMUM :
 - Une date
 - Un montant OU une description precise d'un service rendu
 
+DETECTION ET CONVERSION DEVISE OBLIGATOIRE :
+- Detecte la devise du document (symbole EUR, USD, GBP, JPY, DZD, MAD, etc.)
+- Taux de conversion approximatifs vers EUR :
+  USD x0.92 | GBP x1.17 | CHF x1.05 | JPY x0.006 | CNY x0.13 | KRW x0.00069
+  DZD x0.0069 | MAD x0.092 | TND x0.29 | AED x0.25 | SAR x0.25 | KWD x3.26
+  CAD x0.68 | AUD x0.60 | BRL x0.18 | INR x0.011 | TRY x0.027 | MXN x0.054
+  RUB x0.010 | QAR x0.25 | NGN x0.00058
+- REGLES STRICTES :
+  1. Detecter la devise originale
+  2. Convertir total_ttc et total_ht en EUR automatiquement
+  3. Si EUR : pas de conversion, devise_originale="EUR", converti=false
+  4. Sinon ajouter OBLIGATOIREMENT : devise_originale, montant_original (TTC dans la devise d'origine), taux_conversion, converti=true
+
 RAPPEL : TA REPONSE EST UNIQUEMENT LE JSON CI-DESSOUS, RIEN D'AUTRE, PAS DE PROSE.
 
 JSON uniquement :
@@ -1207,6 +1220,10 @@ JSON uniquement :
   "total_ht": 0.00,
   "tva": 0.00,
   "total_ttc": 0.00,
+  "devise_originale": "EUR",
+  "montant_original": 0.00,
+  "taux_conversion": 1,
+  "converti": false,
   "mode_paiement": "virement/cb/cheque/especes/inconnu",
   "description": "Description courte",
   "note_fiscale": "Info comptable utile",
