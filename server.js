@@ -1732,6 +1732,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           date: analyse.date,
                           filename: att.filename,
                           attachmentToken: attToken,
+                          subject: parsed.subject || '',
                           selectionne: analyse.selectionne !== false,
                         }
                       });
@@ -1763,6 +1764,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           date: analyse.date,
                           filename: mailPdfFilename || '(corps du mail)',
                           attachmentToken: mailPdfToken || null,
+                          subject: parsed.subject || '',
                           selectionne: analyse.selectionne !== false,
                         }
                       });
@@ -2066,6 +2068,7 @@ app.post('/api/mail/scan', async (req, res) => {
                             date: analyse.date,
                             filename: att.filename,
                             attachmentToken: attToken,
+                            subject: parsed.subject || '',
                             selectionne: analyse.selectionne !== false,
                           }
                         });
@@ -2096,6 +2099,7 @@ app.post('/api/mail/scan', async (req, res) => {
                             date: analyse.date,
                             filename: mailPdfFilename || '(corps du mail)',
                             attachmentToken: mailPdfToken || null,
+                            subject: parsed.subject || '',
                             selectionne: analyse.selectionne !== false,
                           }
                         });
