@@ -1192,6 +1192,22 @@ ACCEPTER uniquement si document financier/pro avec AU MINIMUM :
 - Une date
 - Un montant OU une description precise d'un service rendu
 
+DETECTION DEVISE CRITIQUE :
+- Si montant > 1000 et document algerien/marocain/tunisien => OBLIGATOIREMENT DZD/MAD/TND
+- Ne jamais retourner 40000 EUR pour une facture algerienne/marocaine
+- Convertir AVANT de retourner le JSON
+- Indices pays : adresse Alger/Oran/Annaba/Constantine (DZ), Casablanca/Rabat/Marrakech (MA), Tunis/Sfax (TN), ICE/RC maghrebin, RIB BMCE/BNA/CPA/BADR, telephone +213/+212/+216
+
+MODE DE PAIEMENT - detecter automatiquement :
+- "carte_bancaire" => CB, Visa, Mastercard, carte, terminal, TPE, sans contact, ticket CB
+- "virement" => virement, SEPA, transfer, ordre de virement, RIB
+- "especes" => especes, cash, liquide, comptant
+- "cheque" => cheque, check
+- "prelevement" => prelevement automatique, debit automatique
+- "paypal" => PayPal, Stripe, Payoneer
+- "inconnu" => si non detectable
+Retourner : "mode_paiement": "carte_bancaire" (ou autre valeur ci-dessus)
+
 DETECTION ET CONVERSION DEVISE OBLIGATOIRE :
 - Detecte la devise du document (symbole EUR, USD, GBP, JPY, DZD, MAD, etc.)
 - Taux de conversion approximatifs vers EUR :
@@ -2455,6 +2471,31 @@ app.get('/api/compta/recap/:userId', async (req, res) => {
       .lte('date_document', `${anneeVal}-12-31`)
       .order('date_document', { ascending: false });
 
+    // Rapprochement bancaire (si table releves_bancaires existe)
+    let transactions = null;
+    try {
+      const r = await supabaseAdmin
+        .from('releves_bancaires')
+        .select('montant, libelle, date')
+        .eq('user_id', userId)
+        .gte('date', `${anneeVal}-01-01`);
+      if (!r.error) transactions = r.data || [];
+    } catch (_) { transactions = null; }
+
+    for (const doc of docs || []) {
+      if (transactions && transactions.length) {
+        const fournKey = (doc.fournisseur || '').toLowerCase().split(' ')[0];
+        const match = transactions.find(t =>
+          Math.abs((t.montant || 0) - (doc.total_ttc || 0)) < 10 ||
+          (fournKey && t.libelle && t.libelle.toLowerCase().includes(fournKey))
+        );
+        doc.rapprochement = match ? 'ok' : 'non_rapproche';
+        doc.transaction_match = match || null;
+      } else {
+        doc.rapprochement = 'non_verifie';
+      }
+    }
+
     const parMois = {};
     for (const doc of docs || []) {
       const mois = doc.mois_manuel || doc.mois || (doc.date_document ? doc.date_document.substring(0, 7) : 'inconnu');
@@ -2494,6 +2535,20 @@ app.get('/api/compta/recap/:userId', async (req, res) => {
         ? Object.values(parMois).reduce((s, m) => s + m.tva_recuperable, 0)
         : 0
     });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/compta/document/:id/paiement', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mode_paiement, userId } = req.body || {};
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { error } = await supabaseAdmin
+      .from('documents_compta')
+      .update({ mode_paiement })
+      .eq('id', id).eq('user_id', userId);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
