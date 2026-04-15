@@ -2258,6 +2258,7 @@ function pcInitPeriodeParDefaut() {
 window.addEventListener('load', () => {
   try { pcPrimeYahooButton(); } catch(e) { console.warn(e); }
   try { pcInitPeriodeParDefaut(); } catch(e) { console.warn(e); }
+  try { pcRestaurerScanPrecedent(); } catch(e) { console.warn(e); }
   if (localStorage.getItem('jadomi_yahoo_connected') === '1') {
     try { pcApplyYahooOAuthAccount(); } catch(e){}
   }
@@ -3841,6 +3842,46 @@ function _fmtMontant(v) {
   return n.toFixed(2) + ' EUR';
 }
 window._scanLiveDocs = [];
+window._scanFullDocs = [];
+
+function pcSaveScanResults(documents) {
+  try {
+    localStorage.setItem('jadomi_scan_results', JSON.stringify({
+      date: new Date().toISOString(),
+      documents: documents || []
+    }));
+  } catch(e) { console.warn('save scan results failed', e); }
+}
+
+function pcRestaurerScanPrecedent() {
+  try {
+    const saved = localStorage.getItem('jadomi_scan_results');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    const ageMin = (new Date() - new Date(data.date)) / 60000;
+    if (ageMin >= 30 || !data.documents || !data.documents.length) return;
+    const vc = document.getElementById('scan-validation-container');
+    const list = document.getElementById('scan-documents-list');
+    if (!vc || !list) return;
+    list.innerHTML = '';
+    window._scanLiveDocs = [];
+    window._scanFullDocs = data.documents.slice();
+    data.documents.forEach(d => {
+      ajouterDocumentEnTempsReel({
+        fournisseur: (d.analyse && d.analyse.fournisseur_ou_etablissement) || d.from || 'Inconnu',
+        total_ttc: d.analyse && d.analyse.total_ttc,
+        type_document: d.analyse && d.analyse.type_document,
+        date: d.analyse && d.analyse.date,
+        filename: d.filename,
+        attachmentToken: d.attachmentToken,
+        selectionne: d.selectionne !== false,
+      });
+    });
+    vc.style.display = '';
+    try { showToast(data.documents.length + ' documents du dernier scan restaures'); } catch(e){}
+  } catch(e) { console.warn('restore scan failed', e); }
+}
+
 function pcMajCompteurValidation() {
   const list = document.getElementById('scan-documents-list');
   if (!list) return;
@@ -3893,6 +3934,8 @@ async function pcValiderSelectionDocuments() {
     const data = await resp.json();
     if (!resp.ok || data.error) throw new Error(data.error || 'Import echoue');
     showToast((data.imported || selected.length) + ' document(s) importe(s)');
+    try { localStorage.removeItem('jadomi_scan_results'); } catch(e){}
+    const vc = document.getElementById('scan-validation-container'); if (vc) vc.style.display = 'none';
     if (typeof pcComptaLoadDocs === 'function') pcComptaLoadDocs();
   } catch(e) {
     alert('Erreur import : ' + e.message);
@@ -4010,6 +4053,7 @@ async function pcComptaScanMail() {
 
     pcSauvegarderMailConfig(provider, email, pass);
     window._scanFullDocs = (data && data.documents) || [];
+    pcSaveScanResults(window._scanFullDocs);
     var rd = document.getElementById('pc-mail-results'); rd.style.display = 'none';
     if(!data.documents||!data.documents.length) { rd.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Aucune facture trouvee.</div>'; }
     else {
