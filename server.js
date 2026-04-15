@@ -1632,9 +1632,27 @@ function isPdfAttachment(att) {
 }
 
 // Pre-filtre global: mail a-t-il une chance d'etre un document comptable ?
+const REJETER_SUJET = [
+  'messagerie vocale', 'message vocal', 'nouveau message reçu',
+  'appel manqué', 'boite vocale', 'voicemail',
+  'newsletter', 'actualité', 'nos offres', 'promotions',
+  'offre spéciale', 'soldes', 'parrainage',
+  'mot de passe', 'réinitialisation', 'connexion depuis',
+  'alerte sécurité', 'vérification',
+  'votre colis est', 'livraison prévue',
+  'satisfaction client', 'donnez votre avis',
+  'recherche facture', 'pouvez-vous', 'merci de',
+  'rappel rendez-vous', 'confirmation rdv',
+  'je cherche', 'auriez-vous',
+];
+
 function vautLaPeineAnalyser(parsed) {
   const subject = String(parsed.subject || '').toLowerCase();
   const from = String(parsed.from && parsed.from.text || '').toLowerCase();
+  if (REJETER_SUJET.some(m => subject.includes(m))) {
+    console.log(`[SKIP PRECIS] "${subject}" — non financier`);
+    return false;
+  }
   const hasPDF = (parsed.attachments || []).some(isPdfAttachment);
   if (hasPDF) return true;
   if (MOTS_CLES_FACTURE.some(m => subject.includes(m))) return true;
