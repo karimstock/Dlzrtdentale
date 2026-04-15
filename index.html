@@ -530,7 +530,9 @@ tbody tr:hover td{background:var(--surface2);}
       <div style="display:flex;gap:8px;margin-bottom:20px;">
         <button class="btn btn-accent compta-subtab active" data-ctab="import" onclick="switchComptaTabPC('import')" style="font-size:12px;padding:7px 14px;">📥 Importer</button>
         <button class="btn compta-subtab" data-ctab="docs" onclick="switchComptaTabPC('docs')" style="font-size:12px;padding:7px 14px;">📋 Documents</button>
-        <button class="btn compta-subtab" data-ctab="releve" onclick="switchComptaTabPC('releve')" style="font-size:12px;padding:7px 14px;">📊 Relevé</button>
+        <button class="btn compta-subtab" data-ctab="annuel" onclick="switchComptaTabPC('annuel')" style="font-size:12px;padding:7px 14px;">📆 Relevé annuel</button>
+        <button class="btn compta-subtab" data-ctab="tva" onclick="switchComptaTabPC('tva')" style="font-size:12px;padding:7px 14px;">⚡ TVA</button>
+        <button class="btn compta-subtab" data-ctab="releve" onclick="switchComptaTabPC('releve')" style="font-size:12px;padding:7px 14px;">🏦 Relevé bancaire</button>
       </div>
 
       <!-- TAB: Importer -->
@@ -694,6 +696,113 @@ tbody tr:hover td{background:var(--surface2);}
           <div style="color:var(--muted);">⏳ JADOMI analyse votre relevé...</div>
         </div>
         <div id="pc-compta-releve-result" style="display:none;"></div>
+      </div>
+
+      <!-- TAB: Relevé annuel (nouvelle vue mensuelle) -->
+      <div id="pc-compta-annuel" style="display:none;">
+        <div style="background:linear-gradient(135deg,#1E40AF,#2D6FF4);border-radius:20px;padding:20px;color:white;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div>
+              <div style="font-size:26px;font-weight:800" id="compta-total-annuel">0€</div>
+              <div style="font-size:12px;opacity:0.75">Total charges</div>
+            </div>
+            <div style="text-align:right">
+              <select id="select-annee-compta" onchange="chargerRecap()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <div style="font-size:12px;opacity:0.75;margin-top:4px" id="compta-nb-docs">0 documents</div>
+            </div>
+          </div>
+          <div id="barre-cat-annuelle" style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px"></div>
+          <div id="legende-cat" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+          <div id="recap-tva-recuperable" style="margin-top:10px;padding:8px;background:rgba(255,255,255,0.15);border-radius:8px;font-size:12px;display:none">
+            💰 TVA récupérable estimée : <strong id="tva-recup-annuelle">0€</strong>/an
+          </div>
+        </div>
+        <div id="liste-mois-compta" style="margin-bottom:20px"></div>
+        <button onclick="exporterCSVCompta()" style="width:100%;background:#10B981;color:white;border:none;padding:14px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer">📊 Exporter pour le comptable (CSV)</button>
+      </div>
+
+      <!-- TAB: TVA -->
+      <div id="pc-compta-tva" style="display:none;">
+        <div style="background:linear-gradient(135deg,#1E40AF,#2D6FF4);border-radius:20px;padding:24px;color:white;margin-bottom:20px">
+          <div style="font-size:13px;opacity:0.8;margin-bottom:4px">Statut TVA</div>
+          <div style="font-size:22px;font-weight:700" id="tva-statut-label">Chargement...</div>
+          <div style="font-size:12px;opacity:0.7;margin-top:4px" id="tva-statut-detail"></div>
+        </div>
+
+        <div style="background:white;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);color:#1A2540">
+          <div style="font-weight:700;color:#1A2540;margin-bottom:16px;font-size:15px">⚡ Mon statut TVA</div>
+
+          <div class="tva-option" id="opt-exonere" onclick="selectionnerTVA('exonere')" style="border:2px solid #E8EDF5;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all 0.2s">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:20px;height:20px;border-radius:50%;border:2px solid #D1D5DB;display:flex;align-items:center;justify-content:center;flex-shrink:0" id="radio-exonere">
+                <div style="width:10px;height:10px;border-radius:50%;background:transparent" id="dot-exonere"></div>
+              </div>
+              <div>
+                <div style="font-weight:600;color:#1A2540">🏥 Exonéré de TVA</div>
+                <div style="font-size:12px;color:#6B7280">Professions médicales et paramédicales réglementées</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Dentiste · Médecin · Kiné · Infirmier · Sage-femme · Prothésiste · Orthophoniste...</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tva-option" id="opt-franchise" onclick="selectionnerTVA('franchise')" style="border:2px solid #E8EDF5;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all 0.2s">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <div style="width:20px;height:20px;border-radius:50%;border:2px solid #D1D5DB;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px" id="radio-franchise">
+                <div style="width:10px;height:10px;border-radius:50%;background:transparent" id="dot-franchise"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-weight:600;color:#1A2540">🔓 Franchise en base de TVA</div>
+                <div style="font-size:12px;color:#6B7280">CA annuel sous le seuil de franchise</div>
+                <div style="margin-top:8px">
+                  <select id="select-seuil-franchise" onchange="mettreAJourSeuil()" onclick="event.stopPropagation()" style="border:1px solid #E8EDF5;border-radius:8px;padding:6px 10px;font-size:12px;color:#374151;width:100%">
+                    <option value="37500">Seuil standard — 37 500€/an (professions libérales)</option>
+                    <option value="50000">Seuil avocat/auteur/artiste — 50 000€/an</option>
+                  </select>
+                </div>
+                <div id="barre-ca-container" style="margin-top:10px">
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:#6B7280;margin-bottom:4px">
+                    <span>CA estimé : <strong id="ca-estime-label">0€</strong></span>
+                    <span>Seuil : <strong id="seuil-label">37 500€</strong></span>
+                  </div>
+                  <div style="background:#F3F4F6;border-radius:4px;height:8px;overflow:hidden">
+                    <div id="barre-ca" style="height:100%;background:#10B981;border-radius:4px;transition:width 0.5s;width:0%"></div>
+                  </div>
+                  <div id="alerte-seuil" style="display:none;margin-top:6px;padding:8px;background:#FEF3C7;border-radius:8px;font-size:12px;color:#92400E">
+                    ⚠️ Vous approchez du seuil de franchise — vérifiez avec votre comptable
+                  </div>
+                </div>
+                <div style="margin-top:8px">
+                  <input type="number" id="input-ca-annuel" placeholder="CA annuel estimé (€)" onchange="mettreAJourCA()" onclick="event.stopPropagation()" style="border:1px solid #E8EDF5;border-radius:8px;padding:8px 12px;font-size:12px;width:100%;box-sizing:border-box;color:#1A2540;background:white">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tva-option" id="opt-soumis" onclick="selectionnerTVA('soumis')" style="border:2px solid #E8EDF5;border-radius:12px;padding:14px;cursor:pointer;transition:all 0.2s">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <div style="width:20px;height:20px;border-radius:50%;border:2px solid #D1D5DB;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px" id="radio-soumis">
+                <div style="width:10px;height:10px;border-radius:50%;background:transparent" id="dot-soumis"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-weight:600;color:#1A2540">💼 Soumis à la TVA</div>
+                <div style="font-size:12px;color:#6B7280">CA dépassé ou option volontaire — TVA 20%</div>
+                <div style="margin-top:8px">
+                  <input type="text" id="input-numero-tva" placeholder="N° TVA intracommunautaire (FR...)" onclick="event.stopPropagation()" style="border:1px solid #E8EDF5;border-radius:8px;padding:8px 12px;font-size:12px;width:100%;box-sizing:border-box;color:#1A2540;background:white">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="sauvegarderConfigTVA()" style="width:100%;margin-top:16px;background:#2D6FF4;color:white;border:none;padding:14px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer">✅ Sauvegarder mon statut TVA</button>
+
+          <div style="margin-top:12px;padding:12px;background:#F9FAFB;border-radius:8px;font-size:11px;color:#6B7280;line-height:1.5">
+            ℹ️ <strong>Important :</strong> En cas de doute sur votre statut TVA, consultez votre expert-comptable ou le Service des Impôts des Entreprises (SIE). JADOMI ne fournit pas de conseil fiscal.
+          </div>
+        </div>
       </div>
     </div>
 
@@ -3677,7 +3786,7 @@ init();
 let pcComptaDocAnalyse = null;
 
 function switchComptaTabPC(tab) {
-  ['import','docs','releve'].forEach(t => {
+  ['import','docs','releve','annuel','tva'].forEach(t => {
     const el = document.getElementById('pc-compta-'+t);
     if(el) el.style.display = t === tab ? '' : 'none';
   });
@@ -3686,6 +3795,8 @@ function switchComptaTabPC(tab) {
     b.classList.toggle('active', b.dataset.ctab === tab);
   });
   if(tab === 'docs') pcComptaLoadDocs();
+  if(tab === 'annuel') chargerRecap();
+  if(tab === 'tva') chargerConfigTVA();
 }
 
 function pcComptaPhoto() {
@@ -4194,6 +4305,321 @@ async function pcComptaLoadDocs() {
 function pcComptaExport() { showToast('Export PDF comptable bientot disponible'); }
 function pcComptaEnvoyerComptable() { showToast('Envoi au comptable bientot disponible'); }
 
+// ══════════════════════════════
+// CONFIG TVA + RECAP MENSUEL
+// ══════════════════════════════
+let _tvaConfig = { statut_tva: 'franchise', seuil_franchise: 37500, ca_annuel_estime: 0 };
+let _editDocId = null;
+let _editTags = [];
+
+async function chargerConfigTVA() {
+  try {
+    const uid = await pcResolveUid();
+    if (!uid) return;
+    const resp = await fetch('/api/tva/config/' + uid);
+    _tvaConfig = await resp.json() || { statut_tva: 'franchise', seuil_franchise: 37500 };
+    afficherConfigTVA();
+  } catch(e) { console.error('chargerConfigTVA:', e); }
+}
+
+function afficherConfigTVA() {
+  const statut = _tvaConfig.statut_tva || 'franchise';
+  ['exonere','franchise','soumis'].forEach(function(s) {
+    const radio = document.getElementById('radio-'+s);
+    const dot = document.getElementById('dot-'+s);
+    const opt = document.getElementById('opt-'+s);
+    if (radio) radio.style.borderColor = '#D1D5DB';
+    if (dot) dot.style.background = 'transparent';
+    if (opt) opt.style.borderColor = '#E8EDF5';
+  });
+  const radioActif = document.getElementById('radio-'+statut);
+  const dotActif = document.getElementById('dot-'+statut);
+  const optActif = document.getElementById('opt-'+statut);
+  if (radioActif) radioActif.style.borderColor = '#2D6FF4';
+  if (dotActif) dotActif.style.background = '#2D6FF4';
+  if (optActif) optActif.style.borderColor = '#2D6FF4';
+
+  const labels = {
+    exonere: ['🏥 Exonéré de TVA', 'Art. 261 CGI — Profession médicale/paramédicale'],
+    franchise: ['🔓 Franchise en base', 'CA < ' + (_tvaConfig.seuil_franchise || 37500).toLocaleString('fr-FR') + '€ — Art. 293 B CGI'],
+    soumis: ['💼 Soumis à la TVA 20%', _tvaConfig.numero_tva ? ('N° TVA : ' + _tvaConfig.numero_tva) : 'TVA collectée et récupérable']
+  };
+  const pair = labels[statut] || labels.franchise;
+  const el = document.getElementById('tva-statut-label');
+  const det = document.getElementById('tva-statut-detail');
+  if (el) el.textContent = pair[0];
+  if (det) det.textContent = pair[1];
+
+  if (_tvaConfig.ca_annuel_estime != null) {
+    const inp = document.getElementById('input-ca-annuel');
+    if (inp) inp.value = _tvaConfig.ca_annuel_estime || '';
+  }
+  if (_tvaConfig.numero_tva) {
+    const inp = document.getElementById('input-numero-tva');
+    if (inp) inp.value = _tvaConfig.numero_tva;
+  }
+  if (_tvaConfig.seuil_franchise) {
+    const sel = document.getElementById('select-seuil-franchise');
+    if (sel) sel.value = _tvaConfig.seuil_franchise;
+  }
+  mettreAJourCA();
+}
+
+function selectionnerTVA(statut) {
+  _tvaConfig.statut_tva = statut;
+  afficherConfigTVA();
+}
+
+function mettreAJourCA() {
+  const ca = parseFloat((document.getElementById('input-ca-annuel') || {}).value || 0) || 0;
+  const seuil = parseFloat((document.getElementById('select-seuil-franchise') || {}).value || 37500) || 37500;
+  _tvaConfig.ca_annuel_estime = ca;
+  _tvaConfig.seuil_franchise = seuil;
+  const pct = Math.min((ca / seuil) * 100, 100);
+  const barre = document.getElementById('barre-ca');
+  const label = document.getElementById('ca-estime-label');
+  const seuilLabel = document.getElementById('seuil-label');
+  const alerte = document.getElementById('alerte-seuil');
+  if (barre) {
+    barre.style.width = pct + '%';
+    barre.style.background = pct > 85 ? '#EF4444' : pct > 70 ? '#F59E0B' : '#10B981';
+  }
+  if (label) label.textContent = ca.toLocaleString('fr-FR') + '€';
+  if (seuilLabel) seuilLabel.textContent = seuil.toLocaleString('fr-FR') + '€';
+  if (alerte) alerte.style.display = pct > 80 ? 'block' : 'none';
+}
+
+function mettreAJourSeuil() { mettreAJourCA(); }
+
+async function sauvegarderConfigTVA() {
+  try {
+    const uid = await pcResolveUid();
+    if (!uid) return showToast('❌ Connexion requise');
+    const resp = await fetch('/api/tva/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: uid,
+        statut_tva: _tvaConfig.statut_tva,
+        ca_annuel_estime: parseFloat((document.getElementById('input-ca-annuel') || {}).value || 0) || 0,
+        seuil_franchise: parseFloat((document.getElementById('select-seuil-franchise') || {}).value || 37500) || 37500,
+        numero_tva: (document.getElementById('input-numero-tva') || {}).value || null
+      })
+    });
+    const result = await resp.json();
+    if (result.success) {
+      showToast('✅ Statut TVA sauvegardé');
+      afficherConfigTVA();
+    } else {
+      showToast('❌ ' + (result.error || 'Erreur'));
+    }
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+const iconesCat = {
+  facture_dentaire: '🦷', charge_cabinet: '⚡',
+  note_frais_repas: '🍽️', note_frais_transport: '🚗',
+  note_frais_formation: '📚', note_frais_hebergement: '🏨',
+  equipement_medical: '🔧', equipement_informatique: '💻',
+  salaire_charges: '👥', impots_taxes: '🏛️',
+  assurance: '🛡️', honoraires: '📋', autre: '📄'
+};
+const labelsCat = {
+  facture_dentaire: 'Stock dentaire', charge_cabinet: 'Charges cabinet',
+  note_frais_repas: 'Repas', note_frais_transport: 'Transport',
+  note_frais_formation: 'Formation', note_frais_hebergement: 'Hébergement',
+  equipement_medical: 'Équipement médical', equipement_informatique: 'Informatique',
+  salaire_charges: 'Salaires & charges', impots_taxes: 'Impôts & taxes',
+  assurance: 'Assurance', honoraires: 'Honoraires', autre: 'Autre'
+};
+const couleursCat = {
+  facture_dentaire: '#10B981', charge_cabinet: '#3B82F6',
+  note_frais_repas: '#F59E0B', note_frais_transport: '#F59E0B',
+  note_frais_formation: '#8B5CF6', note_frais_hebergement: '#8B5CF6',
+  equipement_medical: '#06B6D4', equipement_informatique: '#06B6D4',
+  salaire_charges: '#6B7280', impots_taxes: '#EF4444',
+  assurance: '#EC4899', honoraires: '#14B8A6', autre: '#D1D5DB'
+};
+
+async function chargerRecap() {
+  try {
+    const uid = await pcResolveUid();
+    if (!uid) return;
+    const annee = (document.getElementById('select-annee-compta') || {}).value || new Date().getFullYear();
+    const resp = await fetch('/api/compta/recap/' + uid + '?annee=' + annee);
+    const data = await resp.json();
+
+    const totalEl = document.getElementById('compta-total-annuel');
+    const nbEl = document.getElementById('compta-nb-docs');
+    const nbDocs = (data.mois || []).reduce(function(s, m) { return s + m.documents.length; }, 0);
+    if (totalEl) totalEl.textContent = (data.total_annuel || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€';
+    if (nbEl) nbEl.textContent = nbDocs + ' document' + (nbDocs > 1 ? 's' : '');
+
+    const totParCat = {};
+    (data.mois || []).forEach(function(m) {
+      Object.entries(m.par_categorie || {}).forEach(function(ent) {
+        totParCat[ent[0]] = (totParCat[ent[0]] || 0) + ent[1].total;
+      });
+    });
+    const barreEl = document.getElementById('barre-cat-annuelle');
+    const legendeEl = document.getElementById('legende-cat');
+    const sorted = Object.entries(totParCat).sort(function(a, b) { return b[1] - a[1]; });
+    if (barreEl) barreEl.innerHTML = sorted.map(function(e) {
+      return '<div style="flex:' + e[1] + ';background:' + (couleursCat[e[0]] || '#D1D5DB') + '" title="' + (labelsCat[e[0]] || e[0]) + ': ' + e[1].toFixed(0) + '€"></div>';
+    }).join('');
+    if (legendeEl) legendeEl.innerHTML = sorted.slice(0, 4).map(function(e) {
+      return '<span style="display:flex;align-items:center;gap:4px;font-size:11px;opacity:0.85"><span style="width:8px;height:8px;border-radius:2px;background:' + (couleursCat[e[0]] || '#D1D5DB') + ';display:inline-block"></span>' + (labelsCat[e[0]] || e[0]) + '</span>';
+    }).join('');
+
+    const tvaRecupEl = document.getElementById('recap-tva-recuperable');
+    const tvaRecupVal = document.getElementById('tva-recup-annuelle');
+    if (tvaRecupEl && tvaRecupVal) {
+      if (data.soumis_tva && data.tva_recuperable_annuelle > 0) {
+        tvaRecupEl.style.display = 'block';
+        tvaRecupVal.textContent = data.tva_recuperable_annuelle.toFixed(2) + '€';
+      } else {
+        tvaRecupEl.style.display = 'none';
+      }
+    }
+
+    const listeEl = document.getElementById('liste-mois-compta');
+    if (!listeEl) return;
+    listeEl.innerHTML = (data.mois || []).map(function(m) {
+      const parts = m.mois.split('-');
+      let nomMoisCap = m.mois;
+      if (parts.length === 2) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1);
+        const nm = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        nomMoisCap = nm.charAt(0).toUpperCase() + nm.slice(1);
+      }
+      const docsHTML = m.documents.map(function(doc) {
+        const tagsHTML = (doc.tags && doc.tags.length) ? ('<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">' + doc.tags.map(function(t) { return '<span style="background:#EEF2FF;color:#4F46E5;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500">' + t + '</span>'; }).join('') + '</div>') : '';
+        const commentHTML = doc.commentaire ? ('<div style="font-size:11px;color:#2D6FF4;margin-top:3px">💬 ' + doc.commentaire + '</div>') : '';
+        const descHTML = doc.description ? ('<div style="font-size:11px;color:#6B7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + doc.description + '</div>') : '';
+        const viewBtn = doc.attachmentToken ? ('<button onclick="window.open(\'/api/mail/attachment/' + doc.attachmentToken + '\',\'_blank\')" style="background:#EEF2FF;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px">👁️</button>') : '';
+        const moisArg = doc.mois_manuel || doc.mois || m.mois;
+        const tagsArg = (doc.tags || []).join(',');
+        const commArg = (doc.commentaire || '').replace(/'/g, '').replace(/"/g, '');
+        return '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid #F3F4F6;background:white;color:#1A2540">' +
+          '<span style="font-size:20px;margin-top:2px">' + (iconesCat[doc.type_document] || '📄') + '</span>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:600;font-size:13px;color:#1A2540;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (doc.fournisseur || 'Inconnu') + '</div>' +
+            '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + (doc.date_document || '—') + ' · ' + (labelsCat[doc.type_document] || 'Autre') + '</div>' +
+            descHTML + commentHTML + tagsHTML +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">' +
+            '<span style="font-weight:700;font-size:14px;color:#1A2540">' + (doc.total_ttc != null ? doc.total_ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€' : '—') + '</span>' +
+            '<div style="display:flex;gap:4px">' + viewBtn +
+              '<button onclick="ouvrirEditDoc(\'' + doc.id + '\',\'' + moisArg + '\',\'' + tagsArg + '\',\'' + commArg + '\')" style="background:#F3F4F6;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px">✏️</button>' +
+              '<button onclick="supprimerDoc(\'' + doc.id + '\')" style="background:#FEE2E2;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px">🗑️</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      const catDuMois = Object.entries(m.par_categorie || {}).sort(function(a, b) { return b[1].total - a[1].total; }).map(function(e) {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:#FAFBFF;border-bottom:1px solid #F3F4F6;color:#374151">' +
+          '<span style="font-size:12px;color:#6B7280">' + (iconesCat[e[0]] || '📄') + ' ' + (labelsCat[e[0]] || e[0]) + ' (' + e[1].count + ')</span>' +
+          '<span style="font-size:12px;font-weight:600;color:#374151">' + e[1].total.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€</span>' +
+        '</div>';
+      }).join('');
+      const tvaMoisHTML = (data.soumis_tva && m.tva_recuperable > 0) ? ('<div style="font-size:11px;color:#10B981">TVA récup: ' + m.tva_recuperable.toFixed(2) + '€</div>') : '';
+      return '<div style="background:white;border-radius:16px;overflow:hidden;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);color:#1A2540">' +
+        '<div onclick="toggleMoisCompta(\'mois-' + m.mois + '\')" style="display:flex;justify-content:space-between;align-items:center;padding:16px;cursor:pointer;background:white;user-select:none">' +
+          '<div><div style="font-weight:700;color:#1A2540;font-size:15px">📅 ' + nomMoisCap + '</div>' +
+          '<div style="font-size:12px;color:#9CA3AF;margin-top:2px">' + m.documents.length + ' document' + (m.documents.length > 1 ? 's' : '') + '</div></div>' +
+          '<div style="text-align:right"><div style="font-weight:800;color:#2D6FF4;font-size:17px">' + m.total.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€</div>' +
+          tvaMoisHTML + '<div style="font-size:16px;color:#9CA3AF;margin-top:2px" id="arrow-' + m.mois + '">▼</div></div>' +
+        '</div>' +
+        '<div id="mois-' + m.mois + '" style="display:none">' + catDuMois + docsHTML + '</div>' +
+      '</div>';
+    }).join('') || '<div style="text-align:center;padding:40px;color:#9CA3AF">Aucun document pour cette période</div>';
+  } catch(e) { console.error('chargerRecap:', e); }
+}
+
+function toggleMoisCompta(id) {
+  const el = document.getElementById(id);
+  const mois = id.replace('mois-', '');
+  const arrow = document.getElementById('arrow-' + mois);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+}
+
+function ouvrirEditDoc(id, mois, tagsStr, commentaire) {
+  _editDocId = id;
+  const modal = document.getElementById('modal-edit-doc');
+  if (modal) modal.style.display = 'flex';
+  const moisInput = document.getElementById('edit-mois');
+  if (moisInput) moisInput.value = mois || '';
+  const commInput = document.getElementById('edit-commentaire');
+  if (commInput) commInput.value = commentaire || '';
+  _editTags = tagsStr ? tagsStr.split(',').filter(Boolean) : [];
+  afficherEditTags();
+}
+
+function afficherEditTags() {
+  const el = document.getElementById('edit-tags-list');
+  if (!el) return;
+  el.innerHTML = _editTags.map(function(t, i) {
+    return '<span style="background:#EEF2FF;color:#4F46E5;font-size:11px;padding:3px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:4px">' + t + '<span onclick="_editTags.splice(' + i + ',1);afficherEditTags()" style="cursor:pointer;font-weight:bold">×</span></span>';
+  }).join('');
+}
+
+function ajouterTagEdit() {
+  const inp = document.getElementById('edit-tag-input');
+  if (!inp || !inp.value.trim()) return;
+  _editTags.push(inp.value.trim());
+  inp.value = '';
+  afficherEditTags();
+}
+
+function fermerEditDoc() {
+  const modal = document.getElementById('modal-edit-doc');
+  if (modal) modal.style.display = 'none';
+  _editDocId = null;
+}
+
+async function sauvegarderEditDoc() {
+  if (!_editDocId) return;
+  try {
+    const uid = await pcResolveUid();
+    const mois = (document.getElementById('edit-mois') || {}).value;
+    const commentaire = (document.getElementById('edit-commentaire') || {}).value;
+    if (mois) {
+      await fetch('/api/compta/document/' + _editDocId + '/mois', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mois: mois, userId: uid })
+      });
+    }
+    await fetch('/api/compta/document/' + _editDocId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: _editTags, commentaire: commentaire, userId: uid })
+    });
+    fermerEditDoc();
+    showToast('✅ Document mis à jour');
+    chargerRecap();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function supprimerDoc(id) {
+  if (!confirm('Supprimer ce document définitivement ?')) return;
+  try {
+    const uid = await pcResolveUid();
+    await fetch('/api/compta/document/' + id + '?userId=' + uid, { method: 'DELETE' });
+    showToast('🗑️ Document supprimé');
+    chargerRecap();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function exporterCSVCompta() {
+  const uid = await pcResolveUid();
+  const annee = (document.getElementById('select-annee-compta') || {}).value || new Date().getFullYear();
+  window.open('/api/compta/export/' + uid + '?annee=' + annee, '_blank');
+}
+
 function pcComptaUploadReleve() {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/pdf';
   inp.onchange = function(e) { if(e.target.files[0]) pcComptaAnalyseReleve(e.target.files[0]); };
@@ -4234,7 +4660,24 @@ async function pcComptaAnalyseReleve(file) {
     rd.innerHTML = h;
   } catch(e) { ld.style.display = 'none'; rd.style.display = ''; rd.innerHTML = '<div style="color:#f05050;">Erreur : '+e.message+'</div>'; }
 }
-</script></body>
+</script>
+<div id="modal-edit-doc" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:20px;padding:20px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;color:#1A2540">
+    <h3 style="margin:0 0 16px;color:#1A2540;font-size:17px">✏️ Modifier le document</h3>
+    <label style="font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px">📅 Déplacer vers le mois</label>
+    <input type="month" id="edit-mois" style="width:100%;padding:10px 12px;border:1.5px solid #E8EDF5;border-radius:10px;margin:6px 0 14px;box-sizing:border-box;font-size:14px;color:#1A2540;background:white">
+    <label style="font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px">🏷️ Tags</label>
+    <div id="edit-tags-list" style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 6px;min-height:24px"></div>
+    <input type="text" id="edit-tag-input" placeholder="Ajouter un tag (Entrée)" onkeypress="if(event.key==='Enter'){ajouterTagEdit();event.preventDefault()}" style="width:100%;padding:10px 12px;border:1.5px solid #E8EDF5;border-radius:10px;margin-bottom:14px;box-sizing:border-box;font-size:13px;color:#1A2540;background:white">
+    <label style="font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px">💬 Note comptable</label>
+    <textarea id="edit-commentaire" rows="3" placeholder="Précision pour votre comptable..." style="width:100%;padding:10px 12px;border:1.5px solid #E8EDF5;border-radius:10px;margin:6px 0 16px;box-sizing:border-box;resize:none;font-size:13px;font-family:inherit;color:#1A2540;background:white"></textarea>
+    <div style="display:flex;gap:8px">
+      <button onclick="sauvegarderEditDoc()" style="flex:1;background:#2D6FF4;color:white;border:none;padding:13px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer">✅ Sauvegarder</button>
+      <button onclick="fermerEditDoc()" style="background:#F3F4F6;color:#374151;border:none;padding:13px 18px;border-radius:12px;font-size:14px;cursor:pointer">✕</button>
+    </div>
+  </div>
+</div>
+</body>
 </html>
 
 

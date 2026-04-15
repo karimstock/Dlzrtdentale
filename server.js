@@ -2378,6 +2378,179 @@ app.get('/api/factures', async (req, res) => {
 });
 
 // =============================================
+// TVA CONFIG + COMPTA RECAP/EDIT/EXPORT
+// =============================================
+app.get('/api/tva/config/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { data, error } = await supabaseAdmin
+      .from('user_tva_config')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data || { statut_tva: 'franchise', seuil_franchise: 37500, ca_annuel_estime: 0 });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/tva/config', async (req, res) => {
+  try {
+    const { userId, statut_tva, profession, ca_annuel_estime, seuil_franchise, numero_tva } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'userId requis' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { error } = await supabaseAdmin
+      .from('user_tva_config')
+      .upsert({
+        user_id: userId,
+        statut_tva: statut_tva || 'franchise',
+        profession: profession || null,
+        ca_annuel_estime: ca_annuel_estime || 0,
+        seuil_franchise: seuil_franchise || 37500,
+        numero_tva: numero_tva || null,
+        updated_at: new Date().toISOString()
+      });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/compta/recap/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { annee } = req.query;
+    const anneeVal = annee || new Date().getFullYear();
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+
+    const { data: tvaConfig } = await supabaseAdmin
+      .from('user_tva_config')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const soumisATVA = tvaConfig?.statut_tva === 'soumis';
+
+    const { data: docs } = await supabaseAdmin
+      .from('documents_compta')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date_document', `${anneeVal}-01-01`)
+      .lte('date_document', `${anneeVal}-12-31`)
+      .order('date_document', { ascending: false });
+
+    const parMois = {};
+    for (const doc of docs || []) {
+      const mois = doc.mois_manuel || doc.mois || (doc.date_document ? doc.date_document.substring(0, 7) : 'inconnu');
+      if (!parMois[mois]) {
+        parMois[mois] = { mois, documents: [], total: 0, tva_total: 0, tva_recuperable: 0, par_categorie: {} };
+      }
+      parMois[mois].documents.push(doc);
+      parMois[mois].total += doc.total_ttc || 0;
+
+      if (soumisATVA) {
+        parMois[mois].tva_total += doc.tva || 0;
+        const tauxRecup = {
+          facture_dentaire: 1.0, charge_cabinet: 1.0,
+          equipement_medical: 1.0, equipement_informatique: 1.0,
+          note_frais_transport: 1.0, note_frais_formation: 1.0,
+          note_frais_hebergement: 1.0,
+          note_frais_repas: 0.5,
+          personnel: 0, salaire_charges: 0, impots_taxes: 0
+        };
+        const taux = tauxRecup[doc.type_document] ?? 0.8;
+        parMois[mois].tva_recuperable += (doc.tva || 0) * taux;
+      }
+
+      const cat = doc.type_document || 'autre';
+      if (!parMois[mois].par_categorie[cat]) parMois[mois].par_categorie[cat] = { total: 0, count: 0 };
+      parMois[mois].par_categorie[cat].total += doc.total_ttc || 0;
+      parMois[mois].par_categorie[cat].count++;
+    }
+
+    res.json({
+      annee: anneeVal,
+      tva_config: tvaConfig,
+      soumis_tva: soumisATVA,
+      mois: Object.values(parMois).sort((a, b) => b.mois.localeCompare(a.mois)),
+      total_annuel: (docs || []).reduce((s, d) => s + (d.total_ttc || 0), 0),
+      tva_recuperable_annuelle: soumisATVA
+        ? Object.values(parMois).reduce((s, m) => s + m.tva_recuperable, 0)
+        : 0
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/compta/document/:id/mois', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mois, userId } = req.body || {};
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { error } = await supabaseAdmin
+      .from('documents_compta')
+      .update({ mois_manuel: mois })
+      .eq('id', id).eq('user_id', userId);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/compta/document/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tags, commentaire, userId } = req.body || {};
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { error } = await supabaseAdmin
+      .from('documents_compta')
+      .update({ tags, commentaire })
+      .eq('id', id).eq('user_id', userId);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/compta/document/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query;
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { error } = await supabaseAdmin
+      .from('documents_compta')
+      .delete()
+      .eq('id', id).eq('user_id', userId);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/compta/export/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { annee } = req.query;
+    const anneeVal = annee || new Date().getFullYear();
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    const { data: docs } = await supabaseAdmin
+      .from('documents_compta')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date_document', `${anneeVal}-01-01`)
+      .lte('date_document', `${anneeVal}-12-31`)
+      .order('date_document');
+
+    const esc = (v) => String(v ?? '').replace(/"/g, '""');
+    const csv = [
+      'Date,Fournisseur,Type,Description,Montant TTC,TVA,Tags,Commentaire',
+      ...(docs || []).map(d =>
+        `${d.date_document || ''},"${esc(d.fournisseur)}","${esc(d.type_document)}","${esc(d.description)}",${d.total_ttc || 0},${d.tva || 0},"${(d.tags || []).join(';')}","${esc(d.commentaire)}"`
+      )
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="JADOMI-Compta-${anneeVal}.csv"`);
+    res.send('\ufeff' + csv);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// =============================================
 // Start server (skip on Vercel — exporte l'app pour @vercel/node)
 // =============================================
 if (!process.env.VERCEL) {
