@@ -3430,14 +3430,29 @@ function mDemarrerProgressionScan(userId) {
   evt.onmessage = (e) => {
     try {
       const d = JSON.parse(e.data);
+      console.log('[SSE]', d.status, 'done:', d.done, '/', d.total, 'found:', d.found, 'newDoc:', !!d.newDocument);
       const p = d.total > 0 ? Math.round((d.done/d.total)*100) : (d.status==='done'?100:0);
       if (bar) bar.style.width = p+'%';
       if (pct) pct.textContent = p+'%';
       if (found) found.textContent = d.found || 0;
       if (cur && d.current) cur.textContent = d.current;
-      if (d.newDocument) mAjouterDocumentEnTempsReel(d.newDocument);
-      if (d.status === 'done' || d.status === 'error') { evt.close(); _mScanEvt = null; }
-    } catch(err){}
+      if (d.newDocument) {
+        console.log('[SSE newDoc]', d.newDocument.fournisseur, d.newDocument.total_ttc);
+        mAjouterDocumentEnTempsReel(d.newDocument);
+      }
+      if (d.status === 'done') {
+        try {
+          const docsForCache = (window._mScanFullDocs && window._mScanFullDocs.length)
+            ? window._mScanFullDocs
+            : (window._mScanLiveDocs || []).map(x => ({
+                analyse: { fournisseur_ou_etablissement: x.fournisseur, total_ttc: x.total_ttc, type_document: x.type_document, date: x.date },
+                filename: x.filename, attachmentToken: x.attachmentToken, selectionne: x.selectionne !== false
+              }));
+          mSaveScanResults(docsForCache);
+        } catch(_){}
+        evt.close(); _mScanEvt = null;
+      } else if (d.status === 'error') { evt.close(); _mScanEvt = null; }
+    } catch(err){ console.warn('[SSE] parse error', err); }
   };
   evt.onerror = () => { try { evt.close(); } catch(e){} _mScanEvt = null; };
 }
