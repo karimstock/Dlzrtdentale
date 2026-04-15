@@ -529,7 +529,7 @@ tbody tr:hover td{background:var(--surface2);}
       <div style="display:flex;gap:8px;margin-bottom:20px;">
         <button class="btn btn-accent compta-subtab active" data-ctab="import" onclick="switchComptaTabPC('import')" style="font-size:12px;padding:7px 14px;">📥 Importer</button>
         <button class="btn compta-subtab" data-ctab="docs" onclick="switchComptaTabPC('docs')" style="font-size:12px;padding:7px 14px;">📋 Documents</button>
-        <button class="btn compta-subtab" data-ctab="annuel" onclick="switchComptaTabPC('annuel')" style="font-size:12px;padding:7px 14px;">📆 Relevé annuel</button>
+        <button class="btn compta-subtab" data-ctab="annuel" onclick="switchComptaTabPC('annuel')" style="font-size:12px;padding:7px 14px;">📊 Relevé Annuel</button>
         <button class="btn compta-subtab" data-ctab="tva" onclick="switchComptaTabPC('tva')" style="font-size:12px;padding:7px 14px;">⚡ TVA</button>
         <button class="btn compta-subtab" data-ctab="releve" onclick="switchComptaTabPC('releve')" style="font-size:12px;padding:7px 14px;">🏦 Relevé bancaire</button>
       </div>
@@ -712,6 +712,12 @@ tbody tr:hover td{background:var(--surface2);}
 
       <!-- TAB: Relevé annuel (nouvelle vue mensuelle) -->
       <div id="pc-compta-annuel" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button onclick="changerAnnee(2026)" id="btn-annee-2026" style="flex:1;padding:10px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;border:2px solid #2D6FF4;background:#2D6FF4;color:white">2026</button>
+          <button onclick="changerAnnee(2025)" id="btn-annee-2025" style="flex:1;padding:10px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;border:2px solid #E8EDF5;background:white;color:#6B7280">2025</button>
+          <button onclick="changerAnnee(2024)" id="btn-annee-2024" style="flex:1;padding:10px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;border:2px solid #E8EDF5;background:white;color:#6B7280">2024</button>
+        </div>
+        <input type="hidden" id="select-annee-compta" value="2026">
         <div style="background:linear-gradient(135deg,#1E40AF,#2D6FF4);border-radius:20px;padding:20px;color:white;margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <div>
@@ -719,11 +725,6 @@ tbody tr:hover td{background:var(--surface2);}
               <div style="font-size:12px;opacity:0.75">Total charges</div>
             </div>
             <div style="text-align:right">
-              <select id="select-annee-compta" onchange="chargerRecap()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:white;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600">
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-              </select>
               <div style="font-size:12px;opacity:0.75;margin-top:4px" id="compta-nb-docs">0 documents</div>
             </div>
           </div>
@@ -4453,6 +4454,38 @@ const couleursCat = {
   assurance: '#EC4899', honoraires: '#14B8A6', autre: '#D1D5DB'
 };
 
+const iconesPaiement = { carte_bancaire:'💳', virement:'🏦', especes:'💵', cheque:'📝', prelevement:'🔄', paypal:'🅿️', inconnu:'❓' };
+const labelsPaiement = { carte_bancaire:'Carte bancaire', virement:'Virement', especes:'Espèces', cheque:'Chèque', prelevement:'Prélèvement', paypal:'PayPal/Stripe', inconnu:'Non précisé' };
+
+async function changerModePaiement(id, mode) {
+  try {
+    const uid = await pcResolveUid();
+    await fetch('/api/compta/document/' + id + '/paiement', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode_paiement: mode, userId: uid })
+    });
+    const doc = (window._docsCompta || []).find(function(d) { return String(d.id) === String(id); });
+    if (doc) doc.mode_paiement = mode;
+    showToast('💳 Mode de paiement mis à jour');
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function changerAnnee(annee) {
+  window._anneeCompta = annee;
+  const hidden = document.getElementById('select-annee-compta');
+  if (hidden) hidden.value = annee;
+  ['2024','2025','2026'].forEach(function(a) {
+    const btn = document.getElementById('btn-annee-' + a);
+    if (!btn) return;
+    const actif = String(a) === String(annee);
+    btn.style.background = actif ? '#2D6FF4' : 'white';
+    btn.style.color = actif ? 'white' : '#6B7280';
+    btn.style.borderColor = actif ? '#2D6FF4' : '#E8EDF5';
+  });
+  chargerRecap();
+}
+
 async function chargerRecap() {
   try {
     const uid = await pcResolveUid();
@@ -4513,28 +4546,43 @@ async function chargerRecap() {
         const deviseBadge = (doc.devise_originale && doc.devise_originale !== 'EUR')
           ? '<div style="font-size:10px;color:#F59E0B;background:#FEF3C7;padding:2px 6px;border-radius:4px;margin-top:2px;display:inline-block">' + (doc.montant_original || '') + ' ' + doc.devise_originale + '</div>'
           : '';
-        const descHTML = doc.description ? '<div style="font-size:12px;color:#6B7280;margin-top:6px;padding-top:6px;border-top:1px solid #F3F4F6">' + doc.description + '</div>' : '';
-        const commentHTML = doc.commentaire ? '<div style="font-size:12px;color:#2D6FF4;margin-top:4px">💬 ' + doc.commentaire + '</div>' : '';
-        const tagsHTML = (doc.tags && doc.tags.length)
-          ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">' + doc.tags.map(function(t) { return '<span style="background:#EEF2FF;color:#4F46E5;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500">' + t + '</span>'; }).join('') + '</div>'
+        const signalRapp = doc.rapprochement === 'ok'
+          ? '<span style="background:#D1FAE5;color:#065F46;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600">✅ Rapproché</span>'
+          : doc.rapprochement === 'non_rapproche'
+            ? '<span style="background:#FEE2E2;color:#991B1B;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600">⚠️ Non rapproché</span>'
+            : '';
+        const modePaiementCourant = doc.mode_paiement || 'inconnu';
+        const selectPaiement = '<select onchange="changerModePaiement(\'' + doc.id + '\', this.value)" style="border:1px solid #E8EDF5;border-radius:8px;padding:4px 8px;font-size:11px;color:#374151;background:white;cursor:pointer">' +
+          Object.keys(labelsPaiement).map(function(val) {
+            return '<option value="' + val + '"' + (modePaiementCourant === val ? ' selected' : '') + '>' + iconesPaiement[val] + ' ' + labelsPaiement[val] + '</option>';
+          }).join('') + '</select>';
+        const tagsInline = (doc.tags && doc.tags.length)
+          ? doc.tags.map(function(t) { return '<span style="background:#EEF2FF;color:#4F46E5;font-size:10px;padding:2px 8px;border-radius:20px">' + t + '</span>'; }).join('')
           : '';
+        const commentHTML = doc.commentaire ? '<div style="font-size:12px;color:#2D6FF4;margin-top:6px">💬 ' + doc.commentaire + '</div>' : '';
+        const cardClick = doc.attachmentToken
+          ? 'window.open(\'/api/mail/attachment/' + doc.attachmentToken + '\',\'_blank\')'
+          : 'voirInfosDoc(\'' + doc.id + '\')';
         const voirBtn = doc.attachmentToken
-          ? '<button onclick="window.open(\'/api/mail/attachment/' + doc.attachmentToken + '\',\'_blank\')" style="flex:1;background:#EEF2FF;color:#4F46E5;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">👁️ Voir</button>'
-          : '<button onclick="voirInfosDoc(\'' + doc.id + '\')" style="flex:1;background:#F3F4F6;color:#6B7280;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">ℹ️ Infos</button>';
-        return '<div style="background:white;border:1px solid #E8EDF5;border-radius:12px;padding:14px;margin:8px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);color:#1A2540">' +
+          ? '<button onclick="event.stopPropagation();window.open(\'/api/mail/attachment/' + doc.attachmentToken + '\',\'_blank\')" style="flex:1;background:#EEF2FF;color:#4F46E5;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">👁️ Voir PDF</button>'
+          : '<button onclick="event.stopPropagation();voirInfosDoc(\'' + doc.id + '\')" style="flex:1;background:#F3F4F6;color:#6B7280;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">ℹ️ Infos</button>';
+        return '<div onclick="' + cardClick + '" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(45,111,244,0.15)\'" onmouseout="this.style.boxShadow=\'0 1px 4px rgba(0,0,0,0.04)\'" style="background:white;border:1px solid #E8EDF5;border-radius:12px;padding:14px;margin:8px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);cursor:pointer;transition:box-shadow 0.2s;color:#1A2540">' +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="font-size:22px">' + (iconesCat[doc.type_document] || '📄') + '</span>' +
             '<div style="flex:1;min-width:0">' +
               '<div style="font-weight:700;font-size:14px;color:#1A2540;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (doc.fournisseur || 'Inconnu') + '</div>' +
-              '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">' + (doc.date_document || '—') + ' · ' + (labelsCat[doc.type_document] || 'Autre') + '</div>' +
+              '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + (doc.date_document || '—') + ' · ' + (labelsCat[doc.type_document] || 'Autre') + '</div>' +
             '</div>' +
             '<div style="text-align:right;flex-shrink:0">' +
               '<div style="font-weight:800;font-size:16px;color:#1A2540">' + (doc.total_ttc != null ? doc.total_ttc.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + '€' : '—') + '</div>' +
               deviseBadge +
             '</div>' +
           '</div>' +
-          descHTML + commentHTML + tagsHTML +
-          '<div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #F3F4F6">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap" onclick="event.stopPropagation()">' +
+            signalRapp + selectPaiement + tagsInline +
+          '</div>' +
+          commentHTML +
+          '<div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #F3F4F6" onclick="event.stopPropagation()">' +
             voirBtn +
             '<button onclick="ouvrirEditDoc(\'' + doc.id + '\',\'' + moisArg + '\',\'' + tagsArg + '\',\'' + commArg + '\')" style="flex:1;background:#F0FDF4;color:#065F46;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">✏️ Éditer</button>' +
             '<button onclick="supprimerDoc(\'' + doc.id + '\')" style="background:#FEE2E2;color:#991B1B;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px">🗑️</button>' +
@@ -4652,7 +4700,38 @@ async function exporterCSVCompta() {
 function voirInfosDoc(id) {
   const doc = (window._docsCompta || []).find(function(d) { return String(d.id) === String(id); });
   if (!doc) return showToast('Document introuvable');
-  ouvrirEditDoc(doc.id, doc.mois_manuel || doc.mois || doc._mois || '', (doc.tags || []).join(','), (doc.commentaire || '').replace(/'/g, '').replace(/"/g, ''));
+  if (doc.attachmentToken) { window.open('/api/mail/attachment/' + doc.attachmentToken, '_blank'); return; }
+  const modal = document.getElementById('modal-infos-doc');
+  if (!modal) return;
+  const mois = doc.mois_manuel || doc.mois || doc._mois || '';
+  const tagsArg = (doc.tags || []).join(',');
+  const commArg = (doc.commentaire || '').replace(/'/g, '').replace(/"/g, '');
+  const deviseRow = (doc.devise_originale && doc.devise_originale !== 'EUR')
+    ? '<div style="display:flex;justify-content:space-between;padding:10px;background:#FEF3C7;border-radius:10px"><span style="color:#92400E;font-size:13px">Montant original</span><span style="font-weight:700;font-size:13px;color:#92400E">' + doc.montant_original + ' ' + doc.devise_originale + '</span></div>' : '';
+  const numRow = doc.numero_document ? '<div style="display:flex;justify-content:space-between;padding:10px;background:#F9FAFB;border-radius:10px"><span style="color:#6B7280;font-size:13px">N° document</span><span style="font-weight:600;font-size:13px">' + doc.numero_document + '</span></div>' : '';
+  const descRow = doc.description ? '<div style="padding:10px;background:#F9FAFB;border-radius:10px"><div style="color:#6B7280;font-size:11px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Description</div><div style="font-size:13px;color:#1A2540">' + doc.description + '</div></div>' : '';
+  const noteRow = doc.note_fiscale ? '<div style="padding:10px;background:#EEF2FF;border-radius:10px"><div style="color:#4F46E5;font-size:11px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Note fiscale</div><div style="font-size:13px;color:#1A2540">' + doc.note_fiscale + '</div></div>' : '';
+  const srcRow = doc.source ? '<div style="display:flex;justify-content:space-between;padding:10px;background:#F9FAFB;border-radius:10px"><span style="color:#6B7280;font-size:13px">Source</span><span style="font-size:13px;color:#1A2540">' + (doc.source === 'mail' ? '📧 Email' : '📤 Upload manuel') + '</span></div>' : '';
+  modal.innerHTML =
+    '<div style="background:white;border-radius:20px;padding:20px;width:90%;max-width:420px;max-height:85vh;overflow-y:auto;color:#1A2540">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
+        '<span style="font-size:28px">' + (iconesCat[doc.type_document] || '📄') + '</span>' +
+        '<div><div style="font-weight:700;font-size:16px;color:#1A2540">' + (doc.fournisseur || 'Inconnu') + '</div>' +
+        '<div style="font-size:12px;color:#9CA3AF">' + (labelsCat[doc.type_document] || 'Document') + '</div></div>' +
+      '</div>' +
+      '<div style="display:grid;gap:6px">' +
+        '<div style="display:flex;justify-content:space-between;padding:10px;background:#F9FAFB;border-radius:10px"><span style="color:#6B7280;font-size:13px">Montant</span><span style="font-weight:800;font-size:15px;color:#2D6FF4">' + (doc.total_ttc != null ? doc.total_ttc.toFixed(2) : '—') + '€</span></div>' +
+        deviseRow +
+        '<div style="display:flex;justify-content:space-between;padding:10px;background:#F9FAFB;border-radius:10px"><span style="color:#6B7280;font-size:13px">Date</span><span style="font-weight:600;font-size:13px;color:#1A2540">' + (doc.date_document || '—') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:10px;background:#F9FAFB;border-radius:10px"><span style="color:#6B7280;font-size:13px">Paiement</span><span style="font-weight:600;font-size:13px;color:#1A2540">' + (iconesPaiement[doc.mode_paiement] || '❓') + ' ' + (labelsPaiement[doc.mode_paiement] || 'Non précisé') + '</span></div>' +
+        numRow + descRow + noteRow + srcRow +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:16px">' +
+        '<button onclick="document.getElementById(\'modal-infos-doc\').style.display=\'none\';ouvrirEditDoc(\'' + doc.id + '\',\'' + mois + '\',\'' + tagsArg + '\',\'' + commArg + '\')" style="flex:1;background:#EEF2FF;color:#4F46E5;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px">✏️ Éditer</button>' +
+        '<button onclick="document.getElementById(\'modal-infos-doc\').style.display=\'none\'" style="flex:1;background:#F3F4F6;color:#374151;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px">Fermer</button>' +
+      '</div>' +
+    '</div>';
+  modal.style.display = 'flex';
 }
 
 function ajouterDocMois(mois) {
@@ -4711,6 +4790,7 @@ async function pcComptaAnalyseReleve(file) {
   } catch(e) { ld.style.display = 'none'; rd.style.display = ''; rd.innerHTML = '<div style="color:#f05050;">Erreur : '+e.message+'</div>'; }
 }
 </script>
+<div id="modal-infos-doc" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px"></div>
 <div id="modal-edit-doc" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px">
   <div style="background:white;border-radius:20px;padding:20px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;color:#1A2540">
     <h3 style="margin:0 0 16px;color:#1A2540;font-size:17px">✏️ Modifier le document</h3>
