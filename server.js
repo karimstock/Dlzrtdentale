@@ -1601,9 +1601,20 @@ function buildXoauth2(email, accessToken) {
   return Buffer.from(`user=${email}\x01auth=Bearer ${accessToken}\x01\x01`).toString('base64');
 }
 
+const MAX_CLAUDE_CALLS_PER_SCAN = 100;
+
+function isPdfAttachment(att) {
+  if (!att) return false;
+  const ct = String(att.contentType || '').toLowerCase();
+  const name = String(att.filename || '').toLowerCase();
+  return ct.includes('pdf') || name.endsWith('.pdf');
+}
+
 function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
   return new Promise((resolve, reject) => {
     const documents = [];
+    let claudeCalls = 0;
+    let limiteNotifiee = false;
     let settled = false;
     const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
     const SCAN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -1648,12 +1659,22 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                 console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
                 let pjExploitable = false;
                 for (const att of atts) {
-                  const skip = shouldSkipAttachment(att);
-                  console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| skip:', skip);
+                  const isPDF = isPdfAttachment(att);
+                  const skip = !isPDF || shouldSkipAttachment(att);
+                  console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| pdf:', isPDF, '| skip:', skip);
                   if (skip) continue;
                   pjExploitable = true;
+                  if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
+                    if (!limiteNotifiee) {
+                      console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan partiel');
+                      sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: 'Limite Claude atteinte (scan partiel)' });
+                      limiteNotifiee = true;
+                    }
+                    break;
+                  }
                   try {
                     const base64 = att.content.toString('base64');
+                    claudeCalls++;
                     const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
                     if (analyse && analyse.type_document !== 'personnel') {
                       const attToken = storeAttachment(userId, att);
@@ -1681,14 +1702,11 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                     }
                   } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                 }
-                // Scan du corps:
-                // - toujours si sujet contient facture/invoice/recu... (ADDITIF, en plus des PJs)
-                // - ou en fallback si emetteur = fournisseur connu ET aucune PJ exploitable
+                // Scan du corps: uniquement si sujet match (filtre dur pour limiter Claude)
                 const subjMatch = subjectDeclencheBodyScan(parsed.subject);
-                const fournisseurMatch = mailEmaneDUnFournisseurCorps(parsed);
-                const declencheBody = subjMatch || (!pjExploitable && fournisseurMatch);
-                if (declencheBody) {
+                if (subjMatch && claudeCalls < MAX_CLAUDE_CALLS_PER_SCAN) {
                   try {
+                    claudeCalls++;
                     const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
                     if (analyse && analyse.type_document !== 'personnel') {
                       documents.push({
@@ -1888,6 +1906,8 @@ app.post('/api/mail/scan', async (req, res) => {
 
     res.setTimeout(10 * 60 * 1000);
     const documents = [];
+    let claudeCalls = 0;
+    let limiteNotifiee = false;
 
     await new Promise((resolve, reject) => {
       let settled = false;
@@ -1949,12 +1969,22 @@ app.post('/api/mail/scan', async (req, res) => {
                   console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
                   let pjExploitable = false;
                   for (const att of atts) {
-                    const skip = shouldSkipAttachment(att);
-                    console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| skip:', skip);
+                    const isPDF = isPdfAttachment(att);
+                    const skip = !isPDF || shouldSkipAttachment(att);
+                    console.log('[IMAP att]', att.filename || '(sans nom)', '| type:', att.contentType, '| size:', att.size, '| pdf:', isPDF, '| skip:', skip);
                     if (skip) continue;
                     pjExploitable = true;
+                    if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
+                      if (!limiteNotifiee) {
+                        console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan partiel');
+                        sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: 'Limite Claude atteinte (scan partiel)' });
+                        limiteNotifiee = true;
+                      }
+                      break;
+                    }
                     try {
                       const base64 = att.content.toString('base64');
+                      claudeCalls++;
                       const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
                       if (analyse && analyse.type_document !== 'personnel') {
                         const attToken = storeAttachment(userId, att);
@@ -1983,10 +2013,9 @@ app.post('/api/mail/scan', async (req, res) => {
                     } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                   }
                   const subjMatch = subjectDeclencheBodyScan(parsed.subject);
-                  const fournisseurMatch = mailEmaneDUnFournisseurCorps(parsed);
-                  const declencheBody = subjMatch || (!pjExploitable && fournisseurMatch);
-                  if (declencheBody) {
+                  if (subjMatch && claudeCalls < MAX_CLAUDE_CALLS_PER_SCAN) {
                     try {
+                      claudeCalls++;
                       const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
                       if (analyse && analyse.type_document !== 'personnel') {
                         documents.push({
