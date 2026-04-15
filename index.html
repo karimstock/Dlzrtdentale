@@ -665,6 +665,7 @@ tbody tr:hover td{background:var(--surface2);}
               <span id="scan-progress-pct">0%</span>
             </div>
           </div>
+          <div id="scan-results-list" style="display:none;margin-top:12px;"></div>
           <div id="pc-mail-results" style="display:none;margin-top:16px;"></div>
         </div>
       </div>
@@ -3797,12 +3798,37 @@ function pcComptaShowMail() {
   f.style.display = f.style.display === 'none' ? '' : 'none';
 }
 
+function _iconeType(t) {
+  if (!t) return '📄';
+  const s = String(t).toLowerCase();
+  if (s.includes('facture')) return '🧾';
+  if (s.includes('ticket') || s.includes('recu')) return '🧾';
+  if (s.includes('releve') || s.includes('bancaire')) return '🏦';
+  if (s.includes('contrat')) return '📑';
+  return '📄';
+}
+function ajouterDocumentEnTempsReel(doc) {
+  const container = document.getElementById('scan-results-list');
+  if (!container) return;
+  container.style.display = 'block';
+  const item = document.createElement('div');
+  item.innerHTML = '<label style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid var(--border);">'
+    + '<input type="checkbox" ' + (doc.selectionne ? 'checked' : '') + ' style="width:16px;height:16px;">'
+    + '<span>' + _iconeType(doc.type_document) + ' <strong>' + (doc.fournisseur || 'Inconnu') + '</strong></span>'
+    + '<span style="margin-left:auto;color:#00C853;font-weight:bold;">' + (Number(doc.total_ttc || 0).toFixed(2)) + 'EUR</span>'
+    + '<span style="font-size:11px;color:#8892A4;">' + (doc.date || '') + '</span>'
+    + '</label>';
+  container.appendChild(item.firstChild);
+}
+
 let _scanEvtSource = null;
 function demarrerProgressionScan(userId) {
   try { if (_scanEvtSource) _scanEvtSource.close(); } catch(e){}
   if (!userId) return;
   const cont = document.getElementById('scan-progress-container');
   if (cont) cont.style.display = '';
+  const list = document.getElementById('scan-results-list');
+  if (list) { list.innerHTML = ''; list.style.display = 'none'; }
   const bar = document.getElementById('scan-progress-bar');
   const pct = document.getElementById('scan-progress-pct');
   const found = document.getElementById('scan-docs-found');
@@ -3822,6 +3848,7 @@ function demarrerProgressionScan(userId) {
       if (pct) pct.textContent = p + '%';
       if (found) found.textContent = d.found || 0;
       if (cur && d.current) cur.textContent = d.current;
+      if (d.newDocument) ajouterDocumentEnTempsReel(d.newDocument);
       if (d.status === 'done' || d.status === 'error') { evt.close(); _scanEvtSource = null; }
     } catch(err){}
   };

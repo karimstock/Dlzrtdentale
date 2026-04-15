@@ -1495,6 +1495,17 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                           analyse,
                           selectionne: analyse.selectionne !== false,
                         });
+                        sendProgress(userId, {
+                          status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
+                          newDocument: {
+                            fournisseur: analyse.fournisseur_ou_etablissement,
+                            total_ttc: analyse.total_ttc,
+                            type_document: analyse.type_document,
+                            date: analyse.date,
+                            filename: att.filename,
+                            selectionne: analyse.selectionne !== false,
+                          }
+                        });
                       }
                     } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                   }
@@ -1744,6 +1755,17 @@ app.post('/api/mail/scan', async (req, res) => {
                             analyse,
                             selectionne: analyse.selectionne !== false,
                           });
+                          sendProgress(userId, {
+                            status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: (parsed.subject||'').slice(0,80),
+                            newDocument: {
+                              fournisseur: analyse.fournisseur_ou_etablissement,
+                              total_ttc: analyse.total_ttc,
+                              type_document: analyse.type_document,
+                              date: analyse.date,
+                              filename: att.filename,
+                              selectionne: analyse.selectionne !== false,
+                            }
+                          });
                         }
                       } catch(e) { console.error('IMAP scan attachment error:', e.message); }
                     }
@@ -1784,7 +1806,13 @@ app.post('/api/mail/scan', async (req, res) => {
     });
 
     console.log('IMAP scan responding with', documents.length, 'documents');
-    res.json({ documents, total: documents.length });
+    if (!res.headersSent) {
+      const body = JSON.stringify({ documents, total: documents.length });
+      console.log('IMAP scan response size:', body.length, 'bytes');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', Buffer.byteLength(body, 'utf8'));
+      res.end(body);
+    }
   } catch (e) {
     console.error('IMAP scan error [' + (provider||'?') + ']:', e.message, e.code || '', e.source || '');
     if (!res.headersSent) {
