@@ -3349,35 +3349,57 @@ function mRestaurerScanPrecedent() {
   } catch(e) {}
 }
 
-function mMajCompteurValidation() {
-  const list = document.getElementById('scan-documents-list');
-  if (!list) return;
-  const checked = list.querySelectorAll('input[type="checkbox"]:checked').length;
+function mUpdateScanCount() {
+  const checked = document.querySelectorAll('#scan-documents-list input[type="checkbox"]:checked').length;
   const cnt = document.getElementById('count-selectionnes');
   if (cnt) cnt.textContent = checked;
   const btn = document.getElementById('scan-validate-btn');
-  if (btn) { btn.disabled = checked === 0; btn.style.opacity = checked === 0 ? '0.6' : '1'; }
+  if (btn) { btn.disabled = checked === 0; btn.style.opacity = checked === 0 ? '0.5' : '1'; }
 }
+const mMajCompteurValidation = mUpdateScanCount;
+
+const _M_ICONES_TYPE = {
+  'facture_dentaire':'🦷','charge_cabinet':'⚡','note_frais_repas':'🍽️',
+  'note_frais_transport':'🚗','note_frais_formation':'📚','note_frais_hebergement':'🏨',
+  'equipement_medical':'🔧','equipement_informatique':'💻','equipement_mobilier':'🛋️',
+  'salaire_charges':'👥','honoraires':'📋','assurance':'🛡️','banque_finance':'🏦',
+  'impots_taxes':'🏛️','ticket_caisse':'🧾','recu':'🧾','contrat':'📑',
+  'devis':'📝','bon_livraison':'📦','releve_bancaire':'🏦','personnel':'👤'
+};
+
 function mAjouterDocumentEnTempsReel(doc) {
   const vc = document.getElementById('scan-validation-container');
-  if (vc) vc.style.display = '';
-  const container = document.getElementById('scan-documents-list');
-  if (!container) return;
+  const list = document.getElementById('scan-documents-list');
+  if (!vc || !list) {
+    console.error('[JADOMI mobile] scan-validation-container ou scan-documents-list introuvable !');
+    return;
+  }
+  vc.style.display = 'block';
+  list.style.display = 'block';
+
   const idx = window._mScanLiveDocs.length;
   window._mScanLiveDocs.push(doc);
-  const wrap = document.createElement('div');
-  const seeBtn = doc.attachmentToken
-    ? '<button type="button" onclick="mVoirDocument(\'' + doc.attachmentToken + '\')" style="margin-left:auto;background:rgba(45,111,244,0.2);border:none;color:#2D6FF4;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;">&#x1F441;&#xFE0F; Voir</button>'
-    : '';
-  wrap.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(255,255,255,0.05);border-radius:10px;margin-bottom:6px;border:1px solid var(--border);">'
-    + '<input type="checkbox" ' + (doc.selectionne ? 'checked' : '') + ' data-scan-idx="' + idx + '" onchange="mMajCompteurValidation()" style="width:18px;height:18px;flex-shrink:0;">'
-    + '<span style="min-width:0;">' + _mIconeType(doc.type_document) + ' <strong>' + ((doc.fournisseur && doc.fournisseur.trim()) || 'Inconnu') + '</strong></span>'
-    + '<span style="color:#00C853;font-weight:bold;white-space:nowrap;">' + _mFmtMontant(doc.total_ttc) + '</span>'
-    + '<span style="font-size:11px;color:#8892A4;white-space:nowrap;">' + (doc.date || '') + '</span>'
-    + seeBtn
-    + '</div>';
-  container.appendChild(wrap.firstChild);
-  mMajCompteurValidation();
+
+  const icone = _M_ICONES_TYPE[doc.type_document] || '📄';
+  const montant = (doc.total_ttc !== null && doc.total_ttc !== undefined && doc.total_ttc !== '') ? Number(doc.total_ttc).toFixed(2) + ' EUR' : '— EUR';
+  const voirBtn = doc.attachmentToken
+    ? `<button type="button" onclick="window.open('/api/mail/attachment/${doc.attachmentToken}','_blank')" style="background:rgba(45,111,244,0.2);border:none;color:#2D6FF4;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">👁️ Voir</button>`
+    : '<span style="font-size:11px;color:#8892A4;">📧 Email</span>';
+
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;background:rgba(255,255,255,0.05);border-radius:10px;margin-bottom:6px;border:1px solid var(--border);';
+  div.innerHTML = `
+    <input type="checkbox" ${doc.selectionne !== false ? 'checked' : ''} data-scan-idx="${idx}" onchange="mUpdateScanCount()" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+    <span style="font-size:18px;">${icone}</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:bold;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${(doc.fournisseur || 'Inconnu')}</div>
+      <div style="font-size:11px;color:#8892A4;">${doc.date || ''} ${doc.type_document || ''}</div>
+    </div>
+    <span style="color:#00C853;font-weight:bold;font-size:14px;white-space:nowrap;">${montant}</span>
+    ${voirBtn}
+  `;
+  list.appendChild(div);
+  mUpdateScanCount();
 }
 
 async function mValiderSelectionDocuments() {
