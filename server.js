@@ -1602,12 +1602,25 @@ function buildXoauth2(email, accessToken) {
 }
 
 const MAX_CLAUDE_CALLS_PER_SCAN = 100;
+const MOTS_CLES_FACTURE = ['facture','invoice','re\u00e7u','recu','receipt','commande','order','paiement','payment','confirmation','r\u00e8glement','reglement','quittance','\u00e9ch\u00e9ance','echeance','rappel'];
+const FOURNISSEURS_CONNUS = ['gacd','dpi','henry schein','septodont','pierre rolland','promodentaire','anthogyr','straumann','nobel','biomet','mega dental','edf','engie','totalenergies','enedis','free','orange','sfr','bouygues','numericable','amazon','doctolib','ovh','ionos','inventeeh'];
 
 function isPdfAttachment(att) {
   if (!att) return false;
   const ct = String(att.contentType || '').toLowerCase();
   const name = String(att.filename || '').toLowerCase();
   return ct.includes('pdf') || name.endsWith('.pdf');
+}
+
+// Pre-filtre global: mail a-t-il une chance d'etre un document comptable ?
+function vautLaPeineAnalyser(parsed) {
+  const subject = String(parsed.subject || '').toLowerCase();
+  const from = String(parsed.from && parsed.from.text || '').toLowerCase();
+  const hasPDF = (parsed.attachments || []).some(isPdfAttachment);
+  if (hasPDF) return true;
+  if (MOTS_CLES_FACTURE.some(m => subject.includes(m))) return true;
+  if (FOURNISSEURS_CONNUS.some(f => from.includes(f))) return true;
+  return false;
 }
 
 function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
@@ -1657,6 +1670,19 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                 const fromTxt = (parsed.from && parsed.from.text) || '';
                 const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
                 console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
+                if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
+                  if (!limiteNotifiee) {
+                    console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan arrete');
+                    sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current: 'Limite 100 atteinte' });
+                    limiteNotifiee = true;
+                    try { imap.end(); } catch(e) {}
+                  }
+                  return;
+                }
+                if (!vautLaPeineAnalyser(parsed)) {
+                  console.log('[SKIP]', subj, '— pas une facture potentielle');
+                  return;
+                }
                 let pjExploitable = false;
                 for (const att of atts) {
                   const isPDF = isPdfAttachment(att);
@@ -1967,6 +1993,19 @@ app.post('/api/mail/scan', async (req, res) => {
                   const fromTxt = (parsed.from && parsed.from.text) || '';
                   const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
                   console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
+                  if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
+                    if (!limiteNotifiee) {
+                      console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan arrete');
+                      sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current: 'Limite 100 atteinte' });
+                      limiteNotifiee = true;
+                      try { imap.end(); } catch(e) {}
+                    }
+                    return;
+                  }
+                  if (!vautLaPeineAnalyser(parsed)) {
+                    console.log('[SKIP]', subj, '— pas une facture potentielle');
+                    return;
+                  }
                   let pjExploitable = false;
                   for (const att of atts) {
                     const isPDF = isPdfAttachment(att);
