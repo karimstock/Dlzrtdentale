@@ -1159,6 +1159,19 @@ REGLES COMPTABLES :
 - selectionne: false si personnel detecte
 - deductible_tva: true si professionnel (hors personnel)
 
+REGLES D'EXTRACTION (CRITIQUE) :
+- EDF, Engie, TotalEnergies, ENEDIS, gaz, electricite => toujours "charge_cabinet"
+- Orange Pro, SFR Pro, Bouygues Pro, Free Pro, internet/telecom pro => "charge_cabinet"
+- Meme si le montant n'apparait PAS clairement, extraire SYSTEMATIQUEMENT :
+  * fournisseur_ou_etablissement (raison sociale/marque, ne jamais "Inconnu" si lisible)
+  * date (AAAA-MM-JJ)
+  * numero_document si present
+- N'inscris JAMAIS total_ttc: 0 si un montant est visible sur le document
+  (cherche dans: "Total TTC", "Net a payer", "Montant du", "A regler", "TOTAL", en bas de page,
+   dans un recap, dans un tableau). Si vraiment aucun montant trouvable, mets null (pas 0).
+- total_ht / tva : meme regle, null si introuvable, jamais 0 artificiel
+- Si le document est une RELANCE/rappel d'impaye sans montant, extraire fournisseur + date quand meme
+
 JSON uniquement :
 {
   "type_document": "facture_dentaire",
@@ -1413,6 +1426,34 @@ app.get('/api/auth/yahoo/callback', async (req, res) => {
   }
 });
 
+// ============ Pieces jointes scan mail (cache ephemere en memoire) ============
+// Map<token, { userId, filename, contentType, buffer, createdAt }>
+const scanAttachments = new Map();
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [k, v] of scanAttachments) if (v.createdAt < cutoff) scanAttachments.delete(k);
+}, 10 * 60 * 1000).unref();
+
+function storeAttachment(userId, att) {
+  const token = crypto.randomBytes(16).toString('hex');
+  scanAttachments.set(token, {
+    userId,
+    filename: att.filename || 'document',
+    contentType: att.contentType || 'application/octet-stream',
+    buffer: att.content,
+    createdAt: Date.now(),
+  });
+  return token;
+}
+
+app.get('/api/mail/attachment/:token', (req, res) => {
+  const entry = scanAttachments.get(req.params.token);
+  if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
+  res.setHeader('Content-Type', entry.contentType);
+  res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(entry.filename) + '"');
+  res.end(entry.buffer);
+});
+
 // ============ Server-Sent Events: progression scan mail ============
 const scanProgressClients = new Map();
 
@@ -1487,12 +1528,14 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                       const base64 = att.content.toString('base64');
                       const analyse = await analyserDocumentIA(base64, att.contentType);
                       if (analyse && analyse.type_document !== 'personnel') {
+                        const attToken = storeAttachment(userId, att);
                         documents.push({
                           from: parsed.from ? parsed.from.text : '',
                           date_mail: parsed.date,
                           subject: parsed.subject,
                           filename: att.filename,
                           analyse,
+                          attachmentToken: attToken,
                           selectionne: analyse.selectionne !== false,
                         });
                         sendProgress(userId, {
@@ -1503,6 +1546,7 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                             type_document: analyse.type_document,
                             date: analyse.date,
                             filename: att.filename,
+                            attachmentToken: attToken,
                             selectionne: analyse.selectionne !== false,
                           }
                         });
@@ -1747,12 +1791,14 @@ app.post('/api/mail/scan', async (req, res) => {
                         const base64 = att.content.toString('base64');
                         const analyse = await analyserDocumentIA(base64, att.contentType);
                         if (analyse && analyse.type_document !== 'personnel') {
+                          const attToken = storeAttachment(userId, att);
                           documents.push({
                             from: parsed.from ? parsed.from.text : '',
                             date_mail: parsed.date,
                             subject: parsed.subject,
                             filename: att.filename,
                             analyse,
+                            attachmentToken: attToken,
                             selectionne: analyse.selectionne !== false,
                           });
                           sendProgress(userId, {
@@ -1763,6 +1809,7 @@ app.post('/api/mail/scan', async (req, res) => {
                               type_document: analyse.type_document,
                               date: analyse.date,
                               filename: att.filename,
+                              attachmentToken: attToken,
                               selectionne: analyse.selectionne !== false,
                             }
                           });

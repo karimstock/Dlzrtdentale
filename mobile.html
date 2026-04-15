@@ -3276,17 +3276,31 @@ function _mIconeType(t) {
   if (s.includes('contrat')) return '📑';
   return '📄';
 }
+function mVoirDocument(token) {
+  if (!token) { alert('Piece jointe non disponible'); return; }
+  window.open('/api/mail/attachment/' + encodeURIComponent(token), '_blank');
+}
+function _mFmtMontant(v) {
+  if (v === null || v === undefined || v === '') return '— EUR';
+  const n = Number(v);
+  if (!isFinite(n)) return '— EUR';
+  return n.toFixed(2) + ' EUR';
+}
 function mAjouterDocumentEnTempsReel(doc) {
   const container = document.getElementById('scan-results-list');
   if (!container) return;
   container.style.display = 'block';
   const wrap = document.createElement('div');
-  wrap.innerHTML = '<label style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(255,255,255,0.05);border-radius:10px;margin-bottom:6px;cursor:pointer;border:1px solid var(--border);">'
-    + '<input type="checkbox" ' + (doc.selectionne ? 'checked' : '') + ' style="width:18px;height:18px;">'
-    + '<span>' + _mIconeType(doc.type_document) + ' <strong>' + (doc.fournisseur || 'Inconnu') + '</strong></span>'
-    + '<span style="margin-left:auto;color:#00C853;font-weight:bold;">' + (Number(doc.total_ttc || 0).toFixed(2)) + 'EUR</span>'
-    + '<span style="font-size:11px;color:#8892A4;">' + (doc.date || '') + '</span>'
-    + '</label>';
+  const seeBtn = doc.attachmentToken
+    ? '<button type="button" onclick="mVoirDocument(\'' + doc.attachmentToken + '\')" style="margin-left:auto;background:rgba(45,111,244,0.2);border:none;color:#2D6FF4;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;">&#x1F441;&#xFE0F; Voir</button>'
+    : '';
+  wrap.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(255,255,255,0.05);border-radius:10px;margin-bottom:6px;border:1px solid var(--border);">'
+    + '<input type="checkbox" ' + (doc.selectionne ? 'checked' : '') + ' style="width:18px;height:18px;flex-shrink:0;">'
+    + '<span style="min-width:0;">' + _mIconeType(doc.type_document) + ' <strong>' + ((doc.fournisseur && doc.fournisseur.trim()) || 'Inconnu') + '</strong></span>'
+    + '<span style="color:#00C853;font-weight:bold;white-space:nowrap;">' + _mFmtMontant(doc.total_ttc) + '</span>'
+    + '<span style="font-size:11px;color:#8892A4;white-space:nowrap;">' + (doc.date || '') + '</span>'
+    + seeBtn
+    + '</div>';
   container.appendChild(wrap.firstChild);
 }
 
