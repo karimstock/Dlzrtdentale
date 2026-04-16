@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#c8f060"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI — Gestion de stock dentaire</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -107,6 +108,9 @@ tbody tr:hover td{background:var(--surface2);}
 .prod-name{font-weight:500;color:var(--text);}
 .prod-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 .prod-partner{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;background:rgba(160,96,240,0.15);color:var(--purple);padding:2px 7px;border-radius:4px;margin-top:3px;}
+.cmp-badge{display:block;margin-top:4px;}
+.cmp-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;background:rgba(200,240,96,0.12);color:var(--accent);border:1px solid rgba(200,240,96,0.25);padding:2px 8px;border-radius:10px;cursor:pointer;transition:all .15s;}
+.cmp-pill:hover{background:rgba(200,240,96,0.22);}
 
 .bar-wrap{display:flex;align-items:center;gap:8px;}
 .bar{flex:1;height:4px;background:var(--border);border-radius:2px;max-width:70px;overflow:hidden;}
@@ -278,6 +282,54 @@ tbody tr:hover td{background:var(--surface2);}
 </head>
 <body>
 
+<!-- ONBOARDING OVERLAY (première connexion) -->
+<div id="ms-onboard" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,9,8,0.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);overflow-y:auto;animation:msFadeIn 0.5s cubic-bezier(0.16,1,0.3,1);">
+<style>
+@keyframes msFadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes msSlideUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.ms-obx{max-width:720px;margin:0 auto;padding:60px 24px;animation:msSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) both;}
+.ms-obx h1{font-family:'Syne',sans-serif;font-size:clamp(28px,4.5vw,38px);font-weight:800;letter-spacing:-1.5px;margin-bottom:10px;color:#f0ede8;line-height:1.15;}
+.ms-obx .ms-wave{display:inline-block;animation:msWave 1.6s ease-in-out infinite;transform-origin:70% 70%;}
+@keyframes msWave{0%,60%,100%{transform:rotate(0);}10%,30%{transform:rotate(14deg);}20%,40%{transform:rotate(-8deg);}}
+.ms-obx .ms-sub{color:#a8a5a0;font-size:15px;margin-bottom:36px;line-height:1.6;max-width:560px;}
+.ms-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:32px;}
+.ms-card{position:relative;background:#1a1917;border:2px solid #2e2c29;border-radius:18px;padding:24px 18px;cursor:pointer;transition:all 0.25s cubic-bezier(0.16,1,0.3,1);text-align:center;}
+.ms-card:hover{transform:translateY(-3px);border-color:#c8f060;background:#1e1c18;}
+.ms-card.selected{border-color:#c8f060;background:rgba(200,240,96,0.06);box-shadow:0 8px 30px rgba(200,240,96,0.12);}
+.ms-card.selected[data-accent="sci"]{border-color:#60a8f0;background:rgba(96,168,240,0.06);box-shadow:0 8px 30px rgba(96,168,240,0.12);}
+.ms-card.selected[data-accent="commerce"]{border-color:#f0a030;background:rgba(240,160,48,0.06);box-shadow:0 8px 30px rgba(240,160,48,0.12);}
+.ms-card.selected[data-accent="lib"]{border-color:#f060a0;background:rgba(240,96,160,0.06);box-shadow:0 8px 30px rgba(240,96,160,0.12);}
+.ms-card.selected[data-accent="ae"]{border-color:#60f0d0;background:rgba(96,240,208,0.06);box-shadow:0 8px 30px rgba(96,240,208,0.12);}
+.ms-card-ico{font-size:36px;margin-bottom:10px;}
+.ms-card-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#f0ede8;margin-bottom:4px;letter-spacing:-0.2px;}
+.ms-card-desc{font-size:11px;color:#8f8a82;line-height:1.5;}
+.ms-card-check{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:#c8f060;color:#0f0e0d;display:none;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.ms-card.selected .ms-card-check{display:flex;}
+.ms-actions{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;}
+.ms-skip{background:none;border:none;color:#8f8a82;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:color 0.2s;padding:10px;text-decoration:underline;text-underline-offset:3px;}
+.ms-skip:hover{color:#f0ede8;}
+.ms-create{padding:14px 28px;background:#c8f060;color:#0f0e0d;border:none;border-radius:12px;font-size:14px;font-weight:800;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);letter-spacing:-0.2px;}
+.ms-create:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 30px rgba(200,240,96,0.25);}
+.ms-create:disabled{opacity:0.4;cursor:not-allowed;}
+.ms-progress{height:3px;background:#2e2c29;border-radius:3px;margin-bottom:28px;overflow:hidden;}
+.ms-progress-bar{height:100%;background:#c8f060;width:33%;border-radius:3px;transition:width 0.4s;}
+.ms-count{display:inline-block;padding:3px 10px;background:rgba(200,240,96,0.12);color:#c8f060;border-radius:50px;font-size:11px;font-weight:700;margin-left:8px;}
+</style>
+  <div class="ms-obx">
+    <div class="ms-progress"><div class="ms-progress-bar" id="ms-prog-bar"></div></div>
+    <h1>Bienvenue sur JADOMI<span id="ms-welcome-who"></span> <span class="ms-wave">👋</span></h1>
+    <div class="ms-sub">Pour démarrer, choisissez <strong style="color:#f0ede8;">une ou plusieurs structures</strong> que vous souhaitez gérer avec JADOMI. Vous pourrez toujours en ajouter d'autres plus tard depuis le switcher.</div>
+    <div class="ms-cards" id="ms-cards"></div>
+    <div class="ms-actions">
+      <button class="ms-skip" onclick="msSkipOnboarding()">Passer pour l'instant</button>
+      <button class="ms-create" id="ms-create-btn" disabled onclick="msStartOnboarding()">
+        Créer ma première société →
+        <span class="ms-count" id="ms-count" style="display:none;">0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="shell">
 
 <!-- SIDEBAR -->
@@ -287,6 +339,13 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="logo-tagline">Gestion stock dentaire</div>
   </div>
   <nav class="nav">
+    <div class="nav-section" id="ms-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='organisation.html'"><span class="ni">🏢</span>Mes sociétés<span class="nav-badge" id="ms-badge" style="display:none;background:#60a8f0;">0</span></div>
+    <div class="nav-item" id="ms-nav-sci" style="display:none;" onclick="msOpen('sci')"><span class="ni">🏠</span>SCI</div>
+    <div class="nav-item" id="ms-nav-commerce" style="display:none;" onclick="msOpen('commerce')"><span class="ni">🏬</span>Commerce</div>
+    <div class="nav-item" id="ms-nav-mailing" style="display:none;" onclick="msOpen('mailing')"><span class="ni">📧</span>Mailing</div>
+    <div class="nav-item" onclick="location.href='billing.html'"><span class="ni">💳</span>Abonnement</div>
+    <div class="nav-item" id="ms-nav-wizard" onclick="location.href='wizard-societe.html'"><span class="ni">➕</span>Ajouter une société</div>
     <div class="nav-section">Cabinet</div>
     <div class="nav-item active" onclick="showPage('stock',this)"><span class="ni">📦</span>Stock<span class="nav-badge" id="alert-badge" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('analytics',this)"><span class="ni">📊</span>Analytics</div>
@@ -323,6 +382,7 @@ tbody tr:hover td{background:var(--surface2);}
   <div class="topbar">
     <div class="page-title" id="page-title">Stock</div>
     <div class="topbar-right" id="topbar-actions">
+      <!-- Switcher société global injecté par /ms-switcher.js -->
       <button class="btn btn-ghost" onclick="ouvrirPanierIntelligent()">🧠 Panier intelligent</button>
       <button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button>
       <button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button>
@@ -341,6 +401,22 @@ tbody tr:hover td{background:var(--surface2);}
         <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stat-warn">—</div><div class="stat-sub">à surveiller</div></div>
         <div class="stat"><div class="stat-label">Économies YTD</div><div class="stat-value c-accent" id="stat-eco">—</div><div class="stat-sub">vs catalogue</div></div>
       </div>
+      <div id="peremption-widget" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-family:var(--display);font-weight:700;font-size:14px;">⏰ Péremptions à venir</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Produits qui expirent bientôt — agis avant la perte.</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:rgba(240,80,80,0.1);color:#f05050;font-size:12px;font-weight:700;" id="perem-30j-box">🔴 <span id="perem-30j-n">0</span> &lt; 30j</div>
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:rgba(240,160,48,0.1);color:#f0a030;font-size:12px;font-weight:700;" id="perem-60j-box">🟡 <span id="perem-60j-n">0</span> &lt; 60j</div>
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;background:rgba(200,240,96,0.1);color:#c8f060;font-size:12px;font-weight:700;" id="perem-90j-box">🟢 <span id="perem-90j-n">0</span> &lt; 90j</div>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px;" onclick="togglePeremptionDetail()">Voir</button>
+          </div>
+        </div>
+        <div id="perem-detail" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:10px;font-size:12px;"></div>
+      </div>
+
       <div id="drop-facture" style="border:2px dashed #2e2c29;border-radius:12px;padding:20px;text-align:center;cursor:pointer;margin-bottom:16px;transition:all 0.2s;">
         <div style="font-size:24px;">📄</div>
         <div style="color:#6b6760;font-size:13px;margin-top:4px;">Glissez votre facture ici</div>
@@ -378,24 +454,9 @@ tbody tr:hover td{background:var(--surface2);}
       <div style="margin-bottom:16px;">
         <button onclick="genererRapportIA()" class="btn btn-accent" style="font-size:13px;">🤖 Rapport IA mensuel</button>
       </div>
-      <div class="surpay-alert">
+      <div class="surpay-alert" id="surpay-alert" style="display:none;">
         <div class="surpay-title">💥 Tu paies trop cher sur ces produits</div>
-        <div class="surpay-item">
-          <div class="surpay-product">Gants latex T.M</div>
-          <div class="surpay-prices">
-            <div class="surpay-yours">8,50€ <span style="font-weight:400;font-size:11px">ton prix</span></div>
-            <div class="surpay-avg">Moy. JADOMI : 6,90€</div>
-            <div class="surpay-diff">+23% 😬</div>
-          </div>
-        </div>
-        <div class="surpay-item">
-          <div class="surpay-product">Composite Filtek A2</div>
-          <div class="surpay-prices">
-            <div class="surpay-yours">38,00€ <span style="font-weight:400;font-size:11px">ton prix</span></div>
-            <div class="surpay-avg">Moy. JADOMI : 31,50€</div>
-            <div class="surpay-diff">+21% 😬</div>
-          </div>
-        </div>
+        <div id="surpay-items"></div>
         <div style="margin-top:12px;">
           <button class="btn btn-accent" style="font-size:12px;padding:7px 14px;" onclick="showPage('devis',null)">Lancer un appel d'offres →</button>
         </div>
@@ -430,43 +491,8 @@ tbody tr:hover td{background:var(--surface2);}
         <span class="alert-dot"></span>
         <span>🔥 Deals sélectionnés selon ton stock et tes habitudes de commande</span>
       </div>
-      <div class="deals-grid">
-        <div class="deal-card">
-          <div class="deal-badge">−38% FLASH</div>
-          <div class="deal-product">Gants nitrile T.M</div>
-          <div class="deal-supplier">DPI · Boîte 100</div>
-          <div class="deal-prices">
-            <div class="deal-price-new">14,90€</div>
-            <div class="deal-price-old">24,64€</div>
-          </div>
-          <div class="deal-saving">Tu économises 9,74€ / boîte 🎯</div>
-          <div class="deal-timer">⏱ Expire dans 18h 32min</div>
-          <button class="deal-btn">Commander maintenant</button>
-        </div>
-        <div class="deal-card">
-          <div class="deal-badge">−25% PROMO</div>
-          <div class="deal-product">Composite Filtek Z350 A2</div>
-          <div class="deal-supplier">Henry Schein · Seringue 4g</div>
-          <div class="deal-prices">
-            <div class="deal-price-new">28,50€</div>
-            <div class="deal-price-old">38,00€</div>
-          </div>
-          <div class="deal-saving">Tu économises 9,50€ / unité 🎯</div>
-          <div class="deal-timer">⏱ Expire dans 2j 14h</div>
-          <button class="deal-btn">Commander maintenant</button>
-        </div>
-        <div class="deal-card">
-          <div class="deal-badge">−20% LOT</div>
-          <div class="deal-product">Carpules Articaïne 4%</div>
-          <div class="deal-supplier">Septodont · Boîte 50</div>
-          <div class="deal-prices">
-            <div class="deal-price-new">52,00€</div>
-            <div class="deal-price-old">65,00€</div>
-          </div>
-          <div class="deal-saving">Tu économises 13,00€ / boîte 🎯</div>
-          <div class="deal-timer">⏱ Expire dans 5j</div>
-          <button class="deal-btn">Commander maintenant</button>
-        </div>
+      <div class="deals-grid" id="deals-grid">
+        <div class="loading" style="grid-column:1/-1;"><div class="spinner"></div>Chargement des deals…</div>
       </div>
     </div>
 
@@ -1051,7 +1077,15 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="form-field"><label class="form-label">Marque / Conditionnement</label><input class="form-input" id="f-marque" placeholder="Ex: 3M · 4g"></div>
       <div class="form-field"><label class="form-label">Quantité actuelle *</label><input class="form-input" id="f-qty" type="number" min="0" placeholder="0"></div>
       <div class="form-field"><label class="form-label">Seuil d'alerte *</label><input class="form-input" id="f-seuil" type="number" min="0" placeholder="Ex: 10"></div>
-      <div class="form-field"><label class="form-label">Date péremption</label><input class="form-input" id="f-exp" type="month"></div>
+      <div class="form-field">
+        <label class="form-label">Date péremption</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="form-input" id="f-exp" type="month" style="flex:1;">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('f-exp-photo').click()" title="Scanner la date par photo" style="padding:9px 12px;white-space:nowrap;">📸 Photo</button>
+          <input type="file" id="f-exp-photo" accept="image/*" capture="environment" style="display:none;" onchange="scannerDatePeremptionPhoto(this.files[0])">
+        </div>
+        <div id="f-exp-iastatus" style="display:none;font-size:11px;color:var(--accent);margin-top:4px;">⏳ JADOMI IA analyse la photo…</div>
+      </div>
       <div class="form-field"><label class="form-label">Fournisseur préféré</label>
         <select class="form-select" id="f-fourni">
           <option value="">Aucun préféré</option>
@@ -1098,6 +1132,245 @@ try {
   const { createClient } = supabase;
   db = createClient(SUPABASE_URL, SUPABASE_KEY);
 } catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// MULTI-SOCIÉTÉS — Loader sidebar & switcher & onboarding
+// ═══════════════════════════════════
+window.jadomiMultiSocietes = { societes: [], active: null, token: null, profil: null };
+
+// Onboarding : types disponibles
+const MS_ONBOARD_TYPES = [
+  { k:'cabinet_dentaire',    ico:'🦷', name:'Cabinet dentaire',       desc:'Stock · Commandes · SOS · Green', accent:'' },
+  { k:'sci',                 ico:'🏠', name:'SCI / Locatif',          desc:'Biens · Locataires · Quittances auto', accent:'sci' },
+  { k:'sas',                 ico:'🏢', name:'Société commerciale',    desc:'SAS · SARL · EURL · SA', accent:'commerce' },
+  { k:'profession_liberale', ico:'👔', name:'Profession libérale',    desc:'Avocat · Médecin · Architecte', accent:'lib' },
+  { k:'auto_entrepreneur',   ico:'📊', name:'Auto-entrepreneur',      desc:'Micro BIC/BNC · Franchise TVA', accent:'ae' },
+  { k:'autre',               ico:'🏷️', name:'Autre',                  desc:'Association · SNC · EI · autre', accent:'' }
+];
+let msOnboardSelected = new Set();
+
+async function msLoadSocietes() {
+  try {
+    if (!db) return;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) return;
+    window.jadomiMultiSocietes.token = session.access_token;
+    // Fetch profil + societes en parallèle
+    const [pr, sr] = await Promise.all([
+      fetch('/api/profil', { headers: { Authorization: 'Bearer ' + session.access_token } }).then(r=>r.json()).catch(()=>({})),
+      fetch('/api/societes', { headers: { Authorization: 'Bearer ' + session.access_token } }).then(r=>r.json()).catch(()=>({societes:[]}))
+    ]);
+    window.jadomiMultiSocietes.profil = pr?.profil || null;
+    const societes = sr?.societes || [];
+    window.jadomiMultiSocietes.societes = societes;
+
+    // Onboarding : si pas de profil onboarding_termine ET 0 société → afficher overlay
+    const onboardingDone = !!(pr?.profil?.onboarding_termine);
+    const skippedLocal = localStorage.getItem('jadomi_onboard_skipped') === '1';
+    if (!onboardingDone && !skippedLocal && societes.length === 0) {
+      msShowOnboarding(session);
+    }
+
+    const badge = document.getElementById('ms-badge');
+    if (badge && societes.length > 0) { badge.textContent = societes.length; badge.style.display = 'inline-block'; }
+
+    // Types presents
+    const types = new Set(societes.map(s => s.type));
+    const hasSCI = types.has('sci');
+    const commTypes = ['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
+    const hasCommerce = societes.some(s => commTypes.includes(s.type));
+    const navSci = document.getElementById('ms-nav-sci');
+    const navCom = document.getElementById('ms-nav-commerce');
+    const navMail = document.getElementById('ms-nav-mailing');
+    if (navSci) navSci.style.display = hasSCI ? 'flex' : 'none';
+    if (navCom) navCom.style.display = hasCommerce ? 'flex' : 'none';
+    if (navMail) navMail.style.display = societes.length > 0 ? 'flex' : 'none';
+
+    // Société active : localStorage ou première non-dentaire
+    let activeId = localStorage.getItem('societe_active_id');
+    let active = societes.find(s => s.id === activeId);
+    if (!active) active = societes.find(s => s.type !== 'cabinet_dentaire') || societes[0];
+    if (active) {
+      window.jadomiMultiSocietes.active = active;
+      localStorage.setItem('societe_active_id', active.id);
+    }
+
+    // Update cabinet card bottom avec société active si multi-soc
+    const nameEl = document.querySelector('.cabinet-name');
+    const planEl = document.getElementById('cabinet-plan');
+    const icos = { cabinet_dentaire:'🦷', sci:'🏠', societe_commerciale:'🏢', sas:'🏢', sarl:'🏢', eurl:'🏢', sa:'🏢', snc:'🏢', ei:'👤', auto_entrepreneur:'📊', profession_liberale:'👔', association:'🤝', autre:'🏷️' };
+    if (active && societes.length > 0) {
+      if (nameEl) nameEl.textContent = (icos[active.type] || '🏢') + ' ' + active.nom;
+      if (planEl) planEl.textContent = 'JADOMI · ' + (active.plan || 'standard').toUpperCase();
+    }
+
+    // Update topbar switcher
+    const swIco = document.getElementById('ms-sw-ico');
+    const swName = document.getElementById('ms-sw-name');
+    if (swIco && swName) {
+      if (active) {
+        swIco.textContent = icos[active.type] || '🏢';
+        swName.textContent = active.nom;
+      } else if (societes.length === 0) {
+        swIco.textContent = '➕';
+        swName.textContent = 'Créer une société';
+      }
+    }
+  } catch(e) { console.warn('[multi-soc] loader failed:', e.message); }
+}
+
+function msOpen(module) {
+  const socs = window.jadomiMultiSocietes.societes || [];
+  if (socs.length === 0) { location.href = 'organisation.html'; return; }
+  let target = null;
+  if (module === 'sci') target = socs.find(s => s.type === 'sci');
+  if (module === 'commerce') {
+    const comm = ['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
+    target = socs.find(s => comm.includes(s.type));
+  }
+  if (module === 'mailing') target = window.jadomiMultiSocietes.active || socs[0];
+  if (target) {
+    localStorage.setItem('societe_active_id', target.id);
+    location.href = module + '.html';
+  } else {
+    location.href = 'organisation.html';
+  }
+}
+
+function msModuleFor(type) {
+  if (type === 'cabinet_dentaire') return 'index.html';
+  if (type === 'sci') return 'sci.html';
+  return 'commerce.html';
+}
+
+function msToggleSwitcher(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('ms-sw-menu');
+  if (!menu) return;
+  const open = menu.style.display === 'block';
+  if (open) { menu.style.display = 'none'; return; }
+  msRenderSwitcherMenu();
+  menu.style.display = 'block';
+}
+
+function msRenderSwitcherMenu() {
+  const menu = document.getElementById('ms-sw-menu');
+  if (!menu) return;
+  const socs = window.jadomiMultiSocietes.societes || [];
+  const active = window.jadomiMultiSocietes.active;
+  const icos = { cabinet_dentaire:'🦷', sci:'🏠', societe_commerciale:'🏢', sas:'🏢', sarl:'🏢', eurl:'🏢', sa:'🏢', snc:'🏢', ei:'👤', auto_entrepreneur:'📊', profession_liberale:'👔', association:'🤝', autre:'🏷️' };
+  const items = [];
+  if (socs.length === 0) {
+    items.push(`<div style="padding:10px 12px;color:var(--muted);font-size:12px;">Aucune société</div>`);
+    items.push(`<div style="height:1px;background:var(--border);margin:4px 6px;"></div>`);
+    items.push(`<a href="wizard-societe.html" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--accent);font-weight:600;text-decoration:none;font-size:13px;border-radius:8px;">➕ Créer une société</a>`);
+  } else {
+    for (const s of socs) {
+      const isActive = active && active.id === s.id;
+      items.push(`<a href="${msModuleFor(s.type)}" onclick="localStorage.setItem('societe_active_id','${s.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:${isActive?'var(--accent)':'var(--text)'};text-decoration:none;font-size:13px;border-radius:8px;${isActive?'background:rgba(200,240,96,0.06);':''}">
+        <span style="font-size:16px;">${icos[s.type]||'🏢'}</span>
+        <span style="flex:1;font-weight:600;">${s.nom.replace(/</g,'&lt;')}</span>
+        ${isActive?'<span style="font-size:10px;">✓</span>':''}
+      </a>`);
+    }
+    items.push(`<div style="height:1px;background:var(--border);margin:4px 6px;"></div>`);
+    items.push(`<a href="organisation.html" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--text);text-decoration:none;font-size:12px;border-radius:8px;">🏢 Hub organisation</a>`);
+    items.push(`<a href="wizard-societe.html" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--accent);font-weight:600;text-decoration:none;font-size:12px;border-radius:8px;">➕ Ajouter une société</a>`);
+  }
+  menu.innerHTML = items.join('');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#ms-switcher')) {
+    const m = document.getElementById('ms-sw-menu');
+    if (m) m.style.display = 'none';
+  }
+});
+
+// ===== ONBOARDING overlay =====
+function msShowOnboarding(session){
+  const overlay = document.getElementById('ms-onboard');
+  if (!overlay) return;
+  // Nom de bienvenue
+  const profil = window.jadomiMultiSocietes.profil;
+  const prenom = profil?.prenom || session?.user?.user_metadata?.nom?.split(' ')[0] || '';
+  const isDr = (profil?.metier || session?.user?.user_metadata?.profession || '').match(/dentiste|orthodontiste|medecin|veterinaire/i);
+  const nom = profil?.nom || session?.user?.user_metadata?.nom?.split(' ').slice(-1)[0] || '';
+  const who = isDr ? `, Dr ${nom}` : (prenom ? `, ${prenom}` : '');
+  const el = document.getElementById('ms-welcome-who');
+  if (el) el.textContent = who;
+  // Render cards
+  msRenderOnboardCards();
+  overlay.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function msHideOnboarding(){
+  const overlay = document.getElementById('ms-onboard');
+  if (overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+function msRenderOnboardCards(){
+  const wrap = document.getElementById('ms-cards');
+  if (!wrap) return;
+  wrap.innerHTML = MS_ONBOARD_TYPES.map(t => `
+    <div class="ms-card" data-k="${t.k}" data-accent="${t.accent}" onclick="msToggleOnboardCard('${t.k}')">
+      <div class="ms-card-check">✓</div>
+      <div class="ms-card-ico">${t.ico}</div>
+      <div class="ms-card-name">${t.name}</div>
+      <div class="ms-card-desc">${t.desc}</div>
+    </div>
+  `).join('');
+}
+function msToggleOnboardCard(k){
+  if (msOnboardSelected.has(k)) msOnboardSelected.delete(k);
+  else msOnboardSelected.add(k);
+  // Update UI
+  document.querySelectorAll('.ms-card').forEach(c => {
+    c.classList.toggle('selected', msOnboardSelected.has(c.dataset.k));
+  });
+  const btn = document.getElementById('ms-create-btn');
+  const count = document.getElementById('ms-count');
+  const n = msOnboardSelected.size;
+  if (btn) btn.disabled = n === 0;
+  if (count) {
+    if (n > 1) { count.textContent = n; count.style.display = 'inline-block'; }
+    else { count.style.display = 'none'; }
+  }
+  // Barre de progression
+  const bar = document.getElementById('ms-prog-bar');
+  if (bar) bar.style.width = Math.min(100, 33 + n * 14) + '%';
+}
+function msStartOnboarding(){
+  if (msOnboardSelected.size === 0) return;
+  const arr = Array.from(msOnboardSelected);
+  const first = arr.shift();
+  if (arr.length > 0) localStorage.setItem('jadomi_onboarding_queue', JSON.stringify(arr));
+  else localStorage.removeItem('jadomi_onboarding_queue');
+  const url = `wizard-societe.html?type=${encodeURIComponent(first)}&next=index.html&onboarding=1`;
+  location.href = url;
+}
+async function msSkipOnboarding(){
+  // Marque local skip (fallback si API échoue)
+  localStorage.setItem('jadomi_onboard_skipped','1');
+  msHideOnboarding();
+  // Marque côté serveur
+  const token = window.jadomiMultiSocietes.token;
+  if (token){
+    try{
+      await fetch('/api/profil',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+        body:JSON.stringify({onboarding_termine:true})
+      });
+    }catch{}
+  }
+}
+
+// Lance le chargement dès que la page est prête
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', msLoadSocietes);
+} else {
+  msLoadSocietes();
+}
 let fournisseurs_config = {};
 let editId = null;
 let recognition = null;
@@ -1525,8 +1798,11 @@ function renderTable(data) {
       else if(ratio>3) rythme='<span style="color:#3e3c39;font-size:11px;">⚫ Dormant</span>';
       else rythme='<span style="color:#60d090;font-size:11px;">🟢 Optimal</span>';
       if(expStat==='warn'||expStat==='crit') rythme+='<br><span style="color:#f0a030;font-size:10px;">⚠️ Péremp.</span>';
+      const cmpSlot = p.code_barre
+        ? `<span class="cmp-badge" data-ean="${p.code_barre}" data-nom="${String(p.nom).replace(/"/g,'&quot;')}"></span>`
+        : '';
       return `<tr>
-        <td><div class="prod-name">${p.nom}</div><div class="prod-meta">${p.categorie}${p.marque?' · '+p.marque:''}</div>${p.is_partner?'<div class="prod-partner">⭐ DentalEvolution</div>':''}</td>
+        <td><div class="prod-name">${p.nom}</div><div class="prod-meta">${p.categorie}${p.marque?' · '+p.marque:''}</div>${p.is_partner?'<div class="prod-partner">⭐ DentalEvolution</div>':''}${cmpSlot}</td>
         <td><div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${bw(p)}%;background:${bc(s)}"></div></div><div class="qty-num">${p.qty}</div></div></td>
         <td style="font-family:var(--mono);font-size:13px;color:var(--muted)">${p.seuil||0}</td>
         <td><span class="badge ${bc2}">${bl}</span></td>
@@ -1545,6 +1821,86 @@ function renderTable(data) {
       </tr>`;
     }).join('')
   }</tbody></table>`;
+  try { enrichComparateurBadges(); } catch(e){}
+}
+
+// ═══════════════════════════════════
+// COMPARATEUR PRIX — badges + modal
+// ═══════════════════════════════════
+async function enrichComparateurBadges(){
+  const token = window.jadomiMultiSocietes?.token;
+  if(!token) return;
+  const slots = document.querySelectorAll('.cmp-badge:not([data-done])');
+  if(!slots.length) return;
+  const eans = new Set();
+  slots.forEach(s => { if(s.dataset.ean) eans.add(s.dataset.ean); });
+  const cache = {};
+  await Promise.all(Array.from(eans).map(async ean => {
+    try{
+      const r = await fetch('/api/catalogue/search?ean=' + encodeURIComponent(ean), {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const j = await r.json();
+      cache[ean] = (j.produits && j.produits[0]) || null;
+    }catch(e){ cache[ean] = null; }
+  }));
+  slots.forEach(s => {
+    s.dataset.done = '1';
+    const g = cache[s.dataset.ean];
+    if(!g || !g.nb_fournisseurs || g.nb_fournisseurs < 2) return;
+    const prix = Number(g.prix_min_ht).toFixed(2);
+    s.innerHTML = `<button type="button" class="cmp-pill" onclick="ouvrirComparateur('${g.ean}','${String(s.dataset.nom).replace(/'/g,"\\'")}')">💰 ${g.nb_fournisseurs} fournisseurs dès ${prix}€ HT</button>`;
+  });
+}
+
+async function ouvrirComparateur(ean, nom){
+  const token = window.jadomiMultiSocietes?.token;
+  if(!token) return;
+  let m = document.getElementById('cmp-modal');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'cmp-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    m.innerHTML = `<div id="cmp-card" style="background:#1a1a1a;border:1px solid #3a3a3a;border-radius:16px;max-width:560px;width:calc(100% - 32px);max-height:80vh;overflow:auto;padding:24px;color:#f0ede8;font-family:inherit;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-family:var(--font-display,inherit);font-size:18px;font-weight:700;">🔍 Comparateur prix</div>
+        <button onclick="document.getElementById('cmp-modal').remove()" style="background:none;border:none;color:#888;font-size:24px;cursor:pointer;">×</button>
+      </div>
+      <div id="cmp-body">Chargement…</div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if(e.target === m) m.remove(); });
+  }
+  const body = document.getElementById('cmp-body');
+  body.innerHTML = '<div style="color:#888;">Chargement du comparateur…</div>';
+  try{
+    const r = await fetch('/api/catalogue/comparateur/' + encodeURIComponent(ean), {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const j = await r.json();
+    if(!j.success){ body.innerHTML = '<div style="color:#f05050;">Aucun fournisseur trouvé.</div>'; return; }
+    const fmt = v => Number(v).toFixed(2) + '€ HT';
+    const rows = j.fournisseurs.map((f,i) => `
+      <tr style="border-bottom:1px solid #2a2a2a;">
+        <td style="padding:10px 8px;">${i===0?'⭐ ':''}<strong>${f.societe_nom}</strong></td>
+        <td style="padding:10px 8px;text-align:right;font-family:var(--font-mono,monospace);">${fmt(f.prix_ht)}</td>
+      </tr>`).join('');
+    body.innerHTML = `
+      <div style="font-size:14px;color:#b0ada8;margin-bottom:12px;">${nom}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="background:#0f0f0f;border-radius:10px;padding:12px;font-size:13px;display:flex;justify-content:space-between;">
+        <div>📊 Prix moyen marché</div>
+        <div style="font-family:var(--font-mono,monospace);">${fmt(j.stats.prix_moyen)}</div>
+      </div>
+      <div style="background:#0f0f0f;border-radius:10px;padding:12px;font-size:13px;display:flex;justify-content:space-between;margin-top:8px;">
+        <div>💰 Économie possible</div>
+        <div style="font-family:var(--font-mono,monospace);color:#c8f060;">jusqu'à ${fmt(j.stats.economie_max)}</div>
+      </div>`;
+  }catch(e){
+    body.innerHTML = '<div style="color:#f05050;">Erreur : ' + (e.message||'réseau') + '</div>';
+  }
 }
 
 // ═══════════════════════════════════
@@ -2059,6 +2415,207 @@ function modifierQtyDirecte(id,nom,newQty,action,qte,oldQty) {
   bipScan();
   // Sync Supabase en arrière-plan
   if(db){try{db.from('produits').update({qty:newQty}).eq('id',id);}catch(e){}}
+}
+
+// ═══════════════════════════════════
+// DEALS FLASH — Chargement réel via /api/catalogue
+// ═══════════════════════════════════
+async function chargerFlashDeals(){
+  const grid = document.getElementById('deals-grid');
+  if(!grid) return;
+  try {
+    const token = window.jadomiMultiSocietes?.token;
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    // Stratégie simple : prix fournisseurs triés par écart vs moyenne marché
+    const r = await fetch('/api/catalogue/deals?limit=6', { headers }).then(x=>x.json()).catch(()=>null);
+    if(!r?.success || !Array.isArray(r.deals) || !r.deals.length){
+      grid.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:30px;text-align:center;color:var(--muted);">Aucun deal actif pour l\'instant.</div>';
+      return;
+    }
+    grid.innerHTML = r.deals.map(d => {
+      const eco = (d.prix_moyen_ht && d.prix_ht) ? (d.prix_moyen_ht - d.prix_ht).toFixed(2) : null;
+      const pct = d.prix_moyen_ht ? Math.round((1 - d.prix_ht / d.prix_moyen_ht) * 100) : 0;
+      return `<div class="deal-card">
+        <div class="deal-badge">−${pct}%</div>
+        <div class="deal-product">${(d.designation||'—').replace(/</g,'&lt;')}</div>
+        <div class="deal-supplier">${(d.fournisseur_label||'—').replace(/</g,'&lt;')}</div>
+        <div class="deal-prices">
+          <div class="deal-price-new">${(d.prix_ht||0).toFixed(2)}€</div>
+          ${d.prix_moyen_ht?`<div class="deal-price-old">${d.prix_moyen_ht.toFixed(2)}€</div>`:''}
+        </div>
+        ${eco?`<div class="deal-saving">Tu économises ${eco}€ / unité 🎯</div>`:''}
+      </div>`;
+    }).join('');
+  } catch(e){
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:30px;color:var(--muted);">Impossible de charger les deals.</div>';
+  }
+}
+
+// ═══════════════════════════════════
+// SURPAYEUR — alertes produits payés trop cher vs marché
+// ═══════════════════════════════════
+async function chargerSurpayeur(){
+  const box = document.getElementById('surpay-alert');
+  const list = document.getElementById('surpay-items');
+  if(!box || !list) return;
+  try {
+    const token = window.jadomiMultiSocietes?.token;
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const r = await fetch('/api/catalogue/surpayeur?limit=5', { headers }).then(x=>x.json()).catch(()=>null);
+    if(!r?.success || !Array.isArray(r.produits) || !r.produits.length){
+      box.style.display = 'none'; return;
+    }
+    box.style.display = 'block';
+    list.innerHTML = r.produits.map(p => {
+      const diff = p.prix_moyen_ht ? Math.round((p.prix_ht - p.prix_moyen_ht) / p.prix_moyen_ht * 100) : 0;
+      return `<div class="surpay-item">
+        <div class="surpay-product">${(p.designation||'—').replace(/</g,'&lt;')}</div>
+        <div class="surpay-prices">
+          <div class="surpay-yours">${(p.prix_ht||0).toFixed(2)}€ <span style="font-weight:400;font-size:11px">ton prix</span></div>
+          <div class="surpay-avg">Moy. JADOMI : ${(p.prix_moyen_ht||0).toFixed(2)}€</div>
+          <div class="surpay-diff">+${diff}% 😬</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(_) { box.style.display = 'none'; }
+}
+
+// Hook boot pour charger dès que les sociétés sont prêtes
+(function(){
+  const maxWait = 8000;
+  const start = Date.now();
+  const tick = () => {
+    if (window.jadomiMultiSocietes?.token) {
+      chargerFlashDeals();
+      chargerSurpayeur();
+      return;
+    }
+    if (Date.now() - start > maxWait) return;
+    setTimeout(tick, 500);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tick);
+  else tick();
+})();
+
+// ═══════════════════════════════════
+// WIDGET PÉREMPTIONS DASHBOARD
+// ═══════════════════════════════════
+async function chargerPeremptions(){
+  try{
+    const token = window.jadomiMultiSocietes?.token;
+    if(!token) return;
+    const r = await fetch('/api/peremption/summary-user', {
+      headers: { Authorization: 'Bearer ' + token }
+    }).then(x=>x.json()).catch(()=>null);
+    if(!r?.success) return;
+    const c = r.counts || {};
+    const total = (c.total|0);
+    const w = document.getElementById('peremption-widget');
+    if(!w) return;
+    if(total === 0){ w.style.display='none'; return; }
+    w.style.display = 'block';
+    document.getElementById('perem-30j-n').textContent = c['30j']|0;
+    document.getElementById('perem-60j-n').textContent = c['60j']|0;
+    document.getElementById('perem-90j-n').textContent = c['90j']|0;
+    // Mémorise les alertes pour detail
+    window._peremAlertes = r.alertes || [];
+  }catch(_){}
+}
+function togglePeremptionDetail(){
+  const d = document.getElementById('perem-detail');
+  if(d.style.display === 'none'){
+    const rows = window._peremAlertes || [];
+    if(!rows.length){ d.innerHTML = '<div style="color:var(--muted);">Aucun détail</div>'; }
+    else {
+      d.innerHTML = '<table style="width:100%;font-size:12px;"><thead><tr><th style="text-align:left;color:var(--muted);padding:4px 8px;">Produit</th><th style="text-align:left;color:var(--muted);padding:4px 8px;">Date</th><th style="text-align:right;color:var(--muted);padding:4px 8px;">Jours</th></tr></thead><tbody>'
+        + rows.map(a => {
+          const c = a.niveau==='depassee'||a.niveau==='30j' ? '#f05050' : a.niveau==='60j' ? '#f0a030' : '#c8f060';
+          return `<tr>
+            <td style="padding:4px 8px;font-weight:600;">${(a.designation||'').replace(/</g,'&lt;')}</td>
+            <td style="padding:4px 8px;color:var(--muted);">${a.date_peremption}</td>
+            <td style="padding:4px 8px;text-align:right;color:${c};font-weight:700;">${a.niveau==='depassee'?'Dépassée':a.jours_restants+'j'}</td>
+          </tr>`;
+        }).join('') + '</tbody></table>';
+    }
+    d.style.display = 'block';
+  } else {
+    d.style.display = 'none';
+  }
+}
+
+// Rechargement au boot
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(chargerPeremptions, 2000));
+} else {
+  setTimeout(chargerPeremptions, 2000);
+}
+
+// ═══════════════════════════════════
+// PHOTO DATE PÉREMPTION — JADOMI IA
+// ═══════════════════════════════════
+async function scannerDatePeremptionPhoto(file){
+  if(!file) return;
+  const status = document.getElementById('f-exp-iastatus');
+  status.style.display = 'block';
+  status.textContent = '⏳ JADOMI IA analyse la photo…';
+  try {
+    // Réduire la taille (max 1024px) pour économiser les tokens
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const maxSize = 1024;
+          const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const token = window.jadomiMultiSocietes?.token;
+    if(!token){ status.textContent = '❌ Session expirée — reconnecte-toi'; return; }
+
+    const r = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 100,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+            { type: 'text', text: 'Extrait UNIQUEMENT la date de péremption visible sur cet emballage (souvent précédée de EXP, Péremption, Use by, BBE, Best Before). Réponds STRICTEMENT au format JSON : {"date":"YYYY-MM"} (ou "YYYY-MM-DD" si le jour est visible). Si pas de date visible : {"date":null}. Aucun autre texte.' }
+          ]
+        }]
+      })
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const txt = data?.content?.[0]?.text || '';
+    const m = txt.match(/\{[\s\S]*?\}/);
+    if(!m) throw new Error('Pas de JSON');
+    const parsed = JSON.parse(m[0]);
+    if(!parsed.date){
+      status.textContent = 'ℹ️ Aucune date détectée — saisis-la manuellement';
+      return;
+    }
+    // Format: YYYY-MM (type="month" attend exactement ça)
+    const dateMonth = parsed.date.slice(0,7);
+    document.getElementById('f-exp').value = dateMonth;
+    status.textContent = '✅ Date détectée : ' + dateMonth;
+    setTimeout(() => { status.style.display = 'none'; }, 3000);
+  } catch(e) {
+    status.textContent = '❌ Erreur JADOMI IA : ' + e.message;
+  }
 }
 
 function ouvrirVocal() { document.getElementById('vocal-modal').classList.add('open'); }
@@ -3535,9 +4092,17 @@ function chargerMesSuggestions() {
     </div>`).join('');
 }
 
-function verifierAdminSuggestions() {
+async function verifierAdminSuggestions() {
   const sess=JSON.parse(localStorage.getItem('jadomi_session')||'{}');
-  const isAdmin=sess.email==='karim_bahmed@yahoo.fr'||localStorage.getItem('jadomi_admin_key');
+  // Vérification admin : rôle admin sur la table user_profils ou clé admin locale (dev)
+  let isAdmin = !!localStorage.getItem('jadomi_admin_key');
+  try {
+    const token = window.jadomiMultiSocietes?.token;
+    if (token && !isAdmin) {
+      const r = await fetch('/api/profil', { headers: { Authorization: 'Bearer ' + token } }).then(x=>x.json()).catch(()=>null);
+      isAdmin = !!(r?.profil?.role === 'admin' || r?.profil?.is_admin);
+    }
+  } catch {}
   const wrap=document.getElementById('admin-suggestions-wrap');
   if(wrap&&isAdmin){wrap.style.display='block';chargerSuggestionsAdmin();}
 }

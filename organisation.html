@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Mon organisation</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
+  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
+  --accent:#c8f060;--accent-soft:rgba(200,240,96,0.1);
+  --red:#f05050;--green:#60d090;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.35);
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+html,body{height:100%;}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--accent) 6%,transparent) 0%,transparent 55%);
+  transition:background-image 0.6s var(--trans);
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+/* ===== NAV ===== */
+.nav{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);
+  background:rgba(15,14,13,0.85);border-bottom:1px solid var(--border);
+  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+}
+.nav-left{display:flex;align-items:center;gap:24px;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.switcher{position:relative;}
+.switcher-btn{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:13px;font-weight:600;
+  transition:all 0.2s var(--trans);
+}
+.switcher-btn:hover{border-color:var(--accent);}
+.switcher-btn .sw-icon{font-size:18px;}
+.switcher-btn .sw-chev{opacity:0.5;transition:transform 0.2s;}
+.switcher.open .switcher-btn .sw-chev{transform:rotate(180deg);}
+.switcher-menu{
+  position:absolute;top:calc(100% + 6px);left:0;min-width:280px;background:var(--surface);
+  border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:6px;
+  opacity:0;pointer-events:none;transform:translateY(-4px);transition:all 0.2s var(--trans);
+}
+.switcher.open .switcher-menu{opacity:1;pointer-events:auto;transform:translateY(0);}
+.sw-item{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
+  cursor:pointer;font-size:13px;transition:background 0.15s;
+}
+.sw-item:hover{background:var(--surface2);}
+.sw-item.active{background:var(--accent-soft);color:var(--accent);}
+.sw-item-icon{font-size:18px;}
+.sw-item-name{flex:1;font-weight:600;}
+.sw-item-role{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.sw-sep{height:1px;background:var(--border);margin:4px 6px;}
+.sw-add{color:var(--accent);font-weight:600;}
+
+.nav-right{display:flex;align-items:center;gap:12px;}
+.avatar{
+  width:36px;height:36px;border-radius:50%;background:var(--accent);color:#0f0e0d;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;font-family:var(--display);
+  cursor:pointer;transition:transform 0.2s;
+}
+.avatar:hover{transform:scale(1.05);}
+.user-menu{position:relative;}
+.user-pop{
+  position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:var(--surface);
+  border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:6px;
+  opacity:0;pointer-events:none;transform:translateY(-4px);transition:all 0.2s var(--trans);
+}
+.user-menu.open .user-pop{opacity:1;pointer-events:auto;transform:translateY(0);}
+.up-head{padding:10px 12px;}
+.up-name{font-weight:700;font-size:14px;}
+.up-email{font-size:11px;color:var(--muted);}
+.up-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;font-size:13px;}
+.up-item:hover{background:var(--surface2);}
+.up-item.danger{color:#f08080;}
+
+/* ===== MAIN ===== */
+.main{max-width:1100px;margin:0 auto;padding:40px 24px 120px;}
+
+/* ===== HUB : profil card ===== */
+.profile-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  padding:30px;display:flex;align-items:center;gap:22px;margin-bottom:28px;
+  position:relative;overflow:hidden;
+}
+.profile-card::before{
+  content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;
+  border-radius:50%;background:radial-gradient(circle,var(--accent-soft) 0%,transparent 70%);
+  pointer-events:none;
+}
+.profile-avatar{
+  width:72px;height:72px;border-radius:50%;background:var(--accent);color:#0f0e0d;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;
+  font-family:var(--display);flex-shrink:0;
+}
+.profile-info h1{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-1px;margin-bottom:4px;}
+.profile-meta{font-size:13px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
+.profile-meta span{display:inline-flex;align-items:center;gap:6px;}
+
+/* ===== SECTION TITLE ===== */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;margin:28px 0 14px;
+}
+.section-title{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-0.5px;}
+.btn-add{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--accent);color:#0f0e0d;
+  border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);
+}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 20px color-mix(in srgb,var(--accent) 30%,transparent);}
+
+/* ===== SOCIETES GRID ===== */
+.societes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.soc-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:18px;
+  padding:22px;cursor:pointer;transition:all 0.25s var(--trans);
+  position:relative;overflow:hidden;
+}
+.soc-card:hover{transform:translateY(-3px);border-color:var(--soc-accent);box-shadow:0 12px 36px rgba(0,0,0,0.35);}
+.soc-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--soc-accent);
+  opacity:0;transition:opacity 0.25s;
+}
+.soc-card:hover::before,.soc-card.active::before{opacity:1;}
+.soc-card.active{border-color:var(--soc-accent);}
+.soc-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.soc-icon{
+  width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;background:color-mix(in srgb,var(--soc-accent) 12%,var(--surface2));
+}
+.soc-name{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:-0.3px;}
+.soc-type{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.soc-role{
+  display:inline-block;padding:3px 9px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;
+  margin-top:10px;
+}
+.soc-role.proprietaire{color:var(--soc-accent);border-color:color-mix(in srgb,var(--soc-accent) 40%,transparent);}
+.soc-actions{display:flex;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.soc-act{
+  flex:1;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  color:var(--muted);font-size:11px;font-weight:600;text-align:center;cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:5px;text-decoration:none;
+}
+.soc-act:hover{color:var(--text);border-color:var(--soc-accent);background:color-mix(in srgb,var(--soc-accent) 6%,var(--surface2));}
+.soc-badge-active{
+  position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;color:var(--soc-accent);
+  text-transform:uppercase;letter-spacing:0.5px;
+}
+
+/* ===== EMPTY / ONBOARDING ===== */
+.onboard{
+  max-width:640px;margin:40px auto;padding:0 24px;text-align:center;
+}
+.onboard-progress{
+  display:flex;justify-content:center;gap:8px;margin-bottom:30px;
+}
+.onboard-progress span{
+  width:40px;height:4px;border-radius:4px;background:var(--surface3);transition:background 0.4s;
+}
+.onboard-progress span.done{background:var(--accent);}
+.onboard-progress span.active{background:var(--accent);box-shadow:0 0 16px var(--accent-soft);}
+.onboard h2{font-family:var(--display);font-size:30px;font-weight:800;letter-spacing:-1.2px;margin-bottom:10px;}
+.onboard p{color:var(--muted);font-size:14px;margin-bottom:30px;}
+.choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px;}
+.choice{
+  background:var(--surface);border:2px solid var(--border);border-radius:16px;
+  padding:22px 14px;cursor:pointer;transition:all 0.25s var(--trans);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.choice:hover{transform:translateY(-3px);border-color:var(--accent);}
+.choice.selected{
+  border-color:var(--accent);background:var(--accent-soft);
+  box-shadow:0 8px 26px color-mix(in srgb,var(--accent) 20%,transparent);
+}
+.choice-ico{font-size:32px;}
+.choice-name{font-size:13px;font-weight:600;text-align:center;}
+.choice-check{
+  position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;
+  background:var(--accent);color:#0f0e0d;display:none;align-items:center;justify-content:center;font-size:12px;
+}
+.choice{position:relative;}
+.choice.selected .choice-check{display:flex;}
+.onboard-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;}
+.btn{
+  padding:13px 24px;border:none;border-radius:12px;font-size:14px;font-weight:700;transition:all 0.2s var(--trans);
+}
+.btn-primary{background:var(--accent);color:#0f0e0d;}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 30%,transparent);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+
+/* Form step */
+.form-stack{display:flex;flex-direction:column;gap:14px;text-align:left;margin-bottom:20px;}
+.form-field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.form-field input,.form-field select{
+  width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color 0.2s;
+}
+.form-field input:focus,.form-field select:focus{border-color:var(--accent);}
+
+/* Welcome animation */
+.welcome{text-align:center;padding:80px 20px;}
+.welcome-burst{
+  width:96px;height:96px;margin:0 auto 24px;border-radius:50%;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-size:48px;
+  animation:burst 0.8s var(--trans);
+}
+@keyframes burst{
+  0%{transform:scale(0);opacity:0;}
+  60%{transform:scale(1.15);opacity:1;}
+  100%{transform:scale(1);opacity:1;}
+}
+.welcome h2{font-family:var(--display);font-size:34px;font-weight:800;letter-spacing:-1.5px;margin-bottom:10px;animation:fadeUp 0.5s 0.2s var(--trans) both;}
+.welcome p{color:var(--muted);font-size:15px;animation:fadeUp 0.5s 0.35s var(--trans) both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+
+/* Loading */
+.loader{display:flex;justify-content:center;padding:80px 0;color:var(--muted);font-size:13px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-right:10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;
+  font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+
+/* Hide helpers */
+.hide{display:none !important;}
+
+@media(max-width:640px){
+  .nav{padding:12px 16px;}
+  .nav-left{gap:12px;}
+  .switcher-btn{padding:6px 10px;font-size:12px;}
+  .main{padding:24px 16px 80px;}
+  .profile-card{padding:22px;gap:16px;}
+  .profile-avatar{width:58px;height:58px;font-size:22px;}
+  .profile-info h1{font-size:22px;}
+  .societes-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<nav class="nav" id="nav" style="display:none;">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="switcher" id="switcher">
+      <button class="switcher-btn" onclick="toggleSwitcher()">
+        <span class="sw-icon" id="sw-active-icon">🏢</span>
+        <span id="sw-active-name">—</span>
+        <span class="sw-chev">▾</span>
+      </button>
+      <div class="switcher-menu" id="switcher-menu"></div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="user-menu" id="user-menu">
+      <div class="avatar" id="nav-avatar" onclick="toggleUserMenu()">?</div>
+      <div class="user-pop">
+        <div class="up-head">
+          <div class="up-name" id="up-name">—</div>
+          <div class="up-email" id="up-email">—</div>
+        </div>
+        <div class="sw-sep"></div>
+        <div class="up-item" onclick="goto('organisation.html')">🏢 Mon organisation</div>
+        <div class="up-item" onclick="goto('billing.html')">💳 Abonnement</div>
+        <div class="up-item" onclick="goto('index.html')">🏠 Dashboard dentaire</div>
+        <div class="sw-sep"></div>
+        <div class="up-item danger" onclick="logout()">Déconnexion</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<main class="main" id="main">
+  <div class="loader" id="loader"><div class="spinner"></div>Chargement de votre espace…</div>
+
+  <!-- HUB -->
+  <div id="hub" class="hide">
+    <div class="profile-card">
+      <div class="profile-avatar" id="hub-avatar">?</div>
+      <div class="profile-info">
+        <h1 id="hub-title">Bienvenue</h1>
+        <div class="profile-meta" id="hub-meta"></div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-title">Mes sociétés</div>
+      <button class="btn-add" onclick="goto('wizard-societe.html')">+ Ajouter</button>
+    </div>
+    <div class="societes-grid" id="soc-grid"></div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div id="onboard" class="onboard hide">
+    <div class="onboard-progress">
+      <span id="p1" class="active"></span>
+      <span id="p2"></span>
+      <span id="p3"></span>
+    </div>
+
+    <!-- Step 1 : métier -->
+    <div id="step1">
+      <h2>Qui êtes-vous ?</h2>
+      <p>Choisissez votre activité principale. Vous pourrez toujours la modifier.</p>
+      <div class="choice-grid" id="metiers-grid"></div>
+      <div class="onboard-actions">
+        <div></div>
+        <button class="btn btn-primary" id="btn-step1" onclick="nextStep(1)" disabled>Continuer →</button>
+      </div>
+    </div>
+
+    <!-- Step 2 : structures -->
+    <div id="step2" class="hide">
+      <h2>Quelles structures gérez-vous ?</h2>
+      <p>Sélectionnez toutes les entités pour lesquelles vous utiliserez JADOMI.</p>
+      <div class="choice-grid" id="structures-grid"></div>
+      <div class="onboard-actions">
+        <button class="btn btn-ghost" onclick="prevStep(2)">← Retour</button>
+        <button class="btn btn-primary" id="btn-step2" onclick="nextStep(2)" disabled>Continuer →</button>
+      </div>
+    </div>
+
+    <!-- Step 3 : configuration minimale première société -->
+    <div id="step3" class="hide">
+      <h2>Votre première société</h2>
+      <p id="step3-help">Un petit nom pour démarrer — vous compléterez les détails plus tard.</p>
+      <div class="form-stack">
+        <div class="form-field">
+          <label>Nom de la société</label>
+          <input id="soc-nom" placeholder="Ex : Precision Dentaire, SCI Bahmed, Cabinet Karim…">
+        </div>
+        <div class="form-field" id="field-siren-wrap" style="display:none;">
+          <label>SIREN (optionnel)</label>
+          <input id="soc-siren" placeholder="9 chiffres">
+        </div>
+      </div>
+      <div class="onboard-actions">
+        <button class="btn btn-ghost" onclick="prevStep(3)">← Retour</button>
+        <button class="btn btn-primary" id="btn-step3" onclick="finishOnboard()">Créer et continuer →</button>
+      </div>
+      <div style="margin-top:10px;"><button class="btn btn-ghost" onclick="skipFirstSociete()">Passer et configurer plus tard</button></div>
+    </div>
+
+    <!-- Welcome -->
+    <div id="welcome" class="welcome hide">
+      <div class="welcome-burst">🎉</div>
+      <h2 id="welcome-title">Bienvenue dans JADOMI !</h2>
+      <p id="welcome-sub">Votre espace est prêt.</p>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== CONFIG =====
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ===== PALETTE ACCENT PAR TYPE SOCIÉTÉ =====
+const TYPE_META = {
+  cabinet_dentaire:     { ico:'🦷', label:'Cabinet dentaire',   accent:'#c8f060' },
+  sci:                  { ico:'🏠', label:'SCI',                accent:'#60a8f0' },
+  societe_commerciale:  { ico:'🏢', label:'Société commerciale',accent:'#f0a030' },
+  sas:                  { ico:'🏢', label:'SAS',                accent:'#f0a030' },
+  sarl:                 { ico:'🏢', label:'SARL',               accent:'#f0a030' },
+  eurl:                 { ico:'🏢', label:'EURL',               accent:'#f0a030' },
+  sa:                   { ico:'🏢', label:'SA',                 accent:'#f0a030' },
+  snc:                  { ico:'🏢', label:'SNC',                accent:'#f0a030' },
+  ei:                   { ico:'👤', label:'Entreprise indiv.',  accent:'#60f0d0' },
+  auto_entrepreneur:    { ico:'📊', label:'Auto-entrepreneur',  accent:'#60f0d0' },
+  profession_liberale:  { ico:'👔', label:'Profession libérale',accent:'#f060a0' },
+  association:          { ico:'🤝', label:'Association',        accent:'#a060f0' },
+  autre:                { ico:'🏷️', label:'Autre',              accent:'#8f8a82' }
+};
+
+const METIERS = [
+  { k:'chirurgien_dentiste',   ico:'🦷', label:'Chirurgien-dentiste',  suggest:['cabinet_dentaire'] },
+  { k:'orthodontiste',         ico:'🦴', label:'Orthodontiste',        suggest:['cabinet_dentaire'] },
+  { k:'prothesiste',           ico:'🔧', label:'Prothésiste',          suggest:['societe_commerciale'] },
+  { k:'veterinaire',           ico:'🐾', label:'Vétérinaire',          suggest:['profession_liberale'] },
+  { k:'medecin_paramedical',   ico:'⚕️', label:'Médecin / Paramédical',suggest:['profession_liberale'] },
+  { k:'professionnel_btp',     ico:'🏗️', label:'Professionnel BTP',   suggest:['sas','sarl','eurl'] },
+  { k:'esthetique',            ico:'💆', label:'Esthéticien / Coiffeur', suggest:['societe_commerciale','auto_entrepreneur'] },
+  { k:'restaurateur',          ico:'🍕', label:'Restaurateur',          suggest:['societe_commerciale'] },
+  { k:'avocat_notaire',        ico:'⚖️', label:'Avocat / Notaire',     suggest:['profession_liberale'] },
+  { k:'profession_liberale',   ico:'👔', label:'Profession libérale',  suggest:['profession_liberale'] },
+  { k:'dirigeant_entreprise',  ico:'🏢', label:"Dirigeant d'entreprise", suggest:['sas','sarl','eurl'] },
+  { k:'auto_entrepreneur',     ico:'📊', label:'Auto-entrepreneur',    suggest:['auto_entrepreneur'] },
+  { k:'investisseur_immobilier',ico:'🏠',label:'Investisseur SCI',     suggest:['sci'] },
+  { k:'autre',                 ico:'🏷️', label:'Autre',                suggest:[] }
+];
+
+const STRUCTURES = [
+  { k:'cabinet_dentaire',    ico:'🦷', label:'Mon cabinet dentaire' },
+  { k:'sci',                 ico:'🏠', label:'Une SCI (locatif)' },
+  { k:'societe_commerciale', ico:'🏢', label:'Société commerciale' },
+  { k:'auto_entrepreneur',   ico:'📊', label:'Activité en nom propre' },
+  { k:'profession_liberale', ico:'👔', label:'Profession libérale' },
+  { k:'association',         ico:'🤝', label:'Association' }
+];
+
+// ===== STATE =====
+let session=null, token=null, profil=null, societes=[], activeSocieteId=null;
+let onboardMetier=null, onboardStructures=new Set(), onboardFirstType=null;
+
+// ===== UTILS =====
+function $(id){return document.getElementById(id);}
+function toast(msg,err){
+  const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' error':'');
+  setTimeout(()=>t.className='toast'+(err?' error':''),3000);
+}
+function api(path, opts={}){
+  const h = { 'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{}) };
+  return fetch(path,{ ...opts, headers:h }).then(r=>r.json());
+}
+function setAccent(color){
+  document.documentElement.style.setProperty('--accent',color);
+  document.documentElement.style.setProperty('--accent-soft',
+    `color-mix(in srgb, ${color} 10%, transparent)`);
+}
+function initials(first,last){
+  return ((first||'')[0]||'')+((last||'')[0]||'') || (first||'?').slice(0,1).toUpperCase();
+}
+function goto(p){ window.location.href=p; }
+async function logout(){ try{ await db.auth.signOut(); }catch(e){} localStorage.clear(); goto('login.html'); }
+
+// ===== BOOT =====
+(async function boot(){
+  const { data } = await db.auth.getSession();
+  session = data?.session;
+  if(!session){ return goto('login.html?next=organisation.html'); }
+  token = session.access_token;
+
+  // charge profil + sociétés en parallèle
+  const [pr, sr] = await Promise.all([
+    api('/api/profil').catch(()=>({success:false})),
+    api('/api/societes').catch(()=>({success:false,societes:[]}))
+  ]);
+  profil = pr?.profil || null;
+  societes = sr?.societes || [];
+
+  // si pas d'onboarding ET pas de société → onboarding
+  const needOnboard = !profil?.onboarding_termine && societes.length===0;
+  $('loader').classList.add('hide');
+  if(needOnboard){ startOnboarding(); }
+  else{ showHub(); }
+})().catch(e=>{
+  console.error(e);
+  $('loader').textContent='Erreur de chargement : '+e.message;
+});
+
+// ===== HUB =====
+function showHub(){
+  $('nav').style.display='flex';
+  $('hub').classList.remove('hide');
+
+  // nav user
+  const prenom = profil?.prenom || session.user.user_metadata?.nom?.split(' ')[0] || '';
+  const nom = profil?.nom || session.user.user_metadata?.nom?.split(' ').slice(1).join(' ') || '';
+  const ini = initials(prenom, nom);
+  $('nav-avatar').textContent = ini || '?';
+  $('up-name').textContent = (prenom+' '+nom).trim() || session.user.email;
+  $('up-email').textContent = session.user.email;
+
+  // profile card
+  $('hub-avatar').textContent = ini || '?';
+  $('hub-title').textContent = prenom ? `Bonjour, ${prenom} 👋` : 'Bonjour 👋';
+  const metaEl = $('hub-meta'); metaEl.innerHTML='';
+  if(profil?.metier){
+    const m = METIERS.find(x=>x.k===profil.metier);
+    if(m) metaEl.insertAdjacentHTML('beforeend',`<span>${m.ico} ${m.label}</span>`);
+  }
+  metaEl.insertAdjacentHTML('beforeend',`<span>🏢 ${societes.length} société${societes.length>1?'s':''}</span>`);
+
+  // switcher + grid
+  renderSocietes();
+
+  // détermine société active
+  const savedId = localStorage.getItem('societe_active_id');
+  const active = societes.find(s=>s.id===savedId) || societes[0];
+  if(active) setActiveSociete(active.id);
+}
+
+function renderSocietes(){
+  const grid = $('soc-grid'); grid.innerHTML='';
+  const menu = $('switcher-menu'); menu.innerHTML='';
+  if(societes.length===0){
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted);border:1px dashed var(--border);border-radius:18px;">
+      Aucune société pour l'instant.<br>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="goto('wizard-societe.html')">Créer ma première société</button>
+    </div>`;
+    $('sw-active-name').textContent='Aucune société';
+    return;
+  }
+  societes.forEach(s=>{
+    const meta = TYPE_META[s.type] || TYPE_META.autre;
+    const accent = s.couleur_accent || meta.accent;
+    const card = document.createElement('div');
+    card.className='soc-card';
+    card.style.setProperty('--soc-accent',accent);
+    card.dataset.id = s.id;
+    card.innerHTML = `
+      <div class="soc-badge-active" id="act-${s.id}">Active</div>
+      <div class="soc-head">
+        <div class="soc-icon">${s.icone||meta.ico}</div>
+        <div>
+          <div class="soc-name">${escapeHtml(s.nom)}</div>
+          <div class="soc-type">${meta.label}</div>
+        </div>
+      </div>
+      <div class="soc-role ${s.role||''}">${(s.role||'membre').toUpperCase()}</div>
+      <div class="soc-actions">
+        <a class="soc-act" href="settings-societe.html?id=${s.id}" onclick="event.stopPropagation();">⚙️</a>
+        <a class="soc-act" href="membres-societe.html?id=${s.id}" onclick="event.stopPropagation();">👥</a>
+        <a class="soc-act" href="mailing.html" onclick="event.stopPropagation();localStorage.setItem('societe_active_id',${JSON.stringify(s.id)});">📧</a>
+        <a class="soc-act" href="billing.html" onclick="event.stopPropagation();localStorage.setItem('societe_active_id',${JSON.stringify(s.id)});">💳</a>
+      </div>
+    `;
+    card.onclick = ()=>openSociete(s.id);
+    grid.appendChild(card);
+
+    // switcher menu item
+    const item = document.createElement('div');
+    item.className='sw-item';
+    item.dataset.id=s.id;
+    item.innerHTML = `
+      <div class="sw-item-icon">${s.icone||meta.ico}</div>
+      <div class="sw-item-name">${escapeHtml(s.nom)}</div>
+      <div class="sw-item-role">${s.role||''}</div>
+    `;
+    item.onclick = ()=>{ toggleSwitcher(false); openSociete(s.id); };
+    menu.appendChild(item);
+  });
+  // sep + add
+  menu.insertAdjacentHTML('beforeend',`<div class="sw-sep"></div>
+    <div class="sw-item sw-add" onclick="goto('wizard-societe.html')">+ Créer une société</div>`);
+}
+
+const MODULE_ROUTE = {
+  cabinet_dentaire:    'index.html',
+  sci:                 'sci.html',
+  societe_commerciale: 'commerce.html',
+  sas:'commerce.html', sarl:'commerce.html', eurl:'commerce.html',
+  sa:'commerce.html', snc:'commerce.html',
+  ei:'commerce.html', auto_entrepreneur:'commerce.html',
+  profession_liberale:'commerce.html',
+  association:'commerce.html', autre:'commerce.html'
+};
+
+function setActiveSociete(id){
+  const s = societes.find(x=>x.id===id); if(!s) return;
+  activeSocieteId = id;
+  localStorage.setItem('societe_active_id', id);
+  const meta = TYPE_META[s.type] || TYPE_META.autre;
+  const accent = s.couleur_accent || meta.accent;
+  setAccent(accent);
+  $('sw-active-icon').textContent = s.icone || meta.ico;
+  $('sw-active-name').textContent = s.nom;
+  document.querySelectorAll('.soc-card').forEach(c=>{
+    c.classList.toggle('active', c.dataset.id===id);
+    const badge = c.querySelector('.soc-badge-active');
+    if(badge) badge.style.display = (c.dataset.id===id) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.sw-item').forEach(i=>{
+    i.classList.toggle('active', i.dataset.id===id);
+  });
+}
+
+function openSociete(id){
+  const s = societes.find(x=>x.id===id); if(!s) return;
+  setActiveSociete(id);
+  const route = MODULE_ROUTE[s.type] || 'organisation.html';
+  // petit délai pour laisser voir la transition d'accent
+  setTimeout(()=>{ location.href = route; }, 180);
+}
+
+function toggleSwitcher(force){
+  const el=$('switcher');
+  if(typeof force==='boolean') el.classList.toggle('open',force);
+  else el.classList.toggle('open');
+}
+function toggleUserMenu(){ $('user-menu').classList.toggle('open'); }
+document.addEventListener('click',(e)=>{
+  if(!e.target.closest('.switcher')) $('switcher')?.classList.remove('open');
+  if(!e.target.closest('.user-menu')) $('user-menu')?.classList.remove('open');
+});
+
+// ===== ONBOARDING =====
+function startOnboarding(){
+  $('onboard').classList.remove('hide');
+  renderMetiersGrid();
+  renderStructuresGrid();
+}
+function renderMetiersGrid(){
+  const grid=$('metiers-grid'); grid.innerHTML='';
+  METIERS.forEach(m=>{
+    const el=document.createElement('div'); el.className='choice';
+    el.innerHTML=`<div class="choice-check">✓</div><div class="choice-ico">${m.ico}</div><div class="choice-name">${m.label}</div>`;
+    el.onclick=()=>{
+      document.querySelectorAll('#metiers-grid .choice').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      onboardMetier = m.k;
+      $('btn-step1').disabled=false;
+      // suggère structures
+      onboardStructures = new Set(m.suggest||[]);
+      refreshStructuresVisuals();
+    };
+    grid.appendChild(el);
+  });
+}
+function renderStructuresGrid(){
+  const grid=$('structures-grid'); grid.innerHTML='';
+  STRUCTURES.forEach(s=>{
+    const el=document.createElement('div'); el.className='choice'; el.dataset.k=s.k;
+    el.innerHTML=`<div class="choice-check">✓</div><div class="choice-ico">${s.ico}</div><div class="choice-name">${s.label}</div>`;
+    el.onclick=()=>{
+      if(onboardStructures.has(s.k)) onboardStructures.delete(s.k);
+      else onboardStructures.add(s.k);
+      refreshStructuresVisuals();
+    };
+    grid.appendChild(el);
+  });
+}
+function refreshStructuresVisuals(){
+  document.querySelectorAll('#structures-grid .choice').forEach(c=>{
+    c.classList.toggle('selected', onboardStructures.has(c.dataset.k));
+  });
+  $('btn-step2').disabled = onboardStructures.size===0;
+}
+function setProgress(n){
+  ['p1','p2','p3'].forEach((id,idx)=>{
+    const el=$(id); el.className='';
+    if(idx<n-1) el.className='done';
+    if(idx===n-1) el.className='active';
+  });
+}
+function nextStep(from){
+  if(from===1){
+    $('step1').classList.add('hide'); $('step2').classList.remove('hide'); setProgress(2);
+  } else if(from===2){
+    onboardFirstType = Array.from(onboardStructures)[0];
+    const meta = TYPE_META[onboardFirstType] || TYPE_META.autre;
+    setAccent(meta.accent);
+    $('step2').classList.add('hide'); $('step3').classList.remove('hide'); setProgress(3);
+    const help = `Type détecté : ${meta.ico} ${meta.label}. Ajoutez simplement un nom pour démarrer.`;
+    $('step3-help').textContent = help;
+    $('field-siren-wrap').style.display = ['sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','societe_commerciale'].includes(onboardFirstType) ? 'block' : 'none';
+  }
+}
+function prevStep(from){
+  if(from===2){ $('step2').classList.add('hide'); $('step1').classList.remove('hide'); setProgress(1); }
+  if(from===3){ $('step3').classList.add('hide'); $('step2').classList.remove('hide'); setProgress(2); }
+}
+
+async function saveProfil(){
+  const meta = session.user.user_metadata || {};
+  const [prenom,...rest] = (meta.nom||'').split(' ');
+  const payload = {
+    prenom: profil?.prenom || prenom || '',
+    nom: profil?.nom || rest.join(' ') || '',
+    metier: onboardMetier,
+    onboarding_termine: true
+  };
+  const r = await api('/api/profil',{ method:'PUT', body:JSON.stringify(payload) });
+  if(!r.success) throw new Error(r.error||'profil_error');
+  profil = r.profil;
+}
+async function createFirstSociete(){
+  const nom = $('soc-nom').value.trim();
+  if(!nom) throw new Error('Nom requis');
+  const siren = $('soc-siren')?.value.trim() || undefined;
+  const r = await api('/api/societes',{ method:'POST', body:JSON.stringify({
+    type: onboardFirstType, nom, siren
+  })});
+  if(!r.success) throw new Error(r.error||'create_error');
+  societes.unshift({ ...r.societe, role:'proprietaire' });
+  localStorage.setItem('societe_active_id', r.societe.id);
+}
+
+async function finishOnboard(){
+  const btn = $('btn-step3'); btn.disabled=true; btn.textContent='Création…';
+  try{
+    await saveProfil();
+    await createFirstSociete();
+    showWelcome();
+  }catch(e){
+    toast(e.message,true);
+    btn.disabled=false; btn.textContent='Créer et continuer →';
+  }
+}
+async function skipFirstSociete(){
+  try{
+    await saveProfil();
+    showWelcome(true);
+  }catch(e){ toast(e.message,true); }
+}
+function showWelcome(empty){
+  ['step1','step2','step3'].forEach(id=>$(id).classList.add('hide'));
+  $('welcome').classList.remove('hide');
+  const nom = profil?.prenom || profil?.nom || '';
+  $('welcome-title').textContent = nom ? `Bienvenue ${nom} 🎉` : 'Bienvenue dans JADOMI 🎉';
+  $('welcome-sub').textContent = empty ? 'Vous pourrez créer vos sociétés depuis le dashboard.' : 'Votre espace est prêt.';
+  setTimeout(()=>{
+    $('onboard').classList.add('hide');
+    showHub();
+  }, 2200);
+}
+
+// ===== helpers =====
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+</script>
+</body>
+</html>

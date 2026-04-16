@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Mailing</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
+  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
+  --accent:#a060f0;--accent-soft:rgba(160,96,240,0.12);
+  --red:#f05050;--green:#60d090;--blue:#60a8f0;--orange:#f0a030;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(160,96,240,0.06) 0%,transparent 55%);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,14,13,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.tabs{display:flex;gap:2px;padding:14px 24px 0;border-bottom:1px solid var(--border);overflow-x:auto;}
+.tab{padding:12px 18px;background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;border-radius:10px 10px 0 0;transition:all 0.15s;white-space:nowrap;position:relative;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);background:var(--accent-soft);}
+.tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);}
+
+.main{padding:28px 24px 120px;max-width:1200px;margin:0 auto;}
+.panel{display:none;}.panel.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.search{flex:1;min-width:180px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.search:focus{border-color:var(--accent);}
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#1a0a2a;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(160,96,240,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn-danger{color:#f08080;background:transparent;border:1px solid rgba(240,80,80,0.25);}
+.btn-danger:hover{background:rgba(240,80,80,0.08);}
+
+.camp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+.camp{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;transition:all 0.2s;cursor:pointer;}
+.camp:hover{border-color:var(--accent);transform:translateY(-2px);}
+.camp-head{display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px;}
+.camp-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;flex:1;}
+.camp-obj{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+.camp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+.camp-stat{text-align:center;padding:10px 8px;background:var(--surface2);border-radius:10px;}
+.camp-stat-val{font-family:var(--display);font-size:18px;font-weight:700;color:var(--accent);letter-spacing:-0.5px;}
+.camp-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+.camp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.chip.brouillon{background:rgba(143,138,130,0.15);color:var(--muted);}
+.chip.envoyee,.chip.terminee{background:rgba(96,208,144,0.15);color:var(--green);}
+.chip.planifiee{background:rgba(160,96,240,0.15);color:var(--accent);}
+
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:var(--surface2);}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface2);}
+.tbl .num{font-variant-numeric:tabular-nums;font-family:var(--display);font-weight:700;color:var(--accent);}
+.tbl .actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;overflow-y:auto;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:26px;max-width:740px;width:100%;max-height:92vh;overflow-y:auto;}
+.modal-title{font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:16px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color 0.2s;}
+.field textarea{min-height:180px;resize:vertical;font-family:ui-monospace,Monaco,Consolas,monospace;font-size:12px;line-height:1.5;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+
+.empty{padding:50px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.35);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.rgpd-note{background:rgba(96,168,240,0.06);border:1px solid rgba(96,168,240,0.2);border-radius:12px;padding:14px;font-size:12px;color:#b8d0f0;line-height:1.7;margin-bottom:16px;}
+.rgpd-note strong{color:var(--blue);}
+
+.hide{display:none !important;}
+
+@media(max-width:640px){.form-grid{grid-template-columns:1fr;}.main{padding:18px 14px 80px;}.crumb-sep,.crumb-module{display:none;}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico" id="crumb-ico">📧</span>
+      <span class="crumb-name" id="crumb-name">—</span>
+      <span class="crumb-sep">·</span>
+      <span class="crumb-module">Mailing</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="organisation.html">← Retour</a>
+  </div>
+</nav>
+
+<div class="tabs">
+  <button class="tab active" data-panel="campagnes">📧 Campagnes</button>
+  <button class="tab" data-panel="bases">📇 Bases emails</button>
+</div>
+
+<main class="main">
+
+  <!-- CAMPAGNES -->
+  <div class="panel active" data-panel="campagnes">
+    <div class="rgpd-note">
+      <strong>RGPD respecté</strong> — chaque email inclut un lien de désabonnement automatique et un pixel de tracking sans cookies.
+      La base JADOMI n'est jamais exposée aux annonceurs : les emails ciblés restent confidentiels côté serveur.
+    </div>
+    <div class="toolbar">
+      <input class="search" id="search-c" placeholder="Rechercher une campagne…">
+      <button class="btn btn-primary" onclick="openCampModal()">+ Nouvelle campagne</button>
+    </div>
+    <div id="camp-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+  </div>
+
+  <!-- BASES -->
+  <div class="panel" data-panel="bases">
+    <div class="card">
+      <div class="card-title">Importer une base emails</div>
+      <div class="card-sub">Fichier CSV avec en-têtes. Colonnes reconnues : <code>email, nom, prenom, societe</code>. L'email est obligatoire.</div>
+      <div class="form-grid">
+        <div class="field"><label>Nom de la base</label><input id="base-nom" placeholder="Prospects Paris Q1"></div>
+        <div class="field"><label>Fichier CSV</label><input id="base-file" type="file" accept=".csv,text/csv"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="base-upload">📥 Importer</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="bases-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL CAMPAGNE -->
+<div class="modal-bg" id="modal-camp">
+  <div class="modal">
+    <div class="modal-title" id="camp-modal-title">Nouvelle campagne</div>
+    <div class="form-grid">
+      <div class="field full"><label>Titre interne *</label><input id="c-titre" placeholder="Lancement offre printemps"></div>
+      <div class="field full"><label>Objet de l'email *</label><input id="c-objet" placeholder="Découvrez notre nouvelle offre 🌸"></div>
+      <div class="field">
+        <label>Cible *</label>
+        <select id="c-cible">
+          <option value="base_importee">Ma base importée</option>
+          <option value="base_jadomi">Base JADOMI (dentistes)</option>
+          <option value="les_deux">Les deux</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Base importée (si applicable)</label>
+        <select id="c-base_id"><option value="">—</option></select>
+      </div>
+      <div class="field full">
+        <label>Contenu de l'email</label>
+        <div id="c-html-editor" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;min-height:220px;color:var(--text);"></div>
+        <textarea id="c-html" style="display:none;"></textarea>
+        <div class="hint">Éditeur riche : gras, italique, liens, listes, images URL. Variables disponibles : <code>{{desabo_url}}</code> (lien désabo). Un footer RGPD sera ajouté automatiquement s'il est absent. <a href="#" onclick="return toggleHtmlSource();" style="color:var(--accent);">Basculer en mode HTML brut</a></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-camp')">Annuler</button>
+      <button class="btn btn-primary" id="camp-save">Enregistrer le brouillon</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STATS -->
+<div class="modal-bg" id="modal-stats">
+  <div class="modal">
+    <div class="modal-title" id="stats-title">Statistiques de la campagne</div>
+    <div id="stats-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-stats')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const CIBLE_LBL = { base_importee:'Ma base', base_jadomi:'Base JADOMI', les_deux:'Les deux' };
+
+let token=null, session=null, societeId=null, societe=null;
+let campagnes=[], bases=[], editingCamp=null;
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(msg,kind){const t=$('toast');t.textContent=msg;t.className='toast show '+(kind||'');setTimeout(()=>t.className='toast '+(kind||''),2800);}
+function openModal(id){$(id).classList.add('show');}
+function closeModal(id){$(id).classList.remove('show');}
+
+function api(path, opts={}){
+  return fetch(path,{
+    ...opts,
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, 'X-Societe-Id': societeId, ...(opts.headers||{}) }
+  }).then(r=>r.json());
+}
+async function apiUpload(path, file, fields={}){
+  const fd = new FormData(); fd.append('file', file);
+  for(const k in fields) fd.append(k, fields[k]);
+  const r = await fetch(path,{ method:'POST', body:fd, headers:{ Authorization:'Bearer '+token, 'X-Societe-Id': societeId } });
+  return r.json();
+}
+
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session){ return location.href='login.html?next='+encodeURIComponent('mailing.html'); }
+  session = data.session; token = session.access_token;
+
+  societeId = localStorage.getItem('societe_active_id');
+  if(!societeId){ toast('Aucune société active',true); setTimeout(()=>location.href='organisation.html',1000); return; }
+
+  const r = await api('/api/societes/'+societeId);
+  if(!r.success){ toast(r.error||'Erreur',true); return; }
+  societe = r.societe;
+  $('crumb-name').textContent = societe.nom;
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.onclick = ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      const key = t.dataset.panel;
+      document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.dataset.panel===key));
+      if(key==='campagnes') loadCampagnes();
+      if(key==='bases') loadBases();
+    };
+  });
+  $('search-c').oninput = renderCampagnes;
+  $('camp-save').onclick = saveCampagne;
+  $('base-upload').onclick = uploadBase;
+
+  loadCampagnes();
+  loadBases({silent:true});
+})();
+
+// ===== CAMPAGNES =====
+async function loadCampagnes(){
+  $('camp-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/mailing/campagnes');
+  campagnes = r.campagnes || [];
+  renderCampagnes();
+}
+function renderCampagnes(){
+  const q = ($('search-c').value||'').toLowerCase();
+  const rows = campagnes.filter(c => !q || (c.titre||'').toLowerCase().includes(q) || (c.objet_email||'').toLowerCase().includes(q));
+  if(rows.length===0){ $('camp-wrap').innerHTML='<div class="empty">Aucune campagne. Créez votre première pour commencer.</div>'; return; }
+  $('camp-wrap').innerHTML = `<div class="camp-grid">${rows.map(c=>`
+    <div class="camp">
+      <div class="camp-head">
+        <div class="camp-title">${esc(c.titre)}</div>
+        <span class="chip ${c.statut||'brouillon'}">${c.statut||'brouillon'}</span>
+      </div>
+      <div class="camp-obj">${esc(c.objet_email||'')} · <span style="color:var(--accent);">${CIBLE_LBL[c.cible]||c.cible}</span></div>
+      <div class="camp-stats">
+        <div class="camp-stat"><div class="camp-stat-val">${c.nb_envoyes||0}</div><div class="camp-stat-lbl">envoyés</div></div>
+        <div class="camp-stat"><div class="camp-stat-val">${c.nb_ouverts||0}</div><div class="camp-stat-lbl">ouverts</div></div>
+        <div class="camp-stat"><div class="camp-stat-val">${c.nb_clics||0}</div><div class="camp-stat-lbl">clics</div></div>
+      </div>
+      <div class="camp-actions">
+        ${c.statut!=='envoyee' && c.statut!=='terminee' ? `<button class="btn btn-ghost btn-sm" onclick='editCamp(${JSON.stringify(c.id)})'>✏️</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick='testCamp(${JSON.stringify(c.id)})'>🧪 Test</button>
+        ${c.statut!=='envoyee' && c.statut!=='terminee' ? `<button class="btn btn-primary btn-sm" onclick='envoyerCamp(${JSON.stringify(c.id)})'>🚀 Envoyer</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick='viewStats(${JSON.stringify(c.id)})'>📊 Stats</button>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+function openCampModal(){ editingCamp=null; $('camp-modal-title').textContent='Nouvelle campagne';
+  ['titre','objet'].forEach(k=>$('c-'+k).value='');
+  setQuillHtml('');
+  $('c-cible').value='base_importee'; $('c-base_id').value='';
+  openModal('modal-camp');
+  // Lazy-init Quill à l'ouverture
+  setTimeout(initQuill, 50);
+}
+// Quill editor
+let quillEditor = null;
+function getQuillHtml(){
+  if(!quillEditor) return $('c-html').value;
+  // Basculé en mode HTML ? retourne textarea
+  if($('c-html').style.display !== 'none') return $('c-html').value;
+  return quillEditor.root.innerHTML;
+}
+function setQuillHtml(html){
+  if(quillEditor){
+    quillEditor.root.innerHTML = html || '';
+  }
+  $('c-html').value = html || '';
+}
+function toggleHtmlSource(){
+  const ta = $('c-html');
+  const editor = document.getElementById('c-html-editor');
+  if(ta.style.display === 'none'){
+    ta.value = quillEditor ? quillEditor.root.innerHTML : '';
+    ta.style.display = 'block';
+    editor.style.display = 'none';
+  } else {
+    if(quillEditor) quillEditor.root.innerHTML = ta.value || '';
+    ta.style.display = 'none';
+    editor.style.display = '';
+  }
+  return false;
+}
+function initQuill(){
+  if(quillEditor || typeof Quill === 'undefined') return;
+  try {
+    quillEditor = new Quill('#c-html-editor', {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ['bold','italic','underline','strike'],
+          [{ color: [] }, { background: [] }],
+          [{ list: 'ordered' },{ list: 'bullet' }],
+          ['link','image','blockquote'],
+          ['clean']
+        ]
+      },
+      placeholder: 'Rédigez votre message…'
+    });
+  } catch(e) { console.warn('Quill init:', e.message); }
+}
+
+function editCamp(id){
+  const c = campagnes.find(x=>x.id===id); if(!c) return;
+  editingCamp=id; $('camp-modal-title').textContent='Modifier la campagne';
+  $('c-titre').value=c.titre||''; $('c-objet').value=c.objet_email||'';
+  $('c-cible').value=c.cible||'base_importee'; $('c-base_id').value=c.base_id||'';
+  openModal('modal-camp');
+  setTimeout(() => { initQuill(); setQuillHtml(c.contenu_html || ''); }, 50);
+}
+async function saveCampagne(){
+  const payload = {
+    titre: $('c-titre').value.trim(),
+    objet_email: $('c-objet').value.trim(),
+    contenu_html: getQuillHtml(),
+    cible: $('c-cible').value,
+    base_id: $('c-base_id').value || null
+  };
+  if(!payload.titre || !payload.objet_email){ toast('Titre et objet requis',true); return; }
+  const path = editingCamp ? '/api/mailing/campagnes/'+editingCamp : '/api/mailing/campagnes';
+  const method = editingCamp ? 'PATCH' : 'POST';
+  const r = await api(path,{method,body:JSON.stringify(payload)});
+  if(!r.success){ toast(r.error||'erreur',true); return; }
+  toast('Campagne enregistrée','ok');
+  closeModal('modal-camp');
+  await loadCampagnes();
+}
+async function testCamp(id){
+  const email = prompt('Envoyer un test à l\'adresse :', session.user.email);
+  if(!email) return;
+  const r = await api('/api/mailing/campagnes/'+id+'/test',{method:'POST',body:JSON.stringify({email})});
+  if(r.success) toast('Test envoyé à '+email,'ok');
+  else toast(r.error||'erreur',true);
+}
+async function envoyerCamp(id){
+  const c = campagnes.find(x=>x.id===id);
+  if(!confirm(`Envoyer la campagne "${c.titre}" maintenant ?\n\nCible : ${CIBLE_LBL[c.cible]||c.cible}\n\nCette action est irréversible.`)) return;
+  const r = await api('/api/mailing/campagnes/'+id+'/envoyer',{method:'POST'});
+  if(r.success){ toast(`Campagne envoyée à ${r.envoyes} destinataires`,'ok'); await loadCampagnes(); }
+  else toast(r.error||'erreur',true);
+}
+function viewStats(id){
+  const c = campagnes.find(x=>x.id===id); if(!c) return;
+  const tauxOuv = c.nb_envoyes ? Math.round(100*c.nb_ouverts/c.nb_envoyes) : 0;
+  const tauxClic = c.nb_envoyes ? Math.round(100*c.nb_clics/c.nb_envoyes) : 0;
+  $('stats-title').textContent = '📊 ' + c.titre;
+  $('stats-body').innerHTML = `
+    <div class="camp-stats" style="grid-template-columns:repeat(3,1fr);">
+      <div class="camp-stat"><div class="camp-stat-val">${c.nb_envoyes||0}</div><div class="camp-stat-lbl">Envoyés</div></div>
+      <div class="camp-stat"><div class="camp-stat-val">${c.nb_ouverts||0}</div><div class="camp-stat-lbl">Ouverts (${tauxOuv}%)</div></div>
+      <div class="camp-stat"><div class="camp-stat-val">${c.nb_clics||0}</div><div class="camp-stat-lbl">Clics (${tauxClic}%)</div></div>
+    </div>
+    <div style="margin-top:16px;font-size:12px;color:var(--muted);line-height:1.7;">
+      <strong>Date d'envoi :</strong> ${c.date_envoi ? new Date(c.date_envoi).toLocaleString('fr-FR') : 'non envoyée'}<br>
+      <strong>Cible :</strong> ${CIBLE_LBL[c.cible]||c.cible}<br>
+      <strong>Statut :</strong> <span class="chip ${c.statut}">${c.statut}</span>
+    </div>
+  `;
+  openModal('modal-stats');
+}
+
+// ===== BASES =====
+async function loadBases(opts={}){
+  if(!opts.silent) $('bases-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/mailing/bases');
+  bases = r.bases || [];
+  // refresh select bases dans modal campagne
+  const sel = $('c-base_id');
+  sel.innerHTML = '<option value="">—</option>' + bases.map(b=>`<option value="${b.id}">${esc(b.nom)} (${b.nb_contacts||0})</option>`).join('');
+  if(!opts.silent) renderBases();
+}
+function renderBases(){
+  if(bases.length===0){ $('bases-wrap').innerHTML='<div class="empty">Aucune base importée.</div>'; return; }
+  $('bases-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Nom</th><th>Contacts</th><th>Importée le</th><th></th></tr></thead>
+      <tbody>${bases.map(b=>`
+        <tr>
+          <td><strong>${esc(b.nom)}</strong></td>
+          <td class="num">${b.nb_contacts||0}</td>
+          <td>${esc((b.created_at||'').slice(0,10))}</td>
+          <td class="actions"><button class="btn btn-danger btn-sm" onclick='delBase(${JSON.stringify(b.id)})'>Supprimer</button></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+async function uploadBase(){
+  const f = $('base-file').files[0];
+  const nom = $('base-nom').value.trim();
+  if(!f){ toast('Sélectionnez un fichier',true); return; }
+  const btn = $('base-upload'); btn.disabled=true; btn.textContent='Import…';
+  try{
+    const r = await apiUpload('/api/mailing/bases/import-csv', f, {nom});
+    if(!r.success) throw new Error(r.error||'erreur');
+    toast(`Base importée : ${r.base.nb_contacts} contacts`,'ok');
+    $('base-nom').value=''; $('base-file').value='';
+    await loadBases();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='📥 Importer'; }
+}
+async function delBase(id){
+  if(!confirm('Supprimer cette base ? Les contacts seront perdus.')) return;
+  const r = await api('/api/mailing/bases/'+id,{method:'DELETE'});
+  if(r.success){ toast('Base supprimée','ok'); await loadBases(); }
+  else toast(r.error||'erreur',true);
+}
+</script>
+</body>
+</html>
