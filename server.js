@@ -150,7 +150,60 @@ try {
   console.warn('[JADOMI] Module Admin non charge:', e.message);
 }
 
+// === Webhook Stripe Billing (raw body requis — mount AVANT express.json) ===
+try {
+  const { mountBillingWebhook } = require('./api/multiSocietes/billing');
+  if (typeof mountBillingWebhook === 'function') mountBillingWebhook(app);
+} catch (e) {
+  console.warn('[JADOMI] Webhook Billing non monté:', e.message);
+}
+
+// === Webhook Stripe Commerce (paiements factures clients, raw body) ===
+try {
+  const { mountCommerceWebhook } = require('./api/multiSocietes/commerceWebhook');
+  if (typeof mountCommerceWebhook === 'function') mountCommerceWebhook(app);
+} catch (e) {
+  console.warn('[JADOMI] Webhook Commerce non monté:', e.message);
+}
+
 app.use(express.json());
+
+// === Middleware authSupabase pour routes legacy (sécurité) ===
+// Valide le JWT Supabase dans Authorization: Bearer <token>, met req.user
+let authSupabase = null;
+try {
+  authSupabase = require('./api/multiSocietes/middleware').authSupabase;
+} catch (e) {
+  console.warn('[JADOMI] authSupabase indisponible — routes legacy non protégées:', e.message);
+}
+// Helper : exige un JWT valide sur la route. Si middleware pas chargé (fallback dev), refuse.
+const requireAuth = () => {
+  if (!authSupabase) return (req, res) => res.status(503).json({ error: 'auth_unavailable' });
+  return authSupabase();
+};
+
+// Helper SSE : EventSource n'envoie pas de Authorization header, on accepte ?access_token=... en query.
+// Vérifie JWT et met req.user avant de poursuivre.
+const requireAuthSSE = () => async (req, res, next) => {
+  try {
+    const token = req.query.access_token || (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+    if (!token) return res.status(401).end('missing_token');
+    if (!supabaseAdmin) return res.status(503).end('auth_unavailable');
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data?.user) return res.status(401).end('invalid_token');
+    req.user = data.user;
+    next();
+  } catch (e) {
+    res.status(401).end('auth_error');
+  }
+};
+
+// === JADOMI Multi-sociétés (SCI, commerce, mailing, billing) ===
+try {
+  require('./api/multiSocietes')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module multi-sociétés non charge:', e.message);
+}
 
 // === JADOMI Email service (OVH Pro) ===
 let emailService = null;
@@ -207,9 +260,9 @@ try {
 } catch(e) { console.log('Stripe not configured'); }
 
 // =============================================
-// POST /api/claude — Proxy to Anthropic Claude
+// POST /api/claude — Proxy to Anthropic Claude (auth requis)
 // =============================================
-app.post('/api/claude', async (req, res) => {
+app.post('/api/claude', requireAuth(), async (req, res) => {
   try {
     let {
       messages,
@@ -1617,9 +1670,11 @@ function storeAttachment(userId, att) {
   return token;
 }
 
-app.get('/api/mail/attachment/:token', (req, res) => {
+app.get('/api/mail/attachment/:token', requireAuth(), (req, res) => {
   const entry = scanAttachments.get(req.params.token);
   if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
+  // L'attachment est stocké avec le userId — vérifier que c'est le bon propriétaire
+  if (entry.userId && entry.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
   res.setHeader('Content-Type', entry.contentType);
   if (entry.contentType && entry.contentType.startsWith('text/html')) {
     return res.end(entry.buffer);
@@ -1647,9 +1702,8 @@ function storeMailBodyAsHtml(userId, parsed) {
 // ============ Server-Sent Events: progression scan mail ============
 const scanProgressClients = new Map();
 
-app.get('/api/mail/scan-progress', (req, res) => {
-  const userId = req.query.userId;
-  if (!userId) return res.status(400).end('userId requis');
+app.get('/api/mail/scan-progress', requireAuthSSE(), (req, res) => {
+  const userId = req.user.id;
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -1946,9 +2000,8 @@ async function getYahooAccessToken(userId) {
   return updated;
 }
 
-app.get('/api/yahoo/account', async (req, res) => {
-  const userId = req.query.userId;
-  if (!userId) return res.status(400).json({ error: 'userId requis' });
+app.get('/api/yahoo/account', requireAuth(), async (req, res) => {
+  const userId = req.user.id;
   try {
     const admin = supaAdminOrThrow();
     const { data: row } = await admin.from('yahoo_oauth_tokens').select('email, updated_at').eq('user_id', userId).maybeSingle();
@@ -1960,9 +2013,9 @@ app.get('/api/yahoo/account', async (req, res) => {
   }
 });
 
-app.post('/api/mail/scan-yahoo', async (req, res) => {
-  const { userId, periode, mois, annee } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'userId requis' });
+app.post('/api/mail/scan-yahoo', requireAuth(), async (req, res) => {
+  const { periode, mois, annee } = req.body || {};
+  const userId = req.user.id;
   try {
     const row = await getYahooAccessToken(userId);
     if (!row.email) return res.status(400).json({ error: 'Email Yahoo inconnu — reconnectez-vous.' });
@@ -1971,7 +2024,6 @@ app.post('/api/mail/scan-yahoo', async (req, res) => {
     const authString = `user=${row.email}\x01auth=Bearer ${row.access_token}\x01\x01`;
     const xoauth2Token = Buffer.from(authString).toString('base64');
     console.log('[YAHOO-OAUTH] email=', row.email, 'expired=', expired, 'expires_at=', row.expires_at);
-    console.log('[YAHOO-OAUTH] access_token preview:', (row.access_token || '').substring(0, 20) + '...');
     console.log('[YAHOO-OAUTH] XOAUTH2 base64 length:', xoauth2Token.length);
 
     const imap = new Imap({
@@ -2003,7 +2055,7 @@ app.post('/api/mail/scan-yahoo', async (req, res) => {
 // =============================================
 // COMPTABILITE — Scan boite mail (IMAP)
 // =============================================
-app.post('/api/mail/test', async (req, res) => {
+app.post('/api/mail/test', requireAuth(), async (req, res) => {
   const { email, password, provider } = req.body;
   if (!email || !password || !provider) {
     return res.status(400).json({ error: 'Email, mot de passe et provider requis' });
@@ -2037,8 +2089,9 @@ app.post('/api/mail/test', async (req, res) => {
   }
 });
 
-app.post('/api/mail/scan', async (req, res) => {
-  const { email, password, provider, userId, periode, mois, annee } = req.body;
+app.post('/api/mail/scan', requireAuth(), async (req, res) => {
+  const { email, password, provider, periode, mois, annee } = req.body;
+  const userId = req.user.id;
   if (!email || !password || !provider) {
     return res.status(400).json({ error: 'Email, mot de passe et provider requis' });
   }
@@ -2274,8 +2327,9 @@ app.post('/api/mail/scan', async (req, res) => {
   }
 });
 
-app.post('/api/mail/import', async (req, res) => {
-  const { factures, documents, userId } = req.body;
+app.post('/api/mail/import', requireAuth(), async (req, res) => {
+  const { factures, documents } = req.body;
+  const userId = req.user.id;
   const items = factures || documents || [];
   try {
     if (!items.length || !userId) return res.status(400).json({ error: 'factures et userId requis' });
@@ -2468,11 +2522,9 @@ JSON uniquement :
 // =============================================
 // COMPTABILITE — Liste documents
 // =============================================
-app.get('/api/factures', async (req, res) => {
+app.get('/api/factures', requireAuth(), async (req, res) => {
   try {
-    const userId = req.query.userId;
-    if (!userId) return res.status(400).json({ error: 'userId requis' });
-
+    const userId = req.user.id;
     const db = supabaseAdmin || supabase;
     const { data, error } = await db.from('documents_compta')
       .select('*').eq('user_id', userId).order('date_document', { ascending: false });
@@ -2489,9 +2541,10 @@ app.get('/api/factures', async (req, res) => {
 // =============================================
 // TVA CONFIG + COMPTA RECAP/EDIT/EXPORT
 // =============================================
-app.get('/api/tva/config/:userId', async (req, res) => {
+app.get('/api/tva/config/:userId', requireAuth(), async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Ignore param URL — on se fie uniquement au JWT
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { data, error } = await supabaseAdmin
       .from('user_tva_config')
@@ -2503,10 +2556,10 @@ app.get('/api/tva/config/:userId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/tva/config', async (req, res) => {
+app.post('/api/tva/config', requireAuth(), async (req, res) => {
   try {
-    const { userId, statut_tva, profession, ca_annuel_estime, seuil_franchise, numero_tva } = req.body || {};
-    if (!userId) return res.status(400).json({ error: 'userId requis' });
+    const { statut_tva, profession, ca_annuel_estime, seuil_franchise, numero_tva } = req.body || {};
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { error } = await supabaseAdmin
       .from('user_tva_config')
@@ -2524,9 +2577,9 @@ app.post('/api/tva/config', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/compta/recap/:userId', async (req, res) => {
+app.get('/api/compta/recap/:userId', requireAuth(), async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     const { annee } = req.query;
     const anneeVal = annee || new Date().getFullYear();
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
@@ -2614,10 +2667,10 @@ app.get('/api/compta/recap/:userId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/compta/document/:id/pdf', async (req, res) => {
+app.get('/api/compta/document/:id/pdf', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.query;
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { data: doc } = await supabaseAdmin
       .from('documents_compta')
@@ -2634,10 +2687,11 @@ app.get('/api/compta/document/:id/pdf', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/compta/document/:id/paiement', async (req, res) => {
+app.patch('/api/compta/document/:id/paiement', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { mode_paiement, userId } = req.body || {};
+    const { mode_paiement } = req.body || {};
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
@@ -2648,10 +2702,11 @@ app.patch('/api/compta/document/:id/paiement', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/compta/document/:id/mois', async (req, res) => {
+app.patch('/api/compta/document/:id/mois', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { mois, userId } = req.body || {};
+    const { mois } = req.body || {};
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
@@ -2662,10 +2717,11 @@ app.patch('/api/compta/document/:id/mois', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/compta/document/:id', async (req, res) => {
+app.patch('/api/compta/document/:id', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { tags, commentaire, userId } = req.body || {};
+    const { tags, commentaire } = req.body || {};
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
@@ -2676,10 +2732,10 @@ app.patch('/api/compta/document/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/compta/document/:id', async (req, res) => {
+app.delete('/api/compta/document/:id', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.query;
+    const userId = req.user.id;
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
@@ -2690,9 +2746,9 @@ app.delete('/api/compta/document/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/compta/export/:userId', async (req, res) => {
+app.get('/api/compta/export/:userId', requireAuth(), async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     const { annee } = req.query;
     const anneeVal = annee || new Date().getFullYear();
     if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });

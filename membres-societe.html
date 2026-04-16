@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Membres société</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
+  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
+  --accent:#c8f060;--accent-soft:rgba(200,240,96,0.1);
+  --red:#f05050;--green:#60d090;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--accent) 5%,transparent) 0%,transparent 55%);
+  transition:background-image 0.6s var(--trans);-webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+.topbar{padding:16px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(15,14,13,0.9);backdrop-filter:blur(12px);z-index:10;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.soc-title{display:flex;align-items:center;gap:10px;}
+.soc-title-ico{font-size:22px;}
+.soc-title-name{font-weight:700;font-size:15px;}
+.soc-title-sub{font-size:11px;color:var(--muted);}
+.back{color:var(--muted);font-size:13px;}
+.back:hover{color:var(--text);}
+
+.wrap{max-width:820px;margin:0 auto;padding:28px 24px 100px;}
+
+.invite-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:20px;
+}
+.invite-title{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:4px;}
+.invite-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.invite-row{display:grid;grid-template-columns:1fr 180px auto;gap:10px;align-items:end;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.field input,.field select{
+  width:100%;padding:11px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color 0.2s;
+}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.btn{padding:11px 20px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#0f0e0d;}
+.btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px color-mix(in srgb,var(--accent) 30%,transparent);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+
+.members-list{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:10px;}
+.member{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;transition:background 0.15s;}
+.member:hover{background:var(--surface2);}
+.m-avatar{
+  width:38px;height:38px;border-radius:50%;background:var(--accent);color:#0f0e0d;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;font-family:var(--display);flex-shrink:0;
+}
+.m-info{flex:1;min-width:0;}
+.m-email{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.m-since{font-size:11px;color:var(--muted);margin-top:2px;}
+.m-role-select{
+  padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-size:12px;font-family:var(--font);outline:none;
+}
+.m-role-select:focus{border-color:var(--accent);}
+.m-remove{background:transparent;color:#f08080;border:none;font-size:16px;padding:6px 10px;border-radius:8px;cursor:pointer;}
+.m-remove:hover{background:rgba(240,80,80,0.1);}
+.m-badge-owner{padding:3px 9px;background:var(--accent-soft);color:var(--accent);border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+
+.roles-help{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-top:20px;font-size:12px;color:var(--muted);line-height:1.7;}
+.roles-help strong{color:var(--text);font-weight:600;}
+
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;
+  font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;}
+
+.hide{display:none !important;}
+@media(max-width:640px){
+  .invite-row{grid-template-columns:1fr;}
+  .topbar{padding:14px 16px;}
+  .wrap{padding:18px 14px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:18px;">
+    <div class="logo">JADOMI</div>
+    <div class="soc-title">
+      <span class="soc-title-ico" id="bar-ico">🏢</span>
+      <div>
+        <div class="soc-title-name" id="bar-name">Chargement…</div>
+        <div class="soc-title-sub" id="bar-sub">Membres et accès</div>
+      </div>
+    </div>
+  </div>
+  <a href="organisation.html" class="back">← Retour</a>
+</div>
+
+<div class="wrap">
+  <!-- Invitation -->
+  <div class="invite-card" id="invite-card">
+    <div class="invite-title">Inviter un nouveau membre</div>
+    <div class="invite-sub">L'utilisateur recevra un email d'invitation pour rejoindre cette société.</div>
+    <div class="invite-row">
+      <div class="field"><label>Email</label><input id="inv-email" type="email" placeholder="collaborateur@email.com"></div>
+      <div class="field">
+        <label>Rôle</label>
+        <select id="inv-role">
+          <option value="associe">Associé</option>
+          <option value="comptable">Comptable</option>
+          <option value="employe">Employé</option>
+          <option value="lecteur">Lecteur</option>
+        </select>
+      </div>
+      <div><button class="btn btn-primary" id="btn-invite">Inviter</button></div>
+    </div>
+  </div>
+
+  <!-- Liste membres -->
+  <div class="loader" id="loader"><div class="spinner"></div>Chargement des membres…</div>
+  <div class="members-list hide" id="list"></div>
+
+  <div class="roles-help">
+    <div style="margin-bottom:8px;"><strong>Rôles disponibles</strong></div>
+    🔑 <strong>Propriétaire</strong> — accès total, peut inviter/révoquer, modifier tous les paramètres, supprimer la société<br>
+    🤝 <strong>Associé</strong> — accès complet sauf paramètres société et facturation Stripe<br>
+    📊 <strong>Comptable</strong> — accès factures, devis, exports comptables uniquement<br>
+    👷 <strong>Employé</strong> — accès stock uniquement<br>
+    👁️ <strong>Lecteur</strong> — consultation uniquement, aucune modification
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TYPE_META = {
+  cabinet_dentaire:{ico:'🦷',accent:'#c8f060'}, sci:{ico:'🏠',accent:'#60a8f0'},
+  societe_commerciale:{ico:'🏢',accent:'#f0a030'},
+  sas:{ico:'🏢',accent:'#f0a030'},sarl:{ico:'🏢',accent:'#f0a030'},eurl:{ico:'🏢',accent:'#f0a030'},
+  sa:{ico:'🏢',accent:'#f0a030'},snc:{ico:'🏢',accent:'#f0a030'},
+  ei:{ico:'👤',accent:'#60f0d0'},auto_entrepreneur:{ico:'📊',accent:'#60f0d0'},
+  profession_liberale:{ico:'👔',accent:'#f060a0'},
+  association:{ico:'🤝',accent:'#a060f0'},autre:{ico:'🏷️',accent:'#8f8a82'}
+};
+const ROLE_LABELS = {proprietaire:'Propriétaire',associe:'Associé',comptable:'Comptable',employe:'Employé',lecteur:'Lecteur'};
+
+let token=null, session=null, societeId=null, societe=null, membres=[], myRole=null, myUid=null;
+
+function $(id){return document.getElementById(id);}
+function toast(msg,kind){ const t=$('toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=>t.className='toast '+(kind||''),3000); }
+function setAccent(c){
+  document.documentElement.style.setProperty('--accent',c);
+  document.documentElement.style.setProperty('--accent-soft',`color-mix(in srgb, ${c} 10%, transparent)`);
+}
+function api(path, opts={}){
+  return fetch(path,{ ...opts, headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{}) } }).then(r=>r.json());
+}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session){ return location.href='login.html?next='+encodeURIComponent('membres-societe.html'+location.search); }
+  session = data.session; token = session.access_token; myUid = session.user.id;
+
+  societeId = new URLSearchParams(location.search).get('id') || localStorage.getItem('societe_active_id');
+  if(!societeId){ toast('Aucune société sélectionnée',true); setTimeout(()=>location.href='organisation.html',1000); return; }
+
+  const s = await api('/api/societes/'+societeId);
+  if(!s.success){ toast('Erreur : '+(s.error||''),true); return; }
+  societe = s.societe; myRole = societe.role;
+  const meta = TYPE_META[societe.type] || TYPE_META.autre;
+  setAccent(societe.couleur_accent || meta.accent);
+  $('bar-ico').textContent = societe.icone || meta.ico;
+  $('bar-name').textContent = societe.nom;
+  $('bar-sub').textContent = `Membres — rôle courant : ${ROLE_LABELS[myRole]||myRole||''}`;
+
+  // seul propriétaire peut inviter/changer/révoquer
+  if(myRole !== 'proprietaire'){
+    $('invite-card').classList.add('hide');
+  }
+
+  await loadMembres();
+})();
+
+async function loadMembres(){
+  $('loader').classList.remove('hide'); $('list').classList.add('hide');
+  const r = await api('/api/societes/'+societeId+'/membres');
+  if(!r.success){ toast('Erreur chargement membres : '+(r.error||''),true); return; }
+  membres = r.membres || [];
+  $('loader').classList.add('hide'); $('list').classList.remove('hide');
+  renderMembres();
+}
+
+function renderMembres(){
+  const list = $('list'); list.innerHTML = '';
+  if(membres.length===0){ list.innerHTML = '<div class="empty">Aucun membre.</div>'; return; }
+  // proprietaire en premier
+  membres.sort((a,b)=> (a.role==='proprietaire'?-1:1) - (b.role==='proprietaire'?-1:1));
+
+  membres.forEach(m=>{
+    const ownerId = societe.owner_id || null;
+    const isOwner = (m.role === 'proprietaire') || (m.user_id === ownerId);
+    const canEdit = (myRole === 'proprietaire') && !isOwner && (m.user_id !== myUid);
+    const ini = (m.email||'?').slice(0,2).toUpperCase();
+    const since = m.created_at ? new Date(m.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '';
+
+    const row = document.createElement('div');
+    row.className = 'member'; row.dataset.uid = m.user_id;
+    row.innerHTML = `
+      <div class="m-avatar">${esc(ini)}</div>
+      <div class="m-info">
+        <div class="m-email">${esc(m.email||m.user_id)}</div>
+        <div class="m-since">Membre depuis ${esc(since)}</div>
+      </div>
+      ${isOwner
+        ? `<div class="m-badge-owner">Propriétaire</div>`
+        : `<select class="m-role-select" data-uid="${m.user_id}" ${canEdit?'':'disabled'}>
+             ${['associe','comptable','employe','lecteur'].map(r=>`<option value="${r}" ${m.role===r?'selected':''}>${ROLE_LABELS[r]}</option>`).join('')}
+           </select>
+           ${canEdit ? `<button class="m-remove" data-uid="${m.user_id}" title="Retirer">✕</button>` : ''}`
+      }
+    `;
+    list.appendChild(row);
+  });
+  // bind
+  list.querySelectorAll('.m-role-select').forEach(sel=>{
+    sel.addEventListener('change', async ()=>{
+      const uid = sel.dataset.uid; const role = sel.value;
+      if(!confirm(`Changer le rôle en "${ROLE_LABELS[role]}" ?`)){ sel.value = membres.find(x=>x.user_id===uid)?.role; return; }
+      // PATCH via invite (re-upsert same user_id with new role)
+      try{
+        const m = membres.find(x=>x.user_id===uid);
+        const r = await api(`/api/societes/${societeId}/invite`,{ method:'POST', body:JSON.stringify({ email:m.email, role }) });
+        if(!r.success) throw new Error(r.error||'role_change_failed');
+        toast('Rôle mis à jour','ok');
+        await loadMembres();
+      }catch(e){ toast(e.message,true); sel.value = membres.find(x=>x.user_id===uid)?.role; }
+    });
+  });
+  list.querySelectorAll('.m-remove').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const uid = btn.dataset.uid;
+      const m = membres.find(x=>x.user_id===uid);
+      if(!confirm(`Retirer ${m.email||uid} de cette société ?`)) return;
+      try{
+        const r = await api(`/api/societes/${societeId}/membres/${uid}`,{ method:'DELETE' });
+        if(!r.success) throw new Error(r.error||'remove_failed');
+        toast('Membre retiré','ok');
+        await loadMembres();
+      }catch(e){ toast(e.message,true); }
+    };
+  });
+}
+
+// Invite
+$('btn-invite').onclick = async ()=>{
+  const email = $('inv-email').value.trim();
+  const role = $('inv-role').value;
+  if(!email){ toast('Email requis',true); return; }
+  const btn = $('btn-invite'); btn.disabled=true; btn.textContent='Envoi…';
+  try{
+    const r = await api(`/api/societes/${societeId}/invite`,{ method:'POST', body:JSON.stringify({ email, role }) });
+    if(!r.success) throw new Error(r.error||'invite_failed');
+    toast('Invitation envoyée','ok');
+    $('inv-email').value='';
+    await loadMembres();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Inviter'; }
+};
+</script>
+</body>
+</html>

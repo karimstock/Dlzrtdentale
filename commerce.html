@@ -1,0 +1,2558 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Commerce</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
+  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
+  --accent:#f0a030;--accent-soft:rgba(240,160,48,0.12);
+  --red:#f05050;--green:#60d090;--blue:#60a8f0;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(240,160,48,0.06) 0%,transparent 55%);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,14,13,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.tabs{display:flex;gap:2px;padding:14px 24px 0;border-bottom:1px solid var(--border);overflow-x:auto;}
+.tab{padding:12px 18px;background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;border-radius:10px 10px 0 0;transition:all 0.15s;white-space:nowrap;position:relative;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);background:var(--accent-soft);}
+.tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent);}
+
+.main{padding:28px 24px 120px;max-width:1280px;margin:0 auto;}
+.panel{display:none;}.panel.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;}
+.stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-val{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-1px;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.stat.accent{border-color:var(--accent);}.stat.accent .stat-val{color:var(--accent);}
+.stat.ok .stat-val{color:var(--green);}
+.stat.warn .stat-val{color:#f08080;}
+.stat.info .stat-val{color:var(--blue);}
+
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.search{flex:1;min-width:180px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.search:focus{border-color:var(--accent);}
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#1a1000;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(240,160,48,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn-danger{color:#f08080;background:transparent;border:1px solid rgba(240,80,80,0.25);}
+.btn-danger:hover{background:rgba(240,80,80,0.08);}
+
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:var(--surface2);}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface2);}
+.tbl .num{font-variant-numeric:tabular-nums;font-family:var(--display);font-weight:700;color:var(--accent);}
+.tbl .actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.chip.brouillon{background:rgba(143,138,130,0.15);color:var(--muted);}
+.chip.envoye,.chip.envoyee{background:rgba(96,168,240,0.15);color:var(--blue);}
+.chip.accepte{background:rgba(96,208,144,0.15);color:var(--green);}
+.chip.refuse{background:rgba(240,80,80,0.15);color:#f08080;}
+.chip.payee{background:rgba(96,208,144,0.15);color:var(--green);}
+.chip.partielle{background:rgba(240,160,48,0.15);color:var(--accent);}
+.chip.retard{background:rgba(240,80,80,0.15);color:#f08080;}
+.chip.annulee{background:rgba(240,80,80,0.12);color:#f08080;text-decoration:line-through;}
+.chip.avoir{background:rgba(160,96,240,0.15);color:#b088f0;}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;overflow-y:auto;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:26px;max-width:720px;width:100%;max-height:92vh;overflow-y:auto;}
+.modal.wide{max-width:900px;}
+.modal-title{font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:16px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color 0.2s;}
+.field textarea{min-height:80px;resize:vertical;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+
+/* Doc editor (devis/facture) */
+.lignes-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:8px;}
+.ligne{display:grid;grid-template-columns:2.5fr 0.7fr 0.9fr 0.7fr 0.9fr auto;gap:8px;padding:10px;align-items:center;border-bottom:1px solid var(--border);}
+.ligne:last-child{border-bottom:none;}
+.ligne input,.ligne select{padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100%;}
+.ligne input:focus,.ligne select:focus{border-color:var(--accent);}
+.ligne .num{font-family:var(--display);color:var(--accent);font-weight:700;font-size:12px;text-align:right;}
+.ligne .del{padding:6px 9px;background:transparent;border:1px solid var(--border);border-radius:7px;color:#f08080;cursor:pointer;font-size:12px;}
+.ligne .del:hover{background:rgba(240,80,80,0.08);}
+.add-ligne{width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-weight:600;cursor:pointer;margin-top:8px;font-size:12px;}
+.add-ligne:hover{border-color:var(--accent);color:var(--accent);}
+.totaux{display:flex;justify-content:flex-end;margin-top:14px;}
+.totaux-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;min-width:260px;}
+.totaux-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;}
+.totaux-row:last-child{border-top:1px solid var(--border);margin-top:6px;padding-top:10px;font-family:var(--display);font-weight:800;font-size:16px;color:var(--accent);}
+
+.empty{padding:50px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.35);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.tag-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--muted);}
+.thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;background:var(--surface2);}
+
+.hide{display:none !important;}
+
+@media(max-width:760px){
+  .form-grid{grid-template-columns:1fr;}
+  .ligne{grid-template-columns:2fr 0.6fr 0.8fr 0.6fr 0.8fr auto;}
+}
+@media(max-width:640px){
+  .tbl{font-size:12px;}
+  .tbl th,.tbl td{padding:8px 9px;}
+  .main{padding:18px 14px 80px;}
+  .crumb-sep,.crumb-module{display:none;}
+  .ligne{grid-template-columns:1fr;}
+  .ligne .num{text-align:left;}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico" id="crumb-ico">🏢</span>
+      <span class="crumb-name" id="crumb-name">—</span>
+      <span class="crumb-sep">·</span>
+      <span class="crumb-module">Commerce</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="settings-societe.html" id="link-settings">⚙️ Paramètres</a>
+    <a class="nav-btn" href="organisation.html">← Retour</a>
+  </div>
+</nav>
+
+<div class="tabs">
+  <button class="tab active" data-panel="dashboard">🏠 Accueil</button>
+  <button class="tab" data-panel="catalogue">📦 Catalogue</button>
+  <button class="tab" data-panel="stock">📦 Stock<span class="tab-badge" id="stock-badge" style="display:none;margin-left:6px;padding:1px 6px;border-radius:10px;background:#f05050;color:#fff;font-size:10px;">0</span></button>
+  <button class="tab" data-panel="analytics">📊 Analytics</button>
+  <button class="tab" data-panel="clients">👥 Clients</button>
+  <button class="tab" data-panel="devis">📋 Devis</button>
+  <button class="tab" data-panel="factures">📄 Factures</button>
+  <button class="tab" data-panel="avoirs">↩️ Avoirs</button>
+  <button class="tab" data-panel="retours">🔄 Retours</button>
+  <button class="tab" data-panel="reclamations">📣 Réclamations</button>
+  <button class="tab" data-panel="market">🛒 Market</button>
+  <button class="tab" data-panel="fournisseurs">📥 Fournisseurs</button>
+  <button class="tab" data-panel="veille">📈 Veille marché</button>
+</div>
+
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="panel active" data-panel="dashboard">
+    <div class="stats" id="stats-grid">
+      <div class="loader" style="grid-column:1/-1;"><div class="spinner"></div>Chargement…</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Alertes</div>
+      <div class="card-sub">Factures en retard, produits en rupture…</div>
+      <div id="alertes"></div>
+    </div>
+  </div>
+
+  <!-- CATALOGUE -->
+  <div class="panel" data-panel="catalogue">
+    <div class="toolbar">
+      <input class="search" id="search-prod" placeholder="Rechercher (nom, référence, code-barre…)">
+      <button class="btn btn-ghost btn-sm" onclick="openImportCsvModal('produit')">📥 Import CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="openWordPressModal()">🔗 WordPress</button>
+      <button class="btn btn-primary" onclick="openProduitModal()">+ Produit / Prestation</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="prod-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- STOCK -->
+  <div class="panel" data-panel="stock">
+    <div class="stats" id="stock-stats">
+      <div class="loader" style="grid-column:1/-1;"><div class="spinner"></div>Chargement stock…</div>
+    </div>
+    <div class="card">
+      <div class="card-title">À réapprovisionner</div>
+      <div class="card-sub">Produits en rupture ou stock faible — action prioritaire.</div>
+      <div id="stock-alertes-wrap"></div>
+    </div>
+    <div class="toolbar">
+      <input class="search" id="search-stock" placeholder="Rechercher un produit…">
+      <select class="filter-select" id="filter-stock-statut" style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;">
+        <option value="">Tous statuts</option>
+        <option value="rupture">🔴 Rupture</option>
+        <option value="faible">⚠️ Faible</option>
+        <option value="ok">✅ OK</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="stock-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="panel" data-panel="analytics">
+    <div class="stats" id="analytics-stats">
+      <div class="loader" style="grid-column:1/-1;"><div class="spinner"></div>Chargement analytics…</div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div class="card-title">Top produits</div>
+          <div class="card-sub">Classement par volume, CA ou marge — période au choix.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <select id="top-range" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;">
+            <option value="1m">1 mois</option>
+            <option value="3m" selected>3 mois</option>
+            <option value="6m">6 mois</option>
+            <option value="12m">12 mois</option>
+          </select>
+          <select id="top-tri" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;">
+            <option value="ca">CA</option>
+            <option value="volume">Volume</option>
+            <option value="marge">Marge</option>
+          </select>
+        </div>
+      </div>
+      <div id="top-wrap" style="margin-top:14px;"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎯 Simulateur promo</div>
+      <div class="card-sub">"Puis-je me permettre de faire une promo ?" Calculez l'impact d'une remise sur la marge.</div>
+      <div id="promo-notice" style="display:none;background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.3);padding:10px 12px;border-radius:10px;font-size:12px;color:#f08080;margin-bottom:12px;"></div>
+      <div class="form-grid">
+        <div class="field"><label>Produit</label><select id="promo-produit"><option value="">— Choisir —</option></select></div>
+        <div class="field"><label>Remise (%)</label><input id="promo-remise" type="number" min="0" max="100" value="10"></div>
+      </div>
+      <div id="promo-result" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⏱ Prévision rupture stock</div>
+      <div class="card-sub">Basé sur la vélocité des 30 derniers jours.</div>
+      <div id="previsions-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💸 Pertes & Réclamations</div>
+      <div class="card-sub">Récap mensuel. Pertes = montants non récupérés (perte sèche).</div>
+      <div id="pertes-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="panel" data-panel="clients">
+    <div class="toolbar">
+      <input class="search" id="search-cli" placeholder="Rechercher un client…">
+      <button class="btn btn-ghost btn-sm" onclick="openImportCsvModal('client')">📥 Import CSV</button>
+      <button class="btn btn-primary" onclick="openClientModal()">+ Client</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="cli-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- DEVIS -->
+  <div class="panel" data-panel="devis">
+    <div class="toolbar">
+      <input class="search" id="search-dev" placeholder="Rechercher un devis…">
+      <button class="btn btn-primary" onclick="openDocModal('devis')">+ Nouveau devis</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="dev-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- FACTURES -->
+  <div class="panel" data-panel="factures">
+    <div class="toolbar">
+      <input class="search" id="search-fac" placeholder="Rechercher une facture…">
+      <button class="btn btn-primary" onclick="openDocModal('facture')">+ Nouvelle facture</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="fac-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- AVOIRS -->
+  <div class="panel" data-panel="avoirs">
+    <div class="toolbar">
+      <input class="search" id="search-avoir" placeholder="Rechercher un avoir…">
+      <div style="font-size:11px;color:var(--muted);margin-left:auto;">Les avoirs sont émis depuis une facture envoyée (bouton "↩️ Émettre un avoir")</div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="avoir-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- RETOURS -->
+  <div class="panel" data-panel="retours">
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn btn-ghost btn-sm" id="ret-tab-client" onclick="setRetourSens('client')" style="color:var(--accent);border-color:var(--accent);">Mes demandes de retour</button>
+      <button class="btn btn-ghost btn-sm" id="ret-tab-fourn" onclick="setRetourSens('fournisseur')">Retours à traiter (fournisseur)</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="retours-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- RÉCLAMATIONS -->
+  <div class="panel" data-panel="reclamations">
+    <div class="toolbar">
+      <input class="search" id="search-rec" placeholder="Rechercher une réclamation…">
+      <select class="filter-select" id="filter-rec-statut" style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;">
+        <option value="">Tous statuts</option>
+        <option value="ouverte">Ouvertes</option>
+        <option value="en_cours">En cours</option>
+        <option value="remboursee">Remboursées</option>
+        <option value="avoir_recu">Avoir reçu</option>
+        <option value="perte_seche">Pertes sèches</option>
+        <option value="refusee">Refusées</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="rec-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- MARKET -->
+  <div class="panel" data-panel="market">
+    <div class="toolbar">
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="market-tab-all" onclick="setMarketView('all')" style="color:var(--accent);border-color:var(--accent);">🛒 Toutes les annonces</button>
+        <button class="btn btn-ghost btn-sm" id="market-tab-mine" onclick="setMarketView('mine')">📦 Mes annonces</button>
+      </div>
+      <div style="flex:1;"></div>
+      <button class="btn btn-primary" onclick="openMarketModal()">+ Mettre en vente</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="market-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- FOURNISSEURS -->
+  <div class="panel" data-panel="fournisseurs">
+    <div class="card">
+      <div class="card-title">Factures fournisseurs importées</div>
+      <div class="card-sub">Scannées automatiquement depuis vos emails — disponibles dans Paramètres JADOMI IA.</div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="fourn-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- VEILLE MARCHÉ -->
+  <div class="panel" data-panel="veille">
+    <div class="card">
+      <div class="card-title">📊 Veille concurrentielle</div>
+      <div class="card-sub">Votre position sur chaque produit face au marché. Concurrents anonymisés.</div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="veille-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+</main>
+
+<!-- MODAL DÉTAIL VEILLE -->
+<div class="modal-bg" id="modal-veille" style="display:none;">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-title" id="veille-modal-title">Détail produit</div>
+    <div id="veille-modal-body" style="max-height:60vh;overflow:auto;"></div>
+    <div style="text-align:right;margin-top:12px;">
+      <button class="btn btn-ghost" onclick="closeVeilleModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRODUIT -->
+<div class="modal-bg" id="modal-prod">
+  <div class="modal">
+    <div class="modal-title" id="prod-modal-title">Nouveau produit</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Type</label>
+        <select id="p-type">
+          <option value="produit">Produit</option>
+          <option value="prestation">Prestation / Service</option>
+          <option value="abonnement">Abonnement</option>
+        </select>
+      </div>
+      <div class="field"><label>Référence / SKU</label><input id="p-reference"></div>
+      <div class="field full"><label>Désignation *</label><input id="p-designation"></div>
+      <div class="field full"><label>Description</label><textarea id="p-description"></textarea></div>
+      <div class="field"><label>Prix HT (€)</label><input id="p-prix_ht" type="number" step="0.01"></div>
+      <div class="field"><label>Taux TVA (%)</label><input id="p-taux_tva" type="number" step="0.1" value="20"></div>
+      <div class="field"><label>Unité</label><input id="p-unite" value="unité"></div>
+      <div class="field"><label>Code-barre / EAN</label><input id="p-code_barre"></div>
+      <div class="field"><label>Stock actuel</label><input id="p-stock_actuel" type="number"></div>
+      <div class="field"><label>Seuil d'alerte</label><input id="p-stock_alerte" type="number"></div>
+      <div class="field full"><label>URL image</label><input id="p-image_url"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-prod')">Annuler</button>
+      <button class="btn btn-primary" id="prod-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENT -->
+<div class="modal-bg" id="modal-cli">
+  <div class="modal">
+    <div class="modal-title" id="cli-modal-title">Nouveau client</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Type</label>
+        <select id="c-type">
+          <option value="professionnel">Professionnel</option>
+          <option value="particulier">Particulier</option>
+          <option value="association">Association</option>
+        </select>
+      </div>
+      <div class="field"><label>SIREN</label><input id="c-siren"></div>
+      <div class="field full"><label>Raison sociale</label><input id="c-raison_sociale"></div>
+      <div class="field"><label>Prénom</label><input id="c-prenom"></div>
+      <div class="field"><label>Nom</label><input id="c-nom"></div>
+      <div class="field"><label>Email</label><input id="c-email" type="email"></div>
+      <div class="field"><label>Téléphone</label><input id="c-telephone"></div>
+      <div class="field full"><label>Adresse</label><input id="c-adresse"></div>
+      <div class="field"><label>CP</label><input id="c-code_postal"></div>
+      <div class="field"><label>Ville</label><input id="c-ville"></div>
+      <div class="field"><label>TVA intracom</label><input id="c-tva_intracom"></div>
+      <div class="field"><label>Pays</label><input id="c-pays" value="France"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-cli')">Annuler</button>
+      <button class="btn btn-primary" id="cli-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DOC (devis/facture) -->
+<div class="modal-bg" id="modal-doc">
+  <div class="modal wide">
+    <div class="modal-title" id="doc-modal-title">Nouveau devis</div>
+    <div class="form-grid">
+      <div class="field full"><label>Client</label>
+        <select id="d-client_id"></select>
+      </div>
+      <div class="field"><label>Date émission</label><input id="d-date_emission" type="date"></div>
+      <div class="field"><label id="d-date_label">Validité</label><input id="d-date_validite" type="date"></div>
+      <div class="field" id="f-echeances-wrap" style="display:none;">
+        <label>Nombre d'échéances</label>
+        <select id="d-nb_echeances"><option value="1">Paiement unique</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option></select>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <label style="display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Lignes</label>
+      <div class="lignes-wrap">
+        <div class="ligne" style="background:var(--surface2);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);">
+          <div>Désignation</div>
+          <div style="text-align:center;">Quantité</div>
+          <div style="text-align:center;">Prix unitaire HT</div>
+          <div style="text-align:center;">TVA (%)</div>
+          <div style="text-align:right;">Total TTC</div>
+          <div></div>
+        </div>
+        <div id="lignes-grid"></div>
+      </div>
+      <button class="add-ligne" onclick="addLigne()">+ Ajouter une ligne</button>
+    </div>
+
+    <div class="totaux">
+      <div class="totaux-box">
+        <div class="totaux-row"><span>Sous-total HT</span><span id="tot-ht">0,00 €</span></div>
+        <div class="totaux-row"><span>Total TVA (20%)</span><span id="tot-tva">0,00 €</span></div>
+        <div class="totaux-row"><span>Total TTC</span><span id="tot-ttc" style="font-size:18px;">0,00 €</span></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <div class="field full"><label>Notes</label><textarea id="d-notes"></textarea></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-doc')">Annuler</button>
+      <button class="btn btn-primary" id="doc-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORT CSV -->
+<div class="modal-bg" id="modal-csv">
+  <div class="modal">
+    <div class="modal-title" id="csv-modal-title">Import CSV</div>
+    <div class="card-sub" id="csv-hint">Fichier CSV avec en-têtes. Colonnes reconnues : reference, designation, prix_ht, taux_tva, unite, stock_actuel, stock_alerte, code_barre.</div>
+    <input type="file" id="csv-file" accept=".csv,text/csv" style="margin-top:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);width:100%;">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-csv')">Annuler</button>
+      <button class="btn btn-primary" id="csv-run">Importer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RETOUR CLIENT -->
+<div class="modal-bg" id="modal-retour">
+  <div class="modal wide">
+    <div class="modal-title">🔄 Déclarer un retour client</div>
+    <div class="card-sub">Le fournisseur sera notifié (si sur JADOMI) ou recevra un email automatique.</div>
+
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="field full"><label>Facture d'origine</label><input id="ret-facture-label" disabled></div>
+      <div class="field full">
+        <label>Produit retourné</label>
+        <select id="ret-produit"></select>
+      </div>
+      <div class="field"><label>Quantité retournée</label><input id="ret-qte" type="number" min="1" value="1"></div>
+      <div class="field"><label>Montant (€)</label><input id="ret-montant" type="number" step="0.01"></div>
+
+      <div class="field full">
+        <label>Raison du retour *</label>
+        <select id="ret-raison">
+          <option value="defectueux">Produit défectueux</option>
+          <option value="erreur_commande">Erreur de commande</option>
+          <option value="non_conforme">Produit non conforme</option>
+          <option value="non_deballe">Produit non déballé</option>
+          <option value="autre">Autre (note obligatoire)</option>
+        </select>
+      </div>
+
+      <div class="field full" style="background:var(--surface2);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:8px;">État du produit</div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-weight:400;text-transform:none;font-size:13px;color:var(--text);letter-spacing:0;">
+          <input type="checkbox" id="ret-deballe" style="width:auto;"> Produit déballé
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-weight:400;text-transform:none;font-size:13px;color:var(--text);letter-spacing:0;">
+          <input type="checkbox" id="ret-utilise" style="width:auto;"> Produit utilisé
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;text-transform:none;font-size:13px;color:var(--text);letter-spacing:0;">
+          <input type="checkbox" id="ret-emb-intact" checked style="width:auto;"> Emballage original intact
+        </label>
+      </div>
+
+      <div class="field full"><label>Note (obligatoire si raison = autre)</label><textarea id="ret-note"></textarea></div>
+    </div>
+
+    <div id="ret-rentabilite" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.3);color:#f0a030;font-size:12px;">
+      ⚠️ <b>Rentabilité :</b> <span id="ret-rent-msg"></span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-retour')">Annuler</button>
+      <button class="btn btn-primary" id="ret-save">Déclarer le retour</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EMAIL IA (réclamation) -->
+<div class="modal-bg" id="modal-rec-email">
+  <div class="modal">
+    <div class="modal-title">📧 Email fournisseur — JADOMI IA</div>
+    <div class="card-sub">Email généré automatiquement. Relisez-le, modifiez si besoin, puis envoyez.</div>
+    <div class="field" style="margin-top:14px;">
+      <label>Destinataire</label>
+      <input id="rec-email-to" type="email">
+    </div>
+    <div class="field">
+      <label>Email généré</label>
+      <textarea id="rec-email-body" style="min-height:240px;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-rec-email')">Fermer</button>
+      <button class="btn btn-ghost" id="rec-email-regen">🔁 Regénérer</button>
+      <button class="btn btn-primary" id="rec-email-send">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MARKET — Mise en vente -->
+<div class="modal-bg" id="modal-market">
+  <div class="modal wide">
+    <div class="modal-title">🛒 Mettre en vente sur JADOMI Market</div>
+    <div class="card-sub">Uniquement pour professionnels JADOMI. Minimum 20€. Commission JADOMI 8% déduite du prix.</div>
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="field full"><label>Désignation *</label><input id="mk-designation"></div>
+      <div class="field"><label>Référence / EAN</label><input id="mk-reference"></div>
+      <div class="field">
+        <label>État *</label>
+        <select id="mk-etat">
+          <option value="non_deballe">📦 Neuf (non déballé)</option>
+          <option value="deballe_non_utilise">📤 Déballé mais non utilisé</option>
+          <option value="utilise_bon_etat">✨ Utilisé, bon état</option>
+          <option value="defectueux_pieces">🔧 Défectueux — pièces</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantité</label><input id="mk-quantite" type="number" min="1" value="1"></div>
+      <div class="field">
+        <label>Catégorie</label>
+        <select id="mk-categorie">
+          <option value="sante">Santé</option>
+          <option value="btp">BTP</option>
+          <option value="esthetique">Esthétique</option>
+          <option value="restauration">Restauration</option>
+          <option value="juridique">Juridique</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="field"><label>Prix neuf indicatif (€)</label><input id="mk-neuf" type="number" step="0.01"></div>
+      <div class="field"><label>Prix de vente (€) *</label><input id="mk-prix" type="number" step="0.01" min="20"><div class="hint">Recommandé : 60-70% du prix neuf</div></div>
+      <div class="field"><label>Transport estimé (€)</label><input id="mk-transport" type="number" step="0.01" value="8"></div>
+      <div class="field full"><label>Description</label><textarea id="mk-description" placeholder="État, motif de vente, compatibilité…"></textarea></div>
+      <div class="field full"><label>URLs des photos (1 par ligne, min 1)</label><textarea id="mk-photos" placeholder="https://..."></textarea></div>
+    </div>
+    <div style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:10px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">💰 Simulation nette vendeur</div>
+      <div id="mk-simu" style="font-size:13px;color:var(--text);">Renseigne un prix pour voir le calcul.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-market')">Annuler</button>
+      <button class="btn btn-primary" id="market-save">Publier</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STOCK (ajustement + prix achat) -->
+<div class="modal-bg" id="modal-stock">
+  <div class="modal">
+    <div class="modal-title" id="stock-modal-title">Ajuster le stock</div>
+    <div id="stock-modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>Produit</label><input id="ms-prod-label" disabled></div>
+        <div class="field"><label>Stock actuel</label><input id="ms-stock-actuel" disabled></div>
+        <div class="field"><label>Type de mouvement</label>
+          <select id="ms-type">
+            <option value="entree">📥 Entrée (+)</option>
+            <option value="sortie">📤 Sortie (-)</option>
+            <option value="ajustement">🔧 Ajustement (inventaire)</option>
+            <option value="retour">↩️ Retour client (+)</option>
+          </select>
+        </div>
+        <div class="field"><label>Quantité</label><input id="ms-qte" type="number" min="0" value="1"><div class="hint">Valeur positive. Le type gère le signe.</div></div>
+        <div class="field full"><label>Référence document (optionnel)</label><input id="ms-ref" placeholder="Ex : Bon de commande 123"></div>
+        <div class="field full"><label>Note</label><textarea id="ms-note"></textarea></div>
+
+        <div class="field full" id="ms-prix-achat-wrap" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+          <label>Prix d'achat HT (confidentiel)</label>
+          <input id="ms-prix-achat" type="number" step="0.01" placeholder="Ex : 5,00">
+          <div class="hint">Visible uniquement par propriétaire/associé. Sert au calcul de marge.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-stock')">Annuler</button>
+      <button class="btn btn-ghost" id="stock-save-prix" style="display:none;">Enregistrer prix achat</button>
+      <button class="btn btn-primary" id="stock-save">Enregistrer mouvement</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVOIR -->
+<div class="modal-bg" id="modal-avoir">
+  <div class="modal wide">
+    <div class="modal-title">Émettre un avoir</div>
+    <div class="card-sub" id="avoir-hint">Une facture émise ne peut pas être modifiée — l'avoir est la correction comptable officielle. Le numéro sera attribué automatiquement (AVOIR-AAAA-NNN).</div>
+    <div class="form-grid" style="margin-top:12px;">
+      <div class="field full"><label>Facture d'origine</label><input id="av-facture-display" disabled></div>
+      <div class="field">
+        <label>Type d'avoir</label>
+        <select id="av-type">
+          <option value="total">Annulation totale</option>
+          <option value="partiel">Annulation partielle</option>
+        </select>
+      </div>
+      <div class="field"><label>Date d'émission</label><input id="av-date" type="date"></div>
+      <div class="field full"><label>Motif (apparaît sur le PDF)</label><textarea id="av-motif" placeholder="Ex : erreur de facturation, remise commerciale, retour produit…"></textarea></div>
+    </div>
+    <div style="margin-top:16px;">
+      <label style="display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Lignes à créditer</label>
+      <div class="lignes-wrap">
+        <div class="ligne" style="background:var(--surface2);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);">
+          <div>Désignation</div>
+          <div style="text-align:center;">Quantité</div>
+          <div style="text-align:center;">Prix unitaire HT</div>
+          <div style="text-align:center;">TVA (%)</div>
+          <div style="text-align:right;">Total TTC</div>
+          <div></div>
+        </div>
+        <div id="av-lignes-grid"></div>
+      </div>
+    </div>
+    <div class="totaux">
+      <div class="totaux-box">
+        <div class="totaux-row"><span>Sous-total HT</span><span id="av-tot-ht">0,00 €</span></div>
+        <div class="totaux-row"><span>Total TVA</span><span id="av-tot-tva">0,00 €</span></div>
+        <div class="totaux-row"><span>Total TTC (créditer)</span><span id="av-tot-ttc" style="font-size:18px;">0,00 €</span></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-avoir')">Annuler</button>
+      <button class="btn btn-primary" id="avoir-save">Émettre l'avoir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL WordPress -->
+<div class="modal-bg" id="modal-wp">
+  <div class="modal">
+    <div class="modal-title">Import produits WordPress</div>
+    <div class="card-sub">Renseignez l'URL de votre site. JADOMI tentera d'abord l'API REST publique (WP v2), puis WooCommerce si besoin.</div>
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="field full"><label>URL du site</label><input id="wp-url" placeholder="https://votresite.com"></div>
+      <div class="field full">
+        <label><input type="checkbox" id="wp-enrich" style="width:auto;margin-right:6px;"> Enrichir les descriptions avec JADOMI IA</label>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Génère automatiquement une description commerciale courte pour les produits sans description.</div>
+      </div>
+      <div class="field full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <label style="color:var(--muted);">Mode WooCommerce avancé (optionnel — pour stock et prix protégés)</label>
+        <input id="wp-ck" placeholder="Consumer Key (ck_…)" style="margin-top:4px;">
+        <input id="wp-cs" placeholder="Consumer Secret (cs_…)" style="margin-top:4px;">
+      </div>
+    </div>
+    <div id="wp-progress" style="display:none;margin-top:12px;padding:12px;background:var(--surface2);border-radius:10px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;" id="wp-progress-label">Import en cours…</div>
+      <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden;">
+        <div id="wp-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width .4s ease;"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-wp')">Fermer</button>
+      <button class="btn btn-primary" id="wp-run">Importer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const STATUT_LBL = { brouillon:'Brouillon', envoye:'Envoyé', envoyee:'Envoyée', accepte:'Accepté', refuse:'Refusé', payee:'Payée', partielle:'Partielle', retard:'Retard' };
+const TYPE_ICO = {
+  cabinet_dentaire:'🦷', sci:'🏠', societe_commerciale:'🏢',
+  sas:'🏢',sarl:'🏢',eurl:'🏢',sa:'🏢',snc:'🏢',
+  ei:'👤', auto_entrepreneur:'📊', profession_liberale:'👔',
+  association:'🤝', autre:'🏷️'
+};
+
+let token=null, session=null, societeId=null, societe=null;
+let produits=[], clients=[], devisList=[], factures=[], fournisseurs=[], avoirs=[];
+let editingProd=null, editingCli=null, editingDoc=null, docKind=null;
+let currentLignes=[];
+let csvKind=null;
+let currentAvoirFacture=null, currentAvoirLignes=[];
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function eur(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €';}
+function toast(msg,kind){const t=$('toast');t.textContent=msg;t.className='toast show '+(kind||'');setTimeout(()=>t.className='toast '+(kind||''),2800);}
+function openModal(id){$(id).classList.add('show');}
+function closeModal(id){$(id).classList.remove('show');}
+
+function api(path, opts={}){
+  return fetch(path,{
+    ...opts,
+    headers:{
+      'Content-Type':'application/json',
+      Authorization:'Bearer '+token,
+      'X-Societe-Id': societeId,
+      ...(opts.headers||{})
+    }
+  }).then(r=>r.json());
+}
+async function apiBlob(path){
+  const r = await fetch(path,{ headers:{ Authorization:'Bearer '+token, 'X-Societe-Id': societeId } });
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.blob();
+}
+async function apiUpload(path, file, field='file'){
+  const fd = new FormData(); fd.append(field, file);
+  const r = await fetch(path,{ method:'POST', body:fd, headers:{ Authorization:'Bearer '+token, 'X-Societe-Id': societeId } });
+  return r.json();
+}
+
+// ===== BOOT =====
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session){ return location.href='login.html?next='+encodeURIComponent('commerce.html'); }
+  session = data.session; token = session.access_token;
+
+  societeId = localStorage.getItem('societe_active_id');
+  if(!societeId){ toast('Aucune société active',true); setTimeout(()=>location.href='organisation.html',1000); return; }
+
+  const r = await api('/api/societes/'+societeId);
+  if(!r.success){ toast(r.error||'Erreur',true); return; }
+  societe = r.societe;
+  const COMMERCE_TYPES = ['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
+  if(!COMMERCE_TYPES.includes(societe.type)){
+    toast('Module Commerce non disponible pour ce type',true);
+    setTimeout(()=>location.href='organisation.html',1200);
+    return;
+  }
+  $('crumb-ico').textContent = societe.icone || TYPE_ICO[societe.type] || '🏢';
+  $('crumb-name').textContent = societe.nom;
+  $('link-settings').href = 'settings-societe.html?id='+societeId;
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.onclick = ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      const key = t.dataset.panel;
+      document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.dataset.panel===key));
+      if(key==='dashboard') loadDashboard();
+      if(key==='catalogue') loadProduits();
+      if(key==='clients') loadClients();
+      if(key==='devis') loadDevis();
+      if(key==='factures') loadFactures();
+      if(key==='avoirs') loadAvoirs();
+      if(key==='retours') loadRetours();
+      if(key==='reclamations') loadReclamations();
+      if(key==='market') loadMarket();
+      if(key==='stock') loadStock();
+      if(key==='analytics') loadAnalytics();
+      if(key==='fournisseurs') loadFournisseurs();
+      if(key==='veille') loadVeille();
+    };
+  });
+
+  // Ouvrir un onglet directement via ?tab=
+  const tabQs = new URLSearchParams(location.search).get('tab');
+  if(tabQs){
+    const target = document.querySelector('.tab[data-panel="'+tabQs+'"]');
+    if(target) setTimeout(()=>target.click(), 250);
+  }
+
+  let prodSearchTimer;
+  $('search-prod').oninput = () => {
+    clearTimeout(prodSearchTimer);
+    prodSearchTimer = setTimeout(()=>loadProduits({page:1}), 300);
+  };
+  $('search-cli').oninput = renderClients;
+  $('search-dev').oninput = renderDevis;
+  $('search-fac').oninput = renderFactures;
+  if($('search-avoir')) $('search-avoir').oninput = renderAvoirs;
+
+  $('prod-save').onclick = saveProduit;
+  $('cli-save').onclick = saveClient;
+  $('doc-save').onclick = saveDoc;
+  $('csv-run').onclick = runCsv;
+  $('wp-run').onclick = runWP;
+  if($('avoir-save')) $('avoir-save').onclick = saveAvoir;
+
+  // dates défaut
+  const today = new Date().toISOString().slice(0,10);
+  $('d-date_emission').value = today;
+
+  loadDashboard();
+  loadClients({silent:true});
+  loadProduits({silent:true});
+  // Charge les alertes stock en background pour badge nav
+  loadStockBadge();
+
+  // Bindings stock
+  if($('search-stock')) {
+    let stSearchT;
+    $('search-stock').oninput = () => { clearTimeout(stSearchT); stSearchT = setTimeout(()=>loadStock({page:1}),300); };
+  }
+  if($('filter-stock-statut')) $('filter-stock-statut').onchange = () => loadStock({page:1});
+  if($('stock-save')) $('stock-save').onclick = saveStockMouvement;
+  if($('stock-save-prix')) $('stock-save-prix').onclick = saveStockPrixAchat;
+
+  // Bindings analytics
+  if($('top-range')) $('top-range').onchange = loadTopProduits;
+  if($('top-tri')) $('top-tri').onchange = loadTopProduits;
+  if($('promo-produit')) $('promo-produit').onchange = runPromoSim;
+  if($('promo-remise')) $('promo-remise').oninput = () => { clearTimeout(window._promoT); window._promoT = setTimeout(runPromoSim, 300); };
+})();
+
+// ===== DASHBOARD =====
+async function loadDashboard(){
+  const r = await api('/api/commerce/dashboard');
+  if(!r.success){ $('stats-grid').innerHTML = `<div class="empty" style="grid-column:1/-1;">Erreur : ${esc(r.error||'')}</div>`; return; }
+  const s = r.stats;
+  $('stats-grid').innerHTML = `
+    <div class="stat accent">
+      <div class="stat-label">CA TTC cumulé</div>
+      <div class="stat-val">${eur(s.ca_ttc)}</div>
+      <div class="stat-sub">${s.nb_factures} facture${s.nb_factures>1?'s':''}</div>
+    </div>
+    <div class="stat ok">
+      <div class="stat-label">Encaissé</div>
+      <div class="stat-val">${eur(s.encaisse)}</div>
+      <div class="stat-sub">règlements enregistrés</div>
+    </div>
+    <div class="stat warn">
+      <div class="stat-label">Impayés</div>
+      <div class="stat-val">${eur(s.impayes)}</div>
+      <div class="stat-sub">à relancer</div>
+    </div>
+    <div class="stat info">
+      <div class="stat-label">Catalogue · Clients</div>
+      <div class="stat-val">${s.nb_produits} · ${s.nb_clients}</div>
+      <div class="stat-sub">${s.nb_devis} devis</div>
+    </div>
+  `;
+  $('alertes').innerHTML = '<div class="empty">Rien à signaler pour le moment.</div>';
+}
+
+// ===== PRODUITS =====
+let prodPage = 1;
+let prodPagination = null;
+async function loadProduits(opts={}){
+  if(!opts.silent) $('prod-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const page = opts.page || prodPage || 1;
+  const q = ($('search-prod')?.value||'').trim();
+  const qs = new URLSearchParams({ page:String(page), limit:'50' });
+  if(q) qs.set('q', q);
+  const r = await api('/api/commerce/produits?'+qs.toString());
+  produits = r.produits || [];
+  prodPagination = r.pagination || null;
+  prodPage = page;
+  if(!opts.silent) renderProduits();
+}
+function renderProduits(){
+  const rows = produits;
+  if(rows.length===0){ $('prod-wrap').innerHTML='<div class="empty">Catalogue vide. Ajoutez votre premier produit ou importez un CSV.</div>'; return; }
+  const pg = prodPagination || {};
+  const pagBar = pg.total && pg.pages > 1
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);font-size:12px;">
+         <span style="color:var(--muted);">${((pg.page-1)*pg.limit)+1}–${Math.min(pg.page*pg.limit,pg.total)} sur ${pg.total} produits</span>
+         <span style="display:flex;gap:6px;">
+           <button class="btn btn-ghost btn-sm" ${pg.page<=1?'disabled style="opacity:.4;"':''} onclick="loadProduits({page:${pg.page-1}})">← Précédent</button>
+           <span style="padding:6px 10px;color:var(--muted);">Page ${pg.page} / ${pg.pages}</span>
+           <button class="btn btn-ghost btn-sm" ${!pg.has_more?'disabled style="opacity:.4;"':''} onclick="loadProduits({page:${pg.page+1}})">Suivant →</button>
+         </span>
+       </div>`
+    : '';
+  $('prod-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th></th><th>Désignation</th><th>Réf.</th><th>Type</th><th>Prix HT</th><th>TVA</th><th>Stock</th><th></th></tr></thead>
+      <tbody>${rows.map(p=>`
+        <tr>
+          <td>${p.image_url?`<img class="thumb" src="${esc(p.image_url)}" alt="">`:'<div class="thumb"></div>'}</td>
+          <td><strong>${esc(p.designation||'—')}</strong>${p.description?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc((p.description||'').slice(0,60))}${p.description.length>60?'…':''}</div>`:''}</td>
+          <td>${esc(p.reference||'')}</td>
+          <td><span class="tag-chip">${esc(p.type||'produit')}</span></td>
+          <td class="num">${eur(p.prix_ht)}</td>
+          <td>${(p.taux_tva||0)}%</td>
+          <td>${p.stock_actuel ?? ''}${p.stock_alerte!=null && Number(p.stock_actuel||0)<=Number(p.stock_alerte)?' ⚠️':''}</td>
+          <td class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='editProduit(${JSON.stringify(p.id)})'>Modifier</button>
+            <button class="btn btn-danger btn-sm" onclick='delProduit(${JSON.stringify(p.id)})'>✕</button>
+          </td>
+        </tr>
+      `).join('')}</tbody>
+    </table>${pagBar}`;
+}
+function openProduitModal(){ editingProd=null; $('prod-modal-title').textContent='Nouveau produit';
+  ['reference','designation','description','prix_ht','taux_tva','unite','code_barre','stock_actuel','stock_alerte','image_url'].forEach(k=>$('p-'+k).value='');
+  $('p-type').value='produit'; $('p-taux_tva').value='20'; $('p-unite').value='unité';
+  openModal('modal-prod');
+}
+function editProduit(id){
+  const p = produits.find(x=>x.id===id); if(!p) return;
+  editingProd=id; $('prod-modal-title').textContent='Modifier le produit';
+  ['type','reference','designation','description','prix_ht','taux_tva','unite','code_barre','stock_actuel','stock_alerte','image_url'].forEach(k=>{ const el=$('p-'+k); if(el) el.value=p[k]??''; });
+  openModal('modal-prod');
+}
+async function saveProduit(){
+  const payload = {};
+  ['type','reference','designation','description','unite','code_barre','image_url'].forEach(k=>{ const v=$('p-'+k).value.trim(); if(v) payload[k]=v; });
+  ['prix_ht','taux_tva','stock_actuel','stock_alerte'].forEach(k=>{ const v=$('p-'+k).value; if(v!=='') payload[k]=Number(v); });
+  if(!payload.designation){ toast('Désignation requise',true); return; }
+  const r = editingProd
+    ? await api('/api/commerce/produits/'+editingProd,{method:'PATCH',body:JSON.stringify(payload)})
+    : await api('/api/commerce/produits',{method:'POST',body:JSON.stringify(payload)});
+  if(!r.success){ toast(r.error||'erreur',true); return; }
+  toast(editingProd?'Produit mis à jour':'Produit créé','ok');
+  closeModal('modal-prod');
+  await loadProduits();
+}
+async function delProduit(id){
+  if(!confirm('Désactiver ce produit ?')) return;
+  const r = await api('/api/commerce/produits/'+id,{method:'DELETE'});
+  if(r.success){ toast('Désactivé','ok'); await loadProduits(); }
+  else toast(r.error||'erreur',true);
+}
+
+// ===== CLIENTS =====
+async function loadClients(opts={}){
+  if(!opts.silent) $('cli-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/clients');
+  clients = r.clients || [];
+  // refresh select client dans modal devis/facture
+  const sel = $('d-client_id');
+  sel.innerHTML = '<option value="">—</option>' + clients.map(c=>{
+    const nom = c.raison_sociale || [c.prenom,c.nom].filter(Boolean).join(' ') || c.email || c.id.slice(0,8);
+    return `<option value="${c.id}">${esc(nom)}</option>`;
+  }).join('');
+  if(!opts.silent) renderClients();
+}
+function renderClients(){
+  const q = ($('search-cli').value||'').toLowerCase();
+  const rows = clients.filter(c => !q ||
+    [c.raison_sociale,c.nom,c.prenom,c.email].some(v=>(v||'').toLowerCase().includes(q))
+  );
+  if(rows.length===0){ $('cli-wrap').innerHTML='<div class="empty">Aucun client. Ajoutez-en un ou importez une liste CSV.</div>'; return; }
+  $('cli-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Nom / Raison sociale</th><th>Type</th><th>Email</th><th>Ville</th><th>SIREN</th><th></th></tr></thead>
+      <tbody>${rows.map(c=>{
+        const nom = c.raison_sociale || [c.prenom,c.nom].filter(Boolean).join(' ') || '—';
+        return `<tr>
+          <td><strong>${esc(nom)}</strong></td>
+          <td><span class="tag-chip">${esc(c.type||'—')}</span></td>
+          <td>${esc(c.email||'')}</td>
+          <td>${esc(c.ville||'')}</td>
+          <td>${esc(c.siren||'')}</td>
+          <td class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='editClient(${JSON.stringify(c.id)})'>Modifier</button>
+            <button class="btn btn-danger btn-sm" onclick='delClient(${JSON.stringify(c.id)})'>✕</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+function openClientModal(){ editingCli=null; $('cli-modal-title').textContent='Nouveau client';
+  ['raison_sociale','siren','prenom','nom','email','telephone','adresse','code_postal','ville','tva_intracom'].forEach(k=>$('c-'+k).value='');
+  $('c-type').value='professionnel'; $('c-pays').value='France';
+  openModal('modal-cli');
+}
+function editClient(id){
+  const c = clients.find(x=>x.id===id); if(!c) return;
+  editingCli=id; $('cli-modal-title').textContent='Modifier le client';
+  ['type','raison_sociale','siren','prenom','nom','email','telephone','adresse','code_postal','ville','tva_intracom','pays'].forEach(k=>{ const el=$('c-'+k); if(el) el.value=c[k]??''; });
+  openModal('modal-cli');
+}
+async function saveClient(){
+  const p = {};
+  ['type','raison_sociale','siren','prenom','nom','email','telephone','adresse','code_postal','ville','tva_intracom','pays'].forEach(k=>{ const v=$('c-'+k).value.trim(); if(v) p[k]=v; });
+  if(!p.raison_sociale && !p.nom){ toast('Nom ou raison sociale requis',true); return; }
+  const r = editingCli
+    ? await api('/api/commerce/clients/'+editingCli,{method:'PATCH',body:JSON.stringify(p)})
+    : await api('/api/commerce/clients',{method:'POST',body:JSON.stringify(p)});
+  if(!r.success){ toast(r.error||'erreur',true); return; }
+  toast(editingCli?'Client mis à jour':'Client créé','ok');
+  closeModal('modal-cli');
+  await loadClients();
+}
+async function delClient(id){
+  if(!confirm('Supprimer ce client ? Les devis/factures liés resteront.')) return;
+  const r = await api('/api/commerce/clients/'+id,{method:'DELETE'});
+  if(r.success){ toast('Supprimé','ok'); await loadClients(); }
+  else toast(r.error||'erreur',true);
+}
+
+// ===== DEVIS =====
+async function loadDevis(){
+  $('dev-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/devis');
+  devisList = r.devis || [];
+  renderDevis();
+}
+function renderDevis(){
+  const q = ($('search-dev').value||'').toLowerCase();
+  const rows = devisList.filter(d => !q || (d.numero||'').toLowerCase().includes(q));
+  if(rows.length===0){ $('dev-wrap').innerHTML='<div class="empty">Aucun devis.</div>'; return; }
+  $('dev-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>N°</th><th>Client</th><th>Date</th><th>Total TTC</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${rows.map(d=>{
+        const cli = d.client || {};
+        const cname = cli.raison_sociale || [cli.prenom,cli.nom].filter(Boolean).join(' ') || '—';
+        const chipCls = d.statut || 'brouillon';
+        const modifiable = d.statut !== 'accepte';
+        return `<tr>
+          <td class="num">${esc(d.numero)}</td>
+          <td>${esc(cname)}</td>
+          <td>${esc((d.created_at||'').slice(0,10))}</td>
+          <td class="num">${eur(d.total_ttc)}</td>
+          <td><span class="chip ${chipCls}">${STATUT_LBL[d.statut]||d.statut||'Brouillon'}</span></td>
+          <td class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='viewDocPdf("devis",${JSON.stringify(d.id)})'>PDF</button>
+            ${modifiable ? `<button class="btn btn-ghost btn-sm" onclick='editDevis(${JSON.stringify(d.id)})'>✏️ Modifier</button>` : ''}
+            ${modifiable ? `<button class="btn btn-ghost btn-sm" onclick='sendDoc("devis",${JSON.stringify(d.id)})'>✉️ Envoyer</button>` : ''}
+            ${modifiable ? `<button class="btn btn-primary btn-sm" onclick='devisToFacture(${JSON.stringify(d.id)})'>→ Facture</button>` : ''}
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+// ===== FACTURES =====
+async function loadFactures(){
+  $('fac-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const [rF, rA] = await Promise.all([
+    api('/api/commerce/factures'),
+    api('/api/commerce/avoirs').catch(()=>({avoirs:[]}))
+  ]);
+  factures = rF.factures || [];
+  avoirs = rA.avoirs || [];
+  renderFactures();
+}
+function renderFactures(){
+  const q = ($('search-fac').value||'').toLowerCase();
+  const rows = factures.filter(f => !q || (f.numero||'').toLowerCase().includes(q));
+  if(rows.length===0){ $('fac-wrap').innerHTML='<div class="empty">Aucune facture.</div>'; return; }
+  $('fac-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>N°</th><th>Client</th><th>Date</th><th>Total TTC</th><th>Payé</th><th>Statut</th><th>Avoirs liés</th><th></th></tr></thead>
+      <tbody>${rows.map(f=>{
+        const cli = f.client || {};
+        const cname = cli.raison_sociale || [cli.prenom,cli.nom].filter(Boolean).join(' ') || '—';
+        const chipCls = f.statut || 'brouillon';
+        const avLies = (avoirs||[]).filter(a => a.facture_id === f.id);
+        const statut = f.statut || 'brouillon';
+        const annulee = statut === 'annulee';
+        const idJson = JSON.stringify(f.id);
+
+        // Boutons selon statut — conformité droit français
+        let actions = '';
+        if (statut === 'brouillon') {
+          // Modifiable + supprimable + envoyable
+          actions = `
+            <button class="btn btn-ghost btn-sm" onclick='viewDocPdf("facture",${idJson})'>👁️ Voir</button>
+            <button class="btn btn-ghost btn-sm" onclick='editFacture(${idJson})'>✏️ Modifier</button>
+            <button class="btn btn-danger btn-sm" onclick='deleteFactureBrouillon(${idJson})'>🗑️ Supprimer</button>
+            <button class="btn btn-primary btn-sm" onclick='sendDoc("facture",${idJson})'>📤 Envoyer</button>
+          `;
+        } else if (statut === 'envoyee' || statut === 'partielle' || statut === 'retard') {
+          actions = `
+            <button class="btn btn-ghost btn-sm" onclick='viewDocPdf("facture",${idJson})'>👁️ Voir</button>
+            <button class="btn btn-ghost btn-sm" style="color:#b088f0;border-color:rgba(160,96,240,0.3);" onclick='openAvoirModal(${idJson})'>📄 Avoir</button>
+            <button class="btn btn-ghost btn-sm" style="color:#60a8f0;border-color:rgba(96,168,240,0.3);" onclick='openRetourModal(${idJson})'>↩️ Retour</button>
+            <button class="btn btn-ghost btn-sm" onclick='createStripeLink(${idJson})'>💳 Stripe</button>
+            <button class="btn btn-primary btn-sm" onclick='markFacturePaid(${idJson})'>💰 Marquée payée</button>
+          `;
+        } else if (statut === 'payee') {
+          actions = `
+            <button class="btn btn-ghost btn-sm" onclick='viewDocPdf("facture",${idJson})'>👁️ Voir</button>
+            <button class="btn btn-ghost btn-sm" style="color:#60a8f0;border-color:rgba(96,168,240,0.3);" onclick='openRetourModal(${idJson})'>↩️ Retour produit</button>
+            <button class="btn btn-ghost btn-sm" style="color:#b088f0;border-color:rgba(160,96,240,0.3);" onclick='openAvoirModal(${idJson})'>📄 Avoir</button>
+          `;
+        } else if (annulee) {
+          const lastAvoir = avLies[0];
+          actions = `
+            <button class="btn btn-ghost btn-sm" onclick='viewDocPdf("facture",${idJson})'>👁️ Voir</button>
+            ${lastAvoir ? `<button class="btn btn-ghost btn-sm" onclick="viewAvoirPdf('${lastAvoir.id}')">📄 Voir avoir lié</button>` : ''}
+          `;
+        }
+
+        return `<tr${annulee?' style="opacity:0.55;"':''}>
+          <td class="num">${esc(f.numero)}</td>
+          <td>${esc(cname)}</td>
+          <td>${esc((f.created_at||'').slice(0,10))}</td>
+          <td class="num">${eur(f.total_ttc)}</td>
+          <td>${eur(f.montant_paye||0)}</td>
+          <td><span class="chip ${chipCls}">${STATUT_LBL[f.statut]||f.statut||'Brouillon'}</span></td>
+          <td>${avLies.length?avLies.map(a=>`<a href="#" onclick="viewAvoirPdf('${a.id}');return false;" class="chip avoir" title="Avoir ${esc(a.numero)} · ${eur(a.total_ttc)}">${esc(a.numero)}</a>`).join(' '):'<span style="color:var(--muted);font-size:11px;">—</span>'}</td>
+          <td class="actions">${actions}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+// ===== DOC EDITOR (devis/facture) =====
+function openDocModal(kind){
+  docKind = kind;
+  editingDoc = null;
+  currentLignes = [];
+  $('doc-modal-title').textContent = kind==='devis' ? 'Nouveau devis' : 'Nouvelle facture';
+  $('d-date_label').textContent = kind==='devis' ? 'Validité (jusqu\'à)' : 'Échéance';
+  $('f-echeances-wrap').style.display = kind==='facture' ? 'block' : 'none';
+  $('d-date_emission').value = new Date().toISOString().slice(0,10);
+  const d30 = new Date(); d30.setDate(d30.getDate()+30);
+  $('d-date_validite').value = d30.toISOString().slice(0,10);
+  $('d-notes').value='';
+  $('d-client_id').value='';
+  $('d-nb_echeances').value='1';
+  addLigne();
+  openModal('modal-doc');
+}
+function addLigne(prod){
+  const idx = currentLignes.length;
+  const l = {
+    reference: prod?.reference || '',
+    designation: prod?.designation || '',
+    description: prod?.description || '',
+    quantite: 1,
+    prix_unitaire_ht: prod?.prix_ht || 0,
+    taux_tva: prod?.taux_tva ?? 20
+  };
+  currentLignes.push(l);
+  renderLignes();
+}
+function renderLignes(){
+  const grid = $('lignes-grid');
+  grid.innerHTML = currentLignes.map((l,i)=>`
+    <div class="ligne">
+      <div>
+        <input placeholder="Désignation" value="${esc(l.designation)}" oninput="updLigne(${i},'designation',this.value)">
+        <input placeholder="Référence / description" value="${esc(l.reference||l.description||'')}" oninput="updLigne(${i},'description',this.value)" style="margin-top:4px;font-size:11px;">
+      </div>
+      <input type="number" step="0.01" value="${l.quantite}" oninput="updLigne(${i},'quantite',this.value,true)">
+      <input type="number" step="0.01" value="${l.prix_unitaire_ht}" oninput="updLigne(${i},'prix_unitaire_ht',this.value,true)">
+      <input type="number" step="0.1" value="${l.taux_tva}" oninput="updLigne(${i},'taux_tva',this.value,true)">
+      <div class="num">${eur(Number(l.quantite||0)*Number(l.prix_unitaire_ht||0)*(1+Number(l.taux_tva||0)/100))}</div>
+      <button class="del" onclick="delLigne(${i})">✕</button>
+    </div>`).join('');
+
+  // datalist produits pour suggestion rapide
+  // (simple, pas implémenté — on pourrait ajouter <datalist> si besoin)
+
+  let ht=0, tva=0;
+  for(const l of currentLignes){
+    const qte=Number(l.quantite||0), pu=Number(l.prix_unitaire_ht||0), t=Number(l.taux_tva||0);
+    ht += qte*pu; tva += qte*pu*t/100;
+  }
+  $('tot-ht').textContent = eur(ht);
+  $('tot-tva').textContent = eur(tva);
+  $('tot-ttc').textContent = eur(ht+tva);
+}
+function updLigne(i,key,val,isNum){
+  currentLignes[i][key] = isNum ? Number(val) : val;
+  renderLignes();
+}
+function delLigne(i){
+  currentLignes.splice(i,1);
+  if(currentLignes.length===0) addLigne();
+  else renderLignes();
+}
+async function saveDoc(){
+  if(currentLignes.length===0){ toast('Ajoutez au moins une ligne',true); return; }
+  const payload = {
+    client_id: $('d-client_id').value || null,
+    lignes: currentLignes,
+    notes: $('d-notes').value.trim() || null,
+    date_emission: $('d-date_emission').value || null
+  };
+  if(docKind==='devis'){
+    payload.date_validite = $('d-date_validite').value || null;
+  } else {
+    payload.date_echeance = $('d-date_validite').value || null;
+    payload.nb_echeances = Number($('d-nb_echeances').value||1);
+  }
+  const btn = $('doc-save'); btn.disabled=true; btn.textContent='Enregistrement…';
+  try{
+    let r;
+    if(editingDoc){
+      // MAJ devis existant. Les factures ne se modifient pas (règle comptable) — seul brouillon éventuellement.
+      const path = docKind==='devis'
+        ? '/api/commerce/devis/'+editingDoc
+        : '/api/commerce/factures/'+editingDoc;
+      r = await api(path,{method:'PATCH',body:JSON.stringify(payload)});
+    } else {
+      const path = docKind==='devis' ? '/api/commerce/devis' : '/api/commerce/factures';
+      r = await api(path,{method:'POST',body:JSON.stringify(payload)});
+    }
+    if(!r.success) throw new Error(r.error||'erreur');
+    toast(editingDoc ? (docKind==='devis'?'Devis mis à jour':'Facture mise à jour')
+                     : (docKind==='devis'?'Devis créé':'Facture créée'), 'ok');
+    closeModal('modal-doc');
+    editingDoc = null;
+    if(docKind==='devis') await loadDevis(); else await loadFactures();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Enregistrer'; }
+}
+async function viewDocPdf(kind,id){
+  try{
+    const blob = await apiBlob(`/api/commerce/${kind}/${id}/pdf`);
+    const url = URL.createObjectURL(blob);
+    window.open(url,'_blank');
+  }catch(e){ toast('Erreur PDF : '+e.message,true); }
+}
+async function sendDoc(kind,id){
+  if(!confirm(`Envoyer le ${kind} par email au client ?`)) return;
+  const r = await api(`/api/commerce/${kind}/${id}/envoyer`,{method:'POST'});
+  if(r.success){ toast('Envoyé','ok'); kind==='devis'?loadDevis():loadFactures(); }
+  else toast(r.error||'erreur',true);
+}
+async function devisToFacture(id){
+  if(!confirm('Convertir ce devis en facture ? Le devis sera marqué comme accepté.')) return;
+  const r = await api(`/api/commerce/devis/${id}/vers-facture`,{method:'POST'});
+  if(r.success){ toast('Facture '+r.facture.numero+' créée','ok'); await loadDevis(); await loadFactures(); }
+  else toast(r.error||'erreur',true);
+}
+async function createStripeLink(id){
+  if(!confirm('Créer un lien de paiement Stripe pour cette facture ?')) return;
+  const r = await api(`/api/commerce/factures/${id}/stripe-link`,{method:'POST'});
+  if(r.success){
+    navigator.clipboard?.writeText(r.url);
+    toast('Lien Stripe créé (copié) : '+r.url,'ok');
+    await loadFactures();
+  } else toast(r.error||'erreur',true);
+}
+async function markFacturePaid(id){
+  const montant = prompt('Montant encaissé (€) — vide = total de la facture :', '');
+  const body = montant && !isNaN(Number(montant)) ? { montant: Number(montant) } : {};
+  const r = await api(`/api/commerce/factures/${id}/paiement`,{method:'PATCH',body:JSON.stringify(body)});
+  if(r.success){ toast('Paiement enregistré','ok'); await loadFactures(); }
+  else toast(r.error||'erreur',true);
+}
+
+// ===== MODIFICATION / SUPPRESSION FACTURE BROUILLON =====
+function editFacture(id){
+  const f = factures.find(x=>x.id===id); if(!f) return;
+  if(f.statut !== 'brouillon'){
+    toast('Facture envoyée : modification interdite (droit comptable français)',true);
+    return;
+  }
+  docKind = 'facture';
+  editingDoc = id;
+  $('doc-modal-title').textContent = 'Modifier la facture ' + (f.numero||'');
+  $('d-date_label').textContent = 'Échéance';
+  $('f-echeances-wrap').style.display = 'block';
+  $('d-client_id').value = f.client_id || '';
+  $('d-date_emission').value = (f.date_emission||'').slice(0,10) || new Date().toISOString().slice(0,10);
+  $('d-date_validite').value = (f.date_echeance||'').slice(0,10) || '';
+  $('d-nb_echeances').value = String(f.nb_echeances||1);
+  $('d-notes').value = f.notes || '';
+  currentLignes = Array.isArray(f.lignes) ? JSON.parse(JSON.stringify(f.lignes)) : [];
+  if(!currentLignes.length) addLigne();
+  renderLignes();
+  openModal('modal-doc');
+}
+
+async function deleteFactureBrouillon(id){
+  const f = factures.find(x=>x.id===id); if(!f) return;
+  if(f.statut !== 'brouillon'){ toast('Seules les brouillons se suppriment',true); return; }
+  if(!confirm(`Supprimer le brouillon ${f.numero} ? Cette action est irréversible.`)) return;
+  const r = await api('/api/commerce/factures/'+id,{method:'DELETE'});
+  if(r.success){ toast('Brouillon supprimé','ok'); await loadFactures(); }
+  else toast(r.message||r.error||'erreur',true);
+}
+
+// ===== MODIFICATION DEVIS =====
+function editDevis(id){
+  const d = devisList.find(x=>x.id===id); if(!d) return;
+  if(d.statut === 'accepte'){ toast('Devis accepté : non modifiable (converti en facture)',true); return; }
+  docKind = 'devis';
+  editingDoc = id;
+  $('doc-modal-title').textContent = 'Modifier le devis ' + (d.numero||'');
+  $('d-date_label').textContent = 'Validité (jusqu\'à)';
+  $('f-echeances-wrap').style.display = 'none';
+  $('d-client_id').value = d.client_id || '';
+  $('d-date_emission').value = (d.date_emission||'').slice(0,10) || new Date().toISOString().slice(0,10);
+  $('d-date_validite').value = (d.date_validite||'').slice(0,10) || '';
+  $('d-notes').value = d.notes || '';
+  currentLignes = Array.isArray(d.lignes) ? JSON.parse(JSON.stringify(d.lignes)) : [];
+  if(!currentLignes.length) addLigne();
+  renderLignes();
+  openModal('modal-doc');
+}
+
+
+// ===== AVOIRS =====
+async function loadAvoirs(){
+  $('avoir-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/avoirs');
+  avoirs = r.avoirs || [];
+  renderAvoirs();
+}
+function renderAvoirs(){
+  const q = ($('search-avoir').value||'').toLowerCase();
+  const rows = avoirs.filter(a => !q || (a.numero||'').toLowerCase().includes(q));
+  if(rows.length===0){ $('avoir-wrap').innerHTML='<div class="empty">Aucun avoir émis. Les avoirs s\'émettent depuis une facture envoyée.</div>'; return; }
+  $('avoir-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>N°</th><th>Client</th><th>Facture d'origine</th><th>Date</th><th>Type</th><th>Montant TTC</th><th>Envoyé</th><th></th></tr></thead>
+      <tbody>${rows.map(a=>{
+        const cli = a.client || {};
+        const cname = cli.raison_sociale || [cli.prenom,cli.nom].filter(Boolean).join(' ') || '—';
+        const fref = a.facture?.numero || '—';
+        return `<tr>
+          <td class="num">${esc(a.numero)}</td>
+          <td>${esc(cname)}</td>
+          <td class="num">${esc(fref)}</td>
+          <td>${esc((a.date_emission||'').slice(0,10))}</td>
+          <td><span class="chip avoir">${a.type_avoir==='total'?'Total':'Partiel'}</span></td>
+          <td class="num" style="color:#f08080;">-${eur(a.total_ttc)}</td>
+          <td>${a.envoye_at?'<span class="chip envoyee">✓ '+esc((a.envoye_at||'').slice(0,10))+'</span>':'<span class="chip brouillon">Non envoyé</span>'}</td>
+          <td class="actions">
+            <button class="btn btn-ghost btn-sm" onclick="viewAvoirPdf('${a.id}')">PDF</button>
+            ${!a.envoye_at?`<button class="btn btn-ghost btn-sm" onclick="sendAvoir('${a.id}')">✉️ Envoyer</button>`:''}
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+async function viewAvoirPdf(id){
+  try{
+    const blob = await apiBlob('/api/commerce/avoirs/'+id+'/pdf');
+    const url = URL.createObjectURL(blob);
+    window.open(url,'_blank');
+  }catch(e){ toast('Erreur PDF : '+e.message,true); }
+}
+async function sendAvoir(id){
+  if(!confirm('Envoyer l\'avoir au client par email ? L\'avoir deviendra alors non modifiable (règle comptable).')) return;
+  const r = await api('/api/commerce/avoirs/'+id+'/envoyer',{method:'POST'});
+  if(r.success){ toast('Avoir envoyé','ok'); await loadAvoirs(); await loadFactures(); }
+  else toast(r.error||'erreur',true);
+}
+function openAvoirModal(factureId){
+  const f = factures.find(x=>x.id===factureId);
+  if(!f){ toast('Facture introuvable',true); return; }
+  if(f.statut === 'brouillon'){ toast('Avoir impossible sur facture brouillon — envoyez-la d\'abord',true); return; }
+  if(f.statut === 'annulee'){ toast('Cette facture est déjà annulée',true); return; }
+  currentAvoirFacture = f;
+  currentAvoirLignes = Array.isArray(f.lignes) ? JSON.parse(JSON.stringify(f.lignes)) : [];
+  $('av-facture-display').value = (f.numero||'') + ' · '+ eur(f.total_ttc);
+  $('av-date').value = new Date().toISOString().slice(0,10);
+  $('av-motif').value = '';
+  $('av-type').value = 'total';
+  renderAvoirLignes();
+  openModal('modal-avoir');
+}
+function renderAvoirLignes(){
+  const grid = $('av-lignes-grid');
+  grid.innerHTML = currentAvoirLignes.map((l,i)=>`
+    <div class="ligne">
+      <div>
+        <input placeholder="Désignation" value="${esc(l.designation||'')}" oninput="updAvoirLigne(${i},'designation',this.value)">
+        <input placeholder="Référence / description" value="${esc(l.reference||l.description||'')}" oninput="updAvoirLigne(${i},'description',this.value)" style="margin-top:4px;font-size:11px;">
+      </div>
+      <input type="number" step="0.01" value="${l.quantite}" oninput="updAvoirLigne(${i},'quantite',this.value,true)">
+      <input type="number" step="0.01" value="${l.prix_unitaire_ht}" oninput="updAvoirLigne(${i},'prix_unitaire_ht',this.value,true)">
+      <input type="number" step="0.1" value="${l.taux_tva}" oninput="updAvoirLigne(${i},'taux_tva',this.value,true)">
+      <div class="num">${eur(Number(l.quantite||0)*Number(l.prix_unitaire_ht||0)*(1+Number(l.taux_tva||0)/100))}</div>
+      <button class="del" onclick="delAvoirLigne(${i})">✕</button>
+    </div>`).join('');
+  let ht=0,tva=0;
+  for(const l of currentAvoirLignes){
+    const qte=Number(l.quantite||0), pu=Number(l.prix_unitaire_ht||0), t=Number(l.taux_tva||0);
+    ht += qte*pu; tva += qte*pu*t/100;
+  }
+  $('av-tot-ht').textContent = eur(ht);
+  $('av-tot-tva').textContent = eur(tva);
+  $('av-tot-ttc').textContent = eur(ht+tva);
+}
+function updAvoirLigne(i,key,val,isNum){
+  currentAvoirLignes[i][key] = isNum ? Number(val) : val;
+  renderAvoirLignes();
+}
+function delAvoirLigne(i){
+  currentAvoirLignes.splice(i,1);
+  renderAvoirLignes();
+}
+async function saveAvoir(){
+  if(!currentAvoirFacture){ toast('Facture d\'origine manquante',true); return; }
+  if(!currentAvoirLignes.length){ toast('Ajoutez au moins une ligne à créditer',true); return; }
+  const payload = {
+    lignes: currentAvoirLignes,
+    motif: $('av-motif').value.trim() || null,
+    type_avoir: $('av-type').value,
+    date_emission: $('av-date').value || null
+  };
+  const btn = $('avoir-save'); btn.disabled=true; btn.textContent='Émission…';
+  try{
+    const r = await api(`/api/commerce/factures/${currentAvoirFacture.id}/avoir`,{method:'POST',body:JSON.stringify(payload)});
+    if(!r.success) throw new Error(r.error||'erreur');
+    toast('Avoir '+r.avoir.numero+' émis','ok');
+    closeModal('modal-avoir');
+    await loadFactures();
+    if(document.querySelector('.tab[data-panel="avoirs"].active')) await loadAvoirs();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Émettre l\'avoir'; }
+}
+
+// ===== FOURNISSEURS =====
+// ===== VEILLE MARCHÉ =====
+async function loadVeille(){
+  $('veille-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/catalogue/veille');
+  if(!r.success){
+    $('veille-wrap').innerHTML='<div class="empty" style="padding:24px;">'+ esc(r.error||'Erreur') +'</div>';
+    return;
+  }
+  const rows = r.produits || [];
+  if(!rows.length){
+    $('veille-wrap').innerHTML='<div class="empty" style="padding:24px;">Aucun produit en catalogue global. Ajoutez un EAN à vos produits pour apparaître sur le marché.</div>';
+    return;
+  }
+  const chip = p => {
+    if(p.position==='sous_marche') return '<span class="chip" style="background:rgba(96,208,144,0.15);color:#60d090;">✅ '+ (p.ecart_pct!=null?p.ecart_pct+'%':'') +'</span>';
+    if(p.position==='sur_marche')  return '<span class="chip" style="background:rgba(240,80,80,0.15);color:#f05050;">🔴 +'+ (p.ecart_pct!=null?p.ecart_pct+'%':'') +'</span>';
+    if(p.position==='aligne')      return '<span class="chip" style="background:rgba(200,240,96,0.15);color:var(--accent);">⚖️ =</span>';
+    return '<span class="chip">—</span>';
+  };
+  $('veille-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr>
+        <th>Produit</th><th>Mon prix HT</th><th>Moyenne marché</th><th>Min marché</th><th>Fournisseurs</th><th>Position</th><th></th>
+      </tr></thead>
+      <tbody>${rows.map(p=>`
+        <tr>
+          <td>
+            <div style="font-weight:600;">${esc(p.designation||'—')}${p.suis_je_le_moins_cher?' <span style="color:var(--accent);font-size:10px;">⭐ meilleur</span>':''}</div>
+            <div style="font-size:11px;color:var(--muted);">${esc(p.categorie||'')}${p.ean?' · EAN '+esc(p.ean):''}</div>
+          </td>
+          <td class="num">${eur(p.mon_prix_ht)}</td>
+          <td class="num" style="color:var(--muted);">${p.prix_moyen_ht?eur(p.prix_moyen_ht):'—'}</td>
+          <td class="num" style="color:var(--muted);">${p.prix_min_ht?eur(p.prix_min_ht):'—'}</td>
+          <td class="num">${p.nb_fournisseurs||0}</td>
+          <td>${chip(p)}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="openVeilleDetail('${p.produit_id}','${esc(p.designation||'').replace(/'/g,"\\'")}')">Détail</button></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+async function openVeilleDetail(produitId, designation){
+  $('veille-modal-title').textContent = 'Détail — ' + designation;
+  $('veille-modal-body').innerHTML = '<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  $('modal-veille').style.display='flex';
+  const [rConc, rHist] = await Promise.all([
+    api('/api/catalogue/veille/'+encodeURIComponent(produitId)),
+    api('/api/catalogue/historique/'+encodeURIComponent(produitId)+'?range=6m')
+  ]);
+  const conc = rConc.fournisseurs || [];
+  const hist = rHist.points || [];
+  const concHtml = conc.length ? `
+    <div style="margin-bottom:14px;">
+      <div class="card-title" style="font-size:14px;margin-bottom:8px;">Positionnement actuel</div>
+      <table class="tbl">
+        <thead><tr><th>Fournisseur</th><th>Prix HT</th><th>MAJ</th></tr></thead>
+        <tbody>${conc.map(f=>`
+          <tr style="${f.is_me?'background:rgba(200,240,96,0.06);':''}">
+            <td>${f.is_me?'<strong>🟢 '+esc(f.societe_label)+'</strong>':esc(f.societe_label)}</td>
+            <td class="num">${eur(f.prix_ht)}</td>
+            <td style="color:var(--muted);font-size:11px;">${esc((f.date_maj||'').slice(0,10))}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<div class="empty">Aucun concurrent actif.</div>';
+  // Mini graphique SVG lignes par concurrent
+  let histHtml = '';
+  if(hist.length){
+    const bySoc = {};
+    for(const p of hist){
+      const k = p.societe_label;
+      (bySoc[k] = bySoc[k] || []).push({ t: new Date(p.date_prix).getTime(), v: Number(p.prix_ht), isMe: !!p.is_me });
+    }
+    const all = Object.values(bySoc).flat();
+    const tMin = Math.min(...all.map(x=>x.t)), tMax = Math.max(...all.map(x=>x.t));
+    const vMin = Math.min(...all.map(x=>x.v)), vMax = Math.max(...all.map(x=>x.v));
+    const W=560, H=160, pad=24;
+    const x = t => pad + ((t - tMin) / Math.max(1, tMax - tMin)) * (W - 2*pad);
+    const y = v => H - pad - ((v - vMin) / Math.max(0.01, vMax - vMin)) * (H - 2*pad);
+    const paths = Object.entries(bySoc).map(([label, pts]) => {
+      pts.sort((a,b)=>a.t-b.t);
+      const d = pts.map((p,i)=>(i===0?'M':'L')+x(p.t).toFixed(1)+','+y(p.v).toFixed(1)).join(' ');
+      const color = pts[0].isMe ? '#c8f060' : '#6b6760';
+      const width = pts[0].isMe ? 2 : 1;
+      return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" opacity="${pts[0].isMe?1:0.6}"/>`;
+    }).join('');
+    histHtml = `
+      <div class="card-title" style="font-size:14px;margin-bottom:8px;">Historique 6 mois (vous en vert)</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:160px;background:var(--bg-soft,#0f0f0f);border-radius:8px;">
+        ${paths}
+      </svg>`;
+  }
+  $('veille-modal-body').innerHTML = concHtml + histHtml;
+}
+
+function closeVeilleModal(){ $('modal-veille').style.display='none'; }
+
+async function loadFournisseurs(){
+  $('fourn-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/factures-fournisseurs');
+  fournisseurs = r.factures || [];
+  if(fournisseurs.length===0){ $('fourn-wrap').innerHTML='<div class="empty">Aucune facture fournisseur importée.</div>'; return; }
+  $('fourn-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>N°</th><th>Fournisseur</th><th>Date</th><th>Montant</th><th>Statut</th></tr></thead>
+      <tbody>${fournisseurs.map(f=>`
+        <tr>
+          <td class="num">${esc(f.numero||'')}</td>
+          <td>${esc(f.fournisseur_nom||'—')}</td>
+          <td>${esc((f.date_emission||'').slice(0,10))}</td>
+          <td class="num">${eur(f.total_ttc)}</td>
+          <td><span class="chip ${f.statut||'brouillon'}">${esc(f.statut||'—')}</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+// ===== IMPORTS =====
+function openImportCsvModal(kind){ csvKind=kind;
+  $('csv-modal-title').textContent = kind==='produit' ? 'Import CSV produits' : 'Import CSV clients';
+  $('csv-hint').textContent = kind==='produit'
+    ? 'Colonnes reconnues : reference, designation, prix_ht, taux_tva, unite, stock_actuel, stock_alerte, code_barre.'
+    : 'Colonnes reconnues : type, raison_sociale, nom, prenom, email, telephone, adresse, cp, ville, siren, tva.';
+  $('csv-file').value = '';
+  openModal('modal-csv');
+}
+async function runCsv(){
+  const f = $('csv-file').files[0];
+  if(!f){ toast('Sélectionnez un fichier',true); return; }
+  const btn = $('csv-run'); btn.disabled=true; btn.textContent='Import…';
+  try{
+    const path = csvKind==='produit' ? '/api/commerce/produits/import-csv' : '/api/commerce/clients/import-csv';
+    const r = await apiUpload(path, f);
+    if(!r.success) throw new Error(r.error||'erreur');
+    if(r.background && r.job_id){
+      toast(`Import de ${r.total} lignes lancé en arrière-plan…`,'ok');
+      closeModal('modal-csv');
+      watchImportJob(r.job_id, 'produit');
+    } else {
+      toast(`Import terminé : ${r.inserted||0} lignes`, 'ok');
+      closeModal('modal-csv');
+      if(csvKind==='produit') await loadProduits(); else await loadClients();
+    }
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Importer'; }
+}
+
+// Suivi d'un job d'import en arrière-plan — affiche un toast persistent avec progression
+function watchImportJob(jobId, kind){
+  // Crée un toast permanent avec progression
+  let done = false;
+  const progressEl = document.createElement('div');
+  progressEl.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:250;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,.4);min-width:280px;';
+  progressEl.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Import en cours…</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px;" class="lbl">0 / 0 produits importés</div>
+    <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+      <div class="bar" style="height:100%;background:var(--accent);width:0%;transition:width .4s ease;"></div>
+    </div>`;
+  document.body.appendChild(progressEl);
+
+  const tick = async () => {
+    if(done) return;
+    try{
+      const r = await api('/api/commerce/produits/import-jobs/'+jobId);
+      if(r.success && r.job){
+        const j = r.job;
+        const pct = j.total ? Math.min(100, Math.round(j.done*100/j.total)) : 0;
+        progressEl.querySelector('.lbl').textContent =
+          `Import en cours… ${j.done}/${j.total||'?'} produits importés`;
+        progressEl.querySelector('.bar').style.width = pct + '%';
+        if(j.status === 'done' || j.status === 'error'){
+          done = true;
+          progressEl.querySelector('.lbl').textContent = j.status === 'done'
+            ? `✓ Import terminé : ${j.inserted} ajoutés, ${j.failed} échecs`
+            : `✕ Erreur : ${j.error||'—'}`;
+          progressEl.style.borderColor = j.status === 'done' ? 'var(--green)' : 'var(--red)';
+          setTimeout(()=>progressEl.remove(), 4500);
+          if(kind==='produit') await loadProduits();
+          else await loadClients();
+          return;
+        }
+      }
+    } catch{}
+    setTimeout(tick, 900);
+  };
+  tick();
+}
+function openWordPressModal(){
+  $('wp-url').value=''; $('wp-ck').value=''; $('wp-cs').value='';
+  $('wp-enrich').checked = true;
+  $('wp-progress').style.display = 'none';
+  openModal('modal-wp');
+}
+// =====================================================================
+// STOCK
+// =====================================================================
+let stockPage = 1, stockPagination = null, stockData = [], canSeeMargins = false;
+let stockProdEdit = null; // produit en cours d'édition dans la modale
+
+async function loadStockBadge(){
+  try{
+    const r = await api('/api/commerce/stock/alertes');
+    if(r.success){
+      const b = $('stock-badge');
+      if(r.rupture > 0){
+        b.textContent = r.rupture;
+        b.style.display = 'inline-block';
+        b.style.background = '#f05050';
+      } else if(r.faible > 0){
+        b.textContent = r.faible;
+        b.style.display = 'inline-block';
+        b.style.background = '#f0a030';
+      } else { b.style.display = 'none'; }
+    }
+  }catch{}
+}
+
+async function loadStock(opts={}){
+  const page = opts.page || stockPage || 1;
+  const q = ($('search-stock').value||'').trim();
+  const statut = $('filter-stock-statut').value;
+  const qs = new URLSearchParams({ page:String(page), limit:'100' });
+  if(q) qs.set('q', q);
+  if(statut) qs.set('statut', statut);
+
+  $('stock-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/stock?'+qs);
+  if(!r.success){ $('stock-wrap').innerHTML='<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  stockData = r.stock || [];
+  stockPagination = r.pagination || null;
+  stockPage = page;
+  canSeeMargins = !!r.can_see_margins;
+
+  // Stats header
+  const rupt = stockData.filter(p=>p.statut_stock==='rupture').length;
+  const faible = stockData.filter(p=>p.statut_stock==='faible').length;
+  const ok = stockData.filter(p=>p.statut_stock==='ok').length;
+  $('stock-stats').innerHTML = `
+    <div class="stat warn">
+      <div class="stat-label">🔴 En rupture</div>
+      <div class="stat-val">${rupt}</div>
+      <div class="stat-sub">stock ≤ 0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">⚠️ Stock faible</div>
+      <div class="stat-val" style="color:#f0a030;">${faible}</div>
+      <div class="stat-sub">sous seuil d'alerte</div>
+    </div>
+    <div class="stat ok">
+      <div class="stat-label">✅ En stock</div>
+      <div class="stat-val">${ok}</div>
+      <div class="stat-sub">disponibles</div>
+    </div>
+    <div class="stat info">
+      <div class="stat-label">Valeur stock${canSeeMargins?' (coût)':''}</div>
+      <div class="stat-val">${canSeeMargins?eur(stockData.reduce((s,p)=>s+Number(p.stock_reel||0)*Number(p.prix_achat_ht||0),0)):'***'}</div>
+      <div class="stat-sub">${canSeeMargins?'coût d\'achat':'accès restreint'}</div>
+    </div>`;
+
+  // Alertes réappro
+  const alertes = stockData.filter(p => p.statut_stock !== 'ok').slice(0, 8);
+  $('stock-alertes-wrap').innerHTML = alertes.length
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+        ${alertes.map(p=>`
+          <div style="background:var(--surface2);border:1px solid ${p.statut_stock==='rupture'?'rgba(240,80,80,0.3)':'rgba(240,160,48,0.3)'};border-radius:10px;padding:10px 12px;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${esc(p.designation||'—')}</div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);">
+              <span>Stock : <b style="color:${p.statut_stock==='rupture'?'#f05050':'#f0a030'}">${p.stock_reel}</b> / seuil ${p.stock_alerte||0}</span>
+              <button class="btn btn-ghost btn-sm" onclick='openStockModal(${JSON.stringify(p.id)})'>Réappro</button>
+            </div>
+          </div>`).join('')}
+       </div>`
+    : '<div class="empty" style="padding:18px;">Aucun produit en alerte — tout va bien ✅</div>';
+
+  renderStock();
+}
+
+function renderStock(){
+  const rows = stockData;
+  if(rows.length===0){ $('stock-wrap').innerHTML='<div class="empty">Aucun produit. Ajoutez votre catalogue ou importez un CSV.</div>'; return; }
+  const pg = stockPagination || {};
+  const pagBar = pg.total && pg.pages > 1
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);font-size:12px;">
+         <span style="color:var(--muted);">${((pg.page-1)*pg.limit)+1}–${Math.min(pg.page*pg.limit,pg.total)} sur ${pg.total} produits</span>
+         <span style="display:flex;gap:6px;">
+           <button class="btn btn-ghost btn-sm" ${pg.page<=1?'disabled style="opacity:.4;"':''} onclick="loadStock({page:${pg.page-1}})">← Précédent</button>
+           <button class="btn btn-ghost btn-sm" ${pg.page>=pg.pages?'disabled style="opacity:.4;"':''} onclick="loadStock({page:${pg.page+1}})">Suivant →</button>
+         </span>
+       </div>` : '';
+  const statutIco = s => s==='rupture'?'🔴':s==='faible'?'⚠️':'✅';
+  $('stock-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr>
+        <th></th><th>Désignation</th><th>Réf.</th>
+        <th title="Disponible à la vente (stock_reel − réservé)">✅ Vendable</th>
+        <th title="Réservé pour devis/factures">🔒 Réservé</th>
+        <th title="En quarantaine (défectueux)">⚠️ Quarantaine</th>
+        <th>Seuil</th><th>Statut</th>
+        ${canSeeMargins?'<th>Px achat</th>':''}
+        <th>Px vente HT</th>
+        ${canSeeMargins?'<th>Marge</th><th>Marge %</th>':''}
+        <th></th>
+      </tr></thead>
+      <tbody>${rows.map(p=>{
+        const vendable = Number(p.stock_disponible != null ? p.stock_disponible : (p.stock_reel||0) - (p.stock_reserve||0));
+        const reserve = Number(p.stock_reserve||0);
+        const quarantaine = Number(p.stock_defectueux||0);
+        return `
+        <tr>
+          <td>${p.image_url?`<img class="thumb" src="${esc(p.image_url)}" alt="">`:'<div class="thumb"></div>'}</td>
+          <td><strong>${esc(p.designation||'—')}</strong></td>
+          <td style="font-size:11px;color:var(--muted);">${esc(p.reference||'—')}</td>
+          <td class="num" style="color:${vendable>0?'#60d090':'#f08080'};">${vendable}</td>
+          <td class="num" style="color:${reserve>0?'#f0a030':'var(--muted)'};">${reserve}</td>
+          <td class="num" style="color:${quarantaine>0?'#f08080':'var(--muted)'};">${quarantaine}</td>
+          <td>${p.stock_alerte||0}</td>
+          <td><span class="chip ${p.statut_stock==='rupture'?'retard':p.statut_stock==='faible'?'partielle':'payee'}">${statutIco(p.statut_stock)} ${p.statut_stock}</span></td>
+          ${canSeeMargins?`<td class="num" style="color:var(--muted);">${p.prix_achat_ht!=null?eur(p.prix_achat_ht):`<button class="btn btn-ghost btn-sm" onclick='openStockModal(${JSON.stringify(p.id)},true)'>+ Prix</button>`}</td>`:''}
+          <td class="num">${eur(p.prix_vente_ht)}</td>
+          ${canSeeMargins?`<td class="num" style="color:${(p.marge_unitaire_ht||0)>=0?'#60d090':'#f08080'};">${p.marge_unitaire_ht!=null?eur(p.marge_unitaire_ht):'—'}</td>
+            <td class="num">${p.marge_pourcent!=null?p.marge_pourcent+'%':'—'}</td>`:''}
+          <td class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='openStockModal(${JSON.stringify(p.id)})'>Mouvement</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>${pagBar}`;
+}
+
+function openStockModal(produitId, focusPrix){
+  const p = stockData.find(x=>x.id===produitId);
+  if(!p){ toast('Produit introuvable',true); return; }
+  stockProdEdit = p;
+  $('stock-modal-title').textContent = 'Mouvement stock · '+(p.designation||'');
+  $('ms-prod-label').value = (p.designation||'') + (p.reference?' ('+p.reference+')':'');
+  $('ms-stock-actuel').value = p.stock_reel + ' unités';
+  $('ms-type').value = 'entree';
+  $('ms-qte').value = '1';
+  $('ms-ref').value = '';
+  $('ms-note').value = '';
+  $('ms-prix-achat-wrap').style.display = canSeeMargins ? '' : 'none';
+  $('stock-save-prix').style.display = canSeeMargins ? '' : 'none';
+  $('ms-prix-achat').value = (canSeeMargins && p.prix_achat_ht!=null) ? p.prix_achat_ht : '';
+  openModal('modal-stock');
+  if(focusPrix) setTimeout(()=>$('ms-prix-achat').focus(), 100);
+}
+async function saveStockMouvement(){
+  if(!stockProdEdit) return;
+  const type = $('ms-type').value;
+  const qte = Number($('ms-qte').value);
+  if(!qte || qte <= 0){ toast('Quantité invalide',true); return; }
+  const btn = $('stock-save'); btn.disabled=true; btn.textContent='Enregistrement…';
+  try{
+    const r = await api('/api/commerce/stock/mouvements',{method:'POST',body:JSON.stringify({
+      produit_id: stockProdEdit.id, type, quantite: qte,
+      note: $('ms-note').value.trim() || null,
+      reference_doc: $('ms-ref').value.trim() || null
+    })});
+    if(!r.success) throw new Error(r.error||'erreur');
+    toast('Mouvement enregistré','ok');
+    closeModal('modal-stock');
+    await loadStock();
+    loadStockBadge();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Enregistrer mouvement'; }
+}
+async function saveStockPrixAchat(){
+  if(!stockProdEdit || !canSeeMargins) return;
+  const prix = Number($('ms-prix-achat').value);
+  if(isNaN(prix) || prix < 0){ toast('Prix invalide',true); return; }
+  const btn = $('stock-save-prix'); btn.disabled=true; btn.textContent='…';
+  try{
+    const r = await api('/api/commerce/stock/'+stockProdEdit.id+'/prix-achat',{method:'PATCH',
+      body:JSON.stringify({ prix_achat_ht: prix })});
+    if(!r.success) throw new Error(r.error||'erreur');
+    toast('Prix d\'achat enregistré','ok');
+    closeModal('modal-stock');
+    await loadStock();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Enregistrer prix achat'; }
+}
+
+// =====================================================================
+// ANALYTICS
+// =====================================================================
+let analyticsData = null;
+
+async function loadAnalytics(){
+  await Promise.all([loadAnalyticsDashboard(), loadTopProduits(), loadPromoProduits(), loadPrevisions(), loadPertes()]);
+}
+
+async function loadPertes(){
+  if(!$('pertes-wrap')) return;
+  $('pertes-wrap').innerHTML = '<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/reclamations/analytics');
+  if(!r.success){ $('pertes-wrap').innerHTML = '<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  const rows = r.analytics || [];
+  if(!rows.length){ $('pertes-wrap').innerHTML='<div class="empty">Aucune réclamation enregistrée sur la période.</div>'; return; }
+  // Agrégats depuis les lignes mois
+  const totalReclame = rows.reduce((s,x)=>s+Number(x.montant_reclame_total||0),0);
+  const totalPerte = rows.reduce((s,x)=>s+Number(x.montant_perte_seche||0),0);
+  const totalRecup = rows.reduce((s,x)=>s+Number(x.montant_recupere||0),0);
+  const nbOuvertes = rows.reduce((s,x)=>s+Number(x.nb_ouvertes||0),0);
+  $('pertes-wrap').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;">
+      <div class="stat"><div class="stat-label">Total réclamé</div><div class="stat-val">${eur(totalReclame)}</div></div>
+      <div class="stat ok"><div class="stat-label">Récupéré</div><div class="stat-val">${eur(totalRecup)}</div></div>
+      <div class="stat warn"><div class="stat-label">Perte sèche</div><div class="stat-val">${eur(totalPerte)}</div></div>
+      <div class="stat"><div class="stat-label">Ouvertes</div><div class="stat-val">${nbOuvertes}</div></div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Mois</th><th>Réclamations</th><th>Ouvertes</th><th>En cours</th><th>Remboursées</th><th>Pertes sèches</th><th>Réclamé</th><th>Récupéré</th></tr></thead>
+      <tbody>${rows.map(x=>`
+        <tr>
+          <td>${esc((x.mois||'').slice(0,7))}</td>
+          <td class="num">${x.nb_reclamations||0}</td>
+          <td class="num">${x.nb_ouvertes||0}</td>
+          <td class="num">${x.nb_en_cours||0}</td>
+          <td class="num">${x.nb_remboursees||0}</td>
+          <td class="num" style="color:#f08080;">${x.nb_pertes_seches||0}</td>
+          <td class="num">${eur(x.montant_reclame_total)}</td>
+          <td class="num" style="color:#60d090;">${eur(x.montant_recupere)}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function loadAnalyticsDashboard(){
+  const r = await api('/api/commerce/analytics/dashboard');
+  if(!r.success){ $('analytics-stats').innerHTML = `<div class="empty" style="grid-column:1/-1;">Erreur : ${esc(r.error||'')}</div>`; return; }
+  analyticsData = r;
+  const s = r.stats;
+  const showMarge = r.can_see_margins && s.marge_mois !== null;
+  $('analytics-stats').innerHTML = `
+    <div class="stat accent">
+      <div class="stat-label">CA du mois (TTC)</div>
+      <div class="stat-val">${eur(s.ca_mois)}</div>
+      <div class="stat-sub">factures émises</div>
+    </div>
+    <div class="stat warn">
+      <div class="stat-label">En attente</div>
+      <div class="stat-val">${eur(s.en_attente)}</div>
+      <div class="stat-sub">factures non réglées</div>
+    </div>
+    <div class="stat ${showMarge?'ok':''}">
+      <div class="stat-label">Marge brute du mois</div>
+      <div class="stat-val">${showMarge?eur(s.marge_mois):(r.can_see_margins?'—':'***')}</div>
+      <div class="stat-sub">${showMarge?(s.marge_pct!=null?s.marge_pct+'%':''):(r.can_see_margins?'renseignez prix d\'achat':'accès restreint')}</div>
+    </div>
+    <div class="stat info">
+      <div class="stat-label">Taux conversion devis</div>
+      <div class="stat-val">${s.taux_conversion!=null?s.taux_conversion+'%':'—'}</div>
+      <div class="stat-sub">${s.nb_devis_acceptes}/${s.nb_devis_envoyes} envoyés</div>
+    </div>`;
+}
+
+async function loadTopProduits(){
+  const range = $('top-range').value || '3m';
+  const tri = $('top-tri').value || 'ca';
+  $('top-wrap').innerHTML = '<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api(`/api/commerce/analytics/top-produits?range=${range}&tri=${tri}&limit=15`);
+  if(!r.success){ $('top-wrap').innerHTML='<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  const rows = r.produits || [];
+  if(!rows.length){ $('top-wrap').innerHTML='<div class="empty">Pas encore de ventes sur cette période.</div>'; return; }
+  const showMarge = r.can_see_margins;
+  $('top-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr>
+        <th>#</th><th>Produit</th><th>Réf.</th>
+        <th>Qté vendue</th><th>CA HT</th>${showMarge?'<th>Marge</th>':''}
+      </tr></thead>
+      <tbody>${rows.map((p,i)=>`
+        <tr>
+          <td class="num" style="color:var(--muted);">${i+1}</td>
+          <td><strong>${esc(p.designation||'—')}</strong></td>
+          <td style="font-size:11px;color:var(--muted);">${esc(p.reference||'—')}</td>
+          <td class="num">${p.volume}</td>
+          <td class="num">${eur(p.ca)}</td>
+          ${showMarge?`<td class="num" style="color:${(p.marge||0)>=0?'#60d090':'#f08080'};">${p.marge!=null?eur(p.marge):'—'}</td>`:''}
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function loadPromoProduits(){
+  // alimente le select avec les produits (charge si besoin)
+  if(!stockData.length){
+    try{
+      const r = await api('/api/commerce/stock?limit=200');
+      if(r.success){ stockData = r.stock || []; canSeeMargins = !!r.can_see_margins; }
+    }catch{}
+  }
+  const sel = $('promo-produit');
+  if(!sel) return;
+  if(!canSeeMargins){
+    $('promo-notice').style.display = '';
+    $('promo-notice').textContent = '🔒 Le simulateur promo nécessite le rôle propriétaire ou associé (accès prix d\'achat confidentiels).';
+    sel.disabled = true;
+    $('promo-remise').disabled = true;
+    return;
+  }
+  sel.innerHTML = '<option value="">— Choisir un produit —</option>' +
+    stockData.filter(p=>p.prix_achat_ht!=null).map(p=>
+      `<option value="${p.id}">${esc(p.designation||'')} (${esc(p.reference||'—')})</option>`).join('');
+  if(!stockData.some(p=>p.prix_achat_ht!=null)){
+    $('promo-notice').style.display = '';
+    $('promo-notice').style.background = 'rgba(240,160,48,0.1)';
+    $('promo-notice').style.borderColor = 'rgba(240,160,48,0.3)';
+    $('promo-notice').style.color = '#f0a030';
+    $('promo-notice').textContent = '💡 Renseignez les prix d\'achat de vos produits dans l\'onglet Stock pour activer le simulateur.';
+  } else {
+    $('promo-notice').style.display = 'none';
+  }
+}
+
+async function runPromoSim(){
+  const produit_id = $('promo-produit').value;
+  if(!produit_id){ $('promo-result').innerHTML=''; return; }
+  const remise_pct = Number($('promo-remise').value || 0);
+  const r = await api('/api/commerce/analytics/promo',{method:'POST',body:JSON.stringify({produit_id,remise_pct})});
+  if(!r.success){ $('promo-result').innerHTML='<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  const s = r.simulation;
+  const badge = s.recommandation==='viable' ? '<span class="chip payee">✅ Viable</span>'
+    : s.recommandation==='risque' ? '<span class="chip partielle">⚠️ Risqué</span>'
+    : '<span class="chip retard">🔴 Perte</span>';
+  $('promo-result').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);">Recommandation</div>
+          <div style="font-size:16px;font-weight:700;margin-top:2px;">${badge}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;color:var(--muted);">Remise appliquée</div>
+          <div style="font-size:20px;font-weight:800;color:var(--accent);">-${s.remise_pct}%</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Prix vente</div><div class="num" style="font-size:15px;text-decoration:line-through;color:var(--muted);">${eur(s.prix_vente)}</div><div class="num" style="font-size:18px;">${eur(s.prix_remise)}</div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Prix achat</div><div class="num" style="font-size:18px;">${eur(s.prix_achat)}</div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Marge avant</div><div class="num" style="font-size:18px;color:${s.marge_avant>=0?'#60d090':'#f08080'};">${eur(s.marge_avant)} (${s.marge_pct_avant}%)</div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Marge après</div><div class="num" style="font-size:18px;color:${s.marge_apres>=0?'#60d090':'#f08080'};">${eur(s.marge_apres)} (${s.marge_pct_apres}%)</div></div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">
+        Seuil de rentabilité (marge nulle) : <b style="color:var(--text);">-${s.seuil_remise_max}%</b> · Au-delà, vous vendez à perte.
+      </div>
+    </div>`;
+}
+
+async function loadPrevisions(){
+  $('previsions-wrap').innerHTML = '<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/analytics/previsions-stock?days=30');
+  if(!r.success){ $('previsions-wrap').innerHTML='<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  const rows = r.produits || [];
+  if(!rows.length){ $('previsions-wrap').innerHTML='<div class="empty">Aucune prévision. Les mouvements stock sont nécessaires pour calculer la vélocité.</div>'; return; }
+  const statutChip = s => s==='rupture' ? '<span class="chip retard">🔴 Rupture</span>'
+    : s==='critique' ? '<span class="chip retard">⏰ Critique</span>'
+    : s==='vigilance' ? '<span class="chip partielle">⚠️ Vigilance</span>'
+    : '<span class="chip payee">✅ OK</span>';
+  $('previsions-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Produit</th><th>Stock</th><th>Vendu/30j</th><th>Vélocité</th><th>Jours restants</th><th>Statut</th><th>À commander</th></tr></thead>
+      <tbody>${rows.map(p=>`
+        <tr>
+          <td><strong>${esc(p.designation||'—')}</strong><div style="font-size:11px;color:var(--muted);">${esc(p.reference||'—')}</div></td>
+          <td class="num">${p.stock_reel}</td>
+          <td class="num">${p.vendu_periode}</td>
+          <td class="num" style="color:var(--muted);">${p.vitesse_jour}/j</td>
+          <td class="num">${p.jours_restants!=null?(p.jours_restants+' j'):'—'}</td>
+          <td>${statutChip(p.statut_prevision)}</td>
+          <td class="num">${p.quantite_recommandee!=null?('+ '+p.quantite_recommandee):'—'}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// =====================================================================
+// RETOURS CLIENT
+// =====================================================================
+let retoursSens = 'client';
+let retourFacture = null;
+let retoursList = [];
+
+function setRetourSens(sens){
+  retoursSens = sens;
+  $('ret-tab-client').style.color = sens==='client'?'var(--accent)':'var(--muted)';
+  $('ret-tab-client').style.borderColor = sens==='client'?'var(--accent)':'var(--border)';
+  $('ret-tab-fourn').style.color = sens==='fournisseur'?'var(--accent)':'var(--muted)';
+  $('ret-tab-fourn').style.borderColor = sens==='fournisseur'?'var(--accent)':'var(--border)';
+  loadRetours();
+}
+
+async function loadRetours(){
+  $('retours-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/retours?sens='+retoursSens);
+  if(!r.success){ $('retours-wrap').innerHTML='<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  retoursList = r.retours || [];
+  if(!retoursList.length){
+    $('retours-wrap').innerHTML='<div class="empty">Aucun retour '+(retoursSens==='client'?'côté client':'à traiter')+'.</div>';
+    return;
+  }
+  const statutChip = s => {
+    const m = {
+      'en_attente':['brouillon','⏳ En attente'],
+      'accepte_retour_physique':['payee','✅ Retour accepté'],
+      'accepte_nouveau_produit':['payee','📦 Nouveau produit'],
+      'refuse':['retard','❌ Refusé'],
+      'expire':['retard','⏱ Expiré'],
+      'clos_sans_suite':['brouillon','— Clos']
+    };
+    const [cls,lbl] = m[s]||['brouillon',s];
+    return `<span class="chip ${cls}">${lbl}</span>`;
+  };
+  $('retours-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr>
+        <th>Date</th><th>Produit</th><th>Qté</th><th>Montant</th><th>Raison</th>
+        <th>${retoursSens==='client'?'Fournisseur':'Client'}</th>
+        <th>Statut</th><th></th>
+      </tr></thead>
+      <tbody>${retoursList.map(r=>{
+        const peerName = retoursSens==='client'
+          ? (r.fournisseur?.nom || r.fournisseur_nom || '—')
+          : (r.client?.nom || '—');
+        let actions = '';
+        if(retoursSens==='fournisseur' && r.statut === 'en_attente'){
+          actions = `
+            <button class="btn btn-primary btn-sm" onclick="retourAction('${r.id}','accepter')">✅ Accepter</button>
+            <button class="btn btn-ghost btn-sm" onclick="retourAction('${r.id}','nouveau-produit')">🔄 Nouveau produit</button>
+            <button class="btn btn-danger btn-sm" onclick="retourAction('${r.id}','refuser')">❌ Refuser</button>`;
+        } else if(r.etiquette_retour_url) {
+          actions = `<a class="btn btn-ghost btn-sm" href="${esc(r.etiquette_retour_url)}" target="_blank">📄 Étiquette</a>`;
+        } else if(r.numero_suivi) {
+          actions = `<span class="chip payee" style="font-size:10px;">Suivi : ${esc(r.numero_suivi)}</span>`;
+        } else if(r.raison_refus) {
+          actions = `<span style="font-size:11px;color:#f08080;" title="${esc(r.raison_refus)}">Refusé</span>`;
+        }
+        return `<tr>
+          <td>${esc((r.created_at||'').slice(0,10))}</td>
+          <td><strong>${esc(r.produit_designation||r.produit?.designation||'—')}</strong><div style="font-size:11px;color:var(--muted);">${esc(r.produit_reference||r.produit?.reference||'')}</div></td>
+          <td class="num">${r.quantite}</td>
+          <td class="num">${eur(r.montant)}</td>
+          <td>${esc(r.raison)}</td>
+          <td>${esc(peerName)}</td>
+          <td>${statutChip(r.statut)}</td>
+          <td class="actions">${actions}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+async function retourAction(id, action){
+  let body = {};
+  if(action==='accepter'){
+    const url = prompt('URL étiquette de retour (optionnel) :', '');
+    if(url) body.etiquette_retour_url = url;
+  } else if(action==='nouveau-produit'){
+    const suivi = prompt('Numéro de suivi :', '');
+    if(!suivi) return;
+    body.numero_suivi = suivi;
+  } else if(action==='refuser'){
+    const raison = prompt('Raison du refus (obligatoire) :', '');
+    if(!raison) return;
+    body.raison_refus = raison;
+  }
+  const r = await api(`/api/commerce/retours/${id}/${action}`,{method:'POST',body:JSON.stringify(body)});
+  if(r.success){ toast('OK','ok'); await loadRetours(); }
+  else toast(r.error||'erreur',true);
+}
+
+function openRetourModal(factureId){
+  const f = factures.find(x=>x.id===factureId);
+  if(!f){ toast('Facture introuvable',true); return; }
+  retourFacture = f;
+  $('ret-facture-label').value = (f.numero||'') + ' · ' + eur(f.total_ttc);
+
+  // Alimenter select produits depuis les lignes facture
+  const sel = $('ret-produit');
+  sel.innerHTML = (f.lignes||[]).map((l,i)=>{
+    const val = i;
+    return `<option value="${val}">${esc(l.designation||'')}${l.reference?' ('+esc(l.reference)+')':''} — qté achetée ${l.quantite}</option>`;
+  }).join('');
+  sel.onchange = () => {
+    const l = f.lignes[Number(sel.value)];
+    if(!l) return;
+    $('ret-qte').value = String(l.quantite||1);
+    const pu = Number(l.prix_unitaire_ht||0);
+    const tva = Number(l.taux_tva||0);
+    const ttc = pu * Number(l.quantite||0) * (1 + tva/100);
+    $('ret-montant').value = ttc.toFixed(2);
+    updRetourRentabilite();
+  };
+  sel.dispatchEvent(new Event('change'));
+
+  $('ret-raison').value = 'defectueux';
+  $('ret-deballe').checked = false;
+  $('ret-utilise').checked = false;
+  $('ret-emb-intact').checked = true;
+  $('ret-note').value = '';
+  $('ret-qte').oninput = updRetourRentabilite;
+  $('ret-montant').oninput = updRetourRentabilite;
+  updRetourRentabilite();
+  openModal('modal-retour');
+}
+
+function updRetourRentabilite(){
+  const qte = Math.max(1, Number($('ret-qte').value||1));
+  const montant = Number($('ret-montant').value||0);
+  const valeur = montant / qte;
+  if(valeur < 15){
+    $('ret-rentabilite').style.display='';
+    $('ret-rent-msg').textContent = `Valeur unitaire ${valeur.toFixed(2)}€ < 15€. Transport ~8€ → retour peu rentable. Alternatives : JADOMI Market, conserver, ou faire quand même la demande.`;
+  } else {
+    $('ret-rentabilite').style.display='none';
+  }
+}
+
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'ret-save'){
+    e.preventDefault();
+    saveRetour();
+  }
+});
+
+async function saveRetour(){
+  if(!retourFacture){ toast('Facture manquante',true); return; }
+  const idx = Number($('ret-produit').value);
+  const ligne = (retourFacture.lignes||[])[idx];
+  if(!ligne){ toast('Ligne produit invalide',true); return; }
+  const raison = $('ret-raison').value;
+  const note = $('ret-note').value.trim();
+  if(raison === 'autre' && !note){ toast('Note obligatoire si raison = autre',true); return; }
+
+  const payload = {
+    facture_id: retourFacture.id,
+    produit_id: null,
+    designation: ligne.designation,
+    reference: ligne.reference,
+    quantite: Number($('ret-qte').value||1),
+    montant: Number($('ret-montant').value||0),
+    raison,
+    deballe: $('ret-deballe').checked,
+    utilise: $('ret-utilise').checked,
+    emballage_intact: $('ret-emb-intact').checked,
+    note: note || null
+  };
+  // Essaie de retrouver le produit du catalogue par référence
+  if(ligne.reference){
+    const { produits: cat } = await api('/api/commerce/produits?limit=200&q='+encodeURIComponent(ligne.reference));
+    const match = (cat||[]).find(p=>p.reference===ligne.reference);
+    if(match) payload.produit_id = match.id;
+  }
+
+  const btn = $('ret-save'); btn.disabled=true; btn.textContent='Envoi…';
+  try{
+    const r = await api('/api/commerce/retours',{method:'POST',body:JSON.stringify(payload)});
+    if(!r.success) throw new Error(r.error||'erreur');
+    toast(r.rentable ? 'Retour déclaré — fournisseur notifié' : 'Retour déclaré (peu rentable — alternatives proposées)', 'ok');
+    closeModal('modal-retour');
+    await loadFactures();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Déclarer le retour'; }
+}
+
+// =====================================================================
+// RÉCLAMATIONS FOURNISSEURS
+// =====================================================================
+let reclamations = [];
+async function loadReclamations(){
+  const statut = $('filter-rec-statut').value;
+  const qs = statut ? '?statut='+statut : '';
+  $('rec-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const r = await api('/api/commerce/reclamations'+qs);
+  if(!r.success){ $('rec-wrap').innerHTML='<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  reclamations = r.reclamations || [];
+  renderReclamations();
+}
+function renderReclamations(){
+  const q = ($('search-rec').value||'').toLowerCase();
+  const rows = reclamations.filter(r =>
+    !q || (r.fournisseur_nom||'').toLowerCase().includes(q) ||
+          (r.produit?.designation||'').toLowerCase().includes(q)
+  );
+  if(!rows.length){ $('rec-wrap').innerHTML='<div class="empty">Aucune réclamation.</div>'; return; }
+  const statutChip = s => {
+    const m = {
+      'ouverte':['retard','🔴 Ouverte'],
+      'en_cours':['partielle','🟡 En cours'],
+      'remboursee':['payee','✅ Remboursée'],
+      'avoir_recu':['payee','📄 Avoir reçu'],
+      'perte_seche':['retard','💸 Perte sèche'],
+      'refusee':['retard','❌ Refusée']
+    };
+    const [cls,lbl] = m[s]||['brouillon',s];
+    return `<span class="chip ${cls}">${lbl}</span>`;
+  };
+  $('rec-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr>
+        <th>Date</th><th>Fournisseur</th><th>Produit</th><th>Motif</th>
+        <th>Montant</th><th>Statut</th><th></th>
+      </tr></thead>
+      <tbody>${rows.map(r=>`
+        <tr>
+          <td>${esc((r.created_at||'').slice(0,10))}</td>
+          <td><strong>${esc(r.fournisseur?.nom||r.fournisseur_nom||'—')}</strong></td>
+          <td>${esc(r.produit?.designation||'—')}<div style="font-size:11px;color:var(--muted);">${esc(r.produit?.reference||'')}</div></td>
+          <td>${esc(r.motif)}</td>
+          <td class="num">${eur(r.montant)}</td>
+          <td>${statutChip(r.statut)}</td>
+          <td class="actions">
+            <button class="btn btn-ghost btn-sm" onclick="openRecEmail('${r.id}')">📧 Email IA</button>
+            ${r.statut==='ouverte'||r.statut==='en_cours' ? `
+              <button class="btn btn-primary btn-sm" onclick="updRec('${r.id}','remboursee')">💰 Remboursée</button>
+              <button class="btn btn-ghost btn-sm" onclick="updRec('${r.id}','avoir_recu')">📄 Avoir reçu</button>
+              <button class="btn btn-danger btn-sm" onclick="updRec('${r.id}','perte_seche')">💸 Perte sèche</button>
+            `:''}
+          </td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+async function updRec(id, statut){
+  let body = { statut };
+  if(statut==='remboursee' || statut==='avoir_recu'){
+    const m = prompt('Montant récupéré (€) :','');
+    if(m) body.resolution_montant = Number(m);
+  }
+  const r = await api('/api/commerce/reclamations/'+id,{method:'PATCH',body:JSON.stringify(body)});
+  if(r.success){ toast('Mis à jour','ok'); await loadReclamations(); }
+  else toast(r.error||'erreur',true);
+}
+
+async function openRecEmail(id){
+  const rec = reclamations.find(x=>x.id===id);
+  if(!rec){ toast('Introuvable',true); return; }
+  $('rec-email-to').value = rec.fournisseur_email || '';
+  $('rec-email-body').value = 'Génération en cours…';
+  openModal('modal-rec-email');
+  try{
+    const r = await api('/api/commerce/reclamations/'+id+'/email-ia',{method:'POST',body:JSON.stringify({})});
+    $('rec-email-body').value = r.email_generated || 'Erreur JADOMI IA — rédigez manuellement.';
+  }catch(e){ $('rec-email-body').value = 'Erreur : '+e.message; }
+  $('rec-email-regen').onclick = ()=>openRecEmail(id);
+  $('rec-email-send').onclick = async ()=>{
+    const to = $('rec-email-to').value.trim();
+    const body = $('rec-email-body').value.trim();
+    if(!to || !body){ toast('Destinataire et corps requis',true); return; }
+    // Sépare sujet (1ère ligne "Objet : ...") et corps
+    const lines = body.split('\n');
+    const first = lines[0].replace(/^Objet\s*:\s*/i,'').trim();
+    const sujet = first || ('Réclamation — ' + (rec.produit?.designation || rec.fournisseur_nom || ''));
+    const corps = first === lines[0] ? body : lines.slice(1).join('\n').trim();
+    const r = await api('/api/commerce/reclamations/'+id+'/envoyer',{
+      method:'POST',
+      body: JSON.stringify({ to, sujet, corps })
+    });
+    if(r.success && r.sent){
+      toast('Email envoyé au fournisseur','ok');
+      closeModal('modal-rec-email');
+      await loadReclamations();
+    } else {
+      toast(r.error || 'Envoi échoué', true);
+    }
+  };
+}
+
+// Binding search réclamations
+document.addEventListener('DOMContentLoaded', () => {
+  if($('search-rec')) $('search-rec').oninput = renderReclamations;
+  if($('filter-rec-statut')) $('filter-rec-statut').onchange = loadReclamations;
+});
+
+// =====================================================================
+// JADOMI MARKET
+// =====================================================================
+let marketView = 'all';
+let marketAnnonces = [];
+
+function setMarketView(v){
+  marketView = v;
+  $('market-tab-all').style.color = v==='all'?'var(--accent)':'var(--muted)';
+  $('market-tab-all').style.borderColor = v==='all'?'var(--accent)':'var(--border)';
+  $('market-tab-mine').style.color = v==='mine'?'var(--accent)':'var(--muted)';
+  $('market-tab-mine').style.borderColor = v==='mine'?'var(--accent)':'var(--border)';
+  loadMarket();
+}
+
+async function loadMarket(){
+  $('market-wrap').innerHTML = '<div class="loader"><div class="spinner"></div>Chargement…</div>';
+  const qs = marketView === 'mine' ? '?mine=1' : '';
+  const r = await api('/api/commerce/market' + qs);
+  if(!r.success){ $('market-wrap').innerHTML = '<div class="empty">Erreur : '+esc(r.error||'')+'</div>'; return; }
+  marketAnnonces = r.annonces || [];
+  if(!marketAnnonces.length){
+    $('market-wrap').innerHTML = '<div class="empty" style="padding:40px;">'+(marketView==='mine'?'Aucune annonce publiée. Cliquez sur "+ Mettre en vente" pour commencer.':'Aucune annonce disponible pour le moment.')+'</div>';
+    return;
+  }
+  const etatLabel = { non_deballe:'📦 Neuf', deballe_non_utilise:'📤 Déballé', utilise_bon_etat:'✨ Bon état', defectueux_pieces:'🔧 Pièces' };
+  const statutChip = s => {
+    const m = { active:['payee','Active'], reservee:['partielle','Réservée'], vendue:['brouillon','Vendue'], brouillon:['brouillon','Brouillon'], retiree:['retard','Retirée'] };
+    const [cls,lbl] = m[s]||['brouillon',s];
+    return `<span class="chip ${cls}">${lbl}</span>`;
+  };
+  $('market-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Vendeur</th><th>Désignation</th><th>État</th><th>Qté</th><th>Prix</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${marketAnnonces.map(a=>{
+        const isMine = marketView === 'mine' || a.vendeur?.id === societeId;
+        let actions = '';
+        if (a.statut === 'active' && !isMine) {
+          actions = `<button class="btn btn-primary btn-sm" onclick="reserverAnnonce('${a.id}')">Réserver</button>`;
+        } else if (a.statut === 'reservee') {
+          actions = isMine ? '<span style="font-size:11px;color:var(--muted);">Acheteur réservé</span>' : '<span class="chip partielle">Réservée</span>';
+          if (isMine || a.acheteur_societe_id === societeId) {
+            actions += ` <button class="btn btn-ghost btn-sm" onclick="confirmerVente('${a.id}')">✓ Confirmer vente</button>`;
+          }
+        } else if (isMine && a.statut === 'active') {
+          actions += ` <button class="btn btn-danger btn-sm" onclick="retirerAnnonce('${a.id}')">Retirer</button>`;
+        }
+        return `<tr>
+          <td><strong>${esc(a.vendeur?.nom || '—')}</strong></td>
+          <td>${esc(a.designation||'')}<div style="font-size:11px;color:var(--muted);">${esc((a.description||'').slice(0,60))}</div></td>
+          <td><span class="chip" style="background:var(--surface2);color:var(--text);">${etatLabel[a.etat]||a.etat}</span></td>
+          <td class="num">${a.quantite||1}</td>
+          <td class="num">${eur(a.prix_vente)}${a.prix_neuf_indicatif?`<div style="font-size:10px;color:var(--muted);text-decoration:line-through;">${eur(a.prix_neuf_indicatif)}</div>`:''}</td>
+          <td>${statutChip(a.statut)}</td>
+          <td class="actions">${actions}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function openMarketModal(){
+  ['designation','reference','quantite','neuf','prix','transport','description','photos'].forEach(k => $('mk-'+k).value = '');
+  $('mk-etat').value = 'non_deballe';
+  $('mk-categorie').value = 'sante';
+  $('mk-quantite').value = '1';
+  $('mk-transport').value = '8';
+  $('mk-simu').textContent = 'Renseigne un prix pour voir le calcul.';
+  openModal('modal-market');
+}
+
+// Simulation net à chaque saisie prix/transport
+document.addEventListener('input', (e) => {
+  if (e.target && (e.target.id === 'mk-prix' || e.target.id === 'mk-transport')) {
+    const prix = Number($('mk-prix').value) || 0;
+    const transport = Number($('mk-transport').value) || 0;
+    if (prix < 20) { $('mk-simu').textContent = 'Prix minimum : 20€'; return; }
+    const commission = prix * 0.08;
+    const net = prix - commission - transport;
+    $('mk-simu').innerHTML = `
+      Prix : <b>${eur(prix)}</b> &nbsp;·&nbsp;
+      Commission 8% : <b style="color:#f0a030;">-${eur(commission)}</b> &nbsp;·&nbsp;
+      Transport : <b style="color:#f0a030;">-${eur(transport)}</b>
+      <br><span style="color:var(--accent);font-family:var(--display);font-weight:800;font-size:16px;">Net vendeur : ${eur(net)}</span>`;
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'market-save') {
+    e.preventDefault();
+    saveAnnonceMarket();
+  }
+});
+
+async function saveAnnonceMarket(){
+  const designation = $('mk-designation').value.trim();
+  const prix_vente = Number($('mk-prix').value);
+  const photos = $('mk-photos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (!designation || !prix_vente) { toast('Désignation et prix requis',true); return; }
+  if (prix_vente < 20) { toast('Prix minimum 20€',true); return; }
+  if (!photos.length) { toast('Au moins une photo requise',true); return; }
+  const payload = {
+    designation,
+    reference: $('mk-reference').value.trim() || null,
+    etat: $('mk-etat').value,
+    categorie: $('mk-categorie').value,
+    quantite: Number($('mk-quantite').value) || 1,
+    prix_neuf_indicatif: Number($('mk-neuf').value) || null,
+    prix_vente,
+    cout_transport_estime: Number($('mk-transport').value) || null,
+    description: $('mk-description').value.trim() || null,
+    photo_urls: photos
+  };
+  const btn = $('market-save'); btn.disabled = true; btn.textContent = 'Publication…';
+  try {
+    const r = await api('/api/commerce/market', { method:'POST', body: JSON.stringify(payload) });
+    if (!r.success) throw new Error(r.error||'erreur');
+    toast('Annonce publiée','ok');
+    closeModal('modal-market');
+    setMarketView('mine');
+  } catch (e) { toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = 'Publier'; }
+}
+
+async function reserverAnnonce(id){
+  if(!confirm('Réserver cette annonce ? Le vendeur sera notifié.')) return;
+  const r = await api('/api/commerce/market/'+id+'/reserver',{method:'POST'});
+  if(r.success){ toast('Annonce réservée','ok'); await loadMarket(); }
+  else toast(r.error||'erreur',true);
+}
+async function confirmerVente(id){
+  if(!confirm('Confirmer la vente ? Action irréversible.')) return;
+  const r = await api('/api/commerce/market/'+id+'/confirmer-vente',{method:'POST'});
+  if(r.success){ toast('Vente confirmée','ok'); await loadMarket(); }
+  else toast(r.error||'erreur',true);
+}
+async function retirerAnnonce(id){
+  if(!confirm('Retirer cette annonce ?')) return;
+  const r = await api('/api/commerce/market/'+id,{method:'PATCH',body:JSON.stringify({statut:'retiree'})});
+  if(r.success){ toast('Annonce retirée','ok'); await loadMarket(); }
+  else toast(r.error||'erreur',true);
+}
+
+async function runWP(){
+  const site_url=$('wp-url').value.trim();
+  const consumer_key=$('wp-ck').value.trim();
+  const consumer_secret=$('wp-cs').value.trim();
+  const enrichir_ia = $('wp-enrich').checked;
+  if(!site_url){ toast('URL du site requise',true); return; }
+  const btn=$('wp-run'); btn.disabled=true; btn.textContent='Import…';
+  try{
+    // Mode Woo avancé si clé fournie, sinon WP REST public
+    let r;
+    if(consumer_key && consumer_secret){
+      r = await api('/api/commerce/produits/import-wordpress',{method:'POST',
+        body:JSON.stringify({site_url,consumer_key,consumer_secret})});
+      if(!r.success) throw new Error(r.error||'erreur');
+      toast(`Synchronisé : ${r.inserted||0} produits`, 'ok');
+      closeModal('modal-wp');
+      await loadProduits();
+      return;
+    }
+    r = await api('/api/commerce/produits/import-wp-public',{method:'POST',
+      body:JSON.stringify({site_url, enrichir_ia})});
+    if(!r.success) throw new Error(r.error||'erreur');
+    if(r.background && r.job_id){
+      toast('Import WordPress lancé — suivi en bas à droite','ok');
+      closeModal('modal-wp');
+      watchImportJob(r.job_id, 'produit');
+      return;
+    }
+    toast('Import terminé','ok');
+    closeModal('modal-wp');
+    await loadProduits();
+  }catch(e){ toast(e.message,true); }
+  finally{ btn.disabled=false; btn.textContent='Importer'; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#c8f060">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JADOMI">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>JADOMI — Admin</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --bg:#0f0e0d;
+  --bg2:#1a1917;
+  --bg3:#252320;
+  --accent:#c8f060;
+  --accent2:#a8d040;
+  --txt:#e8e6e0;
+  --txt2:#9c9890;
+  --border:#2f2c28;
+  --red:#ff4d4f;
+  --green:#52c41a;
+  --orange:#faad14;
+  --blue:#3b82f6;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+body{background:var(--bg);color:var(--txt);min-height:100vh;display:flex}
+a{color:var(--accent);text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+
+/* === SIDEBAR === */
+.sidebar{
+  width:240px;background:var(--bg2);min-height:100vh;
+  border-right:1px solid var(--border);
+  position:fixed;left:0;top:0;display:flex;flex-direction:column;
+  padding:20px 0;
+}
+.logo{
+  padding:0 20px 20px;font-size:24px;font-weight:900;color:var(--accent);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;
+}
+.logo .badge-admin{background:var(--red);color:#fff;font-size:10px;padding:3px 8px;border-radius:4px;font-weight:700}
+.menu{list-style:none;padding:15px 0;flex:1}
+.menu li{padding:0}
+.menu a{
+  display:flex;align-items:center;gap:12px;padding:12px 20px;color:var(--txt2);
+  font-size:14px;font-weight:500;transition:all .15s;border-left:3px solid transparent;
+  position:relative;
+}
+.menu a:hover{background:var(--bg3);color:var(--txt)}
+.menu a.active{background:var(--bg3);color:var(--accent);border-left-color:var(--accent)}
+.menu a .ic{font-size:18px;width:22px;text-align:center}
+.menu a .alert{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  background:var(--red);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:700;
+}
+.user-bottom{padding:15px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--txt2)}
+.user-bottom strong{color:var(--accent);display:block}
+
+/* === MAIN === */
+.main{margin-left:240px;flex:1;min-height:100vh}
+.topbar{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:15px 30px;display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;z-index:10;
+}
+.topbar h1{font-size:20px;font-weight:700}
+.top-actions{display:flex;gap:10px}
+.btn{
+  padding:8px 14px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);
+  border-radius:6px;font-size:13px;font-weight:500;transition:all .15s;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+.btn-primary:hover{background:var(--accent2);color:#000}
+.btn-danger{background:transparent;color:var(--red);border-color:var(--red)}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+.content{padding:30px}
+.section{display:none}
+.section.active{display:block}
+.section h2{font-size:24px;margin-bottom:20px;color:var(--accent)}
+.section h3{font-size:16px;margin:20px 0 12px;color:var(--txt)}
+
+/* === KPIS === */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:25px}
+.kpi{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;
+  position:relative;
+}
+.kpi-label{font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-value{font-size:26px;font-weight:800;color:var(--accent)}
+.kpi-sub{font-size:11px;color:var(--txt2);margin-top:4px}
+.kpi.danger .kpi-value{color:var(--red)}
+.kpi.warning .kpi-value{color:var(--orange)}
+
+/* === GRAPHS === */
+.graphs{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:25px}
+.graph-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;
+}
+.graph-card h4{font-size:13px;color:var(--txt2);text-transform:uppercase;margin-bottom:15px;letter-spacing:.5px}
+.graph-card canvas{max-height:240px}
+
+/* === TABLES === */
+.table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg3)}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--border)}
+th{font-size:11px;text-transform:uppercase;color:var(--txt2);font-weight:600;letter-spacing:.5px}
+tbody tr:hover{background:var(--bg3)}
+.tag{display:inline-block;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.tag.green{background:rgba(82,196,26,.15);color:var(--green)}
+.tag.red{background:rgba(255,77,79,.15);color:var(--red)}
+.tag.orange{background:rgba(250,173,20,.15);color:var(--orange)}
+.tag.blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.tag.gray{background:#33312e;color:var(--txt2)}
+
+/* === FORMS === */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:15px}
+input,select,textarea{
+  width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:6px;color:var(--txt);font-size:13px;font-family:inherit;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+label{font-size:11px;color:var(--txt2);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+
+.toolbar{display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:200px}
+
+/* === BANDEAUX === */
+.banner{
+  padding:15px 20px;border-radius:10px;margin-bottom:20px;
+  background:rgba(250,173,20,.1);border:1px solid var(--orange);color:var(--orange);
+  font-size:13px;line-height:1.6;
+}
+.banner.danger{background:rgba(255,77,79,.1);border-color:var(--red);color:var(--red)}
+.banner.info{background:rgba(59,130,246,.1);border-color:var(--blue);color:var(--blue)}
+
+.checklist{list-style:none;padding:0}
+.checklist li{padding:8px 0;font-size:13px;display:flex;align-items:center;gap:10px}
+.checklist input[type=checkbox]{width:auto;margin:0}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.row{grid-template-columns:1fr}.sidebar{width:60px}.sidebar .menu a span:not(.ic){display:none}.main{margin-left:60px}}
+
+#error-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--red);color:#fff;padding:10px;text-align:center;z-index:100;font-weight:600}
+</style>
+  <link rel="stylesheet" href="/jadomi-mobile.css">
+</head>
+<body>
+
+<div id="error-banner"></div>
+
+<!-- ======== SIDEBAR ======== -->
+<div class="jadomi-sidebar-overlay" onclick="jadomiCloseSidebar()"></div>
+<aside class="sidebar">
+  <div class="logo">JADOMI <span class="badge-admin">ADMIN</span></div>
+  <ul class="menu">
+    <li><a href="#dashboard" data-section="dashboard" class="active"><span class="ic">📊</span><span>Dashboard</span></a></li>
+    <li><a href="#users" data-section="users"><span class="ic">👥</span><span>Utilisateurs</span></a></li>
+    <li><a href="#abos" data-section="abos"><span class="ic">💳</span><span>Abonnements & Impayés</span><span class="alert" id="alert-impayes" style="display:none">0</span></a></li>
+    <li><a href="#bans" data-section="bans"><span class="ic">🚫</span><span>Bannissements</span></a></li>
+    <li><a href="#mailing" data-section="mailing"><span class="ic">📧</span><span>Mailing IA</span></a></li>
+    <li><a href="#messagerie" data-section="messagerie"><span class="ic">📬</span><span>Messagerie</span></a></li>
+    <li><a href="#rush" data-section="rush"><span class="ic">🔔</span><span>Rush & Prothésistes</span></a></li>
+    <li><a href="#suggestions" data-section="suggestions"><span class="ic">💬</span><span>Suggestions</span></a></li>
+    <li><a href="#compta" data-section="compta"><span class="ic">🧾</span><span>Comptabilité</span></a></li>
+    <li><a href="#analytics" data-section="analytics"><span class="ic">📈</span><span>Analytics</span></a></li>
+    <li><a href="#params" data-section="params"><span class="ic">⚙️</span><span>Paramètres</span></a></li>
+  </ul>
+  <div class="user-bottom">
+    <strong>Karim</strong>
+    Admin JADOMI
+  </div>
+</aside>
+
+<!-- ======== MAIN ======== -->
+<main class="main">
+  <div class="topbar">
+    <button class="jadomi-hamburger" onclick="jadomiToggleSidebar()" aria-label="Menu">☰</button>
+    <h1 id="page-title">Dashboard</h1>
+    <div class="top-actions">
+      <a href="/index.html" class="btn">Vue Dentiste</a>
+      <a href="/prothesiste.html" class="btn">Vue Prothésiste</a>
+      <a href="/landing.html" class="btn">Landing</a>
+      <button class="btn btn-danger btn-sm" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ============ DASHBOARD ============ -->
+    <section class="section active" id="sec-dashboard">
+      <h2>📊 Dashboard</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Abonnés actifs</div><div class="kpi-value" id="kpi-actifs">0</div><div class="kpi-sub">Total comptes payants</div></div>
+        <div class="kpi"><div class="kpi-label">MRR</div><div class="kpi-value" id="kpi-mrr">0€</div><div class="kpi-sub">Revenu mensuel récurrent</div></div>
+        <div class="kpi"><div class="kpi-label">Revenus mois</div><div class="kpi-value" id="kpi-revmois">0€</div><div class="kpi-sub">CA encaissé ce mois</div></div>
+        <div class="kpi"><div class="kpi-label">Nouveaux semaine</div><div class="kpi-value" id="kpi-nouveaux">0</div><div class="kpi-sub">7 derniers jours</div></div>
+        <div class="kpi"><div class="kpi-label">Commissions Rush</div><div class="kpi-value" id="kpi-rush">0€</div><div class="kpi-sub">Mois en cours · 10%</div></div>
+        <div class="kpi danger"><div class="kpi-label">Impayés</div><div class="kpi-value" id="kpi-impayes">0</div><div class="kpi-sub">Action requise</div></div>
+        <div class="kpi"><div class="kpi-label">Taux conversion</div><div class="kpi-value" id="kpi-conv">—</div><div class="kpi-sub">Visiteurs → abonnés</div></div>
+      </div>
+
+      <div class="graphs">
+        <div class="graph-card"><h4>Revenus 12 derniers mois</h4><canvas id="chart-revenus"></canvas></div>
+        <div class="graph-card"><h4>Répartition professions</h4><canvas id="chart-profs"></canvas></div>
+        <div class="graph-card"><h4>Inscrits / semaine</h4><canvas id="chart-inscrits"></canvas></div>
+        <div class="graph-card"><h4>Commissions Rush</h4><canvas id="chart-rush"></canvas></div>
+      </div>
+
+      <div class="banner info">
+        ⏰ <strong>Automatisation active</strong> — Rapport hebdomadaire envoyé automatiquement chaque lundi 8h à karim_bahmed@yahoo.fr (CRON node-cron).
+      </div>
+    </section>
+
+    <!-- ============ UTILISATEURS ============ -->
+    <section class="section" id="sec-users">
+      <h2>👥 Utilisateurs</h2>
+      <div class="toolbar">
+        <input type="search" class="search" placeholder="Rechercher email, JADOMI-ID..." id="search-users">
+        <select id="filter-prof"><option value="">Toutes professions</option><option>dentiste</option><option>orthodontiste</option><option>prothesiste</option></select>
+        <select id="filter-statut"><option value="">Tous statuts</option><option>actif</option><option>suspendu</option><option>banni</option><option>impaye</option></select>
+        <button class="btn" onclick="exportCSV('users')">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>JADOMI-ID</th><th>Email</th><th>Profession</th><th>Plan</th><th>Statut</th><th>Inscription</th><th>Dernière co.</th><th>Cmd</th><th>Actions</th></tr></thead>
+          <tbody id="tbl-users"><tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:30px">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ ABONNEMENTS & IMPAYES ============ -->
+    <section class="section" id="sec-abos">
+      <h2>💳 Abonnements & Impayés Stripe</h2>
+      <div class="banner danger" id="banner-impayes" style="display:none">
+        🔴 <strong>Total impayés : <span id="total-impayes">0€</span></strong> — relances automatiques actives via webhooks Stripe
+      </div>
+
+      <h3>Impayés en cours</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>JADOMI-ID</th><th>Email</th><th>Montant</th><th>Jours retard</th><th>Tentatives</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="tbl-impayes"><tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucun impayé</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3>Tous les abonnements</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Customer Stripe</th><th>Plan</th><th>Montant</th><th>Statut</th><th>Début</th><th>Échéance</th></tr></thead>
+          <tbody id="tbl-abos"><tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="banner info">
+        🔗 <strong>Webhook Stripe</strong> — POST /api/stripe/webhook (events: payment_succeeded, payment_failed, subscription.deleted/updated, checkout.session.completed). Filet de sécurité : CRON nuit minuit J+7/J+15/J+30.
+      </div>
+    </section>
+
+    <!-- ============ BANNISSEMENTS ============ -->
+    <section class="section" id="sec-bans">
+      <h2>🚫 Bannissements</h2>
+      <h3>Nouveau bannissement</h3>
+      <div class="form-grid">
+        <div><label>Email</label><input type="email" id="ban-email" placeholder="user@exemple.fr"></div>
+        <div><label>Motif</label><input type="text" id="ban-motif" placeholder="Spam, fraude, abus..."></div>
+        <div><label>Durée</label><select id="ban-duree"><option value="7j">7 jours</option><option value="30j">30 jours</option><option value="permanent">Permanent</option></select></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="bannir()">Bannir + email IA</button></div>
+      </div>
+      <h3>Historique modération</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Email</th><th>Motif</th><th>Durée</th><th>Email envoyé</th><th>Actions</th></tr></thead>
+          <tbody id="tbl-bans"><tr><td colspan="6" style="text-align:center;color:var(--txt2);padding:30px">Aucun bannissement</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ MAILING IA ============ -->
+    <section class="section" id="sec-mailing">
+      <h2>📧 Mailing IA</h2>
+      <div class="row">
+        <div>
+          <h3>Générateur JADOMI IA</h3>
+          <div class="form-grid">
+            <div><label>Profession cible</label><select id="mail-prof"><option>tous</option><option>dentiste</option><option>orthodontiste</option><option>prothesiste</option></select></div>
+            <div><label>Sujet</label><input type="text" id="mail-sujet" placeholder="Nouvelle fonctionnalité..."></div>
+            <div><label>Ton</label><select id="mail-ton"><option>professionnel</option><option>chaleureux</option><option>urgent</option><option>commercial</option></select></div>
+          </div>
+          <div><label>Contexte</label><textarea id="mail-ctx" rows="3" placeholder="Détails sur la campagne..."></textarea></div>
+          <div style="margin-top:12px"><button class="btn btn-primary" onclick="genererMail()">🤖 Générer avec Claude</button></div>
+          <div style="margin-top:15px"><label>Aperçu HTML</label><iframe id="mail-preview" style="width:100%;height:300px;border:1px solid var(--border);border-radius:6px;background:#fff"></iframe></div>
+          <div style="margin-top:12px"><button class="btn btn-primary" onclick="envoyerMail()">📤 Envoyer la campagne</button></div>
+        </div>
+        <div>
+          <h3>Campagnes automatiques (déclencheurs)</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Campagne</th><th>Déclencheur</th><th>Statut</th></tr></thead>
+              <tbody>
+                <tr><td>Bienvenue</td><td>checkout.session.completed</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Confirmation paiement</td><td>invoice.payment_succeeded</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Relance J+1</td><td>invoice.payment_failed</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Relance J+7</td><td>CRON 0 0 * * *</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Suspension J+15</td><td>CRON 0 0 * * *</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Bannissement J+30</td><td>CRON 0 0 * * *</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Rapport hebdo admin</td><td>CRON 0 8 * * 1</td><td><span class="tag green">Actif</span></td></tr>
+                <tr><td>Rapport mensuel + TVA</td><td>CRON 0 9 1 * *</td><td><span class="tag green">Actif</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Historique campagnes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Sujet</th><th>Cible</th><th>Envoyés</th></tr></thead>
+              <tbody id="tbl-camp"><tr><td colspan="4" style="text-align:center;color:var(--txt2);padding:20px">Aucune campagne</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ============ MESSAGERIE ============ -->
+    <section class="section" id="sec-messagerie">
+      <h2>📬 Messagerie JADOMI</h2>
+      <p style="color:var(--txt2);font-size:13px;margin-bottom:20px">Acces aux boites mail OVH Pro et test SMTP en direct.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:25px">
+
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:48px;margin-bottom:12px">✉️</div>
+          <div style="font-size:18px;font-weight:700;color:var(--accent);margin-bottom:6px">contact@jadomi.fr</div>
+          <div style="font-size:12px;color:var(--txt2);margin-bottom:20px;line-height:1.5">Emails recus des clients<br>Demandes de support, contact commercial</div>
+          <button class="btn btn-primary" onclick="window.open('https://pro2.mail.ovh.net','_blank')" style="width:100%">Ouvrir le webmail →</button>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:48px;margin-bottom:12px">📨</div>
+          <div style="font-size:18px;font-weight:700;color:var(--accent);margin-bottom:6px">noreply@jadomi.fr</div>
+          <div style="font-size:12px;color:var(--txt2);margin-bottom:20px;line-height:1.5">Emails envoyes automatiquement<br>Bienvenue, factures, relances, alertes</div>
+          <button class="btn btn-primary" onclick="window.open('https://pro2.mail.ovh.net','_blank')" style="width:100%">Ouvrir le webmail →</button>
+        </div>
+
+      </div>
+
+      <h3>Test SMTP en direct</h3>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px">
+        <p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Envoie un email de test depuis <code style="color:var(--accent)">noreply@jadomi.fr</code> vers <code style="color:var(--accent)">karim_bahmed@yahoo.fr</code> via le serveur OVH Pro configure dans .env.</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" id="btn-test-smtp" onclick="testerEnvoiMail()">📧 Tester l'envoi email</button>
+          <span id="test-mail-status" style="font-size:13px;color:var(--txt2)"></span>
+        </div>
+        <pre id="test-mail-result" style="display:none;background:var(--bg3);padding:14px;border-radius:8px;margin-top:14px;font-size:11px;color:var(--txt);max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-all"></pre>
+      </div>
+
+      <div class="banner info">
+        🔧 <strong>Configuration SMTP active</strong> — Serveur OVH Pro <code>pro2.mail.ovh.net:587</code> (STARTTLS), expediteur <code>noreply@jadomi.fr</code>. Repondre-a configure sur <code>contact@jadomi.fr</code>.
+      </div>
+    </section>
+
+    <!-- ============ RUSH ============ -->
+    <section class="section" id="sec-rush">
+      <h2>🔔 Rush & Prothésistes</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Commissions mois</div><div class="kpi-value" id="rush-comm">0€</div></div>
+        <div class="kpi"><div class="kpi-label">Transactions</div><div class="kpi-value" id="rush-tx">0</div></div>
+      </div>
+      <h3>Transactions Rush temps réel</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Cabinet</th><th>Prothésiste</th><th>Total</th><th>Commission</th><th>Statut</th></tr></thead>
+          <tbody id="tbl-rush"><tr><td colspan="6" style="text-align:center;color:var(--txt2);padding:30px">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ SUGGESTIONS ============ -->
+    <section class="section" id="sec-suggestions">
+      <h2>💬 Suggestions</h2>
+      <div style="margin-bottom:15px"><button class="btn btn-primary" onclick="rapportSuggestionsIA()">📊 Rapport mensuel IA</button></div>
+      <div id="rapport-sugg" style="display:none;background:var(--bg2);border:1px solid var(--accent);border-radius:10px;padding:20px;margin-bottom:20px"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Cabinet</th><th>Titre</th><th>Catégorie</th><th>Score IA</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="tbl-sugg"><tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ COMPTABILITÉ ============ -->
+    <section class="section" id="sec-compta">
+      <h2>🧾 Comptabilité</h2>
+
+      <h3>A. Tableau de bord comptable</h3>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">CA mois</div><div class="kpi-value" id="ca-mois">0€</div></div>
+        <div class="kpi"><div class="kpi-label">CA trimestre</div><div class="kpi-value" id="ca-tri">0€</div></div>
+        <div class="kpi"><div class="kpi-label">CA année</div><div class="kpi-value" id="ca-an">0€</div></div>
+        <div class="kpi"><div class="kpi-label">Factures émises</div><div class="kpi-value" id="fac-em">0</div></div>
+        <div class="kpi"><div class="kpi-label">Encaissées</div><div class="kpi-value" id="fac-enc">0</div></div>
+        <div class="kpi warning"><div class="kpi-label">En attente</div><div class="kpi-value" id="fac-att">0</div></div>
+        <div class="kpi"><div class="kpi-label">Dépenses mois</div><div class="kpi-value" id="dep-mois">0€</div></div>
+        <div class="kpi"><div class="kpi-label">Résultat net</div><div class="kpi-value" id="res-net">0€</div></div>
+        <div class="kpi warning"><div class="kpi-label">TVA à reverser</div><div class="kpi-value" id="tva-rev">0€</div></div>
+        <div class="kpi"><div class="kpi-label">Trésorerie</div><div class="kpi-value" id="tresorerie">0€</div></div>
+      </div>
+
+      <h3>B. Factures émises</h3>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="document.getElementById('form-fac').style.display='block'">+ Nouvelle facture</button>
+        <button class="btn" onclick="exportCSV('factures')">Export CSV</button>
+      </div>
+      <div id="form-fac" style="display:none;background:var(--bg2);padding:20px;border-radius:10px;border:1px solid var(--accent);margin-bottom:15px">
+        <h3>Nouvelle facture</h3>
+        <div class="form-grid">
+          <div><label>Client email</label><input type="email" id="f-email"></div>
+          <div><label>SIREN client</label><input type="text" id="f-siren" placeholder="9 chiffres"></div>
+          <div><label>Description</label><input type="text" id="f-desc" value="Abonnement JADOMI"></div>
+          <div><label>Montant HT</label><input type="number" id="f-ht" step="0.01"></div>
+          <div><label>Date échéance</label><input type="date" id="f-ech"></div>
+        </div>
+        <button class="btn btn-primary" onclick="creerFacture()">Créer facture</button>
+        <button class="btn" onclick="document.getElementById('form-fac').style.display='none'">Annuler</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Numéro</th><th>Client</th><th>Date</th><th>Échéance</th><th>HT</th><th>TVA 20%</th><th>TTC</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="tbl-fac"><tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:30px">Aucune facture</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3>C. Dépenses</h3>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="document.getElementById('form-dep').style.display='block'">+ Nouvelle dépense</button>
+        <button class="btn" onclick="document.getElementById('form-ia-dep').style.display='block'">🤖 Analyser justificatif IA</button>
+        <button class="btn" onclick="exportCSV('depenses')">Export CSV</button>
+      </div>
+      <div id="form-dep" style="display:none;background:var(--bg2);padding:20px;border-radius:10px;border:1px solid var(--accent);margin-bottom:15px">
+        <h3>Nouvelle dépense</h3>
+        <div class="form-grid">
+          <div><label>Date</label><input type="date" id="d-date"></div>
+          <div><label>Catégorie</label><select id="d-cat"><option>VPS OVH</option><option>Anthropic API</option><option>Supabase</option><option>Stripe</option><option>Marketing</option><option>Frais bancaires</option><option>Développement</option><option>Juridique</option><option>Autres</option></select></div>
+          <div><label>Description</label><input type="text" id="d-desc"></div>
+          <div><label>Montant HT</label><input type="number" id="d-ht" step="0.01"></div>
+          <div><label>TVA %</label><input type="number" id="d-tva" value="20"></div>
+          <div><label>URL justificatif</label><input type="url" id="d-just"></div>
+        </div>
+        <button class="btn btn-primary" onclick="creerDepense()">Ajouter</button>
+        <button class="btn" onclick="document.getElementById('form-dep').style.display='none'">Annuler</button>
+      </div>
+      <div id="form-ia-dep" style="display:none;background:var(--bg2);padding:20px;border-radius:10px;border:1px solid var(--accent);margin-bottom:15px">
+        <h3>🤖 Analyse IA de justificatif</h3>
+        <p style="color:var(--txt2);font-size:12px;margin-bottom:10px">Copie le contenu OCR ou le texte de la facture, l'IA extrait montants/TVA/catégorie automatiquement.</p>
+        <textarea id="ia-dep-txt" rows="6" placeholder="Coller texte OCR ou description facture..."></textarea>
+        <div style="margin-top:10px"><button class="btn btn-primary" onclick="analyserDepIA()">Analyser</button> <button class="btn" onclick="document.getElementById('form-ia-dep').style.display='none'">Fermer</button></div>
+        <pre id="ia-dep-out" style="background:var(--bg3);padding:10px;border-radius:6px;margin-top:10px;font-size:11px;max-height:200px;overflow:auto;display:none"></pre>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Catégorie</th><th>Description</th><th>HT</th><th>TVA</th><th>TTC</th><th>Justif</th></tr></thead>
+          <tbody id="tbl-dep"><tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucune dépense</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3>D. TVA automatique</h3>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">TVA collectée trim.</div><div class="kpi-value" id="tva-col">0€</div></div>
+        <div class="kpi"><div class="kpi-label">TVA déductible trim.</div><div class="kpi-value" id="tva-ded">0€</div></div>
+        <div class="kpi danger"><div class="kpi-label" id="tva-tri-label">À reverser</div><div class="kpi-value" id="tva-net">0€</div></div>
+      </div>
+      <div class="banner info">
+        ⏰ Email automatique le 1er de chaque mois → karim_bahmed@yahoo.fr avec récap TVA. Alerte si TVA &gt; 500€.
+      </div>
+
+      <h3>E. Facturation électronique (Conformité 2026/2027)</h3>
+      <div class="banner">
+        ⚠️ <strong>Obligation RECEVOIR factures électroniques : 1er septembre 2026</strong><br>
+        ⚠️ <strong>Obligation ÉMETTRE factures électroniques : 1er septembre 2027 (PME)</strong><br>
+        Formats légaux : Factur-X, UBL ou CII via Plateforme Agréée (PA)
+      </div>
+      <h3>Checklist conformité</h3>
+      <ul class="checklist">
+        <li><input type="checkbox" id="ck1"><label for="ck1" style="margin:0;text-transform:none;font-size:14px;color:var(--txt)">Choisir Plateforme Agréée (Pennylane recommandé, ou Chorus Pro gratuit)</label></li>
+        <li><input type="checkbox" id="ck2"><label for="ck2" style="margin:0;text-transform:none;font-size:14px;color:var(--txt)">S'inscrire sur PPF (Portail Public de Facturation - impots.gouv.fr)</label></li>
+        <li><input type="checkbox" id="ck3"><label for="ck3" style="margin:0;text-transform:none;font-size:14px;color:var(--txt)">Activer réception factures électroniques (sept. 2026)</label></li>
+        <li><input type="checkbox" id="ck4"><label for="ck4" style="margin:0;text-transform:none;font-size:14px;color:var(--txt)">Configurer émission format Factur-X (sept. 2027)</label></li>
+        <li><input type="checkbox" id="ck5"><label for="ck5" style="margin:0;text-transform:none;font-size:14px;color:var(--txt)">Activer e-reporting TVA</label></li>
+      </ul>
+      <h3>Nouvelles mentions obligatoires sur factures (sept. 2026)</h3>
+      <ul style="font-size:13px;color:var(--txt2);padding-left:20px;line-height:1.8">
+        <li>Type opération : <strong style="color:var(--accent)">prestation de services</strong></li>
+        <li>SIREN émetteur + SIREN destinataire</li>
+        <li>Option TVA sur les débits</li>
+      </ul>
+      <h3>Générateur Factur-X (préparation)</h3>
+      <div class="banner info">Mode simulation — Connexion Plateforme Agréée prévue sept. 2026</div>
+      <div class="form-grid">
+        <div><label>Numéro</label><input type="text" id="fx-num"></div>
+        <div><label>SIREN client</label><input type="text" id="fx-siren"></div>
+        <div><label>Montant HT</label><input type="number" id="fx-ht" step="0.01"></div>
+        <div><label>TVA</label><input type="number" id="fx-tva" step="0.01"></div>
+      </div>
+      <div><label>Description</label><textarea id="fx-desc" rows="2"></textarea></div>
+      <div style="margin-top:10px"><button class="btn btn-primary" onclick="genererFacturX()">Générer XML Factur-X</button></div>
+      <pre id="fx-out" style="background:var(--bg3);padding:15px;border-radius:6px;margin-top:10px;font-size:11px;display:none;max-height:300px;overflow:auto"></pre>
+
+      <h3>F. Rapports comptables</h3>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="rapportIA()">🤖 Rapport annuel IA</button>
+        <button class="btn" onclick="window.print()">Export PDF</button>
+      </div>
+      <div id="rapport-out" style="display:none;background:var(--bg2);border:1px solid var(--accent);border-radius:10px;padding:20px;margin-top:15px"></div>
+    </section>
+
+    <!-- ============ ANALYTICS ============ -->
+    <section class="section" id="sec-analytics">
+      <h2>📈 Analytics</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Pages visitées</div><div class="kpi-value">—</div></div>
+        <div class="kpi"><div class="kpi-label">Taux rebond</div><div class="kpi-value">—</div></div>
+        <div class="kpi"><div class="kpi-label">Conversions</div><div class="kpi-value">—</div></div>
+        <div class="kpi"><div class="kpi-label">Appareils mobiles</div><div class="kpi-value">—</div></div>
+        <div class="kpi"><div class="kpi-label">Pays #1</div><div class="kpi-value">FR</div></div>
+      </div>
+      <div class="banner info">À connecter avec Plausible / Umami / Google Analytics — endpoint à configurer dans Paramètres.</div>
+    </section>
+
+    <!-- ============ PARAMÈTRES ============ -->
+    <section class="section" id="sec-params">
+      <h2>⚙️ Paramètres</h2>
+      <div class="row">
+        <div>
+          <h3>Tarification</h3>
+          <div class="form-grid">
+            <div><label>Plan Solo (€/mois)</label><input type="number" value="29" id="p-solo"></div>
+            <div><label>Plan Cabinet (€/mois)</label><input type="number" value="39" id="p-cab"></div>
+            <div><label>Plan Multi (€/mois)</label><input type="number" value="79" id="p-multi"></div>
+            <div><label>Commission Rush (%)</label><input type="number" value="10" id="p-rush"></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveParams()">Sauvegarder</button>
+        </div>
+        <div>
+          <h3>Notifications & société</h3>
+          <div class="form-grid">
+            <div><label>Email admin notifications</label><input type="email" value="karim_bahmed@yahoo.fr" id="p-email"></div>
+            <div><label>Coordonnées JADOMI SAS</label><input type="text" value="JADOMI SAS, Paris" id="p-coord"></div>
+            <div><label>Clé Stripe</label><input type="password" value="sk_live_••••••••••••" disabled></div>
+            <div><label>Message maintenance</label><input type="text" id="p-maint" placeholder="(vide = pas de message)"></div>
+          </div>
+          <div style="margin-top:10px">
+            <label><input type="checkbox" style="width:auto"> Activer module Rush</label><br>
+            <label><input type="checkbox" style="width:auto" checked> Activer Mailing IA</label><br>
+            <label><input type="checkbox" style="width:auto" checked> Activer Comptabilité auto</label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+// ============================================
+// SÉCURITÉ ADMIN
+// ============================================
+const ADMIN_EMAIL = 'karim_bahmed@yahoo.fr';
+const ADMIN_TOKEN_HEADER = { 'X-Admin-Token': 'jadomi_admin_karim_2026', 'Content-Type': 'application/json' };
+
+function checkAuth(){
+  let session = null;
+  try { session = JSON.parse(localStorage.getItem('jadomi_session') || 'null'); } catch(e){}
+  // Aussi accepter Supabase auth
+  const supaSession = (function(){
+    try {
+      for (const k in localStorage) {
+        if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+          const v = JSON.parse(localStorage.getItem(k));
+          if (v?.user?.email === ADMIN_EMAIL) return v.user;
+        }
+      }
+    } catch(e){}
+    return null;
+  })();
+
+  const email = session?.email || supaSession?.email;
+  const role = session?.role || session?.user_metadata?.role || supaSession?.user_metadata?.role;
+
+  if (email === ADMIN_EMAIL && role === 'admin') return true;
+  // Bypass dev: si email match meme sans role
+  if (email === ADMIN_EMAIL) {
+    if (!session) localStorage.setItem('jadomi_session', JSON.stringify({email:ADMIN_EMAIL, role:'admin', nom:'Karim'}));
+    return true;
+  }
+  return false;
+}
+
+if (!checkAuth()) {
+  window.location.href = '/login.html';
+}
+
+function logout(){
+  localStorage.removeItem('jadomi_session');
+  for (const k of Object.keys(localStorage)) if (k.startsWith('sb-')) localStorage.removeItem(k);
+  window.location.href = '/login.html';
+}
+
+// ============================================
+// NAVIGATION SIDEBAR
+// ============================================
+document.querySelectorAll('.menu a[data-section]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const sec = a.dataset.section;
+    document.querySelectorAll('.menu a').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-' + sec).classList.add('active');
+    document.getElementById('page-title').textContent = a.querySelector('span:not(.ic):not(.alert)').textContent;
+    location.hash = sec;
+    loadSection(sec);
+  });
+});
+
+// ============================================
+// FETCH HELPER
+// ============================================
+async function api(path, opts={}) {
+  const r = await fetch(path, { headers: ADMIN_TOKEN_HEADER, ...opts });
+  if (!r.ok) {
+    const t = await r.text();
+    showError('API ' + r.status + ': ' + t.slice(0,200));
+    throw new Error(t);
+  }
+  return r.json();
+}
+
+function showError(msg){
+  const el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+function fmt(n){ return (Number(n)||0).toLocaleString('fr-FR', {maximumFractionDigits:2}) + '€'; }
+function maskEmail(e){ if(!e) return ''; const [u,d] = e.split('@'); return u.slice(0,2)+'***@'+d; }
+
+// ============================================
+// CHARTS
+// ============================================
+let charts = {};
+function makeCharts(stats){
+  if (charts.rev) charts.rev.destroy();
+  charts.rev = new Chart(document.getElementById('chart-revenus'), {
+    type: 'bar',
+    data: { labels: ['M-11','M-10','M-9','M-8','M-7','M-6','M-5','M-4','M-3','M-2','M-1','Mois'], datasets: [{ label:'Revenus €', data: stats.revenus_12mois || [0,0,0,0,0,0,0,0,0,0,0,0], backgroundColor:'#c8f060' }] },
+    options: { plugins:{legend:{labels:{color:'#e8e6e0'}}}, scales:{x:{ticks:{color:'#9c9890'}},y:{ticks:{color:'#9c9890'}}} }
+  });
+  if (charts.profs) charts.profs.destroy();
+  const profsData = stats.professions || { dentiste:0, orthodontiste:0, prothesiste:0, veterinaire:0 };
+  charts.profs = new Chart(document.getElementById('chart-profs'), {
+    type: 'doughnut',
+    data: { labels: Object.keys(profsData), datasets: [{ data: Object.values(profsData), backgroundColor:['#c8f060','#a8d040','#8bb030','#6e9020'] }] },
+    options: { plugins:{legend:{labels:{color:'#e8e6e0'}}} }
+  });
+  if (charts.ins) charts.ins.destroy();
+  charts.ins = new Chart(document.getElementById('chart-inscrits'), {
+    type: 'line',
+    data: { labels: ['L','M','M','J','V','S','D'], datasets: [{ label:'Inscrits', data: stats.inscrits_semaine || [0,0,0,0,0,0,0], borderColor:'#c8f060', tension:0.3 }] },
+    options: { plugins:{legend:{labels:{color:'#e8e6e0'}}}, scales:{x:{ticks:{color:'#9c9890'}},y:{ticks:{color:'#9c9890'}}} }
+  });
+  if (charts.rush) charts.rush.destroy();
+  charts.rush = new Chart(document.getElementById('chart-rush'), {
+    type: 'line',
+    data: { labels: ['S1','S2','S3','S4'], datasets: [{ label:'Commissions €', data: stats.rush_commissions || [0,0,0,0], borderColor:'#c8f060', backgroundColor:'rgba(200,240,96,0.2)', fill:true, tension:0.3 }] },
+    options: { plugins:{legend:{labels:{color:'#e8e6e0'}}}, scales:{x:{ticks:{color:'#9c9890'}},y:{ticks:{color:'#9c9890'}}} }
+  });
+}
+
+// ============================================
+// SECTION LOADERS
+// ============================================
+async function loadDashboard(){
+  try {
+    const s = await api('/api/admin/stats');
+    document.getElementById('kpi-actifs').textContent = s.abonnes_actifs;
+    document.getElementById('kpi-mrr').textContent = fmt(s.mrr);
+    document.getElementById('kpi-revmois').textContent = fmt(s.revenus_mois);
+    document.getElementById('kpi-nouveaux').textContent = s.nouveaux_semaine;
+    document.getElementById('kpi-rush').textContent = fmt(s.commissions_rush);
+    document.getElementById('kpi-impayes').textContent = s.impayes;
+    if (s.impayes > 0) {
+      const a = document.getElementById('alert-impayes');
+      a.style.display = 'inline-block';
+      a.textContent = s.impayes;
+    }
+    makeCharts(s);
+  } catch(e){}
+}
+
+async function loadUsers(){
+  try {
+    const { users } = await api('/api/admin/users');
+    const tb = document.getElementById('tbl-users');
+    if (!users.length) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:30px">Aucun utilisateur</td></tr>'; return; }
+    tb.innerHTML = users.map(u => `
+      <tr>
+        <td>${u.user_jadomi_id || u.id}</td>
+        <td>${maskEmail(u.email || u.stripe_customer_id || '')}</td>
+        <td>${u.profession || '—'}</td>
+        <td><span class="tag blue">${u.plan || '—'}</span></td>
+        <td><span class="tag ${u.statut==='actif'?'green':u.statut==='banni'?'red':'orange'}">${u.statut || 'actif'}</span></td>
+        <td>${(u.created_at||'').slice(0,10)}</td>
+        <td>—</td><td>—</td>
+        <td>
+          <button class="btn btn-sm" onclick="suspendre('${u.id}')">Suspendre</button>
+          <button class="btn btn-sm btn-danger" onclick="bannirUser('${u.id}')">Bannir</button>
+          <button class="btn btn-sm" onclick="reactiver('${u.id}')">Réactiver</button>
+        </td>
+      </tr>`).join('');
+  } catch(e){}
+}
+
+async function suspendre(id){ if(!confirm('Suspendre ?')) return; await api('/api/admin/users/'+id+'/suspendre',{method:'PUT'}); loadUsers(); }
+async function bannirUser(id){ if(!confirm('BANNIR cet utilisateur ?')) return; await api('/api/admin/users/'+id+'/bannir',{method:'PUT'}); loadUsers(); }
+async function reactiver(id){ await api('/api/admin/users/'+id+'/reactiver',{method:'PUT'}); loadUsers(); }
+
+async function loadAbos(){
+  try {
+    const { abonnements } = await api('/api/admin/abonnements');
+    const { impayes, total } = await api('/api/admin/impayes');
+    if (total > 0) {
+      document.getElementById('banner-impayes').style.display = 'block';
+      document.getElementById('total-impayes').textContent = fmt(total);
+    }
+    document.getElementById('tbl-impayes').innerHTML = impayes.length ? impayes.map(i => `
+      <tr>
+        <td>${i.user_jadomi_id || i.id}</td>
+        <td>${maskEmail(i.stripe_customer_id || '')}</td>
+        <td>${fmt(i.montant)}</td>
+        <td><span class="tag red">J+${i.jours_retard||0}</span></td>
+        <td>${i.nb_relances||0}</td>
+        <td><span class="tag red">${i.statut}</span></td>
+        <td>
+          <button class="btn btn-sm" onclick="relancer('${i.id}')">Relancer</button>
+          <button class="btn btn-sm btn-danger" onclick="suspendre('${i.id}')">Suspendre</button>
+          <button class="btn btn-sm" onclick="marquerPaye('${i.id}')">Marquer payé</button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucun impayé 🎉</td></tr>';
+
+    document.getElementById('tbl-abos').innerHTML = abonnements.length ? abonnements.map(a => `
+      <tr>
+        <td>${a.id}</td>
+        <td>${a.stripe_customer_id || '—'}</td>
+        <td>${a.plan || '—'}</td>
+        <td>${fmt(a.montant)}</td>
+        <td><span class="tag ${a.statut==='actif'?'green':a.statut==='impaye'?'red':'orange'}">${a.statut}</span></td>
+        <td>${a.date_debut || '—'}</td>
+        <td>${a.prochaine_echeance || '—'}</td>
+      </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucun abonnement</td></tr>';
+  } catch(e){}
+}
+
+async function relancer(id){ const r = await api('/api/admin/relancer/'+id, {method:'POST'}); alert('Relance envoyée à '+(r.email||'(email indisponible)')); loadAbos(); }
+async function marquerPaye(id){ await api('/api/admin/impayes/'+id+'/paye',{method:'PUT'}); loadAbos(); }
+
+async function bannir(){
+  const email = document.getElementById('ban-email').value;
+  const motif = document.getElementById('ban-motif').value;
+  const duree = document.getElementById('ban-duree').value;
+  if (!email || !motif) return alert('Email + motif requis');
+  await api('/api/admin/bannir',{method:'POST',body:JSON.stringify({email,motif,duree})});
+  alert('Bannissement enregistré + email IA envoyé');
+}
+
+async function genererMail(){
+  const r = await api('/api/admin/mailing/generer',{method:'POST',body:JSON.stringify({
+    profession:document.getElementById('mail-prof').value,
+    sujet:document.getElementById('mail-sujet').value,
+    contexte:document.getElementById('mail-ctx').value,
+    ton:document.getElementById('mail-ton').value
+  })});
+  document.getElementById('mail-preview').srcdoc = r.html || '<p>Erreur génération</p>';
+}
+
+async function envoyerMail(){
+  if (!confirm('Envoyer la campagne ?')) return;
+  const html = document.getElementById('mail-preview').srcdoc;
+  const sujet = document.getElementById('mail-sujet').value;
+  const r = await api('/api/admin/mailing/envoyer',{method:'POST',body:JSON.stringify({
+    sujet, html, profession_cible:document.getElementById('mail-prof').value, destinataires:[]
+  })});
+  alert('Campagne envoyée à '+r.nb+' destinataires');
+}
+
+async function loadRush(){
+  try {
+    const { commandes, commissions } = await api('/api/admin/rush');
+    document.getElementById('rush-comm').textContent = fmt(commissions);
+    document.getElementById('rush-tx').textContent = commandes.length;
+    document.getElementById('tbl-rush').innerHTML = commandes.length ? commandes.map(c => `
+      <tr><td>${(c.created_at||'').slice(0,10)}</td><td>${c.cabinet||'—'}</td><td>${c.prothesiste||'—'}</td><td>${fmt(c.prix_total)}</td><td>${fmt((c.prix_total||0)*0.10)}</td><td><span class="tag green">${c.statut||'OK'}</span></td></tr>
+    `).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--txt2);padding:30px">Aucune transaction</td></tr>';
+  } catch(e){}
+}
+
+async function loadSuggestions(){
+  try {
+    const { suggestions } = await api('/api/admin/suggestions');
+    document.getElementById('tbl-sugg').innerHTML = suggestions.length ? suggestions.map(s => `
+      <tr><td>${(s.created_at||'').slice(0,10)}</td><td>${s.cabinet_nom||'—'}</td><td>${s.titre||''}</td><td>${s.categorie||''}</td><td>${s.score_ia||'—'}</td><td><span class="tag blue">${s.statut||'nouveau'}</span></td><td><button class="btn btn-sm" onclick="changerStatutSugg('${s.id}')">Changer</button></td></tr>
+    `).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucune suggestion</td></tr>';
+  } catch(e){}
+}
+async function changerStatutSugg(id){ const st = prompt('Nouveau statut (nouveau/en_cours/fait/rejete):'); if(st) { await api('/api/admin/suggestions/'+id+'/statut',{method:'PUT',body:JSON.stringify({statut:st})}); loadSuggestions(); } }
+
+async function rapportSuggestionsIA(){
+  const el = document.getElementById('rapport-sugg');
+  el.style.display = 'block'; el.innerHTML = '⏳ Génération IA...';
+  try {
+    const { suggestions } = await api('/api/admin/suggestions');
+    const r = await fetch('/api/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      messages:[{role:'user',content:'Analyse ces suggestions JADOMI et fais un rapport mensuel HTML synthétique (300 mots): '+JSON.stringify((suggestions||[]).slice(0,30))}],
+      max_tokens:2000
+    })});
+    const j = await r.json();
+    el.innerHTML = j.content?.[0]?.text || 'Erreur';
+  } catch(e){ el.innerHTML = 'Erreur: '+e.message; }
+}
+
+async function loadCompta(){
+  try {
+    const s = await api('/api/admin/compta/stats');
+    document.getElementById('ca-mois').textContent = fmt(s.ca_mois);
+    document.getElementById('ca-tri').textContent = fmt(s.ca_trimestre);
+    document.getElementById('ca-an').textContent = fmt(s.ca_annee);
+    document.getElementById('fac-em').textContent = s.factures_emises;
+    document.getElementById('fac-enc').textContent = s.factures_encaissees;
+    document.getElementById('fac-att').textContent = s.factures_en_attente;
+    document.getElementById('dep-mois').textContent = fmt(s.depenses_mois);
+    document.getElementById('res-net').textContent = fmt(s.resultat_net);
+    document.getElementById('tva-rev').textContent = fmt(s.tva_a_reverser);
+    document.getElementById('tresorerie').textContent = fmt(s.tresorerie);
+
+    const { factures } = await api('/api/admin/compta/factures');
+    document.getElementById('tbl-fac').innerHTML = factures.length ? factures.map(f => `
+      <tr><td>${f.numero}</td><td>${maskEmail(f.client_email||'')}</td><td>${(f.date_emission||'').slice(0,10)}</td><td>${(f.date_echeance||'').slice(0,10)||'—'}</td><td>${fmt(f.montant_ht)}</td><td>${fmt(f.montant_tva)}</td><td><strong>${fmt(f.montant_ttc)}</strong></td><td><span class="tag ${f.statut==='payee'?'green':f.statut==='en_retard'?'red':'orange'}">${f.statut}</span></td><td><button class="btn btn-sm" onclick="marquerFacPayee('${f.id}')">Marquer payée</button></td></tr>
+    `).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:30px">Aucune facture</td></tr>';
+
+    const { depenses } = await api('/api/admin/compta/depenses');
+    document.getElementById('tbl-dep').innerHTML = depenses.length ? depenses.map(d => `
+      <tr><td>${(d.date_depense||'').slice(0,10)}</td><td>${d.categorie}</td><td>${d.description||''}</td><td>${fmt(d.montant_ht)}</td><td>${fmt(d.montant_tva)}</td><td><strong>${fmt(d.montant_ttc)}</strong></td><td>${d.justificatif_url?'<a href="'+d.justificatif_url+'" target="_blank">📎</a>':'—'}</td></tr>
+    `).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucune dépense</td></tr>';
+
+    const tva = await api('/api/admin/compta/tva');
+    document.getElementById('tva-col').textContent = fmt(tva.collectee);
+    document.getElementById('tva-ded').textContent = fmt(tva.deductible);
+    document.getElementById('tva-net').textContent = fmt(tva.a_reverser);
+    document.getElementById('tva-tri-label').textContent = 'À reverser ' + tva.trimestre;
+  } catch(e){}
+}
+
+async function creerFacture(){
+  await api('/api/admin/compta/factures',{method:'POST',body:JSON.stringify({
+    client_email:document.getElementById('f-email').value,
+    siren_client:document.getElementById('f-siren').value,
+    description:document.getElementById('f-desc').value,
+    montant_ht:document.getElementById('f-ht').value,
+    date_echeance:document.getElementById('f-ech').value
+  })});
+  document.getElementById('form-fac').style.display='none';
+  loadCompta();
+}
+
+async function marquerFacPayee(id){ await api('/api/admin/compta/factures/'+id+'/statut',{method:'PUT',body:JSON.stringify({statut:'payee'})}); loadCompta(); }
+
+async function creerDepense(){
+  await api('/api/admin/compta/depenses',{method:'POST',body:JSON.stringify({
+    date_depense:document.getElementById('d-date').value,
+    categorie:document.getElementById('d-cat').value,
+    description:document.getElementById('d-desc').value,
+    montant_ht:document.getElementById('d-ht').value,
+    taux_tva:document.getElementById('d-tva').value,
+    justificatif_url:document.getElementById('d-just').value
+  })});
+  document.getElementById('form-dep').style.display='none';
+  loadCompta();
+}
+
+async function analyserDepIA(){
+  const out = document.getElementById('ia-dep-out');
+  out.style.display='block'; out.textContent='⏳ Analyse Claude...';
+  const r = await api('/api/admin/compta/depenses/analyser-ia',{method:'POST',body:JSON.stringify({texte_ou_url:document.getElementById('ia-dep-txt').value})});
+  out.textContent = JSON.stringify(r.parsed || r.raw, null, 2);
+  if (r.parsed) {
+    document.getElementById('d-date').value = r.parsed.date || '';
+    document.getElementById('d-cat').value = r.parsed.categorie || 'Autres';
+    document.getElementById('d-desc').value = r.parsed.description || '';
+    document.getElementById('d-ht').value = r.parsed.montant_ht || '';
+    document.getElementById('d-tva').value = r.parsed.taux_tva || 20;
+    document.getElementById('form-dep').style.display='block';
+  }
+}
+
+function genererFacturX(){
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100">
+  <rsm:ExchangedDocument>
+    <ram:ID>${document.getElementById('fx-num').value}</ram:ID>
+    <ram:TypeCode>380</ram:TypeCode>
+  </rsm:ExchangedDocument>
+  <rsm:SupplyChainTradeTransaction>
+    <ram:ApplicableHeaderTradeAgreement>
+      <ram:BuyerTradeParty><ram:SpecifiedLegalOrganization><ram:ID>${document.getElementById('fx-siren').value}</ram:ID></ram:SpecifiedLegalOrganization></ram:BuyerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+    <ram:IncludedSupplyChainTradeLineItem>
+      <ram:SpecifiedTradeProduct><ram:Name>${document.getElementById('fx-desc').value}</ram:Name></ram:SpecifiedTradeProduct>
+      <ram:SpecifiedLineTradeSettlement><ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>${document.getElementById('fx-ht').value}</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation></ram:SpecifiedLineTradeSettlement>
+    </ram:IncludedSupplyChainTradeLineItem>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+  const out = document.getElementById('fx-out');
+  out.style.display='block'; out.textContent = xml;
+}
+
+async function rapportIA(){
+  const el = document.getElementById('rapport-out');
+  el.style.display='block'; el.innerHTML = '⏳ Claude analyse les chiffres...';
+  try {
+    const r = await api('/api/admin/compta/rapport');
+    el.innerHTML = '<h3>Rapport annuel JADOMI</h3>'+(r.commentaire || 'Erreur');
+  } catch(e){ el.innerHTML = 'Erreur: '+e.message; }
+}
+
+function exportCSV(type){ alert('Export CSV '+type+' — utilise les boutons backend ou copie depuis le tableau.'); }
+function saveParams(){ alert('Paramètres sauvegardés (à connecter à /api/admin/params)'); }
+
+// ============================================
+// SECTION ROUTER
+// ============================================
+async function testerEnvoiMail(){
+  const btn = document.getElementById('btn-test-smtp');
+  const status = document.getElementById('test-mail-status');
+  const result = document.getElementById('test-mail-result');
+  btn.disabled = true;
+  status.textContent = '⏳ Connexion au serveur SMTP...';
+  status.style.color = 'var(--txt2)';
+  result.style.display = 'none';
+  try {
+    const r = await fetch('/api/admin/test-email', { headers: { 'X-Admin-Token': 'jadomi_admin_karim_2026' } });
+    const j = await r.json();
+    result.style.display = 'block';
+    result.textContent = JSON.stringify(j, null, 2);
+    if (j.send && j.send.ok) {
+      status.textContent = '✅ Email envoye avec succes vers ' + (j.to || '') + ' — verifie ta boite';
+      status.style.color = 'var(--green)';
+    } else {
+      const err = (j.send && j.send.error) || (j.verify && j.verify.error) || 'erreur inconnue';
+      status.textContent = '❌ Echec : ' + err;
+      status.style.color = 'var(--red)';
+    }
+  } catch(e) {
+    status.textContent = '❌ Erreur reseau : ' + e.message;
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const loaders = {
+  dashboard: loadDashboard, users: loadUsers, abos: loadAbos,
+  bans: () => {}, mailing: () => {}, messagerie: () => {}, rush: loadRush,
+  suggestions: loadSuggestions, compta: loadCompta,
+  analytics: () => {}, params: () => {}
+};
+function loadSection(name){ if (loaders[name]) loaders[name](); }
+
+// Init au chargement
+window.addEventListener('load', () => {
+  const hash = location.hash.replace('#','') || 'dashboard';
+  const link = document.querySelector(`.menu a[data-section="${hash}"]`);
+  if (link) link.click();
+  else loadDashboard();
+});
+</script>
+<script>
+// JADOMI PWA — Service Worker registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[JADOMI] SW registered'))
+      .catch(err => console.log('[JADOMI] SW error:', err));
+  });
+}
+</script>
+<script>
+// JADOMI mobile: hamburger + sidebar overlay
+function jadomiToggleSidebar(){
+  const sb = document.querySelector('.sidebar') || document.querySelector('aside.sidebar') || document.querySelector('nav.sidebar');
+  const ov = document.querySelector('.jadomi-sidebar-overlay');
+  if (!sb) return;
+  sb.classList.toggle('jadomi-open');
+  if (ov) ov.classList.toggle('open');
+}
+function jadomiCloseSidebar(){
+  const sb = document.querySelector('.sidebar') || document.querySelector('aside.sidebar') || document.querySelector('nav.sidebar');
+  const ov = document.querySelector('.jadomi-sidebar-overlay');
+  if (sb) sb.classList.remove('jadomi-open');
+  if (ov) ov.classList.remove('open');
+}
+// Fermer la sidebar au clic sur un lien de nav
+document.addEventListener('click', (e) => {
+  const tgt = e.target.closest('.sidebar a, .sidebar .nav-item, aside.sidebar button');
+  if (tgt) setTimeout(jadomiCloseSidebar, 100);
+});
+// Landing nav toggle
+function jadomiToggleNavLinks(){
+  const links = document.querySelector('nav.nav .nav-links');
+  if (links) links.classList.toggle('mobile-open');
+}
+</script>
+</body>
+</html>

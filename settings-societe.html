@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Paramètres société</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
+  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
+  --accent:#c8f060;--accent-soft:rgba(200,240,96,0.1);
+  --red:#f05050;--green:#60d090;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--accent) 5%,transparent) 0%,transparent 55%);
+  transition:background-image 0.6s var(--trans);-webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+.topbar{padding:16px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(15,14,13,0.9);backdrop-filter:blur(12px);z-index:10;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.soc-title{display:flex;align-items:center;gap:10px;}
+.soc-title-ico{font-size:22px;}
+.soc-title-name{font-weight:700;font-size:15px;}
+.soc-title-type{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.back{color:var(--muted);font-size:13px;transition:color 0.2s;}
+.back:hover{color:var(--text);}
+
+.wrap{max-width:920px;margin:0 auto;padding:28px 24px 100px;}
+.tabs{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:22px;overflow-x:auto;}
+.tab{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all 0.2s;background:transparent;border:none;}
+.tab:hover{color:var(--text);}
+.tab.active{background:var(--surface);color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+
+.section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:18px;}
+.section-title{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:6px;letter-spacing:-0.3px;}
+.section-sub{font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:11px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color 0.2s;
+}
+.field textarea{min-height:140px;resize:vertical;font-family:inherit;line-height:1.5;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.actions-bar{
+  position:sticky;bottom:0;background:rgba(15,14,13,0.95);backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);padding:14px 0;margin-top:24px;
+  display:flex;gap:10px;justify-content:flex-end;
+}
+.btn{padding:12px 22px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);}
+.btn-primary{background:var(--accent);color:#0f0e0d;}
+.btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px color-mix(in srgb,var(--accent) 30%,transparent);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-danger{background:transparent;color:#f08080;border:1px solid rgba(240,80,80,0.3);}
+.btn-danger:hover{background:rgba(240,80,80,0.08);}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;
+  font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+.role-chip{display:inline-block;padding:3px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-left:8px;}
+.role-chip.proprietaire{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);}
+
+.hide{display:none !important;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:640px){.form-grid{grid-template-columns:1fr;}.topbar{padding:14px 16px;}.wrap{padding:18px 14px 80px;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:18px;">
+    <div class="logo">JADOMI</div>
+    <div class="soc-title">
+      <span class="soc-title-ico" id="bar-ico">🏢</span>
+      <div>
+        <div class="soc-title-name" id="bar-name">Chargement…</div>
+        <div class="soc-title-type" id="bar-type">—</div>
+      </div>
+      <span class="role-chip" id="bar-role">—</span>
+    </div>
+  </div>
+  <a href="organisation.html" class="back">← Retour</a>
+</div>
+
+<div class="wrap">
+  <div class="loader" id="loader"><div class="spinner"></div>Chargement des paramètres…</div>
+
+  <div id="content" class="hide">
+    <div class="tabs">
+      <button class="tab active" data-tab="identite">Identité</button>
+      <button class="tab" data-tab="fiscal">Fiscal</button>
+      <button class="tab" data-tab="paiement">Paiement</button>
+      <button class="tab" data-tab="cgv">CGV</button>
+      <button class="tab" data-tab="zone-danger">Zone danger</button>
+    </div>
+
+    <!-- IDENTITÉ -->
+    <div class="section" data-panel="identite">
+      <div class="section-title">Identité</div>
+      <div class="section-sub">Coordonnées et informations d'identification.</div>
+      <div class="form-grid">
+        <div class="field full"><label>Nom de la société *</label><input id="f-nom"></div>
+        <div class="field"><label>SIREN</label><input id="f-siren" placeholder="9 chiffres"></div>
+        <div class="field"><label>SIRET</label><input id="f-siret" placeholder="14 chiffres"></div>
+        <div class="field full"><label>Adresse</label><input id="f-adresse"></div>
+        <div class="field"><label>Code postal</label><input id="f-code_postal"></div>
+        <div class="field"><label>Ville</label><input id="f-ville"></div>
+        <div class="field"><label>Pays</label><input id="f-pays" placeholder="France"></div>
+        <div class="field"><label>Téléphone</label><input id="f-telephone"></div>
+        <div class="field"><label>Email principal</label><input type="email" id="f-email" placeholder="contact@…"><div class="hint">Contact général</div></div>
+        <div class="field"><label>Email facturation</label><input type="email" id="f-email_facturation" placeholder="factures@…"><div class="hint">Expéditeur des devis/factures envoyés aux clients</div></div>
+        <div class="field"><label>Email mailing</label><input type="email" id="f-email_mailing" placeholder="marketing@…"><div class="hint">Expéditeur des campagnes publicitaires et newsletters</div></div>
+        <div class="field full"><label>Site internet</label><input id="f-site_web" placeholder="https://…"><div class="hint">Utilisé pour importer automatiquement votre catalogue produits (WordPress/WooCommerce)</div></div>
+        <div class="field full">
+          <label>Logo de la société</label>
+          <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+            <div id="logo-preview" style="width:64px;height:64px;border-radius:14px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:18px;color:var(--accent);overflow:hidden;flex-shrink:0;">—</div>
+            <div style="flex:1;">
+              <input type="file" id="logo-file" accept="image/jpeg,image/png,image/svg+xml,image/webp" style="display:none;" onchange="uploadLogo(this.files[0])">
+              <button type="button" class="btn btn-ghost" onclick="document.getElementById('logo-file').click()">📷 Importer un logo</button>
+              <button type="button" class="btn btn-ghost" id="logo-remove" onclick="removeLogo()" style="display:none;margin-left:8px;color:#f08080;">Retirer</button>
+              <div class="hint">JPG, PNG, SVG ou WEBP — max 2 MB. Apparaît sur factures, devis, avoirs et quittances.</div>
+            </div>
+          </div>
+          <input id="f-logo_url" type="hidden">
+        </div>
+      </div>
+    </div>
+
+    <!-- FISCAL -->
+    <div class="section hide" data-panel="fiscal">
+      <div class="section-title">Régime fiscal & TVA</div>
+      <div class="section-sub">Ces informations sont utilisées pour générer les mentions légales automatiques sur vos factures et devis.</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Régime fiscal</label>
+          <select id="f-regime_fiscal">
+            <option value="">—</option>
+            <option value="IS">Impôt sur les sociétés (IS)</option>
+            <option value="IR">Impôt sur le revenu (IR)</option>
+            <option value="micro">Micro (BIC / BNC)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Régime TVA</label>
+          <select id="f-regime_tva">
+            <option value="">—</option>
+            <option value="franchise">Franchise (art. 293B)</option>
+            <option value="normal">Réel normal</option>
+            <option value="simplifie">Réel simplifié</option>
+            <option value="mini_reel">Mini-réel</option>
+          </select>
+        </div>
+        <div class="field"><label>N° TVA intracommunautaire</label><input id="f-tva_intracom" placeholder="FR 12 345678901"></div>
+        <div class="field"><label>Capital social (€)</label><input id="f-capital_social" type="number"></div>
+        <div class="field"><label>RCS (ville)</label><input id="f-rcs_ville" placeholder="Paris"></div>
+        <div class="field"><label>Sous-type / profession</label><input id="f-sous_type"></div>
+      </div>
+    </div>
+
+    <!-- PAIEMENT -->
+    <div class="section hide" data-panel="paiement">
+      <div class="section-title">Coordonnées bancaires & conditions</div>
+      <div class="section-sub">Ces informations apparaissent sur vos factures. L'IBAN n'est jamais partagé hors société.</div>
+      <div class="form-grid">
+        <div class="field full"><label>IBAN</label><input id="f-iban" placeholder="FR76 …"></div>
+        <div class="field"><label>BIC</label><input id="f-bic"></div>
+        <div class="field"><label>Conditions de paiement</label>
+          <select id="f-conditions_paiement">
+            <option value="comptant">À réception</option>
+            <option value="30j">30 jours</option>
+            <option value="45j">45 jours</option>
+            <option value="60j">60 jours</option>
+            <option value="30j_fin_mois">30 jours fin de mois</option>
+          </select>
+        </div>
+        <div class="field full"><label>Pénalités de retard</label><input id="f-penalites_retard" value="3x taux BCE en vigueur"></div>
+        <div class="field"><label>Indemnité forfaitaire de recouvrement (€)</label><input id="f-indemnite_recouvrement" type="number" value="40"></div>
+      </div>
+    </div>
+
+    <!-- CGV -->
+    <div class="section hide" data-panel="cgv">
+      <div class="section-title">Conditions générales de vente</div>
+      <div class="section-sub">Intégrées automatiquement en bas de vos devis et factures PDF.</div>
+      <div class="field">
+        <label>Texte CGV (markdown ou texte brut)</label>
+        <textarea id="f-cgv" placeholder="1. Objet&#10;2. Commandes&#10;3. Paiement&#10;..."></textarea>
+      </div>
+    </div>
+
+    <!-- ZONE DANGER -->
+    <div class="section hide" data-panel="zone-danger">
+      <div class="section-title" style="color:#f08080;">Zone danger</div>
+      <div class="section-sub">Actions irréversibles. Réservé au propriétaire.</div>
+      <button class="btn btn-danger" id="btn-delete">Supprimer cette société définitivement</button>
+      <div class="hint" style="font-size:11px;color:var(--muted);margin-top:10px;">
+        Toutes les données associées (factures, quittances, membres, audit log) seront perdues.
+        Cette action n'est pas réversible.
+      </div>
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn btn-ghost" onclick="location.href='organisation.html'">Annuler</button>
+      <button class="btn btn-primary" id="btn-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TYPE_META = {
+  cabinet_dentaire:     { ico:'🦷', label:'Cabinet dentaire',   accent:'#c8f060' },
+  sci:                  { ico:'🏠', label:'SCI',                accent:'#60a8f0' },
+  societe_commerciale:  { ico:'🏢', label:'Société',            accent:'#f0a030' },
+  sas:  { ico:'🏢', label:'SAS', accent:'#f0a030' },
+  sarl: { ico:'🏢', label:'SARL', accent:'#f0a030' },
+  eurl: { ico:'🏢', label:'EURL', accent:'#f0a030' },
+  sa:   { ico:'🏢', label:'SA',   accent:'#f0a030' },
+  snc:  { ico:'🏢', label:'SNC',  accent:'#f0a030' },
+  ei:   { ico:'👤', label:'EI',   accent:'#60f0d0' },
+  auto_entrepreneur:   { ico:'📊', label:'Auto-entrepreneur', accent:'#60f0d0' },
+  profession_liberale: { ico:'👔', label:'Profession libérale', accent:'#f060a0' },
+  association:         { ico:'🤝', label:'Association', accent:'#a060f0' },
+  autre:               { ico:'🏷️', label:'Autre', accent:'#8f8a82' }
+};
+
+const EDITABLE_FIELDS = [
+  'nom','sous_type','siren','siret','tva_intracom','regime_tva','regime_fiscal',
+  'adresse','code_postal','ville','pays',
+  'email','email_facturation','email_mailing',
+  'telephone','site_web','logo_url',
+  'cgv','iban','bic','conditions_paiement','penalites_retard','indemnite_recouvrement',
+  'capital_social','rcs_ville'
+];
+
+let token=null, session=null, societeId=null, societe=null;
+
+function $(id){return document.getElementById(id);}
+function toast(msg,kind){ const t=$('toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=>t.className='toast '+(kind||''),2800); }
+function setAccent(c){
+  document.documentElement.style.setProperty('--accent',c);
+  document.documentElement.style.setProperty('--accent-soft',`color-mix(in srgb, ${c} 10%, transparent)`);
+}
+function api(path, opts={}){
+  return fetch(path,{ ...opts, headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{}) } }).then(r=>r.json());
+}
+
+// ===== BOOT =====
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session){ return location.href='login.html?next='+encodeURIComponent('settings-societe.html'+location.search); }
+  session = data.session; token = session.access_token;
+
+  societeId = new URLSearchParams(location.search).get('id') || localStorage.getItem('societe_active_id');
+  if(!societeId){ toast('Aucune société sélectionnée',true); setTimeout(()=>location.href='organisation.html',1000); return; }
+
+  const r = await api('/api/societes/'+societeId);
+  if(!r.success){ toast('Erreur : '+(r.error||''),true); return; }
+  societe = r.societe;
+  fillForm();
+})();
+
+function fillForm(){
+  const meta = TYPE_META[societe.type] || TYPE_META.autre;
+  const accent = societe.couleur_accent || meta.accent;
+  setAccent(accent);
+  $('bar-ico').textContent = societe.icone || meta.ico;
+  $('bar-name').textContent = societe.nom || '—';
+  $('bar-type').textContent = meta.label;
+  const role = (societe.role||'').toLowerCase();
+  $('bar-role').textContent = role.toUpperCase() || 'MEMBRE';
+  $('bar-role').className = 'role-chip '+role;
+
+  for(const k of EDITABLE_FIELDS){
+    const el = $('f-'+k); if(!el) continue;
+    if(societe[k]!==undefined && societe[k]!==null) el.value = societe[k];
+  }
+  renderLogoPreview();
+
+  $('loader').classList.add('hide');
+  $('content').classList.remove('hide');
+
+  // seul proprietaire peut supprimer
+  const btnDel = $('btn-delete');
+  if(role !== 'proprietaire'){ btnDel.disabled = true; btnDel.title = 'Réservé au propriétaire'; btnDel.style.opacity='0.4'; btnDel.style.cursor='not-allowed'; }
+  // lecteur : lecture seule
+  if(role === 'lecteur'){
+    document.querySelectorAll('.field input, .field select, .field textarea').forEach(el=>el.disabled=true);
+    $('btn-save').disabled = true;
+  }
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const key = t.dataset.tab;
+    document.querySelectorAll('[data-panel]').forEach(p=>p.classList.toggle('hide', p.dataset.panel!==key));
+  };
+});
+
+// Save
+$('btn-save').onclick = async ()=>{
+  const btn=$('btn-save'); btn.disabled=true; const prev=btn.textContent; btn.textContent='Enregistrement…';
+  try{
+    const payload = {};
+    for(const k of EDITABLE_FIELDS){
+      const el = $('f-'+k); if(!el) continue;
+      const v = el.value;
+      if(v === '' || v == null) continue;
+      payload[k] = (k==='capital_social'||k==='indemnite_recouvrement') ? Number(v) : v;
+    }
+    const r = await api('/api/societes/'+societeId,{ method:'PATCH', body:JSON.stringify(payload) });
+    if(!r.success) throw new Error(r.error||'save_failed');
+    societe = r.societe;
+    $('bar-name').textContent = societe.nom;
+    toast('Modifications enregistrées','ok');
+  }catch(e){
+    toast(e.message,true);
+  }finally{
+    btn.disabled=false; btn.textContent=prev;
+  }
+};
+
+// Logo upload
+function renderLogoPreview(){
+  const el = $('logo-preview');
+  const rm = $('logo-remove');
+  if(societe?.logo_url){
+    el.innerHTML = `<img src="${societe.logo_url}" style="max-width:100%;max-height:100%;">`;
+    rm.style.display = '';
+  } else {
+    const initials = (societe?.nom || '?').split(/\s+/).filter(Boolean).slice(0,2).map(s=>s[0].toUpperCase()).join('') || '?';
+    el.textContent = initials;
+    rm.style.display = 'none';
+  }
+  $('f-logo_url').value = societe?.logo_url || '';
+}
+async function uploadLogo(file){
+  if(!file) return;
+  if(file.size > 2*1024*1024){ toast('Fichier > 2 MB',true); return; }
+  const fd = new FormData(); fd.append('file', file);
+  try{
+    const r = await fetch('/api/societes/'+societeId+'/logo', {
+      method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd
+    }).then(x=>x.json());
+    if(!r.success) throw new Error(r.error||'upload_failed');
+    societe = r.societe;
+    renderLogoPreview();
+    toast('Logo importé','ok');
+  }catch(e){ toast(e.message,true); }
+}
+async function removeLogo(){
+  if(!confirm('Retirer le logo ?')) return;
+  try{
+    const r = await api('/api/societes/'+societeId+'/logo',{method:'DELETE'});
+    if(!r.success) throw new Error(r.error||'erreur');
+    societe = r.societe;
+    renderLogoPreview();
+    toast('Logo retiré','ok');
+  }catch(e){ toast(e.message,true); }
+}
+
+// Delete
+$('btn-delete').onclick = async ()=>{
+  if(!confirm(`Supprimer définitivement "${societe.nom}" ?\nCette action est irréversible.`)) return;
+  const confirmText = prompt('Tapez le nom exact de la société pour confirmer :');
+  if(confirmText !== societe.nom){ toast('Nom incorrect, suppression annulée',true); return; }
+  try{
+    const r = await api('/api/societes/'+societeId,{ method:'DELETE' });
+    if(!r.success) throw new Error(r.error||'delete_failed');
+    localStorage.removeItem('societe_active_id');
+    toast('Société supprimée','ok');
+    setTimeout(()=>location.href='organisation.html', 900);
+  }catch(e){
+    toast(e.message,true);
+  }
+};
+</script>
+</body>
+</html>

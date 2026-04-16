@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Nouvelle société</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
+  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
+  --accent:#c8f060;--accent-soft:rgba(200,240,96,0.1);
+  --red:#f05050;--green:#60d090;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--accent) 7%,transparent) 0%,transparent 55%);
+  transition:background-image 0.6s var(--trans);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+.topbar{padding:18px 28px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.back-link{color:var(--muted);font-size:13px;transition:color 0.2s;}
+.back-link:hover{color:var(--text);}
+
+.wrap{max-width:760px;margin:28px auto;padding:0 24px 80px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:32px 30px;}
+
+.progress{display:flex;gap:8px;margin-bottom:22px;}
+.progress span{flex:1;height:4px;border-radius:4px;background:var(--surface3);transition:background 0.4s;}
+.progress span.done,.progress span.active{background:var(--accent);}
+
+h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-1.2px;margin-bottom:8px;}
+.sub{color:var(--muted);font-size:14px;margin-bottom:26px;}
+
+.types-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px;}
+.t-card{
+  position:relative;background:var(--surface2);border:2px solid var(--border);border-radius:14px;
+  padding:20px 14px;cursor:pointer;transition:all 0.25s var(--trans);
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;
+}
+.t-card:hover{transform:translateY(-3px);border-color:var(--accent);}
+.t-card.selected{border-color:var(--accent);background:var(--accent-soft);}
+.t-ico{font-size:30px;}
+.t-name{font-size:13px;font-weight:600;}
+.t-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+.t-check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#0f0e0d;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.t-card.selected .t-check{display:flex;}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color 0.2s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px;}
+.optional{color:var(--muted);font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;margin-left:6px;}
+
+.modules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:22px;}
+.mod{
+  position:relative;background:var(--surface2);border:2px solid var(--border);border-radius:12px;
+  padding:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:12px;
+}
+.mod:hover{border-color:var(--accent);}
+.mod.selected{border-color:var(--accent);background:var(--accent-soft);}
+.mod-ico{font-size:22px;}
+.mod-txt{flex:1;}
+.mod-name{font-weight:700;font-size:13px;}
+.mod-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+.mod-check{width:18px;height:18px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;}
+.mod.selected .mod-check{background:var(--accent);color:#0f0e0d;}
+
+.summary{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;}
+.summary-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.summary-row:last-child{border-bottom:none;}
+.summary-row span:first-child{color:var(--muted);}
+.pricing-box{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;text-align:center;}
+.price-big{font-family:var(--display);font-size:42px;font-weight:800;color:var(--accent);letter-spacing:-2px;}
+.price-note{font-size:12px;color:var(--muted);margin-top:4px;}
+
+.actions{display:flex;justify-content:space-between;gap:12px;margin-top:20px;}
+.btn{padding:13px 24px;border:none;border-radius:12px;font-size:14px;font-weight:700;transition:all 0.2s var(--trans);}
+.btn-primary{background:var(--accent);color:#0f0e0d;}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 30%,transparent);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+
+.hide{display:none !important;}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;
+  font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+
+@media(max-width:640px){
+  .wrap{padding:0 14px 60px;}
+  .card{padding:22px 18px;}
+  .form-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">JADOMI</div>
+  <a href="organisation.html" class="back-link">← Retour</a>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="progress">
+      <span id="p1" class="active"></span>
+      <span id="p2"></span>
+      <span id="pSect"></span>
+      <span id="p3"></span>
+      <span id="p4"></span>
+    </div>
+
+    <!-- STEP 1 : type -->
+    <div id="s1">
+      <h1>Quel type de structure ?</h1>
+      <div class="sub">Sélectionnez le type juridique — JADOMI adaptera les champs, mentions légales et comptabilité.</div>
+      <div class="types-grid" id="types-grid"></div>
+      <div class="actions">
+        <a href="organisation.html"><button class="btn btn-ghost">Annuler</button></a>
+        <button class="btn btn-primary" id="btn-1" onclick="go(2)" disabled>Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 : infos -->
+    <div id="s2" class="hide">
+      <h1 id="s2-title">Informations</h1>
+      <div class="sub" id="s2-sub">Renseignez les données de votre structure.</div>
+      <div class="form-grid" id="fields-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(1)">← Retour</button>
+        <button class="btn btn-primary" id="btn-2" onclick="validateStep2()">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP SECTEURS : à qui vendez-vous ? (sociétés commerciales uniquement) -->
+    <div id="sSect" class="hide">
+      <h1>À qui vendez-vous ?</h1>
+      <div class="sub">Sélectionnez les secteurs professionnels que vous ciblez. JADOMI n'enverra vos campagnes mailing qu'aux professionnels de ces secteurs — jamais en dehors.</div>
+      <div class="types-grid" id="secteurs-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(2)">← Retour</button>
+        <button class="btn btn-primary" id="btn-sect" onclick="continueFromSecteurs()">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 : modules -->
+    <div id="s3" class="hide">
+      <h1>Quels modules voulez-vous activer ?</h1>
+      <div class="sub">Vous pourrez les ajouter ou retirer plus tard. Les modules inclus dépendent du type.</div>
+      <div class="modules-grid" id="modules-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goPrevFromModules()">← Retour</button>
+        <button class="btn btn-primary" onclick="go(4)">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 : récap + paiement -->
+    <div id="s4" class="hide">
+      <h1>Récapitulatif</h1>
+      <div class="sub">Vérifiez les informations puis validez. Aucun prélèvement immédiat — vous confirmerez en prochaine étape.</div>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;">
+        <div id="wz-logo-preview" style="width:70px;height:70px;border-radius:16px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:22px;color:var(--accent);overflow:hidden;flex-shrink:0;">—</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;margin-bottom:4px;">Logo de la société</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Recommandé — apparaît sur vos factures, devis, avoirs et quittances.</div>
+          <input type="file" id="wz-logo-file" accept="image/jpeg,image/png,image/svg+xml,image/webp" style="display:none;" onchange="wzStageLogo(this.files[0])">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('wz-logo-file').click()">📷 Choisir un logo (optionnel)</button>
+        </div>
+      </div>
+
+      <div class="summary" id="summary"></div>
+      <div class="pricing-box">
+        <div class="price-big">29€<span style="font-size:16px;color:var(--muted);"> /mois</span></div>
+        <div class="price-note">Par société — dégressif à partir de la 2<sup>e</sup> (à confirmer).<br>Premier mois offert · Résiliable à tout moment.</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(3)">← Retour</button>
+        <button class="btn btn-primary" id="btn-finish" onclick="createSociete()">Créer ma société →</button>
+      </div>
+    </div>
+
+    <!-- DONE -->
+    <div id="done" class="hide" style="text-align:center;padding:30px 10px;">
+      <div style="font-size:60px;margin-bottom:12px;">🎉</div>
+      <h1>Société créée</h1>
+      <div class="sub" id="done-msg">Redirection…</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TYPES = [
+  { k:'cabinet_dentaire',    ico:'🦷', label:'Cabinet dentaire',     desc:'Dentiste · Ortho · Prothésiste', accent:'#c8f060' },
+  { k:'sci',                 ico:'🏠', label:'SCI',                  desc:'Société civile immobilière',     accent:'#60a8f0' },
+  { k:'sas',                 ico:'🏢', label:'SAS',                  desc:'Société par actions simplifiée', accent:'#f0a030' },
+  { k:'sarl',                ico:'🏢', label:'SARL',                 desc:'Société à resp. limitée',        accent:'#f0a030' },
+  { k:'eurl',                ico:'🏢', label:'EURL',                 desc:'Entreprise unipersonnelle',      accent:'#f0a030' },
+  { k:'sa',                  ico:'🏢', label:'SA',                   desc:'Société anonyme',                accent:'#f0a030' },
+  { k:'snc',                 ico:'🏢', label:'SNC',                  desc:'Société en nom collectif',       accent:'#f0a030' },
+  { k:'ei',                  ico:'👤', label:'Entreprise individuelle', desc:'EI · EIRL',                  accent:'#60f0d0' },
+  { k:'auto_entrepreneur',   ico:'📊', label:'Auto-entrepreneur',    desc:'Micro-BIC / Micro-BNC',          accent:'#60f0d0' },
+  { k:'profession_liberale', ico:'👔', label:'Profession libérale',  desc:'Avocat · Médecin · Architecte…', accent:'#f060a0' },
+  { k:'association',         ico:'🤝', label:'Association',          desc:'Loi 1901',                       accent:'#a060f0' },
+  { k:'societe_commerciale', ico:'🏪', label:'Autre société comm.',  desc:'Toute autre forme',              accent:'#f0a030' }
+];
+
+// Champs par type
+const FIELDS = {
+  cabinet_dentaire: [
+    { k:'nom', label:'Nom du cabinet', req:true, ph:'Precision Dentaire' },
+    { k:'adresse', label:'Adresse', full:true, req:true, ph:'12 rue de la Paix', hint:'Adresse du cabinet — obligatoire sur ordonnances et factures' },
+    { k:'code_postal', label:'Code postal', req:true, ph:'75002' },
+    { k:'ville', label:'Ville', req:true, ph:'Paris' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@cabinet.fr', hint:'Utilisé pour les notifications et documents officiels' },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres' }
+  ],
+  sci: [
+    { k:'nom', label:'Dénomination SCI', req:true, ph:'SCI Bahmed Immobilier' },
+    { k:'regime_fiscal', label:'Régime fiscal', type:'select', options:[['IR','Impôt sur le revenu'],['IS','Impôt sur les sociétés']] },
+    { k:'siren', label:'SIREN' },
+    { k:'capital_social', label:'Capital social (€)', type:'number' },
+    { k:'adresse', label:'Adresse siège', full:true, req:true, hint:'Siège social de la SCI — figure sur les quittances' },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@sci.fr' },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'rcs_ville', label:'RCS (ville)' }
+  ],
+  sas:  commerceFields('SAS'),
+  sarl: commerceFields('SARL'),
+  eurl: commerceFields('EURL'),
+  sa:   commerceFields('SA'),
+  snc:  commerceFields('SNC'),
+  societe_commerciale: commerceFields('Société'),
+  ei: [
+    { k:'nom', label:'Dénomination', req:true, ph:'Jean Martin EI' },
+    { k:'siret', label:'SIRET', ph:'14 chiffres', req:true },
+    { k:'regime_tva', label:'Régime TVA', type:'select', options:[['franchise','Franchise (art.293B)'],['normal','Réel normal'],['simplifie','Réel simplifié']] },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'code_postal', label:'CP' },
+    { k:'ville', label:'Ville' }
+  ],
+  auto_entrepreneur: [
+    { k:'nom', label:'Nom d\'activité', req:true, ph:'Karim Consulting' },
+    { k:'siret', label:'SIRET', req:true, ph:'14 chiffres' },
+    { k:'sous_type', label:'Activité', type:'select', options:[['bic_ventes','BIC Ventes'],['bic_services','BIC Services'],['bnc','BNC']] },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'code_postal', label:'CP' },
+    { k:'ville', label:'Ville' }
+  ],
+  profession_liberale: [
+    { k:'nom', label:'Nom de l\'activité', req:true, ph:'Cabinet Maître Martin' },
+    { k:'sous_type', label:'Profession', type:'select', options:[
+      ['avocat','Avocat'],['medecin','Médecin'],['architecte','Architecte'],
+      ['expert_comptable','Expert-comptable'],['consultant','Consultant'],
+      ['infirmier','Infirmier / IDEL'],['kine','Kinésithérapeute'],['osteo','Ostéopathe'],
+      ['autre','Autre']
+    ]},
+    { k:'siren', label:'SIREN / N° ordre' },
+    { k:'regime_tva', label:'Régime TVA', type:'select', options:[['franchise','Franchise'],['normal','Réel normal'],['simplifie','Réel simplifié']] },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'ville', label:'Ville' }
+  ],
+  association: [
+    { k:'nom', label:'Nom de l\'association', req:true },
+    { k:'siret', label:'N° RNA ou SIRET' },
+    { k:'adresse', label:'Siège', full:true },
+    { k:'ville', label:'Ville' },
+    { k:'email', label:'Email de contact', type:'email' }
+  ],
+  autre: [
+    { k:'nom', label:'Nom', req:true },
+    { k:'sous_type', label:'Type (texte libre)', ph:'Précisez' },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'ville', label:'Ville' }
+  ]
+};
+function commerceFields(typeLabel){
+  return [
+    { k:'nom', label:`Dénomination ${typeLabel}`, req:true, ph:'Ma société' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres', req:true, hint:'Obligatoire sur vos factures (art. R.123-237 du Code de commerce)' },
+    { k:'tva_intracom', label:'N° TVA intracommunautaire', req:true, ph:'FR12345678901', hint:'Obligatoire sur les factures B2B' },
+    { k:'capital_social', label:'Capital social (€)', type:'number' },
+    { k:'rcs_ville', label:'RCS (ville)', ph:'Paris' },
+    { k:'regime_tva', label:'Régime TVA', type:'select', options:[['normal','Réel normal'],['simplifie','Réel simplifié'],['franchise','Franchise']] },
+    { k:'adresse', label:'Adresse siège', full:true, req:true, hint:'Adresse légale — figurera sur tous vos documents officiels' },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@masociete.fr', hint:'Contact général de la société' },
+    { k:'email_facturation', label:'Email facturation', type:'email', req:true, ph:'factures@masociete.fr', hint:'Utilisé pour envoyer les devis et factures à vos clients' },
+    { k:'email_mailing', label:'Email mailing', type:'email', req:true, ph:'marketing@masociete.fr', hint:'Expéditeur des campagnes publicitaires et newsletters' },
+    { k:'site_web', label:'URL du site internet', type:'url', req:true, ph:'https://masociete.fr', hint:'Utilisée pour importer automatiquement votre catalogue produits' }
+  ];
+}
+
+// Secteurs cibles (= à qui la société vend)
+const SECTEURS = [
+  { k:'sante',        ico:'🦷', label:'Santé',        desc:'Dentistes · Vétérinaires · Médical · Paramédical' },
+  { k:'btp',          ico:'🏗️', label:'BTP',          desc:'Artisans · Entreprises du bâtiment' },
+  { k:'esthetique',   ico:'💆', label:'Esthétique',   desc:'Coiffeurs · Instituts · Spas' },
+  { k:'restauration', ico:'🍕', label:'Restauration', desc:'Restaurateurs · Traiteurs' },
+  { k:'juridique',    ico:'⚖️', label:'Juridique',    desc:'Avocats · Notaires · Huissiers' },
+  { k:'autre',        ico:'📊', label:'Tous secteurs',desc:'Autres secteurs professionnels' }
+];
+
+// Types de société qui VENDENT à d'autres pros → on affiche l'étape secteurs
+const TYPES_AVEC_CIBLAGE = new Set([
+  'societe_commerciale','sas','sarl','eurl','sa','snc',
+  'ei','auto_entrepreneur','profession_liberale','association','autre'
+]);
+
+// Modules par type
+const MODULES_BY_TYPE = {
+  cabinet_dentaire: ['stock_ia','factures_fournisseurs','compta','devis_factures','mailing'],
+  sci: ['locatif','compta','devis_factures'],
+  default: ['devis_factures','compta','scanner_factures','mailing']
+};
+const MODULES_META = {
+  devis_factures:       { ico:'📄', name:'Devis & Factures',        desc:'Facturation pro + PDF + Stripe' },
+  compta:               { ico:'📊', name:'Comptabilité',            desc:'Dashboard + export comptable + TVA' },
+  scanner_factures:     { ico:'📸', name:'Scanner factures',        desc:'Extraction IA des PDF/emails fournisseurs' },
+  factures_fournisseurs:{ ico:'📧', name:'Import email auto',       desc:'Récup auto des factures par mail' },
+  locatif:              { ico:'🏠', name:'Gestion locative',        desc:'Biens · Locataires · Quittances auto' },
+  stock_ia:             { ico:'📦', name:'Stock intelligent',       desc:'Gestion stock IA dentaire/médical' },
+  mailing:              { ico:'📧', name:'Mailing & campagnes',     desc:'Emailing + stats (option)' }
+};
+
+// ===== STATE =====
+let session=null, token=null;
+let selectedType=null, selectedAccent='#c8f060';
+let form={}, modules=new Set(), secteursCibles=new Set();
+let stagedLogo=null; // File à uploader APRÈS création société
+
+function wzStageLogo(file){
+  if(!file) return;
+  if(file.size > 2*1024*1024){ toast('Fichier > 2 MB',true); return; }
+  stagedLogo = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    $('wz-logo-preview').innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:100%;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function $(id){return document.getElementById(id);}
+function toast(msg,err){
+  const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' error':'');
+  setTimeout(()=>t.className='toast'+(err?' error':''),3000);
+}
+function setAccent(c){
+  selectedAccent = c;
+  document.documentElement.style.setProperty('--accent',c);
+  document.documentElement.style.setProperty('--accent-soft',
+    `color-mix(in srgb, ${c} 10%, transparent)`);
+}
+function api(path,opts={}){
+  return fetch(path,{
+    ...opts,
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{}) }
+  }).then(r=>r.json());
+}
+
+// ===== URL PARAMS =====
+const URL_PARAMS = new URLSearchParams(location.search);
+const PRESET_TYPE = URL_PARAMS.get('type');
+const NEXT_URL = (()=>{
+  const n = URL_PARAMS.get('next');
+  if(n && /^[a-z0-9_-]+\.html(\?[^#]*)?$/i.test(n)) return n;
+  return 'index.html';
+})();
+const MARK_ONBOARDING = URL_PARAMS.get('onboarding') === '1';
+
+// ===== BOOT =====
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session){ return window.location.href='login.html?next=wizard-societe.html'+location.search; }
+  session = data.session; token = session.access_token;
+  renderTypes();
+  // Pré-sélection du type si fourni
+  if(PRESET_TYPE){
+    const t = TYPES.find(x => x.k === PRESET_TYPE);
+    if(t){
+      selectedType = t.k; setAccent(t.accent);
+      setTimeout(()=>{
+        const card = document.querySelector(`.t-card[data-k="${t.k}"]`);
+        if(card) card.classList.add('selected');
+        $('btn-1').disabled = false;
+        go(2);
+      }, 100);
+    }
+  }
+  // Adapte les liens Annuler/Retour vers NEXT_URL
+  document.querySelectorAll('a[href="organisation.html"]').forEach(a => a.href = NEXT_URL);
+})();
+
+function renderTypes(){
+  const grid = $('types-grid'); grid.innerHTML='';
+  TYPES.forEach(t=>{
+    const el=document.createElement('div'); el.className='t-card'; el.dataset.k=t.k;
+    el.innerHTML=`<div class="t-check">✓</div><div class="t-ico">${t.ico}</div><div class="t-name">${t.label}</div><div class="t-desc">${t.desc}</div>`;
+    el.onclick=()=>{
+      selectedType=t.k; setAccent(t.accent);
+      document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      $('btn-1').disabled=false;
+    };
+    grid.appendChild(el);
+  });
+}
+
+function renderFields(){
+  const t=TYPES.find(x=>x.k===selectedType);
+  $('s2-title').textContent = `${t.ico} ${t.label}`;
+  $('s2-sub').textContent = `Renseignez les informations de votre ${t.label.toLowerCase()}. Champs obligatoires marqués *.`;
+
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  const grid = $('fields-grid'); grid.innerHTML='';
+  fields.forEach(f=>{
+    const wrap=document.createElement('div'); wrap.className='field'+(f.full?' full':'');
+    let input='';
+    if(f.type==='select'){
+      const opts = f.options.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+      input = `<select id="f-${f.k}"><option value="">—</option>${opts}</select>`;
+    } else {
+      input = `<input type="${f.type||'text'}" id="f-${f.k}" placeholder="${f.ph||''}">`;
+    }
+    const hint = f.hint ? `<div class="hint">${f.hint}</div>` : '';
+    wrap.innerHTML = `<label>${f.label}${f.req?' *':'<span class="optional">(optionnel)</span>'}</label>${input}${hint}`;
+    grid.appendChild(wrap);
+    // restore
+    if(form[f.k]!==undefined){
+      const el = wrap.querySelector('input,select'); if(el) el.value = form[f.k];
+    }
+  });
+}
+
+function renderModules(){
+  const t = selectedType;
+  const list = MODULES_BY_TYPE[t] || MODULES_BY_TYPE.default;
+  // pré-coche tout par défaut
+  if(modules.size===0) list.forEach(k=>modules.add(k));
+  const grid = $('modules-grid'); grid.innerHTML='';
+  list.forEach(k=>{
+    const m = MODULES_META[k]; if(!m) return;
+    const el=document.createElement('div'); el.className='mod'+(modules.has(k)?' selected':'');
+    el.innerHTML=`<div class="mod-ico">${m.ico}</div>
+      <div class="mod-txt"><div class="mod-name">${m.name}</div><div class="mod-desc">${m.desc}</div></div>
+      <div class="mod-check">✓</div>`;
+    el.onclick=()=>{
+      if(modules.has(k)) modules.delete(k); else modules.add(k);
+      el.classList.toggle('selected');
+    };
+    grid.appendChild(el);
+  });
+}
+
+function renderSummary(){
+  const t = TYPES.find(x=>x.k===selectedType);
+  const rows = [
+    ['Type', `${t.ico} ${t.label}`],
+    ['Nom', form.nom || '—']
+  ];
+  if(form.siren) rows.push(['SIREN', form.siren]);
+  if(form.siret) rows.push(['SIRET', form.siret]);
+  if(form.ville) rows.push(['Ville', form.ville]);
+  if(form.regime_fiscal) rows.push(['Régime fiscal', form.regime_fiscal]);
+  if(form.regime_tva) rows.push(['Régime TVA', form.regime_tva]);
+  if(TYPES_AVEC_CIBLAGE.has(selectedType)){
+    const cibles = Array.from(secteursCibles)
+      .map(k => SECTEURS.find(s=>s.k===k)?.label || k).join(' · ') || 'Aucun (campagnes mailing désactivées)';
+    rows.push(['À qui vous vendez', cibles]);
+  }
+  rows.push(['Modules activés', Array.from(modules).map(k=>MODULES_META[k]?.name||k).join(' · ') || '—']);
+
+  $('summary').innerHTML = rows.map(r=>`<div class="summary-row"><span>${r[0]}</span><span>${escape(r[1])}</span></div>`).join('');
+}
+function escape(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// Progress bar : 5 segments si étape secteurs visible, 4 sinon.
+// step param suit le flux logique (1..4) — l'étape secteurs est entre 2 et 3.
+function setProgress(step, onSecteurs=false){
+  const hasSect = TYPES_AVEC_CIBLAGE.has(selectedType);
+  const pSect = $('pSect');
+  pSect.style.display = hasSect ? '' : 'none';
+  // états : p1 = type, p2 = infos, pSect = secteurs, p3 = modules, p4 = récap
+  const states = {p1:'',p2:'',pSect:'',p3:'',p4:''};
+  if(onSecteurs){ states.p1='done'; states.p2='done'; states.pSect='active'; }
+  else {
+    if(step>=1) states.p1 = step===1?'active':'done';
+    if(step>=2) states.p2 = step===2?'active':'done';
+    if(hasSect && step>=3) states.pSect = 'done';
+    if(step>=3) states.p3 = step===3?'active':'done';
+    if(step>=4) states.p4 = step===4?'active':'done';
+  }
+  Object.entries(states).forEach(([k,v])=>{ const el=$(k); if(el) el.className=v; });
+}
+
+function renderSecteurs(){
+  const grid = $('secteurs-grid'); grid.innerHTML='';
+  SECTEURS.forEach(s=>{
+    const el = document.createElement('div');
+    el.className = 't-card' + (secteursCibles.has(s.k) ? ' selected' : '');
+    el.dataset.k = s.k;
+    el.innerHTML = `<div class="t-check">✓</div><div class="t-ico">${s.ico}</div><div class="t-name">${s.label}</div><div class="t-desc">${s.desc}</div>`;
+    el.onclick = ()=>{
+      if(secteursCibles.has(s.k)) secteursCibles.delete(s.k);
+      else secteursCibles.add(s.k);
+      el.classList.toggle('selected');
+    };
+    grid.appendChild(el);
+  });
+}
+
+function go(step){
+  if(step===2) renderFields();
+  if(step===3){
+    // Avant d'entrer dans step 3 (modules), si le type peut cibler des secteurs,
+    // on détourne vers l'étape secteurs, sauf si elle a déjà été validée ce tour-ci.
+    if(TYPES_AVEC_CIBLAGE.has(selectedType) && $('sSect').classList.contains('hide') && window.__cameFromSecteurs !== true){
+      return goSecteurs();
+    }
+    window.__cameFromSecteurs = false;
+    renderModules();
+  }
+  if(step===4){ collectForm(); renderSummary(); }
+  ['s1','s2','sSect','s3','s4'].forEach(id=>$(id).classList.add('hide'));
+  const map = { 1:'s1', 2:'s2', 3:'s3', 4:'s4' };
+  $(map[step]).classList.remove('hide');
+  setProgress(step);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function goSecteurs(){
+  renderSecteurs();
+  ['s1','s2','sSect','s3','s4'].forEach(id=>$(id).classList.add('hide'));
+  $('sSect').classList.remove('hide');
+  setProgress(3, true);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function continueFromSecteurs(){
+  window.__cameFromSecteurs = true;
+  go(3);
+}
+
+function goPrevFromModules(){
+  if(TYPES_AVEC_CIBLAGE.has(selectedType)){
+    goSecteurs();
+  } else {
+    go(2);
+  }
+}
+
+function collectForm(){
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  fields.forEach(f=>{
+    const el = $('f-'+f.k); if(!el) return;
+    form[f.k] = el.value.trim();
+  });
+}
+function validateStep2(){
+  collectForm();
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  for(const f of fields){
+    const v = form[f.k];
+    if(f.req && !v){ return toast(`Champ requis : ${f.label}`,true); }
+    if(v && f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){
+      return toast(`Email invalide : ${f.label}`,true);
+    }
+    if(v && f.type === 'url' && !/^https?:\/\/.+/.test(v)){
+      return toast(`URL invalide : ${f.label} (doit commencer par http:// ou https://)`,true);
+    }
+  }
+  // Si la société vend à des pros → étape secteurs avant modules.
+  if(TYPES_AVEC_CIBLAGE.has(selectedType)) return goSecteurs();
+  go(3);
+}
+
+async function createSociete(){
+  const btn = $('btn-finish'); btn.disabled=true; btn.textContent='Création…';
+  try{
+    const payload = {
+      ...form,
+      type: selectedType,
+      couleur_accent: selectedAccent,
+      modules: Array.from(modules)
+    };
+    if(TYPES_AVEC_CIBLAGE.has(selectedType)){
+      payload.secteurs_cibles = Array.from(secteursCibles);
+    }
+    // nettoie empty strings
+    Object.keys(payload).forEach(k => payload[k]===''&&delete payload[k]);
+    if(payload.capital_social) payload.capital_social = Number(payload.capital_social);
+    const r = await api('/api/societes',{ method:'POST', body:JSON.stringify(payload) });
+    if(!r.success) throw new Error(r.error||'create_failed');
+
+    localStorage.setItem('societe_active_id', r.societe.id);
+
+    // Upload logo (best-effort, ne bloque pas le flux)
+    if(stagedLogo){
+      try{
+        const fd = new FormData(); fd.append('file', stagedLogo);
+        await fetch('/api/societes/'+r.societe.id+'/logo',{
+          method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd
+        });
+      }catch(_){}
+    }
+    if(MARK_ONBOARDING){
+      try{ await api('/api/profil',{method:'PUT',body:JSON.stringify({onboarding_termine:true})}); }catch{}
+    }
+    ['s1','s2','sSect','s3','s4'].forEach(id=>$(id).classList.add('hide'));
+    $('done').classList.remove('hide');
+    // Gère la queue multi-création
+    let next = NEXT_URL;
+    try{
+      const q = JSON.parse(localStorage.getItem('jadomi_onboarding_queue')||'[]');
+      if(q.length > 0){
+        const nextType = q.shift();
+        localStorage.setItem('jadomi_onboarding_queue', JSON.stringify(q));
+        next = `wizard-societe.html?type=${nextType}&next=${encodeURIComponent(NEXT_URL)}&onboarding=1`;
+      } else {
+        localStorage.removeItem('jadomi_onboarding_queue');
+      }
+    }catch{}
+    setTimeout(()=>window.location.href=next, 1200);
+  }catch(e){
+    toast(e.message,true);
+    btn.disabled=false; btn.textContent='Créer ma société →';
+  }
+}
+</script>
+</body>
+</html>
