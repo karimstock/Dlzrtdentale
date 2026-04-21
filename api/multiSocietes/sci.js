@@ -5,7 +5,7 @@
 const express = require('express');
 const cron = require('node-cron');
 const { admin, authSupabase, requireSociete, auditLog } = require('./middleware');
-const { buildQuittancePDF } = require('./pdfService');
+const { buildQuittancePDF, buildFactureSciPDF } = require('./pdfService');
 
 const mailer = require('./mailer');
 
@@ -192,6 +192,384 @@ module.exports = function mountSci(app) {
         .eq('id', req.params.id).eq('societe_id', req.societe.id).select('*').single();
       if (error) throw error;
       res.json({ success: true, quittance: data });
+    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+  });
+
+  // ---------- Factures SCI ----------
+  router.post('/factures/generer', requireSociete(), async (req, res) => {
+    try {
+      const { locataire_id, mois, annee } = req.body || {};
+      if (!locataire_id || !mois || !annee)
+        return res.status(400).json({ error: 'locataire_id, mois, annee requis' });
+
+      // Idempotent check
+      const { data: existe } = await admin().from('factures_sci')
+        .select('*').eq('locataire_id', locataire_id)
+        .eq('mois', mois).eq('annee', annee).maybeSingle();
+      if (existe) return res.json({ success: true, facture: existe, already_exists: true });
+
+      const { data: loc } = await admin().from('locataires')
+        .select('*').eq('id', locataire_id).eq('societe_id', req.societe.id).single();
+      if (!loc) return res.status(404).json({ error: 'locataire introuvable' });
+
+      const montant_ht = Number(loc.loyer_ht || 0);
+      const charges = loc.charges_incluses ? 0 : Number(loc.montant_charges || 0);
+      const total = montant_ht + charges;
+
+      const { data: num, error: numErr } = await admin().rpc('next_numero', {
+        p_societe: req.societe.id, p_type: 'facture_sci', p_annee: annee
+      });
+      if (numErr) throw numErr;
+      const numero = `FACT-SCI-${annee}-${String(num).padStart(3, '0')}`;
+
+      const { data: facture, error } = await admin().from('factures_sci').insert({
+        societe_id: req.societe.id, locataire_id, numero, mois, annee,
+        montant_ht, charges, total, statut: 'en_attente',
+        date_emission: new Date().toISOString()
+      }).select('*').single();
+      if (error) throw error;
+
+      await auditLog({ userId: req.user.id, societeId: req.societe.id,
+        action: 'generate', entity: 'facture_sci', entityId: facture.id, req });
+      res.json({ success: true, facture });
+    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+  });
+
+  router.get('/factures', requireSociete(), async (req, res) => {
+    const { data } = await admin().from('factures_sci')
+      .select('*, locataire:locataire_id(id, nom, prenom, raison_sociale, email)')
+      .eq('societe_id', req.societe.id)
+      .order('annee', { ascending: false })
+      .order('mois', { ascending: false });
+    res.json({ success: true, factures: data || [] });
+  });
+
+  router.get('/factures/:id/pdf', requireSociete(), async (req, res) => {
+    try {
+      const { data: facture } = await admin().from('factures_sci').select('*')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).single();
+      if (!facture) return res.status(404).send('Not found');
+      const { data: soc } = await admin().from('societes').select('*').eq('id', facture.societe_id).single();
+      const { data: loc } = await admin().from('locataires').select('*').eq('id', facture.locataire_id).single();
+      const { data: bien } = loc?.bien_id
+        ? await admin().from('biens_immobiliers').select('*').eq('id', loc.bien_id).single()
+        : { data: null };
+
+      // Build lignes from facture data
+      const lignes = [
+        { designation: `Loyer — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, quantite: 1, prix_unitaire_ht: facture.montant_ht, taux_tva: 0 }
+      ];
+      if (Number(facture.charges) > 0) {
+        lignes.push({ designation: `Charges locatives — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, quantite: 1, prix_unitaire_ht: facture.charges, taux_tva: 0 });
+      }
+
+      const pdfData = {
+        societe: soc, locataire: loc, bien,
+        facture: {
+          ...facture,
+          lignes,
+          sous_total_ht: facture.total,
+          total_tva: 0,
+          total_ttc: facture.total
+        }
+      };
+      const pdf = await buildFactureSciPDF(pdfData);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${facture.numero}.pdf"`);
+      res.end(pdf);
+    } catch (e) { res.status(500).send(e.message); }
+  });
+
+  router.post('/factures/:id/envoyer', requireSociete(), async (req, res) => {
+    try {
+      const { data: facture } = await admin().from('factures_sci').select('*')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).single();
+      if (!facture) return res.status(404).json({ error: 'not_found' });
+
+      const { data: soc } = await admin().from('societes').select('*').eq('id', facture.societe_id).single();
+      const { data: loc } = await admin().from('locataires').select('*').eq('id', facture.locataire_id).single();
+      const { data: bien } = loc?.bien_id
+        ? await admin().from('biens_immobiliers').select('*').eq('id', loc.bien_id).single()
+        : { data: null };
+      if (!loc?.email) return res.json({ success: false, skipped: 'no_locataire_email' });
+
+      const lignes = [
+        { designation: `Loyer — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, quantite: 1, prix_unitaire_ht: facture.montant_ht, taux_tva: 0 }
+      ];
+      if (Number(facture.charges) > 0) {
+        lignes.push({ designation: `Charges locatives — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, quantite: 1, prix_unitaire_ht: facture.charges, taux_tva: 0 });
+      }
+
+      const pdf = await buildFactureSciPDF({
+        societe: soc, locataire: loc, bien,
+        facture: { ...facture, lignes, sous_total_ht: facture.total, total_tva: 0, total_ttc: facture.total }
+      });
+
+      const subject = `Facture de loyer — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`;
+      const html = `
+        <p>Bonjour,</p>
+        <p>Veuillez trouver ci-joint votre facture de loyer pour ${MOIS_FR[facture.mois - 1]} ${facture.annee}.</p>
+        <p>Cordialement,<br>${soc.nom}</p>`;
+
+      await mailer.sendMail({
+        to: loc.email, subject, html,
+        from: soc.email ? `"${soc.nom}" <${soc.email}>` : undefined,
+        attachments: [{ filename: `${facture.numero}.pdf`, content: pdf, contentType: 'application/pdf' }]
+      });
+      await admin().from('factures_sci').update({
+        statut: 'envoyee', date_envoi: new Date().toISOString()
+      }).eq('id', facture.id);
+      res.json({ success: true, sent: true });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // POST /factures/envoyer-lot — envoi groupé de factures (rate limit 50/min OVH)
+  router.post('/factures/envoyer-lot', requireSociete(), async (req, res) => {
+    try {
+      const { ids } = req.body || {};
+      if (!ids || !Array.isArray(ids) || !ids.length)
+        return res.status(400).json({ error: 'ids[] requis' });
+
+      const { data: soc } = await admin().from('societes').select('*').eq('id', req.societe.id).single();
+      let sent = 0, skipped = 0, errors = 0;
+
+      for (let i = 0; i < ids.length; i++) {
+        // Rate limit: pause every 50 emails
+        if (i > 0 && i % 50 === 0) await new Promise(r => setTimeout(r, 61000));
+
+        try {
+          const { data: facture } = await admin().from('factures_sci').select('*')
+            .eq('id', ids[i]).eq('societe_id', req.societe.id).single();
+          if (!facture) { skipped++; continue; }
+          if (facture.statut === 'annulee') { skipped++; continue; }
+
+          const { data: loc } = await admin().from('locataires').select('*').eq('id', facture.locataire_id).single();
+          if (!loc?.email) { skipped++; continue; }
+
+          const { data: bien } = loc?.bien_id
+            ? await admin().from('biens_immobiliers').select('*').eq('id', loc.bien_id).single()
+            : { data: null };
+
+          const lignes = [
+            { designation: `Loyer — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, quantite: 1, prix_unitaire_ht: facture.montant_ht, taux_tva: 0 }
+          ];
+          if (Number(facture.charges) > 0) {
+            lignes.push({ designation: `Charges locatives — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, quantite: 1, prix_unitaire_ht: facture.charges, taux_tva: 0 });
+          }
+
+          const pdf = await buildFactureSciPDF({
+            societe: soc, locataire: loc, bien,
+            facture: { ...facture, lignes, sous_total_ht: facture.total, total_tva: 0, total_ttc: facture.total }
+          });
+
+          await mailer.sendMail({
+            to: loc.email,
+            subject: `Facture de loyer — ${MOIS_FR[facture.mois - 1]} ${facture.annee}`,
+            html: `<p>Bonjour,</p><p>Veuillez trouver ci-joint votre facture de loyer pour ${MOIS_FR[facture.mois - 1]} ${facture.annee}.</p><p>Cordialement,<br>${soc.nom}</p>`,
+            from: soc.email ? `"${soc.nom}" <${soc.email}>` : undefined,
+            attachments: [{ filename: `${facture.numero}.pdf`, content: pdf, contentType: 'application/pdf' }]
+          });
+
+          await admin().from('factures_sci').update({
+            statut: facture.statut === 'payee' ? 'payee' : 'envoyee',
+            date_envoi: new Date().toISOString()
+          }).eq('id', facture.id);
+          sent++;
+        } catch (err) {
+          console.error(`[SCI] batch send facture ${ids[i]}:`, err.message);
+          errors++;
+        }
+      }
+      res.json({ success: true, sent, skipped, errors, total: ids.length });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  router.patch('/factures/:id/paiement', requireSociete(), async (req, res) => {
+    try {
+      const { date_paiement } = req.body || {};
+      const datePaie = date_paiement || new Date().toISOString();
+
+      const { data: facture, error } = await admin().from('factures_sci')
+        .update({ statut: 'payee', date_paiement: datePaie })
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).select('*').single();
+      if (error) throw error;
+      if (!facture) return res.status(404).json({ error: 'not_found' });
+
+      // Auto-create comptabilité entry in compta_sci
+      await admin().from('compta_sci').insert({
+        societe_id: req.societe.id,
+        categorie: 'Loyer',
+        montant: facture.total,
+        date: datePaie,
+        reference: facture.numero,
+        locataire_id: facture.locataire_id
+      });
+      await admin().from('factures_sci').update({ entre_en_compta: true }).eq('id', facture.id);
+
+      // If locataire has user_id, also insert into their compta + notify
+      const { data: loc } = await admin().from('locataires')
+        .select('user_id').eq('id', facture.locataire_id).single();
+      if (loc?.user_id) {
+        try {
+          await admin().from('compta_entries').insert({
+            user_id: loc.user_id,
+            categorie: 'Charges locatives',
+            type: 'depense',
+            montant: facture.total,
+            date: datePaie,
+            reference: facture.numero
+          });
+        } catch (e) { console.warn('[SCI] compta_entries insert failed:', e.message); }
+
+        try {
+          const notifMod = (() => { try { return require('./notifications'); } catch { return null; } })();
+          if (notifMod?.pushNotification) {
+            await notifMod.pushNotification({
+              user_id: loc.user_id, societe_id: req.societe.id,
+              type: 'autre', urgence: 'normale',
+              titre: `Facture ${facture.numero} enregistrée`,
+              message: `Votre paiement de ${facture.total} € a été enregistré.`,
+              entity_type: 'facture_sci', entity_id: facture.id
+            });
+          }
+        } catch (_) { /* notification optional */ }
+      }
+
+      res.json({ success: true, facture: { ...facture, entre_en_compta: true } });
+    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+  });
+
+  // ---------- Batch generation: factures ----------
+  router.post('/factures/generer-lot', requireSociete(), async (req, res) => {
+    try {
+      const { locataire_id, mois_debut, annee_debut, mois_fin, annee_fin } = req.body || {};
+      if (!mois_debut || !annee_debut || !mois_fin || !annee_fin)
+        return res.status(400).json({ error: 'mois_debut, annee_debut, mois_fin, annee_fin requis' });
+
+      // Get locataires
+      let locataires;
+      if (locataire_id) {
+        const { data } = await admin().from('locataires').select('id')
+          .eq('id', locataire_id).eq('societe_id', req.societe.id);
+        locataires = data || [];
+      } else {
+        const { data } = await admin().from('locataires').select('id')
+          .eq('societe_id', req.societe.id).eq('actif', true);
+        locataires = data || [];
+      }
+
+      let created = 0;
+      // Iterate months
+      let y = annee_debut, m = mois_debut;
+      while (y < annee_fin || (y === annee_fin && m <= mois_fin)) {
+        for (const loc of locataires) {
+          // Idempotent check
+          const { data: existe } = await admin().from('factures_sci')
+            .select('id').eq('locataire_id', loc.id)
+            .eq('mois', m).eq('annee', y).maybeSingle();
+          if (!existe) {
+            const { data: locFull } = await admin().from('locataires')
+              .select('*').eq('id', loc.id).single();
+            if (!locFull) continue;
+
+            const montant_ht = Number(locFull.loyer_ht || 0);
+            const charges = locFull.charges_incluses ? 0 : Number(locFull.montant_charges || 0);
+            const total = montant_ht + charges;
+
+            const { data: num, error: numErr } = await admin().rpc('next_numero', {
+              p_societe: req.societe.id, p_type: 'facture_sci', p_annee: y
+            });
+            if (numErr) throw numErr;
+            const numero = `FACT-SCI-${y}-${String(num).padStart(3, '0')}`;
+
+            const { error } = await admin().from('factures_sci').insert({
+              societe_id: req.societe.id, locataire_id: loc.id, numero, mois: m, annee: y,
+              montant_ht, charges, total, statut: 'en_attente',
+              date_emission: new Date().toISOString()
+            });
+            if (!error) created++;
+          }
+        }
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+
+      res.json({ success: true, created });
+    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+  });
+
+  // ---------- Factures toutes sociétés (vue consolidée) ----------
+  router.get('/factures/toutes-societes', async (req, res) => {
+    try {
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+      if (!token) return res.status(401).json({ error: 'missing_token' });
+      const { data: authData, error: authErr } = await admin().auth.getUser(token);
+      if (authErr || !authData?.user) return res.status(401).json({ error: 'invalid_token' });
+      const userId = authData.user.id;
+
+      // Get all user's SCI societes
+      const { data: roles } = await admin().from('user_societe_roles')
+        .select('societe_id, societes:societe_id(id, nom, type)')
+        .eq('user_id', userId);
+      const sciIds = (roles || [])
+        .filter(r => r.societes?.type === 'sci')
+        .map(r => r.societe_id);
+
+      if (!sciIds.length) return res.json({ success: true, factures: [], societes: [] });
+
+      const { data: factures } = await admin().from('factures_sci')
+        .select('*, locataire:locataire_id(id, nom, prenom, raison_sociale, email)')
+        .in('societe_id', sciIds)
+        .order('annee', { ascending: false })
+        .order('mois', { ascending: false });
+
+      const societes = (roles || [])
+        .filter(r => r.societes?.type === 'sci')
+        .map(r => ({ id: r.societe_id, nom: r.societes.nom }));
+
+      res.json({ success: true, factures: factures || [], societes });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // ---------- Batch generation: quittances ----------
+  router.post('/quittances/generer-lot', requireSociete(), async (req, res) => {
+    try {
+      const { locataire_id, mois_debut, annee_debut, mois_fin, annee_fin } = req.body || {};
+      if (!mois_debut || !annee_debut || !mois_fin || !annee_fin)
+        return res.status(400).json({ error: 'mois_debut, annee_debut, mois_fin, annee_fin requis' });
+
+      let locataires;
+      if (locataire_id) {
+        const { data } = await admin().from('locataires').select('id')
+          .eq('id', locataire_id).eq('societe_id', req.societe.id);
+        locataires = data || [];
+      } else {
+        const { data } = await admin().from('locataires').select('id')
+          .eq('societe_id', req.societe.id).eq('actif', true);
+        locataires = data || [];
+      }
+
+      let created = 0, skipped = 0, errors = [];
+      let y = annee_debut, m = mois_debut;
+      while (y < annee_fin || (y === annee_fin && m <= mois_fin)) {
+        for (const loc of locataires) {
+          try {
+            const q = await genererQuittancePour(req.societe.id, loc.id, m, y);
+            // genererQuittancePour returns existing if already present
+            const { data: check } = await admin().from('quittances')
+              .select('created_at').eq('id', q.id).single();
+            const isNew = check && (Date.now() - new Date(check.created_at).getTime()) < 5000;
+            if (isNew) created++; else skipped++;
+          } catch (e) {
+            skipped++;
+            errors.push({ locataire_id: loc.id, mois: m, annee: y, error: e.message });
+          }
+        }
+        m++;
+        if (m > 12) { m = 1; y++; }
+      }
+
+      res.json({ success: true, created, skipped, errors });
     } catch (e) { res.status(400).json({ success: false, error: e.message }); }
   });
 

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Services &mdash; Agenda</title>
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<style>
+html,body{height:100%;overflow:hidden}
+.layout{display:flex;height:100vh}
+.sidebar{width:260px;min-height:100vh;display:flex;flex-direction:column;padding:20px 0;position:fixed;left:0;top:0;z-index:10}
+.sidebar .logo{padding:16px 24px;font-family:var(--display);font-size:22px;font-weight:700}
+.sidebar .logo span{color:var(--accent3)}
+.sidebar nav{flex:1;padding:12px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;transition:all .2s;border-left:3px solid transparent;font-size:14px;text-decoration:none;margin-bottom:2px}
+.nav-item:hover{background:rgba(99,102,241,.15);color:var(--text)}
+.nav-item.active{color:var(--accent);background:rgba(99,102,241,.18);border-left-color:var(--accent)}
+.nav-item .ico{font-size:18px;width:24px;text-align:center}
+.sidebar-bottom{padding:12px 20px;border-top:1px solid var(--border);margin-top:auto}
+.main{margin-left:260px;flex:1;overflow-y:auto;padding:24px 28px;height:100vh}
+
+/* Topbar */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-family:var(--display);font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.btn-new{padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s}
+.btn-new:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.3)}
+
+/* View tabs */
+.view-tabs{display:flex;gap:4px;background:var(--surface);border-radius:var(--radius-sm);padding:4px}
+.view-tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);border:none;background:transparent;transition:all .2s}
+.view-tab.active{background:var(--accent);color:#fff}
+.nav-date{display:flex;align-items:center;gap:10px}
+.nav-date button{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;transition:border-color .2s}
+.nav-date button:hover{border-color:var(--accent)}
+.nav-date .current-date{font-weight:600;min-width:180px;text-align:center;font-size:14px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+
+/* Praticien chips */
+.prat-chips{display:flex;gap:6px;flex-wrap:wrap}
+.prat-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid var(--border);background:transparent;color:var(--text-secondary);transition:all .15s}
+.prat-chip:hover{border-color:var(--accent)}
+.prat-chip.active{color:#fff;border-color:transparent}
+.prat-chip .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* Stats mini */
+.stats-mini{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.stat-mini{padding:10px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;gap:10px;min-width:140px}
+.stat-mini .val{font-size:20px;font-weight:800;font-family:var(--display)}
+.stat-mini .lbl{font-size:11px;color:var(--text-secondary)}
+
+/* Calendar grids */
+.cal-grid{display:grid;gap:1px;background:var(--border2);border:1px solid var(--border);border-radius:var(--radius)}
+.cal-header{background:var(--surface);padding:10px;text-align:center;font-weight:600;font-size:12px;color:var(--text-secondary);text-transform:uppercase}
+.cal-day{background:rgba(20,40,80,.3);min-height:110px;padding:6px;cursor:pointer;transition:background .15s;position:relative}
+.cal-day:hover{background:rgba(99,102,241,.08)}
+.cal-day.today{background:rgba(99,102,241,.12)}
+.cal-day .day-num{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text-secondary)}
+.cal-day.today .day-num{color:var(--accent);font-weight:700}
+.cal-event{padding:3px 6px;border-radius:4px;font-size:10px;margin-bottom:2px;cursor:pointer;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:3px solid rgba(255,255,255,.4)}
+.cal-event:hover{opacity:.85}
+
+/* Day view multi-column */
+.day-view{display:grid;grid-template-columns:60px 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.day-view.multi{grid-template-columns:60px repeat(var(--cols,1),1fr)}
+.time-slot{padding:4px 8px;font-size:11px;color:var(--text-secondary);text-align:right;border-bottom:1px solid var(--border2);height:60px;display:flex;align-items:flex-start;justify-content:flex-end;background:rgba(15,25,50,.3)}
+.day-col-header{padding:10px 8px;text-align:center;font-size:13px;font-weight:700;background:var(--surface);border-bottom:2px solid var(--border);border-left:1px solid var(--border2);display:flex;flex-direction:column;align-items:center;gap:2px}
+.day-col-header .spec{font-size:10px;font-weight:400;color:var(--text-secondary)}
+.slot-cell{height:60px;border-bottom:1px solid var(--border2);position:relative;cursor:pointer;transition:background .15s;border-left:1px solid var(--border2)}
+.slot-cell:hover{background:rgba(99,102,241,.05)}
+.slot-event{position:absolute;left:3px;right:3px;border-radius:8px;padding:5px 8px;font-size:11px;color:#fff;cursor:pointer;overflow:hidden;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.2);transition:transform .1s,box-shadow .1s}
+.slot-event:hover{transform:scale(1.02);box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:3}
+.slot-event .ev-name{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-event .ev-client{font-size:10px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-event .ev-tag{position:absolute;top:4px;right:6px;font-size:8px;font-weight:700;text-transform:uppercase;opacity:.7;letter-spacing:.5px}
+
+/* Week */
+.week-grid{display:grid;grid-template-columns:60px repeat(7,1fr);gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.week-day-header{padding:10px 4px;text-align:center;font-size:12px;font-weight:600;background:var(--surface);border-bottom:1px solid var(--border);border-left:1px solid var(--border2)}
+.week-day-header.today-h{color:var(--accent);font-weight:700}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface,#1a1917);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:520px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal h2{font-family:var(--display);font-size:20px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.modal .field{margin-bottom:14px}
+.modal .field label{display:block;font-size:11px;color:var(--text-secondary);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.modal .field input,.modal .field select,.modal .field textarea{width:100%;padding:10px 14px;font-size:14px;background:var(--surface2,rgba(30,50,90,.5));border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit}
+.modal .field input:focus,.modal .field select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap}
+.modal-actions button{padding:10px 20px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;border:none;transition:all .15s}
+.btn-ghost{background:transparent;border:1px solid var(--border)!important;color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{transform:translateY(-1px)}
+.btn-danger{background:var(--danger,#ef4444);color:#fff}
+.btn-success{background:var(--success,#10b981);color:#fff}
+.badge-statut{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+@media(max-width:900px){
+  .sidebar{display:none}.main{margin-left:0;padding:12px}
+  .stats-mini{display:none}.form-row{grid-template-columns:1fr}
+  .day-view.multi{grid-template-columns:60px 1fr !important}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">JADOMI<span>.services</span></div>
+    <nav>
+      <a class="nav-item" href="/services/dashboard.html"><span class="ico">&#x1F4CA;</span> Vue d'ensemble</a>
+      <a class="nav-item active" href="/services/agenda.html"><span class="ico">&#x1F4C5;</span> Agenda</a>
+      <a class="nav-item" href="/services/prestations.html"><span class="ico">&#x1F6CD;&#xFE0F;</span> Prestations</a>
+      <a class="nav-item" href="/services/clients.html"><span class="ico">&#x1F465;</span> Clients</a>
+      <a class="nav-item" href="/services/stock.html"><span class="ico">&#x1F4E6;</span> Stock</a>
+      <a class="nav-item" href="/services/comptabilite.html"><span class="ico">&#x1F4B0;</span> Comptabilit&eacute;</a>
+      <a class="nav-item" href="/services/marketplace.html"><span class="ico">&#x1F3EA;</span> Marketplace</a>
+      <a class="nav-item" href="/services/parametres.html"><span class="ico">&#x2699;&#xFE0F;</span> Param&egrave;tres</a>
+    </nav>
+    <div class="sidebar-bottom" id="sbBottom"></div>
+  </aside>
+  <main class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <h1>&#x1F4C5; Agenda</h1>
+      <div class="topbar-actions">
+        <button class="btn-new" onclick="openNewRdv()">+ Nouveau RDV</button>
+      </div>
+    </div>
+
+    <!-- Stats mini -->
+    <div class="stats-mini">
+      <div class="stat-mini"><div><div class="val" id="statToday">0</div><div class="lbl">RDV aujourd'hui</div></div></div>
+      <div class="stat-mini"><div><div class="val" id="statWeek">0</div><div class="lbl">Cette semaine</div></div></div>
+      <div class="stat-mini"><div><div class="val" id="statPending">0</div><div class="lbl">En attente</div></div></div>
+      <div class="stat-mini"><div><div class="val" id="statCa">0&euro;</div><div class="lbl">CA du jour</div></div></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="day">Jour</button>
+          <button class="view-tab" data-view="week">Semaine</button>
+          <button class="view-tab" data-view="month">Mois</button>
+        </div>
+        <div class="nav-date">
+          <button onclick="navDate(-1)">&larr;</button>
+          <span class="current-date" id="currentDate"></span>
+          <button onclick="navDate(1)">&rarr;</button>
+          <button onclick="goToday()" style="padding:7px 14px;font-size:12px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer">Aujourd'hui</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Praticien chips -->
+    <div class="prat-chips" id="pratChips" style="margin-bottom:14px">
+      <button class="prat-chip active" onclick="filterPrat('',this)">Tous</button>
+    </div>
+
+    <!-- Calendar -->
+    <div id="calendarContainer"></div>
+  </main>
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+<div class="modal-bg" id="modalDetail">
+  <div class="modal">
+    <h2 id="modalTitle">D&eacute;tails du RDV</h2>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modalDetail')">Fermer</button>
+      <button class="btn-primary" id="btnConfirm" onclick="updateStatut('confirme')" style="display:none">&#x2705; Confirmer</button>
+      <button class="btn-danger" id="btnCancel" onclick="updateStatut('annule_pro')" style="display:none">&#x274C; Annuler le RDV</button>
+      <button class="btn-success" id="btnTermine" onclick="updateStatut('termine')" style="display:none">&#x2705; Termin&eacute;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW RDV MODAL ═══ -->
+<div class="modal-bg" id="modalNewRdv">
+  <div class="modal">
+    <h2>&#x2795; Nouveau rendez-vous</h2>
+    <div class="form-row">
+      <div class="field"><label>Client &mdash; Nom</label><input type="text" id="nNom" placeholder="Nom du client"></div>
+      <div class="field"><label>Pr&eacute;nom</label><input type="text" id="nPrenom" placeholder="Pr&eacute;nom"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Email</label><input type="email" id="nEmail" placeholder="email@exemple.com"></div>
+      <div class="field"><label>T&eacute;l&eacute;phone</label><input type="tel" id="nTel" placeholder="06 12 34 56 78"></div>
+    </div>
+    <div class="field">
+      <label>Prestation</label>
+      <select id="nPrestation"><option value="">-- Choisir --</option></select>
+    </div>
+    <div class="field">
+      <label>Praticien</label>
+      <select id="nPraticien"><option value="">-- Premier disponible --</option></select>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Date</label><input type="date" id="nDate"></div>
+      <div class="field"><label>Heure</label><input type="time" id="nHeure" value="09:00" step="900"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="nNotes" rows="2" placeholder="Notes internes, demande sp&eacute;ciale..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modalNewRdv')">Annuler</button>
+      <button class="btn-primary" onclick="saveNewRdv()">Cr&eacute;er le RDV</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co',SK='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const sb=window.supabase.createClient(SU,SK);
+let TOKEN='',currentView='day',currentDate=new Date(),allRdvs=[],allPraticiens=[],allPrestations=[];
+let selectedRdv=null,filteredPratId='';
+const COLORS=['#6366f1','#10b981','#f59e0b','#ef4444','#06b6d4','#8b5cf6','#ec4899','#14b8a6','#f97316','#3b82f6'];
+const STATUT_LABELS={en_attente:'En attente',confirme:'Confirm\u00e9',termine:'Termin\u00e9',annule_pro:'Annul\u00e9',annule_client:'Annul\u00e9 client',no_show:'Absent'};
+const STATUT_COLORS={en_attente:'var(--warning)',confirme:'var(--success)',termine:'#6366f1',annule_pro:'var(--danger)',annule_client:'var(--danger)',no_show:'#8f8a82'};
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+async function refreshToken(){const{data}=await sb.auth.getSession();if(!data?.session){location.href='/login.html';return}TOKEN=data.session.access_token}
+async function api(url,opts={}){
+  if(!TOKEN)await refreshToken();
+  const h={'Content-Type':'application/json','Authorization':'Bearer '+TOKEN,...(opts.headers||{})};
+  const sid=localStorage.getItem('selectedSocieteId')||localStorage.getItem('societe_active_id')||localStorage.getItem('societe_id');
+  if(sid)h['X-Societe-Id']=sid;
+  let r=await fetch(url,{...opts,headers:h});
+  if(r.status===401){await refreshToken();h['Authorization']='Bearer '+TOKEN;r=await fetch(url,{...opts,headers:h})}
+  return r.json();
+}
+
+// ═══ VIEW TABS ═══
+document.querySelectorAll('.view-tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.view-tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');currentView=t.dataset.view;loadAgenda();
+}));
+function navDate(d){
+  if(currentView==='month')currentDate.setMonth(currentDate.getMonth()+d);
+  else if(currentView==='week')currentDate.setDate(currentDate.getDate()+7*d);
+  else currentDate.setDate(currentDate.getDate()+d);
+  loadAgenda();
+}
+function goToday(){currentDate=new Date();loadAgenda()}
+function fmt(d){return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+function fmtShort(d){return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})}
+
+// ═══ PRATICIEN FILTER ═══
+function filterPrat(id,btn){
+  filteredPratId=id;
+  document.querySelectorAll('.prat-chip').forEach(c=>c.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  loadAgenda();
+}
+
+// ═══ LOAD DATA ═══
+async function loadPraticiens(){
+  const r=await api('/api/services/praticiens');
+  allPraticiens=(r.praticiens||[]).map((p,i)=>({...p,couleur:p.couleur||COLORS[i%COLORS.length]}));
+  // Chips
+  const c=document.getElementById('pratChips');
+  let h='<button class="prat-chip active" onclick="filterPrat(\'\',this)">Tous</button>';
+  allPraticiens.forEach(p=>{
+    h+=`<button class="prat-chip" onclick="filterPrat('${p.id}',this)"><span class="dot" style="background:${p.couleur}"></span>${p.prenom||''} ${p.nom}</button>`;
+  });
+  c.innerHTML=h;
+}
+
+async function loadPrestations(){
+  const r=await api('/api/services/prestations');
+  allPrestations=r.prestations||r.data||[];
+  // Fill select
+  const sel=document.getElementById('nPrestation');
+  sel.innerHTML='<option value="">-- Choisir --</option>'+allPrestations.map(p=>
+    `<option value="${p.id}" data-duree="${p.duree||p.duree_minutes||30}">${esc(p.nom)} (${p.duree||p.duree_minutes||30} min &middot; ${p.prix||0}\u20ac)</option>`
+  ).join('');
+  // Fill praticien select
+  const psel=document.getElementById('nPraticien');
+  psel.innerHTML='<option value="">-- Premier disponible --</option>'+allPraticiens.map(p=>
+    `<option value="${p.id}">${p.prenom||''} ${p.nom}</option>`
+  ).join('');
+}
+
+async function loadAgenda(){
+  const container=document.getElementById('calendarContainer');
+  const dateEl=document.getElementById('currentDate');
+  const pf=filteredPratId?'&praticien_id='+filteredPratId:'';
+  const today=new Date().toISOString().split('T')[0];
+
+  if(currentView==='day'){
+    dateEl.textContent=fmt(currentDate);
+    const ds=currentDate.toISOString().split('T')[0];
+    const r=await api(`/api/services/agenda?date=${ds}${pf}`);
+    allRdvs=r.reservations||[];
+    renderDayView(container);
+  }else if(currentView==='week'){
+    const mon=new Date(currentDate);mon.setDate(mon.getDate()-mon.getDay()+1);
+    const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+    dateEl.textContent=`${fmtShort(mon)} \u2014 ${fmtShort(sun)}`;
+    const r=await api(`/api/services/agenda?debut=${mon.toISOString().split('T')[0]}&fin=${sun.toISOString().split('T')[0]}${pf}`);
+    allRdvs=r.reservations||[];
+    renderWeekView(container,mon);
+  }else{
+    dateEl.textContent=currentDate.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    const y=currentDate.getFullYear(),m=currentDate.getMonth();
+    const first=new Date(y,m,1),last=new Date(y,m+1,0);
+    const r=await api(`/api/services/agenda?debut=${first.toISOString().split('T')[0]}&fin=${last.toISOString().split('T')[0]}${pf}`);
+    allRdvs=r.reservations||[];
+    renderMonthView(container,y,m);
+  }
+  updateStats();
+}
+
+function updateStats(){
+  const today=new Date().toISOString().split('T')[0];
+  const todayRdvs=allRdvs.filter(r=>r.date_heure&&r.date_heure.startsWith(today));
+  document.getElementById('statToday').textContent=todayRdvs.length;
+  document.getElementById('statWeek').textContent=allRdvs.length;
+  document.getElementById('statPending').textContent=allRdvs.filter(r=>r.statut==='en_attente').length;
+  const ca=todayRdvs.filter(r=>r.statut==='termine').reduce((s,r)=>s+(r.prix_total||r.prestation?.prix||0),0);
+  document.getElementById('statCa').textContent=ca.toFixed(0)+'\u20ac';
+}
+
+// ═══ DAY VIEW (MULTI-COLUMN) ═══
+function renderDayView(container){
+  const showMulti=!filteredPratId&&allPraticiens.length>1;
+  const prats=showMulti?allPraticiens:null;
+  const cols=prats?prats.length:1;
+
+  let html=`<div class="day-view ${showMulti?'multi':''}" style="--cols:${cols}">`;
+  if(showMulti){
+    html+='<div style="background:var(--surface);border-bottom:1px solid var(--border)"></div>';
+    prats.forEach(p=>{
+      html+=`<div class="day-col-header" style="border-bottom-color:${p.couleur}">
+        <span style="color:${p.couleur}">${p.prenom||''} ${p.nom}</span>
+        <span class="spec">${p.specialite||''}</span>
+      </div>`;
+    });
+  }
+  for(let h=7;h<=21;h++){
+    html+=`<div class="time-slot">${String(h).padStart(2,'0')}:00</div>`;
+    for(let c=0;c<cols;c++){
+      html+=`<div class="slot-cell" onclick="openNewRdvAt(${h},${c})">`;
+      const events=allRdvs.filter(r=>{
+        if(!r.date_heure)return false;
+        const d=new Date(r.date_heure);
+        if(d.getHours()!==h)return false;
+        if(showMulti)return r.praticien_id===prats[c].id||(!r.praticien_id&&c===0);
+        return true;
+      });
+      events.forEach(ev=>{
+        const d=new Date(ev.date_heure);
+        const top=(d.getMinutes()/60)*60;
+        const dur=ev.duree||ev.duree_minutes||ev.prestation?.duree||ev.prestation?.duree_minutes||30;
+        const height=Math.max((dur/60)*60,28);
+        const pratColor=showMulti?prats[c].couleur:(allPraticiens.find(p=>p.id===ev.praticien_id)?.couleur||'#6366f1');
+        const bgColor=ev.prestation?.couleur||pratColor;
+        const statusTag=ev.statut==='en_attente'?'ATTENTE':ev.statut==='termine'?'FAIT':'';
+        html+=`<div class="slot-event" style="top:${top}px;height:${height}px;background:${bgColor}" onclick="event.stopPropagation();showDetail('${ev.id}')">
+          <div class="ev-name">${esc(ev.prestation?.nom||'RDV')}</div>
+          <div class="ev-client">${esc(ev.client_prenom||'')} ${esc(ev.client_nom||'')}</div>
+          ${statusTag?`<span class="ev-tag">${statusTag}</span>`:''}
+        </div>`;
+      });
+      html+='</div>';
+    }
+  }
+  html+='</div>';
+  container.innerHTML=html;
+}
+
+// ═══ WEEK VIEW ═══
+function renderWeekView(container,monday){
+  const today=new Date().toISOString().split('T')[0];
+  let html='<div class="week-grid">';
+  html+='<div class="cal-header" style="background:var(--surface)"></div>';
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);d.setDate(d.getDate()+i);
+    const ds=d.toISOString().split('T')[0];
+    html+=`<div class="week-day-header ${ds===today?'today-h':''}">${fmtShort(d)}</div>`;
+  }
+  for(let h=7;h<=21;h++){
+    html+=`<div class="time-slot">${String(h).padStart(2,'0')}:00</div>`;
+    for(let i=0;i<7;i++){
+      const d=new Date(monday);d.setDate(d.getDate()+i);
+      const ds=d.toISOString().split('T')[0];
+      html+=`<div class="slot-cell" style="border-left:1px solid var(--border2)">`;
+      allRdvs.filter(r=>{if(!r.date_heure)return false;const rd=new Date(r.date_heure);return rd.toISOString().split('T')[0]===ds&&rd.getHours()===h}).forEach(ev=>{
+        const rd=new Date(ev.date_heure);
+        const top=(rd.getMinutes()/60)*60;
+        const dur=ev.duree||ev.prestation?.duree||30;
+        const height=Math.max((dur/60)*60,22);
+        const pratColor=allPraticiens.find(p=>p.id===ev.praticien_id)?.couleur||'#6366f1';
+        html+=`<div class="slot-event" style="top:${top}px;height:${height}px;background:${pratColor};font-size:10px" onclick="showDetail('${ev.id}')"><div class="ev-name" style="font-size:10px">${esc(ev.prestation?.nom||'RDV')}</div></div>`;
+      });
+      html+='</div>';
+    }
+  }
+  html+='</div>';
+  container.innerHTML=html;
+}
+
+// ═══ MONTH VIEW ═══
+function renderMonthView(container,year,month){
+  const today=new Date().toISOString().split('T')[0];
+  const firstDay=new Date(year,month,1).getDay()||7;
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  let html='<div class="cal-grid" style="grid-template-columns:repeat(7,1fr)">';
+  ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].forEach(d=>{html+=`<div class="cal-header">${d}</div>`});
+  for(let i=1;i<firstDay;i++)html+='<div class="cal-day"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===today;
+    const dayEvents=allRdvs.filter(r=>r.date_heure&&r.date_heure.startsWith(ds));
+    html+=`<div class="cal-day${isToday?' today':''}" onclick="currentDate=new Date('${ds}');currentView='day';document.querySelectorAll('.view-tab').forEach(t=>{t.classList.toggle('active',t.dataset.view==='day')});loadAgenda()"><span class="day-num">${d}</span>`;
+    dayEvents.slice(0,3).forEach(ev=>{
+      const pratColor=allPraticiens.find(p=>p.id===ev.praticien_id)?.couleur||ev.prestation?.couleur||'#6366f1';
+      html+=`<div class="cal-event" style="background:${pratColor}" onclick="event.stopPropagation();showDetail('${ev.id}')">${new Date(ev.date_heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} ${esc(ev.prestation?.nom||'RDV')}</div>`;
+    });
+    if(dayEvents.length>3)html+=`<div style="font-size:10px;color:var(--text-secondary);padding:2px 4px">+${dayEvents.length-3}</div>`;
+    html+='</div>';
+  }
+  html+='</div>';
+  container.innerHTML=html;
+}
+
+// ═══ DETAIL MODAL ═══
+function showDetail(id){
+  selectedRdv=allRdvs.find(r=>r.id===id);
+  if(!selectedRdv)return;
+  const r=selectedRdv;
+  const d=new Date(r.date_heure);
+  const prat=allPraticiens.find(p=>p.id===r.praticien_id);
+  const pratColor=prat?.couleur||'var(--accent)';
+  const statutColor=STATUT_COLORS[r.statut]||'var(--warning)';
+  const statutLabel=STATUT_LABELS[r.statut]||r.statut;
+
+  document.getElementById('modalTitle').innerHTML=`<span style="width:10px;height:10px;border-radius:50%;background:${pratColor};display:inline-block"></span> ${esc(r.prestation?.nom||'Rendez-vous')}`;
+  document.getElementById('modalBody').innerHTML=`
+    <div class="field"><label>Date &amp; Heure</label><p style="font-size:15px;font-weight:600">${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} \u00e0 ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</p></div>
+    <div class="field"><label>Client</label><p style="font-size:15px">${esc(r.client_prenom||'')} ${esc(r.client_nom||'\u2014')} ${r.client_telephone?'<span style="color:var(--text-secondary);font-size:13px">| '+esc(r.client_telephone)+'</span>':''} ${r.client_email?'<br><span style="color:var(--text-secondary);font-size:12px">'+esc(r.client_email)+'</span>':''}</p></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="field"><label>Dur\u00e9e</label><p>${r.duree||r.duree_minutes||r.prestation?.duree||30} min</p></div>
+      <div class="field"><label>Prix</label><p style="font-weight:700">${r.prix_total||r.prestation?.prix||0}\u20ac</p></div>
+      <div class="field"><label>Acompte</label><p>${r.acompte_montant?r.acompte_montant+'\u20ac':'\u2014'}</p></div>
+    </div>
+    <div class="field"><label>Statut</label><span class="badge-statut" style="background:${statutColor}20;color:${statutColor}">${statutLabel}</span></div>
+    ${prat?`<div class="field"><label>Praticien</label><p style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${pratColor};display:inline-block"></span> ${esc(prat.prenom||'')} ${esc(prat.nom)} <span style="color:var(--text-secondary);font-size:12px">${esc(prat.specialite||'')}</span></p></div>`:''}
+    ${r.notes||r.notes_pro?`<div class="field"><label>Notes</label><p style="font-size:13px;color:var(--text-secondary)">${esc(r.notes||r.notes_pro)}</p></div>`:''}`;
+
+  document.getElementById('btnConfirm').style.display=r.statut==='en_attente'?'':'none';
+  document.getElementById('btnCancel').style.display=['en_attente','confirme'].includes(r.statut)?'':'none';
+  document.getElementById('btnTermine').style.display=r.statut==='confirme'?'':'none';
+  document.getElementById('modalDetail').classList.add('open');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+async function updateStatut(s){
+  if(!selectedRdv)return;
+  if(s==='annule_pro'&&!confirm('Annuler ce RDV ? Le client sera rembours\u00e9.'))return;
+  await api('/api/services/reservations/'+selectedRdv.id,{method:'PATCH',body:JSON.stringify({statut:s})});
+  closeModal('modalDetail');loadAgenda();
+}
+
+// ═══ NEW RDV MODAL ═══
+function openNewRdv(){
+  document.getElementById('nDate').value=currentDate.toISOString().split('T')[0];
+  document.getElementById('nHeure').value='09:00';
+  document.getElementById('nNom').value='';
+  document.getElementById('nPrenom').value='';
+  document.getElementById('nEmail').value='';
+  document.getElementById('nTel').value='';
+  document.getElementById('nNotes').value='';
+  document.getElementById('nPrestation').value='';
+  document.getElementById('nPraticien').value=filteredPratId||'';
+  document.getElementById('modalNewRdv').classList.add('open');
+}
+
+function openNewRdvAt(hour,colIdx){
+  const ds=currentDate.toISOString().split('T')[0];
+  document.getElementById('nDate').value=ds;
+  document.getElementById('nHeure').value=String(hour).padStart(2,'0')+':00';
+  document.getElementById('nNom').value='';document.getElementById('nPrenom').value='';
+  document.getElementById('nEmail').value='';document.getElementById('nTel').value='';
+  document.getElementById('nNotes').value='';document.getElementById('nPrestation').value='';
+  // Pre-select praticien from column
+  const showMulti=!filteredPratId&&allPraticiens.length>1;
+  if(showMulti&&allPraticiens[colIdx]){
+    document.getElementById('nPraticien').value=allPraticiens[colIdx].id;
+  }else{
+    document.getElementById('nPraticien').value=filteredPratId||'';
+  }
+  document.getElementById('modalNewRdv').classList.add('open');
+}
+
+async function saveNewRdv(){
+  const nom=document.getElementById('nNom').value.trim();
+  const prenom=document.getElementById('nPrenom').value.trim();
+  const email=document.getElementById('nEmail').value.trim();
+  const tel=document.getElementById('nTel').value.trim();
+  const prestId=document.getElementById('nPrestation').value;
+  const pratId=document.getElementById('nPraticien').value;
+  const date=document.getElementById('nDate').value;
+  const heure=document.getElementById('nHeure').value;
+  const notes=document.getElementById('nNotes').value.trim();
+
+  if(!nom){alert('Nom du client requis');return}
+  if(!prestId){alert('Choisissez une prestation');return}
+  if(!date||!heure){alert('Date et heure requises');return}
+
+  const presta=allPrestations.find(p=>p.id===prestId);
+  const dateHeure=`${date}T${heure}:00`;
+
+  try{
+    const r=await api('/api/services/reservations',{
+      method:'POST',
+      body:JSON.stringify({
+        client_nom:nom, client_prenom:prenom, client_email:email, client_telephone:tel,
+        prestation_id:prestId, praticien_id:pratId||null,
+        date_heure:dateHeure,
+        duree_minutes:presta?.duree||presta?.duree_minutes||30,
+        prix_total:presta?.prix||0,
+        notes_pro:notes,
+        statut:'confirme'
+      })
+    });
+    if(r.error)throw new Error(r.error);
+    closeModal('modalNewRdv');
+    loadAgenda();
+  }catch(e){alert('Erreur: '+e.message)}
+}
+
+// Close modals on backdrop click
+['modalDetail','modalNewRdv'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target.classList.contains('modal-bg'))closeModal(id)});
+});
+
+// ═══ INIT ═══
+async function init(){
+  await refreshToken();
+  await loadPraticiens();
+  await loadPrestations();
+  loadAgenda();
+}
+init();
+</script>
+</body>
+</html>

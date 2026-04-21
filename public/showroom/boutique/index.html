@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Boutique Cr&eacute;ateur</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#ffffff;--bg2:#f8f9fc;--surface:#ffffff;--surface2:#f1f3f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#1e293b;--text2:#475569;--muted:#94a3b8;
+  --accent:#6366f1;--accent-hover:#4f46e5;--accent-soft:rgba(99,102,241,0.08);
+  --gold:#c9a84c;--gold-soft:rgba(201,168,76,0.1);
+  --green:#10b981;--orange:#f59e0b;--red:#ef4444;
+  --font:'Inter','DM Sans',system-ui,sans-serif;
+  --display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+  --radius:14px;--shadow:0 4px 24px rgba(0,0,0,0.08);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.6;}
+body.bijou-theme{--bg:#1a1a2e;--bg2:#16213e;--surface:#1a1a2e;--surface2:#0f3460;--border:#2a2a4a;--border2:#3a3a5a;--text:#e2e8f0;--text2:#cbd5e1;--muted:#94a3b8;--accent:#c9a84c;--accent-hover:#b8953d;--accent-soft:rgba(201,168,76,0.12);}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-link{font-size:13px;font-weight:600;color:var(--text2);padding:8px 14px;border-radius:10px;transition:all 0.15s;}
+.topbar-link:hover{background:var(--accent-soft);color:var(--accent);}
+
+/* BANNER */
+.banner{height:280px;background:linear-gradient(135deg,#ede9fe,#fce7f3);overflow:hidden;position:relative;}
+.banner img{width:100%;height:100%;object-fit:cover;}
+.banner-overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.4) 100%);}
+
+/* PROFILE HEADER */
+.profile-header{max-width:900px;margin:-60px auto 0;padding:0 24px;position:relative;z-index:5;}
+.profile-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:flex;gap:24px;align-items:flex-start;box-shadow:var(--shadow);}
+.profile-logo{width:100px;height:100px;border-radius:16px;border:4px solid var(--surface);overflow:hidden;flex-shrink:0;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--accent);box-shadow:var(--shadow);margin-top:-40px;}
+.profile-logo img{width:100%;height:100%;object-fit:cover;}
+.profile-info{flex:1;min-width:0;}
+.profile-info h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px;}
+.profile-info .tagline{font-size:15px;color:var(--text2);margin-bottom:8px;}
+.profile-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;}
+.badge.local{background:var(--accent-soft);color:var(--accent);}
+.badge.france{background:rgba(16,185,129,0.1);color:var(--green);}
+.profile-rating{display:flex;align-items:center;gap:10px;font-size:14px;}
+.profile-rating .stars{color:#f59e0b;font-size:16px;}
+.profile-rating .count{color:var(--muted);font-size:13px;}
+.profile-stats{display:flex;gap:20px;font-size:13px;color:var(--muted);margin-top:8px;}
+
+/* NAV MENU */
+.shop-nav{border-bottom:1px solid var(--border);position:sticky;top:49px;z-index:10;background:var(--surface);}
+.shop-nav-inner{max-width:900px;margin:0 auto;display:flex;gap:0;overflow-x:auto;padding:0 24px;}
+.shop-nav a{padding:14px 18px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;cursor:pointer;}
+.shop-nav a:hover{color:var(--text);}
+.shop-nav a.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* FILTERS */
+.filters-bar{max-width:900px;margin:20px auto 0;padding:0 24px;display:flex;gap:10px;flex-wrap:wrap;}
+.filter-select{padding:8px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:13px;font-family:var(--font);color:var(--text);outline:none;cursor:pointer;}
+.filter-select:focus{border-color:var(--accent);}
+
+/* PRODUCTS MASONRY */
+.products-section{max-width:900px;margin:24px auto;padding:0 24px;}
+.products-grid{columns:3 220px;gap:16px;}
+.product-card{break-inside:avoid;background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;cursor:pointer;transition:all 0.25s var(--trans);position:relative;}
+.product-card:hover{border-color:var(--accent);box-shadow:0 12px 36px rgba(99,102,241,0.1);transform:translateY(-3px);}
+.product-img{width:100%;aspect-ratio:4/5;background:var(--surface2);overflow:hidden;position:relative;}
+.product-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s var(--trans);}
+.product-card:hover .product-img img{transform:scale(1.08);}
+/* Bijou zoom on hover */
+body.bijou-theme .product-card:hover .product-img img{transform:scale(1.15);}
+.product-type-tag{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.product-type-tag.vente{background:rgba(16,185,129,0.9);color:#fff;}
+.product-type-tag.location{background:rgba(99,102,241,0.9);color:#fff;}
+.product-type-tag.sur_mesure{background:rgba(245,158,11,0.9);color:#fff;}
+.product-fav{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);border:none;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;opacity:0;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.product-card:hover .product-fav{opacity:1;}
+.product-body{padding:14px 16px;}
+.product-body h4{font-size:14px;font-weight:700;margin-bottom:4px;}
+.product-body .detail{font-size:12px;color:var(--text2);margin-bottom:6px;}
+.product-bijou-detail{font-size:11px;color:var(--gold);margin-bottom:6px;}
+.product-prices{display:flex;align-items:baseline;gap:8px;}
+.product-prices .price{font-family:var(--display);font-size:18px;font-weight:800;color:var(--accent);}
+.product-prices .price-loc{font-size:12px;color:var(--muted);}
+
+/* PRODUCT DETAIL MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius);max-width:800px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.modal-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:var(--surface2);border:none;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;}
+.modal-img{width:100%;aspect-ratio:4/3;background:var(--surface2);overflow:hidden;border-radius:var(--radius) var(--radius) 0 0;}
+.modal-img img{width:100%;height:100%;object-fit:cover;}
+.modal-body{padding:28px;}
+.modal-body h2{font-family:var(--display);font-size:24px;font-weight:800;margin-bottom:8px;}
+.modal-body .desc{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:20px;}
+.modal-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.modal-detail{padding:12px;background:var(--surface2);border-radius:10px;}
+.modal-detail .label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:4px;}
+.modal-detail .value{font-weight:700;font-size:14px;}
+.btn{padding:12px 24px;border:none;border-radius:10px;font-size:14px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;display:inline-flex;align-items:center;gap:8px;cursor:pointer;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.25);}
+.btn-outline{background:transparent;color:var(--accent);border:2px solid var(--accent);}
+.btn-outline:hover{background:var(--accent-soft);}
+.btn-lg{padding:16px 32px;font-size:16px;}
+
+/* AVIS */
+.avis-section{max-width:900px;margin:40px auto;padding:0 24px;}
+.avis-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px;}
+.avis-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.avis-header .name{font-weight:700;font-size:14px;}
+.avis-header .date{font-size:12px;color:var(--muted);}
+.avis-stars{color:#f59e0b;font-size:14px;margin-bottom:6px;}
+.avis-text{font-size:14px;color:var(--text2);line-height:1.6;}
+.avis-photos{display:flex;gap:8px;margin-top:10px;}
+.avis-photos img{width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer;border:1px solid var(--border);}
+.avis-reponse{margin-top:12px;padding:12px;background:var(--surface2);border-radius:10px;font-size:13px;color:var(--text2);}
+.avis-reponse strong{color:var(--accent);font-size:12px;}
+
+/* CONTACT */
+.contact-section{max-width:900px;margin:40px auto;padding:0 24px;}
+.contact-form{max-width:500px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--text2);font-weight:600;margin-bottom:5px;}
+.field input,.field textarea{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:var(--font);color:var(--text);outline:none;background:var(--surface);transition:border-color 0.2s;}
+.field textarea{min-height:100px;resize:vertical;}
+.field input:focus,.field textarea:focus{border-color:var(--accent);}
+
+.loader{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted);font-size:14px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:var(--shadow);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.error{border-color:var(--red);color:var(--red);}
+
+.animate-fade-in{animation:fadeInUp 0.5s var(--trans) both;}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+
+@media(max-width:768px){
+  .banner{height:180px;}
+  .profile-card{flex-direction:column;align-items:center;text-align:center;}
+  .profile-logo{margin-top:-50px;}
+  .products-grid{columns:2 150px;}
+  .modal{max-width:100%;margin:10px;}
+}
+@media(max-width:480px){
+  .products-grid{columns:1;}
+}
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-left">
+    <a href="/showroom" class="logo">JADOMI</a>
+  </div>
+  <div class="topbar-right">
+    <a class="topbar-link" href="/showroom">&larr; Showroom</a>
+    <a class="topbar-link" href="/login.html">Connexion</a>
+  </div>
+</nav>
+
+<div class="banner" id="banner">
+  <div class="banner-overlay"></div>
+</div>
+
+<div class="profile-header animate-fade-in">
+  <div class="profile-card" id="profile-card">
+    <div class="loader"><div class="spinner"></div>Chargement&hellip;</div>
+  </div>
+</div>
+
+<nav class="shop-nav">
+  <div class="shop-nav-inner" id="shop-nav">
+    <a class="active" data-filter="all">Toutes</a>
+    <a data-filter="vente">Vente</a>
+    <a data-filter="location">Location</a>
+    <a data-filter="sur_mesure">Sur mesure</a>
+    <a data-filter="collections">Collections</a>
+  </div>
+</nav>
+
+<div class="filters-bar" id="filters-bar" style="display:none;">
+  <select class="filter-select" id="filter-categorie" onchange="applyFilters()">
+    <option value="">Toutes cat&eacute;gories</option>
+    <option value="robes">Robes</option>
+    <option value="bijoux">Bijoux</option>
+    <option value="accessoires">Accessoires</option>
+    <option value="maison">Maison</option>
+    <option value="art">Art</option>
+    <option value="beaute">Beaut&eacute;</option>
+    <option value="gastronomie">Gastronomie</option>
+  </select>
+  <select class="filter-select" id="filter-prix" onchange="applyFilters()">
+    <option value="">Tous prix</option>
+    <option value="0-50">0 - 50 &euro;</option>
+    <option value="50-150">50 - 150 &euro;</option>
+    <option value="150-500">150 - 500 &euro;</option>
+    <option value="500+">500 &euro;+</option>
+  </select>
+</div>
+
+<div class="products-section">
+  <div class="products-grid" id="products-grid">
+    <div class="loader"><div class="spinner"></div>Chargement des cr&eacute;ations&hellip;</div>
+  </div>
+</div>
+
+<!-- AVIS -->
+<div class="avis-section" id="avis-section">
+  <h2 style="font-family:var(--display);font-size:22px;font-weight:800;margin-bottom:20px;">Avis clients</h2>
+  <div id="avis-list">
+    <div class="loader"><div class="spinner"></div>Chargement&hellip;</div>
+  </div>
+</div>
+
+<!-- CONTACT -->
+<div class="contact-section" id="contact-section">
+  <h2 style="font-family:var(--display);font-size:22px;font-weight:800;margin-bottom:20px;">Contacter le cr&eacute;ateur</h2>
+  <div class="contact-form">
+    <div class="field"><label>Nom</label><input id="msg-nom" required></div>
+    <div class="field"><label>Email</label><input type="email" id="msg-email" required></div>
+    <div class="field"><label>Message</label><textarea id="msg-contenu" required></textarea></div>
+    <button class="btn btn-primary" onclick="sendMessage()">Envoyer</button>
+  </div>
+</div>
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" style="position:relative;" id="modal-content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/showroom/public';
+const slug = location.pathname.split('/').filter(Boolean).pop();
+
+let profil = null;
+let allProduits = [];
+let currentFilter = 'all';
+
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function eur(n){ return (Number(n)||0).toFixed(2).replace('.',',')+' \u20ac'; }
+function stars(n){ let s=''; for(let i=1;i<=5;i++) s+=i<=Math.round(n)?'\u2605':'\u2606'; return s; }
+function toast(msg,kind){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=>t.className='toast',2800); }
+
+async function loadProfil(){
+  try{
+    const r = await fetch(API+'/profil/'+slug);
+    const d = await r.json();
+    if(!d.success||!d.profil) { document.getElementById('profile-card').innerHTML='<p>Cr\u00e9ateur introuvable</p>'; return; }
+    profil = d.profil;
+    document.title = 'JADOMI \u2014 '+profil.nom_boutique;
+
+    // Apply bijou theme if bijouterie
+    if(profil.type_createur==='bijouterie'||profil.type_createur==='bijoux'||profil.type_createur==='joaillerie'){
+      document.body.classList.add('bijou-theme');
+    }
+
+    // Banner
+    const bannerEl = document.getElementById('banner');
+    if(profil.banniere_url) bannerEl.innerHTML = '<img src="'+esc(profil.banniere_url)+'"><div class="banner-overlay"></div>';
+
+    // Profile card
+    const logoHtml = profil.logo_url ? '<img src="'+esc(profil.logo_url)+'">' : '\ud83c\udfa8';
+    const labels = (profil.labels||[]).map(l=>'<span class="badge local">'+esc(l)+'</span>').join('');
+    document.getElementById('profile-card').innerHTML = `
+      <div class="profile-logo">${logoHtml}</div>
+      <div class="profile-info">
+        <h1>${esc(profil.nom_boutique)}</h1>
+        <div class="tagline">${esc(profil.tagline||'')}</div>
+        <div class="profile-badges">
+          <span class="badge local">Cr\u00e9ateur local</span>
+          <span class="badge france">Made in France</span>
+          ${labels}
+        </div>
+        <div class="profile-rating">
+          <span class="stars">${stars(profil.note_moyenne||0)}</span>
+          <span>${(profil.note_moyenne||0).toFixed(1)}/5</span>
+          <span class="count">(${profil.nb_avis||0} avis)</span>
+        </div>
+        <div class="profile-stats">
+          <span>${profil.nb_vues||0} vues</span>
+          ${profil.ville?'<span>\u2022 '+esc(profil.ville)+'</span>':''}
+          ${profil.type_createur?'<span>\u2022 '+esc(profil.type_createur)+'</span>':''}
+        </div>
+      </div>`;
+  }catch(e){ console.error(e); }
+}
+
+async function loadProduits(){
+  try{
+    const r = await fetch(API+'/produits/'+slug);
+    const d = await r.json();
+    allProduits = d.produits||[];
+    renderProduits();
+    document.getElementById('filters-bar').style.display = allProduits.length>0?'flex':'none';
+  }catch(e){ console.error(e); }
+}
+
+function renderProduits(){
+  let filtered = allProduits;
+  if(currentFilter!=='all'&&currentFilter!=='collections'){
+    filtered = allProduits.filter(p=>p.type===currentFilter);
+  }
+
+  // Apply filters
+  const cat = document.getElementById('filter-categorie')?.value;
+  if(cat) filtered = filtered.filter(p=>p.categorie===cat);
+  const prix = document.getElementById('filter-prix')?.value;
+  if(prix){
+    const [min,max] = prix.split('-').map(Number);
+    if(max) filtered = filtered.filter(p=>(p.prix_vente||0)>=min&&(p.prix_vente||0)<=max);
+    else filtered = filtered.filter(p=>(p.prix_vente||0)>=500);
+  }
+
+  const g = document.getElementById('products-grid');
+  if(!filtered.length){ g.innerHTML='<p style="color:var(--muted);padding:40px;text-align:center;">Aucune cr\u00e9ation dans cette cat\u00e9gorie</p>'; return; }
+
+  const isBijou = document.body.classList.contains('bijou-theme');
+  g.innerHTML = filtered.map(p=>{
+    const photo = (p.photos&&p.photos[0]) ? '<img src="'+esc(p.photos[0])+'" alt="'+esc(p.nom)+'">' : '';
+    const typeCls = p.type==='location'?'location':p.type==='sur_mesure'?'sur_mesure':'vente';
+    const typeLbl = p.type==='location'?'Location':p.type==='sur_mesure'?'Sur mesure':'Vente';
+    let prices = '';
+    if(p.prix_vente) prices += '<span class="price">'+eur(p.prix_vente)+'</span>';
+    if(p.prix_location_jour) prices += '<span class="price-loc">'+eur(p.prix_location_jour)+'/jour</span>';
+    const bijouDetail = isBijou && (p.metal||p.pierres) ? '<div class="product-bijou-detail">'+(p.metal?esc(p.metal):'')+(p.pierres?' \u2022 '+esc(p.pierres):'')+'</div>' : '';
+    return `<div class="product-card" onclick="openProduct('${p.id}')">
+      <div class="product-img"><span class="product-type-tag ${typeCls}">${typeLbl}</span><button class="product-fav" onclick="event.stopPropagation()">\u2661</button>${photo}</div>
+      <div class="product-body">
+        <h4>${esc(p.nom)}</h4>
+        <div class="detail">${esc(p.categorie||'')}</div>
+        ${bijouDetail}
+        <div class="product-prices">${prices}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function applyFilters(){ renderProduits(); }
+
+// Nav menu
+document.getElementById('shop-nav').addEventListener('click',e=>{
+  if(e.target.tagName!=='A') return;
+  e.preventDefault();
+  document.querySelectorAll('#shop-nav a').forEach(a=>a.classList.remove('active'));
+  e.target.classList.add('active');
+  currentFilter = e.target.dataset.filter;
+  renderProduits();
+});
+
+async function openProduct(id){
+  const p = allProduits.find(x=>x.id===id);
+  if(!p) return;
+  const modal = document.getElementById('modal-content');
+  const photo = (p.photos&&p.photos[0]) ? '<img src="'+esc(p.photos[0])+'">' : '';
+  const photos = (p.photos||[]).map((ph,i)=>'<img src="'+esc(ph)+'" style="width:80px;height:80px;border-radius:8px;object-fit:cover;cursor:pointer;border:1px solid var(--border);margin-right:6px;" onclick="document.querySelector(\'.modal-img img\').src=\''+esc(ph)+'\'">').join('');
+
+  let details = '';
+  if(p.matieres&&p.matieres.length) details += '<div class="modal-detail"><div class="label">Mati\u00e8res</div><div class="value">'+p.matieres.map(esc).join(', ')+'</div></div>';
+  if(p.couleurs&&p.couleurs.length) details += '<div class="modal-detail"><div class="label">Couleurs</div><div class="value">'+p.couleurs.map(esc).join(', ')+'</div></div>';
+  if(p.tailles&&p.tailles.length) details += '<div class="modal-detail"><div class="label">Tailles</div><div class="value">'+p.tailles.map(esc).join(', ')+'</div></div>';
+  if(p.metal) details += '<div class="modal-detail"><div class="label">M\u00e9tal</div><div class="value">'+esc(p.metal)+'</div></div>';
+  if(p.pierres) details += '<div class="modal-detail"><div class="label">Pierres</div><div class="value">'+esc(p.pierres)+'</div></div>';
+  if(p.poincon) details += '<div class="modal-detail"><div class="label">Poin\u00e7on</div><div class="value">'+esc(p.poincon)+'</div></div>';
+  if(p.certificat) details += '<div class="modal-detail"><div class="label">Certificat</div><div class="value">'+esc(p.certificat)+'</div></div>';
+  if(p.taille_bague) details += '<div class="modal-detail"><div class="label">Taille bague</div><div class="value">'+esc(p.taille_bague)+'</div></div>';
+  if(p.gravure) details += '<div class="modal-detail"><div class="label">Gravure</div><div class="value">Disponible</div></div>';
+  if(p.stock!=null) details += '<div class="modal-detail"><div class="label">Stock</div><div class="value">'+p.stock+' disponible(s)</div></div>';
+
+  let prices = '';
+  if(p.prix_vente) prices += '<span class="price" style="font-size:28px;">'+eur(p.prix_vente)+'</span>';
+  if(p.prix_location_jour) prices += '<span class="price-loc" style="font-size:16px;margin-left:12px;">'+eur(p.prix_location_jour)+'/jour</span>';
+  if(p.caution_location) prices += '<span style="font-size:13px;color:var(--muted);margin-left:12px;">Caution: '+eur(p.caution_location)+'</span>';
+
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-img">${photo}</div>
+    <div class="modal-body">
+      <h2>${esc(p.nom)}</h2>
+      <div class="product-prices" style="margin-bottom:16px;">${prices}</div>
+      <div class="desc">${esc(p.description||'')}</div>
+      ${photos?'<div style="margin-bottom:16px;">'+photos+'</div>':''}
+      <div class="modal-details">${details}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        ${p.type==='vente'||p.type==='location'?'<button class="btn btn-primary btn-lg" onclick="orderProduct(\''+p.id+'\')">Commander</button>':''}
+        ${p.type==='sur_mesure'?'<button class="btn btn-primary btn-lg" onclick="orderProduct(\''+p.id+'\')">Demander un devis</button>':''}
+        <button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('show'); }
+
+function orderProduct(id){
+  // Redirect or show order form - simplified for now
+  closeModal();
+  toast('Fonctionnalit\u00e9 de commande en cours d\'int\u00e9gration','ok');
+}
+
+async function loadAvis(){
+  try{
+    const r = await fetch(API+'/avis/'+slug);
+    const d = await r.json();
+    const list = document.getElementById('avis-list');
+    if(!d.avis||!d.avis.length){ list.innerHTML='<p style="color:var(--muted);">Aucun avis pour le moment</p>'; return; }
+    list.innerHTML = d.avis.map(a=>{
+      const photos = (a.photos||[]).map(ph=>'<img src="'+esc(ph)+'">').join('');
+      const reponse = a.reponse_createur ? '<div class="avis-reponse"><strong>R\u00e9ponse du cr\u00e9ateur</strong><br>'+esc(a.reponse_createur)+'</div>' : '';
+      return `<div class="avis-card">
+        <div class="avis-header">
+          <span class="name">${esc(a.client_nom)}</span>
+          <span class="date">${new Date(a.created_at).toLocaleDateString('fr-FR')}</span>
+        </div>
+        <div class="avis-stars">${stars(a.note)}</div>
+        <div class="avis-text">${esc(a.commentaire||'')}</div>
+        ${photos?'<div class="avis-photos">'+photos+'</div>':''}
+        ${reponse}
+      </div>`;
+    }).join('');
+  }catch(e){ console.error(e); }
+}
+
+async function sendMessage(){
+  const nom = document.getElementById('msg-nom').value.trim();
+  const email = document.getElementById('msg-email').value.trim();
+  const contenu = document.getElementById('msg-contenu').value.trim();
+  if(!nom||!email||!contenu){ toast('Veuillez remplir tous les champs','error'); return; }
+  try{
+    const r = await fetch(API+'/message',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({slug,client_nom:nom,client_email:email,contenu})
+    });
+    const d = await r.json();
+    if(d.success){ toast('Message envoy\u00e9 !','ok'); document.getElementById('msg-contenu').value=''; }
+    else toast(d.error||'Erreur','error');
+  }catch(e){ toast('Erreur r\u00e9seau','error'); }
+}
+
+// Check hash for product focus
+function checkHash(){
+  const h = location.hash;
+  if(h && h.startsWith('#produit-')){
+    const id = h.replace('#produit-','');
+    setTimeout(()=>openProduct(id),500);
+  }
+}
+
+// Init
+loadProfil();
+loadProduits().then(checkHash);
+loadAvis();
+</script>
+</body>
+</html>

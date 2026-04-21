@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Services — Stock</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/public/js/jadomi-legal-widget.js" defer></script>
+<style>
+:root{--sidebar-w:260px;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);
+  -webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+.layout{display:flex;min-height:100vh;}
+
+.sidebar{width:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;padding:20px 0;position:fixed;left:0;top:0;z-index:10;background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);}
+.sidebar .logo{padding:16px 24px;font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-0.5px;}
+.sidebar .logo span{color:var(--accent3);}
+.sidebar nav{flex:1;padding:12px;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;transition:all .2s;border-left:3px solid transparent;font-size:14px;text-decoration:none;margin-bottom:2px;}
+.nav-item:hover{background:rgba(99,102,241,.15);color:var(--text);}
+.nav-item.active{color:var(--accent);background:rgba(99,102,241,.18);border-left-color:var(--accent);}
+.nav-item .ico{font-size:18px;width:24px;text-align:center;}
+.sidebar-bottom{padding:12px 20px;border-top:1px solid var(--border);}
+
+.content{margin-left:var(--sidebar-w);flex:1;padding:28px 36px 100px;max-width:1200px;min-width:0;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.topbar h1{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-0.5px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+
+.filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.filter-bar select,.filter-bar input[type="text"]{padding:9px 14px;background:rgba(20,40,80,0.6);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-weight:500;min-width:160px;}
+.filter-bar input[type="text"]{min-width:220px;}
+.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.filter-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;}
+.filter-check input[type="checkbox"]{accent-color:var(--accent);width:16px;height:16px;}
+.spacer{flex:1;}
+
+/* TABLE */
+.card{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;backdrop-filter:blur(10px);transition:border-color 0.3s ease,box-shadow 0.3s ease;overflow-x:auto;}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.8);white-space:nowrap;}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;background:rgba(20,40,80,0.5);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:rgba(99,102,241,0.1);}
+.tbl tr{cursor:pointer;}
+
+.qty{font-family:var(--display);font-weight:800;font-size:15px;}
+.qty.ok{color:var(--success);}
+.qty.warn{color:var(--warning);}
+.qty.danger{color:var(--danger);}
+
+.row-actions{display:flex;gap:6px;white-space:nowrap;}
+.btn-sm{padding:5px 10px;font-size:11px;font-weight:700;border-radius:8px;border:none;transition:all 0.15s;}
+.btn-entry{background:rgba(16,185,129,0.15);color:var(--success);}
+.btn-entry:hover{background:rgba(16,185,129,0.25);}
+.btn-exit{background:rgba(239,68,68,0.15);color:var(--danger);}
+.btn-exit:hover{background:rgba(239,68,68,0.25);}
+.btn-scan{background:rgba(99,102,241,0.15);color:var(--accent);}
+.btn-scan:hover{background:rgba(99,102,241,0.25);}
+
+/* EXPANDED HISTORY */
+.mouvement-row{display:none;}
+.mouvement-row.open{display:table-row;}
+.mouvement-row td{padding:0 12px 0 24px;background:rgba(15,31,61,0.6) !important;border-bottom:1px solid rgba(99,102,241,0.1);}
+.mouvement-list{padding:10px 0;font-size:12px;}
+.mouvement-item{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid rgba(99,102,241,0.08);}
+.mouvement-item:last-child{border-bottom:none;}
+.mouv-type{font-weight:700;width:60px;}
+.mouv-type.entree{color:var(--success);}
+.mouv-type.sortie{color:var(--danger);}
+.mouv-details{flex:1;color:var(--text-secondary);}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:rgba(25,45,85,0.95);border:1px solid rgba(99,102,241,0.25);border-radius:18px;backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(0,0,0,0.35),0 0 30px rgba(99,102,241,0.15);padding:28px;width:90%;max-width:550px;max-height:85vh;overflow-y:auto;}
+.modal h2{font-family:var(--display);font-size:18px;font-weight:800;margin-bottom:20px;letter-spacing:-0.5px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full-width{grid-column:1/-1;}
+.form-group label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;}
+.form-group input,.form-group select,.form-group textarea{padding:10px 14px;background:rgba(20,40,80,0.6);border:1px solid rgba(99,102,241,0.3);color:var(--text);border-radius:10px;font-size:13px;}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:10px;}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(25,45,85,0.95);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 30px rgba(99,102,241,0.15);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--danger);color:var(--danger);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+
+.animate-fade-in{animation:fadeInUp 0.4s var(--trans) both;}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+.alert-count{background:var(--danger);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .content{margin-left:0;padding:18px 14px 80px;}
+  .filter-bar{flex-direction:column;align-items:stretch;}
+  .filter-bar select,.filter-bar input[type="text"]{min-width:100%;}
+  .form-grid{grid-template-columns:1fr;}
+  .mobile-menu-btn{display:block !important;}
+  .tbl{font-size:12px;}
+  .tbl th,.tbl td{padding:8px 6px;}
+}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;position:fixed;top:0;left:0;bottom:0;z-index:25;width:var(--sidebar-w);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">JADOMI<span>.services</span></div>
+    <nav>
+      <a class="nav-item" href="dashboard.html"><span class="ico">&#x1F4CA;</span> Vue d'ensemble</a>
+      <a class="nav-item" href="agenda.html"><span class="ico">&#x1F4C5;</span> Agenda</a>
+      <a class="nav-item" href="prestations.html"><span class="ico">&#x1F6CD;&#xFE0F;</span> Prestations</a>
+      <a class="nav-item" href="clients.html"><span class="ico">&#x1F465;</span> Clients</a>
+      <a class="nav-item active" href="stock.html"><span class="ico">&#x1F4E6;</span> Stock</a>
+      <a class="nav-item" href="comptabilite.html"><span class="ico">&#x1F4B0;</span> Comptabilit&eacute;</a>
+      <a class="nav-item" href="marketplace.html"><span class="ico">&#x1F3EA;</span> Marketplace</a>
+      <a class="nav-item" href="parametres.html"><span class="ico">&#x2699;&#xFE0F;</span> Param&egrave;tres</a>
+      <a class="nav-item" id="link-public" href="#" target="_blank"><span class="ico">&#x1F517;</span> Ma page publique</a>
+    </nav>
+    <div class="sidebar-bottom" id="societeInfo"></div>
+  </aside>
+
+  <main class="content">
+    <div class="topbar">
+      <h1>&#x1F4E6; Stock produits</h1>
+      <div class="topbar-right">
+        <button class="btn-sm btn-scan" onclick="scanBarcode()" title="Scanner un code-barres">&#128247; Scanner</button>
+      </div>
+    </div>
+
+    <div class="filter-bar animate-fade-in">
+      <select id="filter-cat">
+        <option value="">Toutes les cat&eacute;gories</option>
+        <option value="coloration">Coloration</option>
+        <option value="soin-cheveux">Soin cheveux</option>
+        <option value="outillage">Outillage</option>
+        <option value="consommables">Consommables</option>
+        <option value="hygiene">Hygi&egrave;ne</option>
+        <option value="maquillage">Maquillage</option>
+        <option value="onglerie">Onglerie</option>
+        <option value="autre">Autre</option>
+      </select>
+      <input type="text" id="filter-search" placeholder="&#128269; Rechercher un article...">
+      <label class="filter-check">
+        <input type="checkbox" id="filter-alertes">
+        Alertes stock bas seulement
+      </label>
+      <span class="spacer"></span>
+      <span id="alert-badge"></span>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter article</button>
+    </div>
+
+    <!-- IMPORT FACTURE FOURNISSEUR -->
+    <div class="card animate-fade-in" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-weight:700;font-size:15px;">&#x1F4C4; Import facture fournisseur</div>
+      </div>
+      <div id="importDropZone" style="border:2px dashed var(--border);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(15,31,61,0.4);"
+           onclick="document.getElementById('importFileInput').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.08)'"
+           ondragleave="this.style.borderColor='var(--border)';this.style.background='rgba(15,31,61,0.4)'"
+           ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='rgba(15,31,61,0.4)';handleImportDrop(event)">
+        <div style="font-size:28px;margin-bottom:6px;">&#x1F4F8;</div>
+        <div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px;">D&eacute;posez une photo ou un PDF de facture</div>
+        <div style="font-size:11px;color:var(--muted);">JADOMI IA extrait les produits &rarr; stock auto</div>
+        <input type="file" id="importFileInput" accept="image/*,.pdf" style="display:none" onchange="handleImportFile(this.files[0])">
+      </div>
+      <div id="importStatus" style="display:none;padding:14px;text-align:center;margin-top:10px;">
+        <div class="spinner" style="margin:0 auto 8px;"></div>
+        <span id="importStatusText" style="font-size:12px;color:var(--muted);">Analyse par JADOMI IA...</span>
+      </div>
+      <div id="importResult" style="display:none;margin-top:10px;"></div>
+    </div>
+
+    <div class="card animate-fade-in">
+      <table class="tbl" id="stock-table">
+        <thead>
+          <tr>
+            <th>R&eacute;f&eacute;rence</th>
+            <th>D&eacute;signation</th>
+            <th>Cat&eacute;gorie</th>
+            <th>Quantit&eacute;</th>
+            <th>Seuil</th>
+            <th>Fournisseur</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stock-body">
+          <tr><td colspan="7"><div class="loader"><div class="spinner"></div>Chargement du stock&hellip;</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL AJOUT ARTICLE -->
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <h2 id="add-title">&#x1F4E6; Ajouter un article</h2>
+    <input type="hidden" id="article-id">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>R&eacute;f&eacute;rence</label>
+        <input type="text" id="f-ref" placeholder="REF-001">
+      </div>
+      <div class="form-group">
+        <label>Cat&eacute;gorie</label>
+        <select id="f-cat">
+          <option value="coloration">Coloration</option>
+          <option value="soin-cheveux">Soin cheveux</option>
+          <option value="outillage">Outillage</option>
+          <option value="consommables">Consommables</option>
+          <option value="hygiene">Hygi&egrave;ne</option>
+          <option value="maquillage">Maquillage</option>
+          <option value="onglerie">Onglerie</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group full-width">
+        <label>D&eacute;signation</label>
+        <input type="text" id="f-designation" placeholder="Coloration L'Or&eacute;al Inoa 60ml">
+      </div>
+      <div class="form-group">
+        <label>Quantit&eacute; initiale</label>
+        <input type="number" id="f-qty" min="0" value="0">
+      </div>
+      <div class="form-group">
+        <label>Seuil d'alerte</label>
+        <input type="number" id="f-seuil" min="0" value="5">
+      </div>
+      <div class="form-group">
+        <label>Unit&eacute;</label>
+        <input type="text" id="f-unite" placeholder="unit&eacute;s, tubes, flacons...">
+      </div>
+      <div class="form-group">
+        <label>Fournisseur</label>
+        <input type="text" id="f-fournisseur" placeholder="Nom du fournisseur">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveArticle()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOUVEMENT -->
+<div class="modal-bg" id="modal-mouv">
+  <div class="modal">
+    <h2 id="mouv-title">Mouvement de stock</h2>
+    <input type="hidden" id="mouv-article-id">
+    <input type="hidden" id="mouv-type">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Quantit&eacute;</label>
+        <input type="number" id="mouv-qty" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>Prestation (optionnel)</label>
+        <select id="mouv-prestation"><option value="">-- Aucune --</option></select>
+      </div>
+      <div class="form-group full-width">
+        <label>Motif</label>
+        <input type="text" id="mouv-motif" placeholder="Motif du mouvement...">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-mouv')">Annuler</button>
+      <button class="btn btn-primary" id="btn-mouv" onclick="saveMouvement()">Valider</button>
+    </div>
+  </div>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let token = null, societeId = null;
+let allStock = [], alertCount = 0;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg, kind){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind||'');
+  setTimeout(() => t.className = 'toast', 2800);
+}
+
+async function api(path, opts={}) {
+  try {
+    const { data: sd } = await db.auth.getSession();
+    if (sd?.session) token = sd.session.access_token;
+  } catch(_){}
+  const headers = {
+    'Content-Type':'application/json',
+    Authorization: 'Bearer ' + token,
+    'X-Societe-Id': societeId,
+    ...(opts.headers||{})
+  };
+  const r = await fetch(path, { ...opts, headers });
+  if (r.status === 401) {
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if (ref?.session) {
+        token = ref.session.access_token;
+        return (await fetch(path, {
+          ...opts,
+          headers: {
+            'Content-Type':'application/json',
+            Authorization: 'Bearer ' + token,
+            'X-Societe-Id': societeId,
+            ...(opts.headers||{})
+          }
+        })).json();
+      }
+    } catch(_){}
+    location.href = '/login.html';
+    return { success: false };
+  }
+  return r.json();
+}
+
+function qtyClass(qty, seuil) {
+  if (qty <= 0) return 'danger';
+  if (qty <= seuil) return 'warn';
+  return 'ok';
+}
+
+function catLabel(cat) {
+  const labels = {
+    'coloration':'Coloration','soin-cheveux':'Soin cheveux','outillage':'Outillage',
+    'consommables':'Consommables','hygiene':'Hygi\u00e8ne','maquillage':'Maquillage',
+    'onglerie':'Onglerie','autre':'Autre'
+  };
+  return labels[cat] || cat;
+}
+
+function renderStock(list) {
+  const body = $('stock-body');
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="7"><div class="empty">Aucun article en stock. Ajoutez votre premier article.</div></td></tr>';
+    return;
+  }
+  body.innerHTML = list.map((s, i) => {
+    const cls = qtyClass(s.quantite, s.seuil);
+    return `
+    <tr onclick="toggleHistory('${s.id}')" class="animate-fade-in" style="animation-delay:${i*0.03}s">
+      <td style="font-weight:700;color:var(--accent)">${esc(s.reference)}</td>
+      <td>${esc(s.nom)}</td>
+      <td>${esc(catLabel(s.categorie))}</td>
+      <td><span class="qty ${cls}">${s.quantite}</span> <span style="font-size:11px;color:var(--muted)">${esc(s.unite||'')}</span></td>
+      <td style="color:var(--muted)">${s.seuil}</td>
+      <td>${esc(s.fournisseur||'\u2014')}</td>
+      <td>
+        <div class="row-actions" onclick="event.stopPropagation()">
+          <button class="btn-sm btn-entry" onclick="openMouvement('${s.id}','entree')">+ Entr\u00e9e</button>
+          <button class="btn-sm btn-exit" onclick="openMouvement('${s.id}','sortie')">- Sortie</button>
+        </div>
+      </td>
+    </tr>
+    <tr class="mouvement-row" id="hist-${s.id}">
+      <td colspan="7">
+        <div class="mouvement-list" id="hist-list-${s.id}">
+          <div class="loader"><div class="spinner"></div>Chargement de l'historique...</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleHistory(id) {
+  const row = $('hist-' + id);
+  if (row.classList.contains('open')) {
+    row.classList.remove('open');
+    return;
+  }
+  row.classList.add('open');
+  const listEl = $('hist-list-' + id);
+  listEl.innerHTML = '<div class="loader"><div class="spinner"></div>Chargement...</div>';
+  const res = await api('/api/services/stock/' + id + '/mouvements');
+  const mouvements = res.mouvements || res.data || [];
+  if (!mouvements.length) {
+    listEl.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px;">Aucun mouvement enregistr\u00e9</div>';
+    return;
+  }
+  listEl.innerHTML = mouvements.map(m => `
+    <div class="mouvement-item">
+      <span class="mouv-type ${m.type}">${m.type === 'entree' ? '+ Entr\u00e9e' : '- Sortie'}</span>
+      <span style="font-weight:700;width:40px;">${m.quantite}</span>
+      <span class="mouv-details">${esc(m.motif||'')} ${m.prestation_ref ? '| Prestation: '+esc(m.prestation_ref) : ''}</span>
+      <span style="color:var(--muted);font-size:11px;">${new Date(m.created_at).toLocaleDateString('fr-FR')}</span>
+    </div>
+  `).join('');
+}
+
+function filterStock() {
+  const cat = $('filter-cat').value;
+  const search = $('filter-search').value.toLowerCase();
+  const alertesOnly = $('filter-alertes').checked;
+  const filtered = allStock.filter(s => {
+    if (cat && s.categorie !== cat) return false;
+    if (search && !(s.reference + ' ' + s.nom + ' ' + s.fournisseur).toLowerCase().includes(search)) return false;
+    if (alertesOnly && s.quantite > s.seuil) return false;
+    return true;
+  });
+  renderStock(filtered);
+}
+
+function openAddModal(article) {
+  $('modal-add').classList.add('open');
+  if (article) {
+    $('add-title').innerHTML = '&#9998; Modifier l\'article';
+    $('article-id').value = article.id;
+    $('f-ref').value = article.reference || '';
+    $('f-cat').value = article.categorie || '';
+    $('f-designation').value = article.designation || '';
+    $('f-qty').value = article.quantite || 0;
+    $('f-seuil').value = article.seuil || 5;
+    $('f-unite').value = article.unite || '';
+    $('f-fournisseur').value = article.fournisseur || '';
+  } else {
+    $('add-title').innerHTML = '&#x1F4E6; Ajouter un article';
+    $('article-id').value = '';
+    $('f-ref').value = '';
+    $('f-cat').value = 'consommables';
+    $('f-designation').value = '';
+    $('f-qty').value = 0;
+    $('f-seuil').value = 5;
+    $('f-unite').value = '';
+    $('f-fournisseur').value = '';
+  }
+}
+
+function closeModal(id) {
+  $(id).classList.remove('open');
+}
+
+async function saveArticle() {
+  const id = $('article-id').value;
+  const body = {
+    reference: $('f-ref').value,
+    categorie: $('f-cat').value,
+    designation: $('f-designation').value,
+    quantite: parseInt($('f-qty').value) || 0,
+    seuil: parseInt($('f-seuil').value) || 5,
+    unite: $('f-unite').value,
+    fournisseur: $('f-fournisseur').value
+  };
+  const res = await api(id ? '/api/services/stock/' + id : '/api/services/stock', {
+    method: id ? 'PATCH' : 'POST',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast(id ? 'Article modifi\u00e9' : 'Article ajout\u00e9', 'ok');
+    closeModal('modal-add');
+    loadStock();
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+function openMouvement(articleId, type) {
+  $('modal-mouv').classList.add('open');
+  $('mouv-article-id').value = articleId;
+  $('mouv-type').value = type;
+  $('mouv-title').innerHTML = type === 'entree' ? '&#128229; Entr\u00e9e de stock' : '&#128228; Sortie de stock';
+  $('mouv-qty').value = 1;
+  $('mouv-motif').value = '';
+  $('mouv-prestation').value = '';
+}
+
+async function saveMouvement() {
+  const articleId = $('mouv-article-id').value;
+  const body = {
+    type: $('mouv-type').value,
+    quantite: parseInt($('mouv-qty').value) || 1,
+    motif: $('mouv-motif').value,
+    prestation_id: $('mouv-prestation').value || null
+  };
+  const res = await api('/api/services/stock/' + articleId + '/mouvements', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast('Mouvement enregistr\u00e9', 'ok');
+    closeModal('modal-mouv');
+    loadStock();
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+function scanBarcode() {
+  const code = prompt('Saisissez le code-barres :');
+  if (!code) return;
+  const found = allStock.find(s => s.reference === code || s.code_barre === code);
+  if (found) {
+    toast('Produit trouv\u00e9 : ' + (found.designation || found.reference), 'ok');
+    openAddModal(found);
+  } else {
+    toast('Produit non trouv\u00e9 \u2014 ajoutez-le manuellement', '');
+    openAddModal();
+    $('f-ref').value = code;
+  }
+}
+
+/* -- Import facture IA -------------------------------------------------- */
+function handleImportDrop(e) {
+  const file = e.dataTransfer?.files?.[0];
+  if (file) handleImportFile(file);
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleImportFile(file) {
+  if (!file) return;
+  $('importStatus').style.display = 'block';
+  $('importResult').style.display = 'none';
+  $('importStatusText').textContent = 'Analyse par JADOMI IA...';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const mediaType = file.type || 'image/jpeg';
+    const res = await api('/api/ia/extract-facture', {
+      method: 'POST',
+      body: JSON.stringify({ image: base64, media_type: mediaType })
+    });
+    const facture = res.facture || res;
+    $('importStatus').style.display = 'none';
+    renderImportResult(facture);
+  } catch(e) {
+    $('importStatus').style.display = 'none';
+    $('importResult').style.display = 'block';
+    $('importResult').innerHTML = '<div style="color:var(--danger);font-size:13px;padding:12px;">Erreur : ' + e.message + '</div>';
+  }
+}
+
+function renderImportResult(facture) {
+  const produits = facture.produits || [];
+  const el = $('importResult');
+  el.style.display = 'block';
+  el.innerHTML = '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">' +
+    (facture.fournisseur||'\u2014') + ' \u00b7 ' + (facture.date_facture||'') + ' \u00b7 ' +
+    (facture.montant_ttc ? facture.montant_ttc+' \u20ac TTC' : '') + '</div>' +
+    '<table class="tbl"><thead><tr><th>Produit</th><th>Qt\u00e9</th><th>PU</th></tr></thead><tbody>' +
+    produits.map(p => '<tr><td>' + esc(p.nom||'\u2014') + '</td><td>' + (p.quantite||1) + '</td><td>' + (p.prix_unitaire||'\u2014') + '</td></tr>').join('') +
+    '</tbody></table>' +
+    '<button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="ajouterProduitsImport()">\u2705 Ajouter ' + produits.length + ' article' + (produits.length>1?'s':'') + ' au stock</button>';
+  window._importedFacture = facture;
+}
+
+async function ajouterProduitsImport() {
+  const facture = window._importedFacture;
+  if (!facture || !facture.produits) return;
+  let added = 0;
+  for (const p of facture.produits) {
+    try {
+      const existing = allStock.find(s => s.nom && p.nom && s.nom.toLowerCase() === p.nom.toLowerCase());
+      if (existing) {
+        await api('/api/services/stock/' + existing.id + '/mouvements', {
+          method: 'POST',
+          body: JSON.stringify({ type:'entree', quantite: p.quantite||1, motif: 'Import facture ' + (facture.fournisseur||'') })
+        });
+      } else {
+        await api('/api/services/stock', {
+          method: 'POST',
+          body: JSON.stringify({
+            nom: p.nom||'', categorie:'autre',
+            quantite: p.quantite||1, seuil_alerte: 5,
+            fournisseur: facture.fournisseur||''
+          })
+        });
+      }
+      added++;
+    } catch(e) {}
+  }
+  toast(added + ' article' + (added>1?'s':'') + ' ajout\u00e9' + (added>1?'s':''), 'ok');
+  loadStock();
+}
+
+async function loadPrestations() {
+  const res = await api('/api/services/prestations');
+  const prestations = res.prestations || res.data || [];
+  const sel = $('mouv-prestation');
+  sel.innerHTML = '<option value="">-- Aucune --</option>' +
+    prestations.map(p => `<option value="${p.id}">${esc(p.nom||p.reference||'P-'+p.id)}</option>`).join('');
+}
+
+async function loadStock() {
+  const [res, alertRes] = await Promise.all([
+    api('/api/services/stock'),
+    api('/api/services/stock-alertes')
+  ]);
+  allStock = res.stock || res.data || [];
+  alertCount = (alertRes.alertes || alertRes.data || []).length;
+  $('alert-badge').innerHTML = alertCount > 0 ? `<span class="alert-count">${alertCount} alerte${alertCount>1?'s':''}</span>` : '';
+  filterStock();
+}
+
+async function loadPublicLink() {
+  try {
+    const p = await api('/api/services/profil');
+    if (p.profil?.slug) {
+      $('link-public').href = '/booking/' + p.profil.slug;
+    }
+  } catch(_){}
+}
+
+$('filter-cat').addEventListener('change', filterStock);
+$('filter-search').addEventListener('input', filterStock);
+$('filter-alertes').addEventListener('change', filterStock);
+['modal-add','modal-mouv'].forEach(id => {
+  $(id).addEventListener('click', e => { if (e.target === $(id)) closeModal(id); });
+});
+
+(async () => {
+  const { data } = await db.auth.getSession();
+  if (!data?.session) { location.href = '/login.html'; return; }
+  token = data.session.access_token;
+  societeId = localStorage.getItem('selectedSocieteId') || data.session.user?.user_metadata?.societe_id;
+  await Promise.all([loadStock(), loadPrestations(), loadPublicLink()]);
+})();
+</script>
+</body>
+</html>

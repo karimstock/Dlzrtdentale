@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Clients & Dossiers</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.25);--text:#f1f5f9;--muted:#94a3b8;
+  --accent:#6366f1;--accent-soft:rgba(99,102,241,0.12);
+  --red:#ef4444;--green:#10b981;--orange:#f59e0b;
+  --font:'Inter','DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);--sidebar-w:260px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:18px;width:24px;text-align:center;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+
+.content{flex:1;padding:28px 28px 100px;max-width:1060px;position:relative;}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.toolbar-title{font-family:var(--display);font-size:20px;font-weight:800;letter-spacing:-0.5px;white-space:nowrap;}
+.search{flex:1;min-width:180px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.search:focus{border-color:var(--accent);}
+.filter-select{padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;cursor:pointer;}
+.filter-select:focus{border-color:var(--accent);}
+
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn-danger{color:var(--red);background:transparent;border:1px solid rgba(239,68,68,0.25);}
+.btn-danger:hover{background:rgba(239,68,68,0.1);border-color:var(--red);}
+.btn-warn{color:var(--orange);background:transparent;border:1px solid rgba(245,158,11,0.25);}
+.btn-warn:hover{background:rgba(245,158,11,0.1);border-color:var(--orange);}
+
+/* CARDS GRID */
+.dossiers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+.dossier-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;cursor:pointer;transition:all 0.2s var(--trans);position:relative;}
+.dossier-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.25);}
+.dc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.dc-client{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;}
+.dc-titre{font-size:13px;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.dc-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px;color:var(--muted);}
+.dc-meta-item{display:flex;align-items:center;gap:4px;}
+.dc-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.dc-honoraires{font-family:var(--display);font-size:16px;font-weight:700;color:var(--accent);}
+.dc-date{font-size:11px;color:var(--muted);}
+
+.chip{display:inline-block;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.chip.en_cours{background:rgba(16,185,129,0.15);color:var(--green);}
+.chip.en_attente{background:rgba(245,158,11,0.15);color:var(--orange);}
+.chip.cloture{background:rgba(148,163,184,0.15);color:var(--muted);}
+.chip.blue{background:rgba(99,102,241,0.15);color:var(--accent);}
+.chip.green{background:rgba(16,185,129,0.15);color:var(--green);}
+.chip.orange{background:rgba(245,158,11,0.15);color:var(--orange);}
+.chip.grey{background:rgba(148,163,184,0.15);color:var(--muted);}
+.chip.red{background:rgba(239,68,68,0.15);color:var(--red);}
+
+/* SLIDE-IN DETAIL PANEL */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:50;opacity:0;pointer-events:none;transition:opacity 0.3s ease;}
+.panel-overlay.show{opacity:1;pointer-events:auto;}
+.detail-panel{position:fixed;top:0;right:0;bottom:0;width:580px;max-width:100vw;background:var(--bg);border-left:1px solid var(--border);z-index:51;transform:translateX(100%);transition:transform 0.35s var(--trans);overflow-y:auto;display:flex;flex-direction:column;}
+.detail-panel.show{transform:translateX(0);}
+.dp-header{padding:22px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:2;}
+.dp-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all 0.15s;}
+.dp-close:hover{color:var(--text);background:var(--surface2);}
+.dp-body{padding:24px;flex:1;}
+.dp-section{margin-bottom:24px;}
+.dp-section-title{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.dp-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.dp-info-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.dp-info-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:4px;}
+.dp-info-value{font-size:13px;font-weight:600;}
+.dp-info-item.full{grid-column:1/-1;}
+
+.dp-notes{width:100%;min-height:120px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);resize:vertical;outline:none;transition:border-color 0.15s;}
+.dp-notes:focus{border-color:var(--accent);}
+.dp-notes-status{font-size:10px;color:var(--muted);margin-top:6px;min-height:14px;}
+
+.dp-doc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:12px;}
+.dp-doc-item a{color:var(--accent);word-break:break-all;}
+
+.consult-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(99,102,241,0.1);font-size:12px;}
+.consult-item:last-child{border-bottom:none;}
+.consult-left{display:flex;flex-direction:column;gap:2px;}
+.consult-date{font-weight:600;font-size:13px;}
+.consult-type{color:var(--muted);font-size:11px;}
+.consult-right{text-align:right;}
+.consult-prix{font-weight:700;font-size:13px;}
+
+.dp-total{display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;margin-top:12px;}
+.dp-total-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.dp-total-val{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);}
+
+.dp-actions{padding:18px 24px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;position:sticky;bottom:0;background:var(--bg);}
+
+.dp-statut-select{padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;cursor:pointer;}
+.dp-statut-select:focus{border-color:var(--accent);}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:26px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;}
+.modal-title{font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:18px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.field label .req{color:var(--red);}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.field textarea{min-height:80px;resize:vertical;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.35);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:var(--red);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+.confirm-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:110;padding:20px;}
+.confirm-bg.show{display:flex;}
+.confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;}
+.confirm-box p{font-size:14px;margin-bottom:18px;line-height:1.5;}
+.confirm-actions{display:flex;justify-content:center;gap:10px;}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .content{padding:18px 14px 80px;}
+  .dossiers-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .detail-panel{width:100vw;}
+  .dp-info-grid{grid-template-columns:1fr;}
+  .mobile-menu-btn{display:block !important;}
+}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;flex-direction:column;position:fixed;top:57px;left:0;bottom:0;z-index:25;width:260px;}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#9878;</span>
+      <span class="crumb-name">Professions Juridiques</span>
+      <span class="crumb-sep">&#183;</span>
+      <span class="crumb-module">Clients & Dossiers</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="/organisation.html">&#8592; Retour</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link" href="agenda.html"><span class="ico">&#128197;</span> Agenda</a>
+      <a class="sidebar-link active" href="clients.html"><span class="ico">&#128101;</span> Dossiers</a>
+      <a class="sidebar-link" href="comptabilite.html"><span class="ico">&#128176;</span> Honoraires</a>
+      <a class="sidebar-link" href="parametres.html"><span class="ico">&#9881;</span> Param&egrave;tres</a>
+      <div class="sidebar-sep"></div>
+      <a class="sidebar-link" id="link-public" href="/expert/" target="_blank"><span class="ico">&#128279;</span> Ma page publique</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="toolbar-title">&#128101; Dossiers clients</div>
+      <input class="search" id="search-input" placeholder="Rechercher un client, dossier...">
+      <select class="filter-select" id="filter-statut">
+        <option value="">Tous</option>
+        <option value="en_cours">En cours</option>
+        <option value="en_attente">En attente</option>
+        <option value="cloture">Cl&ocirc;tur&eacute;</option>
+      </select>
+      <button class="btn btn-primary" onclick="openNewDossierModal()">&#10133; Nouveau dossier</button>
+    </div>
+
+    <!-- DOSSIERS GRID -->
+    <div id="dossiers-container">
+      <div class="loader"><div class="spinner"></div>Chargement des dossiers...</div>
+    </div>
+  </main>
+</div>
+
+<!-- SLIDE-IN DETAIL PANEL -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="dp-header">
+    <div>
+      <div style="font-family:var(--display);font-size:18px;font-weight:700;" id="dp-title">-</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="dp-subtitle">-</div>
+    </div>
+    <button class="dp-close" onclick="closePanel()">&times;</button>
+  </div>
+  <div class="dp-body">
+    <!-- Client info -->
+    <div class="dp-section">
+      <div class="dp-section-title">&#128100; Informations client</div>
+      <div class="dp-info-grid" id="dp-client-info"></div>
+    </div>
+
+    <!-- Dossier info -->
+    <div class="dp-section">
+      <div class="dp-section-title">&#128194; Informations dossier</div>
+      <div class="dp-info-grid" id="dp-dossier-info"></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="dp-section">
+      <div class="dp-section-title">&#128221; Notes</div>
+      <textarea class="dp-notes" id="dp-notes" placeholder="Saisissez vos notes ici..."></textarea>
+      <div class="dp-notes-status" id="dp-notes-status"></div>
+    </div>
+
+    <!-- Documents -->
+    <div class="dp-section">
+      <div class="dp-section-title">&#128206; Documents</div>
+      <div id="dp-documents"></div>
+    </div>
+
+    <!-- Consultation history -->
+    <div class="dp-section">
+      <div class="dp-section-title">&#128197; Historique des consultations</div>
+      <div id="dp-consultations"></div>
+    </div>
+  </div>
+
+  <div class="dp-actions">
+    <button class="btn btn-primary btn-sm" onclick="editCurrentDossier()">Modifier</button>
+    <button class="btn btn-warn btn-sm" onclick="closeDossier()">Cl&ocirc;turer</button>
+    <button class="btn btn-danger btn-sm" onclick="confirmDelete()">Supprimer</button>
+  </div>
+</div>
+
+<!-- MODAL NOUVEAU / MODIFIER DOSSIER -->
+<div class="modal-bg" id="modal-dossier">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Nouveau dossier</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Nom du client <span class="req">*</span></label>
+        <input id="f-client_nom" placeholder="Dupont Jean" required>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="f-client_email" type="email" placeholder="client@email.com">
+      </div>
+      <div class="field">
+        <label>T&eacute;l&eacute;phone</label>
+        <input id="f-client_telephone" type="tel" placeholder="06 12 34 56 78">
+      </div>
+      <div class="field">
+        <label>Titre du dossier</label>
+        <input id="f-titre_dossier" placeholder="Litige bail commercial">
+      </div>
+      <div class="field">
+        <label>Type de droit</label>
+        <select id="f-type_droit">
+          <option value="droit_travail">Droit du travail</option>
+          <option value="droit_immobilier">Droit immobilier</option>
+          <option value="droit_societes">Droit des soci&eacute;t&eacute;s</option>
+          <option value="droit_famille">Droit de la famille</option>
+          <option value="droit_commercial">Droit commercial</option>
+          <option value="droit_fiscal">Droit fiscal</option>
+          <option value="droit_penal">Droit p&eacute;nal</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Honoraires estim&eacute;s (&euro;)</label>
+        <input id="f-honoraires" type="number" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field full">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Notes initiales sur le dossier..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" id="btn-save" onclick="saveDossier()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="confirm-bg" id="confirm-dialog">
+  <div class="confirm-box">
+    <p id="confirm-msg">Confirmer cette action ?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Annuler</button>
+      <button class="btn btn-danger" id="confirm-ok" onclick="executeConfirm()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+let token = null, session = null, societeId = null;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function eur(n){ return (Number(n)||0).toFixed(2).replace('.',',') + ' \u20ac'; }
+function toast(msg, kind){ const t=$('toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=> t.className='toast', 2800); }
+function fmtDate(d){ if(!d) return '-'; return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtDateTime(d){ if(!d) return '-'; return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+async function api(path, opts={}){
+  try { const { data: sd } = await db.auth.getSession(); if(sd?.session) token = sd.session.access_token; } catch(_){}
+  const r = await fetch(path, { ...opts, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+token, 'X-Societe-Id': societeId, ...(opts.headers||{}) }});
+  if(r.status === 401){
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if(ref?.session){ token = ref.session.access_token;
+        return (await fetch(path, { ...opts, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+token, 'X-Societe-Id': societeId, ...(opts.headers||{}) }})).json();
+      }
+    } catch(_){}
+    location.href = '/login.html'; return { success: false };
+  }
+  return r.json();
+}
+
+const TYPE_LABELS = {
+  droit_travail:'Droit du travail', droit_immobilier:'Droit immobilier', droit_societes:'Droit des soci\u00e9t\u00e9s',
+  droit_famille:'Droit de la famille', droit_commercial:'Droit commercial', droit_fiscal:'Droit fiscal',
+  droit_penal:'Droit p\u00e9nal', autre:'Autre'
+};
+const STATUT_LABELS = { en_cours:'En cours', en_attente:'En attente', cloture:'Cl\u00f4tur\u00e9' };
+
+let dossiers = [];
+let currentDossier = null;
+let editingId = null;
+let autoSaveTimer = null;
+let confirmCallback = null;
+
+/* ===================== LOAD DOSSIERS ===================== */
+async function loadDossiers(){
+  $('dossiers-container').innerHTML = '<div class="loader"><div class="spinner"></div>Chargement des dossiers...</div>';
+  const search = $('search-input').value.trim();
+  const statut = $('filter-statut').value;
+  let url = '/api/juridique/dossiers?';
+  if(search) url += 'search=' + encodeURIComponent(search) + '&';
+  if(statut) url += 'statut=' + encodeURIComponent(statut) + '&';
+  const r = await api(url);
+  dossiers = r.dossiers || [];
+  renderDossiers();
+}
+
+function renderDossiers(){
+  if(!dossiers.length){
+    $('dossiers-container').innerHTML = '<div class="empty">Aucun dossier trouv\u00e9. Cliquez sur "\u2795 Nouveau dossier" pour commencer.</div>';
+    return;
+  }
+  $('dossiers-container').innerHTML = '<div class="dossiers-grid">' + dossiers.map(d => {
+    const statutCls = d.statut || 'en_cours';
+    const statutLabel = STATUT_LABELS[d.statut] || d.statut || 'En cours';
+    const typeLabel = TYPE_LABELS[d.type_droit] || d.type_droit || '-';
+    const clientName = esc(d.client_nom || '-');
+    const titre = esc(d.titre_dossier || d.description || '');
+    return `<div class="dossier-card" onclick="openDetail('${d.id}')">
+      <div class="dc-header">
+        <div class="dc-client">${clientName}</div>
+        <span class="chip ${esc(statutCls)}">${esc(statutLabel)}</span>
+      </div>
+      ${titre ? '<div class="dc-titre">' + titre + '</div>' : ''}
+      <div class="dc-meta">
+        <span class="dc-meta-item">\u2696\ufe0f ${esc(typeLabel)}</span>
+        ${d.reference ? '<span class="dc-meta-item">\ud83d\udccc ' + esc(d.reference) + '</span>' : ''}
+      </div>
+      <div class="dc-bottom">
+        <div class="dc-honoraires">${d.honoraires ? eur(d.honoraires) : '-'}</div>
+        <div class="dc-date">${fmtDate(d.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+/* ===================== DETAIL PANEL ===================== */
+async function openDetail(id){
+  $('panel-overlay').classList.add('show');
+  $('detail-panel').classList.add('show');
+
+  // Show loader in body
+  const body = $('detail-panel').querySelector('.dp-body');
+  body.querySelectorAll('.dp-section').forEach(s => s.style.opacity = '0.4');
+
+  const r = await api('/api/juridique/dossiers/' + id);
+  const d = r.dossier || r;
+  currentDossier = d;
+
+  $('dp-title').textContent = d.client_nom || '-';
+  $('dp-subtitle').textContent = d.titre_dossier || d.reference || 'Dossier #' + (d.id || '').slice(0, 8);
+
+  // Client info
+  $('dp-client-info').innerHTML = `
+    <div class="dp-info-item"><div class="dp-info-label">Nom</div><div class="dp-info-value">${esc(d.client_nom || '-')}</div></div>
+    <div class="dp-info-item"><div class="dp-info-label">Email</div><div class="dp-info-value">${d.client_email ? '<a href="mailto:'+esc(d.client_email)+'">'+esc(d.client_email)+'</a>' : '-'}</div></div>
+    <div class="dp-info-item"><div class="dp-info-label">T\u00e9l\u00e9phone</div><div class="dp-info-value">${d.client_telephone ? '<a href="tel:'+esc(d.client_telephone)+'">'+esc(d.client_telephone)+'</a>' : '-'}</div></div>
+  `;
+
+  // Dossier info
+  const statutOptions = ['en_cours','en_attente','cloture'].map(s =>
+    `<option value="${s}" ${d.statut===s?'selected':''}>${esc(STATUT_LABELS[s])}</option>`
+  ).join('');
+  $('dp-dossier-info').innerHTML = `
+    <div class="dp-info-item"><div class="dp-info-label">Titre</div><div class="dp-info-value">${esc(d.titre_dossier || '-')}</div></div>
+    <div class="dp-info-item"><div class="dp-info-label">Type de droit</div><div class="dp-info-value">${esc(TYPE_LABELS[d.type_droit] || d.type_droit || '-')}</div></div>
+    <div class="dp-info-item"><div class="dp-info-label">Statut</div><div class="dp-info-value">
+      <select class="dp-statut-select" id="dp-statut-select" onchange="updateStatut()">${statutOptions}</select>
+    </div></div>
+    <div class="dp-info-item"><div class="dp-info-label">R\u00e9f\u00e9rence</div><div class="dp-info-value">${esc(d.reference || '-')}</div></div>
+    <div class="dp-info-item"><div class="dp-info-label">Date de cr\u00e9ation</div><div class="dp-info-value">${fmtDate(d.created_at)}</div></div>
+    <div class="dp-info-item"><div class="dp-info-label">Honoraires</div><div class="dp-info-value" style="color:var(--accent);font-weight:700;">${d.honoraires ? eur(d.honoraires) : '-'}</div></div>
+  `;
+
+  // Notes (auto-save)
+  $('dp-notes').value = d.notes || d.description || '';
+  $('dp-notes-status').textContent = '';
+
+  // Documents
+  const docs = d.documents || [];
+  if(docs.length){
+    $('dp-documents').innerHTML = docs.map(doc => {
+      const url = typeof doc === 'string' ? doc : (doc.url || doc.fichier || '');
+      const name = typeof doc === 'string' ? url.split('/').pop() : (doc.nom || doc.name || url.split('/').pop());
+      return `<div class="dp-doc-item">\ud83d\udcc4 <a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a></div>`;
+    }).join('');
+  } else {
+    $('dp-documents').innerHTML = '<div style="color:var(--muted);font-size:12px;">Aucun document associ\u00e9.</div>';
+  }
+
+  // Consultation history
+  const consultations = d.reservations || d.consultations || [];
+  if(consultations.length){
+    let totalConsult = 0;
+    $('dp-consultations').innerHTML = consultations.map(c => {
+      const prix = Number(c.prix || c.montant || 0);
+      totalConsult += prix;
+      const statutChip = c.statut === 'confirmed' || c.statut === 'confirme' ? '<span class="chip green">Confirm\u00e9</span>'
+        : c.statut === 'pending' || c.statut === 'en_attente' ? '<span class="chip orange">En attente</span>'
+        : c.statut === 'cancelled' || c.statut === 'annule' ? '<span class="chip grey">Annul\u00e9</span>'
+        : '<span class="chip grey">' + esc(c.statut || '') + '</span>';
+      return `<div class="consult-item">
+        <div class="consult-left">
+          <div class="consult-date">${fmtDateTime(c.date_heure || c.date)}</div>
+          <div class="consult-type">${esc(c.type || c.offre_titre || '-')} ${statutChip}</div>
+        </div>
+        <div class="consult-right">
+          <div class="consult-prix">${eur(prix)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    $('dp-consultations').innerHTML += `
+      <div class="dp-total">
+        <div class="dp-total-label">Total honoraires client</div>
+        <div class="dp-total-val">${eur(totalConsult)}</div>
+      </div>`;
+  } else {
+    $('dp-consultations').innerHTML = '<div style="color:var(--muted);font-size:12px;">Aucune consultation enregistr\u00e9e pour ce client.</div>';
+  }
+
+  body.querySelectorAll('.dp-section').forEach(s => s.style.opacity = '1');
+}
+
+function closePanel(){
+  $('panel-overlay').classList.remove('show');
+  $('detail-panel').classList.remove('show');
+  currentDossier = null;
+  if(autoSaveTimer) clearTimeout(autoSaveTimer);
+}
+
+/* ===================== AUTO-SAVE NOTES ===================== */
+$('dp-notes').addEventListener('input', function(){
+  if(!currentDossier) return;
+  $('dp-notes-status').textContent = 'Enregistrement...';
+  if(autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(async () => {
+    const notes = $('dp-notes').value;
+    const r = await api('/api/juridique/dossiers/' + currentDossier.id, {
+      method: 'PATCH', body: JSON.stringify({ notes })
+    });
+    if(r.success !== false){
+      $('dp-notes-status').textContent = '\u2713 Enregistr\u00e9 automatiquement';
+      setTimeout(() => { if($('dp-notes-status')) $('dp-notes-status').textContent = ''; }, 2000);
+    } else {
+      $('dp-notes-status').textContent = 'Erreur de sauvegarde';
+    }
+  }, 1200);
+});
+
+/* ===================== UPDATE STATUT ===================== */
+async function updateStatut(){
+  if(!currentDossier) return;
+  const statut = $('dp-statut-select').value;
+  const r = await api('/api/juridique/dossiers/' + currentDossier.id, {
+    method: 'PATCH', body: JSON.stringify({ statut })
+  });
+  if(r.success !== false){
+    toast('Statut mis \u00e0 jour', 'ok');
+    loadDossiers();
+  } else toast(r.error || 'Erreur', 'error');
+}
+
+/* ===================== ACTIONS ===================== */
+function editCurrentDossier(){
+  if(!currentDossier) return;
+  closePanel();
+  openEditModal(currentDossier);
+}
+
+function closeDossier(){
+  if(!currentDossier) return;
+  confirmCallback = async () => {
+    const r = await api('/api/juridique/dossiers/' + currentDossier.id, {
+      method: 'PATCH', body: JSON.stringify({ statut: 'cloture' })
+    });
+    if(r.success !== false){
+      toast('Dossier cl\u00f4tur\u00e9', 'ok');
+      closePanel();
+      loadDossiers();
+    } else toast(r.error || 'Erreur', 'error');
+  };
+  $('confirm-msg').textContent = 'Voulez-vous cl\u00f4turer ce dossier ?';
+  $('confirm-ok').textContent = 'Cl\u00f4turer';
+  $('confirm-ok').className = 'btn btn-warn';
+  $('confirm-dialog').classList.add('show');
+}
+
+function confirmDelete(){
+  if(!currentDossier) return;
+  confirmCallback = async () => {
+    const r = await api('/api/juridique/dossiers/' + currentDossier.id, {
+      method: 'PATCH', body: JSON.stringify({ archived: true })
+    });
+    if(r.success !== false){
+      toast('Dossier supprim\u00e9', 'ok');
+      closePanel();
+      loadDossiers();
+    } else toast(r.error || 'Erreur', 'error');
+  };
+  $('confirm-msg').textContent = '\u00cates-vous s\u00fbr de vouloir supprimer ce dossier ? Cette action est irr\u00e9versible.';
+  $('confirm-ok').textContent = 'Supprimer';
+  $('confirm-ok').className = 'btn btn-danger';
+  $('confirm-dialog').classList.add('show');
+}
+
+function closeConfirm(){ $('confirm-dialog').classList.remove('show'); confirmCallback = null; }
+function executeConfirm(){ if(confirmCallback) confirmCallback(); closeConfirm(); }
+
+/* ===================== MODAL NOUVEAU / MODIFIER ===================== */
+function openNewDossierModal(){
+  editingId = null;
+  $('modal-title').textContent = 'Nouveau dossier';
+  ['f-client_nom','f-client_email','f-client_telephone','f-titre_dossier','f-notes','f-honoraires'].forEach(id => $(id).value = '');
+  $('f-type_droit').value = 'droit_travail';
+  $('modal-dossier').classList.add('show');
+}
+
+function openEditModal(d){
+  editingId = d.id;
+  $('modal-title').textContent = 'Modifier le dossier';
+  $('f-client_nom').value = d.client_nom || '';
+  $('f-client_email').value = d.client_email || '';
+  $('f-client_telephone').value = d.client_telephone || '';
+  $('f-titre_dossier').value = d.titre_dossier || '';
+  $('f-type_droit').value = d.type_droit || 'autre';
+  $('f-notes').value = d.notes || d.description || '';
+  $('f-honoraires').value = d.honoraires || '';
+  $('modal-dossier').classList.add('show');
+}
+
+function closeModal(){ $('modal-dossier').classList.remove('show'); editingId = null; }
+
+async function saveDossier(){
+  const client_nom = $('f-client_nom').value.trim();
+  if(!client_nom){ toast('Le nom du client est obligatoire', 'error'); return; }
+
+  const payload = {
+    client_nom,
+    client_email: $('f-client_email').value.trim() || undefined,
+    client_telephone: $('f-client_telephone').value.trim() || undefined,
+    titre_dossier: $('f-titre_dossier').value.trim() || undefined,
+    type_droit: $('f-type_droit').value,
+    notes: $('f-notes').value.trim() || undefined
+  };
+  const hon = $('f-honoraires').value;
+  if(hon) payload.honoraires = Number(hon);
+
+  $('btn-save').disabled = true;
+  $('btn-save').textContent = 'Enregistrement...';
+
+  const r = editingId
+    ? await api('/api/juridique/dossiers/' + editingId, { method: 'PATCH', body: JSON.stringify(payload) })
+    : await api('/api/juridique/dossiers', { method: 'POST', body: JSON.stringify(payload) });
+
+  $('btn-save').disabled = false;
+  $('btn-save').textContent = 'Enregistrer';
+
+  if(r.success !== false){
+    toast(editingId ? 'Dossier mis \u00e0 jour' : 'Dossier cr\u00e9\u00e9 avec succ\u00e8s', 'ok');
+    closeModal();
+    loadDossiers();
+  } else {
+    toast(r.error || 'Erreur lors de l\'enregistrement', 'error');
+  }
+}
+
+/* ===================== SEARCH & FILTER ===================== */
+let searchTimer = null;
+$('search-input').addEventListener('input', () => {
+  if(searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadDossiers(), 400);
+});
+$('filter-statut').addEventListener('change', () => loadDossiers());
+
+/* ===================== KEYBOARD ===================== */
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    if($('confirm-dialog').classList.contains('show')) closeConfirm();
+    else if($('modal-dossier').classList.contains('show')) closeModal();
+    else if($('detail-panel').classList.contains('show')) closePanel();
+  }
+});
+
+/* ===================== INIT ===================== */
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session) return location.href = '/login.html';
+  session = data.session;
+  token = session.access_token;
+  db.auth.onAuthStateChange((ev, s) => { if(s){ session = s; token = s.access_token; }});
+  societeId = localStorage.getItem('societe_active_id');
+  if(!societeId){ location.href = '/organisation.html'; return; }
+  loadDossiers();
+
+  // Update public page link
+  try {
+    const r = await api('/api/juridique/profil');
+    if(r.success !== false && r.profil?.slug){
+      $('link-public').href = '/expert/' + r.profil.slug;
+    }
+  } catch(_){}
+})();
+</script>
+</body>
+</html>

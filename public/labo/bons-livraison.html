@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Bons de laboratoire</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --primary:#1a56db;--primary-dark:#1140a6;--primary-light:#e8effc;--primary-mid:#3b71e8;
+  --bg:#f4f6fb;--surface:#ffffff;--surface2:#f0f3f9;
+  --border:#e2e7f0;--border-strong:#c8d0e0;
+  --text:#111827;--text-secondary:#374151;--muted:#6b7280;--muted-light:#9ca3af;
+  --green:#059669;--green-bg:#d1fae5;
+  --amber:#d97706;--amber-bg:#fef3c7;
+  --red:#dc2626;--red-bg:#fee2e2;
+  --blue:#1a56db;--blue-bg:#e8effc;
+  --purple:#7c3aed;--purple-bg:#ede9fe;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.08),0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg:0 10px 40px rgba(0,0,0,0.10),0 4px 12px rgba(0,0,0,0.06);
+  --font:'Inter',system-ui,sans-serif;
+  --sidebar-w:240px;--topbar-h:60px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+.shell{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;overflow:hidden;}
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--primary-mid));border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-icon svg{width:20px;height:20px;fill:#fff;}
+.logo-text{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;line-height:1.2;}
+.logo-sub{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0.3px;}
+.nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-section-label{padding:10px 22px 4px;font-size:10px;font-weight:600;color:var(--muted-light);text-transform:uppercase;letter-spacing:1.2px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 22px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-left-color:var(--primary);font-weight:600;}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);}
+.user-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;}
+.user-card:hover{background:var(--border);}
+.user-avatar{width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:10px;color:var(--muted);margin-top:1px;}
+.sidebar-toggle{display:none;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;}
+
+/* Main */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-breadcrumb{font-size:12px;color:var(--muted);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{background:var(--surface2);border-color:var(--border-strong);}
+.btn-ghost{background:transparent;color:var(--muted);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#b91c1c;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-success:hover{background:#047857;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-xs{padding:4px 10px;font-size:11px;}
+.content{padding:28px;flex:1;}
+
+/* Stats bar */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.stat-pill::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;}
+.stat-pill.sp-blue::before{background:var(--primary);}
+.stat-pill.sp-gray::before{background:var(--muted-light);}
+.stat-pill.sp-green::before{background:var(--green);}
+.stat-pill.sp-purple::before{background:var(--purple);}
+.stat-pill-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.5px;}
+.stat-pill-label{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;}
+
+/* Filter bar */
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow);}
+.search-wrap{position:relative;flex:1;min-width:200px;}
+.search-wrap input{width:100%;padding:8px 12px 8px 34px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:border-color 0.15s;}
+.search-wrap input:focus{border-color:var(--primary);background:#fff;}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted-light);font-size:13px;}
+select.filter-select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;cursor:pointer;}
+select.filter-select:focus{border-color:var(--primary);}
+input[type="date"].filter-date{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;}
+input[type="date"].filter-date:focus{border-color:var(--primary);}
+.filter-label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
+
+/* Table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-size:14px;font-weight:600;color:var(--text);}
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 16px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;}
+thead th.th-right{text-align:right;}
+tbody td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text-secondary);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#fafbff;cursor:pointer;}
+.td-main{font-weight:600;color:var(--text);}
+.td-right{text-align:right;}
+.td-actions{display:flex;gap:6px;justify-content:flex-end;}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge-gray{background:#f3f4f6;color:var(--muted);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-purple{background:var(--purple-bg);color:var(--purple);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+
+/* Detail drawer */
+.drawer{position:fixed;top:0;right:0;height:100vh;width:520px;background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);z-index:300;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s;}
+.drawer.open{transform:translateX(0);}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.drawer-body{flex:1;overflow-y:auto;padding:22px;}
+.drawer-footer{padding:14px 22px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:8px;flex-wrap:wrap;}
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:299;}
+.drawer-overlay.open{display:block;}
+.dl-section{margin-bottom:20px;}
+.dl-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.dl-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.dl-row:last-child{border-bottom:none;}
+.dl-label{color:var(--muted);}
+.dl-val{font-weight:500;color:var(--text);}
+.lines-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+.lines-table th{text-align:left;padding:6px 8px;background:var(--surface2);border-bottom:1px solid var(--border);font-weight:600;color:var(--muted);font-size:10px;text-transform:uppercase;}
+.lines-table td{padding:8px 8px;border-bottom:1px solid var(--border);color:var(--text-secondary);}
+.lines-table tr:last-child td{border-bottom:none;}
+.lines-table .td-r{text-align:right;}
+.total-row{display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid var(--border);margin-top:8px;font-weight:700;font-size:14px;}
+
+/* Modal */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;padding:20px;}
+.modal-backdrop.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:480px;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:15px;font-weight:700;}
+.modal-close{width:30px;height:30px;border:none;background:var(--surface2);border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);background:var(--surface2);display:flex;justify-content:flex-end;gap:8px;}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 24px;}
+.empty-state-icon{font-size:40px;margin-bottom:12px;opacity:0.35;}
+.empty-state-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.empty-state-desc{font-size:13px;color:var(--muted);}
+
+/* Toast */
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:600;}
+.toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;max-width:360px;animation:slideIn 0.25s ease;}
+.toast.success{background:var(--green);}
+.toast.error{background:var(--red);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+.page-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
+.page-loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;}
+.spinner-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:1100px){.stats-bar{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
+  .sidebar.open{transform:translateX(0);}
+  .overlay.open{display:block;}
+  .main{margin-left:0;}
+  .topbar{padding:0 16px;}
+  .content{padding:16px;}
+  .sidebar-toggle{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:18px;color:var(--muted);}
+  .stats-bar{grid-template-columns:1fr 1fr;}
+  .drawer{width:100%;}
+  .filter-bar{gap:8px;}
+}
+</style>
+</head>
+<body>
+
+<div class="page-loading" id="pageLoading">
+  <div style="text-align:center;">
+    <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;">JADOMI LABO</div>
+    <div class="page-loading-spinner"></div>
+  </div>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">JADOMI LABO</div>
+        <div class="logo-sub">Prothétique dentaire</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">Principal</div>
+      <a class="nav-item" href="dashboard.html"><span class="ni">🏠</span> Tableau de bord</a>
+      <a class="nav-item" href="dentistes.html"><span class="ni">👥</span> Mes dentistes</a>
+      <a class="nav-item active" href="bons-livraison.html"><span class="ni">📋</span> Bons de laboratoire</a>
+      <a class="nav-item" href="facturation.html"><span class="ni">💰</span> Facturation</a>
+      <div class="nav-section-label" style="margin-top:8px;">Stock</div>
+      <a class="nav-item" href="stock.html"><span class="ni">📦</span> Stock &amp; Matériaux</a>
+      <a class="nav-item" href="stock.html#scanner"><span class="ni">🔍</span> Scanner</a>
+      <div class="nav-section-label" style="margin-top:8px;">Catalogue</div>
+      <a class="nav-item" href="catalogue.html"><span class="ni">📊</span> Catalogue</a>
+      <a class="nav-item" href="import-grille.html"><span class="ni">📥</span> Import grille tarifaire</a>
+      <div class="nav-section-label" style="margin-top:8px;">Compte</div>
+      <a class="nav-item" href="profil-labo.html"><span class="ni">⚙️</span> Paramètres laboratoire</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card" onclick="window.location.href='profil-labo.html'">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div style="min-width:0;">
+          <div class="user-name" id="userName">Chargement…</div>
+          <div class="user-role">Prothésiste</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <div>
+          <div class="topbar-title">Bons de laboratoire</div>
+          <div class="topbar-breadcrumb"><span style="color:var(--muted-light);">JADOMI LABO</span> › Bons de livraison</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <a class="btn btn-primary" href="nouveau-bl.html">&#xFF0B; Nouveau BL</a>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" title="Déconnexion">&#x2715;</button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- Stats bar -->
+      <div class="stats-bar">
+        <div class="stat-pill sp-blue">
+          <div class="stat-pill-val" id="statTotal">—</div>
+          <div class="stat-pill-label">Total BL</div>
+        </div>
+        <div class="stat-pill sp-gray">
+          <div class="stat-pill-val" id="statBrouillons">—</div>
+          <div class="stat-pill-label">Brouillons</div>
+        </div>
+        <div class="stat-pill sp-green">
+          <div class="stat-pill-val" id="statLivres">—</div>
+          <div class="stat-pill-label">Livrés</div>
+        </div>
+        <div class="stat-pill sp-purple">
+          <div class="stat-pill-val" id="statFactures">—</div>
+          <div class="stat-pill-label">Facturés</div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="N° BL, patient, dentiste…" oninput="applyFilters()">
+        </div>
+        <span class="filter-label">Statut :</span>
+        <select class="filter-select" id="filterStatus" onchange="applyFilters()">
+          <option value="">Tous</option>
+          <option value="brouillon">Brouillon</option>
+          <option value="livre">Livré</option>
+          <option value="facture">Facturé</option>
+        </select>
+        <span class="filter-label">Dentiste :</span>
+        <select class="filter-select" id="filterDentiste" onchange="applyFilters()">
+          <option value="">Tous</option>
+        </select>
+        <span class="filter-label">Du :</span>
+        <input type="date" class="filter-date" id="filterDateDeb" onchange="applyFilters()">
+        <span class="filter-label">Au :</span>
+        <input type="date" class="filter-date" id="filterDateFin" onchange="applyFilters()">
+        <button class="btn btn-ghost btn-sm" onclick="resetFilters()">&#x21BA; Réinitialiser</button>
+      </div>
+
+      <!-- Table card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Liste des bons de livraison</div>
+          <div style="font-size:12px;color:var(--muted);" id="countLabel">—</div>
+        </div>
+        <div id="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>N° BL</th>
+                <th>Date</th>
+                <th>Dentiste</th>
+                <th>Patient</th>
+                <th>Travaux</th>
+                <th class="th-right">Total TTC</th>
+                <th>Statut</th>
+                <th class="th-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="blTbody">
+              <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- DETAIL DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="detailDrawer">
+  <div class="drawer-header">
+    <div>
+      <div style="font-size:15px;font-weight:700;" id="drawerTitle">Bon de livraison</div>
+      <div style="font-size:12px;color:var(--muted);" id="drawerSub"></div>
+    </div>
+    <button class="modal-close" onclick="closeDrawer()">&#x2715;</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-footer" id="drawerFooter"></div>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="confirmTitle">Confirmation</div>
+      <button class="modal-close" onclick="closeModal('confirmModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('confirmModal')">Annuler</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const API_BASE     = '/api/labo';
+
+let db, currentToken, currentSocieteId, currentUser;
+let allBL = [];
+let filteredBL = [];
+let currentBL = null;
+
+try {
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {}
+
+/* ── Auth ─────────────────────────────────────────────────── */
+async function initAuth() {
+  let session = null;
+  try { const { data } = await db.auth.getSession(); session = data?.session; } catch(e) {}
+  if (!session) {
+    const raw = localStorage.getItem('jadomi_session');
+    if (raw) try { session = JSON.parse(raw); } catch(e) {}
+  }
+  if (!session) { window.location.href = '/login.html?next=labo/bons-livraison.html'; return; }
+  currentToken     = session.access_token || session.token || null;
+  currentUser      = session.user || session;
+  currentSocieteId = localStorage.getItem('selectedSocieteId') || currentUser?.user_metadata?.defaultSocieteId || null;
+  renderUserInfo();
+  document.getElementById('pageLoading').style.display = 'none';
+  document.getElementById('appShell').style.display    = 'flex';
+  await Promise.all([loadBL(), loadDentistesFilter()]);
+}
+
+function renderUserInfo() {
+  const meta = currentUser?.user_metadata || {};
+  const nom  = ((meta.prenom||'')+' '+(meta.nom||'')).trim() || currentUser?.email?.split('@')[0] || '?';
+  document.getElementById('userName').textContent  = nom;
+  document.getElementById('userAvatar').textContent = nom.charAt(0).toUpperCase();
+}
+
+function apiHeaders() {
+  const h = { 'Content-Type':'application/json' };
+  if (currentToken)    h['Authorization']  = `Bearer ${currentToken}`;
+  if (currentSocieteId) h['X-Societe-Id'] = currentSocieteId;
+  return h;
+}
+
+async function logout() {
+  try { await db.auth.signOut(); } catch(e) {}
+  localStorage.removeItem('jadomi_session');
+  localStorage.removeItem('selectedSocieteId');
+  window.location.href = '/login.html';
+}
+
+/* ── Load data ─────────────────────────────────────────────── */
+async function loadBL() {
+  try {
+    const res = await fetch(`${API_BASE}/bons-livraison`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      allBL = Array.isArray(data) ? data : (data.data || data.bons || []);
+    } else { allBL = []; }
+  } catch(e) { allBL = []; toast('Erreur chargement BL', 'error'); }
+  renderStats();
+  applyFilters();
+}
+
+async function loadDentistesFilter() {
+  try {
+    const res = await fetch(`${API_BASE}/dentistes`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.data || []);
+      const sel = document.getElementById('filterDentiste');
+      list.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.textContent = `${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}`.trim();
+        sel.appendChild(o);
+      });
+    }
+  } catch(e) {}
+}
+
+function renderStats() {
+  document.getElementById('statTotal').textContent     = allBL.length;
+  document.getElementById('statBrouillons').textContent = allBL.filter(b=>b.statut==='brouillon').length;
+  document.getElementById('statLivres').textContent    = allBL.filter(b=>b.statut==='livre').length;
+  document.getElementById('statFactures').textContent  = allBL.filter(b=>b.statut==='facture').length;
+}
+
+/* ── Filters ───────────────────────────────────────────────── */
+function applyFilters() {
+  const q       = document.getElementById('searchInput').value.toLowerCase().trim();
+  const status  = document.getElementById('filterStatus').value;
+  const dentisteId = document.getElementById('filterDentiste').value;
+  const dateDeb = document.getElementById('filterDateDeb').value;
+  const dateFin = document.getElementById('filterDateFin').value;
+
+  filteredBL = allBL.filter(b => {
+    const txt = `${b.numero||''} ${b.patient_initiales||''} ${b.dentiste_nom||''} ${b.dentiste_cabinet||''}`.toLowerCase();
+    if (q && !txt.includes(q)) return false;
+    if (status && b.statut !== status) return false;
+    if (dentisteId && String(b.dentiste_id) !== dentisteId) return false;
+    if (dateDeb && b.date < dateDeb) return false;
+    if (dateFin && b.date > dateFin) return false;
+    return true;
+  });
+  document.getElementById('countLabel').textContent = `${filteredBL.length} bon${filteredBL.length!==1?'s':''} de livraison`;
+  renderTable();
+}
+
+function resetFilters() {
+  document.getElementById('searchInput').value    = '';
+  document.getElementById('filterStatus').value   = '';
+  document.getElementById('filterDentiste').value = '';
+  document.getElementById('filterDateDeb').value  = '';
+  document.getElementById('filterDateFin').value  = '';
+  applyFilters();
+}
+
+/* ── Table ─────────────────────────────────────────────────── */
+const STATUS_LABELS = { brouillon:'Brouillon', livre:'Livré', facture:'Facturé' };
+const STATUS_BADGE  = { brouillon:'badge-gray', livre:'badge-green', facture:'badge-purple' };
+
+function renderTable() {
+  const tbody = document.getElementById('blTbody');
+  if (!filteredBL.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <div class="empty-state-title">Aucun bon de livraison</div>
+      <div class="empty-state-desc">Créez votre premier bon en cliquant sur "Nouveau BL".</div>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filteredBL.map(b => {
+    const statusBadge = STATUS_BADGE[b.statut] || 'badge-gray';
+    const statusLabel = STATUS_LABELS[b.statut] || b.statut;
+    const ttc = typeof b.total_ttc === 'number' ? b.total_ttc.toFixed(2) + ' €' : '—';
+    const date = b.date ? new Date(b.date).toLocaleDateString('fr-FR') : '—';
+    const actions = buildRowActions(b);
+    return `<tr onclick="openDetail('${b.id}')">
+      <td class="td-main">${b.numero||'—'}</td>
+      <td>${date}</td>
+      <td>${b.dentiste_nom ? `${b.dentiste_titre||'Dr'} ${b.dentiste_nom}` : '—'}</td>
+      <td>${b.patient_initiales||'—'}</td>
+      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.travaux_resume||'—'}</td>
+      <td class="td-right" style="font-weight:600;color:var(--text);">${ttc}</td>
+      <td><span class="badge ${statusBadge}">${statusLabel}</span></td>
+      <td class="td-right"><div class="td-actions" onclick="event.stopPropagation()">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function buildRowActions(b) {
+  let html = '';
+  if (b.statut === 'brouillon') {
+    html += `<a class="btn btn-outline btn-xs" href="nouveau-bl.html?id=${b.id}">✏️</a>`;
+    html += `<button class="btn btn-success btn-xs" onclick="validerBL('${b.id}')">✅ Valider</button>`;
+    html += `<button class="btn btn-danger btn-xs" onclick="deleteBL('${b.id}')">🗑️</button>`;
+  } else {
+    html += `<button class="btn btn-outline btn-xs" onclick="downloadPDF('${b.id}','bl')">📄 BL</button>`;
+    html += `<button class="btn btn-outline btn-xs" onclick="downloadPDF('${b.id}','ce')">🏷️ CE</button>`;
+  }
+  return html;
+}
+
+/* ── Detail drawer ─────────────────────────────────────────── */
+async function openDetail(id) {
+  currentBL = allBL.find(b => b.id == id);
+  if (!currentBL) return;
+  document.getElementById('drawerTitle').textContent = `BL ${currentBL.numero||'—'}`;
+  document.getElementById('drawerSub').textContent   = currentBL.date ? new Date(currentBL.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '';
+  document.getElementById('drawerBody').innerHTML    = '<div style="text-align:center;padding:40px;color:var(--muted);">Chargement…</div>';
+  document.getElementById('drawerFooter').innerHTML  = '';
+  document.getElementById('detailDrawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+
+  try {
+    const res = await fetch(`${API_BASE}/bons-livraison/${id}`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      currentBL = data.data || data;
+      renderDrawer(currentBL);
+    } else {
+      renderDrawer(currentBL);
+    }
+  } catch(e) { renderDrawer(currentBL); }
+}
+
+function renderDrawer(b) {
+  const statusBadge = STATUS_BADGE[b.statut] || 'badge-gray';
+  const statusLabel = STATUS_LABELS[b.statut] || b.statut;
+  const date = b.date ? new Date(b.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '—';
+  const lines = b.lignes || b.lines || [];
+  const linesHtml = lines.length ? `
+    <table class="lines-table">
+      <thead><tr><th>Désignation</th><th>Teinte</th><th style="text-align:right;">Qté</th><th style="text-align:right;">PU HT</th><th style="text-align:right;">Total HT</th></tr></thead>
+      <tbody>${lines.map(l=>`<tr>
+        <td>${l.designation||l.libelle||'—'}</td>
+        <td>${l.teinte||'—'}</td>
+        <td class="td-r">${l.quantite||1}</td>
+        <td class="td-r">${(l.prix_unitaire||l.pu_ht||0).toFixed(2)} €</td>
+        <td class="td-r">${((l.quantite||1)*(l.prix_unitaire||l.pu_ht||0)).toFixed(2)} €</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="total-row">
+      <span>Total TTC</span>
+      <span>${typeof b.total_ttc==='number' ? b.total_ttc.toFixed(2)+' €' : '—'}</span>
+    </div>` : '<p style="font-size:13px;color:var(--muted);padding:12px 0;">Aucune ligne de prestation.</p>';
+
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="dl-section">
+      <div class="dl-section-title">Informations générales</div>
+      <div class="dl-row"><span class="dl-label">N° BL</span><span class="dl-val">${b.numero||'—'}</span></div>
+      <div class="dl-row"><span class="dl-label">Date</span><span class="dl-val">${date}</span></div>
+      <div class="dl-row"><span class="dl-label">Statut</span><span class="dl-val"><span class="badge ${statusBadge}">${statusLabel}</span></span></div>
+    </div>
+    <div class="dl-section">
+      <div class="dl-section-title">Dentiste &amp; Patient</div>
+      <div class="dl-row"><span class="dl-label">Dentiste</span><span class="dl-val">${b.dentiste_titre||'Dr'} ${b.dentiste_prenom||''} ${b.dentiste_nom||'—'}</span></div>
+      <div class="dl-row"><span class="dl-label">Cabinet</span><span class="dl-val">${b.dentiste_cabinet||'—'}</span></div>
+      <div class="dl-row"><span class="dl-label">Patient (initiales)</span><span class="dl-val">${b.patient_initiales||'—'}</span></div>
+      ${b.patient_info ? `<div class="dl-row"><span class="dl-label">Info patient</span><span class="dl-val">${b.patient_info}</span></div>` : ''}
+    </div>
+    <div class="dl-section">
+      <div class="dl-section-title">Prestations</div>
+      ${linesHtml}
+    </div>
+    ${b.commentaire ? `<div class="dl-section"><div class="dl-section-title">Commentaire</div><p style="font-size:13px;color:var(--text-secondary);">${b.commentaire}</p></div>` : ''}
+  `;
+
+  // Footer actions
+  let footer = '';
+  if (b.statut === 'brouillon') {
+    footer += `<a class="btn btn-outline btn-sm" href="nouveau-bl.html?id=${b.id}">✏️ Modifier</a>`;
+    footer += `<button class="btn btn-success btn-sm" onclick="validerBL('${b.id}')">✅ Valider et générer PDF</button>`;
+    footer += `<button class="btn btn-danger btn-sm" onclick="deleteBL('${b.id}')">🗑️ Supprimer</button>`;
+  } else {
+    footer += `<button class="btn btn-primary btn-sm" onclick="downloadPDF('${b.id}','bl')">📄 Télécharger BL PDF</button>`;
+    footer += `<button class="btn btn-outline btn-sm" onclick="downloadPDF('${b.id}','ce')">🏷️ Déclaration CE PDF</button>`;
+  }
+  document.getElementById('drawerFooter').innerHTML = footer;
+}
+
+function closeDrawer() {
+  document.getElementById('detailDrawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  currentBL = null;
+}
+
+/* ── Actions ───────────────────────────────────────────────── */
+async function validerBL(id) {
+  showConfirm('Valider ce bon de livraison ?', 'Cette action est irréversible. Le BL passera en statut "Livré" et un PDF sera généré.', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/bons-livraison/${id}/valider`, { method:'POST', headers: apiHeaders() });
+      if (res.ok) {
+        const data = await res.json().catch(()=>({}));
+        const idx = allBL.findIndex(b=>b.id==id);
+        if (idx>=0) allBL[idx].statut = 'livre';
+        renderStats();
+        applyFilters();
+        closeDrawer();
+        toast('BL validé et généré', 'success');
+        if (data.pdf_url || data.url) window.open(data.pdf_url || data.url, '_blank');
+      } else { toast('Erreur validation', 'error'); }
+    } catch(e) { toast('Erreur réseau', 'error'); }
+  });
+}
+
+async function deleteBL(id) {
+  showConfirm('Supprimer ce BL ?', 'Le bon de livraison sera définitivement supprimé.', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/bons-livraison/${id}`, { method:'DELETE', headers: apiHeaders() });
+      if (res.ok) {
+        allBL = allBL.filter(b=>b.id!=id);
+        renderStats();
+        applyFilters();
+        closeDrawer();
+        toast('BL supprimé', 'success');
+      } else { toast('Erreur suppression', 'error'); }
+    } catch(e) { toast('Erreur', 'error'); }
+  });
+}
+
+async function downloadPDF(id, type) {
+  toast('Génération du PDF…');
+  try {
+    const endpoint = type === 'ce' ? `${API_BASE}/bons-livraison/${id}/pdf?type=ce` : `${API_BASE}/bons-livraison/${id}/pdf`;
+    const res = await fetch(endpoint, { headers: apiHeaders() });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `BL-${id}-${type}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const data = await res.json().catch(()=>({}));
+      if (data.url) window.open(data.url, '_blank');
+      else toast('Erreur génération PDF', 'error');
+    }
+  } catch(e) { toast('Erreur réseau', 'error'); }
+}
+
+/* ── Confirm modal ─────────────────────────────────────────── */
+function showConfirm(title, body, onOk) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmBody').textContent  = body;
+  const btn = document.getElementById('confirmOkBtn');
+  btn.onclick = () => { closeModal('confirmModal'); onOk(); };
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.getElementById('confirmModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal('confirmModal'); });
+
+/* ── Sidebar ───────────────────────────────────────────────── */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ── Boot ──────────────────────────────────────────────────── */
+initAuth();
+</script>
+</body>
+</html>

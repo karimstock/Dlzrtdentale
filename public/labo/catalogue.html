@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI LABO — Catalogue</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#ffffff;--bg-secondary:#f8f9fa;--surface:#ffffff;--surface2:#f1f3f5;
+  --border:#e0e3e8;--text:#1a1d23;--text-secondary:#6b7280;
+  --accent:#2563eb;--accent-light:#dbeafe;--accent-dark:#1d4ed8;
+  --success:#059669;--warning:#d97706;--danger:#dc2626;
+  --shadow:0 1px 3px rgba(0,0,0,0.1);--shadow-lg:0 4px 12px rgba(0,0,0,0.1);
+  --radius:8px;
+  --muted:#6b7280;--green:#059669;--green-soft:rgba(5,150,105,0.1);
+  --red:#dc2626;--red-soft:rgba(220,38,38,0.08);--orange:#d97706;--orange-soft:rgba(217,119,6,0.1);
+  --purple:#7c3aed;--accent-soft:#dbeafe;--accent-dark:#1d4ed8;
+  --font:'Inter',-apple-system,sans-serif;--display:'Inter',sans-serif;--mono:'SFMono-Regular',Consolas,monospace;
+  --radius-sm:6px;--radius-lg:12px;
+  --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+  --sidebar-w:240px;
+}
+body{font-family:var(--font);background:var(--bg-secondary);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;}
+button{font-family:var(--font);cursor:pointer;}
+
+/* ── SHELL LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:var(--sidebar-w);background:#ffffff;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;height:100vh;z-index:100;overflow:hidden;
+}
+.sidebar-logo{
+  padding:20px 22px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;
+}
+.logo-icon-nav{font-size:20px;}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-item{
+  display:flex;align-items:center;gap:11px;padding:9px 22px;
+  font-size:13px;font-weight:500;color:var(--muted);
+  cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;
+  text-decoration:none;
+}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-light);border-left-color:var(--accent);font-weight:600;}
+.nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.page-main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.1px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-dark);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:var(--red-soft);color:var(--red);border:1px solid rgba(220,38,38,0.2);}
+.btn-danger:hover{background:var(--red);color:#fff;}
+.btn-ia{background:linear-gradient(135deg,#6366f1,#a21caf);color:#fff;border:none;}
+.btn-ia:hover{opacity:0.9;}
+.btn-success{background:var(--green-soft);color:var(--green);border:1px solid rgba(5,150,105,0.25);}
+.btn-success:hover{background:var(--green);color:#fff;}
+
+/* ── MAIN LAYOUT ── */
+.main{max-width:1240px;margin:0 auto;padding:28px 28px 80px;}
+
+/* ── SEARCH & TOP ACTIONS ── */
+.top-actions{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);flex:1;min-width:220px;max-width:420px;transition:border-color 0.15s;box-shadow:var(--shadow);}
+.search-wrap:focus-within{border-color:var(--accent);}
+.search-icon{color:var(--muted);font-size:15px;flex-shrink:0;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;min-width:0;}
+.search-wrap input::placeholder{color:var(--muted);}
+.search-wrap .clear-btn{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0;display:none;line-height:1;}
+.search-wrap .clear-btn.show{display:block;}
+.action-group{display:flex;align-items:center;gap:8px;margin-left:auto;}
+
+/* ── BREADCRUMB ── */
+.breadcrumb{display:flex;align-items:center;gap:6px;margin-bottom:20px;font-size:13px;color:var(--muted);}
+.breadcrumb-item{display:flex;align-items:center;gap:6px;}
+.breadcrumb-item span.crumb-link{cursor:pointer;color:var(--accent);font-weight:500;}
+.breadcrumb-item span.crumb-link:hover{text-decoration:underline;}
+.breadcrumb-item span.crumb-current{color:var(--text);font-weight:600;}
+.breadcrumb-sep{color:var(--border);font-size:16px;}
+
+/* ── LEVEL VIEWS ── */
+.level-view{display:none;}
+.level-view.active{display:block;}
+
+/* ── FAMILY GRID ── */
+.section-title{font-family:var(--font);font-size:18px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;}
+.section-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.family-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.family-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:22px 20px;cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.family-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--accent-soft),transparent);opacity:0;transition:opacity 0.2s;}
+.family-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:var(--shadow-md);}
+.family-card:hover::before{opacity:1;}
+.family-card-icon{font-size:32px;margin-bottom:12px;display:block;position:relative;}
+.family-card-name{font-family:var(--font);font-size:14px;font-weight:700;color:var(--text);line-height:1.3;position:relative;}
+.family-card-count{font-size:11px;color:var(--muted);margin-top:5px;position:relative;}
+.family-card-badge{position:absolute;top:14px;right:14px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;}
+
+/* ── SUBFAMILY GRID ── */
+.subfamily-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
+.subfamily-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 16px;cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow);}
+.subfamily-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.subfamily-card-name{font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px;}
+.subfamily-card-count{font-size:11px;color:var(--muted);}
+.subfamily-card-icon{font-size:22px;margin-bottom:10px;}
+.subfamily-add-card{border-style:dashed;border-color:var(--border);color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;}
+.subfamily-add-card:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── PRODUCTS ── */
+.products-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.products-meta{font-size:13px;color:var(--muted);}
+.products-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.filter-chip{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:all 0.15s;}
+.filter-chip:hover,.filter-chip.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600;}
+
+.products-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);}
+.products-table{width:100%;border-collapse:collapse;}
+.products-table thead th{text-align:left;padding:11px 18px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.products-table tbody td{padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+.products-table tbody tr:last-child td{border-bottom:none;}
+.products-table tbody tr{transition:background 0.1s;}
+.products-table tbody tr:hover td{background:var(--surface2);}
+.products-table tbody tr.inactive td{opacity:0.45;}
+.prod-nom{font-weight:600;color:var(--text);max-width:240px;}
+.prod-desc{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}
+.prod-code{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:5px;}
+.prod-price{font-family:var(--font);font-size:15px;font-weight:700;color:var(--text);}
+.prod-price-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge-tva{background:var(--orange-soft);color:var(--orange);}
+.badge-franchise{background:var(--green-soft);color:var(--green);}
+.badge-active{background:var(--green-soft);color:var(--green);}
+.badge-inactive{background:var(--red-soft);color:var(--red);}
+.badge-ccam{background:var(--accent-soft);color:var(--accent);}
+.badge-perso{background:rgba(124,58,237,0.1);color:var(--purple);}
+.badge-ia{background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(162,28,175,0.12));color:#6366f1;border:1px solid rgba(99,102,241,0.2);}
+
+/* ── ICON ACTIONS ── */
+.action-btns{display:flex;align-items:center;gap:4px;}
+.icon-btn{width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);border-color:var(--muted);}
+.icon-btn.edit:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-soft);border-color:var(--red);color:var(--red);}
+.icon-btn.toggle-off{color:var(--red);border-color:rgba(224,36,36,0.3);background:var(--red-soft);}
+.icon-btn.toggle-off:hover{background:var(--red);color:#fff;}
+.icon-btn.toggle-on{color:var(--green);border-color:rgba(14,159,110,0.3);background:var(--green-soft);}
+.icon-btn.toggle-on:hover{background:var(--green);color:#fff;}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:0.5;}
+.empty-title{font-family:var(--font);font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.empty-sub{font-size:13px;margin-bottom:20px;}
+
+/* ── LOADER ── */
+.loader{display:flex;align-items:center;justify-content:center;padding:50px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,0.55);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px;width:580px;max-width:94vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-md);animation:modalIn 0.2s ease;}
+@keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(0.97);}to{opacity:1;transform:none;}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.modal-title{font-family:var(--font);font-size:18px;font-weight:700;letter-spacing:-0.4px;}
+.modal-close{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all 0.15s;}
+.modal-close:hover{background:var(--surface2);color:var(--text);}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;}
+.form-input,.form-select,.form-textarea{padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;background:var(--surface2);color:var(--text);transition:border-color 0.15s,box-shadow 0.15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,86,219,0.1);background:var(--surface);}
+.form-textarea{resize:vertical;min-height:72px;}
+.form-row{display:flex;align-items:center;gap:10px;}
+.form-hint{font-size:11px;color:var(--muted);margin-top:3px;}
+.checkbox-field{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);transition:all 0.15s;}
+.checkbox-field:hover{border-color:var(--accent);background:var(--accent-soft);}
+.checkbox-field input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+.checkbox-field span{font-size:12px;font-weight:500;color:var(--text);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--border);}
+
+/* ── CONFIRM MODAL ── */
+.confirm-modal{width:400px;}
+.confirm-body{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--text);color:#fff;padding:11px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;transition:all 0.3s;opacity:0;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.toast.ok{background:#0e9f6e;}
+.toast.err{background:var(--red);}
+
+/* ── SEARCH RESULTS ── */
+.search-results-view{display:none;}
+.search-results-view.active{display:block;}
+.search-result-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all 0.15s;box-shadow:var(--shadow);}
+.search-result-row:hover{border-color:var(--accent);box-shadow:var(--shadow-md);}
+.srr-info{flex:1;min-width:0;}
+.srr-nom{font-weight:600;font-size:13px;color:var(--text);}
+.srr-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.srr-price{font-family:var(--font);font-weight:700;font-size:15px;color:var(--accent);white-space:nowrap;}
+
+/* ── TEMPLATE BANNER ── */
+.template-banner{background:linear-gradient(135deg,var(--accent-soft),rgba(124,58,237,0.06));border:1.5px solid rgba(26,86,219,0.2);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.tb-text{flex:1;}
+.tb-title{font-family:var(--font);font-weight:700;font-size:15px;margin-bottom:3px;}
+.tb-sub{font-size:12px;color:var(--muted);}
+.hide{display:none !important;}
+
+@media(max-width:700px){
+  .topnav{display:none;}
+  .main{padding:16px 14px 60px;}
+  .family-grid{grid-template-columns:repeat(2,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+  .top-actions{flex-direction:column;align-items:stretch;}
+  .action-group{margin-left:0;}
+  .products-table-wrap{overflow-x:auto;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo"><span class="logo-icon-nav">🦷</span> JADOMI LABO</div>
+  <div class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="dentistes.html" class="nav-item" data-page="dentistes"><span class="nav-icon">👥</span> Mes dentistes</a>
+    <a href="bons-livraison.html" class="nav-item" data-page="bons-livraison"><span class="nav-icon">📋</span> Bons de laboratoire</a>
+    <a href="facturation.html" class="nav-item" data-page="facturation"><span class="nav-icon">💰</span> Facturation</a>
+    <a href="stock.html" class="nav-item" data-page="stock"><span class="nav-icon">📦</span> Stock &amp; Matériaux</a>
+    <a href="catalogue.html" class="nav-item active" data-page="catalogue"><span class="nav-icon">📊</span> Catalogue</a>
+    <a href="import-grille.html" class="nav-item" data-page="import-grille"><span class="nav-icon">📥</span> Import grille</a>
+    <a href="profil-labo.html" class="nav-item" data-page="profil-labo"><span class="nav-icon">⚙️</span> Paramètres labo</a>
+  </div>
+</nav>
+
+<!-- PAGE MAIN -->
+<div class="page-main">
+<main class="main">
+
+  <!-- Template banner (shown if no products) -->
+  <div class="template-banner hide" id="template-banner">
+    <div class="tb-text">
+      <div class="tb-title">Demarrez avec le catalogue type JADOMI</div>
+      <div class="tb-sub">Importez des centaines de produits preconfigures pour les protheses dentaires, classes par famille et sous-famille.</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ia" onclick="installTemplate()">⚡ Installer le catalogue type</button>
+      <a class="btn btn-ghost btn-sm" href="import-grille.html">📄 Import IA</a>
+    </div>
+  </div>
+
+  <!-- TOP ACTIONS -->
+  <div class="top-actions">
+    <div class="search-wrap" id="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Rechercher un produit..." autocomplete="off">
+      <button class="clear-btn" id="clear-search" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="action-group">
+      <button class="btn btn-ia btn-sm" onclick="location.href='import-grille.html'">🤖 Import IA</button>
+      <button class="btn btn-primary" id="btn-add-product" onclick="openAddModal()">+ Nouveau produit</button>
+    </div>
+  </div>
+
+  <!-- BREADCRUMB -->
+  <nav class="breadcrumb" id="breadcrumb">
+    <div class="breadcrumb-item">
+      <span class="crumb-current">Familles</span>
+    </div>
+  </nav>
+
+  <!-- ══════════ SEARCH RESULTS VIEW ══════════ -->
+  <div class="search-results-view" id="view-search">
+    <div class="section-title">Resultats de recherche</div>
+    <div id="search-results-list"></div>
+  </div>
+
+  <!-- ══════════ LEVEL 1 — FAMILIES ══════════ -->
+  <div class="level-view active" id="view-l1">
+    <div class="section-title">Catalogue produits</div>
+    <div class="section-sub" id="l1-sub">Selectionnez une famille de protheses pour voir les sous-categories et produits.</div>
+    <div class="family-grid" id="family-grid"></div>
+  </div>
+
+  <!-- ══════════ LEVEL 2 — SUBFAMILIES ══════════ -->
+  <div class="level-view" id="view-l2">
+    <div class="products-header">
+      <div>
+        <div class="section-title" id="l2-title">Sous-categories</div>
+        <div class="products-meta" id="l2-sub"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openAddSubfamily()">+ Sous-categorie</button>
+    </div>
+    <div class="subfamily-grid" id="subfamily-grid"></div>
+  </div>
+
+  <!-- ══════════ LEVEL 3 — PRODUCTS ══════════ -->
+  <div class="level-view" id="view-l3">
+    <div class="products-header">
+      <div>
+        <div class="section-title" id="l3-title">Produits</div>
+        <div class="products-meta" id="l3-meta"></div>
+      </div>
+      <div class="products-filters">
+        <button class="filter-chip active" data-filter="actif" onclick="setFilter('actif',this)">Actifs</button>
+        <button class="filter-chip" data-filter="all" onclick="setFilter('all',this)">Tous</button>
+        <button class="filter-chip" data-filter="inactif" onclick="setFilter('inactif',this)">Inactifs</button>
+      </div>
+    </div>
+
+    <div class="loader hide" id="products-loader"><div class="spinner"></div>Chargement...</div>
+    <div class="products-table-wrap" id="products-wrap">
+      <table class="products-table">
+        <thead>
+          <tr>
+            <th style="width:36%">Produit</th>
+            <th>Prix HT</th>
+            <th>TVA</th>
+            <th>Code CCAM</th>
+            <th>Statut</th>
+            <th style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="products-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hide" id="products-empty">
+      <div class="empty-icon">📦</div>
+      <div class="empty-title">Aucun produit dans cette categorie</div>
+      <div class="empty-sub">Ajoutez votre premier produit ou utilisez l'import IA.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter un produit</button>
+        <a class="btn btn-ia" href="import-grille.html">🤖 Import IA</a>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══════════ MODAL PRODUIT (ADD / EDIT) ══════════ -->
+<div class="modal-overlay" id="modal-product">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-product-title">Nouveau produit</div>
+      <button class="modal-close" onclick="closeModal('modal-product')">✕</button>
+    </div>
+
+    <input type="hidden" id="prod-id">
+
+    <div class="form-grid">
+      <div class="form-field full">
+        <label class="form-label">Nom du produit *</label>
+        <input type="text" class="form-input" id="prod-nom" placeholder="ex: Couronne ceramique sur zircone">
+      </div>
+      <div class="form-field full">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="prod-desc" placeholder="Description optionnelle..."></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Famille *</label>
+        <select class="form-select" id="prod-categorie" onchange="updateSubcatOptions()">
+          <option value="">-- Selectionnez --</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Sous-categorie</label>
+        <select class="form-select" id="prod-sous-categorie">
+          <option value="">-- Aucune --</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Prix HT (€) *</label>
+        <input type="number" class="form-input" id="prod-prix" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Type produit</label>
+        <select class="form-select" id="prod-type">
+          <option value="prothese">Prothese</option>
+          <option value="reparation">Reparation</option>
+          <option value="materiau">Materiau</option>
+          <option value="option">Option</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Code CCAM</label>
+        <input type="text" class="form-input" id="prod-ccam" placeholder="ex: HBMD001" style="font-family:var(--mono);">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Ordre d'affichage</label>
+        <input type="number" class="form-input" id="prod-ordre" placeholder="0" min="0" value="0">
+      </div>
+
+      <!-- TVA -->
+      <div class="form-field full">
+        <label class="form-label">TVA</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;">
+          <label class="checkbox-field">
+            <input type="checkbox" id="prod-tva-applicable" onchange="toggleTvaRate()">
+            <span>TVA applicable</span>
+          </label>
+          <div class="form-field">
+            <select class="form-select" id="prod-taux-tva" disabled>
+              <option value="0">0%</option>
+              <option value="5.5">5,5%</option>
+              <option value="10">10%</option>
+              <option value="20" selected>20%</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-hint">Les protheses dentaires beneficient generalement de la franchise de TVA.</div>
+      </div>
+
+      <!-- Options -->
+      <div class="form-field full">
+        <label class="form-label">Options</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;">
+          <label class="checkbox-field">
+            <input type="checkbox" id="prod-teinte">
+            <span>Necessite teinte</span>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" id="prod-teinte-gingivale">
+            <span>Teinte gingivale</span>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" id="prod-materiau">
+            <span>Necessite materiau</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-product')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveProduct()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL CONFIRM DELETE ══════════ -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal confirm-modal">
+    <div class="modal-header">
+      <div class="modal-title">Confirmer la desactivation</div>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="confirm-body">
+      Voulez-vous desactiver le produit <strong id="confirm-prod-nom"></strong> ? Il ne sera plus visible dans vos BL et factures, mais ses donnees seront conservees.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Annuler</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Desactiver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL ADD SUBFAMILY ══════════ -->
+<div class="modal-overlay" id="modal-subfamily">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Nouvelle sous-categorie</div>
+      <button class="modal-close" onclick="closeModal('modal-subfamily')">✕</button>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Nom de la sous-categorie *</label>
+      <input type="text" class="form-input" id="new-subfamily-name" placeholder="ex: Stellite, Resine acrylique...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-subfamily')">Annuler</button>
+      <button class="btn btn-primary" onclick="createSubfamily()">Creer</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page-main -->
+</div><!-- /shell -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// JADOMI LABO — Catalogue — JS principal
+// ═══════════════════════════════════════════════════════════
+
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let token = null;
+let societeId = null;
+let allProduits = [];
+let currentFilter = 'actif';
+let selectedFamily = null;
+let selectedSubfamily = null;
+let deleteTargetId = null;
+let deleteTargetNom = null;
+let searchDebounce = null;
+
+// ── Families definition ──
+const FAMILIES = [
+  { key: 'prothese_amovible',      name: 'Prothese Amovible',           icon: '🦷', color: '#1a56db' },
+  { key: 'prothese_fixe',          name: 'Prothese Fixe',               icon: '👑', color: '#0e9f6e' },
+  { key: 'prothese_implant',       name: 'Prothese sur Implant',        icon: '⚙️', color: '#7c3aed' },
+  { key: 'ortheses_gouttieres',    name: 'Ortheses & Gouttieres',       icon: '🔵', color: '#d97706' },
+  { key: 'orthodontie_odf',        name: 'Orthodontie ODF',             icon: '🌀', color: '#e11d48' },
+  { key: 'reparations_modif',      name: 'Reparations & Modifications', icon: '🔧', color: '#0369a1' },
+  { key: 'mes_produits_perso',     name: 'Mes produits personnalises',  icon: '⭐', color: '#92400e' },
+];
+
+// ── Auth & init ──
+(async function init() {
+  const { data } = await db.auth.getSession();
+  if (!data?.session) {
+    return location.href = '../login.html?next=' + encodeURIComponent(location.pathname);
+  }
+  token = data.session.access_token;
+  societeId = localStorage.getItem('selectedSocieteId') || localStorage.getItem('societe_active_id');
+  if (!societeId) {
+    toast('Aucune societe selectionnee', 'err');
+    setTimeout(() => location.href = '../organisation.html', 1500);
+    return;
+  }
+
+  // Afficher libelle societe
+  const socLabel = localStorage.getItem('selectedSocieteName') || localStorage.getItem('societe_active_name') || '';
+  if (socLabel) document.getElementById('societe-label').textContent = socLabel;
+
+  await loadAllProduits();
+  renderFamilies();
+  setupSearch();
+})();
+
+// ── API helper ──
+function api(path, opts = {}) {
+  return fetch('/api/labo' + path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token,
+      'X-Societe-Id': societeId,
+      ...(opts.headers || {})
+    }
+  }).then(async r => {
+    const json = await r.json();
+    if (!r.ok) throw new Error(json.error || 'Erreur serveur');
+    return json;
+  });
+}
+
+// ── Load all products ──
+async function loadAllProduits() {
+  try {
+    const res = await api('/catalogue?actif=all');
+    allProduits = res.produits || [];
+    if (allProduits.length === 0) {
+      document.getElementById('template-banner').classList.remove('hide');
+    } else {
+      document.getElementById('template-banner').classList.add('hide');
+    }
+  } catch (e) {
+    toast('Erreur chargement catalogue : ' + e.message, 'err');
+    allProduits = [];
+  }
+}
+
+// ══════════════════════════════════════════
+// LEVEL 1 — FAMILIES
+// ══════════════════════════════════════════
+function renderFamilies() {
+  const grid = document.getElementById('family-grid');
+  grid.innerHTML = FAMILIES.map(f => {
+    const count = allProduits.filter(p => p.categorie === f.key && p.est_actif).length;
+    return `<div class="family-card" onclick="selectFamily('${f.key}','${esc(f.name)}')">
+      <span class="family-card-icon">${f.icon}</span>
+      <div class="family-card-name">${esc(f.name)}</div>
+      <div class="family-card-count">${count} produit${count !== 1 ? 's' : ''} actif${count !== 1 ? 's' : ''}</div>
+      ${count > 0 ? `<span class="family-card-badge">${count}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  const totalActive = allProduits.filter(p => p.est_actif).length;
+  const totalAll = allProduits.length;
+  document.getElementById('l1-sub').textContent =
+    totalAll === 0
+      ? 'Votre catalogue est vide. Ajoutez vos premiers produits.'
+      : `${totalActive} produit${totalActive !== 1 ? 's' : ''} actif${totalActive !== 1 ? 's' : ''} au total.`;
+}
+
+// ══════════════════════════════════════════
+// LEVEL 2 — SUBFAMILIES
+// ══════════════════════════════════════════
+function selectFamily(key, name) {
+  selectedFamily = key;
+  selectedSubfamily = null;
+  updateBreadcrumb();
+  showLevel('l2');
+
+  document.getElementById('l2-title').textContent = name;
+  const famProds = allProduits.filter(p => p.categorie === key);
+  const actif = famProds.filter(p => p.est_actif).length;
+  document.getElementById('l2-sub').textContent = `${actif} produit${actif !== 1 ? 's' : ''} actif${actif !== 1 ? 's' : ''} dans cette famille`;
+
+  // Collect subfamilies
+  const subs = {};
+  famProds.forEach(p => {
+    const sub = p.sous_categorie || '__none__';
+    if (!subs[sub]) subs[sub] = { count: 0, actif: 0 };
+    subs[sub].count++;
+    if (p.est_actif) subs[sub].actif++;
+  });
+
+  const grid = document.getElementById('subfamily-grid');
+  let html = '';
+
+  // Subfamilies with products
+  Object.entries(subs).forEach(([sub, info]) => {
+    const label = sub === '__none__' ? 'Sans sous-categorie' : sub;
+    const icon = getSubfamilyIcon(sub);
+    html += `<div class="subfamily-card" onclick="selectSubfamily('${esc(sub)}','${esc(label)}')">
+      <div class="subfamily-card-icon">${icon}</div>
+      <div class="subfamily-card-name">${esc(label)}</div>
+      <div class="subfamily-card-count">${info.actif} produit${info.actif !== 1 ? 's' : ''} actif${info.actif !== 1 ? 's' : ''}</div>
+    </div>`;
+  });
+
+  // "Voir tous" card if subfamilies exist
+  if (Object.keys(subs).length > 1) {
+    html = `<div class="subfamily-card" onclick="selectSubfamily('__all__','Tous les produits')">
+      <div class="subfamily-card-icon">📋</div>
+      <div class="subfamily-card-name" style="color:var(--accent);">Voir tous</div>
+      <div class="subfamily-card-count">${actif} produit${actif !== 1 ? 's' : ''}</div>
+    </div>` + html;
+  }
+
+  // No products in family
+  if (Object.keys(subs).length === 0) {
+    html = `<div style="grid-column:1/-1;" class="empty">
+      <div class="empty-icon">📁</div>
+      <div class="empty-title">Aucun produit dans cette famille</div>
+      <div class="empty-sub">Ajoutez votre premier produit.</div>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter un produit</button>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function getSubfamilyIcon(sub) {
+  if (!sub || sub === '__none__') return '📄';
+  const s = sub.toLowerCase();
+  if (s.includes('zircon')) return '💎';
+  if (s.includes('resine') || s.includes('acryl')) return '🔬';
+  if (s.includes('metal') || s.includes('stellite')) return '⚙️';
+  if (s.includes('ceram')) return '🏺';
+  if (s.includes('implant')) return '🔩';
+  if (s.includes('gouttiere')) return '🦷';
+  if (s.includes('appareil')) return '📐';
+  if (s.includes('aligner')) return '🌀';
+  return '🗂️';
+}
+
+// ══════════════════════════════════════════
+// LEVEL 3 — PRODUCTS
+// ══════════════════════════════════════════
+function selectSubfamily(sub, label) {
+  selectedSubfamily = sub;
+  updateBreadcrumb();
+  showLevel('l3');
+  document.getElementById('l3-title').textContent = label;
+  renderProducts();
+}
+
+function renderProducts() {
+  let prods = allProduits.filter(p => p.categorie === selectedFamily);
+
+  if (selectedSubfamily && selectedSubfamily !== '__all__') {
+    if (selectedSubfamily === '__none__') {
+      prods = prods.filter(p => !p.sous_categorie || p.sous_categorie === '');
+    } else {
+      prods = prods.filter(p => p.sous_categorie === selectedSubfamily);
+    }
+  }
+
+  if (currentFilter === 'actif') prods = prods.filter(p => p.est_actif);
+  else if (currentFilter === 'inactif') prods = prods.filter(p => !p.est_actif);
+
+  const metaEl = document.getElementById('l3-meta');
+  metaEl.textContent = `${prods.length} produit${prods.length !== 1 ? 's' : ''}`;
+
+  const tbody = document.getElementById('products-tbody');
+  const wrap = document.getElementById('products-wrap');
+  const empty = document.getElementById('products-empty');
+
+  if (prods.length === 0) {
+    wrap.classList.add('hide');
+    empty.classList.remove('hide');
+  } else {
+    wrap.classList.remove('hide');
+    empty.classList.add('hide');
+    tbody.innerHTML = prods.map(p => renderProductRow(p)).join('');
+  }
+}
+
+function renderProductRow(p) {
+  const tvaLabel = p.tva_applicable
+    ? `<span class="badge badge-tva">TVA ${p.taux_tva || 20}%</span>`
+    : `<span class="badge badge-franchise">Franchise</span>`;
+  const statusBadge = p.est_actif
+    ? `<span class="badge badge-active">Actif</span>`
+    : `<span class="badge badge-inactive">Inactif</span>`;
+  const ccam = p.code_ccam
+    ? `<span class="prod-code">${esc(p.code_ccam)}</span>`
+    : `<span style="color:var(--muted);font-size:11px;">—</span>`;
+  const prix = p.prix_unitaire != null
+    ? `<div class="prod-price">${parseFloat(p.prix_unitaire).toFixed(2)} €</div><div class="prod-price-sub">HT</div>`
+    : `<div class="prod-price" style="color:var(--muted);">—</div>`;
+
+  const toggleIcon = p.est_actif ? '⏸' : '▶';
+  const toggleTitle = p.est_actif ? 'Desactiver' : 'Activer';
+  const toggleClass = p.est_actif ? 'toggle-on' : 'toggle-off';
+
+  const sourceTag = p.source_ajout === 'ia'
+    ? `<span class="badge badge-ia" style="margin-left:5px;">IA</span>`
+    : p.source_ajout === 'template'
+      ? `<span class="badge" style="background:var(--accent-soft);color:var(--accent);margin-left:5px;">Modele</span>`
+      : '';
+
+  return `<tr class="${p.est_actif ? '' : 'inactive'}" id="row-${p.id}">
+    <td>
+      <div class="prod-nom">${esc(p.nom)}${sourceTag}</div>
+      ${p.description ? `<div class="prod-desc">${esc(p.description)}</div>` : ''}
+    </td>
+    <td>${prix}</td>
+    <td>${tvaLabel}</td>
+    <td>${ccam}</td>
+    <td>${statusBadge}</td>
+    <td>
+      <div class="action-btns">
+        <button class="icon-btn edit" title="Modifier" onclick="openEditModal(${p.id})">✏️</button>
+        <button class="icon-btn ${toggleClass}" title="${toggleTitle}" onclick="toggleProduct(${p.id},${p.est_actif})">${toggleIcon}</button>
+        <button class="icon-btn del" title="Supprimer" onclick="askDelete(${p.id},'${esc(p.nom)}')">🗑</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+// ══════════════════════════════════════════
+// NAVIGATION HELPERS
+// ══════════════════════════════════════════
+function showLevel(level) {
+  document.querySelectorAll('.level-view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + level).classList.add('active');
+  document.getElementById('view-search').classList.remove('active');
+}
+
+function updateBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  let html = `<div class="breadcrumb-item"><span class="crumb-link" onclick="goToFamilies()">Familles</span></div>`;
+
+  if (selectedFamily) {
+    const fam = FAMILIES.find(f => f.key === selectedFamily);
+    html += `<span class="breadcrumb-sep">›</span>`;
+    if (selectedSubfamily) {
+      html += `<div class="breadcrumb-item"><span class="crumb-link" onclick="backToL2()">${esc(fam?.name || selectedFamily)}</span></div>`;
+      html += `<span class="breadcrumb-sep">›</span>`;
+      const subLabel = selectedSubfamily === '__all__' ? 'Tous les produits'
+                     : selectedSubfamily === '__none__' ? 'Sans sous-categorie'
+                     : selectedSubfamily;
+      html += `<div class="breadcrumb-item"><span class="crumb-current">${esc(subLabel)}</span></div>`;
+    } else {
+      html += `<div class="breadcrumb-item"><span class="crumb-current">${esc(fam?.name || selectedFamily)}</span></div>`;
+    }
+  }
+
+  bc.innerHTML = html;
+}
+
+function goToFamilies() {
+  selectedFamily = null;
+  selectedSubfamily = null;
+  showLevel('l1');
+  updateBreadcrumb();
+  renderFamilies();
+}
+
+function backToL2() {
+  selectedSubfamily = null;
+  showLevel('l2');
+  updateBreadcrumb();
+  const fam = FAMILIES.find(f => f.key === selectedFamily);
+  if (fam) selectFamily(fam.key, fam.name);
+}
+
+function setFilter(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderProducts();
+}
+
+// ══════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('clear-search');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearBtn.classList.toggle('show', q.length > 0);
+    clearTimeout(searchDebounce);
+    if (q.length === 0) {
+      document.getElementById('view-search').classList.remove('active');
+      // Restore current level
+      if (selectedSubfamily) showLevel('l3');
+      else if (selectedFamily) showLevel('l2');
+      else showLevel('l1');
+      return;
+    }
+    searchDebounce = setTimeout(() => performSearch(q), 280);
+  });
+}
+
+function clearSearch() {
+  const input = document.getElementById('search-input');
+  input.value = '';
+  document.getElementById('clear-search').classList.remove('show');
+  document.getElementById('view-search').classList.remove('active');
+  if (selectedSubfamily) showLevel('l3');
+  else if (selectedFamily) showLevel('l2');
+  else showLevel('l1');
+}
+
+function performSearch(q) {
+  const ql = q.toLowerCase();
+  const results = allProduits.filter(p =>
+    p.nom?.toLowerCase().includes(ql) ||
+    p.description?.toLowerCase().includes(ql) ||
+    p.code_ccam?.toLowerCase().includes(ql) ||
+    p.sous_categorie?.toLowerCase().includes(ql)
+  );
+
+  document.querySelectorAll('.level-view').forEach(v => v.classList.remove('active'));
+  const view = document.getElementById('view-search');
+  view.classList.add('active');
+
+  const famMap = {};
+  FAMILIES.forEach(f => { famMap[f.key] = f.name; });
+
+  const list = document.getElementById('search-results-list');
+  if (results.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">Aucun produit trouve</div><div class="empty-sub">Essayez un autre terme de recherche.</div></div>`;
+    return;
+  }
+
+  list.innerHTML = results.map(p => {
+    const famName = famMap[p.categorie] || p.categorie || '';
+    const subName = p.sous_categorie ? ` › ${p.sous_categorie}` : '';
+    const prix = p.prix_unitaire != null ? parseFloat(p.prix_unitaire).toFixed(2) + ' €' : '—';
+    const statusDot = p.est_actif ? '🟢' : '🔴';
+    return `<div class="search-result-row" onclick="goToProduct('${p.categorie}','${esc(p.sous_categorie || '__none__')}')">
+      <div style="font-size:20px;">${FAMILIES.find(f=>f.key===p.categorie)?.icon||'📦'}</div>
+      <div class="srr-info">
+        <div class="srr-nom">${esc(p.nom)} ${statusDot}</div>
+        <div class="srr-meta">${esc(famName)}${esc(subName)}${p.code_ccam ? ' · ' + p.code_ccam : ''}</div>
+      </div>
+      <div class="srr-price">${prix} HT</div>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditModal(${p.id})">✏️ Editer</button>
+    </div>`;
+  }).join('');
+}
+
+function goToProduct(catKey, subKey) {
+  clearSearch();
+  const fam = FAMILIES.find(f => f.key === catKey);
+  if (fam) selectFamily(fam.key, fam.name);
+  const subLabel = subKey === '__none__' ? 'Sans sous-categorie' : subKey;
+  selectSubfamily(subKey, subLabel);
+}
+
+// ══════════════════════════════════════════
+// MODAL — ADD / EDIT PRODUCT
+// ══════════════════════════════════════════
+function openAddModal() {
+  document.getElementById('modal-product-title').textContent = 'Nouveau produit';
+  document.getElementById('prod-id').value = '';
+  document.getElementById('prod-nom').value = '';
+  document.getElementById('prod-desc').value = '';
+  document.getElementById('prod-prix').value = '';
+  document.getElementById('prod-ccam').value = '';
+  document.getElementById('prod-ordre').value = '0';
+  document.getElementById('prod-tva-applicable').checked = false;
+  document.getElementById('prod-taux-tva').value = '20';
+  document.getElementById('prod-taux-tva').disabled = true;
+  document.getElementById('prod-teinte').checked = false;
+  document.getElementById('prod-teinte-gingivale').checked = false;
+  document.getElementById('prod-materiau').checked = false;
+  document.getElementById('prod-type').value = 'prothese';
+
+  populateCategorieOptions();
+  const catSel = document.getElementById('prod-categorie');
+  catSel.value = selectedFamily || '';
+  updateSubcatOptions();
+  if (selectedSubfamily && selectedSubfamily !== '__all__' && selectedSubfamily !== '__none__') {
+    setTimeout(() => { document.getElementById('prod-sous-categorie').value = selectedSubfamily; }, 50);
+  }
+
+  openModal('modal-product');
+}
+
+function openEditModal(id) {
+  const p = allProduits.find(x => x.id === id);
+  if (!p) return;
+
+  document.getElementById('modal-product-title').textContent = 'Modifier le produit';
+  document.getElementById('prod-id').value = p.id;
+  document.getElementById('prod-nom').value = p.nom || '';
+  document.getElementById('prod-desc').value = p.description || '';
+  document.getElementById('prod-prix').value = p.prix_unitaire != null ? p.prix_unitaire : '';
+  document.getElementById('prod-ccam').value = p.code_ccam || '';
+  document.getElementById('prod-ordre').value = p.ordre_affichage || 0;
+  document.getElementById('prod-tva-applicable').checked = !!p.tva_applicable;
+  document.getElementById('prod-taux-tva').value = p.taux_tva || '20';
+  document.getElementById('prod-taux-tva').disabled = !p.tva_applicable;
+  document.getElementById('prod-teinte').checked = !!p.necessite_teinte;
+  document.getElementById('prod-teinte-gingivale').checked = !!p.necessite_teinte_gingivale;
+  document.getElementById('prod-materiau').checked = !!p.necessite_materiau;
+  document.getElementById('prod-type').value = p.type_produit || 'prothese';
+
+  populateCategorieOptions();
+  document.getElementById('prod-categorie').value = p.categorie || '';
+  updateSubcatOptions();
+  setTimeout(() => {
+    document.getElementById('prod-sous-categorie').value = p.sous_categorie || '';
+  }, 50);
+
+  openModal('modal-product');
+}
+
+function populateCategorieOptions() {
+  const sel = document.getElementById('prod-categorie');
+  sel.innerHTML = '<option value="">-- Selectionnez --</option>' +
+    FAMILIES.map(f => `<option value="${f.key}">${f.name}</option>`).join('');
+}
+
+function updateSubcatOptions() {
+  const cat = document.getElementById('prod-categorie').value;
+  const sel = document.getElementById('prod-sous-categorie');
+  const subs = [...new Set(
+    allProduits
+      .filter(p => p.categorie === cat && p.sous_categorie)
+      .map(p => p.sous_categorie)
+  )].sort();
+
+  sel.innerHTML = '<option value="">-- Aucune --</option>' +
+    subs.map(s => `<option value="${s}">${esc(s)}</option>`).join('');
+}
+
+function toggleTvaRate() {
+  const checked = document.getElementById('prod-tva-applicable').checked;
+  document.getElementById('prod-taux-tva').disabled = !checked;
+}
+
+async function saveProduct() {
+  const nom = document.getElementById('prod-nom').value.trim();
+  const prix = document.getElementById('prod-prix').value;
+  const cat = document.getElementById('prod-categorie').value;
+
+  if (!nom) { toast('Le nom est obligatoire', 'err'); return; }
+  if (!cat) { toast('Selectionnez une famille', 'err'); return; }
+  if (prix === '' || isNaN(prix)) { toast('Entrez un prix valide', 'err'); return; }
+
+  const body = {
+    nom,
+    categorie: cat,
+    sous_categorie: document.getElementById('prod-sous-categorie').value || null,
+    description: document.getElementById('prod-desc').value.trim() || null,
+    prix_unitaire: parseFloat(prix),
+    code_ccam: document.getElementById('prod-ccam').value.trim() || null,
+    ordre_affichage: parseInt(document.getElementById('prod-ordre').value) || 0,
+    tva_applicable: document.getElementById('prod-tva-applicable').checked,
+    taux_tva: parseFloat(document.getElementById('prod-taux-tva').value) || 0,
+    type_produit: document.getElementById('prod-type').value,
+    necessite_teinte: document.getElementById('prod-teinte').checked,
+    necessite_teinte_gingivale: document.getElementById('prod-teinte-gingivale').checked,
+    necessite_materiau: document.getElementById('prod-materiau').checked,
+    source_ajout: 'manuel'
+  };
+
+  const id = document.getElementById('prod-id').value;
+  try {
+    let res;
+    if (id) {
+      res = await api('/catalogue/' + id, { method: 'PUT', body: JSON.stringify(body) });
+      // Update local
+      const idx = allProduits.findIndex(p => p.id == id);
+      if (idx >= 0) allProduits[idx] = res.produit || { ...allProduits[idx], ...body };
+    } else {
+      res = await api('/catalogue', { method: 'POST', body: JSON.stringify(body) });
+      if (res.produit) allProduits.push({ ...res.produit, est_actif: true });
+    }
+    closeModal('modal-product');
+    toast(id ? 'Produit modifie ✓' : 'Produit ajoute ✓', 'ok');
+    renderFamilies();
+    if (selectedFamily) selectFamily(selectedFamily, FAMILIES.find(f=>f.key===selectedFamily)?.name || selectedFamily);
+    if (selectedSubfamily) selectSubfamily(selectedSubfamily, selectedSubfamily === '__all__' ? 'Tous les produits' : selectedSubfamily === '__none__' ? 'Sans sous-categorie' : selectedSubfamily);
+    document.getElementById('template-banner').classList.add('hide');
+  } catch (e) {
+    toast('Erreur : ' + e.message, 'err');
+  }
+}
+
+// ── Toggle active ──
+async function toggleProduct(id, currentlyActive) {
+  try {
+    const res = await api('/catalogue/' + id, {
+      method: 'PUT',
+      body: JSON.stringify({ est_actif: !currentlyActive })
+    });
+    const idx = allProduits.findIndex(p => p.id === id);
+    if (idx >= 0) allProduits[idx].est_actif = !currentlyActive;
+    toast(!currentlyActive ? 'Produit active ✓' : 'Produit desactive', !currentlyActive ? 'ok' : '');
+    renderFamilies();
+    if (selectedSubfamily) renderProducts();
+  } catch (e) {
+    toast('Erreur : ' + e.message, 'err');
+  }
+}
+
+// ── Delete / deactivate ──
+function askDelete(id, nom) {
+  deleteTargetId = id;
+  deleteTargetNom = nom;
+  document.getElementById('confirm-prod-nom').textContent = nom;
+  openModal('modal-confirm');
+}
+
+async function confirmDelete() {
+  if (!deleteTargetId) return;
+  try {
+    await api('/catalogue/' + deleteTargetId, { method: 'DELETE' });
+    const idx = allProduits.findIndex(p => p.id === deleteTargetId);
+    if (idx >= 0) allProduits[idx].est_actif = false;
+    closeModal('modal-confirm');
+    toast('Produit desactive ✓', 'ok');
+    renderFamilies();
+    if (selectedSubfamily) renderProducts();
+  } catch (e) {
+    toast('Erreur : ' + e.message, 'err');
+  }
+  deleteTargetId = null;
+}
+
+// ── Subfamily ──
+function openAddSubfamily() {
+  document.getElementById('new-subfamily-name').value = '';
+  openModal('modal-subfamily');
+}
+
+function createSubfamily() {
+  const name = document.getElementById('new-subfamily-name').value.trim();
+  if (!name) { toast('Entrez un nom', 'err'); return; }
+  closeModal('modal-subfamily');
+  // Pre-fill the add product modal with this subfamily
+  openAddModal();
+  setTimeout(() => {
+    document.getElementById('prod-categorie').value = selectedFamily || '';
+    updateSubcatOptions();
+    // Add it to options
+    const sel = document.getElementById('prod-sous-categorie');
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+    sel.value = name;
+  }, 100);
+}
+
+// ── Install template ──
+async function installTemplate() {
+  const btn = document.querySelector('[onclick="installTemplate()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Installation...'; }
+  try {
+    await api('/profil/template-catalogue', { method: 'POST' });
+    toast('Catalogue type installe avec succes ✓', 'ok');
+    await loadAllProduits();
+    renderFamilies();
+    document.getElementById('template-banner').classList.add('hide');
+  } catch (e) {
+    toast('Erreur installation : ' + e.message, 'err');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '⚡ Installer le catalogue type'; }
+}
+
+// ── Modal helpers ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ── Toast ──
+function toast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (kind ? ' ' + kind : '');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+
+// ── Escape HTML ──
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ── Breadcrumb init ──
+updateBreadcrumb();
+</script>
+</body>
+</html>

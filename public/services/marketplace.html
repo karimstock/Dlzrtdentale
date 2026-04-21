@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Services — Marketplace</title>
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<style>
+html,body{height:100%;overflow:hidden}
+.layout{display:flex;height:100vh}
+.sidebar{width:260px;min-height:100vh;display:flex;flex-direction:column;padding:20px 0;position:fixed;left:0;top:0;z-index:10}
+.sidebar .logo{padding:16px 24px;font-family:var(--display);font-size:22px;font-weight:700}
+.sidebar .logo span{color:var(--accent3)}
+.sidebar nav{flex:1;padding:12px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;transition:all .2s;border-left:3px solid transparent;font-size:14px;text-decoration:none;margin-bottom:2px}
+.nav-item:hover{background:rgba(99,102,241,.15);color:var(--text)}
+.nav-item.active{color:var(--accent);background:rgba(99,102,241,.18);border-left-color:var(--accent)}
+.nav-item .ico{font-size:18px;width:24px;text-align:center}
+.main{margin-left:260px;flex:1;overflow-y:auto;padding:28px 36px;height:100vh}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-family:var(--display);font-size:24px;font-weight:700}
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);border-radius:var(--radius-sm);padding:4px;width:fit-content}
+.tab-btn{padding:8px 20px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-weight:600;border-radius:8px;transition:all .2s}
+.tab-btn.active{background:var(--accent);color:#fff}
+.tab-content{display:none}.tab-content.active{display:block}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.product-card{border-radius:var(--radius);padding:18px;background:rgba(30,52,96,.5);border:1px solid var(--border);transition:all .3s;cursor:pointer}
+.product-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.product-type{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase}
+.type-vente{background:rgba(16,185,129,.15);color:var(--success)}
+.type-location{background:rgba(6,182,212,.15);color:var(--accent3)}
+.product-nom{font-size:16px;font-weight:700;margin:10px 0 6px}
+.product-desc{font-size:13px;color:var(--text-secondary);margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.product-meta{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.product-prix{font-size:18px;font-weight:700;color:var(--accent)}
+.product-stock{color:var(--text-secondary)}
+.stock-low{color:var(--danger)!important}
+/* Commandes */
+.cmd-table{width:100%;border-collapse:collapse}
+.cmd-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600}
+.cmd-en_cours{background:rgba(99,102,241,.15);color:var(--accent)}
+.cmd-livre{background:rgba(16,185,129,.15);color:var(--success)}
+.cmd-retourne{background:rgba(6,182,212,.15);color:var(--accent3)}
+.cmd-annule{background:rgba(239,68,68,.15);color:var(--danger)}
+.caution-badge{padding:3px 8px;border-radius:12px;font-size:10px;font-weight:600}
+.caution-en_attente{background:rgba(245,158,11,.15);color:var(--warning)}
+.caution-rembourse{background:rgba(16,185,129,.15);color:var(--success)}
+.caution-a_rembourser{background:rgba(6,182,212,.15);color:var(--accent3)}
+.modal-bg{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{padding:28px;max-width:560px;width:95%;max-height:85vh;overflow-y:auto}
+.modal h2{font-family:var(--display);font-size:20px;margin-bottom:16px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;font-size:14px}
+.field textarea{min-height:60px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.modal-actions button{padding:10px 20px;border-radius:var(--radius-sm);font-weight:600;font-size:14px}
+.empty{padding:40px;text-align:center;color:var(--text-secondary);border:1px dashed var(--border);border-radius:var(--radius)}
+@media(max-width:900px){.sidebar{display:none}.main{margin-left:0;padding:12px}.products-grid{grid-template-columns:1fr}.row,.row3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">JADOMI<span>.services</span></div>
+    <nav>
+      <a class="nav-item" href="/services/dashboard.html"><span class="ico">&#x1F4CA;</span> Vue d'ensemble</a>
+      <a class="nav-item" href="/services/agenda.html"><span class="ico">&#x1F4C5;</span> Agenda</a>
+      <a class="nav-item" href="/services/prestations.html"><span class="ico">&#x1F6CD;&#xFE0F;</span> Prestations</a>
+      <a class="nav-item" href="/services/clients.html"><span class="ico">&#x1F465;</span> Clients</a>
+      <a class="nav-item" href="/services/comptabilite.html"><span class="ico">&#x1F4B0;</span> Comptabilit&eacute;</a>
+      <a class="nav-item active" href="/services/marketplace.html"><span class="ico">&#x1F3EA;</span> Marketplace</a>
+      <a class="nav-item" href="/services/parametres.html"><span class="ico">&#x2699;&#xFE0F;</span> Param&egrave;tres</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h1>Marketplace</h1>
+      <button class="btn-primary" onclick="openProductModal()" style="padding:10px 20px;font-size:14px">+ Nouveau produit</button>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('produits')">Produits</button>
+      <button class="tab-btn" onclick="showTab('commandes')">Commandes</button>
+    </div>
+    <div class="tab-content active" id="tab-produits">
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <select id="filterType" onchange="loadProducts()"><option value="">Tous</option><option value="vente">Vente</option><option value="location">Location</option></select>
+      </div>
+      <div class="products-grid" id="productsList"></div>
+    </div>
+    <div class="tab-content" id="tab-commandes">
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <select id="filterCmdStatut" onchange="loadCommandes()"><option value="">Tous statuts</option><option value="en_cours">En cours</option><option value="livre">Livr&eacute;</option><option value="retourne">Retourn&eacute;</option><option value="annule">Annul&eacute;</option></select>
+      </div>
+      <table class="tbl cmd-table">
+        <thead><tr><th>Produit</th><th>Client</th><th>Type</th><th>Montant</th><th>Caution</th><th>Statut</th><th>Date</th><th></th></tr></thead>
+        <tbody id="commandesList"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<!-- Product Modal -->
+<div class="modal-bg" id="modalProduct">
+  <div class="modal">
+    <h2 id="prodModalTitle">Nouveau produit</h2>
+    <input type="hidden" id="prodId">
+    <div class="field"><label>Nom</label><input type="text" id="pNom"></div>
+    <div class="field"><label>Description</label><textarea id="pDesc"></textarea></div>
+    <div class="row">
+      <div class="field"><label>Type</label><select id="pType"><option value="vente">Vente</option><option value="location">Location</option></select></div>
+      <div class="field"><label>Cat&eacute;gorie</label><input type="text" id="pCat"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>Prix vente (&euro;)</label><input type="number" id="pPrix" value="0" min="0" step="0.01"></div>
+      <div class="field"><label>Prix location/jour (&euro;)</label><input type="number" id="pPrixLoc" value="0" min="0" step="0.01"></div>
+      <div class="field"><label>Caution (&euro;)</label><input type="number" id="pCaution" value="0" min="0" step="0.01"></div>
+    </div>
+    <div class="field"><label>Stock</label><input type="number" id="pStock" value="0" min="0"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeProductModal()">Annuler</button>
+      <button class="btn-danger" id="btnDeleteProd" onclick="deleteProduct()" style="display:none">Supprimer</button>
+      <button class="btn-primary" onclick="saveProduct()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+<!-- Commande Modal -->
+<div class="modal-bg" id="modalCommande">
+  <div class="modal">
+    <h2>Nouvelle commande</h2>
+    <div class="row">
+      <div class="field"><label>Produit</label><select id="cProduit"></select></div>
+      <div class="field"><label>Type</label><select id="cType"><option value="vente">Vente</option><option value="location">Location</option></select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Client nom</label><input type="text" id="cNom"></div>
+      <div class="field"><label>Client email</label><input type="email" id="cEmail"></div>
+    </div>
+    <div class="field"><label>T&eacute;l&eacute;phone</label><input type="tel" id="cTel"></div>
+    <div class="row">
+      <div class="field"><label>Quantit&eacute;</label><input type="number" id="cQty" value="1" min="1"></div>
+      <div class="field"><label>Montant total (&euro;)</label><input type="number" id="cMontant" value="0" min="0" step="0.01"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Date d&eacute;but (location)</label><input type="date" id="cDateDebut"></div>
+      <div class="field"><label>Date fin (location)</label><input type="date" id="cDateFin"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeCommandeModal()">Annuler</button>
+      <button class="btn-primary" onclick="saveCommande()">Cr&eacute;er</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let TOKEN='',allProducts=[];
+async function refreshToken(){const{data}=await sb.auth.getSession();if(!data?.session){location.href='/pro/login.html';return}TOKEN=data.session.access_token}
+async function api(url,opts={}){
+  if(!TOKEN)await refreshToken();
+  const h={'Content-Type':'application/json','Authorization':'Bearer '+TOKEN,...(opts.headers||{})};
+  if(localStorage.getItem('societe_id'))h['X-Societe-Id']=localStorage.getItem('societe_id');
+  let r=await fetch(url,{...opts,headers:h});
+  if(r.status===401){await refreshToken();h['Authorization']='Bearer '+TOKEN;r=await fetch(url,{...opts,headers:h})}
+  return r.json();
+}
+function showTab(n){
+  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick*="${n}"]`).classList.add('active');
+  document.getElementById('tab-'+n).classList.add('active');
+  if(n==='commandes')loadCommandes();
+}
+async function loadProducts(){
+  const type=document.getElementById('filterType').value;
+  let url='/api/services/produits';
+  if(type)url+=`?type=${type}`;
+  const r=await api(url);
+  allProducts=r.produits||[];
+  const c=document.getElementById('productsList');
+  if(!allProducts.length){c.innerHTML='<div class="empty">Aucun produit</div>';return}
+  c.innerHTML=allProducts.map(p=>`<div class="product-card" onclick="editProduct('${p.id}')">
+    <span class="product-type ${p.type==='vente'?'type-vente':'type-location'}">${p.type}</span>
+    <div class="product-nom">${p.nom}</div>
+    <div class="product-desc">${p.description||''}</div>
+    <div class="product-meta">
+      <span class="product-prix">${p.type==='location'?(p.prix_location_jour||0)+'€/j':p.prix+'€'}</span>
+      <span class="product-stock ${p.stock_quantite<=2?'stock-low':''}">Stock: ${p.stock_quantite}</span>
+    </div>
+    ${p.caution?`<div style="font-size:11px;color:var(--warning);margin-top:6px">Caution: ${p.caution}€</div>`:''}
+  </div>`).join('');
+  // Update commande product select
+  document.getElementById('cProduit').innerHTML=allProducts.map(p=>`<option value="${p.id}">${p.nom} (${p.type})</option>`).join('');
+}
+async function loadCommandes(){
+  const statut=document.getElementById('filterCmdStatut').value;
+  let url='/api/services/commandes';
+  if(statut)url+=`?statut=${statut}`;
+  const r=await api(url);
+  const cmds=r.commandes||[];
+  const tbody=document.getElementById('commandesList');
+  tbody.innerHTML=cmds.map(c=>`<tr>
+    <td>${c.produit?.nom||'—'}</td>
+    <td>${c.client_nom||'—'}<br><small style="color:var(--text-secondary)">${c.client_email||''}</small></td>
+    <td><span class="product-type ${c.type==='vente'?'type-vente':'type-location'}">${c.type}</span></td>
+    <td><strong>${(c.montant_total||0).toFixed(2)}€</strong></td>
+    <td>${c.caution_montant?`<span class="caution-badge caution-${c.caution_statut||'en_attente'}">${c.caution_montant}€ ${c.caution_statut||''}</span>`:'—'}</td>
+    <td><span class="cmd-status cmd-${c.statut}">${c.statut}</span></td>
+    <td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
+    <td>${c.statut==='en_cours'?`<button class="btn-ghost" style="padding:4px 10px;font-size:11px" onclick="updateCmd('${c.id}','livre')">Livrer</button>`:''}${c.type==='location'&&c.statut==='livre'?`<button class="btn-ghost" style="padding:4px 10px;font-size:11px" onclick="updateCmd('${c.id}','retourne')">Retour</button>`:''}</td>
+  </tr>`).join('')||'<tr><td colspan="8"><div class="empty">Aucune commande</div></td></tr>';
+}
+function openProductModal(p){
+  document.getElementById('prodModalTitle').textContent=p?'Modifier le produit':'Nouveau produit';
+  document.getElementById('prodId').value=p?p.id:'';
+  document.getElementById('pNom').value=p?p.nom:'';
+  document.getElementById('pDesc').value=p?p.description||'':'';
+  document.getElementById('pType').value=p?p.type:'vente';
+  document.getElementById('pCat').value=p?p.categorie||'':'';
+  document.getElementById('pPrix').value=p?p.prix||0:0;
+  document.getElementById('pPrixLoc').value=p?p.prix_location_jour||0:0;
+  document.getElementById('pCaution').value=p?p.caution||0:0;
+  document.getElementById('pStock').value=p?p.stock_quantite||0:0;
+  document.getElementById('btnDeleteProd').style.display=p?'':'none';
+  document.getElementById('modalProduct').classList.add('open');
+}
+function closeProductModal(){document.getElementById('modalProduct').classList.remove('open')}
+function editProduct(id){const p=allProducts.find(x=>x.id===id);if(p)openProductModal(p)}
+async function saveProduct(){
+  const id=document.getElementById('prodId').value;
+  const body={
+    nom:document.getElementById('pNom').value,
+    description:document.getElementById('pDesc').value,
+    type:document.getElementById('pType').value,
+    categorie:document.getElementById('pCat').value,
+    prix:parseFloat(document.getElementById('pPrix').value)||0,
+    prix_location_jour:parseFloat(document.getElementById('pPrixLoc').value)||0,
+    caution:parseFloat(document.getElementById('pCaution').value)||0,
+    stock_quantite:parseInt(document.getElementById('pStock').value)||0
+  };
+  if(id)await api('/api/services/produits/'+id,{method:'PATCH',body:JSON.stringify(body)});
+  else await api('/api/services/produits',{method:'POST',body:JSON.stringify(body)});
+  closeProductModal();loadProducts();
+}
+async function deleteProduct(){
+  const id=document.getElementById('prodId').value;
+  if(!id||!confirm('Supprimer ce produit ?'))return;
+  await api('/api/services/produits/'+id,{method:'DELETE'});
+  closeProductModal();loadProducts();
+}
+function openCommandeModal(){document.getElementById('modalCommande').classList.add('open')}
+function closeCommandeModal(){document.getElementById('modalCommande').classList.remove('open')}
+async function saveCommande(){
+  const prodId=document.getElementById('cProduit').value;
+  const prod=allProducts.find(p=>p.id===prodId);
+  const body={
+    produit_id:prodId,
+    type:document.getElementById('cType').value,
+    client_nom:document.getElementById('cNom').value,
+    client_email:document.getElementById('cEmail').value,
+    client_telephone:document.getElementById('cTel').value,
+    quantite:parseInt(document.getElementById('cQty').value)||1,
+    montant_total:parseFloat(document.getElementById('cMontant').value)||0,
+    caution_montant:prod?.caution||0,
+    date_debut:document.getElementById('cDateDebut').value||null,
+    date_fin:document.getElementById('cDateFin').value||null
+  };
+  await api('/api/services/commandes',{method:'POST',body:JSON.stringify(body)});
+  closeCommandeModal();loadCommandes();
+}
+async function updateCmd(id,statut){
+  await api('/api/services/commandes/'+id,{method:'PATCH',body:JSON.stringify({statut})});
+  loadCommandes();
+}
+document.getElementById('modalProduct').addEventListener('click',e=>{if(e.target.classList.contains('modal-bg'))closeProductModal()});
+document.getElementById('modalCommande').addEventListener('click',e=>{if(e.target.classList.contains('modal-bg'))closeCommandeModal()});
+async function init(){await refreshToken();loadProducts()}
+init();
+</script>
+</body>
+</html>

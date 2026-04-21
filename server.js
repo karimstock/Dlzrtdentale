@@ -37,10 +37,10 @@ app.use(cors({
 // === Security: Rate limiting ===
 const rateLimit = require('express-rate-limit');
 
-// Global API : 100 requetes / 15 min / IP (bypass assets statiques et health)
+// Global API : 300 requetes / 15 min / IP (bypass assets statiques et health)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requetes, reessayez dans 15 minutes' },
@@ -205,6 +205,56 @@ try {
   console.warn('[JADOMI] Module multi-sociétés non charge:', e.message);
 }
 
+// === JADOMI Module Professions Juridiques ===
+try {
+  require('./api/juridique/index')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module juridique non charge:', e.message);
+}
+
+// === JADOMI Module Artisan BTP ===
+try {
+  require('./api/btp/index')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module BTP non charge:', e.message);
+}
+
+// === JADOMI Module Network (Annuaire + Parrainage + Deals) ===
+try {
+  require('./api/network/index')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module Network non charge:', e.message);
+}
+
+// === JADOMI Module Services & Marketplace ===
+try {
+  require('./api/services/index')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module services non charge:', e.message);
+}
+
+// === JADOMI Module Showroom Créateurs ===
+try {
+  require('./api/showroom/index')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module showroom non charge:', e.message);
+}
+
+// === JADOMI Network (Annuaire + Parrainage + Deals) ===
+try {
+  require('./api/network/index')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module network non charge:', e.message);
+}
+
+// === JADOMI Admin Email (inbox IMAP + campagnes mailing) ===
+try {
+  const { mountAdminEmail } = require('./api/admin-email');
+  mountAdminEmail(app, supabase);
+} catch (e) {
+  console.warn('[JADOMI] Module Admin Email non charge:', e.message);
+}
+
 // === JADOMI Email service (OVH Pro) ===
 let emailService = null;
 try {
@@ -295,9 +345,51 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
 });
 
 // =============================================
+// POST /api/ia/extract-facture — Extract products from invoice photo
+// =============================================
+app.post('/api/ia/extract-facture', requireAuth(), async (req, res) => {
+  try {
+    const { image, media_type } = req.body;
+    if (!image) return res.status(400).json({ error: 'image (base64) requis' });
+
+    const mtype = media_type || 'image/jpeg';
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mtype, data: image } },
+          { type: 'text', text: `Analyse cette facture fournisseur et extrais les informations au format JSON strict.
+Retourne UNIQUEMENT un objet JSON (pas de markdown, pas de texte avant/apres) :
+{
+  "fournisseur": "nom du fournisseur",
+  "date_facture": "YYYY-MM-DD",
+  "montant_ht": number,
+  "montant_ttc": number,
+  "produits": [
+    { "nom": "nom du produit", "quantite": number, "prix_unitaire": number, "prix_total": number, "date_peremption": "YYYY-MM-DD ou null" }
+  ]
+}` }
+        ]
+      }]
+    });
+
+    const text = response.content?.[0]?.text || '{}';
+    // Extract JSON from response (handle markdown code blocks)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const facture = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    res.json({ ok: true, facture });
+  } catch (err) {
+    console.error('[/api/ia/extract-facture]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================
 // GET /api/eco/check — Find eco-matching opportunities
 // =============================================
-app.get('/api/eco/check', async (req, res) => {
+app.get('/api/eco/check', requireAuth(), async (req, res) => {
   try {
     const { produit, cabinet } = req.query;
     if (!produit) return res.status(400).json({ error: 'produit is required' });
@@ -360,7 +452,7 @@ app.get('/api/eco/check', async (req, res) => {
 // =============================================
 // POST /api/eco/proposer — Create eco-matching proposal
 // =============================================
-app.post('/api/eco/proposer', async (req, res) => {
+app.post('/api/eco/proposer', requireAuth(), async (req, res) => {
   try {
     const { produit_nom, cabinet_besoin, cabinet_offre, quantite, distance_km, pays, type } = req.body;
 
@@ -397,7 +489,7 @@ app.post('/api/eco/proposer', async (req, res) => {
 // =============================================
 // GET /api/predict/commande — Predict orders for a cabinet
 // =============================================
-app.get('/api/predict/commande', async (req, res) => {
+app.get('/api/predict/commande', requireAuth(), async (req, res) => {
   try {
     const { cabinet } = req.query;
     if (!cabinet) return res.status(400).json({ error: 'cabinet is required' });
@@ -492,7 +584,7 @@ app.get('/api/predict/commande', async (req, res) => {
 // =============================================
 // POST /api/stripe/subscribe — Create Stripe subscription
 // =============================================
-app.post('/api/stripe/subscribe', async (req, res) => {
+app.post('/api/stripe/subscribe', requireAuth(), async (req, res) => {
   try {
     const { plan, periodicite, cabinet_id, email, nom } = req.body;
     if (!plan || !email) return res.status(400).json({ error: 'plan and email required' });
@@ -549,9 +641,10 @@ app.post('/api/stripe/subscribe', async (req, res) => {
 // =============================================
 // POST /api/contrats/generer — Generate contract via Claude API
 // =============================================
-app.post('/api/contrats/generer', async (req, res) => {
+app.post('/api/contrats/generer', requireAuth(), async (req, res) => {
   try {
-    const { user_id, nom, email, cabinet_nom, plan, periodicite, prix_mensuel } = req.body;
+    const { nom, email, cabinet_nom, plan, periodicite, prix_mensuel } = req.body;
+    const user_id = req.user.id;
     if (!nom || !email || !plan) return res.status(400).json({ error: 'nom, email, plan required' });
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -571,7 +664,7 @@ PLAN: ${plan} · ${periodicite || 'mensuel'} · ${prix_mensuel || 29}€/mois (a
 
 Inclure: identite client, plan choisi + prix, fonctionnalites incluses (IA JADOMI, vocal, scan, factures, SOS, marche, Green, Predict), conditions d'utilisation, politique de resiliation (mensuel: resiliable a tout moment sans frais; annuel: engagement 12 mois non remboursable), duree et renouvellement automatique, signature JADOMI pre-apposee.
 
-Design: fond blanc, accent vert #c8f060, logo "JADOMI" en haut, tableau fonctionnalites, zone signature client en bas.
+Design: fond blanc, accent vert #10b981, logo "JADOMI" en haut, tableau fonctionnalites, zone signature client en bas.
 Retourne UNIQUEMENT le HTML complet. Pas de markdown.` }]
     });
 
@@ -626,9 +719,10 @@ Retourne UNIQUEMENT le HTML complet. Pas de markdown.` }]
 // =============================================
 // POST /api/contrats/resilier — Resiliate a contract
 // =============================================
-app.post('/api/contrats/resilier', async (req, res) => {
+app.post('/api/contrats/resilier', requireAuth(), async (req, res) => {
   try {
-    const { contrat_id, motif, user_id, nom, email, cabinet_nom, plan, prix_mensuel } = req.body;
+    const { contrat_id, motif, nom, email, cabinet_nom, plan, prix_mensuel } = req.body;
+    const user_id = req.user.id;
 
     const token = crypto.randomBytes(32).toString('hex');
     const numResiliation = 'JADOMI-R-' + Date.now().toString().slice(-8);
@@ -720,11 +814,11 @@ app.get('/api/signature/:token', async (req, res) => {
     } catch(e) {}
 
     if (!doc) {
-      return res.send(`<!DOCTYPE html><html><head><title>JADOMI</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#f05050;">Lien invalide ou expire</h1><p style="color:#6b6760;">Ce lien de signature n'est plus valide.</p><a href="/" style="color:#c8f060;">Retour a JADOMI</a></div></body></html>`);
+      return res.send(`<!DOCTYPE html><html><head><title>JADOMI</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#f05050;">Lien invalide ou expire</h1><p style="color:#6b6760;">Ce lien de signature n'est plus valide.</p><a href="/" style="color:#10b981;">Retour a JADOMI</a></div></body></html>`);
     }
 
     if (doc.signe) {
-      return res.send(`<!DOCTYPE html><html><head><title>JADOMI — Document signe</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#60d090;">✅ Document deja signe</h1><p style="color:#6b6760;">Ce document a ete signe le ${doc.date_signature ? new Date(doc.date_signature).toLocaleDateString('fr-FR') : ''}.</p><a href="/" style="color:#c8f060;">Retour a JADOMI</a></div></body></html>`);
+      return res.send(`<!DOCTYPE html><html><head><title>JADOMI — Document signe</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#60d090;">✅ Document deja signe</h1><p style="color:#6b6760;">Ce document a ete signe le ${doc.date_signature ? new Date(doc.date_signature).toLocaleDateString('fr-FR') : ''}.</p><a href="/" style="color:#10b981;">Retour a JADOMI</a></div></body></html>`);
     }
 
     // Render signature page
@@ -739,18 +833,18 @@ app.get('/api/signature/:token', async (req, res) => {
 body{font-family:'DM Sans',sans-serif;background:#0f0e0d;color:#f0ede8;min-height:100vh;padding:24px;}
 .container{max-width:800px;margin:0 auto;}
 .header{text-align:center;margin-bottom:24px;}
-.logo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#c8f060;margin-bottom:8px;}
+.logo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#10b981;margin-bottom:8px;}
 .doc-wrap{background:#fff;color:#111;border-radius:12px;padding:32px;margin-bottom:24px;max-height:60vh;overflow-y:auto;}
 .sign-section{background:#1a1917;border:1px solid #2e2c29;border-radius:14px;padding:24px;}
-.sign-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#c8f060;margin-bottom:16px;}
+.sign-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#10b981;margin-bottom:16px;}
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:12px;color:#6b6760;margin-bottom:6px;font-weight:600;}
 .field input{width:100%;padding:12px;background:#242220;border:1px solid #2e2c29;border-radius:8px;color:#f0ede8;font-size:14px;font-family:'DM Sans',sans-serif;}
-.field input:focus{border-color:#c8f060;outline:none;}
+.field input:focus{border-color:#10b981;outline:none;}
 .checkbox{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;font-size:13px;color:#6b6760;cursor:pointer;}
-.checkbox input{margin-top:3px;accent-color:#c8f060;}
-.btn-sign{width:100%;padding:16px;background:#c8f060;color:#0f0e0d;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
-.btn-sign:hover{background:#8fb840;}
+.checkbox input{margin-top:3px;accent-color:#10b981;}
+.btn-sign{width:100%;padding:16px;background:#10b981;color:#0f0e0d;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-sign:hover{background:#059669;}
 .btn-sign:disabled{opacity:0.5;cursor:not-allowed;}
 #sign-status{text-align:center;margin-top:12px;font-size:13px;}
 </style>
@@ -873,9 +967,9 @@ app.post('/api/signature/:token/signer', async (req, res) => {
 // =============================================
 // GET /api/documents/:user_id — Get all documents for a user
 // =============================================
-app.get('/api/documents/:user_id', async (req, res) => {
+app.get('/api/documents/:user_id', requireAuth(), async (req, res) => {
   try {
-    const { user_id } = req.params;
+    const user_id = req.user.id;
 
     const { data: documents, error } = await supabase
       .from('documents_compta')
@@ -901,9 +995,10 @@ app.get('/api/documents/:user_id', async (req, res) => {
 // =============================================
 // POST /api/suggestions — Submit & analyze suggestion
 // =============================================
-app.post('/api/suggestions', async (req, res) => {
+app.post('/api/suggestions', requireAuth(), async (req, res) => {
   try {
-    const { user_id, cabinet_nom, titre, description, categorie, email, nom } = req.body;
+    const { cabinet_nom, titre, description, categorie, email, nom } = req.body;
+    const user_id = req.user.id;
     if (!titre || !description) return res.status(400).json({ error: 'titre and description required' });
 
     // Analyze with Claude
@@ -993,7 +1088,7 @@ Reponds UNIQUEMENT en JSON:
 // =============================================
 // GET /api/suggestions/admin — List all suggestions
 // =============================================
-app.get('/api/suggestions/admin', async (req, res) => {
+app.get('/api/suggestions/admin', requireAuth(), async (req, res) => {
   try {
     const { data: suggestions, error } = await supabase
       .from('suggestions')
@@ -1039,6 +1134,45 @@ try {
 }
 
 // =============================================
+// JADOMI Rush ENRICHI — devis, fichiers, paiement, messages, scoring, transport
+// =============================================
+try {
+  const { createDevisRouter } = require('./api/rush/rush-devis');
+  app.use('/api/rush/devis', createDevisRouter(supabase));
+  const { createFichiersRouter } = require('./api/rush/rush-fichiers');
+  app.use('/api/rush/fichiers', createFichiersRouter(supabase));
+  const { createPaiementRouter } = require('./api/rush/rush-paiement');
+  app.use('/api/rush/paiement', createPaiementRouter(supabase));
+  const { createMessagesRouter } = require('./api/rush/rush-messages');
+  app.use('/api/rush/messages', createMessagesRouter(supabase));
+  const { createScoringRouter } = require('./api/rush/rush-scoring');
+  app.use('/api/rush/scores', createScoringRouter(supabase));
+  const { createTransportRouter } = require('./api/rush/rush-transport');
+  app.use('/api/rush/transport', createTransportRouter(supabase));
+  // CRON quotidien : nettoyage fichiers R2 expires (> 72h)
+  try {
+    const cronLib = require('node-cron');
+    const { nettoyerFichiersExpires, isR2Available } = require('./services/r2-storage');
+    cronLib.schedule('0 3 * * *', async () => {
+      if (!isR2Available()) return;
+      console.log('[RUSH R2] Nettoyage quotidien fichiers expires...');
+      try {
+        const result = await nettoyerFichiersExpires();
+        console.log('[RUSH R2] Nettoyage termine:', result.deleted, 'fichiers supprimes');
+      } catch (e) {
+        console.error('[RUSH R2] Erreur nettoyage:', e.message);
+      }
+    });
+    console.log('[JADOMI] CRON nettoyage R2 programme (03h00 quotidien)');
+  } catch (cronErr) {
+    console.warn('[JADOMI] CRON R2 non configure:', cronErr.message);
+  }
+  console.log('[JADOMI] Module Rush ENRICHI monte (devis, fichiers, paiement, messages, scoring, transport)');
+} catch (e) {
+  console.warn('[JADOMI] Module Rush enrichi non charge:', e.message);
+}
+
+// =============================================
 // JADOMI Plateforme — Routes prothesistes & commandes
 // =============================================
 try {
@@ -1055,6 +1189,27 @@ try {
   console.log('[JADOMI] Module Commandes monte sur /api/commandes');
 } catch (e) {
   console.warn('[JADOMI] Module Commandes non charge:', e.message);
+}
+
+// =============================================
+// JADOMI LABO — Module gestion laboratoire prothesiste
+// =============================================
+try {
+  const { createLaboRouter } = require('./routes/labo');
+  app.use('/api/labo', createLaboRouter());
+  console.log('[JADOMI] Module LABO monte sur /api/labo');
+} catch (e) {
+  console.warn('[JADOMI] Module LABO non charge:', e.message);
+}
+
+// =============================================
+// Module Communication Cabinet (confreres + patients)
+// =============================================
+try {
+  const mountCommunication = require('./api/multiSocietes/communication');
+  mountCommunication(app);
+} catch (e) {
+  console.warn('[JADOMI] Module Communication non charge:', e.message);
 }
 
 // =============================================
@@ -1167,7 +1322,15 @@ const { simpleParser } = require('mailparser');
 const pdfParse = require('pdf-parse');
 
 async function analyserDocumentIA(base64Data, mediaType) {
-  const contentBlock = mediaType === 'application/pdf'
+  // Valider le media type pour eviter les erreurs Anthropic API
+  const VALID_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!mediaType) mediaType = 'application/pdf';
+  const isPdf = mediaType === 'application/pdf';
+  if (!isPdf && !VALID_IMAGE_TYPES.includes(mediaType)) {
+    console.warn('analyserDocumentIA: media_type non supporte:', mediaType);
+    return null;
+  }
+  const contentBlock = isPdf
     ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data }}
     : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data }};
 
@@ -1421,9 +1584,10 @@ function mailEmaneDUnFournisseurCorps(parsed) {
   return FOURNISSEURS_CORPS_MAIL.some(f => from.includes(f) || subj.includes(f));
 }
 
-app.post('/api/analyser-document', async (req, res) => {
+app.post('/api/analyser-document', requireAuth(), async (req, res) => {
   try {
-    const { document, mediaType, userId } = req.body;
+    const { document, mediaType } = req.body;
+    const userId = req.user.id;
     if (!document || !mediaType) return res.status(400).json({ error: 'document et mediaType requis' });
 
     const data = await analyserDocumentIA(document, mediaType);
@@ -1452,10 +1616,11 @@ app.post('/api/analyser-document', async (req, res) => {
 // =============================================
 // COMPTABILITE — Valider et sauvegarder document
 // =============================================
-app.post('/api/valider-document', async (req, res) => {
+app.post('/api/valider-document', requireAuth(), async (req, res) => {
   try {
-    const { document, userId } = req.body;
-    if (!document || !userId) return res.status(400).json({ error: 'document et userId requis' });
+    const { document } = req.body;
+    const userId = req.user.id;
+    if (!document) return res.status(400).json({ error: 'document requis' });
 
     // Sauvegarder dans documents_compta
     const { error: insertErr } = await supabase.from('documents_compta').insert({
@@ -1671,16 +1836,22 @@ function storeAttachment(userId, att) {
 }
 
 app.get('/api/mail/attachment/:token', requireAuth(), (req, res) => {
-  const entry = scanAttachments.get(req.params.token);
-  if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
-  // L'attachment est stocké avec le userId — vérifier que c'est le bon propriétaire
-  if (entry.userId && entry.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
-  res.setHeader('Content-Type', entry.contentType);
-  if (entry.contentType && entry.contentType.startsWith('text/html')) {
-    return res.end(entry.buffer);
+  try {
+    const entry = scanAttachments.get(req.params.token);
+    if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
+    if (entry.userId && entry.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    if (!entry.buffer) return res.status(500).json({ error: 'contenu_manquant' });
+    res.setHeader('Content-Type', entry.contentType || 'application/octet-stream');
+    const filename = entry.filename || 'attachment';
+    if (entry.contentType && entry.contentType.startsWith('text/html')) {
+      return res.end(entry.buffer);
+    }
+    res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(filename) + '"');
+    res.end(entry.buffer);
+  } catch (e) {
+    console.error('[/api/mail/attachment]', e.message);
+    res.status(500).json({ error: e.message });
   }
-  res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(entry.filename) + '"');
-  res.end(entry.buffer);
 });
 
 function storeMailBodyAsHtml(userId, parsed) {
@@ -1703,16 +1874,22 @@ function storeMailBodyAsHtml(userId, parsed) {
 const scanProgressClients = new Map();
 
 app.get('/api/mail/scan-progress', requireAuthSSE(), (req, res) => {
-  const userId = req.user.id;
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-  res.write('event: open\ndata: {"status":"connected"}\n\n');
-  scanProgressClients.set(userId, res);
-  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch(e){} }, 25000);
-  req.on('close', () => { clearInterval(ping); scanProgressClients.delete(userId); });
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'unauth' });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    res.write('event: open\ndata: {"status":"connected"}\n\n');
+    scanProgressClients.set(userId, res);
+    const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch(e){} }, 25000);
+    req.on('close', () => { clearInterval(ping); scanProgressClients.delete(userId); });
+  } catch (e) {
+    console.error('[SSE scan-progress]', e.message);
+    if (!res.headersSent) res.status(500).json({ error: e.message });
+  }
 });
 
 function sendProgress(userId, data) {
@@ -1870,6 +2047,10 @@ function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
                     break;
                   }
                   try {
+                    if (!att.content || !Buffer.isBuffer(att.content)) {
+                      console.warn('[IMAP] Attachment sans contenu, skip:', att.filename);
+                      continue;
+                    }
                     const base64 = att.content.toString('base64');
                     claudeCalls++;
                     const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
@@ -2071,7 +2252,11 @@ app.post('/api/mail/test', requireAuth(), async (req, res) => {
       'SFR': { host: 'imap.sfr.fr', port: 993 },
       'Laposte': { host: 'imap.laposte.net', port: 993 },
     };
-    const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
+    const domain = (email || '').split('@')[1];
+    if (!configs[provider] && (!domain || !/^[a-zA-Z0-9.-]+$/.test(domain))) {
+      return res.status(400).json({ error: 'email_invalide' });
+    }
+    const config = configs[provider] || { host: `imap.${domain}`, port: 993 };
     const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
 
     await new Promise((resolve, reject) => {
@@ -2106,7 +2291,11 @@ app.post('/api/mail/scan', requireAuth(), async (req, res) => {
       'SFR': { host: 'imap.sfr.fr', port: 993 },
       'Laposte': { host: 'imap.laposte.net', port: 993 },
     };
-    const config = configs[provider] || { host: `imap.${email.split('@')[1]}`, port: 993 };
+    const domain = (email || '').split('@')[1];
+    if (!configs[provider] && (!domain || !/^[a-zA-Z0-9.-]+$/.test(domain))) {
+      return res.status(400).json({ error: 'email_invalide' });
+    }
+    const config = configs[provider] || { host: `imap.${domain}`, port: 993 };
 
     const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
 
@@ -2440,9 +2629,10 @@ app.post('/api/mail/import', requireAuth(), async (req, res) => {
 // =============================================
 // COMPTABILITE — Analyse releve bancaire
 // =============================================
-app.post('/api/analyser-releve', async (req, res) => {
+app.post('/api/analyser-releve', requireAuth(), async (req, res) => {
   try {
-    const { pdfBase64, userId } = req.body;
+    const { pdfBase64 } = req.body;
+    const userId = req.user.id;
     if (!pdfBase64) return res.status(400).json({ error: 'pdfBase64 requis' });
 
     const pdfData = await pdfParse(Buffer.from(pdfBase64, 'base64'));
@@ -2772,6 +2962,28 @@ app.get('/api/compta/export/:userId', requireAuth(), async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="JADOMI-Compta-${anneeVal}.csv"`);
     res.send('\ufeff' + csv);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// =============================================
+// Global error handler — catch toutes les erreurs non gerees par les routes
+// =============================================
+app.use((err, req, res, _next) => {
+  console.error(`[GLOBAL ERROR] ${req.method} ${req.originalUrl}:`, err.message);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({
+      error: process.env.NODE_ENV === 'production' ? 'internal_error' : err.message
+    });
+  }
+});
+
+// Empêcher les crashes non catchés de tuer le process
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[unhandledRejection]', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err.message, err.stack);
+  // Laisser PM2 restart proprement si c'est fatal
 });
 
 // =============================================

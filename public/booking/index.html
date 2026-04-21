@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R&eacute;servation en ligne — JADOMI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+:root{--accent:#6366f1;--accent2:#8b5cf6;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--bg:#f8fafc;--surface:#fff;--border:#e2e8f0;--text:#1e293b;--text2:#64748b;--text3:#94a3b8;--radius:14px;--shadow:0 4px 24px rgba(0,0,0,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+/* Header */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:24px 0}
+.container{max-width:900px;margin:0 auto;padding:0 20px}
+.header-inner{display:flex;align-items:center;gap:20px}
+.header-logo{width:80px;height:80px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden}
+.header-logo img{width:100%;height:100%;object-fit:cover}
+.header-info h1{font-family:'Syne',sans-serif;font-size:28px;font-weight:700;margin-bottom:4px}
+.header-info .location{color:var(--text2);font-size:14px;display:flex;align-items:center;gap:6px}
+.header-stars{display:flex;align-items:center;gap:6px;margin-top:6px}
+.stars{color:var(--warning);font-size:16px;letter-spacing:2px}
+.rating-text{font-size:13px;color:var(--text2)}
+.header-cat{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(99,102,241,.1);color:var(--accent);margin-top:6px}
+/* Main */
+.main{padding:28px 0;min-height:60vh}
+/* Steps */
+.steps{display:flex;gap:4px;margin-bottom:28px;background:#e2e8f0;border-radius:var(--radius);padding:4px}
+.step{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;color:var(--text3);border-radius:10px;cursor:pointer;transition:all .2s}
+.step.active{background:var(--accent);color:#fff}
+.step.done{background:rgba(99,102,241,.1);color:var(--accent)}
+/* Section */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;box-shadow:var(--shadow)}
+.section h2{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:16px}
+.section-hidden{display:none}
+/* Prestations */
+.presta-list{display:flex;flex-direction:column;gap:10px}
+.presta-cat-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-top:8px}
+.presta-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all .2s}
+.presta-item:hover{border-color:var(--accent);background:rgba(99,102,241,.03)}
+.presta-item.selected{border-color:var(--accent);background:rgba(99,102,241,.06)}
+.presta-item .left{flex:1}
+.presta-item .name{font-weight:600;font-size:15px}
+.presta-item .desc{font-size:12px;color:var(--text2);margin-top:2px}
+.presta-item .meta{font-size:12px;color:var(--text3);margin-top:4px}
+.presta-item .right{text-align:right}
+.presta-item .prix{font-size:20px;font-weight:700;color:var(--accent)}
+.presta-item .acompte-info{font-size:11px;color:var(--text3)}
+/* Calendar */
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.cal-nav button{padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;font-size:14px;color:var(--text);transition:all .2s}
+.cal-nav button:hover{border-color:var(--accent);color:var(--accent)}
+.cal-nav .month-label{font-weight:700;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-head{text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:8px 0}
+.cal-cell{text-align:center;padding:10px 4px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;position:relative}
+.cal-cell:hover{background:rgba(99,102,241,.08)}
+.cal-cell.today{font-weight:700;color:var(--accent)}
+.cal-cell.selected{background:var(--accent);color:#fff}
+.cal-cell.disabled{color:var(--text3);opacity:.4;pointer-events:none}
+.cal-cell.has-slots::after{content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--success)}
+.slots-container{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;min-height:50px}
+.slot-btn{padding:10px 18px;border:2px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;color:var(--text)}
+.slot-btn:hover{border-color:var(--accent);color:var(--accent)}
+.slot-btn.selected{border-color:var(--accent);background:var(--accent);color:#fff}
+.no-slots{color:var(--text3);font-size:13px;padding:20px;text-align:center}
+/* Praticien selection */
+.prat-list{display:flex;flex-direction:column;gap:10px}
+.prat-card{display:flex;align-items:center;gap:16px;padding:16px 20px;border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all .2s}
+.prat-card:hover{border-color:var(--accent);background:rgba(99,102,241,.03)}
+.prat-card.selected{border-color:var(--accent);background:rgba(99,102,241,.06)}
+.prat-avatar{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
+.prat-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.prat-info{flex:1}
+.prat-info .name{font-weight:600;font-size:15px}
+.prat-info .spec{font-size:12px;color:var(--text2);margin-top:2px}
+/* Form */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field textarea{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;transition:border-color .2s;background:var(--surface);color:var(--text)}
+.field input:focus,.field textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.field textarea{min-height:60px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+/* Recap */
+.recap{background:rgba(99,102,241,.04);border:2px solid rgba(99,102,241,.15);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.recap-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid rgba(99,102,241,.08)}
+.recap-row:last-child{border:none;font-weight:700;font-size:16px;padding-top:12px}
+.recap-row .label{color:var(--text2)}
+/* Stripe */
+#card-element{padding:14px;border:2px solid var(--border);border-radius:10px;background:var(--surface);transition:border-color .2s}
+#card-element.StripeElement--focus{border-color:var(--accent)}
+#card-errors{color:var(--danger);font-size:12px;margin-top:6px}
+/* Buttons */
+.btn{padding:14px 28px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#818cf8;transform:translateY(-1px);box-shadow:0 4px 20px rgba(99,102,241,.4)}
+.btn-primary:disabled{opacity:.5;pointer-events:none}
+.btn-outline{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+.btn-outline:hover{background:rgba(99,102,241,.06)}
+.actions{display:flex;gap:12px;justify-content:space-between;margin-top:20px}
+/* Confirmation */
+.confirmation{text-align:center;padding:40px 20px}
+.confirmation .check{width:80px;height:80px;border-radius:50%;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:40px}
+.confirmation h2{font-family:'Syne',sans-serif;font-size:24px;margin-bottom:12px}
+.confirmation p{color:var(--text2);font-size:15px;margin-bottom:6px}
+/* Footer */
+.footer{text-align:center;padding:28px 20px;color:var(--text3);font-size:12px;border-top:1px solid var(--border)}
+.footer a{color:var(--accent)}
+/* Loader */
+.loader{display:inline-block;width:18px;height:18px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;right:20px;padding:14px 24px;border-radius:10px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);font-size:14px;font-weight:600;z-index:200;animation:fadeInUp .3s ease}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+.toast.ok{border-color:var(--success);color:var(--success)}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:600px){.row{grid-template-columns:1fr}.header-inner{flex-direction:column;text-align:center}.steps{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="container">
+    <div class="header-inner">
+      <div class="header-logo" id="headerLogo">J</div>
+      <div class="header-info">
+        <h1 id="profilNom">Chargement...</h1>
+        <div class="location" id="profilLocation"></div>
+        <div class="header-stars">
+          <span class="stars" id="profilStars"></span>
+          <span class="rating-text" id="profilRating"></span>
+        </div>
+        <span class="header-cat" id="profilCat"></span>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="main">
+  <div class="container">
+    <div class="steps">
+      <div class="step active" data-step="1">1. Prestation</div>
+      <div class="step" data-step="2">2. Praticien</div>
+      <div class="step" data-step="3">3. Date & Heure</div>
+      <div class="step" data-step="4">4. Vos infos</div>
+      <div class="step" data-step="5">5. Paiement</div>
+    </div>
+
+    <!-- Step 1: Prestations -->
+    <div class="section" id="step1">
+      <h2>Choisissez votre prestation</h2>
+      <div class="presta-list" id="prestaList"></div>
+    </div>
+
+    <!-- Step 2: Praticien -->
+    <div class="section section-hidden" id="step2">
+      <h2>Choisissez votre praticien</h2>
+      <div class="prat-list" id="pratList"></div>
+    </div>
+
+    <!-- Step 3: Calendar -->
+    <div class="section section-hidden" id="step3">
+      <h2>Choisissez une date et un cr&eacute;neau</h2>
+      <div class="cal-nav">
+        <button onclick="calNav(-1)">&larr; Pr&eacute;c&eacute;dent</button>
+        <span class="month-label" id="monthLabel"></span>
+        <button onclick="calNav(1)">Suivant &rarr;</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div id="slotsForDay"></div>
+    </div>
+
+    <!-- Step 4: Client info -->
+    <div class="section section-hidden" id="step4">
+      <h2>Vos coordonn&eacute;es</h2>
+      <div class="row">
+        <div class="field"><label>Pr&eacute;nom</label><input type="text" id="cPrenom" placeholder="Votre pr&eacute;nom"></div>
+        <div class="field"><label>Nom</label><input type="text" id="cNom" placeholder="Votre nom"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Email</label><input type="email" id="cEmail" placeholder="votre@email.com"></div>
+        <div class="field"><label>T&eacute;l&eacute;phone</label><input type="tel" id="cTel" placeholder="06 12 34 56 78"></div>
+      </div>
+      <div class="field"><label>Notes / demandes sp&eacute;ciales</label><textarea id="cNotes" placeholder="Optionnel..."></textarea></div>
+    </div>
+
+    <!-- Step 5: Recap + Payment -->
+    <div class="section section-hidden" id="step5">
+      <h2>R&eacute;capitulatif & paiement</h2>
+      <div class="recap" id="recap"></div>
+      <div id="paymentSection">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">Paiement de l'acompte</h3>
+        <div id="card-element"></div>
+        <div id="card-errors"></div>
+      </div>
+    </div>
+
+    <!-- Confirmation -->
+    <div class="section section-hidden" id="stepConfirm">
+      <div class="confirmation">
+        <div class="check">&#x2705;</div>
+        <h2>R&eacute;servation confirm&eacute;e !</h2>
+        <p id="confirmText"></p>
+        <p style="margin-top:16px;font-size:13px;color:var(--text3)">Un email de confirmation vous a &eacute;t&eacute; envoy&eacute;</p>
+      </div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="btn btn-outline" id="btnPrev" onclick="prevStep()" style="display:none">&larr; Retour</button>
+      <div></div>
+      <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Continuer &rarr;</button>
+    </div>
+  </div>
+</div>
+<footer class="footer">
+  <p>Propuls&eacute; par <a href="https://jadomi.fr" target="_blank">JADOMI</a> — R&eacute;servation s&eacute;curis&eacute;e</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+
+const slug=location.pathname.split('/').filter(Boolean).pop();
+let profil=null,prestations=[],allSlots=[],allBookingPrats=[];
+let selectedPresta=null,selectedPrat=null,selectedDate=null,selectedSlot=null;
+let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
+let stripe=null,cardElement=null,reservationId=null;
+let currentStep=1;
+const PRAT_COLORS=['#6366f1','#10b981','#f59e0b','#ef4444','#06b6d4','#8b5cf6','#ec4899'];
+
+async function pub(url){const r=await fetch('/api/services/public'+url);return r.json()}
+
+function toast(msg,type='ok'){
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+function renderStars(n){
+  const full=Math.floor(n||0),half=(n||0)-full>=.5?1:0;
+  return '★'.repeat(full)+(half?'½':'')+'☆'.repeat(5-full-half);
+}
+
+async function loadProfil(){
+  const r=await pub('/profil/'+slug);
+  if(!r.profil){document.getElementById('profilNom').textContent='Profil introuvable';return}
+  profil=r.profil;
+  document.title=`${profil.nom} — R\u00e9servation en ligne`;
+  document.getElementById('profilNom').textContent=profil.nom;
+  document.getElementById('profilLocation').innerHTML=`<span>&#x1F4CD;</span> ${profil.adresse||''} ${profil.ville||''} ${profil.code_postal||''}`;
+  document.getElementById('profilStars').textContent=renderStars(profil.note_moyenne);
+  document.getElementById('profilRating').textContent=profil.note_moyenne?`${profil.note_moyenne}/5 (${profil.nb_avis||0} avis)`:'Nouveau';
+  document.getElementById('profilCat').textContent=profil.categorie||'';
+  if(profil.logo_url){document.getElementById('headerLogo').innerHTML=`<img src="${profil.logo_url}" alt="${profil.nom}">`}
+  else{document.getElementById('headerLogo').textContent=(profil.nom||'J')[0].toUpperCase()}
+}
+
+async function loadPrestations(){
+  const r=await pub('/prestations/'+slug);
+  prestations=r.prestations||[];
+  const container=document.getElementById('prestaList');
+  if(!prestations.length){container.innerHTML='<p style="color:var(--text3);text-align:center;padding:20px">Aucune prestation disponible</p>';return}
+  const cats=[...new Set(prestations.map(p=>p.categorie||'Autre'))];
+  let html='';
+  cats.forEach(cat=>{
+    html+=`<div class="presta-cat-title">${cat}</div>`;
+    prestations.filter(p=>(p.categorie||'Autre')===cat).forEach(p=>{
+      const acompte=Math.round(p.prix*(p.acompte_pct||30)/100);
+      html+=`<div class="presta-item" data-id="${p.id}" onclick="selectPresta('${p.id}')">
+        <div class="left"><div class="name">${p.nom}</div>${p.description?`<div class="desc">${p.description}</div>`:''}<div class="meta">${p.duree} min</div></div>
+        <div class="right"><div class="prix">${p.prix}&euro;</div><div class="acompte-info">Acompte: ${acompte}&euro; (${p.acompte_pct||30}%)</div></div>
+      </div>`;
+    });
+  });
+  container.innerHTML=html;
+}
+
+function selectPresta(id){
+  selectedPresta=prestations.find(p=>p.id===id);
+  document.querySelectorAll('.presta-item').forEach(el=>{el.classList.toggle('selected',el.dataset.id===id)});
+}
+
+async function loadSlots(){
+  if(!selectedPresta)return;
+  let url=`/disponibilites/${slug}?prestation_id=${selectedPresta.id}`;
+  if(selectedPrat&&selectedPrat!=='any'&&selectedPrat.id)url+=`&praticien_id=${selectedPrat.id}`;
+  const r=await pub(url);
+  allSlots=r.slots||[];
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const grid=document.getElementById('calGrid');
+  const today=new Date();const todayStr=today.toISOString().split('T')[0];
+  const firstDay=new Date(calYear,calMonth,1);
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const startDay=firstDay.getDay()||7;
+  document.getElementById('monthLabel').textContent=firstDay.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  const slotDates=new Set(allSlots.map(s=>s.date));
+  let html='';
+  ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].forEach(d=>{html+=`<div class="cal-head">${d}</div>`});
+  for(let i=1;i<startDay;i++)html+='<div class="cal-cell disabled"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const past=new Date(ds)<new Date(todayStr);
+    const hasSlots=slotDates.has(ds);
+    const sel=selectedDate===ds;
+    html+=`<div class="cal-cell${ds===todayStr?' today':''}${sel?' selected':''}${past||!hasSlots?' disabled':''}${hasSlots&&!past?' has-slots':''}" onclick="selectDate('${ds}')">${d}</div>`;
+  }
+  grid.innerHTML=html;
+  if(selectedDate)renderSlots();
+}
+function calNav(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++}if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
+function selectDate(ds){selectedDate=ds;selectedSlot=null;renderCalendar();renderSlots()}
+function renderSlots(){
+  const container=document.getElementById('slotsForDay');
+  const daySlots=allSlots.filter(s=>s.date===selectedDate);
+  if(!daySlots.length){container.innerHTML='<div class="no-slots">Aucun cr&eacute;neau disponible ce jour</div>';return}
+  container.innerHTML='<div class="slots-container">'+daySlots.map(s=>`<button class="slot-btn${selectedSlot===s.heure?' selected':''}" onclick="selectSlot('${s.heure}')">${s.heure}</button>`).join('')+'</div>';
+}
+function selectSlot(h){selectedSlot=h;renderSlots()}
+
+function showStep(n){
+  currentStep=n;
+  for(let i=1;i<=5;i++){
+    const el=document.getElementById('step'+i);
+    if(el)el.classList.toggle('section-hidden',i!==n);
+  }
+  document.getElementById('stepConfirm').classList.add('section-hidden');
+  document.querySelectorAll('.step').forEach(s=>{
+    const sn=parseInt(s.dataset.step);
+    s.classList.toggle('active',sn===n);
+    s.classList.toggle('done',sn<n);
+  });
+  document.getElementById('btnPrev').style.display=n>1?'':'none';
+  document.getElementById('btnNext').style.display=n<=5?'':'none';
+  if(n===5)document.getElementById('btnNext').textContent='Payer et r\u00e9server';
+  else document.getElementById('btnNext').textContent='Continuer \u2192';
+}
+function prevStep(){if(currentStep>1)showStep(currentStep-1)}
+async function nextStep(){
+  if(currentStep===1){
+    if(!selectedPresta){toast('Choisissez une prestation','error');return}
+    await loadBookingPraticiens();
+    // Skip praticien step if only 1 or 0 praticiens
+    if(allBookingPrats.length<=1){
+      selectedPrat=allBookingPrats[0]||null;
+      await loadSlots();showStep(3);
+    }else{showStep(2)}
+  }else if(currentStep===2){
+    if(!selectedPrat){toast('Choisissez un praticien','error');return}
+    await loadSlots();showStep(3);
+  }else if(currentStep===3){
+    if(!selectedDate||!selectedSlot){toast('Choisissez une date et un cr\u00e9neau','error');return}
+    showStep(4);
+  }else if(currentStep===4){
+    if(!document.getElementById('cEmail').value){toast('Email requis','error');return}
+    renderRecap();initStripe();showStep(5);
+  }else if(currentStep===5){
+    await processPayment();
+  }
+}
+
+async function loadBookingPraticiens(){
+  // Load praticiens for this prestation
+  try{
+    const r=await pub('/praticiens/'+slug);
+    let prats=r.praticiens||[];
+    // Filter by prestation if praticiens_ids is set
+    if(selectedPresta.praticiens_ids&&selectedPresta.praticiens_ids.length){
+      prats=prats.filter(p=>selectedPresta.praticiens_ids.includes(p.id));
+    }
+    allBookingPrats=prats.map((p,i)=>({...p,couleur:p.couleur||PRAT_COLORS[i%PRAT_COLORS.length]}));
+  }catch(e){allBookingPrats=[]}
+  renderPratList();
+}
+
+function renderPratList(){
+  const container=document.getElementById('pratList');
+  if(!allBookingPrats.length){
+    container.innerHTML='<p style="color:var(--text3);text-align:center;padding:20px">Aucun praticien disponible</p>';
+    return;
+  }
+  let html='';
+  // "Premier disponible" option
+  html+=`<div class="prat-card${selectedPrat==='any'?' selected':''}" onclick="selectPrat('any')">
+    <div class="prat-avatar" style="background:linear-gradient(135deg,var(--accent),var(--accent2))">&#x26A1;</div>
+    <div class="prat-info"><div class="name">Premier disponible</div><div class="spec">Le cr\u00e9neau le plus proche, quel que soit le praticien</div></div>
+  </div>`;
+  allBookingPrats.forEach(p=>{
+    const initials=((p.prenom||'')[0]||'')+((p.nom||'')[0]||'');
+    html+=`<div class="prat-card${selectedPrat&&selectedPrat.id===p.id?' selected':''}" onclick="selectPrat('${p.id}')">
+      <div class="prat-avatar" style="background:${p.couleur}">${p.photo_url?'<img src="'+p.photo_url+'" alt="">':initials.toUpperCase()}</div>
+      <div class="prat-info"><div class="name">${p.prenom||''} ${p.nom}</div><div class="spec">${(p.specialites||p.specialite||[]).join(', ')||'Praticien'}</div></div>
+    </div>`;
+  });
+  container.innerHTML=html;
+}
+
+function selectPrat(id){
+  if(id==='any'){selectedPrat='any'}
+  else{selectedPrat=allBookingPrats.find(p=>p.id===id)||null}
+  renderPratList();
+}
+
+function renderRecap(){
+  const d=new Date(`${selectedDate}T${selectedSlot}:00`);
+  const dateStr=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  const heureStr=selectedSlot;
+  const acompte=Math.round(selectedPresta.prix*(selectedPresta.acompte_pct||30)/100);
+  const pratName=selectedPrat==='any'?'Premier disponible':(selectedPrat?((selectedPrat.prenom||'')+' '+(selectedPrat.nom||'')).trim():'');
+  document.getElementById('recap').innerHTML=`
+    <div class="recap-row"><span class="label">Prestation</span><strong>${selectedPresta.nom}</strong></div>
+    ${pratName?`<div class="recap-row"><span class="label">Praticien</span><strong>${pratName}</strong></div>`:''}
+    <div class="recap-row"><span class="label">Date</span><strong>${dateStr}</strong></div>
+    <div class="recap-row"><span class="label">Heure</span><strong>${heureStr}</strong></div>
+    <div class="recap-row"><span class="label">Dur\u00e9e</span><strong>${selectedPresta.duree} min</strong></div>
+    <div class="recap-row"><span class="label">Prix total</span><strong>${selectedPresta.prix}\u20ac</strong></div>
+    <div class="recap-row"><span class="label">Acompte (${selectedPresta.acompte_pct||30}%)</span><strong style="color:var(--accent)">${acompte}\u20ac</strong></div>`;
+}
+
+function initStripe(){
+  if(cardElement)return;
+  try{
+    stripe=Stripe(window.STRIPE_PK||'pk_test_placeholder');
+    const elements=stripe.elements();
+    cardElement=elements.create('card',{style:{base:{fontSize:'16px',color:'#1e293b','::placeholder':{color:'#94a3b8'}}}});
+    cardElement.mount('#card-element');
+    cardElement.on('change',e=>{document.getElementById('card-errors').textContent=e.error?e.error.message:''});
+  }catch(e){console.warn('Stripe init:',e.message)}
+}
+
+async function processPayment(){
+  const btn=document.getElementById('btnNext');
+  btn.disabled=true;btn.innerHTML='<span class="loader"></span> Traitement...';
+  try{
+    const dateHeure=`${selectedDate}T${selectedSlot}:00`;
+    const r=await fetch('/api/services/public/reserver',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        slug,prestation_id:selectedPresta.id,date_heure:dateHeure,
+        praticien_id:selectedPrat&&selectedPrat!=='any'?selectedPrat.id:null,
+        client_nom:document.getElementById('cNom').value,
+        client_prenom:document.getElementById('cPrenom').value,
+        client_email:document.getElementById('cEmail').value,
+        client_telephone:document.getElementById('cTel').value,
+        notes:document.getElementById('cNotes').value
+      })
+    });
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Erreur');
+    reservationId=data.reservation?.id;
+
+    // Stripe payment
+    if(data.clientSecret&&stripe&&cardElement){
+      const{error,paymentIntent}=await stripe.confirmCardPayment(data.clientSecret,{
+        payment_method:{card:cardElement,billing_details:{name:`${document.getElementById('cPrenom').value} ${document.getElementById('cNom').value}`,email:document.getElementById('cEmail').value}}
+      });
+      if(error){throw new Error(error.message)}
+      // Confirm reservation
+      await fetch(`/api/services/public/confirmer/${reservationId}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({payment_intent_id:paymentIntent.id})
+      });
+    }else if(reservationId){
+      await fetch(`/api/services/public/confirmer/${reservationId}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+      });
+    }
+
+    // Show confirmation
+    showConfirmation(data);
+  }catch(e){
+    toast(e.message,'error');
+    btn.disabled=false;btn.textContent='Payer et r\u00e9server';
+  }
+}
+
+function showConfirmation(data){
+  for(let i=1;i<=4;i++){const el=document.getElementById('step'+i);if(el)el.classList.add('section-hidden')}
+  document.getElementById('stepConfirm').classList.remove('section-hidden');
+  document.getElementById('actions').style.display='none';
+  const d=new Date(`${selectedDate}T${selectedSlot}:00`);
+  const dateStr=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  const acompte=data.acompte||Math.round(selectedPresta.prix*(selectedPresta.acompte_pct||30)/100);
+  document.getElementById('confirmText').innerHTML=`<strong>${selectedPresta.nom}</strong> &mdash; ${dateStr} &agrave; ${selectedSlot}<br>Prix: ${selectedPresta.prix}&euro;, Acompte: ${acompte}&euro; (${selectedPresta.acompte_pct||30}%)`;
+}
+
+async function init(){
+  await loadProfil();
+  await loadPrestations();
+  // Load avis for stars
+  const av=await pub('/avis/'+slug);
+  if(av.note_moyenne){
+    document.getElementById('profilStars').textContent=renderStars(av.note_moyenne);
+    document.getElementById('profilRating').textContent=`${av.note_moyenne}/5 (${av.nb_avis||0} avis)`;
+  }
+}
+init();
+</script>
+</body>
+</html>

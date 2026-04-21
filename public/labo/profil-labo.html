@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>JADOMI LABO — Profil du laboratoire</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#ffffff;--bg-secondary:#f8f9fa;--surface:#ffffff;--surface2:#f1f3f5;
+  --border:#e0e3e8;--text:#1a1d23;--text-secondary:#6b7280;
+  --accent:#2563eb;--accent-light:#dbeafe;--accent-dark:#1d4ed8;
+  --success:#059669;--warning:#d97706;--danger:#dc2626;
+  --shadow:0 1px 3px rgba(0,0,0,0.1);--shadow-lg:0 4px 12px rgba(0,0,0,0.1);
+  --radius:8px;
+  --muted:#6b7280;--green:#059669;--green-l:#ecfdf5;--amber:#d97706;--amber-l:#fffbeb;--red:#dc2626;--red-l:#fef2f2;
+  --blue:#2563eb;--blue-l:#dbeafe;
+  --accent-hover:#1d4ed8;--accent-border:rgba(37,99,235,0.3);
+  --font:'Inter',-apple-system,sans-serif;--font-display:'Inter',sans-serif;--mono:'SFMono-Regular',Consolas,monospace;
+  --radius-sm:6px;--radius-lg:12px;
+}
+body{font-family:var(--font);background:var(--bg-secondary);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* LAYOUT */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:#ffffff;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.logo-icon-nav{font-size:20px;}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:9px 22px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-light);border-left-color:var(--accent);}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:var(--shadow);}
+.page-title{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-right{display:flex;gap:10px;align-items:center;}
+.breadcrumb{font-size:12px;color:var(--muted);margin-top:2px;}
+.breadcrumb span{color:var(--accent);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.2px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-hover);}
+.btn-primary:disabled{opacity:0.55;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:var(--red);color:#fff;border:none;}
+.btn-danger:hover{background:#b91c1c;}
+
+/* CONTENT */
+.content{padding:28px 32px;flex:1;}
+
+/* WIZARD BANNER */
+.wizard-banner{background:linear-gradient(135deg,var(--accent-light),rgba(37,99,235,0.06));border:1px solid var(--accent-border);border-radius:var(--radius);padding:24px 28px;margin-bottom:28px;display:flex;align-items:flex-start;gap:20px;}
+.wizard-banner.hidden{display:none;}
+.wizard-icon{font-size:36px;flex-shrink:0;margin-top:2px;}
+.wizard-body h2{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.wizard-body p{font-size:13px;color:var(--muted);line-height:1.6;max-width:600px;}
+.wizard-steps{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.wizard-step{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--surface2);padding:5px 10px;border-radius:20px;border:1px solid var(--border);}
+.wizard-step.done{color:var(--green);background:var(--green-l);border-color:rgba(5,150,105,0.3);}
+
+/* FORM LAYOUT */
+.form-sections{display:flex;flex-direction:column;gap:24px;}
+.form-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+.section-header{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.section-icon{font-size:20px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:var(--accent-light);border:1px solid var(--accent-border);border-radius:var(--radius-sm);}
+.section-title{font-size:15px;font-weight:700;color:var(--text);}
+.section-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+.section-body{padding:24px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.col-span-2{grid-column:span 2;}
+.col-span-3{grid-column:span 3;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-label .required{color:var(--red);margin-left:2px;}
+.form-hint{font-size:11px;color:var(--muted);margin-top:3px;}
+.form-input,.form-select,.form-textarea{
+  padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:13px;font-family:var(--font);outline:none;background:var(--surface);color:var(--text);
+  transition:border-color 0.15s;width:100%;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,0.1);}
+.form-input::placeholder{color:var(--muted);}
+.form-select option{background:var(--surface);}
+.form-textarea{resize:vertical;min-height:70px;}
+.form-input.error{border-color:var(--red);}
+
+/* RADIO GROUPE TVA */
+.tva-options{display:flex;flex-direction:column;gap:10px;}
+.tva-option{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;position:relative;background:var(--surface);}
+.tva-option:hover{border-color:var(--accent);background:var(--accent-light);}
+.tva-option input[type=radio]{margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0;}
+.tva-option.selected{border-color:var(--accent);background:var(--accent-light);}
+.tva-label{font-size:13px;font-weight:600;color:var(--text);}
+.tva-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.tva-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-left:8px;}
+.tva-badge-none{background:var(--green-l);color:var(--green);}
+.tva-badge-simplifie{background:var(--amber-l);color:var(--amber);}
+.tva-badge-normal{background:var(--blue-l);color:var(--blue);}
+
+/* MENTION BOX */
+.mention-box{margin-top:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;display:none;}
+.mention-box.visible{display:block;}
+.mention-box-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
+.mention-preview{font-size:12px;color:var(--accent);font-style:italic;background:var(--accent-light);border:1px solid rgba(37,99,235,0.3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;line-height:1.5;}
+.mention-fields{display:flex;flex-direction:column;gap:10px;}
+
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg-secondary);position:relative;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-light);}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{font-size:32px;margin-bottom:10px;}
+.upload-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.upload-sub{font-size:11px;color:var(--muted);}
+.preview-wrap{margin-top:16px;display:none;}
+.preview-wrap.visible{display:block;}
+.preview-img{max-width:200px;max-height:120px;border-radius:var(--radius-sm);border:1px solid var(--border);object-fit:contain;background:#fff;padding:4px;}
+.preview-actions{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.preview-name{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.preview-remove{font-size:11px;color:var(--red);cursor:pointer;text-decoration:underline;}
+
+/* UPLOAD GRID */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+
+/* IBAN FIELD */
+.iban-group{position:relative;}
+.iban-valid-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;display:none;}
+
+/* SAVE BAR */
+.save-bar{position:sticky;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;z-index:20;box-shadow:0 -2px 8px rgba(0,0,0,0.06);}
+.save-bar-left{display:flex;align-items:center;gap:12px;}
+.save-status{font-size:12px;color:var(--muted);}
+.save-status.saved{color:var(--green);}
+.save-status.error{color:var(--red);}
+.save-bar-right{display:flex;gap:10px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:300;transition:transform 0.3s;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.toast-success{background:var(--green);}
+.toast.toast-error{background:var(--red);}
+
+/* LOADING OVERLAY */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,0.85);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px;backdrop-filter:blur(2px);}
+.loading-overlay.open{display:flex;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:13px;color:var(--muted);}
+
+/* BADGE PROFIL */
+.profil-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-left:10px;}
+.profil-badge-ok{background:var(--green-l);color:var(--green);border:1px solid rgba(5,150,105,0.3);}
+.profil-badge-new{background:var(--accent-light);color:var(--accent);border:1px solid rgba(37,99,235,0.3);}
+
+/* SECTION NUMERO */
+.num-row{display:flex;align-items:center;gap:10px;}
+.num-preview{font-size:12px;color:var(--accent);font-family:var(--mono);background:var(--accent-light);border:1px solid rgba(37,99,235,0.3);padding:4px 10px;border-radius:6px;white-space:nowrap;}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .form-grid-3{grid-template-columns:1fr 1fr;}
+  .col-span-3{grid-column:span 2;}
+}
+@media(max-width:780px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .content{padding:20px 16px;}
+  .form-grid{grid-template-columns:1fr;}
+  .col-span-2{grid-column:span 1;}
+  .form-grid-3{grid-template-columns:1fr;}
+  .col-span-3{grid-column:span 1;}
+  .upload-grid{grid-template-columns:1fr;}
+  .save-bar{padding:12px 16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Chargement du profil...</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<div class="shell">
+
+<!-- ======= SIDEBAR ======= -->
+<nav class="sidebar">
+  <div class="sidebar-logo"><span class="logo-icon-nav">🦷</span> JADOMI LABO</div>
+  <div class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="dentistes.html" class="nav-item" data-page="dentistes"><span class="nav-icon">👥</span> Mes dentistes</a>
+    <a href="bons-livraison.html" class="nav-item" data-page="bons-livraison"><span class="nav-icon">📋</span> Bons de laboratoire</a>
+    <a href="facturation.html" class="nav-item" data-page="facturation"><span class="nav-icon">💰</span> Facturation</a>
+    <a href="stock.html" class="nav-item" data-page="stock"><span class="nav-icon">📦</span> Stock &amp; Matériaux</a>
+    <a href="catalogue.html" class="nav-item" data-page="catalogue"><span class="nav-icon">📊</span> Catalogue</a>
+    <a href="import-grille.html" class="nav-item" data-page="import-grille"><span class="nav-icon">📥</span> Import grille</a>
+    <a href="profil-labo.html" class="nav-item active" data-page="profil-labo"><span class="nav-icon">⚙️</span> Paramètres labo</a>
+  </div>
+</nav>
+
+<!-- ======= MAIN ======= -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="page-title">
+        Profil du laboratoire
+        <span class="profil-badge profil-badge-new hidden" id="badge-new">Nouveau</span>
+        <span class="profil-badge profil-badge-ok hidden" id="badge-configured">✓ Configure</span>
+      </div>
+      <div class="breadcrumb">JADOMI LABO &rsaquo; <span>Mon labo</span></div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost btn-sm" onclick="resetForm()" id="btn-reset" style="display:none">Annuler</button>
+      <button class="btn btn-primary" onclick="sauvegarderProfil()" id="btn-save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Enregistrer
+      </button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- WIZARD BANNER (affiché si aucun profil) -->
+    <div class="wizard-banner hidden" id="wizard-banner">
+      <div class="wizard-icon">🏗️</div>
+      <div class="wizard-body">
+        <h2>Configurez votre laboratoire</h2>
+        <p>Aucun profil detecte pour ce compte. Remplissez les informations ci-dessous pour activer la facturation, les bons de livraison et les declarations de conformite.</p>
+        <div class="wizard-steps">
+          <div class="wizard-step" id="ws-identite">① Identite</div>
+          <div class="wizard-step" id="ws-coordonnees">② Coordonnees</div>
+          <div class="wizard-step" id="ws-tva">③ Regime TVA</div>
+          <div class="wizard-step" id="ws-banque">④ Banque</div>
+          <div class="wizard-step" id="ws-facturation">⑤ Facturation</div>
+          <div class="wizard-step" id="ws-logo">⑥ Logo</div>
+        </div>
+      </div>
+    </div>
+
+    <form id="form-profil" novalidate>
+    <div class="form-sections">
+
+      <!-- ===== SECTION 1 : IDENTITE ===== -->
+      <div class="form-section" id="sec-identite">
+        <div class="section-header">
+          <div class="section-icon">🏢</div>
+          <div>
+            <div class="section-title">Identite du laboratoire</div>
+            <div class="section-desc">Informations legales et administratives</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-field col-span-2">
+              <label class="form-label">Raison sociale <span class="required">*</span></label>
+              <input type="text" class="form-input" id="raison_sociale" name="raison_sociale" placeholder="Ex: Laboratoire Dental Martin" required autocomplete="organization">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Forme juridique</label>
+              <select class="form-select" id="forme_juridique" name="forme_juridique">
+                <option value="">— Selectionner —</option>
+                <option value="SARL">SARL</option>
+                <option value="SAS">SAS</option>
+                <option value="SASU">SASU</option>
+                <option value="EURL">EURL</option>
+                <option value="EI">EI (Entreprise Individuelle)</option>
+                <option value="EIRL">EIRL</option>
+                <option value="SA">SA</option>
+                <option value="SNC">SNC</option>
+                <option value="SELARL">SELARL</option>
+                <option value="SELURL">SELURL</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Capital social (€)</label>
+              <input type="number" class="form-input" id="capital_social" name="capital_social" placeholder="Ex: 5000" min="0" step="0.01">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">SIREN <span class="required">*</span></label>
+              <input type="text" class="form-input" id="siren" name="siren" placeholder="9 chiffres" maxlength="9" pattern="[0-9]{9}" autocomplete="off">
+              <div class="form-hint">9 chiffres, sans espaces</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">SIRET</label>
+              <input type="text" class="form-input" id="siret" name="siret" placeholder="14 chiffres" maxlength="14" pattern="[0-9]{14}" autocomplete="off">
+              <div class="form-hint">SIREN + 5 chiffres NIC</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">N° DMMES (ANSM)</label>
+              <input type="text" class="form-input" id="numero_dmmes" name="numero_dmmes" placeholder="Ex: FR-2024-XXXXX" autocomplete="off">
+              <div class="form-hint">Numero de declaration des dispositifs medicaux</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Code APE / NAF</label>
+              <input type="text" class="form-input" id="code_ape" name="code_ape" placeholder="3250A" maxlength="6" value="3250A">
+              <div class="form-hint">3250A = Fabrication de materiel medico-chirurgical</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Ville d'immatriculation RCS</label>
+              <input type="text" class="form-input" id="rcs_ville" name="rcs_ville" placeholder="Ex: Paris" autocomplete="address-level2">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Numero RCS</label>
+              <input type="text" class="form-input" id="numero_rcs" name="numero_rcs" placeholder="Ex: 123 456 789" autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SECTION 2 : COORDONNEES ===== -->
+      <div class="form-section" id="sec-coordonnees">
+        <div class="section-header">
+          <div class="section-icon">📍</div>
+          <div>
+            <div class="section-title">Coordonnees</div>
+            <div class="section-desc">Adresse et contacts du laboratoire</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-field col-span-2">
+              <label class="form-label">Adresse ligne 1 <span class="required">*</span></label>
+              <input type="text" class="form-input" id="adresse_ligne1" name="adresse_ligne1" placeholder="Numero et nom de la rue" required autocomplete="address-line1">
+            </div>
+
+            <div class="form-field col-span-2">
+              <label class="form-label">Adresse ligne 2</label>
+              <input type="text" class="form-input" id="adresse_ligne2" name="adresse_ligne2" placeholder="Batiment, etage, complement..." autocomplete="address-line2">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Code postal <span class="required">*</span></label>
+              <input type="text" class="form-input" id="code_postal" name="code_postal" placeholder="Ex: 75001" maxlength="10" autocomplete="postal-code">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Ville <span class="required">*</span></label>
+              <input type="text" class="form-input" id="ville" name="ville" placeholder="Ex: Paris" autocomplete="address-level2">
+            </div>
+
+            <div class="form-field col-span-2">
+              <label class="form-label">Pays</label>
+              <select class="form-select" id="pays" name="pays">
+                <option value="France" selected>France</option>
+                <option value="Belgique">Belgique</option>
+                <option value="Suisse">Suisse</option>
+                <option value="Luxembourg">Luxembourg</option>
+                <option value="Maroc">Maroc</option>
+                <option value="Tunisie">Tunisie</option>
+                <option value="Algerie">Algerie</option>
+                <option value="Canada">Canada</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Telephone</label>
+              <input type="tel" class="form-input" id="telephone" name="telephone" placeholder="Ex: 01 23 45 67 89" autocomplete="tel">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Email professionnel</label>
+              <input type="email" class="form-input" id="email" name="email" placeholder="contact@monlabo.fr" autocomplete="email">
+            </div>
+
+            <div class="form-field col-span-2">
+              <label class="form-label">Site web</label>
+              <input type="url" class="form-input" id="site_web" name="site_web" placeholder="https://www.monlaboratoire.fr" autocomplete="url">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SECTION 3 : REGIME TVA ===== -->
+      <div class="form-section" id="sec-tva">
+        <div class="section-header">
+          <div class="section-icon">🧾</div>
+          <div>
+            <div class="section-title">Regime TVA</div>
+            <div class="section-desc">Regime fiscal applicable et mentions legales</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="tva-options">
+
+            <label class="tva-option" id="tva-opt-franchise" onclick="selectTva('franchise_base')">
+              <input type="radio" name="regime_tva" value="franchise_base" id="tva-franchise" checked>
+              <div>
+                <div class="tva-label">Franchise en base de TVA <span class="tva-badge tva-badge-none">Exonere TVA</span></div>
+                <div class="tva-sub">Seuil de chiffre d'affaires inferieur a <strong>37 500 EUR</strong> (services). Aucune TVA collectee ni deductible. Mention obligatoire sur les factures.</div>
+              </div>
+            </label>
+
+            <label class="tva-option" id="tva-opt-simplifie" onclick="selectTva('reel_simplifie')">
+              <input type="radio" name="regime_tva" value="reel_simplifie" id="tva-simplifie">
+              <div>
+                <div class="tva-label">Reel simplifie <span class="tva-badge tva-badge-simplifie">TVA trimestrielle</span></div>
+                <div class="tva-sub">Declarations trimestrielles, une regularisation annuelle. Convient aux structures jusqu'a <strong>840 000 EUR</strong> de CA.</div>
+              </div>
+            </label>
+
+            <label class="tva-option" id="tva-opt-normal" onclick="selectTva('reel_normal')">
+              <input type="radio" name="regime_tva" value="reel_normal" id="tva-normal">
+              <div>
+                <div class="tva-label">Reel normal <span class="tva-badge tva-badge-normal">TVA mensuelle</span></div>
+                <div class="tva-sub">Declarations mensuelles. Regime obligatoire au-dela de <strong>840 000 EUR</strong> de CA ou sur option.</div>
+              </div>
+            </label>
+
+          </div>
+
+          <!-- Mention franchise -->
+          <div class="mention-box visible" id="mention-franchise">
+            <div class="mention-box-title">Mention legale applicable (franchise)</div>
+            <div class="mention-preview" id="preview-mention-franchise">TVA non applicable - art. 293 B du CGI</div>
+            <div class="mention-fields">
+              <div class="form-field">
+                <label class="form-label">Mention TVA franchise (personnalisable)</label>
+                <input type="text" class="form-input" id="mention_tva_franchise" name="mention_tva_franchise"
+                  value="TVA non applicable - art. 293 B du CGI"
+                  oninput="document.getElementById('preview-mention-franchise').textContent=this.value">
+              </div>
+              <div class="form-field">
+                <label class="form-label">Mention exoneration (dispositifs medicaux)</label>
+                <input type="text" class="form-input" id="mention_exoneration" name="mention_exoneration"
+                  value="Exoneration TVA art. 261, 4, 1 du CGI"
+                  placeholder="Exoneration TVA art. 261, 4, 1 du CGI">
+                <div class="form-hint">Les protheses dentaires sont exonerees de TVA (art. 261, 4, 1°) quel que soit le regime.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mention regime reel -->
+          <div class="mention-box" id="mention-reel">
+            <div class="mention-box-title">Parametres TVA (regime reel)</div>
+            <div class="mention-fields">
+              <div class="form-field">
+                <label class="form-label">Mention exoneration dispositifs medicaux</label>
+                <input type="text" class="form-input" id="mention_exoneration_reel" name="mention_exoneration_reel"
+                  value="Exoneration TVA art. 261, 4, 1 du CGI"
+                  placeholder="Exoneration TVA art. 261, 4, 1 du CGI">
+                <div class="form-hint">Les protheses dentaires restent exonerees de TVA meme en regime reel.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== SECTION 4 : COORDONNEES BANCAIRES ===== -->
+      <div class="form-section" id="sec-banque">
+        <div class="section-header">
+          <div class="section-icon">🏦</div>
+          <div>
+            <div class="section-title">Coordonnees bancaires</div>
+            <div class="section-desc">Affichees sur les factures pour le paiement</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-field col-span-2">
+              <label class="form-label">IBAN</label>
+              <div class="iban-group">
+                <input type="text" class="form-input" id="iban" name="iban"
+                  placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
+                  maxlength="34" autocomplete="off"
+                  oninput="formatIban(this)">
+                <span class="iban-valid-icon" id="iban-valid-icon">✓</span>
+              </div>
+              <div class="form-hint">Format FR76 — 27 caracteres apres le code pays</div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">BIC / SWIFT</label>
+              <input type="text" class="form-input" id="bic" name="bic"
+                placeholder="Ex: BNPAFRPP" maxlength="11"
+                oninput="this.value=this.value.toUpperCase()" autocomplete="off">
+              <div class="form-hint">8 ou 11 caracteres</div>
+            </div>
+
+            <div class="form-field" style="align-self:end;">
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;">
+                <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Securite</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.5;">Les coordonnees bancaires sont stockees chiffrees. Elles apparaissent uniquement sur vos factures.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SECTION 5 : PARAMETRES FACTURATION ===== -->
+      <div class="form-section" id="sec-facturation">
+        <div class="section-header">
+          <div class="section-icon">🔧</div>
+          <div>
+            <div class="section-title">Parametres de facturation</div>
+            <div class="section-desc">Numerotation, prefixes, qualite et origine</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+
+            <!-- Prefix BL -->
+            <div class="form-field">
+              <label class="form-label">Prefixe BL</label>
+              <input type="text" class="form-input" id="prefix_bl" name="prefix_bl"
+                value="BL" maxlength="10"
+                oninput="updateNumPreview()"
+                style="text-transform:uppercase">
+            </div>
+
+            <!-- Prefix Facture -->
+            <div class="form-field">
+              <label class="form-label">Prefixe Facture</label>
+              <input type="text" class="form-input" id="prefix_facture" name="prefix_facture"
+                value="F" maxlength="10"
+                oninput="updateNumPreview()"
+                style="text-transform:uppercase">
+            </div>
+
+            <!-- Prochain N° BL -->
+            <div class="form-field">
+              <label class="form-label">Prochain numero BL</label>
+              <div class="num-row">
+                <input type="number" class="form-input" id="prochain_numero_bl" name="prochain_numero_bl"
+                  value="1" min="1" step="1"
+                  oninput="updateNumPreview()" style="max-width:120px;">
+                <span class="num-preview" id="preview-bl">BL0001</span>
+              </div>
+              <div class="form-hint">Le prochain bon de livraison generé portera ce numero.</div>
+            </div>
+
+            <!-- Prochain N° Facture -->
+            <div class="form-field">
+              <label class="form-label">Prochain numero facture</label>
+              <div class="num-row">
+                <input type="number" class="form-input" id="prochain_numero_facture" name="prochain_numero_facture"
+                  value="1" min="1" step="1"
+                  oninput="updateNumPreview()" style="max-width:120px;">
+                <span class="num-preview" id="preview-facture">F0001</span>
+              </div>
+              <div class="form-hint">La prochaine facture generee portera ce numero.</div>
+            </div>
+
+            <!-- Pays de fabrication -->
+            <div class="form-field">
+              <label class="form-label">Pays de fabrication</label>
+              <select class="form-select" id="pays_fabrication" name="pays_fabrication">
+                <option value="France" selected>🇫🇷 France (Made in France)</option>
+                <option value="UE">🇪🇺 Union europeenne</option>
+                <option value="Maroc">Maroc</option>
+                <option value="Tunisie">Tunisie</option>
+                <option value="Chine">Chine</option>
+                <option value="Autre">Autre / Mixte</option>
+              </select>
+              <div class="form-hint">Apparait sur les declarations de conformite et bons de livraison.</div>
+            </div>
+
+            <!-- Responsable qualite -->
+            <div class="form-field">
+              <label class="form-label">Responsable qualite</label>
+              <input type="text" class="form-input" id="responsable_qualite" name="responsable_qualite"
+                placeholder="Nom Prenom" autocomplete="name">
+              <div class="form-hint">Signataire des declarations de conformite CE (DM).</div>
+            </div>
+
+          </div>
+
+          <!-- Apercu numerotation -->
+          <div style="margin-top:16px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);">
+            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Apercu de la numerotation</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Bon de livraison</div>
+                <div style="font-family:var(--mono);font-size:13px;color:var(--accent)" id="apercu-bl">BL2026-0001</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Facture</div>
+                <div style="font-family:var(--mono);font-size:13px;color:var(--accent)" id="apercu-facture">F2026-0001</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== SECTION 6 : LOGO & SIGNATURE ===== -->
+      <div class="form-section" id="sec-logo">
+        <div class="section-header">
+          <div class="section-icon">🖼️</div>
+          <div>
+            <div class="section-title">Logo &amp; Signature</div>
+            <div class="section-desc">Imprimes sur vos documents (factures, BL, declarations)</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="upload-grid">
+
+            <!-- LOGO -->
+            <div>
+              <div class="form-label" style="margin-bottom:10px;">Logo du laboratoire</div>
+              <div class="upload-zone" id="zone-logo"
+                ondragover="handleDragOver(event,'zone-logo')"
+                ondragleave="handleDragLeave('zone-logo')"
+                ondrop="handleDrop(event,'logo')">
+                <input type="file" id="input-logo" accept="image/*" onchange="handleFileSelect(event,'logo')">
+                <div class="upload-icon">🏢</div>
+                <div class="upload-title">Deposez votre logo ici</div>
+                <div class="upload-sub">ou cliquez pour parcourir</div>
+                <div class="upload-sub" style="margin-top:6px;">PNG, JPG, SVG, WEBP — max 2 Mo</div>
+              </div>
+              <div class="preview-wrap" id="preview-logo-wrap">
+                <img id="preview-logo-img" class="preview-img" src="" alt="Logo preview">
+                <div class="preview-actions">
+                  <span class="preview-name" id="preview-logo-name"></span>
+                  <span class="preview-remove" onclick="removeFile('logo')">Supprimer</span>
+                </div>
+              </div>
+              <div class="form-hint" style="margin-top:8px;">Apparait en haut a gauche de vos factures et bons de livraison.</div>
+            </div>
+
+            <!-- SIGNATURE -->
+            <div>
+              <div class="form-label" style="margin-bottom:10px;">Signature du responsable</div>
+              <div class="upload-zone" id="zone-signature"
+                ondragover="handleDragOver(event,'zone-signature')"
+                ondragleave="handleDragLeave('zone-signature')"
+                ondrop="handleDrop(event,'signature')">
+                <input type="file" id="input-signature" accept="image/*" onchange="handleFileSelect(event,'signature')">
+                <div class="upload-icon">✍️</div>
+                <div class="upload-title">Deposez votre signature ici</div>
+                <div class="upload-sub">ou cliquez pour parcourir</div>
+                <div class="upload-sub" style="margin-top:6px;">PNG, JPG — fond transparent recommande — max 2 Mo</div>
+              </div>
+              <div class="preview-wrap" id="preview-signature-wrap">
+                <img id="preview-signature-img" class="preview-img" src="" alt="Signature preview" style="background:#f5f5f5;">
+                <div class="preview-actions">
+                  <span class="preview-name" id="preview-signature-name"></span>
+                  <span class="preview-remove" onclick="removeFile('signature')">Supprimer</span>
+                </div>
+              </div>
+              <div class="form-hint" style="margin-top:8px;">Apposee sur les declarations de conformite et les factures signees.</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /form-sections -->
+    </form>
+
+    <!-- SAVE BAR -->
+    <div class="save-bar" id="save-bar">
+      <div class="save-bar-left">
+        <div class="save-status" id="save-status">Modifications non enregistrees</div>
+      </div>
+      <div class="save-bar-right">
+        <button class="btn btn-ghost" onclick="resetForm()">Annuler les modifications</button>
+        <button class="btn btn-primary" onclick="sauvegarderProfil()" id="btn-save-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Enregistrer le profil
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+// =============================================
+// CONFIG SUPABASE
+// =============================================
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+let db = null;
+try { const {createClient} = supabase; db = createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){ console.warn('Supabase init:', e); }
+
+// =============================================
+// STATE
+// =============================================
+let currentUser = null;
+let societeId = null;
+let token = null;
+let profilExistant = false;
+let profilId = null;
+let uploadedFiles = { logo: null, signature: null };
+let existingUrls = { logo: null, signature: null };
+let isDirty = false;
+const API_BASE = '/api/labo';
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', async () => {
+  showLoading('Authentification...');
+  try {
+    await initAuth();
+    await chargerProfil();
+    initFormListeners();
+    updateNumPreview();
+  } catch(e) {
+    console.error(e);
+    showToast('Erreur d\'initialisation : ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+});
+
+async function initAuth() {
+  if (!db) throw new Error('Supabase non initialise');
+  const { data: { session }, error } = await db.auth.getSession();
+  if (error || !session) {
+    window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+    throw new Error('Non authentifie');
+  }
+  currentUser = session.user;
+  token = session.access_token;
+  // Recuperer societeId depuis les metadonnees ou localStorage
+  societeId = currentUser.user_metadata?.societe_id
+    || currentUser.app_metadata?.societe_id
+    || localStorage.getItem('societe_id');
+  if (!societeId) {
+    // Essayer de charger depuis les societes liees
+    try {
+      const { data } = await db.from('societes').select('id').limit(1).single();
+      if (data) { societeId = data.id; localStorage.setItem('societe_id', societeId); }
+    } catch(e) { /* ignore */ }
+  }
+}
+
+// =============================================
+// API CALLS
+// =============================================
+function apiHeaders() {
+  const h = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+  if (societeId) h['X-Societe-Id'] = societeId;
+  return h;
+}
+
+async function chargerProfil() {
+  showLoading('Chargement du profil...');
+  try {
+    const res = await fetch(`${API_BASE}/profil`, { headers: apiHeaders() });
+    if (res.status === 404 || res.status === 204) {
+      // Aucun profil — mode wizard
+      afficherModeWizard();
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data || Object.keys(data).length === 0) {
+      afficherModeWizard();
+      return;
+    }
+    profilExistant = true;
+    profilId = data.id;
+    remplirFormulaire(data);
+    afficherModeEdition();
+  } catch(e) {
+    // En cas d'erreur reseau, afficher quand meme le formulaire vide
+    console.warn('Erreur chargement profil:', e);
+    afficherModeWizard();
+  } finally {
+    hideLoading();
+  }
+}
+
+function afficherModeWizard() {
+  profilExistant = false;
+  document.getElementById('wizard-banner').classList.remove('hidden');
+  document.getElementById('badge-new').classList.remove('hidden');
+  document.getElementById('badge-configured').classList.add('hidden');
+  document.getElementById('save-status').textContent = 'Configurez votre laboratoire';
+  marquerWizardSteps({});
+}
+
+function afficherModeEdition() {
+  document.getElementById('wizard-banner').classList.add('hidden');
+  document.getElementById('badge-configured').classList.remove('hidden');
+  document.getElementById('badge-new').classList.add('hidden');
+  document.getElementById('save-status').textContent = 'Profil charge';
+  document.getElementById('save-status').className = 'save-status saved';
+  marquerWizardSteps({ all: true });
+}
+
+function marquerWizardSteps(data) {
+  const steps = ['ws-identite','ws-coordonnees','ws-tva','ws-banque','ws-facturation','ws-logo'];
+  steps.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (data.all) el.classList.add('done');
+    else el.classList.remove('done');
+  });
+}
+
+function remplirFormulaire(d) {
+  const set = (id, val) => { const el = document.getElementById(id); if(el && val !== undefined && val !== null) el.value = val; };
+  set('raison_sociale', d.raison_sociale);
+  set('forme_juridique', d.forme_juridique);
+  set('siren', d.siren);
+  set('siret', d.siret);
+  set('numero_dmmes', d.numero_dmmes);
+  set('code_ape', d.code_ape || '3250A');
+  set('capital_social', d.capital_social);
+  set('rcs_ville', d.rcs_ville);
+  set('numero_rcs', d.numero_rcs);
+  set('adresse_ligne1', d.adresse_ligne1);
+  set('adresse_ligne2', d.adresse_ligne2);
+  set('code_postal', d.code_postal);
+  set('ville', d.ville);
+  set('pays', d.pays || 'France');
+  set('telephone', d.telephone);
+  set('email', d.email);
+  set('site_web', d.site_web);
+  set('iban', d.iban);
+  set('bic', d.bic);
+  set('prefix_bl', d.prefix_bl || 'BL');
+  set('prefix_facture', d.prefix_facture || 'F');
+  set('prochain_numero_bl', d.prochain_numero_bl || 1);
+  set('prochain_numero_facture', d.prochain_numero_facture || 1);
+  set('pays_fabrication', d.pays_fabrication || 'France');
+  set('responsable_qualite', d.responsable_qualite);
+  set('mention_tva_franchise', d.mention_tva_franchise || 'TVA non applicable - art. 293 B du CGI');
+  set('mention_exoneration', d.mention_exoneration || 'Exoneration TVA art. 261, 4, 1 du CGI');
+
+  // Regime TVA
+  if (d.regime_tva) {
+    const radio = document.querySelector(`input[name="regime_tva"][value="${d.regime_tva}"]`);
+    if (radio) { radio.checked = true; selectTva(d.regime_tva, false); }
+  }
+
+  // Mention TVA franchise preview
+  const mf = document.getElementById('mention_tva_franchise');
+  if (mf) {
+    const pv = document.getElementById('preview-mention-franchise');
+    if (pv) pv.textContent = mf.value;
+  }
+
+  // Images existantes
+  if (d.logo_url) { existingUrls.logo = d.logo_url; afficherPreviewUrl('logo', d.logo_url, 'logo-labo'); }
+  if (d.signature_url) { existingUrls.signature = d.signature_url; afficherPreviewUrl('signature', d.signature_url, 'signature'); }
+
+  // Sidebar
+  document.getElementById('sidebar-labo-nom').textContent = d.raison_sociale || 'Laboratoire';
+  document.getElementById('sidebar-labo-sub').textContent = d.siren ? `SIREN ${d.siren}` : (d.forme_juridique || '—');
+
+  updateNumPreview();
+  isDirty = false;
+  updateSaveStatus();
+}
+
+function collectFormData() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const gn = id => { const el = document.getElementById(id); return el && el.value ? parseFloat(el.value) : null; };
+  const gi = id => { const el = document.getElementById(id); return el && el.value ? parseInt(el.value) : null; };
+  const tvaRadio = document.querySelector('input[name="regime_tva"]:checked');
+  return {
+    raison_sociale: g('raison_sociale'),
+    forme_juridique: g('forme_juridique'),
+    siren: g('siren'),
+    siret: g('siret'),
+    numero_dmmes: g('numero_dmmes'),
+    code_ape: g('code_ape') || '3250A',
+    capital_social: gn('capital_social'),
+    rcs_ville: g('rcs_ville'),
+    numero_rcs: g('numero_rcs'),
+    adresse_ligne1: g('adresse_ligne1'),
+    adresse_ligne2: g('adresse_ligne2'),
+    code_postal: g('code_postal'),
+    ville: g('ville'),
+    pays: g('pays') || 'France',
+    telephone: g('telephone'),
+    email: g('email'),
+    site_web: g('site_web'),
+    iban: g('iban').replace(/\s/g,''),
+    bic: g('bic').toUpperCase(),
+    prefix_bl: g('prefix_bl').toUpperCase() || 'BL',
+    prefix_facture: g('prefix_facture').toUpperCase() || 'F',
+    prochain_numero_bl: gi('prochain_numero_bl') || 1,
+    prochain_numero_facture: gi('prochain_numero_facture') || 1,
+    pays_fabrication: g('pays_fabrication') || 'France',
+    responsable_qualite: g('responsable_qualite'),
+    regime_tva: tvaRadio ? tvaRadio.value : 'franchise_base',
+    mention_tva_franchise: g('mention_tva_franchise') || 'TVA non applicable - art. 293 B du CGI',
+    mention_exoneration: g('mention_exoneration') || 'Exoneration TVA art. 261, 4, 1 du CGI',
+  };
+}
+
+function validerFormulaire(data) {
+  const errors = [];
+  if (!data.raison_sociale) errors.push('La raison sociale est obligatoire.');
+  if (data.siren && !/^\d{9}$/.test(data.siren)) errors.push('Le SIREN doit contenir exactement 9 chiffres.');
+  if (data.siret && !/^\d{14}$/.test(data.siret)) errors.push('Le SIRET doit contenir exactement 14 chiffres.');
+  if (data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) errors.push('L\'adresse email n\'est pas valide.');
+  if (data.iban && !/^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}$/.test(data.iban)) errors.push('L\'IBAN ne semble pas valide.');
+  if (data.bic && !/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(data.bic)) errors.push('Le BIC ne semble pas valide (8 ou 11 caracteres).');
+  return errors;
+}
+
+async function sauvegarderProfil() {
+  const data = collectFormData();
+  const errors = validerFormulaire(data);
+  if (errors.length > 0) {
+    showToast('⚠️ ' + errors[0], 'error');
+    return;
+  }
+  setBtnLoading(true);
+  showLoading('Enregistrement en cours...');
+  try {
+    // Upload logo si nouveau fichier
+    if (uploadedFiles.logo) {
+      const logoUrl = await uploadImage(uploadedFiles.logo, 'logo');
+      if (logoUrl) data.logo_url = logoUrl;
+    } else if (existingUrls.logo) {
+      data.logo_url = existingUrls.logo;
+    }
+    // Upload signature si nouveau fichier
+    if (uploadedFiles.signature) {
+      const sigUrl = await uploadImage(uploadedFiles.signature, 'signature');
+      if (sigUrl) data.signature_url = sigUrl;
+    } else if (existingUrls.signature) {
+      data.signature_url = existingUrls.signature;
+    }
+
+    const method = profilExistant ? 'PUT' : 'POST';
+    const res = await fetch(`${API_BASE}/profil`, {
+      method,
+      headers: apiHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.error || errBody.message || `HTTP ${res.status}`);
+    }
+    const saved = await res.json();
+    if (saved && saved.id) { profilId = saved.id; profilExistant = true; }
+
+    isDirty = false;
+    afficherModeEdition();
+    document.getElementById('sidebar-labo-nom').textContent = data.raison_sociale || 'Laboratoire';
+    document.getElementById('sidebar-labo-sub').textContent = data.siren ? `SIREN ${data.siren}` : (data.forme_juridique || '—');
+    showToast('✓ Profil enregistre avec succes', 'success');
+    updateSaveStatus();
+  } catch(e) {
+    console.error(e);
+    showToast('Erreur : ' + e.message, 'error');
+    document.getElementById('save-status').textContent = 'Erreur d\'enregistrement';
+    document.getElementById('save-status').className = 'save-status error';
+  } finally {
+    hideLoading();
+    setBtnLoading(false);
+  }
+}
+
+async function uploadImage(file, type) {
+  // Tentative upload via API
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    const headers = { 'Authorization': `Bearer ${token}` };
+    if (societeId) headers['X-Societe-Id'] = societeId;
+    const res = await fetch(`${API_BASE}/profil/upload`, { method: 'POST', headers, body: formData });
+    if (!res.ok) throw new Error(`Upload HTTP ${res.status}`);
+    const result = await res.json();
+    return result.url || result.publicUrl || null;
+  } catch(e) {
+    // Fallback: upload direct Supabase Storage si disponible
+    if (db) {
+      try {
+        const ext = file.name.split('.').pop();
+        const path = `labo/${societeId || 'global'}/${type}-${Date.now()}.${ext}`;
+        const { data: upData, error: upErr } = await db.storage.from('logos').upload(path, file, { upsert: true });
+        if (upErr) throw upErr;
+        const { data: urlData } = db.storage.from('logos').getPublicUrl(path);
+        return urlData?.publicUrl || null;
+      } catch(storageErr) {
+        console.warn('Supabase storage upload failed:', storageErr);
+      }
+    }
+    console.warn('Image upload failed, continuing without image:', e);
+    return null;
+  }
+}
+
+// =============================================
+// RESET FORM
+// =============================================
+let savedSnapshot = null;
+
+function saveSnapshot() {
+  savedSnapshot = collectFormData();
+}
+
+function resetForm() {
+  if (savedSnapshot && profilExistant) {
+    remplirFormulaire(savedSnapshot);
+    showToast('Modifications annulees', 'success');
+  } else if (!profilExistant) {
+    document.getElementById('form-profil').reset();
+    document.getElementById('code_ape').value = '3250A';
+    document.getElementById('prefix_bl').value = 'BL';
+    document.getElementById('prefix_facture').value = 'F';
+    document.getElementById('prochain_numero_bl').value = '1';
+    document.getElementById('prochain_numero_facture').value = '1';
+    selectTva('franchise_base');
+    removeFile('logo');
+    removeFile('signature');
+    updateNumPreview();
+    showToast('Formulaire reinitialise', 'success');
+  }
+  isDirty = false;
+  updateSaveStatus();
+}
+
+// =============================================
+// TVA REGIME
+// =============================================
+function selectTva(regime, updateRadio = true) {
+  const opts = ['tva-opt-franchise','tva-opt-simplifie','tva-opt-normal'];
+  opts.forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('selected'); });
+
+  const mentions = { franchise_base: 'mention-franchise', reel_simplifie: 'mention-reel', reel_normal: 'mention-reel' };
+  ['mention-franchise','mention-reel'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) { el.classList.remove('visible'); el.style.display = 'none'; }
+  });
+
+  if (regime === 'franchise_base') {
+    document.getElementById('tva-opt-franchise').classList.add('selected');
+    if (updateRadio) document.getElementById('tva-franchise').checked = true;
+    const mf = document.getElementById('mention-franchise');
+    if (mf) { mf.classList.add('visible'); mf.style.display = 'block'; }
+  } else if (regime === 'reel_simplifie') {
+    document.getElementById('tva-opt-simplifie').classList.add('selected');
+    if (updateRadio) document.getElementById('tva-simplifie').checked = true;
+    const mr = document.getElementById('mention-reel');
+    if (mr) { mr.classList.add('visible'); mr.style.display = 'block'; }
+  } else if (regime === 'reel_normal') {
+    document.getElementById('tva-opt-normal').classList.add('selected');
+    if (updateRadio) document.getElementById('tva-normal').checked = true;
+    const mr = document.getElementById('mention-reel');
+    if (mr) { mr.classList.add('visible'); mr.style.display = 'block'; }
+  }
+  markDirty();
+}
+
+// =============================================
+// NUMEROTATION PREVIEW
+// =============================================
+function updateNumPreview() {
+  const year = new Date().getFullYear();
+  const prefBL = (document.getElementById('prefix_bl')?.value || 'BL').toUpperCase();
+  const prefF = (document.getElementById('prefix_facture')?.value || 'F').toUpperCase();
+  const numBL = parseInt(document.getElementById('prochain_numero_bl')?.value || '1');
+  const numF = parseInt(document.getElementById('prochain_numero_facture')?.value || '1');
+  const padBL = String(numBL).padStart(4, '0');
+  const padF = String(numF).padStart(4, '0');
+  const blStr = `${prefBL}${year}-${padBL}`;
+  const fStr = `${prefF}${year}-${padF}`;
+  const pBL = document.getElementById('preview-bl');
+  const pF = document.getElementById('preview-facture');
+  const aBL = document.getElementById('apercu-bl');
+  const aF = document.getElementById('apercu-facture');
+  if (pBL) pBL.textContent = blStr;
+  if (pF) pF.textContent = fStr;
+  if (aBL) aBL.textContent = blStr;
+  if (aF) aF.textContent = fStr;
+}
+
+// =============================================
+// IBAN FORMAT
+// =============================================
+function formatIban(input) {
+  let val = input.value.replace(/\s/g,'').toUpperCase();
+  val = val.replace(/(.{4})/g, '$1 ').trim();
+  input.value = val;
+  const raw = val.replace(/\s/g,'');
+  const icon = document.getElementById('iban-valid-icon');
+  if (raw.length >= 15 && /^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(raw)) {
+    if (icon) { icon.style.display = 'block'; icon.style.color = 'var(--green)'; icon.textContent = '✓'; }
+  } else {
+    if (icon) icon.style.display = 'none';
+  }
+  markDirty();
+}
+
+// =============================================
+// FILE UPLOAD
+// =============================================
+function handleDragOver(e, zoneId) {
+  e.preventDefault();
+  document.getElementById(zoneId).classList.add('drag-over');
+}
+function handleDragLeave(zoneId) {
+  document.getElementById(zoneId).classList.remove('drag-over');
+}
+function handleDrop(e, type) {
+  e.preventDefault();
+  const zoneId = `zone-${type}`;
+  document.getElementById(zoneId).classList.remove('drag-over');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) processFile(file, type);
+}
+function handleFileSelect(e, type) {
+  const file = e.target.files?.[0];
+  if (file) processFile(file, type);
+}
+
+function processFile(file, type) {
+  if (!file.type.startsWith('image/')) {
+    showToast('Seules les images sont acceptees (PNG, JPG, SVG, WEBP)', 'error');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('L\'image ne doit pas depasser 2 Mo', 'error');
+    return;
+  }
+  uploadedFiles[type] = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = document.getElementById(`preview-${type}-img`);
+    const nameEl = document.getElementById(`preview-${type}-name`);
+    const wrap = document.getElementById(`preview-${type}-wrap`);
+    const zone = document.getElementById(`zone-${type}`);
+    if (img) img.src = e.target.result;
+    if (nameEl) nameEl.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+    if (wrap) wrap.classList.add('visible');
+    if (zone) zone.querySelector('.upload-icon, .upload-title, .upload-sub') && (zone.style.padding = '16px');
+  };
+  reader.readAsDataURL(file);
+  markDirty();
+}
+
+function afficherPreviewUrl(type, url, altText) {
+  const img = document.getElementById(`preview-${type}-img`);
+  const nameEl = document.getElementById(`preview-${type}-name`);
+  const wrap = document.getElementById(`preview-${type}-wrap`);
+  if (img) { img.src = url; img.alt = altText || type; }
+  if (nameEl) nameEl.textContent = 'Image existante';
+  if (wrap) wrap.classList.add('visible');
+}
+
+function removeFile(type) {
+  uploadedFiles[type] = null;
+  existingUrls[type] = null;
+  const img = document.getElementById(`preview-${type}-img`);
+  const wrap = document.getElementById(`preview-${type}-wrap`);
+  const input = document.getElementById(`input-${type}`);
+  if (img) img.src = '';
+  if (wrap) wrap.classList.remove('visible');
+  if (input) input.value = '';
+  markDirty();
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' o';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' Ko';
+  return (bytes/1024/1024).toFixed(1) + ' Mo';
+}
+
+// =============================================
+// DIRTY STATE
+// =============================================
+function initFormListeners() {
+  const form = document.getElementById('form-profil');
+  if (!form) return;
+  form.addEventListener('input', markDirty);
+  form.addEventListener('change', markDirty);
+  // Snapshot apres chargement
+  saveSnapshot();
+}
+
+function markDirty() {
+  isDirty = true;
+  updateSaveStatus();
+}
+
+function updateSaveStatus() {
+  const el = document.getElementById('save-status');
+  if (!el) return;
+  if (isDirty) {
+    el.textContent = 'Modifications non enregistrees';
+    el.className = 'save-status';
+  }
+}
+
+// =============================================
+// UI HELPERS
+// =============================================
+function setBtnLoading(loading) {
+  const btns = [document.getElementById('btn-save'), document.getElementById('btn-save-bar')];
+  btns.forEach(btn => {
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Enregistrement...' : 'Enregistrer';
+  });
+}
+
+let toastTimer = null;
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show' + (type === 'error' ? ' toast-error' : type === 'success' ? ' toast-success' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3500);
+}
+
+function showLoading(msg) {
+  const ol = document.getElementById('loading-overlay');
+  const lt = document.getElementById('loading-text');
+  if (ol) ol.classList.add('open');
+  if (lt) lt.textContent = msg || 'Chargement...';
+}
+
+function hideLoading() {
+  const ol = document.getElementById('loading-overlay');
+  if (ol) ol.classList.remove('open');
+}
+</script>
+</body>
+</html>

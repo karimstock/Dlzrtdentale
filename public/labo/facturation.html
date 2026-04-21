@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Facturation</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#ffffff;--bg-secondary:#f8f9fa;--surface:#ffffff;--surface2:#f1f3f5;
+  --border:#e0e3e8;--text:#1a1d23;--text-secondary:#6b7280;
+  --accent:#2563eb;--accent-light:#dbeafe;--accent-dark:#1d4ed8;
+  --success:#059669;--warning:#d97706;--danger:#dc2626;
+  --shadow:0 1px 3px rgba(0,0,0,0.1);--shadow-lg:0 4px 12px rgba(0,0,0,0.1);
+  --radius:8px;
+  --muted:#6b7280;--amber:#d97706;--amber-l:#fffbeb;--red:#dc2626;--red-l:#fef2f2;
+  --blue:#2563eb;--blue-l:#dbeafe;--green:#059669;--green-l:#ecfdf5;
+  --font:'Inter',-apple-system,sans-serif;--font-display:'Inter',sans-serif;--mono:'SFMono-Regular',Consolas,monospace;
+  --radius-sm:6px;--radius-lg:12px;
+}
+body{font-family:var(--font);background:var(--bg-secondary);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:#ffffff;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.logo-icon-nav{font-size:20px;}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:9px 22px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-light);border-left-color:var(--accent);}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:var(--shadow);}
+.page-title{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-right{display:flex;gap:10px;align-items:center;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.2px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-dark);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#047857;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+.content{padding:24px 28px;flex:1;}
+
+/* Section header */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.section-title{font-family:var(--font-display);font-size:17px;font-weight:700;}
+.section-sub{font-size:13px;color:var(--muted);margin-top:2px;}
+
+/* Period selector */
+.period-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.period-bar label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.period-bar input[type="date"]{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;cursor:pointer;}
+.period-bar input[type="date"]:focus{border-color:var(--accent);}
+.period-bar select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;cursor:pointer;}
+.period-separator{color:var(--muted);font-size:13px;}
+
+/* Stats bar */
+.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;font-weight:600;}
+.stat-value{font-family:var(--font-display);font-size:26px;font-weight:700;line-height:1;letter-spacing:-0.8px;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+
+/* A facturer section */
+.a-facturer-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+.a-facturer-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);}
+.a-facturer-title{font-family:var(--font-display);font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.dot-orange{width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0;}
+
+.dentiste-group{border-bottom:1px solid var(--border);}
+.dentiste-group:last-child{border-bottom:none;}
+.dentiste-group-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;transition:background 0.15s;}
+.dentiste-group-head:hover{background:var(--surface2);}
+.dentiste-info{display:flex;flex-direction:column;}
+.dentiste-name{font-size:14px;font-weight:600;color:var(--text);}
+.dentiste-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.dentiste-total{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--green);}
+.dentiste-chevron{font-size:12px;color:var(--muted);transition:transform 0.2s;}
+.dentiste-chevron.open{transform:rotate(90deg);}
+
+.bl-table-wrap{display:none;overflow:hidden;}
+.bl-table-wrap.open{display:block;}
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--bg-secondary);}
+
+/* Options facture */
+.options-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.options-bar label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.remise-input{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;width:90px;}
+.remise-input:focus{border-color:var(--accent);}
+.options-sep{flex:1;}
+
+/* Factures generees */
+.generated-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;display:none;}
+.generated-section.visible{display:block;}
+.generated-head{padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(26,86,219,0.08);display:flex;align-items:center;justify-content:space-between;}
+.generated-title{font-family:var(--font-display);font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;color:var(--accent);}
+
+/* Invoice list */
+.invoice-list-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+.invoice-list-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.invoice-list-title{font-family:var(--font-display);font-size:15px;font-weight:700;}
+
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-brouillon{background:#f3f4f6;color:var(--muted);}
+.badge-emise{background:var(--blue-l);color:var(--blue);}
+.badge-payee{background:var(--green-l);color:var(--green);}
+.badge-annulee{background:var(--red-l);color:var(--red);}
+
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.pdf:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
+
+/* Filter bar for invoices */
+.filter-bar{display:flex;gap:10px;margin:14px 20px;flex-wrap:wrap;align-items:center;}
+.filter-select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;cursor:pointer;}
+.search-wrap{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:260px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:600px;max-width:94vw;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.modal-section{margin-bottom:18px;}
+.modal-section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-row .lbl{color:var(--muted);}
+.detail-row .val{font-family:var(--mono);font-weight:500;}
+.detail-total{font-weight:700;font-size:15px;color:var(--green);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.form-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:400;transition:transform 0.3s;min-width:220px;text-align:center;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.error{background:var(--red);}
+
+/* Loading / Empty states */
+.loading-state,.empty-state{padding:40px;text-align:center;color:var(--muted);font-size:13px;}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.progress-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.progress-overlay.open{display:flex;}
+.progress-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:36px 40px;text-align:center;max-width:400px;box-shadow:var(--shadow-lg);}
+.progress-title{font-size:18px;font-weight:700;margin-bottom:8px;}
+.progress-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.progress-bar-wrap{background:var(--surface2);border-radius:20px;height:6px;overflow:hidden;margin-bottom:16px;}
+.progress-bar{height:100%;background:var(--accent);border-radius:20px;transition:width 0.4s;}
+.progress-step{font-size:12px;color:var(--muted);font-family:var(--mono);}
+
+@media(max-width:780px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .stats-bar{grid-template-columns:1fr 1fr;}
+  .period-bar{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ======================== SIDEBAR ======================== -->
+<nav class="sidebar">
+  <div class="sidebar-logo"><span class="logo-icon-nav">🦷</span> JADOMI LABO</div>
+  <div class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="dentistes.html" class="nav-item" data-page="dentistes"><span class="nav-icon">👥</span> Mes dentistes</a>
+    <a href="bons-livraison.html" class="nav-item" data-page="bons-livraison"><span class="nav-icon">📋</span> Bons de laboratoire</a>
+    <a href="facturation.html" class="nav-item active" data-page="facturation"><span class="nav-icon">💰</span> Facturation</a>
+    <a href="stock.html" class="nav-item" data-page="stock"><span class="nav-icon">📦</span> Stock &amp; Matériaux</a>
+    <a href="catalogue.html" class="nav-item" data-page="catalogue"><span class="nav-icon">📊</span> Catalogue</a>
+    <a href="import-grille.html" class="nav-item" data-page="import-grille"><span class="nav-icon">📥</span> Import grille</a>
+    <a href="profil-labo.html" class="nav-item" data-page="profil-labo"><span class="nav-icon">⚙️</span> Paramètres labo</a>
+  </div>
+</nav>
+
+<!-- ======================== MAIN ======================== -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title">Facturation mensuelle</div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost btn-sm" onclick="deconnexion()">Deconnexion</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== PERIODE ===== -->
+    <div class="period-bar">
+      <label>Periode</label>
+      <select id="periode-preset" onchange="appliquerPreset()">
+        <option value="last_month">Mois precedent</option>
+        <option value="current_month">Mois en cours</option>
+        <option value="last_3">3 derniers mois</option>
+        <option value="custom">Personnalisee</option>
+      </select>
+      <span class="period-separator">du</span>
+      <input type="date" id="date-debut" onchange="onDateChange()">
+      <span class="period-separator">au</span>
+      <input type="date" id="date-fin" onchange="onDateChange()">
+      <button class="btn btn-primary btn-sm" onclick="chargerAFacturer()">Actualiser</button>
+    </div>
+
+    <!-- ===== STATS BAR ===== -->
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-label">Factures a creer</div>
+        <div class="stat-value c-accent" id="stat-nb-factures">—</div>
+        <div class="stat-sub">dentistes concernes</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Bons de livraison</div>
+        <div class="stat-value" id="stat-nb-bls">—</div>
+        <div class="stat-sub">bons livres non factures</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total TTC</div>
+        <div class="stat-value c-green" id="stat-total">—</div>
+        <div class="stat-sub">euros a facturer</div>
+      </div>
+    </div>
+
+    <!-- ===== A FACTURER ===== -->
+    <div class="a-facturer-section">
+      <div class="a-facturer-head">
+        <div class="a-facturer-title">
+          <span class="dot-orange"></span>
+          A facturer
+        </div>
+        <span id="a-facturer-count" style="font-size:12px;color:var(--muted);font-family:var(--mono);">—</span>
+      </div>
+      <div id="a-facturer-body">
+        <div class="loading-state"><div class="spinner"></div><br>Chargement...</div>
+      </div>
+    </div>
+
+    <!-- ===== OPTIONS ===== -->
+    <div class="options-bar">
+      <label>Remise globale</label>
+      <input type="number" class="remise-input" id="remise-pct" placeholder="0" min="0" max="100" step="0.5"> %
+      <span style="font-size:12px;color:var(--muted);">Remise appliquee a toutes les factures generees</span>
+      <span class="options-sep"></span>
+      <button class="btn btn-primary" id="btn-generer" onclick="genererFactures()">
+        <span>⚡</span> Generer toutes les factures
+      </button>
+    </div>
+
+    <!-- ===== FACTURES GENEREES ===== -->
+    <div class="generated-section" id="generated-section">
+      <div class="generated-head">
+        <div class="generated-title"><span>✅</span> Factures generees</div>
+        <button class="btn btn-green btn-sm" onclick="envoyerToutesParEmail()">
+          <span>📧</span> Envoyer toutes par email
+        </button>
+      </div>
+      <div id="generated-list"></div>
+    </div>
+
+    <!-- ===== TOUTES LES FACTURES ===== -->
+    <div class="invoice-list-section">
+      <div class="invoice-list-head">
+        <div>
+          <div class="invoice-list-title">Toutes les factures</div>
+          <div class="section-sub" style="font-size:12px;color:var(--muted);margin-top:2px;">Historique complet</div>
+        </div>
+        <span id="all-invoices-count" style="font-size:12px;color:var(--muted);font-family:var(--mono);">—</span>
+      </div>
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <span style="color:var(--muted);font-size:13px;">🔍</span>
+          <input type="text" placeholder="Dentiste, numero..." id="search-factures" oninput="filtrerFactures()">
+        </div>
+        <select class="filter-select" id="filter-statut" onchange="filtrerFactures()">
+          <option value="">Tous statuts</option>
+          <option value="brouillon">Brouillon</option>
+          <option value="emise">Emise</option>
+          <option value="payee">Payee</option>
+          <option value="annulee">Annulee</option>
+        </select>
+      </div>
+      <div id="invoices-body">
+        <div class="loading-state"><div class="spinner"></div><br>Chargement...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ======================== MODAL DETAIL FACTURE ======================== -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-title" id="modal-detail-title">Facture</div>
+    <div class="modal-sub" id="modal-detail-sub"></div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">Montants</div>
+      <div id="modal-detail-montants"></div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">Bons de livraison inclus</div>
+      <div id="modal-detail-bls" style="font-size:13px;color:var(--muted);">Chargement...</div>
+    </div>
+
+    <div class="modal-footer" id="modal-detail-footer"></div>
+  </div>
+</div>
+
+<!-- ======================== MODAL PAIEMENT ======================== -->
+<div class="modal-overlay" id="modal-paiement">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Marquer comme payee</div>
+    <div class="form-field">
+      <div class="form-label">Mode de paiement</div>
+      <select class="form-select" id="mode-paiement">
+        <option value="virement">Virement bancaire</option>
+        <option value="cheque">Cheque</option>
+        <option value="especes">Especes</option>
+        <option value="carte">Carte bancaire</option>
+        <option value="prelevement">Prelevement</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <div class="form-label">Date de paiement</div>
+      <input type="date" class="form-input" id="date-paiement">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-paiement')">Annuler</button>
+      <button class="btn btn-green" onclick="confirmerPaiement()">Confirmer le paiement</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== MODAL AVOIR ======================== -->
+<div class="modal-overlay" id="modal-avoir">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Generer un avoir</div>
+    <div class="form-field">
+      <div class="form-label">Motif</div>
+      <input type="text" class="form-input" id="avoir-motif" placeholder="Ex: Retour produit, correction...">
+    </div>
+    <div class="form-field">
+      <div class="form-label">Montant TTC (laisser vide = avoir total)</div>
+      <input type="number" class="form-input" id="avoir-montant" placeholder="0.00" step="0.01" min="0">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-avoir')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmerAvoir()">Creer l'avoir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== PROGRESS OVERLAY ======================== -->
+<div class="progress-overlay" id="progress-overlay">
+  <div class="progress-box">
+    <div class="spinner" style="width:28px;height:28px;border-width:3px;margin-bottom:16px;"></div>
+    <div class="progress-title" id="progress-title">Generation en cours...</div>
+    <div class="progress-sub" id="progress-sub">Preparation des factures</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar" style="width:30%;"></div>
+    </div>
+    <div class="progress-step" id="progress-step">...</div>
+  </div>
+</div>
+
+<!-- ======================== TOAST ======================== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG SUPABASE + AUTH
+// ============================================================
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+let db;
+try { const { createClient } = supabase; db = createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+let currentToken = null;
+let currentSocieteId = null;
+let currentFactureId = null;
+let allFactures = [];
+let lastGenerated = [];
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  currentToken = await getToken();
+  currentSocieteId = getSocieteId();
+  if (!currentToken) { window.location.href = '/login.html'; return; }
+
+  await Promise.all([
+    chargerProfil(),
+    chargerFactures()
+  ]);
+  initPeriode();
+  await chargerAFacturer();
+}
+
+async function getToken() {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session?.access_token) return session.access_token;
+  } catch(e) {}
+  const s = localStorage.getItem('jadomi_session');
+  if (s) { try { return JSON.parse(s).token || null; } catch(e) {} }
+  return null;
+}
+
+function getSocieteId() {
+  return localStorage.getItem('selectedSocieteId') || localStorage.getItem('societe_active_id') || '';
+}
+
+function apiHeaders() {
+  const h = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken };
+  if (currentSocieteId) h['X-Societe-Id'] = currentSocieteId;
+  return h;
+}
+
+async function deconnexion() {
+  try { await db.auth.signOut(); } catch(e) {}
+  localStorage.removeItem('jadomi_session');
+  window.location.href = '/login.html';
+}
+
+// ============================================================
+// PROFIL
+// ============================================================
+async function chargerProfil() {
+  try {
+    const r = await fetch('/api/labo/profil', { headers: apiHeaders() });
+    if (!r.ok) return;
+    const d = await r.json();
+    const p = d.prothesiste || d;
+    document.getElementById('labo-nom').textContent = p.nom_labo || p.nom || 'Mon laboratoire';
+    document.getElementById('labo-pseudo').textContent = p.pseudo || 'PROTH-????';
+  } catch(e) {}
+}
+
+// ============================================================
+// PERIODE
+// ============================================================
+function initPeriode() {
+  const now = new Date();
+  const firstLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  document.getElementById('date-debut').value = toIso(firstLastMonth);
+  document.getElementById('date-fin').value = toIso(lastLastMonth);
+}
+
+function toIso(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function appliquerPreset() {
+  const preset = document.getElementById('periode-preset').value;
+  const now = new Date();
+  let debut, fin;
+  if (preset === 'last_month') {
+    debut = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    fin = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else if (preset === 'current_month') {
+    debut = new Date(now.getFullYear(), now.getMonth(), 1);
+    fin = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (preset === 'last_3') {
+    debut = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    fin = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else {
+    return;
+  }
+  document.getElementById('date-debut').value = toIso(debut);
+  document.getElementById('date-fin').value = toIso(fin);
+  chargerAFacturer();
+}
+
+function onDateChange() {
+  document.getElementById('periode-preset').value = 'custom';
+}
+
+// ============================================================
+// CHARGER A FACTURER
+// ============================================================
+async function chargerAFacturer() {
+  const debut = document.getElementById('date-debut').value;
+  const fin = document.getElementById('date-fin').value;
+  if (!debut || !fin) return;
+
+  const body = document.getElementById('a-facturer-body');
+  body.innerHTML = '<div class="loading-state"><div class="spinner"></div><br>Chargement des BL a facturer...</div>';
+
+  document.getElementById('stat-nb-factures').textContent = '—';
+  document.getElementById('stat-nb-bls').textContent = '—';
+  document.getElementById('stat-total').textContent = '—';
+
+  try {
+    const r = await fetch(`/api/labo/factures/a-facturer?periode_debut=${debut}&periode_fin=${fin}`, {
+      headers: apiHeaders()
+    });
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const d = await r.json();
+    const groupes = d.groupes || [];
+    const stats = d.stats || {};
+
+    // Update stats
+    document.getElementById('stat-nb-factures').textContent = stats.nb_factures ?? groupes.length;
+    document.getElementById('stat-nb-bls').textContent = stats.nb_bls ?? '—';
+    document.getElementById('stat-total').textContent = (stats.total_ttc != null) ? formatEur(stats.total_ttc) : '—';
+    document.getElementById('a-facturer-count').textContent = groupes.length + ' dentiste' + (groupes.length > 1 ? 's' : '');
+
+    if (groupes.length === 0) {
+      body.innerHTML = '<div class="empty-state">Aucun bon de livraison non facture pour cette periode</div>';
+      document.getElementById('btn-generer').disabled = true;
+      return;
+    }
+
+    document.getElementById('btn-generer').disabled = false;
+    body.innerHTML = groupes.map((g, i) => renderDentisteGroup(g, i)).join('');
+  } catch(e) {
+    body.innerHTML = `<div class="empty-state" style="color:var(--red);">Erreur: ${e.message}</div>`;
+    showToast('Erreur lors du chargement: ' + e.message, true);
+  }
+}
+
+function renderDentisteGroup(g, idx) {
+  const d = g.dentiste || {};
+  const nomD = [d.titre, d.prenom, d.nom].filter(Boolean).join(' ') || 'Dentiste inconnu';
+  const bls = g.bons || [];
+  const rows = bls.map(bl => `
+    <tr>
+      <td><span style="font-family:var(--mono);font-size:12px;">${esc(bl.numero_bl || '—')}</span></td>
+      <td>${formatDate(bl.date_bl)}</td>
+      <td>${esc(bl.patient_code || bl.reference || '—')}</td>
+      <td>${bl.lignes_bl ? bl.lignes_bl.length + ' ligne' + (bl.lignes_bl.length > 1 ? 's' : '') : '—'}</td>
+      <td style="text-align:right;font-family:var(--mono);color:var(--green);">${formatEur(bl.total_ttc)}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="dentiste-group">
+      <div class="dentiste-group-head" onclick="toggleGroup(${idx})">
+        <div class="dentiste-info">
+          <div class="dentiste-name">${esc(nomD)}</div>
+          <div class="dentiste-meta">${bls.length} bon${bls.length > 1 ? 's' : ''} de livraison · ${esc(d.email || '')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="dentiste-total">${formatEur(g.total_ttc)}</div>
+          <span class="dentiste-chevron" id="chevron-${idx}">▶</span>
+        </div>
+      </div>
+      <div class="bl-table-wrap" id="bl-group-${idx}">
+        <table>
+          <thead>
+            <tr>
+              <th>N° BL</th><th>Date</th><th>Reference</th><th>Lignes</th><th style="text-align:right;">Total TTC</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function toggleGroup(idx) {
+  const wrap = document.getElementById('bl-group-' + idx);
+  const chevron = document.getElementById('chevron-' + idx);
+  const isOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+}
+
+// ============================================================
+// GENERER FACTURES
+// ============================================================
+async function genererFactures() {
+  const debut = document.getElementById('date-debut').value;
+  const fin = document.getElementById('date-fin').value;
+  const remise = parseFloat(document.getElementById('remise-pct').value) || 0;
+
+  if (!debut || !fin) { showToast('Selectionnez une periode', true); return; }
+
+  ouvrirProgress('Generation des factures...', 'Preparation des donnees');
+  setProgress(20, 'Recuperation des bons de livraison...');
+
+  try {
+    await delay(400);
+    setProgress(50, 'Creation des factures en base...');
+
+    const r = await fetch('/api/labo/factures/generer', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ periode_debut: debut, periode_fin: fin, remise_globale_pct: remise })
+    });
+
+    setProgress(80, 'Generation des PDF...');
+    await delay(300);
+
+    if (!r.ok) {
+      const err = await r.json();
+      throw new Error(err.error || 'Erreur serveur');
+    }
+
+    const d = await r.json();
+    setProgress(100, 'Terminé !');
+    await delay(500);
+    fermerProgress();
+
+    lastGenerated = d.factures || [];
+
+    if (lastGenerated.length === 0) {
+      showToast(d.message || 'Aucune facture generee');
+    } else {
+      showToast(lastGenerated.length + ' facture(s) generee(s) avec succes');
+      afficherFacturesGenerees(lastGenerated);
+    }
+
+    // Recharger les deux sections
+    await Promise.all([chargerAFacturer(), chargerFactures()]);
+  } catch(e) {
+    fermerProgress();
+    showToast('Erreur: ' + e.message, true);
+  }
+}
+
+function afficherFacturesGenerees(factures) {
+  const section = document.getElementById('generated-section');
+  const list = document.getElementById('generated-list');
+  section.classList.add('visible');
+
+  const rows = factures.map(f => `
+    <tr>
+      <td><span style="font-family:var(--mono);font-size:12px;">${esc(f.numero_facture || '—')}</span></td>
+      <td>${esc(f.dentiste_nom || '—')}</td>
+      <td style="font-family:var(--mono);color:var(--green);">${formatEur(f.total_ttc)}</td>
+      <td><span class="badge badge-emise">Emise</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn pdf" title="Telecharger PDF" onclick="telechargerPdf('${f.id}', '${esc(f.numero_facture)}')">📄</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  list.innerHTML = `
+    <table>
+      <thead><tr><th>Numero</th><th>Dentiste</th><th>Total TTC</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+// ============================================================
+// ENVOYER PAR EMAIL
+// ============================================================
+async function envoyerToutesParEmail() {
+  if (lastGenerated.length === 0) { showToast('Aucune facture a envoyer', true); return; }
+
+  ouvrirProgress('Envoi par email...', 'Preparation des emails');
+  setProgress(30, 'Envoi en cours...');
+
+  try {
+    const ids = lastGenerated.map(f => f.id);
+    const r = await fetch('/api/labo/factures/envoyer', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ facture_ids: ids })
+    });
+    setProgress(90, 'Finalisation...');
+    await delay(200);
+
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erreur'); }
+    const d = await r.json();
+    setProgress(100, 'Emails envoyes !');
+    await delay(500);
+    fermerProgress();
+
+    const ok = (d.resultats || []).filter(r => r.success).length;
+    showToast(ok + ' facture(s) envoyee(s) par email');
+  } catch(e) {
+    fermerProgress();
+    showToast('Erreur envoi: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// LISTE TOUTES LES FACTURES
+// ============================================================
+async function chargerFactures() {
+  const body = document.getElementById('invoices-body');
+  body.innerHTML = '<div class="loading-state"><div class="spinner"></div><br>Chargement...</div>';
+
+  try {
+    const r = await fetch('/api/labo/factures', { headers: apiHeaders() });
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const d = await r.json();
+    allFactures = d.factures || [];
+    document.getElementById('all-invoices-count').textContent = allFactures.length + ' facture' + (allFactures.length > 1 ? 's' : '');
+    rendreListeFactures(allFactures);
+  } catch(e) {
+    body.innerHTML = `<div class="empty-state" style="color:var(--red);">Erreur: ${e.message}</div>`;
+  }
+}
+
+function filtrerFactures() {
+  const q = document.getElementById('search-factures').value.toLowerCase();
+  const statut = document.getElementById('filter-statut').value;
+  const filtered = allFactures.filter(f => {
+    const dentiste = f.dentistes_clients || {};
+    const nom = [dentiste.titre, dentiste.prenom, dentiste.nom].filter(Boolean).join(' ').toLowerCase();
+    const num = (f.numero_facture || '').toLowerCase();
+    const matchQ = !q || nom.includes(q) || num.includes(q);
+    const matchStatut = !statut || f.statut === statut;
+    return matchQ && matchStatut;
+  });
+  rendreListeFactures(filtered);
+}
+
+function rendreListeFactures(factures) {
+  const body = document.getElementById('invoices-body');
+  if (factures.length === 0) {
+    body.innerHTML = '<div class="empty-state">Aucune facture trouvee</div>';
+    return;
+  }
+
+  const rows = factures.map(f => {
+    const d = f.dentistes_clients || {};
+    const nomD = [d.titre, d.prenom, d.nom].filter(Boolean).join(' ') || '—';
+    return `
+      <tr style="cursor:pointer;" onclick="ouvrirDetail('${f.id}')">
+        <td><span style="font-family:var(--mono);font-size:12px;">${esc(f.numero_facture || '—')}</span></td>
+        <td>${esc(nomD)}</td>
+        <td>${formatDate(f.date_facture)}</td>
+        <td style="font-size:11px;color:var(--muted);">${formatDate(f.periode_debut)} — ${formatDate(f.periode_fin)}</td>
+        <td style="font-family:var(--mono);text-align:right;color:var(--green);">${formatEur(f.total_ttc)}</td>
+        <td><span class="badge badge-${f.statut || 'brouillon'}">${labelStatut(f.statut)}</span></td>
+        <td onclick="event.stopPropagation()">
+          <div class="action-btns">
+            <button class="icon-btn pdf" title="PDF" onclick="telechargerPdf('${f.id}','${esc(f.numero_facture)}')">📄</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  body.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Numero</th>
+          <th>Dentiste</th>
+          <th>Date</th>
+          <th>Periode</th>
+          <th style="text-align:right;">Total TTC</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function labelStatut(s) {
+  const labels = { brouillon: 'Brouillon', emise: 'Emise', payee: 'Payee', annulee: 'Annulee' };
+  return labels[s] || s || '—';
+}
+
+// ============================================================
+// DETAIL FACTURE
+// ============================================================
+async function ouvrirDetail(id) {
+  currentFactureId = id;
+  document.getElementById('modal-detail-title').textContent = 'Chargement...';
+  document.getElementById('modal-detail-sub').textContent = '';
+  document.getElementById('modal-detail-montants').innerHTML = '<div style="color:var(--muted);font-size:13px;">Chargement...</div>';
+  document.getElementById('modal-detail-bls').textContent = 'Chargement...';
+  document.getElementById('modal-detail-footer').innerHTML = '';
+  ouvrirModal('modal-detail');
+
+  try {
+    const r = await fetch('/api/labo/factures/' + id, { headers: apiHeaders() });
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const d = await r.json();
+    const f = d.facture;
+    const bls = d.bons_livraison || [];
+    const dentiste = f.dentistes_clients || {};
+    const nomD = [dentiste.titre, dentiste.prenom, dentiste.nom].filter(Boolean).join(' ') || '—';
+
+    document.getElementById('modal-detail-title').textContent = f.numero_facture || 'Facture';
+    document.getElementById('modal-detail-sub').textContent = nomD + ' · ' + formatDate(f.date_facture);
+
+    document.getElementById('modal-detail-montants').innerHTML = `
+      <div class="detail-row"><span class="lbl">HT exonere</span><span class="val">${formatEur(f.total_ht_exonere)}</span></div>
+      <div class="detail-row"><span class="lbl">HT taxable</span><span class="val">${formatEur(f.total_ht_taxable)}</span></div>
+      <div class="detail-row"><span class="lbl">TVA</span><span class="val">${formatEur(f.total_tva)}</span></div>
+      ${f.remise_globale_pct ? `<div class="detail-row"><span class="lbl">Remise</span><span class="val">${f.remise_globale_pct}%</span></div>` : ''}
+      <div class="detail-row"><span class="lbl detail-total">Total TTC</span><span class="val detail-total">${formatEur(f.total_ttc)}</span></div>
+      <div class="detail-row"><span class="lbl">Statut</span><span><span class="badge badge-${f.statut}">${labelStatut(f.statut)}</span></span></div>
+      ${f.date_paiement ? `<div class="detail-row"><span class="lbl">Paye le</span><span class="val">${formatDate(f.date_paiement)} (${esc(f.mode_paiement || '')})</span></div>` : ''}
+    `;
+
+    if (bls.length === 0) {
+      document.getElementById('modal-detail-bls').textContent = 'Aucun BL associe';
+    } else {
+      document.getElementById('modal-detail-bls').innerHTML = `
+        <table style="margin-top:4px;">
+          <thead><tr><th>N° BL</th><th>Date</th><th>Total TTC</th></tr></thead>
+          <tbody>
+            ${bls.map(b => `
+              <tr>
+                <td style="font-family:var(--mono);font-size:12px;">${esc(b.numero_bl||'—')}</td>
+                <td>${formatDate(b.date_bl)}</td>
+                <td style="font-family:var(--mono);color:var(--green);">${formatEur(b.total_ttc)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Footer buttons selon statut
+    const footer = document.getElementById('modal-detail-footer');
+    let btns = `<button class="btn btn-ghost" onclick="fermerModal('modal-detail')">Fermer</button>`;
+    btns += `<button class="btn btn-ghost btn-sm" onclick="telechargerPdf('${f.id}','${esc(f.numero_facture)}')">📄 PDF</button>`;
+    if (f.statut === 'emise') {
+      btns += `<button class="btn btn-green btn-sm" onclick="ouvrirPaiement('${f.id}')">Marquer payee</button>`;
+      btns += `<button class="btn btn-ghost btn-sm" onclick="ouvrirAvoir('${f.id}')">Avoir</button>`;
+    } else if (f.statut === 'payee') {
+      btns += `<button class="btn btn-ghost btn-sm" onclick="ouvrirAvoir('${f.id}')">Avoir</button>`;
+    }
+    footer.innerHTML = btns;
+  } catch(e) {
+    document.getElementById('modal-detail-montants').innerHTML = `<div style="color:var(--red);font-size:13px;">Erreur: ${e.message}</div>`;
+  }
+}
+
+// ============================================================
+// PAIEMENT
+// ============================================================
+function ouvrirPaiement(id) {
+  currentFactureId = id;
+  document.getElementById('date-paiement').value = toIso(new Date());
+  fermerModal('modal-detail');
+  ouvrirModal('modal-paiement');
+}
+
+async function confirmerPaiement() {
+  const mode = document.getElementById('mode-paiement').value;
+  const date = document.getElementById('date-paiement').value;
+  try {
+    const r = await fetch('/api/labo/factures/' + currentFactureId + '/payer', {
+      method: 'PATCH',
+      headers: apiHeaders(),
+      body: JSON.stringify({ mode_paiement: mode, date_paiement: date })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+    fermerModal('modal-paiement');
+    showToast('Facture marquee comme payee');
+    await chargerFactures();
+  } catch(e) {
+    showToast('Erreur: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// AVOIR
+// ============================================================
+function ouvrirAvoir(id) {
+  currentFactureId = id;
+  document.getElementById('avoir-motif').value = '';
+  document.getElementById('avoir-montant').value = '';
+  fermerModal('modal-detail');
+  ouvrirModal('modal-avoir');
+}
+
+async function confirmerAvoir() {
+  const motif = document.getElementById('avoir-motif').value.trim();
+  const montant = parseFloat(document.getElementById('avoir-montant').value) || null;
+  try {
+    const r = await fetch('/api/labo/factures/' + currentFactureId + '/avoir', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ motif, montant })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+    fermerModal('modal-avoir');
+    showToast('Avoir cree avec succes');
+    await chargerFactures();
+  } catch(e) {
+    showToast('Erreur: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// PDF
+// ============================================================
+async function telechargerPdf(id, numero) {
+  try {
+    const r = await fetch('/api/labo/factures/' + id + '/pdf', { headers: apiHeaders() });
+    if (!r.ok) throw new Error('PDF non disponible');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Facture_' + numero + '.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    showToast('Erreur telechargement PDF: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// HELPERS UI
+// ============================================================
+function ouvrirModal(id) { document.getElementById(id).classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function ouvrirProgress(title, sub) {
+  document.getElementById('progress-title').textContent = title;
+  document.getElementById('progress-sub').textContent = sub;
+  document.getElementById('progress-bar').style.width = '10%';
+  document.getElementById('progress-step').textContent = '';
+  document.getElementById('progress-overlay').classList.add('open');
+}
+function fermerProgress() { document.getElementById('progress-overlay').classList.remove('open'); }
+function setProgress(pct, step) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-step').textContent = step;
+}
+
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3500);
+}
+
+function formatEur(v) {
+  if (v == null || isNaN(v)) return '—';
+  return Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function formatDate(s) {
+  if (!s) return '—';
+  try {
+    return new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch(e) { return s; }
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Artisan BTP — Param&egrave;tres</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/public/js/jadomi-legal-widget.js" defer></script>
+<style>
+:root{--sidebar-w:220px;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);
+  -webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+
+.content{flex:1;padding:28px 28px 100px;max-width:800px;min-width:0;}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:24px;flex-wrap:wrap;background:rgba(15,31,61,0.6);border-radius:12px;padding:4px;border:1px solid var(--border);}
+.tab{padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;border:none;background:transparent;flex:1;text-align:center;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);background:var(--accent-soft);}
+
+/* CARD / SECTION */
+.card{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:16px;backdrop-filter:blur(10px);}
+.card-title{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:-0.3px;margin-bottom:6px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full-width{grid-column:1/-1;}
+.form-group label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;}
+.form-group input,.form-group select,.form-group textarea{padding:10px 14px;background:rgba(20,40,80,0.6);border:1px solid rgba(99,102,241,0.3);color:var(--text);border-radius:10px;font-size:13px;}
+.form-group textarea{min-height:120px;resize:vertical;font-family:var(--font);line-height:1.6;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.form-group .hint{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* CHECKBOXES */
+.cert-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+.cert-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(15,31,61,0.5);border-radius:10px;border:1px solid rgba(99,102,241,0.1);cursor:pointer;transition:all 0.15s;}
+.cert-item:hover{border-color:var(--accent);background:rgba(99,102,241,0.08);}
+.cert-item input[type="checkbox"]{accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;}
+.cert-item label{font-size:13px;font-weight:600;cursor:pointer;}
+.cert-item.checked{border-color:var(--accent);background:rgba(99,102,241,0.12);}
+
+/* TAB PANELS */
+.tab-panel{display:none;}
+.tab-panel.active{display:block;animation:fadeInUp 0.3s var(--trans) both;}
+
+/* SLUG PREVIEW */
+.slug-preview{display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(15,31,61,0.6);border-radius:10px;border:1px solid rgba(99,102,241,0.15);font-size:13px;color:var(--muted);margin-top:6px;}
+.slug-preview strong{color:var(--accent3);}
+
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:10px;}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+
+.save-bar{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(25,45,85,0.95);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 30px rgba(99,102,241,0.15);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--danger);color:var(--danger);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+
+.animate-fade-in{animation:fadeInUp 0.4s var(--trans) both;}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .content{padding:18px 14px 80px;}
+  .form-grid{grid-template-columns:1fr;}
+  .cert-grid{grid-template-columns:1fr;}
+  .tabs{flex-direction:column;}
+  .mobile-menu-btn{display:block !important;}
+}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;flex-direction:column;position:fixed;top:57px;left:0;bottom:0;z-index:25;width:var(--sidebar-w);}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#9881;&#65039;</span>
+      <span class="crumb-name">Artisan BTP</span>
+      <span class="crumb-sep">&rsaquo;</span>
+      <span class="crumb-module">Param&egrave;tres</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="/organisation.html">&larr; Retour</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link" href="agenda.html"><span class="ico">&#128197;</span> Agenda</a>
+      <a class="sidebar-link" href="chantiers.html"><span class="ico">&#128679;</span> Chantiers</a>
+      <a class="sidebar-link" href="devis.html"><span class="ico">&#128203;</span> Devis</a>
+      <a class="sidebar-link" href="factures.html"><span class="ico">&#128176;</span> Factures</a>
+      <a class="sidebar-link" href="stock.html"><span class="ico">&#128230;</span> Stock</a>
+      <a class="sidebar-link" href="ouvriers.html"><span class="ico">&#128119;</span> Ouvriers</a>
+      <a class="sidebar-link" href="comptabilite.html"><span class="ico">&#128202;</span> Comptabilit&eacute;</a>
+      <a class="sidebar-link active" href="parametres.html"><span class="ico">&#9881;&#65039;</span> Param&egrave;tres</a>
+      <div class="sidebar-sep"></div>
+      <a class="sidebar-link" id="link-public" href="#" target="_blank"><span class="ico">&#128279;</span> Ma page publique</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <!-- TABS -->
+    <div class="tabs animate-fade-in">
+      <button class="tab active" onclick="switchTab('profil')">Profil</button>
+      <button class="tab" onclick="switchTab('assurances')">Assurances</button>
+      <button class="tab" onclick="switchTab('tarification')">Tarification</button>
+      <button class="tab" onclick="switchTab('mentions')">Mentions l&eacute;gales</button>
+    </div>
+
+    <!-- TAB 1: PROFIL -->
+    <div class="tab-panel active" id="panel-profil">
+      <div class="card animate-fade-in">
+        <div class="card-title">&#127970; Profil de l'entreprise</div>
+        <div class="card-sub">Informations affich&eacute;es sur vos devis, factures et page publique</div>
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label>Nom de l'entreprise</label>
+            <input type="text" id="p-nom" placeholder="Mon Entreprise BTP">
+          </div>
+          <div class="form-group">
+            <label>M&eacute;tier principal</label>
+            <select id="p-metier">
+              <option value="plombier">Plombier</option>
+              <option value="electricien">&Eacute;lectricien</option>
+              <option value="macon">Ma&ccedil;on</option>
+              <option value="menuisier">Menuisier</option>
+              <option value="peintre">Peintre</option>
+              <option value="paysagiste">Paysagiste</option>
+              <option value="couvreur">Couvreur</option>
+              <option value="serrurier">Serrurier</option>
+              <option value="climaticien">Climaticien</option>
+              <option value="facade">Fa&ccedil;adier</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>SIRET</label>
+            <input type="text" id="p-siret" placeholder="123 456 789 00012" maxlength="17">
+          </div>
+          <div class="form-group full-width">
+            <label>Description</label>
+            <textarea id="p-description" placeholder="Pr&eacute;sentez votre activit&eacute;, vos sp&eacute;cialit&eacute;s..." style="min-height:80px;"></textarea>
+          </div>
+          <div class="form-group full-width">
+            <label>URL du logo</label>
+            <input type="text" id="p-logo" placeholder="https://example.com/logo.png">
+          </div>
+          <div class="form-group full-width">
+            <label>Adresse</label>
+            <input type="text" id="p-adresse" placeholder="123 rue de la R&eacute;publique">
+          </div>
+          <div class="form-group">
+            <label>Code postal</label>
+            <input type="text" id="p-cp" placeholder="75000" maxlength="5">
+          </div>
+          <div class="form-group">
+            <label>Ville</label>
+            <input type="text" id="p-ville" placeholder="Paris">
+          </div>
+          <div class="form-group">
+            <label>T&eacute;l&eacute;phone</label>
+            <input type="tel" id="p-tel" placeholder="01 23 45 67 89">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="p-email" placeholder="contact@monentreprise.fr">
+          </div>
+          <div class="form-group full-width">
+            <label>Slug URL (page publique)</label>
+            <input type="text" id="p-slug" placeholder="mon-entreprise-btp" oninput="updateSlugPreview()">
+            <div class="slug-preview" id="slug-preview">
+              Votre page : <strong>jadomi.fr/artisan/<span id="slug-display">---</span></strong>
+            </div>
+          </div>
+        </div>
+        <div class="save-bar">
+          <button class="btn btn-primary" onclick="saveProfil()">Enregistrer le profil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: ASSURANCES -->
+    <div class="tab-panel" id="panel-assurances">
+      <div class="card animate-fade-in">
+        <div class="card-title">&#128737;&#65039; Assurances &amp; Certifications</div>
+        <div class="card-sub">Informations obligatoires pour vos devis et factures</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>N&deg; assurance d&eacute;cennale</label>
+            <input type="text" id="a-decennale" placeholder="N&deg; de police">
+          </div>
+          <div class="form-group">
+            <label>Assureur</label>
+            <input type="text" id="a-assureur" placeholder="Nom de l'assureur">
+          </div>
+          <div class="form-group full-width">
+            <label>Zone d'intervention (km)</label>
+            <input type="number" id="a-zone" min="1" max="500" placeholder="50">
+            <div class="hint">Rayon autour de votre adresse pour la page publique</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;display:block;margin-bottom:12px;">Certifications</label>
+          <div class="cert-grid" id="cert-grid">
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-rge" value="RGE">
+              <label for="cert-rge">RGE</label>
+            </div>
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-qualibat" value="Qualibat">
+              <label for="cert-qualibat">Qualibat</label>
+            </div>
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-qualipac" value="QualiPAC">
+              <label for="cert-qualipac">QualiPAC</label>
+            </div>
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-qualisflamme" value="QualisFlamme">
+              <label for="cert-qualisflamme">QualisFlamme</label>
+            </div>
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-handibat" value="Handibat">
+              <label for="cert-handibat">Handibat</label>
+            </div>
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-eco" value="Eco Artisan">
+              <label for="cert-eco">Eco Artisan</label>
+            </div>
+            <div class="cert-item" onclick="toggleCert(this)">
+              <input type="checkbox" id="cert-ppe" value="Pro Performance Energetique">
+              <label for="cert-ppe">Pro Perf. &Eacute;nerg.</label>
+            </div>
+          </div>
+        </div>
+        <div class="save-bar">
+          <button class="btn btn-primary" onclick="saveAssurances()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: TARIFICATION -->
+    <div class="tab-panel" id="panel-tarification">
+      <div class="card animate-fade-in">
+        <div class="card-title">&#128176; Tarification par d&eacute;faut</div>
+        <div class="card-sub">Ces valeurs seront utilis&eacute;es par d&eacute;faut dans vos devis</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Taux horaire par d&eacute;faut (&euro;/h)</label>
+            <input type="number" id="t-taux" min="0" step="0.5" placeholder="45">
+          </div>
+          <div class="form-group">
+            <label>TVA travaux r&eacute;novation (%)</label>
+            <input type="number" id="t-tva-renov" min="0" max="100" step="0.1" value="10">
+            <div class="hint">Taux r&eacute;duit pour logements de + de 2 ans</div>
+          </div>
+          <div class="form-group">
+            <label>TVA travaux neufs (%)</label>
+            <input type="number" id="t-tva-neuf" min="0" max="100" step="0.1" value="20">
+            <div class="hint">Taux normal pour constructions neuves</div>
+          </div>
+        </div>
+        <div class="save-bar">
+          <button class="btn btn-primary" onclick="saveTarification()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: MENTIONS LEGALES -->
+    <div class="tab-panel" id="panel-mentions">
+      <div class="card animate-fade-in">
+        <div class="card-title">&#128220; Mentions l&eacute;gales devis</div>
+        <div class="card-sub">Texte affich&eacute; en bas de vos devis. Modifiez selon votre activit&eacute;.</div>
+        <div class="form-grid" style="grid-template-columns:1fr;">
+          <div class="form-group">
+            <label>Mentions l&eacute;gales</label>
+            <textarea id="m-mentions" style="min-height:200px;"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-ghost" onclick="resetMentions()" style="font-size:12px;">R&eacute;initialiser le texte par d&eacute;faut</button>
+        </div>
+        <div class="save-bar">
+          <button class="btn btn-primary" onclick="saveMentions()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let token = null, societeId = null;
+let profil = {};
+
+const DEFAULT_MENTIONS = `Conditions de r\u00e8glement : paiement \u00e0 la r\u00e9ception de la facture, sauf accord contraire.
+P\u00e9nalit\u00e9s de retard : 3 fois le taux d'int\u00e9r\u00eat l\u00e9gal.
+Pas d'escompte pour paiement anticip\u00e9.
+Indemnit\u00e9 forfaitaire pour frais de recouvrement : 40 \u20ac.
+
+Garantie d\u00e9cennale : assurance souscrite aupr\u00e8s de [assureur], police n\u00b0 [num\u00e9ro].
+Garantie de parfait ach\u00e8vement : 1 an \u00e0 compter de la r\u00e9ception des travaux.
+Garantie biennale : 2 ans pour les \u00e9quipements dissociables.
+Garantie d\u00e9cennale : 10 ans pour les ouvrages de gros \u0153uvre.
+
+Ce devis est valable 3 mois \u00e0 compter de sa date d'\u00e9mission.
+Le client dispose d'un d\u00e9lai de r\u00e9tractation de 14 jours \u00e0 compter de la signature (d\u00e9marchage \u00e0 domicile).`;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg, kind){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind||'');
+  setTimeout(() => t.className = 'toast', 2800);
+}
+
+async function api(path, opts={}) {
+  try {
+    const { data: sd } = await db.auth.getSession();
+    if (sd?.session) token = sd.session.access_token;
+  } catch(_){}
+  const r = await fetch(path, {
+    ...opts,
+    headers: {
+      'Content-Type':'application/json',
+      Authorization: 'Bearer ' + token,
+      'X-Societe-Id': societeId,
+      ...(opts.headers||{})
+    }
+  });
+  if (r.status === 401) {
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if (ref?.session) {
+        token = ref.session.access_token;
+        return (await fetch(path, {
+          ...opts,
+          headers: {
+            'Content-Type':'application/json',
+            Authorization: 'Bearer ' + token,
+            'X-Societe-Id': societeId,
+            ...(opts.headers||{})
+          }
+        })).json();
+      }
+    } catch(_){}
+    location.href = '/login.html';
+    return { success: false };
+  }
+  return r.json();
+}
+
+// ===== TAB SWITCHING =====
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  $('panel-' + name).classList.add('active');
+}
+
+// ===== CERT TOGGLE =====
+function toggleCert(el) {
+  const cb = el.querySelector('input[type="checkbox"]');
+  if (event.target !== cb) cb.checked = !cb.checked;
+  el.classList.toggle('checked', cb.checked);
+}
+
+// ===== SLUG =====
+function updateSlugPreview() {
+  const slug = $('p-slug').value || '---';
+  $('slug-display').textContent = slug;
+}
+
+// ===== POPULATE FORM =====
+function populateForm(p) {
+  profil = p;
+  // Profil
+  $('p-nom').value = p.nom_entreprise || '';
+  $('p-metier').value = p.metier || 'plombier';
+  $('p-siret').value = p.siret || '';
+  $('p-description').value = p.description || '';
+  $('p-logo').value = p.logo_url || '';
+  $('p-adresse').value = p.adresse || '';
+  $('p-cp').value = p.code_postal || '';
+  $('p-ville').value = p.ville || '';
+  $('p-tel').value = p.telephone || '';
+  $('p-email').value = p.email || '';
+  $('p-slug').value = p.slug || '';
+  updateSlugPreview();
+
+  // Assurances
+  $('a-decennale').value = p.numero_assurance_decennale || '';
+  $('a-assureur').value = p.assureur || '';
+  $('a-zone').value = p.zone_intervention_km || 50;
+
+  const certs = p.certifications || [];
+  document.querySelectorAll('#cert-grid input[type="checkbox"]').forEach(cb => {
+    cb.checked = certs.includes(cb.value);
+    cb.closest('.cert-item').classList.toggle('checked', cb.checked);
+  });
+
+  // Tarification
+  $('t-taux').value = p.taux_horaire_default || '';
+  $('t-tva-renov').value = p.tva_travaux_renovation ?? 10;
+  $('t-tva-neuf').value = p.tva_travaux_neuf ?? 20;
+
+  // Mentions
+  $('m-mentions').value = p.mentions_legales_devis || DEFAULT_MENTIONS;
+
+  // Public link
+  if (p.slug) {
+    $('link-public').href = '/artisan/' + p.slug;
+  }
+}
+
+// ===== SAVE FUNCTIONS =====
+async function saveProfil() {
+  const body = {
+    nom_entreprise: $('p-nom').value,
+    metier: $('p-metier').value,
+    siret: $('p-siret').value,
+    description: $('p-description').value,
+    logo_url: $('p-logo').value,
+    adresse: $('p-adresse').value,
+    code_postal: $('p-cp').value,
+    ville: $('p-ville').value,
+    telephone: $('p-tel').value,
+    email: $('p-email').value,
+    slug: $('p-slug').value
+  };
+  const res = await api('/api/btp/profil', {
+    method: profil.id ? 'PATCH' : 'POST',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast('Profil enregistr\u00e9', 'ok');
+    if (body.slug) $('link-public').href = '/artisan/' + body.slug;
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+async function saveAssurances() {
+  const certifications = [];
+  document.querySelectorAll('#cert-grid input[type="checkbox"]:checked').forEach(cb => {
+    certifications.push(cb.value);
+  });
+  const body = {
+    numero_assurance_decennale: $('a-decennale').value,
+    assureur: $('a-assureur').value,
+    zone_intervention_km: parseInt($('a-zone').value) || 50,
+    certifications
+  };
+  const res = await api('/api/btp/profil', {
+    method: 'PATCH',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast('Assurances enregistr\u00e9es', 'ok');
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+async function saveTarification() {
+  const body = {
+    taux_horaire_default: parseFloat($('t-taux').value) || 0,
+    tva_travaux_renovation: parseFloat($('t-tva-renov').value) || 10,
+    tva_travaux_neuf: parseFloat($('t-tva-neuf').value) || 20
+  };
+  const res = await api('/api/btp/profil', {
+    method: 'PATCH',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast('Tarification enregistr\u00e9e', 'ok');
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+async function saveMentions() {
+  const body = {
+    mentions_legales_devis: $('m-mentions').value
+  };
+  const res = await api('/api/btp/profil', {
+    method: 'PATCH',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast('Mentions l\u00e9gales enregistr\u00e9es', 'ok');
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+function resetMentions() {
+  $('m-mentions').value = DEFAULT_MENTIONS;
+  toast('Texte par d\u00e9faut restaur\u00e9', '');
+}
+
+// ===== INIT =====
+(async () => {
+  const { data } = await db.auth.getSession();
+  if (!data?.session) { location.href = '/login.html'; return; }
+  token = data.session.access_token;
+  societeId = data.session.user?.user_metadata?.societe_id;
+
+  const res = await api('/api/btp/profil');
+  const p = res.profil || res.data || res || {};
+  populateForm(p);
+})();
+</script>
+</body>
+</html>

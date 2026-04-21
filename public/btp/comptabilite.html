@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Artisan BTP — Comptabilit&eacute;</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/public/js/jadomi-legal-widget.js" defer></script>
+<style>
+:root{--sidebar-w:220px;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);
+  -webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+
+.content{flex:1;padding:28px 28px 100px;max-width:1200px;min-width:0;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:22px;position:relative;overflow:hidden;backdrop-filter:blur(10px);transition:border-color 0.3s ease,box-shadow 0.3s ease;}
+.stat:hover{border-color:rgba(99,102,241,0.4);box-shadow:0 0 30px rgba(99,102,241,0.15);}
+.stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-val{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-1px;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+/* CARD */
+.card{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;backdrop-filter:blur(10px);transition:border-color 0.3s ease,box-shadow 0.3s ease;}
+.card:hover{border-color:rgba(99,102,241,0.4);box-shadow:0 0 30px rgba(99,102,241,0.15);}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+
+/* MARGE */
+.marge-box{display:flex;gap:24px;flex-wrap:wrap;align-items:center;padding:18px 0;}
+.marge-text{font-family:var(--display);font-size:20px;font-weight:800;}
+.marge-percent{color:var(--success);font-size:16px;font-weight:700;}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;color:var(--text-secondary);cursor:pointer;transition:all 0.15s;border:none;background:transparent;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);background:var(--accent-soft);}
+
+/* CHART */
+.chart-container{position:relative;height:280px;margin-bottom:8px;}
+
+/* TVA SECTION */
+.tva-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.tva-item{text-align:center;padding:16px;background:rgba(15,31,61,0.6);border-radius:12px;border:1px solid rgba(99,102,241,0.15);}
+.tva-val{font-family:var(--display);font-size:22px;font-weight:800;margin-bottom:4px;}
+.tva-label{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600;}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.8);white-space:nowrap;}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;background:rgba(20,40,80,0.5);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:rgba(99,102,241,0.1);}
+
+/* BREAKDOWN TABLE */
+.breakdown-list{display:flex;flex-direction:column;gap:8px;}
+.breakdown-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(15,31,61,0.5);border-radius:10px;border:1px solid rgba(99,102,241,0.1);}
+.breakdown-label{font-size:13px;font-weight:600;}
+.breakdown-val{font-family:var(--display);font-size:16px;font-weight:800;color:var(--accent);}
+.breakdown-bar{flex:1;margin:0 16px;height:6px;background:rgba(99,102,241,0.1);border-radius:3px;overflow:hidden;}
+.breakdown-fill{height:100%;background:var(--accent);border-radius:3px;transition:width 0.6s var(--trans);}
+
+/* EXPORT */
+.export-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.export-bar select{padding:9px 14px;background:rgba(20,40,80,0.6);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;}
+.export-bar select:focus{outline:none;border-color:var(--accent);}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:rgba(25,45,85,0.95);border:1px solid rgba(99,102,241,0.25);border-radius:18px;backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(0,0,0,0.35),0 0 30px rgba(99,102,241,0.15);padding:28px;width:90%;max-width:550px;max-height:85vh;overflow-y:auto;}
+.modal h2{font-family:var(--display);font-size:18px;font-weight:800;margin-bottom:20px;letter-spacing:-0.5px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full-width{grid-column:1/-1;}
+.form-group label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;}
+.form-group input,.form-group select{padding:10px 14px;background:rgba(20,40,80,0.6);border:1px solid rgba(99,102,241,0.3);color:var(--text);border-radius:10px;font-size:13px;}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:10px;}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+.btn-success{background:var(--success);color:#fff;border:none;border-radius:10px;}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(25,45,85,0.95);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 30px rgba(99,102,241,0.15);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--danger);color:var(--danger);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+
+.animate-fade-in{animation:fadeInUp 0.4s var(--trans) both;}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+@media(max-width:1024px){
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .tva-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .content{padding:18px 14px 80px;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .tva-grid{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .mobile-menu-btn{display:block !important;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+  .tva-grid{grid-template-columns:1fr;}
+}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;flex-direction:column;position:fixed;top:57px;left:0;bottom:0;z-index:25;width:var(--sidebar-w);}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#128202;</span>
+      <span class="crumb-name">Artisan BTP</span>
+      <span class="crumb-sep">&rsaquo;</span>
+      <span class="crumb-module">Comptabilit&eacute;</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="/organisation.html">&larr; Retour</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link" href="agenda.html"><span class="ico">&#128197;</span> Agenda</a>
+      <a class="sidebar-link" href="chantiers.html"><span class="ico">&#128679;</span> Chantiers</a>
+      <a class="sidebar-link" href="devis.html"><span class="ico">&#128203;</span> Devis</a>
+      <a class="sidebar-link" href="factures.html"><span class="ico">&#128176;</span> Factures</a>
+      <a class="sidebar-link" href="stock.html"><span class="ico">&#128230;</span> Stock</a>
+      <a class="sidebar-link" href="ouvriers.html"><span class="ico">&#128119;</span> Ouvriers</a>
+      <a class="sidebar-link active" href="comptabilite.html"><span class="ico">&#128202;</span> Comptabilit&eacute;</a>
+      <a class="sidebar-link" href="parametres.html"><span class="ico">&#9881;&#65039;</span> Param&egrave;tres</a>
+      <div class="sidebar-sep"></div>
+      <a class="sidebar-link" id="link-public" href="#" target="_blank"><span class="ico">&#128279;</span> Ma page publique</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <!-- STATS CARDS -->
+    <div class="stats animate-fade-in" id="stats-grid">
+      <div class="stat accent">
+        <div class="stat-label">CA Mois</div>
+        <div class="stat-val" id="ca-mois">--</div>
+        <div class="stat-sub" id="ca-mois-sub"></div>
+      </div>
+      <div class="stat ok">
+        <div class="stat-label">CA Trimestre</div>
+        <div class="stat-val" id="ca-trimestre">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">CA Ann&eacute;e</div>
+        <div class="stat-val" style="color:var(--accent3)" id="ca-annee">--</div>
+      </div>
+      <div class="stat danger">
+        <div class="stat-label">Impay&eacute;s</div>
+        <div class="stat-val" id="impayes">--</div>
+        <div class="stat-sub" id="impayes-sub"></div>
+      </div>
+    </div>
+
+    <!-- MARGE -->
+    <div class="card animate-fade-in" style="animation-delay:0.05s;">
+      <div class="card-title">&#128200; Marge moyenne par chantier</div>
+      <div class="marge-box">
+        <span class="marge-text" id="marge-val">-- &euro;</span>
+        <span class="marge-percent" id="marge-pct">(--&thinsp;%)</span>
+      </div>
+    </div>
+
+    <!-- CA CHART -->
+    <div class="card animate-fade-in" style="animation-delay:0.1s;">
+      <div class="card-title">&#128202; Chiffre d'affaires mensuel</div>
+      <div class="card-sub">&Eacute;volution sur les 12 derniers mois</div>
+      <div class="chart-container">
+        <canvas id="ca-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- CA BREAKDOWN TABS -->
+    <div class="card animate-fade-in" style="animation-delay:0.15s;">
+      <div class="card-header">
+        <div class="card-title">&#128200; R&eacute;partition du CA</div>
+        <div class="tabs">
+          <button class="tab active" onclick="switchBreakdown('type')">Par type travaux</button>
+          <button class="tab" onclick="switchBreakdown('ouvrier')">Par ouvrier</button>
+          <button class="tab" onclick="switchBreakdown('mois')">Par mois</button>
+        </div>
+      </div>
+      <div class="breakdown-list" id="breakdown-list">
+        <div class="loader"><div class="spinner"></div>Chargement...</div>
+      </div>
+    </div>
+
+    <!-- TVA SECTION -->
+    <div class="card animate-fade-in" style="animation-delay:0.2s;">
+      <div class="card-header">
+        <div class="card-title">&#128176; TVA</div>
+        <select id="tva-annee" onchange="loadTva()" style="padding:6px 12px;background:rgba(20,40,80,0.6);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+        </select>
+      </div>
+      <div class="tva-grid" id="tva-grid">
+        <div class="tva-item">
+          <div class="tva-val" style="color:var(--warning)" id="tva-10">--</div>
+          <div class="tva-label">TVA collect&eacute;e 10%</div>
+        </div>
+        <div class="tva-item">
+          <div class="tva-val" style="color:var(--accent)" id="tva-20">--</div>
+          <div class="tva-label">TVA collect&eacute;e 20%</div>
+        </div>
+        <div class="tva-item">
+          <div class="tva-val" style="color:var(--success)" id="tva-deductible">--</div>
+          <div class="tva-label">TVA d&eacute;ductible</div>
+        </div>
+        <div class="tva-item">
+          <div class="tva-val" style="color:var(--danger)" id="tva-reverser">--</div>
+          <div class="tva-label">TVA &agrave; reverser</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARGES -->
+    <div class="card animate-fade-in" style="animation-delay:0.25s;">
+      <div class="card-header">
+        <div class="card-title">&#128181; Charges</div>
+        <button class="btn btn-primary" onclick="openChargeModal()">+ Ajouter charge</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl" id="charges-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Cat&eacute;gorie</th>
+              <th>D&eacute;signation</th>
+              <th>Fournisseur</th>
+              <th>Chantier</th>
+              <th>Montant</th>
+            </tr>
+          </thead>
+          <tbody id="charges-body">
+            <tr><td colspan="6"><div class="loader"><div class="spinner"></div>Chargement...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="card animate-fade-in" style="animation-delay:0.3s;">
+      <div class="card-title">&#128229; Export comptable</div>
+      <div class="card-sub">T&eacute;l&eacute;chargez vos donn&eacute;es comptables au format CSV ou FEC</div>
+      <div class="export-bar">
+        <select id="export-annee"></select>
+        <button class="btn btn-primary" onclick="exportCSV()">&#128196; CSV Comptable</button>
+        <button class="btn btn-success" onclick="exportFEC()">&#128196; Export FEC</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL CHARGE -->
+<div class="modal-bg" id="modal-charge">
+  <div class="modal">
+    <h2>&#128181; Ajouter une charge</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Cat&eacute;gorie</label>
+        <select id="fc-cat">
+          <option value="carburant">Carburant</option>
+          <option value="materiaux">Mat&eacute;riaux</option>
+          <option value="outillage">Outillage</option>
+          <option value="assurance">Assurance</option>
+          <option value="cotisations">Cotisations</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="fc-date">
+      </div>
+      <div class="form-group full-width">
+        <label>D&eacute;signation</label>
+        <input type="text" id="fc-designation" placeholder="Description de la charge">
+      </div>
+      <div class="form-group">
+        <label>Montant TTC (&euro;)</label>
+        <input type="number" id="fc-montant" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Fournisseur</label>
+        <input type="text" id="fc-fournisseur" placeholder="Nom du fournisseur">
+      </div>
+      <div class="form-group full-width">
+        <label>Chantier (optionnel)</label>
+        <select id="fc-chantier"><option value="">-- Aucun --</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeChargeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCharge()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let token = null, societeId = null;
+let caData = {}, breakdownData = {}, currentBreakdown = 'type';
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function eur(n){ return (Number(n)||0).toFixed(2).replace('.',',') + ' \u20ac'; }
+function toast(msg, kind){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind||'');
+  setTimeout(() => t.className = 'toast', 2800);
+}
+
+async function api(path, opts={}) {
+  try {
+    const { data: sd } = await db.auth.getSession();
+    if (sd?.session) token = sd.session.access_token;
+  } catch(_){}
+  const r = await fetch(path, {
+    ...opts,
+    headers: {
+      'Content-Type':'application/json',
+      Authorization: 'Bearer ' + token,
+      'X-Societe-Id': societeId,
+      ...(opts.headers||{})
+    }
+  });
+  if (r.status === 401) {
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if (ref?.session) {
+        token = ref.session.access_token;
+        return (await fetch(path, {
+          ...opts,
+          headers: {
+            'Content-Type':'application/json',
+            Authorization: 'Bearer ' + token,
+            'X-Societe-Id': societeId,
+            ...(opts.headers||{})
+          }
+        })).json();
+      }
+    } catch(_){}
+    location.href = '/login.html';
+    return { success: false };
+  }
+  return r.json();
+}
+
+// ===== CHART =====
+let chartInstance = null;
+
+function drawChart(months, values) {
+  const canvas = $('ca-chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width, h = rect.height;
+  const pad = { top: 20, right: 20, bottom: 40, left: 70 };
+  const chartW = w - pad.left - pad.right;
+  const chartH = h - pad.top - pad.bottom;
+  const maxVal = Math.max(...values, 1);
+  const barW = Math.min(chartW / months.length * 0.6, 40);
+  const gap = chartW / months.length;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(99,102,241,0.1)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + chartH - (chartH * i / 4);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxVal * i / 4).toLocaleString('fr-FR') + ' \u20ac', pad.left - 8, y + 4);
+  }
+
+  // Bars
+  values.forEach((val, i) => {
+    const barH = (val / maxVal) * chartH;
+    const x = pad.left + i * gap + (gap - barW) / 2;
+    const y = pad.top + chartH - barH;
+
+    const grad = ctx.createLinearGradient(x, y, x, y + barH);
+    grad.addColorStop(0, '#6366f1');
+    grad.addColorStop(1, '#8b5cf6');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Glow
+    ctx.shadowColor = 'rgba(99,102,241,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Label
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(months[i], x + barW / 2, h - pad.bottom + 20);
+  });
+}
+
+// ===== BREAKDOWN =====
+function switchBreakdown(type) {
+  currentBreakdown = type;
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderBreakdown();
+}
+
+function renderBreakdown() {
+  const list = $('breakdown-list');
+  const data = breakdownData[currentBreakdown] || [];
+  if (!data.length) {
+    list.innerHTML = '<div class="empty">Aucune donn\u00e9e disponible</div>';
+    return;
+  }
+  const maxVal = Math.max(...data.map(d => d.montant), 1);
+  list.innerHTML = data.map(d => `
+    <div class="breakdown-item">
+      <span class="breakdown-label" style="min-width:120px;">${esc(d.label)}</span>
+      <div class="breakdown-bar"><div class="breakdown-fill" style="width:${(d.montant/maxVal*100).toFixed(1)}%"></div></div>
+      <span class="breakdown-val">${eur(d.montant)}</span>
+    </div>
+  `).join('');
+}
+
+// ===== TVA =====
+async function loadTva() {
+  const annee = $('tva-annee').value;
+  const res = await api('/api/btp/comptabilite/tva/' + annee);
+  const tva = res.tva || res;
+  $('tva-10').textContent = eur(tva.collectee_10 || 0);
+  $('tva-20').textContent = eur(tva.collectee_20 || 0);
+  $('tva-deductible').textContent = eur(tva.deductible || 0);
+  $('tva-reverser').textContent = eur(tva.a_reverser || 0);
+}
+
+// ===== CHARGES =====
+async function loadCharges() {
+  const res = await api('/api/btp/comptabilite/charges');
+  const charges = res.charges || res.data || [];
+  const body = $('charges-body');
+  if (!charges.length) {
+    body.innerHTML = '<tr><td colspan="6"><div class="empty">Aucune charge enregistr\u00e9e</div></td></tr>';
+    return;
+  }
+  body.innerHTML = charges.map(c => `
+    <tr>
+      <td>${new Date(c.date).toLocaleDateString('fr-FR')}</td>
+      <td><span style="text-transform:capitalize;">${esc(c.categorie)}</span></td>
+      <td>${esc(c.designation)}</td>
+      <td>${esc(c.fournisseur||'\u2014')}</td>
+      <td>${esc(c.chantier_ref||'\u2014')}</td>
+      <td style="font-weight:700;color:var(--danger)">${eur(c.montant)}</td>
+    </tr>
+  `).join('');
+}
+
+function openChargeModal() {
+  $('modal-charge').classList.add('open');
+  $('fc-date').value = new Date().toISOString().slice(0, 10);
+  $('fc-designation').value = '';
+  $('fc-montant').value = '';
+  $('fc-fournisseur').value = '';
+  $('fc-cat').value = 'materiaux';
+  $('fc-chantier').value = '';
+}
+function closeChargeModal() {
+  $('modal-charge').classList.remove('open');
+}
+
+async function saveCharge() {
+  const body = {
+    categorie: $('fc-cat').value,
+    date: $('fc-date').value,
+    designation: $('fc-designation').value,
+    montant: parseFloat($('fc-montant').value) || 0,
+    fournisseur: $('fc-fournisseur').value,
+    chantier_id: $('fc-chantier').value || null
+  };
+  const res = await api('/api/btp/comptabilite/charges', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+  if (res.success !== false) {
+    toast('Charge enregistr\u00e9e', 'ok');
+    closeChargeModal();
+    loadCharges();
+    loadStats();
+  } else {
+    toast(res.error || 'Erreur', 'error');
+  }
+}
+
+// ===== EXPORT =====
+async function exportCSV() {
+  const annee = $('export-annee').value;
+  const res = await api('/api/btp/comptabilite/export/' + annee);
+  if (res.url) {
+    window.open(res.url, '_blank');
+  } else if (res.csv) {
+    const blob = new Blob([res.csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `comptabilite_${annee}.csv`;
+    a.click();
+  }
+  toast('Export CSV lanc\u00e9', 'ok');
+}
+
+async function exportFEC() {
+  const annee = $('export-annee').value;
+  const res = await api('/api/btp/comptabilite/export/' + annee + '?format=fec');
+  if (res.url) {
+    window.open(res.url, '_blank');
+  } else if (res.fec) {
+    const blob = new Blob([res.fec], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `FEC_${annee}.txt`;
+    a.click();
+  }
+  toast('Export FEC lanc\u00e9', 'ok');
+}
+
+// ===== INIT =====
+function populateYearSelects() {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear - 1, currentYear - 2];
+  const html = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  $('tva-annee').innerHTML = html;
+  $('export-annee').innerHTML = html;
+}
+
+async function loadStats() {
+  const res = await api('/api/btp/comptabilite/stats');
+  const s = res.stats || res;
+  $('ca-mois').textContent = eur(s.ca_mois || 0);
+  $('ca-mois-sub').textContent = s.ca_mois_variation ? (s.ca_mois_variation > 0 ? '+' : '') + s.ca_mois_variation + '% vs mois pr\u00e9c.' : '';
+  $('ca-trimestre').textContent = eur(s.ca_trimestre || 0);
+  $('ca-annee').textContent = eur(s.ca_annee || 0);
+  $('impayes').textContent = eur(s.impayes || 0);
+  $('impayes-sub').textContent = s.nb_impayes ? s.nb_impayes + ' facture(s)' : '';
+  $('marge-val').textContent = eur(s.marge_moyenne || 0);
+  $('marge-pct').textContent = '(' + (s.marge_pct || 0).toFixed(1) + '\u202f%)';
+}
+
+async function loadCA() {
+  const res = await api('/api/btp/comptabilite/ca');
+  const data = res.ca || res.data || {};
+  const months = data.months || ['Jan','F\u00e9v','Mar','Avr','Mai','Juin','Juil','Ao\u00fbt','Sep','Oct','Nov','D\u00e9c'];
+  const values = data.values || new Array(12).fill(0);
+  drawChart(months, values);
+
+  breakdownData = {
+    type: data.par_type || [],
+    ouvrier: data.par_ouvrier || [],
+    mois: data.par_mois || []
+  };
+  renderBreakdown();
+}
+
+async function loadChantiers() {
+  const res = await api('/api/btp/chantiers');
+  const chantiers = res.chantiers || res.data || [];
+  const sel = $('fc-chantier');
+  sel.innerHTML = '<option value="">-- Aucun --</option>' +
+    chantiers.map(c => `<option value="${c.id}">${esc(c.reference||'CH-'+c.id)} - ${esc(c.adresse||'')}</option>`).join('');
+}
+
+$('modal-charge').addEventListener('click', e => { if (e.target === $('modal-charge')) closeChargeModal(); });
+window.addEventListener('resize', () => { if (caData) loadCA(); });
+
+(async () => {
+  const { data } = await db.auth.getSession();
+  if (!data?.session) { location.href = '/login.html'; return; }
+  token = data.session.access_token;
+  societeId = data.session.user?.user_metadata?.societe_id;
+  populateYearSelects();
+  await Promise.all([loadStats(), loadCA(), loadTva(), loadCharges(), loadChantiers()]);
+})();
+</script>
+</body>
+</html>

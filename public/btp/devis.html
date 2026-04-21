@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Devis BTP</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/public/js/jadomi-legal-widget.js" defer></script>
+<style>
+:root{--sidebar-w:260px;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);-webkit-font-smoothing:antialiased;}
+
+/* NAV */
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* LAYOUT */
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:18px;width:24px;text-align:center;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+.content{flex:1;padding:28px 28px 100px;max-width:1200px;}
+
+/* TOPBAR FILTERS */
+.topbar-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.topbar-actions .field{min-width:130px;}
+.topbar-actions .field label{display:block;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+.topbar-actions select,.topbar-actions input[type="text"]{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.topbar-actions select:focus,.topbar-actions input:focus{border-color:var(--accent);}
+.search-field{flex:1;min-width:180px;}
+.search-field input{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.search-field input:focus{border-color:var(--accent);}
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{box-shadow:0 4px 16px rgba(16,185,129,0.3);}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(239,68,68,0.25);}
+.btn-danger:hover{background:rgba(239,68,68,0.08);}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:8px;}
+.btn-icon{padding:6px 10px;font-size:14px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;}
+.btn-icon:hover{color:var(--accent);border-color:var(--accent);}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:var(--surface2);}
+.tbl th:first-child{border-radius:10px 0 0 0;}
+.tbl th:last-child{border-radius:0 10px 0 0;}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface2);}
+.tbl tr{cursor:pointer;}
+
+/* CHIPS */
+.chip{display:inline-block;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;}
+.chip-brouillon{background:rgba(100,116,139,0.2);color:var(--muted);}
+.chip-envoye{background:rgba(6,182,212,0.15);color:var(--accent3);}
+.chip-signe{background:rgba(99,102,241,0.15);color:var(--accent);}
+.chip-accepte{background:rgba(16,185,129,0.15);color:var(--success);}
+.chip-refuse{background:rgba(239,68,68,0.15);color:var(--danger);}
+.chip-expire{background:rgba(245,158,11,0.15);color:var(--warning);}
+
+/* DETAIL EXPAND */
+.devis-detail{display:none;background:var(--surface2);border:1px solid var(--border);border-radius:0 0 14px 14px;margin-top:-1px;padding:20px 24px;animation:fadeInUp 0.3s var(--trans) both;}
+.devis-detail.open{display:block;}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.detail-section{margin-bottom:14px;}
+.detail-section h4{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+.detail-item{font-size:13px;}
+.detail-item .lbl{color:var(--muted);font-size:11px;}
+.detail-item .val{font-weight:600;}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);z-index:100;overflow-y:auto;padding:20px;}
+.modal-bg.open{display:flex;align-items:flex-start;justify-content:center;}
+.modal{background:rgba(25,45,85,0.97);border:1px solid rgba(99,102,241,0.25);border-radius:18px;backdrop-filter:blur(12px);box-shadow:var(--shadow),var(--glow2);width:100%;max-width:960px;margin:20px auto;padding:0;animation:fadeInUp 0.35s var(--trans) both;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--border);}
+.modal-header h2{font-family:var(--display);font-size:18px;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:8px;}
+.modal-close:hover{color:var(--text);background:var(--surface2);}
+.modal-body{padding:24px 28px;max-height:calc(100vh - 200px);overflow-y:auto;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;padding:16px 28px;border-top:1px solid var(--border);flex-wrap:wrap;}
+
+/* FORM */
+.form-row{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;}
+.form-row .field{flex:1;min-width:160px;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.12);}
+.field textarea{resize:vertical;min-height:80px;}
+
+/* SECTION */
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.section-title h3{font-family:var(--display);font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.section-title .sous-total{font-family:var(--display);font-size:14px;font-weight:700;color:var(--accent);}
+
+/* DYNAMIC TABLE */
+.dyn-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;margin-bottom:6px;}
+.dyn-tbl th{text-align:left;padding:8px 10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;font-weight:700;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.5);}
+.dyn-tbl td{padding:6px 4px;border-bottom:1px solid rgba(99,102,241,0.1);}
+.dyn-tbl input,.dyn-tbl select{width:100%;padding:7px 8px;background:rgba(20,40,80,0.5);border:1px solid rgba(99,102,241,0.15);border-radius:7px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;}
+.dyn-tbl input:focus,.dyn-tbl select:focus{border-color:var(--accent);}
+.dyn-tbl .row-total{font-weight:700;color:var(--accent);text-align:right;padding:7px 10px;white-space:nowrap;}
+.dyn-tbl .col-actions{width:36px;text-align:center;}
+.btn-del-row{background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:4px;border-radius:6px;opacity:0.6;}
+.btn-del-row:hover{opacity:1;background:rgba(239,68,68,0.1);}
+.btn-add-row{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(99,102,241,0.08);color:var(--accent);border:1px dashed rgba(99,102,241,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;}
+.btn-add-row:hover{background:rgba(99,102,241,0.15);}
+
+/* TOTAUX */
+.totaux-block{background:linear-gradient(135deg,var(--surface) 0%,var(--surface3) 100%);border:1.5px solid var(--accent);border-radius:14px;padding:20px 24px;margin-top:20px;}
+.totaux-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;}
+.totaux-row .lbl{color:var(--muted);}
+.totaux-row .val{font-family:var(--display);font-weight:700;letter-spacing:-0.5px;min-width:110px;text-align:right;}
+.totaux-row.sub{border-top:1px solid rgba(99,102,241,0.2);margin-top:6px;padding-top:8px;}
+.totaux-row.remise input{width:60px;padding:5px 8px;background:rgba(20,40,80,0.6);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;text-align:center;outline:none;}
+.totaux-row.total{border-top:2px solid var(--accent);margin-top:8px;padding-top:10px;font-size:18px;font-weight:800;}
+.totaux-row.total .val{color:var(--success);font-size:20px;}
+.totaux-row.acompte input{width:60px;padding:5px 8px;background:rgba(20,40,80,0.6);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;text-align:center;outline:none;}
+.totaux-sep{border:none;border-top:1px dashed rgba(99,102,241,0.3);margin:8px 0;}
+
+/* LOADER */
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.35);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--danger);color:var(--danger);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+
+/* RESPONSIVE */
+@media(max-width:900px){.topbar-actions{flex-direction:column;}.form-row{flex-direction:column;}.totaux-block{padding:14px;}}
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .content{padding:18px 14px 80px;}
+  .modal{margin:10px;border-radius:14px;}
+  .modal-body{padding:16px;}
+  .mobile-menu-btn{display:block !important;}
+}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;flex-direction:column;position:fixed;top:57px;left:0;bottom:0;z-index:25;width:260px;background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#128679;</span>
+      <span class="crumb-name">Artisan BTP</span>
+      <span class="crumb-sep">&#183;</span>
+      <span class="crumb-module">Devis</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="/organisation.html">&#8592; Retour</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link" href="agenda.html"><span class="ico">&#128197;</span> Agenda</a>
+      <a class="sidebar-link" href="chantiers.html"><span class="ico">&#128679;</span> Chantiers</a>
+      <a class="sidebar-link active" href="devis.html"><span class="ico">&#128203;</span> Devis</a>
+      <a class="sidebar-link" href="factures.html"><span class="ico">&#128176;</span> Factures</a>
+      <a class="sidebar-link" href="stock.html"><span class="ico">&#128230;</span> Stock</a>
+      <a class="sidebar-link" href="ouvriers.html"><span class="ico">&#128119;</span> Ouvriers</a>
+      <a class="sidebar-link" href="comptabilite.html"><span class="ico">&#128202;</span> Comptabilit&eacute;</a>
+      <a class="sidebar-link" href="parametres.html"><span class="ico">&#9881;</span> Param&egrave;tres</a>
+      <div class="sidebar-sep"></div>
+      <a class="sidebar-link" id="link-public" href="/expert/" target="_blank"><span class="ico">&#128279;</span> Ma page publique</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+
+    <!-- TOP BAR -->
+    <div class="topbar-actions">
+      <div class="field">
+        <label>Statut</label>
+        <select id="f-statut" onchange="loadDevis()">
+          <option value="">Tous</option>
+          <option value="brouillon">Brouillon</option>
+          <option value="envoye">Envoy&eacute;</option>
+          <option value="signe">Sign&eacute;</option>
+          <option value="accepte">Accept&eacute;</option>
+          <option value="refuse">Refus&eacute;</option>
+          <option value="expire">Expir&eacute;</option>
+        </select>
+      </div>
+      <div class="search-field">
+        <input type="text" id="f-search" placeholder="Rechercher par client, num&eacute;ro, chantier..." oninput="debounceSearch()">
+      </div>
+      <button class="btn btn-primary" onclick="openNewDevis()">+ Nouveau devis</button>
+    </div>
+
+    <!-- DEVIS LIST -->
+    <div class="card">
+      <div class="card-title">&#128203; Devis</div>
+      <div class="card-sub">G&eacute;rez vos devis et propositions commerciales</div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Num&eacute;ro</th>
+              <th>Date</th>
+              <th>Client</th>
+              <th>Chantier</th>
+              <th>Total TTC</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="devis-body">
+            <tr><td colspan="7"><div class="loader"><div class="spinner"></div>Chargement...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- DEVIS MODAL -->
+<div class="modal-bg" id="modal-devis">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nouveau devis</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- HEADER -->
+      <div class="form-row">
+        <div class="field">
+          <label>Client *</label>
+          <select id="d-client" required><option value="">-- S&eacute;lectionner --</option></select>
+        </div>
+        <div class="field">
+          <label>Chantier</label>
+          <select id="d-chantier" onchange="onChantierChange()"><option value="">-- Optionnel --</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="d-date">
+        </div>
+        <div class="field">
+          <label>Validit&eacute; (jours)</label>
+          <input type="number" id="d-validite" value="30" min="1">
+        </div>
+        <div class="field">
+          <label>N&deg; assurance d&eacute;cennale</label>
+          <input type="text" id="d-assurance" placeholder="Ex: AD-2024-XXXXX">
+        </div>
+      </div>
+
+      <!-- MAIN D'OEUVRE -->
+      <div class="section-title">
+        <h3>&#128119; Main d'oeuvre</h3>
+        <span class="sous-total" id="st-mo">0,00 &euro; HT</span>
+      </div>
+      <table class="dyn-tbl" id="tbl-mo">
+        <thead><tr><th>D&eacute;signation</th><th style="width:90px">Heures</th><th style="width:100px">Taux &euro;/h</th><th style="width:110px">Total HT</th><th class="col-actions"></th></tr></thead>
+        <tbody id="tbody-mo"></tbody>
+      </table>
+      <button class="btn-add-row" type="button" onclick="addRowMO()">+ Ajouter ligne</button>
+
+      <!-- FOURNITURES -->
+      <div class="section-title">
+        <h3>&#128230; Fournitures &amp; mat&eacute;riaux</h3>
+        <span class="sous-total" id="st-fournitures">0,00 &euro; HT</span>
+      </div>
+      <table class="dyn-tbl" id="tbl-fournitures">
+        <thead><tr><th>D&eacute;signation</th><th style="width:70px">Qt&eacute;</th><th style="width:70px">Unit&eacute;</th><th style="width:90px">PU HT</th><th style="width:70px">TVA%</th><th style="width:110px">Total HT</th><th class="col-actions"></th></tr></thead>
+        <tbody id="tbody-fournitures"></tbody>
+      </table>
+      <button class="btn-add-row" type="button" onclick="addRowFourniture()">+ Ajouter ligne</button>
+
+      <!-- DEPLACEMENTS -->
+      <div class="section-title">
+        <h3>&#128663; D&eacute;placements</h3>
+        <span class="sous-total" id="st-deplacement">0,00 &euro; HT</span>
+      </div>
+      <table class="dyn-tbl" id="tbl-deplacement">
+        <thead><tr><th>D&eacute;signation</th><th style="width:70px">Qt&eacute;</th><th style="width:100px">PU</th><th style="width:110px">Total</th><th class="col-actions"></th></tr></thead>
+        <tbody id="tbody-deplacement"></tbody>
+      </table>
+      <button class="btn-add-row" type="button" onclick="addRowDeplacement()">+ Ajouter ligne</button>
+
+      <!-- TOTAUX -->
+      <div class="totaux-block" id="totaux-block">
+        <div class="totaux-row"><span class="lbl">Main d'oeuvre HT :</span><span class="val" id="t-mo">0,00 &euro;</span></div>
+        <div class="totaux-row"><span class="lbl">Fournitures HT :</span><span class="val" id="t-fournitures">0,00 &euro;</span></div>
+        <div class="totaux-row"><span class="lbl">D&eacute;placements HT :</span><span class="val" id="t-deplacement">0,00 &euro;</span></div>
+        <hr class="totaux-sep">
+        <div class="totaux-row sub"><span class="lbl">Sous-total HT :</span><span class="val" id="t-sous-total">0,00 &euro;</span></div>
+        <div class="totaux-row remise"><span class="lbl">Remise <input type="number" id="d-remise" value="0" min="0" max="100" step="0.5" oninput="recalcTotaux()">% :</span><span class="val" id="t-remise">-0,00 &euro;</span></div>
+        <div class="totaux-row"><span class="lbl">Total HT :</span><span class="val" id="t-total-ht" style="font-weight:800;">0,00 &euro;</span></div>
+        <div class="totaux-row"><span class="lbl" id="lbl-tva-travaux">TVA 10% (travaux) :</span><span class="val" id="t-tva-travaux">0,00 &euro;</span></div>
+        <div class="totaux-row"><span class="lbl">TVA 20% (fournitures) :</span><span class="val" id="t-tva-fournitures">0,00 &euro;</span></div>
+        <hr class="totaux-sep">
+        <div class="totaux-row total"><span class="lbl">Total TTC :</span><span class="val" id="t-total-ttc">0,00 &euro;</span></div>
+        <div class="totaux-row acompte"><span class="lbl">Acompte <input type="number" id="d-acompte" value="30" min="0" max="100" step="5" oninput="recalcTotaux()">% :</span><span class="val" id="t-acompte">0,00 &euro;</span></div>
+      </div>
+
+      <!-- MENTIONS LEGALES -->
+      <div class="section-title" style="margin-top:24px;">
+        <h3>&#9878; Mentions l&eacute;gales</h3>
+      </div>
+      <div class="field">
+        <textarea id="d-mentions" rows="8">Assurance d&eacute;cennale souscrite aupr&egrave;s de [Compagnie], contrat n&deg; [Num&eacute;ro].
+
+Garanties l&eacute;gales applicables :
+- Garantie de parfait ach&egrave;vement : 1 an &agrave; compter de la r&eacute;ception des travaux (art. 1792-6 du Code civil).
+- Garantie biennale (bon fonctionnement) : 2 ans &agrave; compter de la r&eacute;ception des travaux (art. 1792-3 du Code civil).
+- Garantie d&eacute;cennale : 10 ans &agrave; compter de la r&eacute;ception des travaux (art. 1792 et suivants du Code civil).
+
+Ce devis est valable 30 jours &agrave; compter de sa date d'&eacute;mission. Pass&eacute; ce d&eacute;lai, l'entreprise se r&eacute;serve le droit de r&eacute;viser les prix.
+
+En cas de retard de paiement, des p&eacute;nalit&eacute;s de retard seront appliqu&eacute;es conform&eacute;ment &agrave; l'article L441-6 du Code de commerce, au taux de 3 fois le taux d'int&eacute;r&ecirc;t l&eacute;gal en vigueur. Une indemnit&eacute; forfaitaire de 40&euro; pour frais de recouvrement sera &eacute;galement due (art. D441-5 du Code de commerce).</textarea>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-ghost" onclick="saveDevis('brouillon')">&#128190; Enregistrer brouillon</button>
+      <button class="btn btn-primary" onclick="saveDevis('envoye')">&#128228; Envoyer au client</button>
+      <button class="btn btn-ghost" onclick="previewPDF()">&#128196; Aper&ccedil;u PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL (injected dynamically) -->
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+let token = null, societeId = null;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function eur(n){ return (Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' \u20ac'; }
+function toast(msg,kind){ const t=$('toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=>t.className='toast',2800); }
+function fmtDate(d){ if(!d) return ''; return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+
+/* --- API with token refresh --- */
+async function api(path, opts={}){
+  try { const { data: sd } = await db.auth.getSession(); if(sd?.session) token = sd.session.access_token; } catch(_){}
+  const headers = { 'Content-Type':'application/json', Authorization:'Bearer '+token, 'X-Societe-Id': societeId, ...(opts.headers||{}) };
+  const r = await fetch(path, { ...opts, headers });
+  if(r.status === 401){
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if(ref?.session){ token = ref.session.access_token;
+        return (await fetch(path, { ...opts, headers:{ ...headers, Authorization:'Bearer '+token } })).json();
+      }
+    } catch(_){}
+    location.href = '/login.html';
+    return { success: false };
+  }
+  return r.json();
+}
+
+/* ======== STATE ======== */
+let clients = [], chantiers = [], devisList = [];
+let editingDevisId = null;
+let tvaTravaux = 10; // default renovation > 2 ans
+
+let searchTimer = null;
+function debounceSearch(){ clearTimeout(searchTimer); searchTimer = setTimeout(()=> loadDevis(), 350); }
+
+/* ======== INIT ======== */
+async function init(){
+  try {
+    const { data: sd } = await db.auth.getSession();
+    if(sd?.session){ token = sd.session.access_token; }
+    else { location.href = '/login.html'; return; }
+  } catch(_){ location.href = '/login.html'; return; }
+
+  // Get societe
+  try {
+    const me = await api('/api/me');
+    if(me.user) societeId = me.user.societe_id || me.user.id;
+  } catch(_){}
+
+  $('d-date').value = new Date().toISOString().slice(0,10);
+
+  await Promise.all([loadClients(), loadChantiers(), loadDevis()]);
+  addRowMO();
+  addRowFourniture();
+  addRowDeplacement();
+}
+init();
+
+/* ======== LOAD DATA ======== */
+async function loadClients(){
+  const res = await api('/api/btp/clients');
+  clients = res.clients || res.data || res || [];
+  if(!Array.isArray(clients)) clients = [];
+  const sel = $('d-client');
+  sel.innerHTML = '<option value="">-- S\u00e9lectionner --</option>';
+  clients.forEach(c => {
+    sel.innerHTML += `<option value="${esc(c.id)}">${esc(c.nom||c.raison_sociale||c.name||'')}</option>`;
+  });
+}
+
+async function loadChantiers(){
+  const res = await api('/api/btp/chantiers');
+  chantiers = res.chantiers || res.data || res || [];
+  if(!Array.isArray(chantiers)) chantiers = [];
+  const sel = $('d-chantier');
+  sel.innerHTML = '<option value="">-- Optionnel --</option>';
+  chantiers.forEach(c => {
+    sel.innerHTML += `<option value="${esc(c.id)}" data-type="${esc(c.type_logement||'')}">${esc(c.nom||c.titre||c.name||'')}</option>`;
+  });
+}
+
+async function loadDevis(){
+  const statut = $('f-statut').value;
+  const search = $('f-search').value.trim();
+  let url = '/api/btp/devis?';
+  if(statut) url += 'statut=' + encodeURIComponent(statut) + '&';
+  if(search) url += 'q=' + encodeURIComponent(search) + '&';
+
+  const res = await api(url);
+  devisList = res.devis || res.data || res || [];
+  if(!Array.isArray(devisList)) devisList = [];
+  renderDevisList();
+}
+
+function renderDevisList(){
+  const body = $('devis-body');
+  if(!devisList.length){
+    body.innerHTML = '<tr><td colspan="7"><div class="empty">Aucun devis trouv\u00e9. Cr\u00e9ez votre premier devis !</div></td></tr>';
+    return;
+  }
+  body.innerHTML = devisList.map(d => {
+    const clientName = d.client_nom || (clients.find(c=>c.id===d.client_id)||{}).nom || d.client_name || '';
+    const chantierName = d.chantier_nom || (chantiers.find(c=>c.id===d.chantier_id)||{}).nom || '';
+    return `<tr onclick="toggleDetail('${esc(d.id)}')" data-id="${esc(d.id)}">
+      <td><strong>${esc(d.numero||d.id)}</strong></td>
+      <td>${fmtDate(d.date||d.created_at)}</td>
+      <td>${esc(clientName)}</td>
+      <td>${esc(chantierName)}</td>
+      <td style="font-weight:700;">${eur(d.total_ttc)}</td>
+      <td>${chipStatut(d.statut)}</td>
+      <td onclick="event.stopPropagation()">
+        <div style="display:flex;gap:4px;">
+          <button class="btn-icon" title="Modifier" onclick="editDevis('${esc(d.id)}')">&#9998;</button>
+          <button class="btn-icon" title="Dupliquer" onclick="dupliquerDevis('${esc(d.id)}')">&#128203;</button>
+          <button class="btn-icon" title="PDF" onclick="downloadPDF('${esc(d.id)}')">&#128196;</button>
+        </div>
+      </td>
+    </tr>
+    <tr><td colspan="7" style="padding:0;border:none;"><div class="devis-detail" id="detail-${esc(d.id)}">${renderDetail(d)}</div></td></tr>`;
+  }).join('');
+}
+
+function chipStatut(s){
+  const map = {brouillon:'chip-brouillon',envoye:'chip-envoye',signe:'chip-signe',accepte:'chip-accepte',refuse:'chip-refuse',expire:'chip-expire'};
+  const labels = {brouillon:'Brouillon',envoye:'Envoy\u00e9',signe:'Sign\u00e9',accepte:'Accept\u00e9',refuse:'Refus\u00e9',expire:'Expir\u00e9'};
+  return `<span class="chip ${map[s]||'chip-brouillon'}">${labels[s]||esc(s)||'Brouillon'}</span>`;
+}
+
+function renderDetail(d){
+  const clientName = d.client_nom || (clients.find(c=>c.id===d.client_id)||{}).nom || '';
+  const chantierName = d.chantier_nom || (chantiers.find(c=>c.id===d.chantier_id)||{}).nom || '';
+  const mo = d.lignes_mo || d.main_oeuvre || [];
+  const fourn = d.lignes_fournitures || d.fournitures || [];
+  const depl = d.lignes_deplacement || d.deplacements || [];
+
+  let html = `<div class="detail-section"><h4>Informations</h4><div class="detail-grid">
+    <div class="detail-item"><span class="lbl">Client</span><br><span class="val">${esc(clientName)}</span></div>
+    <div class="detail-item"><span class="lbl">Chantier</span><br><span class="val">${esc(chantierName)||'--'}</span></div>
+    <div class="detail-item"><span class="lbl">Date</span><br><span class="val">${fmtDate(d.date||d.created_at)}</span></div>
+    <div class="detail-item"><span class="lbl">Validit\u00e9</span><br><span class="val">${d.validite||30} jours</span></div>
+    <div class="detail-item"><span class="lbl">Assurance d\u00e9cennale</span><br><span class="val">${esc(d.assurance_decennale)||'--'}</span></div>
+    <div class="detail-item"><span class="lbl">Total TTC</span><br><span class="val" style="color:var(--success);font-size:16px;">${eur(d.total_ttc)}</span></div>
+  </div></div>`;
+
+  if(mo.length){
+    html += `<div class="detail-section"><h4>Main d'oeuvre</h4><table class="dyn-tbl"><thead><tr><th>D\u00e9signation</th><th>Heures</th><th>Taux</th><th>Total HT</th></tr></thead><tbody>`;
+    mo.forEach(l => { html += `<tr><td>${esc(l.designation)}</td><td>${l.heures||0}</td><td>${eur(l.taux)}</td><td class="row-total">${eur((l.heures||0)*(l.taux||0))}</td></tr>`; });
+    html += `</tbody></table></div>`;
+  }
+  if(fourn.length){
+    html += `<div class="detail-section"><h4>Fournitures</h4><table class="dyn-tbl"><thead><tr><th>D\u00e9signation</th><th>Qt\u00e9</th><th>Unit\u00e9</th><th>PU HT</th><th>TVA</th><th>Total HT</th></tr></thead><tbody>`;
+    fourn.forEach(l => { html += `<tr><td>${esc(l.designation)}</td><td>${l.quantite||0}</td><td>${esc(l.unite||'')}</td><td>${eur(l.pu_ht)}</td><td>${l.tva||20}%</td><td class="row-total">${eur((l.quantite||0)*(l.pu_ht||0))}</td></tr>`; });
+    html += `</tbody></table></div>`;
+  }
+  if(depl.length){
+    html += `<div class="detail-section"><h4>D\u00e9placements</h4><table class="dyn-tbl"><thead><tr><th>D\u00e9signation</th><th>Qt\u00e9</th><th>PU</th><th>Total</th></tr></thead><tbody>`;
+    depl.forEach(l => { html += `<tr><td>${esc(l.designation)}</td><td>${l.quantite||0}</td><td>${eur(l.pu)}</td><td class="row-total">${eur((l.quantite||0)*(l.pu||0))}</td></tr>`; });
+    html += `</tbody></table></div>`;
+  }
+
+  html += `<div class="detail-actions">
+    <button class="btn btn-sm btn-primary" onclick="envoyerDevis('${esc(d.id)}')">&#128228; Envoyer par email</button>
+    <button class="btn btn-sm btn-success" onclick="marquerSigne('${esc(d.id)}')">&#9989; Marquer sign\u00e9</button>
+    <button class="btn btn-sm btn-ghost" onclick="convertirFacture('${esc(d.id)}')">&#128176; Convertir en facture</button>
+    <button class="btn btn-sm btn-ghost" onclick="dupliquerDevis('${esc(d.id)}')">&#128203; Dupliquer</button>
+    <button class="btn btn-sm btn-ghost" onclick="downloadPDF('${esc(d.id)}')">&#128196; PDF</button>
+  </div>`;
+
+  return html;
+}
+
+function toggleDetail(id){
+  const el = $('detail-'+id);
+  if(!el) return;
+  const wasOpen = el.classList.contains('open');
+  // close all
+  document.querySelectorAll('.devis-detail.open').forEach(d => d.classList.remove('open'));
+  if(!wasOpen) el.classList.add('open');
+}
+
+/* ======== TVA AUTO-DETECT ======== */
+function onChantierChange(){
+  const sel = $('d-chantier');
+  const opt = sel.options[sel.selectedIndex];
+  const type = opt?.dataset?.type || '';
+  if(type === 'renovation_plus_2ans'){
+    tvaTravaux = 10;
+  } else {
+    tvaTravaux = 20;
+  }
+  $('lbl-tva-travaux').textContent = `TVA ${tvaTravaux}% (travaux) :`;
+  recalcTotaux();
+}
+
+/* ======== DYNAMIC ROWS ======== */
+let moCounter = 0, fCounter = 0, dCounter = 0;
+
+function addRowMO(data){
+  moCounter++;
+  const id = 'mo-'+moCounter;
+  const d = data || {};
+  const tr = document.createElement('tr');
+  tr.id = id;
+  tr.innerHTML = `
+    <td><input type="text" placeholder="Ex: Pose carrelage" value="${esc(d.designation||'')}" oninput="recalcTotaux()"></td>
+    <td><input type="number" step="0.5" min="0" value="${d.heures||''}" placeholder="0" oninput="recalcTotaux()"></td>
+    <td><input type="number" step="0.01" min="0" value="${d.taux||''}" placeholder="0.00" oninput="recalcTotaux()"></td>
+    <td class="row-total">0,00 \u20ac</td>
+    <td class="col-actions"><button class="btn-del-row" onclick="delRow('${id}','tbody-mo')">&times;</button></td>`;
+  $('tbody-mo').appendChild(tr);
+  recalcTotaux();
+}
+
+function addRowFourniture(data){
+  fCounter++;
+  const id = 'f-'+fCounter;
+  const d = data || {};
+  const tr = document.createElement('tr');
+  tr.id = id;
+  tr.innerHTML = `
+    <td><input type="text" placeholder="Ex: Carrelage 60x60" value="${esc(d.designation||'')}" oninput="recalcTotaux()"></td>
+    <td><input type="number" step="0.01" min="0" value="${d.quantite||''}" placeholder="0" oninput="recalcTotaux()"></td>
+    <td><input type="text" value="${esc(d.unite||'m\u00b2')}" placeholder="m\u00b2" style="width:60px;"></td>
+    <td><input type="number" step="0.01" min="0" value="${d.pu_ht||''}" placeholder="0.00" oninput="recalcTotaux()"></td>
+    <td><input type="number" step="0.5" min="0" max="100" value="${d.tva||20}" style="width:55px;" oninput="recalcTotaux()"></td>
+    <td class="row-total">0,00 \u20ac</td>
+    <td class="col-actions"><button class="btn-del-row" onclick="delRow('${id}','tbody-fournitures')">&times;</button></td>`;
+  $('tbody-fournitures').appendChild(tr);
+  recalcTotaux();
+}
+
+function addRowDeplacement(data){
+  dCounter++;
+  const id = 'd-'+dCounter;
+  const d = data || {};
+  const tr = document.createElement('tr');
+  tr.id = id;
+  tr.innerHTML = `
+    <td><input type="text" placeholder="Ex: D\u00e9placement chantier" value="${esc(d.designation||'')}" oninput="recalcTotaux()"></td>
+    <td><input type="number" step="1" min="0" value="${d.quantite||''}" placeholder="0" oninput="recalcTotaux()"></td>
+    <td><input type="number" step="0.01" min="0" value="${d.pu||''}" placeholder="0.00" oninput="recalcTotaux()"></td>
+    <td class="row-total">0,00 \u20ac</td>
+    <td class="col-actions"><button class="btn-del-row" onclick="delRow('${id}','tbody-deplacement')">&times;</button></td>`;
+  $('tbody-deplacement').appendChild(tr);
+  recalcTotaux();
+}
+
+function delRow(rowId, tbodyId){
+  const row = $(rowId);
+  if(row) row.remove();
+  recalcTotaux();
+}
+
+/* ======== LIVE CALCULATION ======== */
+function recalcTotaux(){
+  // Main d'oeuvre
+  let totalMO = 0;
+  $('tbody-mo').querySelectorAll('tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const heures = parseFloat(inputs[1]?.value) || 0;
+    const taux = parseFloat(inputs[2]?.value) || 0;
+    const total = heures * taux;
+    totalMO += total;
+    tr.querySelector('.row-total').textContent = eur(total);
+  });
+
+  // Fournitures
+  let totalFourn = 0;
+  let tvaFournituresMap = {}; // tva% -> amount
+  $('tbody-fournitures').querySelectorAll('tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const qte = parseFloat(inputs[1]?.value) || 0;
+    const pu = parseFloat(inputs[3]?.value) || 0;
+    const tvaRate = parseFloat(inputs[4]?.value) || 20;
+    const total = qte * pu;
+    totalFourn += total;
+    if(!tvaFournituresMap[tvaRate]) tvaFournituresMap[tvaRate] = 0;
+    tvaFournituresMap[tvaRate] += total;
+    tr.querySelector('.row-total').textContent = eur(total);
+  });
+
+  // Deplacements
+  let totalDepl = 0;
+  $('tbody-deplacement').querySelectorAll('tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const qte = parseFloat(inputs[1]?.value) || 0;
+    const pu = parseFloat(inputs[2]?.value) || 0;
+    const total = qte * pu;
+    totalDepl += total;
+    tr.querySelector('.row-total').textContent = eur(total);
+  });
+
+  // Sous-totaux
+  $('st-mo').textContent = eur(totalMO) + ' HT';
+  $('st-fournitures').textContent = eur(totalFourn) + ' HT';
+  $('st-deplacement').textContent = eur(totalDepl) + ' HT';
+
+  $('t-mo').textContent = eur(totalMO);
+  $('t-fournitures').textContent = eur(totalFourn);
+  $('t-deplacement').textContent = eur(totalDepl);
+
+  const sousTotal = totalMO + totalFourn + totalDepl;
+  $('t-sous-total').textContent = eur(sousTotal);
+
+  // Remise
+  const remisePct = parseFloat($('d-remise').value) || 0;
+  const remise = sousTotal * remisePct / 100;
+  $('t-remise').textContent = '-' + eur(remise);
+
+  const totalHT = sousTotal - remise;
+  $('t-total-ht').textContent = eur(totalHT);
+
+  // TVA travaux (MO + deplacements)
+  const baseTravaux = (totalMO + totalDepl) * (1 - remisePct/100);
+  const tvaTrav = baseTravaux * tvaTravaux / 100;
+  $('t-tva-travaux').textContent = eur(tvaTrav);
+  $('lbl-tva-travaux').textContent = `TVA ${tvaTravaux}% (travaux) :`;
+
+  // TVA fournitures (group by rate, apply remise proportionally)
+  let totalTvaFourn = 0;
+  for(const [rate, base] of Object.entries(tvaFournituresMap)){
+    totalTvaFourn += base * (1 - remisePct/100) * parseFloat(rate) / 100;
+  }
+  $('t-tva-fournitures').textContent = eur(totalTvaFourn);
+
+  const totalTTC = totalHT + tvaTrav + totalTvaFourn;
+  $('t-total-ttc').textContent = eur(totalTTC);
+
+  // Acompte
+  const acomptePct = parseFloat($('d-acompte').value) || 0;
+  $('t-acompte').textContent = eur(totalTTC * acomptePct / 100);
+}
+
+/* ======== COLLECT FORM DATA ======== */
+function collectDevisData(){
+  const lignesMO = [];
+  $('tbody-mo').querySelectorAll('tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const designation = inputs[0]?.value?.trim();
+    const heures = parseFloat(inputs[1]?.value) || 0;
+    const taux = parseFloat(inputs[2]?.value) || 0;
+    if(designation || heures || taux) lignesMO.push({ designation, heures, taux });
+  });
+
+  const lignesFourn = [];
+  $('tbody-fournitures').querySelectorAll('tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const designation = inputs[0]?.value?.trim();
+    const quantite = parseFloat(inputs[1]?.value) || 0;
+    const unite = inputs[2]?.value?.trim() || '';
+    const pu_ht = parseFloat(inputs[3]?.value) || 0;
+    const tva = parseFloat(inputs[4]?.value) || 20;
+    if(designation || quantite || pu_ht) lignesFourn.push({ designation, quantite, unite, pu_ht, tva });
+  });
+
+  const lignesDepl = [];
+  $('tbody-deplacement').querySelectorAll('tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const designation = inputs[0]?.value?.trim();
+    const quantite = parseFloat(inputs[1]?.value) || 0;
+    const pu = parseFloat(inputs[2]?.value) || 0;
+    if(designation || quantite || pu) lignesDepl.push({ designation, quantite, pu });
+  });
+
+  // Compute totals
+  const totalMO = lignesMO.reduce((s,l) => s + l.heures * l.taux, 0);
+  const totalFourn = lignesFourn.reduce((s,l) => s + l.quantite * l.pu_ht, 0);
+  const totalDepl = lignesDepl.reduce((s,l) => s + l.quantite * l.pu, 0);
+  const sousTotal = totalMO + totalFourn + totalDepl;
+  const remisePct = parseFloat($('d-remise').value) || 0;
+  const remise = sousTotal * remisePct / 100;
+  const totalHT = sousTotal - remise;
+  const baseTravaux = (totalMO + totalDepl) * (1 - remisePct/100);
+  const tvaTrav = baseTravaux * tvaTravaux / 100;
+  let tvaFourn = 0;
+  lignesFourn.forEach(l => { tvaFourn += l.quantite * l.pu_ht * (1 - remisePct/100) * l.tva / 100; });
+  const totalTTC = totalHT + tvaTrav + tvaFourn;
+  const acomptePct = parseFloat($('d-acompte').value) || 0;
+
+  return {
+    client_id: $('d-client').value,
+    chantier_id: $('d-chantier').value || null,
+    date: $('d-date').value,
+    validite: parseInt($('d-validite').value) || 30,
+    assurance_decennale: $('d-assurance').value.trim(),
+    lignes_mo: lignesMO,
+    lignes_fournitures: lignesFourn,
+    lignes_deplacement: lignesDepl,
+    sous_total_mo: totalMO,
+    sous_total_fournitures: totalFourn,
+    sous_total_deplacement: totalDepl,
+    remise_pct: remisePct,
+    remise_montant: remise,
+    total_ht: totalHT,
+    tva_travaux_pct: tvaTravaux,
+    tva_travaux: tvaTrav,
+    tva_fournitures: tvaFourn,
+    total_ttc: totalTTC,
+    acompte_pct: acomptePct,
+    acompte_montant: totalTTC * acomptePct / 100,
+    mentions_legales: $('d-mentions').value
+  };
+}
+
+/* ======== MODAL ======== */
+function openNewDevis(){
+  editingDevisId = null;
+  $('modal-title').textContent = 'Nouveau devis';
+  resetForm();
+  $('modal-devis').classList.add('open');
+}
+
+function closeModal(){
+  $('modal-devis').classList.remove('open');
+}
+
+function resetForm(){
+  $('d-client').value = '';
+  $('d-chantier').value = '';
+  $('d-date').value = new Date().toISOString().slice(0,10);
+  $('d-validite').value = 30;
+  $('d-assurance').value = '';
+  $('d-remise').value = 0;
+  $('d-acompte').value = 30;
+  tvaTravaux = 10;
+  $('tbody-mo').innerHTML = '';
+  $('tbody-fournitures').innerHTML = '';
+  $('tbody-deplacement').innerHTML = '';
+  moCounter = 0; fCounter = 0; dCounter = 0;
+  addRowMO();
+  addRowFourniture();
+  addRowDeplacement();
+  recalcTotaux();
+}
+
+async function editDevis(id){
+  const devis = devisList.find(d => d.id === id);
+  if(!devis){
+    // Fetch from API
+    const res = await api('/api/btp/devis/'+id);
+    if(!res || res.success === false){ toast('Devis introuvable','error'); return; }
+    populateForm(res.devis || res);
+  } else {
+    populateForm(devis);
+  }
+  editingDevisId = id;
+  $('modal-title').textContent = 'Modifier devis ' + (devis?.numero || id);
+  $('modal-devis').classList.add('open');
+}
+
+function populateForm(d){
+  $('d-client').value = d.client_id || '';
+  $('d-chantier').value = d.chantier_id || '';
+  $('d-date').value = (d.date || d.created_at || '').slice(0,10);
+  $('d-validite').value = d.validite || 30;
+  $('d-assurance').value = d.assurance_decennale || '';
+  $('d-remise').value = d.remise_pct || 0;
+  $('d-acompte').value = d.acompte_pct || 30;
+  tvaTravaux = d.tva_travaux_pct || 10;
+  if(d.mentions_legales) $('d-mentions').value = d.mentions_legales;
+
+  $('tbody-mo').innerHTML = '';
+  $('tbody-fournitures').innerHTML = '';
+  $('tbody-deplacement').innerHTML = '';
+  moCounter = 0; fCounter = 0; dCounter = 0;
+
+  const mo = d.lignes_mo || d.main_oeuvre || [];
+  const fourn = d.lignes_fournitures || d.fournitures || [];
+  const depl = d.lignes_deplacement || d.deplacements || [];
+
+  if(mo.length) mo.forEach(l => addRowMO(l)); else addRowMO();
+  if(fourn.length) fourn.forEach(l => addRowFourniture(l)); else addRowFourniture();
+  if(depl.length) depl.forEach(l => addRowDeplacement(l)); else addRowDeplacement();
+
+  onChantierChange();
+  recalcTotaux();
+}
+
+/* ======== SAVE ======== */
+async function saveDevis(statut){
+  const data = collectDevisData();
+  if(!data.client_id){ toast('Veuillez s\u00e9lectionner un client','error'); return; }
+  data.statut = statut || 'brouillon';
+
+  let res;
+  if(editingDevisId){
+    res = await api('/api/btp/devis/'+editingDevisId, { method:'PATCH', body:JSON.stringify(data) });
+  } else {
+    res = await api('/api/btp/devis', { method:'POST', body:JSON.stringify(data) });
+  }
+
+  if(res && res.success !== false){
+    toast(statut === 'envoye' ? 'Devis envoy\u00e9 au client !' : 'Devis enregistr\u00e9 !', 'ok');
+    closeModal();
+    loadDevis();
+  } else {
+    toast(res?.message || 'Erreur lors de l\'enregistrement','error');
+  }
+}
+
+/* ======== ACTIONS ======== */
+async function envoyerDevis(id){
+  if(!confirm('Envoyer ce devis par email au client ?')) return;
+  const res = await api('/api/btp/devis/'+id+'/envoyer', { method:'POST' });
+  if(res && res.success !== false){ toast('Devis envoy\u00e9 !','ok'); loadDevis(); }
+  else toast(res?.message || 'Erreur lors de l\'envoi','error');
+}
+
+async function marquerSigne(id){
+  const res = await api('/api/btp/devis/'+id, { method:'PATCH', body:JSON.stringify({ statut:'signe' }) });
+  if(res && res.success !== false){ toast('Devis marqu\u00e9 comme sign\u00e9','ok'); loadDevis(); }
+  else toast(res?.message || 'Erreur','error');
+}
+
+async function convertirFacture(id){
+  if(!confirm('Convertir ce devis en facture ?')) return;
+  const res = await api('/api/btp/devis/'+id+'/convertir-facture', { method:'POST' });
+  if(res && res.success !== false){
+    toast('Facture cr\u00e9\u00e9e avec succ\u00e8s !','ok');
+    if(res.facture_id) window.location.href = 'factures.html';
+    else loadDevis();
+  } else toast(res?.message || 'Erreur','error');
+}
+
+async function dupliquerDevis(id){
+  const devis = devisList.find(d => d.id === id);
+  if(!devis) return;
+  const copy = { ...devis };
+  delete copy.id;
+  delete copy.numero;
+  copy.statut = 'brouillon';
+  copy.date = new Date().toISOString().slice(0,10);
+  const res = await api('/api/btp/devis', { method:'POST', body:JSON.stringify(copy) });
+  if(res && res.success !== false){ toast('Devis dupliqu\u00e9 !','ok'); loadDevis(); }
+  else toast(res?.message || 'Erreur','error');
+}
+
+async function downloadPDF(id){
+  toast('G\u00e9n\u00e9ration du PDF...','');
+  try {
+    const headers = { Authorization:'Bearer '+token, 'X-Societe-Id': societeId };
+    const r = await fetch('/api/btp/devis/'+id+'/pdf', { headers });
+    if(r.ok){
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'devis-'+id+'.pdf'; a.click();
+      URL.revokeObjectURL(url);
+      toast('PDF t\u00e9l\u00e9charg\u00e9','ok');
+    } else {
+      toast('Erreur PDF','error');
+    }
+  } catch(e){ toast('Erreur PDF','error'); }
+}
+
+function previewPDF(){
+  toast('Aper\u00e7u PDF en cours...','');
+  // Save as draft first then redirect
+  const data = collectDevisData();
+  if(!data.client_id){ toast('S\u00e9lectionnez un client pour l\'aper\u00e7u','error'); return; }
+  // For now just save
+  saveDevis('brouillon');
+}
+</script>
+</body>
+</html>

@@ -80,24 +80,24 @@ function welcomeHtml({ prenom, nom, cabinet, plan }) {
 <body style="margin:0;padding:0;background:#0f0e0d;font-family:Arial,sans-serif;color:#e8e6e0;">
 <div style="max-width:560px;margin:0 auto;background:#1a1917;border:1px solid #2f2c28;border-radius:12px;overflow:hidden;">
   <div style="padding:30px 30px 10px 30px;border-bottom:1px solid #2f2c28;">
-    <div style="font-size:28px;font-weight:800;color:#c8f060;letter-spacing:-1px;">JADOMI</div>
+    <div style="font-size:28px;font-weight:800;color:#10b981;letter-spacing:-1px;">JADOMI</div>
     <div style="font-size:12px;color:#9c9890;margin-top:4px;">Gestion stock dentaire intelligente</div>
   </div>
   <div style="padding:30px;">
-    <h2 style="color:#c8f060;font-size:20px;margin:0 0 16px 0;">Bienvenue ${name || 'sur JADOMI'} !</h2>
+    <h2 style="color:#10b981;font-size:20px;margin:0 0 16px 0;">Bienvenue ${name || 'sur JADOMI'} !</h2>
     <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
       Votre compte JADOMI est actif. Vous pouvez des maintenant acceder a votre tableau de bord
       et commencer a gerer votre stock dentaire avec l'IA.
     </p>
     ${cabinet ? `<p style="font-size:13px;color:#9c9890;">Cabinet : <strong style="color:#e8e6e0;">${cabinet}</strong></p>` : ''}
-    ${plan ? `<p style="font-size:13px;color:#9c9890;">Formule : <strong style="color:#c8f060;">${plan}</strong></p>` : ''}
+    ${plan ? `<p style="font-size:13px;color:#9c9890;">Formule : <strong style="color:#10b981;">${plan}</strong></p>` : ''}
     <div style="text-align:center;margin:30px 0;">
-      <a href="https://jadomi.fr/index.html" style="display:inline-block;padding:14px 28px;background:#c8f060;color:#0f0e0d;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">
+      <a href="https://jadomi.fr/index.html" style="display:inline-block;padding:14px 28px;background:#10b981;color:#0f0e0d;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">
         Acceder a mon tableau de bord
       </a>
     </div>
     <p style="font-size:12px;color:#9c9890;line-height:1.6;">
-      Pour toute question, contactez-nous a <a href="mailto:${EMAIL_CONTACT}" style="color:#c8f060;">${EMAIL_CONTACT}</a>.
+      Pour toute question, contactez-nous a <a href="mailto:${EMAIL_CONTACT}" style="color:#10b981;">${EMAIL_CONTACT}</a>.
     </p>
   </div>
   <div style="padding:16px 30px;border-top:1px solid #2f2c28;font-size:11px;color:#6b6760;text-align:center;">

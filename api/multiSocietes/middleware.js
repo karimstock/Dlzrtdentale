@@ -41,7 +41,9 @@ function requireSociete({ paramName = 'id' } = {}) {
   return async (req, res, next) => {
     try {
       const societeId = req.headers['x-societe-id'] || req.params[paramName] || req.body?.societe_id;
-      if (!societeId) return res.status(400).json({ error: 'missing_societe_id' });
+      if (!societeId || societeId === 'undefined' || societeId === 'null') {
+        return res.status(400).json({ error: 'societe_id_manquant' });
+      }
       if (!req.user?.id) return res.status(401).json({ error: 'unauth' });
 
       const { data, error } = await admin()
