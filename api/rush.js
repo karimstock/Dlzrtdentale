@@ -296,7 +296,7 @@ function createRushRouter(supabase) {
 <style>
 body{font-family:-apple-system,sans-serif;background:#0f0e0d;color:#f0ede8;margin:0;padding:24px;}
 .card{max-width:520px;margin:0 auto;background:#1a1917;border:1px solid #2e2c29;border-radius:14px;padding:28px;}
-h1{font-size:22px;color:#c8f060;margin:0 0 4px;}
+h1{font-size:22px;color:#10b981;margin:0 0 4px;}
 .sub{color:#6b6760;font-size:12px;margin-bottom:20px;}
 .row{margin:14px 0;}
 .lbl{font-size:11px;text-transform:uppercase;color:#6b6760;letter-spacing:1px;margin-bottom:4px;}

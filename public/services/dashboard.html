@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Services — Dashboard</title>
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<style>
+html,body{height:100%;overflow:hidden}
+.layout{display:flex;height:100vh}
+.sidebar{width:260px;min-height:100vh;display:flex;flex-direction:column;padding:20px 0;position:fixed;left:0;top:0;z-index:10}
+.sidebar .logo{padding:16px 24px;font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-0.5px}
+.sidebar .logo span{color:var(--accent3)}
+.sidebar nav{flex:1;padding:12px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;transition:all .2s;border-left:3px solid transparent;font-size:14px;text-decoration:none;margin-bottom:2px}
+.nav-item:hover{background:rgba(99,102,241,.15);color:var(--text)}
+.nav-item.active{color:var(--accent);background:rgba(99,102,241,.18);border-left-color:var(--accent)}
+.nav-item .ico{font-size:18px;width:24px;text-align:center}
+.sidebar-bottom{padding:12px 20px;border-top:1px solid var(--border)}
+.main{margin-left:260px;flex:1;overflow-y:auto;padding:28px 36px;height:100vh}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.topbar h1{font-family:var(--display);font-size:26px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:28px}
+.stat{padding:22px;border-radius:16px}
+.stat .stat-label{font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.stat .stat-val{font-size:28px;font-weight:700;font-family:var(--display)}
+.stat .stat-sub{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.section-title{font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)}
+.timeline{display:flex;flex-direction:column;gap:8px}
+.timeline-item{display:flex;align-items:center;gap:16px;padding:14px 18px;border-radius:var(--radius-sm);background:rgba(30,52,96,.4);border:1px solid var(--border2);transition:all .2s}
+.timeline-item:hover{border-color:var(--border);background:rgba(30,52,96,.6)}
+.timeline-heure{font-weight:700;color:var(--accent);min-width:50px;font-size:15px}
+.timeline-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.timeline-info{flex:1}
+.timeline-info strong{font-size:14px}
+.timeline-info small{color:var(--text-secondary);display:block;font-size:12px;margin-top:2px}
+.timeline-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-confirme{background:rgba(16,185,129,.15);color:var(--success)}
+.badge-en_attente{background:rgba(245,158,11,.15);color:var(--warning)}
+.badge-annule{background:rgba(239,68,68,.15);color:var(--danger)}
+.quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
+.quick-btn{padding:16px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);text-align:center;cursor:pointer;transition:all .2s;color:var(--text)}
+.quick-btn:hover{border-color:var(--accent);transform:translateY(-2px)}
+.quick-btn .qico{font-size:24px;margin-bottom:6px}
+.empty-timeline{padding:40px;text-align:center;color:var(--text-secondary);border:1px dashed var(--border);border-radius:var(--radius)}
+@media(max-width:900px){
+.sidebar{display:none}.main{margin-left:0;padding:16px}
+.stats-grid{grid-template-columns:repeat(2,1fr)}
+.quick-actions{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">JADOMI<span>.services</span></div>
+    <nav>
+      <a class="nav-item active" href="/services/dashboard.html"><span class="ico">&#x1F4CA;</span> Vue d'ensemble</a>
+      <a class="nav-item" href="/services/agenda.html"><span class="ico">&#x1F4C5;</span> Agenda</a>
+      <a class="nav-item" href="/services/prestations.html"><span class="ico">&#x1F6CD;&#xFE0F;</span> Prestations</a>
+      <a class="nav-item" href="/services/clients.html"><span class="ico">&#x1F465;</span> Clients</a>
+      <a class="nav-item" href="/services/stock.html"><span class="ico">&#x1F4E6;</span> Stock</a>
+      <a class="nav-item" href="/services/comptabilite.html"><span class="ico">&#x1F4B0;</span> Comptabilit&eacute;</a>
+      <a class="nav-item" href="/services/marketplace.html"><span class="ico">&#x1F3EA;</span> Marketplace</a>
+      <a class="nav-item" href="/services/parametres.html"><span class="ico">&#x2699;&#xFE0F;</span> Param&egrave;tres</a>
+      <a class="nav-item" id="linkPublic" href="#" target="_blank"><span class="ico">&#x1F517;</span> Ma page publique</a>
+    </nav>
+    <div class="sidebar-bottom" id="societeInfo"></div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h1>Vue d'ensemble</h1>
+      <div class="topbar-right">
+        <span id="dateToday" style="color:var(--text-secondary);font-size:13px"></span>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat accent"><div class="stat-label">RDV aujourd'hui</div><div class="stat-val" id="statRdv">-</div><div class="stat-sub" id="statRdvSub"></div></div>
+      <div class="stat ok"><div class="stat-label">CA aujourd'hui</div><div class="stat-val" id="statCa">-</div><div class="stat-sub" id="statCaSub"></div></div>
+      <div class="stat warn"><div class="stat-label">En attente</div><div class="stat-val" id="statAttente">-</div><div class="stat-sub">r&eacute;servations</div></div>
+      <div class="stat" style="border-color:rgba(245,158,11,.3)"><div class="stat-label">Avis</div><div class="stat-val" id="statAvis">-</div><div class="stat-sub" id="statAvisSub"></div></div>
+    </div>
+    <div class="section-title">Planning du jour</div>
+    <div class="timeline" id="timeline"></div>
+    <div class="quick-actions">
+      <div class="quick-btn" onclick="location.href='/services/agenda.html'"><div class="qico">&#x1F4C5;</div>Voir l'agenda</div>
+      <div class="quick-btn" onclick="location.href='/services/clients.html'"><div class="qico">&#x1F465;</div>Clients</div>
+      <div class="quick-btn" onclick="location.href='/services/comptabilite.html'"><div class="qico">&#x1F4B0;</div>Comptabilit&eacute;</div>
+    </div>
+
+    <!-- Stats par praticien -->
+    <div id="pratStatsSection" style="display:none;margin-top:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="section-title" style="margin:0;">Stats par praticien</div>
+        <select id="pratStatsPeriode" onchange="loadPratStats()" style="padding:8px 12px;border-radius:8px;font-size:13px;background:var(--surface);border:1px solid var(--border);color:var(--text)">
+          <option value="month">Ce mois</option>
+          <option value="week">Cette semaine</option>
+          <option value="today">Aujourd'hui</option>
+          <option value="year">Cette ann&eacute;e</option>
+        </select>
+      </div>
+      <div id="pratStatsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;"></div>
+    </div>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let TOKEN='';
+async function refreshToken(){
+  const{data}=await sb.auth.getSession();
+  if(!data?.session){location.href='/pro/login.html';return null}
+  TOKEN=data.session.access_token;
+  return TOKEN;
+}
+async function api(url,opts={}){
+  if(!TOKEN)await refreshToken();
+  const headers={'Content-Type':'application/json','Authorization':'Bearer '+TOKEN,...(opts.headers||{})};
+  if(localStorage.getItem('societe_id'))headers['X-Societe-Id']=localStorage.getItem('societe_id');
+  let r=await fetch(url,{...opts,headers});
+  if(r.status===401){await refreshToken();headers['Authorization']='Bearer '+TOKEN;r=await fetch(url,{...opts,headers})}
+  return r.json();
+}
+async function init(){
+  await refreshToken();
+  document.getElementById('dateToday').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  // Load profil for public link
+  const p=await api('/api/services/profil');
+  if(p.profil?.slug){
+    document.getElementById('linkPublic').href='/booking/'+p.profil.slug;
+  }
+  // Stats
+  const stats=await api('/api/services/comptabilite/stats');
+  if(stats){
+    document.getElementById('statCa').textContent=(stats.today?.brut||0).toFixed(0)+'€';
+    document.getElementById('statCaSub').textContent='Mois: '+(stats.month?.brut||0).toFixed(0)+'€';
+  }
+  // Today's RDV
+  const today=new Date().toISOString().split('T')[0];
+  const ag=await api('/api/services/agenda?date='+today);
+  const rdvs=ag.reservations||[];
+  document.getElementById('statRdv').textContent=rdvs.length;
+  document.getElementById('statRdvSub').textContent=rdvs.filter(r=>r.statut==='confirme').length+' confirmés';
+  // En attente
+  const att=await api('/api/services/reservations?statut=en_attente');
+  document.getElementById('statAttente').textContent=(att.reservations||[]).length;
+  // Avis
+  const av=await api('/api/services/avis');
+  const avisList=av.avis||[];
+  if(avisList.length){
+    const moy=avisList.reduce((s,a)=>s+a.note,0)/avisList.length;
+    document.getElementById('statAvis').textContent=moy.toFixed(1)+'/5';
+    document.getElementById('statAvisSub').textContent=avisList.length+' avis';
+  }
+  // Timeline
+  const tl=document.getElementById('timeline');
+  if(!rdvs.length){tl.innerHTML='<div class="empty-timeline">Aucun rendez-vous aujourd\'hui</div>';return}
+  tl.innerHTML=rdvs.map(r=>{
+    const d=new Date(r.date_heure);
+    const h=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const col=r.prestation?.couleur||'#6366f1';
+    const badge=r.statut==='confirme'?'badge-confirme':r.statut==='annule'?'badge-annule':'badge-en_attente';
+    return`<div class="timeline-item"><span class="timeline-heure">${h}</span><span class="timeline-dot" style="background:${col}"></span><div class="timeline-info"><strong>${r.prestation?.nom||'RDV'}</strong><small>${r.client_nom||r.client_email||''} \u2014 ${r.prestation?.duree||30}min</small></div><span class="timeline-badge ${badge}">${r.statut}</span></div>`
+  }).join('');
+  // Load praticien stats
+  loadPratStats();
+}
+
+const PRAT_COLORS=['#6366f1','#10b981','#f59e0b','#ef4444','#06b6d4','#8b5cf6','#ec4899'];
+
+async function loadPratStats(){
+  const periode=document.getElementById('pratStatsPeriode')?.value||'month';
+  try{
+    const r=await api('/api/services/comptabilite/stats-praticiens?periode='+periode);
+    const stats=r.stats||[];
+    if(!stats.length)return;
+    document.getElementById('pratStatsSection').style.display='block';
+    const grid=document.getElementById('pratStatsGrid');
+    grid.innerHTML=stats.map((s,i)=>{
+      const p=s.praticien||{};
+      const col=p.couleur||PRAT_COLORS[i%PRAT_COLORS.length];
+      const initials=((p.prenom||'')[0]||'')+((p.nom||'')[0]||'');
+      const topHtml=(s.top_prestations||[]).map(t=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border2)"><span>${t.nom}</span><span style="font-weight:600;color:var(--accent)">${t.count}x</span></div>`).join('');
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;border-top:3px solid ${col}">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:15px;flex-shrink:0">${p.photo_url?'<img src="'+p.photo_url+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':initials.toUpperCase()}</div>
+          <div><div style="font-weight:700;font-size:15px">${p.prenom||''} ${p.nom||''}</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:rgba(99,102,241,.06);padding:10px;border-radius:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:${col}">${s.ca_brut.toFixed(0)}\u20ac</div><div style="font-size:10px;color:var(--text-secondary)">CA brut</div></div>
+          <div style="background:rgba(16,185,129,.06);padding:10px;border-radius:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--success)">${s.nb_rdv}</div><div style="font-size:10px;color:var(--text-secondary)">RDV</div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:12px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-secondary)">Clients uniques</span><span style="font-weight:700">${s.nb_clients}</span></div>
+        ${topHtml?'<div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px">Top prestations</div>'+topHtml:''}
+      </div>`;
+    }).join('');
+  }catch(e){console.error('Stats praticiens:',e)}
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professionnel | JADOMI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
+    a { text-decoration: none; color: inherit; }
+
+    /* Header */
+    .pro-header { background: #fff; border-bottom: 1px solid #e5e5e5; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .pro-header .logo { font-size: 22px; font-weight: 700; color: #2563eb; }
+    .pro-header nav a { margin-left: 24px; font-size: 14px; color: #555; font-weight: 500; }
+
+    /* Card */
+    .pro-page { max-width: 700px; margin: 32px auto; padding: 0 16px; }
+    .pro-card-main { background: #fff; border: 1px solid #e5e5e5; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.04); }
+    .pro-banner { height: 180px; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: flex-end; padding: 0 32px; position: relative; }
+    .pro-avatar { width: 110px; height: 110px; border-radius: 50%; border: 4px solid #fff; background: #f0f0f0; object-fit: cover; position: relative; top: 55px; box-shadow: 0 4px 12px rgba(0,0,0,.1); display: flex; align-items: center; justify-content: center; font-size: 48px; color: #bbb; overflow: hidden; }
+    .pro-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .pro-info { padding: 70px 32px 24px; }
+    .pro-name { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+    .pro-profession { font-size: 16px; color: #666; margin-bottom: 12px; }
+    .pro-rating { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 16px; }
+    .pro-rating .stars { color: #f59e0b; font-size: 18px; }
+    .pro-rating .count { color: #888; }
+    .pro-location { font-size: 14px; color: #555; margin-bottom: 6px; }
+    .pro-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .pro-badge { padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; background: #eff6ff; color: #2563eb; }
+    .pro-badge.green { background: #ecfdf5; color: #059669; }
+
+    /* Sections */
+    .pro-section { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 24px 32px; margin-top: 16px; }
+    .pro-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333; }
+    .service-list { list-style: none; }
+    .service-list li { padding: 10px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+    .service-list li:last-child { border-bottom: none; }
+    .service-price { font-weight: 600; color: #2563eb; }
+
+    /* Actions */
+    .pro-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .pro-actions a, .pro-actions button { flex: 1; text-align: center; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: all .2s; }
+    .act-reserve { background: #2563eb; color: #fff; }
+    .act-reserve:hover { background: #1d4ed8; }
+    .act-call { background: #ecfdf5; color: #059669; }
+    .act-call:hover { background: #d1fae5; }
+
+    /* QR */
+    .qr-section { text-align: center; }
+    .qr-placeholder { width: 150px; height: 150px; background: #f3f4f6; border: 2px dashed #d1d5db; border-radius: 12px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; text-align: center; padding: 12px; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 80px 24px; color: #888; }
+    .not-found { text-align: center; padding: 80px 24px; }
+    .not-found .ico { font-size: 56px; margin-bottom: 12px; }
+    .not-found h2 { font-size: 22px; margin-bottom: 8px; }
+    .not-found p { color: #888; }
+
+    @media (max-width: 600px) {
+      .pro-info { padding: 60px 20px 20px; }
+      .pro-section { padding: 20px; }
+      .pro-actions { flex-direction: column; }
+      .pro-banner { padding: 0 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="pro-header">
+  <a href="/" class="logo">JADOMI</a>
+  <nav>
+    <a href="/annuaire">Annuaire</a>
+    <a href="/deals">Deals</a>
+  </nav>
+</header>
+
+<div class="pro-page" id="proPage">
+  <div class="loading" id="loadingState">Chargement du profil...</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function starsHtml(n) {
+  n = parseFloat(n) || 0;
+  let s = '';
+  for (let i = 1; i <= 5; i++) s += i <= Math.round(n) ? '★' : '☆';
+  return s;
+}
+
+const TABLES = [
+  { table: 'juridique_profil', type: 'juridique', page: '/expert/' },
+  { table: 'services_profil', type: 'services', page: '/booking/' },
+  { table: 'btp_profil', type: 'btp', page: '/artisan/' },
+  { table: 'showroom_profil', type: 'showroom', page: '/showroom/' }
+];
+
+async function loadPro() {
+  const slug = window.location.pathname.split('/pro/')[1]?.replace(/\/$/, '');
+  if (!slug) { showNotFound(); return; }
+
+  document.title = slug + ' | JADOMI';
+
+  try {
+    // Try each table
+    for (const cfg of TABLES) {
+      const resp = await fetch(SUPABASE_URL + '/rest/v1/' + cfg.table + '?slug=eq.' + encodeURIComponent(slug) + '&limit=1', {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+      });
+      const data = await resp.json();
+      if (data && data.length > 0) {
+        renderPro(data[0], cfg);
+        return;
+      }
+    }
+    showNotFound();
+  } catch (e) {
+    console.error(e);
+    showNotFound();
+  }
+}
+
+function showNotFound() {
+  document.getElementById('proPage').innerHTML = `
+    <div class="not-found">
+      <div class="ico">🔍</div>
+      <h2>Professionnel introuvable</h2>
+      <p>Ce profil n'existe pas ou a été désactivé.</p>
+      <p style="margin-top:16px"><a href="/annuaire" style="color:#2563eb;font-weight:600;">← Retour à l'annuaire</a></p>
+    </div>`;
+}
+
+function renderPro(pro, cfg) {
+  const nom = pro.nom || pro.nom_complet || pro.raison_sociale || 'Professionnel';
+  const profession = pro.profession || pro.metier || pro.categorie || pro.specialite || '';
+  const ville = pro.ville || '';
+  const cp = pro.code_postal || pro.cp || '';
+  const note = pro.note_moyenne != null ? parseFloat(pro.note_moyenne) : null;
+  const nbAvis = pro.nb_avis || 0;
+  const photo = pro.photo || pro.photo_url || pro.avatar || null;
+  const tel = pro.telephone || pro.tel || pro.phone || '';
+  const email = pro.email || '';
+  const desc = pro.description || pro.bio || pro.presentation || '';
+  const dispo = pro.disponible_aujourdhui || pro.disponible || false;
+  const visio = pro.visio || pro.visio_disponible || false;
+  const bookingUrl = cfg.page + (pro.slug || '');
+
+  // Services/prestations
+  let services = [];
+  try {
+    if (pro.prestations) services = typeof pro.prestations === 'string' ? JSON.parse(pro.prestations) : pro.prestations;
+    else if (pro.services) services = typeof pro.services === 'string' ? JSON.parse(pro.services) : pro.services;
+  } catch(e) {}
+
+  document.title = nom + ' — ' + profession + ' | JADOMI';
+
+  const avatarHtml = photo
+    ? `<div class="pro-avatar"><img src="${esc(photo)}" alt="${esc(nom)}"></div>`
+    : `<div class="pro-avatar">👤</div>`;
+
+  let servicesHtml = '';
+  if (Array.isArray(services) && services.length) {
+    servicesHtml = `<div class="pro-section"><h3>Prestations</h3><ul class="service-list">` +
+      services.map(s => {
+        const label = typeof s === 'string' ? s : (s.nom || s.label || s.name || '');
+        const prix = typeof s === 'object' ? (s.prix || s.price || s.tarif || '') : '';
+        return `<li><span>${esc(label)}</span>${prix ? '<span class="service-price">' + prix + '€</span>' : ''}</li>`;
+      }).join('') + `</ul></div>`;
+  }
+
+  document.getElementById('proPage').innerHTML = `
+    <div class="pro-card-main">
+      <div class="pro-banner">${avatarHtml}</div>
+      <div class="pro-info">
+        <div class="pro-name">${esc(nom)}</div>
+        <div class="pro-profession">${esc(profession)}</div>
+        ${note != null ? `<div class="pro-rating"><span class="stars">${starsHtml(note)}</span><span>${note.toFixed(1)}</span><span class="count">(${nbAvis} avis)</span></div>` : ''}
+        ${ville ? `<div class="pro-location">📍 ${esc(ville)}${cp ? ' (' + esc(cp) + ')' : ''}</div>` : ''}
+        <div class="pro-badges">
+          ${dispo ? '<span class="pro-badge green">✓ Disponible aujourd\'hui</span>' : ''}
+          ${visio ? '<span class="pro-badge">🖥️ Visio</span>' : ''}
+        </div>
+        ${desc ? '<p style="font-size:14px;color:#555;margin-bottom:16px;">' + esc(desc) + '</p>' : ''}
+        <div class="pro-actions">
+          <a href="${esc(bookingUrl)}" class="act-reserve">Réserver</a>
+          ${tel ? '<a href="tel:' + esc(tel) + '" class="act-call">📞 Appeler</a>' : ''}
+        </div>
+      </div>
+    </div>
+
+    ${servicesHtml}
+
+    ${tel || email ? `<div class="pro-section">
+      <h3>Contact</h3>
+      ${tel ? '<p style="font-size:14px;margin-bottom:4px;">📞 <a href="tel:' + esc(tel) + '" style="color:#2563eb;">' + esc(tel) + '</a></p>' : ''}
+      ${email ? '<p style="font-size:14px;">✉️ <a href="mailto:' + esc(email) + '" style="color:#2563eb;">' + esc(email) + '</a></p>' : ''}
+    </div>` : ''}
+
+    <div class="pro-section qr-section">
+      <h3>Carte de visite digitale</h3>
+      <div class="qr-placeholder">QR Code disponible dans les paramètres</div>
+    </div>
+  `;
+}
+
+loadPro();
+</script>
+</body>
+</html>

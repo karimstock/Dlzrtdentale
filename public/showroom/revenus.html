@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Revenus Showroom</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/jadomi-legal-widget.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--sidebar-w:220px;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;}
+.nav-left{display:flex;align-items:center;gap:18px;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.crumb{display:flex;align-items:center;gap:10px;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+
+.content{flex:1;padding:28px 28px 100px;max-width:960px;min-width:0;}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+.stat{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:22px;backdrop-filter:blur(10px);}
+.stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-val{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-1px;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.card{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;backdrop-filter:blur(10px);}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+.commission-row{display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+.commission-item{display:flex;flex-direction:column;gap:2px;}
+.commission-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.commission-val{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-0.5px;}
+.commission-val.brut{color:var(--text);}
+.commission-val.comm{color:var(--danger);}
+.commission-val.net{color:var(--success);}
+.commission-sep{font-size:20px;color:var(--muted);align-self:flex-end;padding-bottom:4px;}
+
+.chart-container{position:relative;height:300px;margin-bottom:16px;}
+.chart-container canvas{width:100% !important;height:100% !important;}
+
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.8);}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;background:rgba(20,40,80,0.5);}
+.tbl tr:last-child td{border-bottom:none;}
+
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s;cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(25,45,85,0.95);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s;z-index:200;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+
+@media(max-width:768px){.sidebar{display:none;}.content{padding:18px 14px 80px;}.stats{grid-template-columns:1fr;}.mobile-menu-btn{display:block !important;}}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;flex-direction:column;position:fixed;top:57px;left:0;bottom:0;z-index:25;width:var(--sidebar-w);}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#127912;</span>
+      <span class="crumb-name">Showroom</span>
+      <span class="crumb-sep">&rsaquo;</span>
+      <span class="crumb-module">Revenus</span>
+    </div>
+  </div>
+  <div class="nav-right"><a class="nav-btn" href="dashboard.html">&larr; Dashboard</a></div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link" href="mes-creations.html"><span class="ico">&#128717;&#65039;</span> Mes cr&eacute;ations</a>
+      <a class="sidebar-link" href="commandes.html"><span class="ico">&#128230;</span> Commandes</a>
+      <a class="sidebar-link" href="planning.html"><span class="ico">&#128197;</span> Planning location</a>
+      <a class="sidebar-link" href="messages.html"><span class="ico">&#128172;</span> Messages</a>
+      <a class="sidebar-link" href="avis.html"><span class="ico">&#11088;</span> Avis</a>
+      <a class="sidebar-link active" href="revenus.html"><span class="ico">&#128176;</span> Revenus</a>
+      <a class="sidebar-link" href="parametres.html"><span class="ico">&#9881;&#65039;</span> Param&egrave;tres</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="stats" id="stats-grid">
+      <div class="loader" style="grid-column:1/-1;"><div class="spinner"></div>Chargement&hellip;</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">&#128176; Commission JADOMI IA &mdash; D&eacute;tail du mois</div>
+      <div class="card-sub">R&eacute;partition brut / commission 5% / net</div>
+      <div class="commission-row" id="commission-row">
+        <div class="commission-item">
+          <span class="commission-label">Brut</span>
+          <span class="commission-val brut" id="c-brut">0,00 &euro;</span>
+        </div>
+        <span class="commission-sep">&minus;</span>
+        <div class="commission-item">
+          <span class="commission-label">Commission JADOMI (5%)</span>
+          <span class="commission-val comm" id="c-comm">-0,00 &euro;</span>
+        </div>
+        <span class="commission-sep">=</span>
+        <div class="commission-item">
+          <span class="commission-label">Net cr&eacute;ateur</span>
+          <span class="commission-val net" id="c-net">0,00 &euro;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div class="card-title">&#128200; &Eacute;volution des revenus</div>
+          <div class="card-sub" style="margin-bottom:0;">Revenus nets des 6 derniers mois</div>
+        </div>
+        <button class="btn btn-ghost" onclick="exportCSV()">&#128229; Export CSV</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="revenue-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">&#128203; D&eacute;tail par commande</div>
+      <div class="card-sub">Commandes termin&eacute;es du mois</div>
+      <div id="detail-list">
+        <div class="loader"><div class="spinner"></div>Chargement&hellip;</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+let token = null, societeId = null, allCommandes = [];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function eur(n){ return (Number(n)||0).toFixed(2).replace('.',',')+' \u20ac'; }
+function toast(msg,k){ const t=$('toast'); t.textContent=msg; t.className='toast show '+(k||''); setTimeout(()=>t.className='toast',2800); }
+
+async function api(path, opts={}) {
+  try{const{data:sd}=await db.auth.getSession();if(sd?.session)token=sd.session.access_token;}catch(_){}
+  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Societe-Id':societeId,...(opts.headers||{})}});
+  if(r.status===401){try{const{data:ref}=await db.auth.refreshSession();if(ref?.session){token=ref.session.access_token;return(await fetch(path,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Societe-Id':societeId,...(opts.headers||{})}})).json();}}catch(_){}location.href='/login.html';return{success:false};}
+  return r.json();
+}
+
+async function loadRevenus(){
+  societeId = new URLSearchParams(location.search).get('societe')||localStorage.getItem('jadomi_societe_id')||'';
+  const{data:sd}=await db.auth.getSession();
+  if(!sd?.session){location.href='/login.html';return;}
+  token=sd.session.access_token;
+
+  const [statsR, cmdsR] = await Promise.all([
+    api('/api/showroom/commandes-stats'),
+    api('/api/showroom/commandes?limit=200')
+  ]);
+
+  const s = statsR.stats||{};
+  allCommandes = cmdsR.commandes||[];
+
+  // Stats cards
+  $('stats-grid').innerHTML = `
+    <div class="stat"><div class="stat-label">Revenus bruts (mois)</div><div class="stat-val" style="color:var(--text);">${eur(s.mois_brut||0)}</div></div>
+    <div class="stat"><div class="stat-label">Commission JADOMI (5%)</div><div class="stat-val" style="color:var(--danger);">-${eur(s.mois_commission||0)}</div></div>
+    <div class="stat"><div class="stat-label">Revenus nets (mois)</div><div class="stat-val" style="color:var(--success);">${eur(s.mois_net||0)}</div></div>`;
+
+  // Commission detail
+  $('c-brut').textContent = eur(s.mois_brut||0);
+  $('c-comm').textContent = '-'+eur(s.mois_commission||0);
+  $('c-net').textContent = eur(s.mois_net||0);
+
+  // Detail list (this month's completed)
+  const monthStart = new Date().toISOString().slice(0,7)+'-01';
+  const completed = allCommandes.filter(c=>c.statut==='terminee'&&c.created_at>=monthStart);
+  if(!completed.length){
+    $('detail-list').innerHTML='<div class="empty">Aucune commande termin\u00e9e ce mois-ci</div>';
+  } else {
+    $('detail-list').innerHTML='<table class="tbl"><thead><tr><th>Date</th><th>Client</th><th>Produit</th><th>Type</th><th>Brut</th><th>Commission</th><th>Net</th></tr></thead><tbody>'+
+      completed.map(o=>`<tr>
+        <td>${new Date(o.created_at).toLocaleDateString('fr-FR')}</td>
+        <td>${esc(o.client_nom||'')}</td>
+        <td>${esc(o.produit?.nom||'')}</td>
+        <td>${esc(o.type||'')}</td>
+        <td>${eur(o.prix_total)}</td>
+        <td style="color:var(--danger);">-${eur(o.commission_jadomi)}</td>
+        <td style="color:var(--success);font-weight:700;">${eur((o.prix_total||0)-(o.commission_jadomi||0))}</td>
+      </tr>`).join('')+'</tbody></table>';
+  }
+
+  // Chart
+  drawChart();
+}
+
+function drawChart(){
+  const canvas = $('revenue-chart');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  // Aggregate by month (last 6 months)
+  const months = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date();
+    d.setMonth(d.getMonth()-i);
+    const key = d.toISOString().slice(0,7);
+    const label = d.toLocaleDateString('fr-FR',{month:'short',year:'2-digit'});
+    const cmds = allCommandes.filter(c=>c.statut==='terminee'&&c.created_at&&c.created_at.startsWith(key));
+    const brut = cmds.reduce((s,c)=>s+Number(c.prix_total||0),0);
+    const comm = cmds.reduce((s,c)=>s+Number(c.commission_jadomi||0),0);
+    months.push({label,brut,net:brut-comm});
+  }
+
+  const maxVal = Math.max(1,...months.map(m=>m.brut));
+  const W = canvas.width, H = canvas.height;
+  const pad = {t:20,b:40,l:60,r:20};
+  const plotW = W-pad.l-pad.r, plotH = H-pad.t-pad.b;
+  const barW = plotW/months.length*0.6;
+  const gap = plotW/months.length;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(99,102,241,0.1)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const y = pad.t + plotH*(1-i/4);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px Inter';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxVal*i/4)+' \u20ac', pad.l-8, y+4);
+  }
+
+  months.forEach((m,i)=>{
+    const x = pad.l + i*gap + gap/2;
+    const hBrut = (m.brut/maxVal)*plotH;
+    const hNet = (m.net/maxVal)*plotH;
+
+    // Brut bar
+    ctx.fillStyle = 'rgba(99,102,241,0.2)';
+    ctx.beginPath();
+    ctx.roundRect(x-barW/2, pad.t+plotH-hBrut, barW, hBrut, 4);
+    ctx.fill();
+
+    // Net bar
+    ctx.fillStyle = 'rgba(16,185,129,0.7)';
+    ctx.beginPath();
+    ctx.roundRect(x-barW/2, pad.t+plotH-hNet, barW, hNet, 4);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.label, x, H-pad.b+20);
+  });
+
+  // Legend
+  ctx.fillStyle = 'rgba(99,102,241,0.3)';
+  ctx.fillRect(W-pad.r-140, 8, 12, 12);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('Brut', W-pad.r-124, 18);
+  ctx.fillStyle = 'rgba(16,185,129,0.7)';
+  ctx.fillRect(W-pad.r-70, 8, 12, 12);
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('Net', W-pad.r-54, 18);
+}
+
+function exportCSV(){
+  const monthStart = new Date().toISOString().slice(0,7)+'-01';
+  const rows = allCommandes.filter(c=>c.statut==='terminee').map(c=>[
+    new Date(c.created_at).toLocaleDateString('fr-FR'),
+    (c.client_nom||'').replace(/,/g,' '),
+    (c.produit?.nom||'').replace(/,/g,' '),
+    c.type||'',
+    c.prix_total||0,
+    c.commission_jadomi||0,
+    ((c.prix_total||0)-(c.commission_jadomi||0))
+  ]);
+  const csv = 'Date,Client,Produit,Type,Brut,Commission,Net\n'+rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'revenus-showroom-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast('Export CSV t\u00e9l\u00e9charg\u00e9','ok');
+}
+
+loadRevenus();
+window.addEventListener('resize',()=>{ if(allCommandes.length) drawChart(); });
+</script>
+</body>
+</html>

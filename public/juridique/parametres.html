@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Paramètres Juridiques</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.25);--text:#f1f5f9;--muted:#94a3b8;
+  --accent:#6366f1;--accent-soft:rgba(99,102,241,0.12);
+  --red:#ef4444;--green:#10b981;--orange:#f59e0b;
+  --font:'Inter','DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);--sidebar-w:260px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.crumb{display:flex;align-items:center;gap:10px;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:18px;width:24px;text-align:center;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+
+.content{flex:1;padding:28px 28px 100px;max-width:960px;overflow-x:hidden;}
+
+/* TABS */
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:12px;padding:4px;margin-bottom:24px;flex-wrap:wrap;}
+.tab-btn{padding:10px 18px;border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:600;border-radius:9px;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{background:var(--accent);color:#fff;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.full{grid-column:1/-1;}
+.field{margin-bottom:0;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color 0.15s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field textarea{resize:vertical;min-height:80px;}
+.field select option{background:var(--surface2);color:var(--text);}
+
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px;}
+.checkbox-group label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;transition:all 0.15s;user-select:none;}
+.checkbox-group label:hover{border-color:var(--accent);}
+.checkbox-group input[type="checkbox"]{accent-color:var(--accent);width:14px;height:14px;}
+
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);background:var(--surface2);}
+.tbl th:first-child{border-radius:8px 0 0 0;}
+.tbl th:last-child{border-radius:0 8px 0 0;}
+.tbl td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface2);}
+
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn-danger{color:var(--red);background:transparent;border:1px solid rgba(240,80,80,0.25);}
+.btn-danger:hover{background:rgba(239,68,68,0.1);}
+
+.toggle{position:relative;width:42px;height:22px;display:inline-block;vertical-align:middle;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle .slider{position:absolute;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:22px;cursor:pointer;transition:0.2s;}
+.toggle .slider:before{content:'';position:absolute;height:16px;width:16px;left:2px;bottom:2px;background:var(--muted);border-radius:50%;transition:0.2s;}
+.toggle input:checked + .slider{background:var(--accent);border-color:var(--accent);}
+.toggle input:checked + .slider:before{transform:translateX(20px);background:#fff;}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:26px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;}
+.modal-title{font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:16px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+
+.dispo-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.dispo-table th{text-align:left;padding:10px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);}
+.dispo-table td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.dispo-table input[type="time"]{padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100%;min-width:90px;}
+.dispo-table input[type="time"]:focus{border-color:var(--accent);}
+.dispo-table input[type="checkbox"]{accent-color:var(--accent);width:16px;height:16px;}
+.dispo-table .day-label{font-weight:700;font-size:12px;white-space:nowrap;}
+
+.blocage-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);gap:12px;}
+.blocage-item:last-child{border-bottom:none;}
+.blocage-info{flex:1;min-width:0;}
+.blocage-dates{font-weight:600;font-size:13px;}
+.blocage-motif{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.chip.blue{background:rgba(99,102,241,0.15);color:var(--accent);}
+.chip.green{background:rgba(16,185,129,0.15);color:var(--green);}
+.chip.grey{background:rgba(148,163,184,0.15);color:var(--muted);}
+
+.slug-row{display:flex;align-items:center;gap:0;}
+.slug-prefix{padding:10px 12px;background:var(--surface3);border:1px solid var(--border);border-right:none;border-radius:9px 0 0 9px;font-size:13px;color:var(--muted);white-space:nowrap;}
+.slug-input{border-radius:0 9px 9px 0 !important;}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:14px;}
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.35);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:var(--red);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .content{padding:18px 14px 80px;}
+  .form-grid{grid-template-columns:1fr;}
+  .tabs{gap:2px;}
+  .tab-btn{padding:8px 12px;font-size:12px;}
+  .dispo-table{font-size:11px;}
+  .dispo-table input[type="time"]{min-width:70px;font-size:11px;padding:4px 6px;}
+  .mobile-menu-btn{display:block !important;}
+  .tbl{display:block;overflow-x:auto;}
+}
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4);}
+.sidebar.mobile-open{display:flex !important;flex-direction:column;position:fixed;top:57px;left:0;bottom:0;z-index:25;width:260px;}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#9878;</span>
+      <span class="crumb-name">Professions Juridiques</span>
+      <span class="crumb-sep">&#183;</span>
+      <span class="crumb-module">Param&#232;tres</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="/organisation.html">&#8592; Retour</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link" href="agenda.html"><span class="ico">&#128197;</span> Agenda consultations</a>
+      <a class="sidebar-link" href="clients.html"><span class="ico">&#128101;</span> Clients / Dossiers</a>
+      <a class="sidebar-link" href="comptabilite.html"><span class="ico">&#128176;</span> Honoraires &amp; Compta</a>
+      <a class="sidebar-link active" href="parametres.html"><span class="ico">&#9881;</span> Param&#232;tres</a>
+      <div class="sidebar-sep"></div>
+      <a class="sidebar-link" id="link-public" href="/expert/" target="_blank"><span class="ico">&#128279;</span> Ma page publique</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="profil">Profil public</button>
+      <button class="tab-btn" data-tab="offres">Offres de consultation</button>
+      <button class="tab-btn" data-tab="dispo">Disponibilit&#233;s</button>
+      <button class="tab-btn" data-tab="blocages">Blocages</button>
+    </div>
+
+    <!-- ====== TAB 1 : PROFIL PUBLIC ====== -->
+    <div class="tab-panel active" id="panel-profil">
+      <div class="card">
+        <div class="card-title">Profil public</div>
+        <div class="card-sub">Informations affich&#233;es sur votre page publique JADOMI IA</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Titre</label>
+            <select id="p-titre">
+              <option value="">&#8212; Aucun &#8212;</option>
+              <option value="Maître">Ma&#238;tre</option>
+              <option value="Me">Me</option>
+              <option value="Dr">Dr</option>
+              <option value="Pr">Pr</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Type professionnel</label>
+            <select id="p-type" onchange="onTypeChange()">
+              <option value="avocat">Avocat</option>
+              <option value="juriste">Juriste</option>
+              <option value="notaire">Notaire</option>
+              <option value="expert-comptable">Expert-comptable</option>
+              <option value="commissaire-de-justice">Commissaire de justice</option>
+              <option value="detective">D&#233;tective</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nom *</label>
+            <input id="p-nom" placeholder="Votre nom" required>
+          </div>
+          <div class="field">
+            <label>Pr&#233;nom *</label>
+            <input id="p-prenom" placeholder="Votre pr&#233;nom" required>
+          </div>
+          <div class="field full">
+            <label>Description</label>
+            <textarea id="p-description" placeholder="D&#233;crivez votre activit&#233;, vos domaines d'expertise..."></textarea>
+          </div>
+          <div class="field full">
+            <label>Sp&#233;cialit&#233;s</label>
+            <div class="checkbox-group" id="p-specialites">
+              <label><input type="checkbox" value="Droit du travail"><span>Droit du travail</span></label>
+              <label><input type="checkbox" value="Droit immobilier"><span>Droit immobilier</span></label>
+              <label><input type="checkbox" value="Droit des sociétés"><span>Droit des soci&#233;t&#233;s</span></label>
+              <label><input type="checkbox" value="Droit de la famille"><span>Droit de la famille</span></label>
+              <label><input type="checkbox" value="Droit commercial"><span>Droit commercial</span></label>
+              <label><input type="checkbox" value="Droit routier"><span>Droit routier</span></label>
+              <label><input type="checkbox" value="Droit fiscal"><span>Droit fiscal</span></label>
+              <label><input type="checkbox" value="Droit de la santé"><span>Droit de la sant&#233;</span></label>
+              <label><input type="checkbox" value="Droit pénal"><span>Droit p&#233;nal</span></label>
+              <label><input type="checkbox" value="Autre"><span>Autre</span></label>
+            </div>
+          </div>
+          <div class="field full" id="field-barreau">
+            <label>Barreau</label>
+            <input id="p-barreau" placeholder="Ex : Barreau de Paris">
+          </div>
+          <div class="field full">
+            <label>Langues parl&#233;es</label>
+            <div class="checkbox-group" id="p-langues">
+              <label><input type="checkbox" value="Français" checked><span>Fran&#231;ais</span></label>
+              <label><input type="checkbox" value="Anglais"><span>Anglais</span></label>
+              <label><input type="checkbox" value="Arabe"><span>Arabe</span></label>
+              <label><input type="checkbox" value="Espagnol"><span>Espagnol</span></label>
+              <label><input type="checkbox" value="Allemand"><span>Allemand</span></label>
+              <label><input type="checkbox" value="Italien"><span>Italien</span></label>
+              <label><input type="checkbox" value="Portugais"><span>Portugais</span></label>
+              <label><input type="checkbox" value="Autre"><span>Autre</span></label>
+            </div>
+          </div>
+          <div class="field full">
+            <label>Photo (URL)</label>
+            <input id="p-photo" placeholder="https://exemple.com/photo.jpg">
+          </div>
+          <div class="field full">
+            <label>Adresse</label>
+            <input id="p-adresse" placeholder="Adresse du cabinet">
+          </div>
+          <div class="field">
+            <label>Code postal</label>
+            <input id="p-cp" placeholder="75001">
+          </div>
+          <div class="field">
+            <label>Ville</label>
+            <input id="p-ville" placeholder="Paris">
+          </div>
+          <div class="field">
+            <label>T&#233;l&#233;phone</label>
+            <input id="p-tel" type="tel" placeholder="01 23 45 67 89">
+          </div>
+          <div class="field">
+            <label>Email de contact</label>
+            <input id="p-email" type="email" placeholder="contact@cabinet.fr">
+          </div>
+          <div class="field full">
+            <label>URL de votre page publique</label>
+            <div class="slug-row">
+              <span class="slug-prefix">jadomi.fr/expert/</span>
+              <input id="p-slug" class="slug-input" placeholder="mon-cabinet">
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:20px;">
+          <button class="btn btn-primary" onclick="saveProfil()">Enregistrer le profil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB 2 : OFFRES ====== -->
+    <div class="tab-panel" id="panel-offres">
+      <div class="card">
+        <div class="card-title">Offres de consultation</div>
+        <div class="card-sub">G&#233;rez vos prestations disponibles &#224; la r&#233;servation</div>
+        <div style="margin-bottom:16px;">
+          <button class="btn btn-primary" onclick="openOffreModal()">+ Nouvelle offre</button>
+        </div>
+        <div id="offres-list">
+          <div class="loader"><div class="spinner"></div>Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB 3 : DISPONIBILITES ====== -->
+    <div class="tab-panel" id="panel-dispo">
+      <div class="card">
+        <div class="card-title">Disponibilit&#233;s hebdomadaires</div>
+        <div class="card-sub">D&#233;finissez vos cr&#233;neaux de consultation pour chaque jour</div>
+        <div id="dispo-container">
+          <div class="loader"><div class="spinner"></div>Chargement...</div>
+        </div>
+        <div style="margin-top:18px;">
+          <button class="btn btn-primary" onclick="saveDispo()">Enregistrer les disponibilit&#233;s</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB 4 : BLOCAGES ====== -->
+    <div class="tab-panel" id="panel-blocages">
+      <div class="card">
+        <div class="card-title">P&#233;riodes bloqu&#233;es</div>
+        <div class="card-sub">Cong&#233;s, absences, indisponibilit&#233;s ponctuelles</div>
+        <div class="card" style="background:var(--surface2);margin-bottom:16px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:12px;">Ajouter un blocage</div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Date d&#233;but</label>
+              <input type="date" id="bl-start">
+            </div>
+            <div class="field">
+              <label>Date fin</label>
+              <input type="date" id="bl-end">
+            </div>
+            <div class="field">
+              <label>Motif (optionnel)</label>
+              <input id="bl-motif" placeholder="Cong&#233;, formation...">
+            </div>
+            <div class="field" style="display:flex;align-items:flex-end;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="bl-allday" checked style="accent-color:var(--accent);width:16px;height:16px;">
+                <span style="font-size:12px;font-weight:600;text-transform:none;letter-spacing:0;">Journ&#233;e enti&#232;re</span>
+              </label>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-primary btn-sm" onclick="addBlocage()">Ajouter le blocage</button>
+          </div>
+        </div>
+        <div id="blocages-list">
+          <div class="loader"><div class="spinner"></div>Chargement...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL OFFRE -->
+<div class="modal-bg" id="modal-offre">
+  <div class="modal">
+    <div class="modal-title" id="modal-offre-title">Nouvelle offre</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Type</label>
+        <select id="o-type" onchange="onOffreTypeChange()">
+          <option value="cabinet">Cabinet</option>
+          <option value="visio">Visio</option>
+          <option value="telephone">T&#233;l&#233;phone</option>
+          <option value="ecrit">&#201;crit</option>
+          <option value="document">Document</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Prix (&#8364;)</label>
+        <input id="o-prix" type="number" min="0" step="0.01" placeholder="150.00">
+      </div>
+      <div class="field full">
+        <label>Titre</label>
+        <input id="o-titre" placeholder="Ex : Consultation en droit du travail">
+      </div>
+      <div class="field full">
+        <label>Description</label>
+        <textarea id="o-desc" placeholder="D&#233;crivez cette prestation..."></textarea>
+      </div>
+      <div class="field" id="field-duree">
+        <label>Dur&#233;e (minutes)</label>
+        <input id="o-duree" type="number" min="5" step="5" placeholder="30">
+      </div>
+      <div class="field" id="field-delai" style="display:none;">
+        <label>D&#233;lai de livraison (jours)</label>
+        <input id="o-delai" type="number" min="1" placeholder="3">
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end;gap:8px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <span style="font-size:12px;font-weight:600;text-transform:none;">Actif</span>
+          <div class="toggle">
+            <input type="checkbox" id="o-actif" checked>
+            <span class="slider"></span>
+          </div>
+        </label>
+      </div>
+    </div>
+    <input type="hidden" id="o-edit-id" value="">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-offre')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveOffre()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+let token = null, session = null, societeId = null;
+let profilId = null;
+let offres = [];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg, kind){ const t=$('toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=>t.className='toast',2800); }
+function openModal(id){ $(id).classList.add('show'); }
+function closeModal(id){ $(id).classList.remove('show'); }
+
+async function api(path, opts={}){
+  try { const { data: sd } = await db.auth.getSession(); if(sd?.session) token = sd.session.access_token; } catch(_){}
+  const r = await fetch(path, { ...opts, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+token, 'X-Societe-Id': societeId, ...(opts.headers||{}) }});
+  if(r.status === 401){
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if(ref?.session){ token = ref.session.access_token;
+        return (await fetch(path, { ...opts, headers: { 'Content-Type':'application/json', Authorization:'Bearer '+token, 'X-Societe-Id': societeId, ...(opts.headers||{}) }})).json();
+      }
+    } catch(_){}
+    location.href = '/login.html'; return { success: false };
+  }
+  return r.json();
+}
+
+/* ===== TABS ===== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('panel-' + btn.dataset.tab).classList.add('active');
+  };
+});
+
+/* ===== PROFIL ===== */
+function onTypeChange(){
+  $('field-barreau').style.display = $('p-type').value === 'avocat' ? '' : 'none';
+}
+
+async function loadProfil(){
+  const r = await api('/api/juridique/profil');
+  if(r.success === false) return;
+  const p = r.profil || r;
+  if(!p || !p.id) return;
+  profilId = p.id;
+  $('p-titre').value = p.titre || '';
+  $('p-type').value = p.type_professionnel || 'avocat';
+  onTypeChange();
+  $('p-nom').value = p.nom || '';
+  $('p-prenom').value = p.prenom || '';
+  $('p-description').value = p.description || '';
+  $('p-barreau').value = p.barreau || '';
+  $('p-photo').value = p.photo_url || '';
+  $('p-adresse').value = p.adresse || '';
+  $('p-cp').value = p.code_postal || '';
+  $('p-ville').value = p.ville || '';
+  $('p-tel').value = p.telephone || '';
+  $('p-email').value = p.email_contact || '';
+  $('p-slug').value = p.slug || '';
+  // Specialites
+  const specs = p.specialites || [];
+  $('p-specialites').querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = specs.includes(cb.value); });
+  // Langues
+  const langues = p.langues || [];
+  if(langues.length) $('p-langues').querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = langues.includes(cb.value); });
+  // Public link
+  if(p.slug) $('link-public').href = '/expert/' + p.slug;
+}
+
+async function saveProfil(){
+  const nom = $('p-nom').value.trim();
+  const prenom = $('p-prenom').value.trim();
+  if(!nom || !prenom){ toast('Nom et pr\u00e9nom requis','error'); return; }
+
+  const specialites = [];
+  $('p-specialites').querySelectorAll('input:checked').forEach(cb => specialites.push(cb.value));
+  const langues = [];
+  $('p-langues').querySelectorAll('input:checked').forEach(cb => langues.push(cb.value));
+
+  const body = {
+    titre: $('p-titre').value,
+    type_professionnel: $('p-type').value,
+    nom, prenom,
+    description: $('p-description').value.trim(),
+    specialites, langues,
+    barreau: $('p-barreau').value.trim(),
+    photo_url: $('p-photo').value.trim(),
+    adresse: $('p-adresse').value.trim(),
+    code_postal: $('p-cp').value.trim(),
+    ville: $('p-ville').value.trim(),
+    telephone: $('p-tel').value.trim(),
+    email_contact: $('p-email').value.trim(),
+    slug: $('p-slug').value.trim()
+  };
+
+  let r;
+  if(profilId){
+    r = await api('/api/juridique/profil/' + profilId, { method:'PATCH', body:JSON.stringify(body) });
+  } else {
+    r = await api('/api/juridique/profil', { method:'POST', body:JSON.stringify(body) });
+  }
+  if(r.success !== false){
+    toast('Profil enregistr\u00e9','ok');
+    if(r.profil?.id) profilId = r.profil.id;
+    if(body.slug) $('link-public').href = '/expert/' + body.slug;
+  } else {
+    toast(r.error || 'Erreur lors de l\'enregistrement','error');
+  }
+}
+
+/* ===== OFFRES ===== */
+async function loadOffres(){
+  const r = await api('/api/juridique/offres');
+  offres = r.offres || r.data || [];
+  renderOffres();
+}
+
+function renderOffres(){
+  if(offres.length === 0){
+    $('offres-list').innerHTML = '<div class="empty">Aucune offre configur\u00e9e. Cr\u00e9ez votre premi\u00e8re offre de consultation.</div>';
+    return;
+  }
+  const typeLabels = { cabinet:'Cabinet', visio:'Visio', telephone:'T\u00e9l\u00e9phone', ecrit:'\u00c9crit', document:'Document' };
+  let html = '<div style="overflow-x:auto;"><table class="tbl"><thead><tr>'
+    + '<th>Type</th><th>Titre</th><th>Description</th><th>Dur\u00e9e / D\u00e9lai</th><th>Prix</th><th>Actif</th><th>Actions</th>'
+    + '</tr></thead><tbody>';
+  offres.forEach(o => {
+    const isWritten = o.type === 'ecrit' || o.type === 'document';
+    const dureeCol = isWritten
+      ? (o.delai_livraison ? o.delai_livraison + ' jour(s)' : '\u2014')
+      : (o.duree ? o.duree + ' min' : '\u2014');
+    html += '<tr>'
+      + '<td><span class="chip blue">' + esc(typeLabels[o.type] || o.type) + '</span></td>'
+      + '<td><strong>' + esc(o.titre) + '</strong></td>'
+      + '<td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(o.description || '') + '</td>'
+      + '<td>' + dureeCol + '</td>'
+      + '<td style="white-space:nowrap;">' + (Number(o.prix)||0).toFixed(2).replace('.',',') + ' \u20ac</td>'
+      + '<td>' + (o.actif !== false ? '<span class="chip green">Oui</span>' : '<span class="chip grey">Non</span>') + '</td>'
+      + '<td style="white-space:nowrap;">'
+        + '<button class="btn btn-ghost btn-sm" onclick="editOffre(\'' + esc(o.id) + '\')">Modifier</button> '
+        + '<button class="btn btn-danger btn-sm" onclick="deleteOffre(\'' + esc(o.id) + '\')">Supprimer</button>'
+      + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  $('offres-list').innerHTML = html;
+}
+
+function onOffreTypeChange(){
+  const t = $('o-type').value;
+  const isWritten = t === 'ecrit' || t === 'document';
+  $('field-duree').style.display = isWritten ? 'none' : '';
+  $('field-delai').style.display = isWritten ? '' : 'none';
+}
+
+function openOffreModal(){
+  $('o-edit-id').value = '';
+  $('modal-offre-title').textContent = 'Nouvelle offre';
+  $('o-type').value = 'cabinet';
+  $('o-titre').value = '';
+  $('o-desc').value = '';
+  $('o-duree').value = '';
+  $('o-delai').value = '';
+  $('o-prix').value = '';
+  $('o-actif').checked = true;
+  onOffreTypeChange();
+  openModal('modal-offre');
+}
+
+function editOffre(id){
+  const o = offres.find(x => x.id === id);
+  if(!o) return;
+  $('o-edit-id').value = o.id;
+  $('modal-offre-title').textContent = 'Modifier l\'offre';
+  $('o-type').value = o.type || 'cabinet';
+  $('o-titre').value = o.titre || '';
+  $('o-desc').value = o.description || '';
+  $('o-duree').value = o.duree || '';
+  $('o-delai').value = o.delai_livraison || '';
+  $('o-prix').value = o.prix || '';
+  $('o-actif').checked = o.actif !== false;
+  onOffreTypeChange();
+  openModal('modal-offre');
+}
+
+async function saveOffre(){
+  const titre = $('o-titre').value.trim();
+  if(!titre){ toast('Titre requis','error'); return; }
+  const type = $('o-type').value;
+  const isWritten = type === 'ecrit' || type === 'document';
+  const body = {
+    type, titre,
+    description: $('o-desc').value.trim(),
+    prix: parseFloat($('o-prix').value) || 0,
+    actif: $('o-actif').checked
+  };
+  if(isWritten){
+    body.delai_livraison = parseInt($('o-delai').value) || null;
+  } else {
+    body.duree = parseInt($('o-duree').value) || null;
+  }
+  const editId = $('o-edit-id').value;
+  let r;
+  if(editId){
+    r = await api('/api/juridique/offres/' + editId, { method:'PATCH', body:JSON.stringify(body) });
+  } else {
+    r = await api('/api/juridique/offres', { method:'POST', body:JSON.stringify(body) });
+  }
+  if(r.success !== false){
+    toast(editId ? 'Offre modifi\u00e9e' : 'Offre cr\u00e9\u00e9e','ok');
+    closeModal('modal-offre');
+    loadOffres();
+  } else {
+    toast(r.error || 'Erreur','error');
+  }
+}
+
+async function deleteOffre(id){
+  if(!confirm('Supprimer cette offre ?')) return;
+  const r = await api('/api/juridique/offres/' + id, { method:'DELETE' });
+  if(r.success !== false){ toast('Offre supprim\u00e9e','ok'); loadOffres(); }
+  else toast(r.error || 'Erreur','error');
+}
+
+/* ===== DISPONIBILITES ===== */
+const JOURS = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+const JOURS_LABEL = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+let disponibilites = {};
+
+async function loadDispo(){
+  const r = await api('/api/juridique/agenda/disponibilites');
+  disponibilites = r.disponibilites || r.data || {};
+  renderDispo();
+}
+
+function renderDispo(){
+  let html = '<div style="overflow-x:auto;"><table class="dispo-table"><thead><tr>'
+    + '<th></th><th>Jour</th><th>D\u00e9but</th><th>Fin</th><th>Pause d\u00e9but</th><th>Pause fin</th>'
+    + '</tr></thead><tbody>';
+  JOURS.forEach((d, i) => {
+    const dd = disponibilites[d] || {};
+    const weekday = i < 5;
+    const activeDefault = dd.active !== undefined ? dd.active : weekday;
+    const defStart = weekday ? '09:00' : '';
+    const defEnd = weekday ? '18:00' : '';
+    const defPauseS = weekday ? '12:00' : '';
+    const defPauseE = weekday ? '14:00' : '';
+    html += '<tr>'
+      + '<td><input type="checkbox" id="dispo-'+d+'-active" '+(activeDefault ? 'checked' : '')+' onchange="toggleDispoRow(\''+d+'\')" title="Activer / d\u00e9sactiver"></td>'
+      + '<td class="day-label">'+JOURS_LABEL[i]+'</td>'
+      + '<td><input type="time" id="dispo-'+d+'-start" value="'+(dd.start || defStart)+'"></td>'
+      + '<td><input type="time" id="dispo-'+d+'-end" value="'+(dd.end || defEnd)+'"></td>'
+      + '<td><input type="time" id="dispo-'+d+'-pause-start" value="'+(dd.pause_start || defPauseS)+'"></td>'
+      + '<td><input type="time" id="dispo-'+d+'-pause-end" value="'+(dd.pause_end || defPauseE)+'"></td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  $('dispo-container').innerHTML = html;
+  JOURS.forEach(d => toggleDispoRow(d));
+}
+
+function toggleDispoRow(day){
+  const active = $('dispo-'+day+'-active').checked;
+  ['start','end','pause-start','pause-end'].forEach(f => {
+    const inp = $('dispo-'+day+'-'+f);
+    if(!inp) return;
+    inp.disabled = !active;
+    inp.style.opacity = active ? '1' : '0.3';
+  });
+}
+
+async function saveDispo(){
+  const data = {};
+  JOURS.forEach(d => {
+    data[d] = {
+      active: $('dispo-'+d+'-active').checked,
+      start: $('dispo-'+d+'-start').value,
+      end: $('dispo-'+d+'-end').value,
+      pause_start: $('dispo-'+d+'-pause-start').value,
+      pause_end: $('dispo-'+d+'-pause-end').value
+    };
+  });
+  const r = await api('/api/juridique/agenda/disponibilites', { method:'PUT', body:JSON.stringify(data) });
+  if(r.success !== false) toast('Disponibilit\u00e9s enregistr\u00e9es','ok');
+  else toast(r.error || 'Erreur','error');
+}
+
+/* ===== BLOCAGES ===== */
+let blocages = [];
+
+async function loadBlocages(){
+  const r = await api('/api/juridique/agenda/blocages');
+  blocages = r.blocages || r.data || [];
+  renderBlocages();
+}
+
+function renderBlocages(){
+  if(blocages.length === 0){
+    $('blocages-list').innerHTML = '<div class="empty">Aucune p\u00e9riode bloqu\u00e9e.</div>';
+    return;
+  }
+  let html = '';
+  blocages.forEach(b => {
+    const start = new Date(b.date_debut).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    const end = new Date(b.date_fin).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    html += '<div class="blocage-item">'
+      + '<div class="blocage-info">'
+      + '<div class="blocage-dates">' + esc(start) + ' \u2014 ' + esc(end) + '</div>'
+      + (b.motif ? '<div class="blocage-motif">' + esc(b.motif) + '</div>' : '')
+      + (b.journee_entiere ? '<div class="blocage-motif">Journ\u00e9e enti\u00e8re</div>' : '')
+      + '</div>'
+      + '<button class="btn btn-danger btn-sm" onclick="deleteBlocage(\'' + esc(b.id) + '\')">Supprimer</button>'
+      + '</div>';
+  });
+  $('blocages-list').innerHTML = html;
+}
+
+async function addBlocage(){
+  const start = $('bl-start').value;
+  const end = $('bl-end').value;
+  if(!start || !end){ toast('Dates de d\u00e9but et fin requises','error'); return; }
+  const body = {
+    date_debut: start,
+    date_fin: end,
+    motif: $('bl-motif').value.trim(),
+    journee_entiere: $('bl-allday').checked
+  };
+  const r = await api('/api/juridique/agenda/blocages', { method:'POST', body:JSON.stringify(body) });
+  if(r.success !== false){
+    toast('Blocage ajout\u00e9','ok');
+    $('bl-motif').value = '';
+    loadBlocages();
+  } else {
+    toast(r.error || 'Erreur','error');
+  }
+}
+
+async function deleteBlocage(id){
+  if(!confirm('Supprimer ce blocage ?')) return;
+  const r = await api('/api/juridique/agenda/blocages/' + id, { method:'DELETE' });
+  if(r.success !== false){ toast('Blocage supprim\u00e9','ok'); loadBlocages(); }
+  else toast(r.error || 'Erreur','error');
+}
+
+/* ===== INIT ===== */
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session) return location.href='/login.html';
+  session = data.session; token = session.access_token;
+  db.auth.onAuthStateChange((ev, s) => { if(s){ session = s; token = s.access_token; } });
+  societeId = localStorage.getItem('societe_active_id');
+  if(!societeId){ location.href='/organisation.html'; return; }
+
+  // Default blocage dates
+  const today = new Date().toISOString().slice(0,10);
+  $('bl-start').value = today;
+  $('bl-end').value = today;
+
+  // Initial barreau visibility
+  onTypeChange();
+
+  // Load all sections
+  loadProfil();
+  loadOffres();
+  loadDispo();
+  loadBlocages();
+})();
+</script>
+</body>
+</html>

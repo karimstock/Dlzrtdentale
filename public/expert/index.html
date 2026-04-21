@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Consultation Juridique</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#ffffff;--bg2:#f8f9fc;--surface:#ffffff;--surface2:#f1f3f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#1e293b;--text2:#475569;--muted:#94a3b8;
+  --accent:#6366f1;--accent-hover:#4f46e5;--accent-soft:rgba(99,102,241,0.08);
+  --green:#10b981;--orange:#f59e0b;--red:#ef4444;
+  --font:'Inter','DM Sans',system-ui,sans-serif;
+  --display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+  --radius:14px;--shadow:0 4px 24px rgba(0,0,0,0.08);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.6;}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+
+/* HEADER */
+.page-header{background:linear-gradient(135deg,#f8f9fc 0%,#eef0f6 100%);border-bottom:1px solid var(--border);padding:40px 24px 0;}
+.header-inner{max-width:900px;margin:0 auto;display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;}
+.photo-wrap{width:120px;height:120px;border-radius:16px;overflow:hidden;border:3px solid #fff;box-shadow:var(--shadow);flex-shrink:0;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--accent);}
+.photo-wrap img{width:100%;height:100%;object-fit:cover;}
+.header-info{flex:1;min-width:0;}
+.header-info h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px;color:var(--text);}
+.header-info .subtitle{font-size:14px;color:var(--text2);margin-bottom:8px;}
+.specialties{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.specialty{padding:4px 12px;background:var(--accent-soft);color:var(--accent);border-radius:20px;font-size:12px;font-weight:600;}
+.rating{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:16px;}
+.rating .stars{color:#f59e0b;font-size:16px;}
+.rating .count{color:var(--muted);font-size:13px;}
+.header-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text2);padding-bottom:20px;}
+.header-meta span{display:flex;align-items:center;gap:6px;}
+
+/* NAV BAR */
+.sticky-nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.sticky-nav-inner{max-width:900px;margin:0 auto;display:flex;gap:0;overflow-x:auto;padding:0 24px;}
+.sticky-nav a{padding:14px 18px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;}
+.sticky-nav a:hover{color:var(--text);}
+.sticky-nav a.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* SECTIONS */
+.section{max-width:900px;margin:0 auto;padding:32px 24px;}
+.section-title{font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:16px;letter-spacing:-0.3px;}
+
+/* OFFRES */
+.offres-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+.offre-card{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:22px;cursor:pointer;transition:all 0.2s var(--trans);}
+.offre-card:hover{border-color:var(--accent);box-shadow:0 8px 28px rgba(99,102,241,0.12);}
+.offre-card.selected{border-color:var(--accent);background:var(--accent-soft);}
+.offre-type{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.offre-titre{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:6px;}
+.offre-desc{font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5;}
+.offre-bottom{display:flex;align-items:center;justify-content:space-between;}
+.offre-prix{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);}
+.offre-duree{font-size:12px;color:var(--muted);font-weight:600;}
+
+/* CALENDAR */
+.cal-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;}
+.cal-day{min-width:70px;padding:12px 8px;border:2px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;transition:all 0.15s;flex-shrink:0;}
+.cal-day:hover{border-color:var(--accent);}
+.cal-day.selected{border-color:var(--accent);background:var(--accent-soft);}
+.cal-day.disabled{opacity:0.3;pointer-events:none;}
+.cal-day .dow{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;}
+.cal-day .dn{font-family:var(--display);font-size:20px;font-weight:800;margin:4px 0;}
+.cal-day .dm{font-size:11px;color:var(--muted);}
+
+.slots-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+.slot-btn{padding:10px 18px;border:2px solid var(--border);border-radius:10px;background:#fff;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;transition:all 0.15s;}
+.slot-btn:hover{border-color:var(--accent);color:var(--accent);}
+.slot-btn.selected{border-color:var(--accent);background:var(--accent);color:#fff;}
+.slot-btn.disabled{opacity:0.3;pointer-events:none;}
+
+/* FORM */
+.booking-form{max-width:540px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:12px;color:var(--text2);font-weight:600;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:var(--font);color:var(--text);outline:none;transition:border-color 0.2s;}
+.field textarea{min-height:100px;resize:vertical;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.1);}
+.field input[type="file"]{padding:10px;background:var(--surface2);}
+
+.btn{padding:12px 24px;border:none;border-radius:10px;font-size:14px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.25);}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--text);color:var(--text);}
+.btn-lg{padding:16px 32px;font-size:16px;border-radius:12px;}
+
+/* SUMMARY */
+.booking-summary{background:var(--surface2);border-radius:var(--radius);padding:20px;margin-bottom:20px;}
+.summary-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;}
+.summary-row.total{font-weight:700;font-size:16px;border-top:2px solid var(--border);margin-top:8px;padding-top:12px;}
+.summary-row .val{font-family:var(--display);font-weight:700;}
+
+/* STRIPE */
+#stripe-element{padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff;margin-bottom:16px;}
+
+/* REVIEWS */
+.review-card{background:var(--surface2);border-radius:var(--radius);padding:18px;margin-bottom:12px;}
+.review-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.review-name{font-weight:700;font-size:14px;}
+.review-date{font-size:12px;color:var(--muted);}
+.review-stars{color:#f59e0b;font-size:14px;margin-bottom:6px;}
+.review-text{font-size:13px;color:var(--text2);line-height:1.5;}
+
+/* DESCRIPTION */
+.description-text{font-size:14px;color:var(--text2);line-height:1.8;white-space:pre-line;}
+
+/* CONTACT */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.contact-item{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:12px;}
+.contact-item .ico{font-size:20px;}
+.contact-item .info{font-size:13px;}
+.contact-item .info strong{display:block;font-size:14px;color:var(--text);}
+
+/* STEPS */
+.steps{display:flex;gap:0;margin-bottom:24px;}
+.step{flex:1;text-align:center;padding:12px 8px;font-size:12px;font-weight:600;color:var(--muted);position:relative;}
+.step::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--border);border-radius:2px;}
+.step.active{color:var(--accent);}
+.step.active::after{background:var(--accent);}
+.step.done{color:var(--green);}
+.step.done::after{background:var(--green);}
+
+/* CONFIRMATION */
+.confirmation{text-align:center;padding:40px 20px;}
+.confirmation .check{font-size:60px;margin-bottom:16px;}
+.confirmation h2{font-family:var(--display);font-size:24px;font-weight:800;margin-bottom:8px;}
+.confirmation p{color:var(--text2);font-size:14px;margin-bottom:20px;}
+
+/* FOOTER */
+.page-footer{background:var(--bg2);border-top:1px solid var(--border);padding:24px;text-align:center;font-size:12px;color:var(--muted);margin-top:40px;}
+.page-footer strong{color:var(--accent);}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s;z-index:200;box-shadow:var(--shadow);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:var(--red);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.hide{display:none !important;}
+
+@media(max-width:640px){
+  .header-inner{flex-direction:column;align-items:center;text-align:center;}
+  .specialties{justify-content:center;}
+  .header-meta{justify-content:center;}
+  .form-grid{grid-template-columns:1fr;}
+  .contact-grid{grid-template-columns:1fr;}
+  .offres-grid{grid-template-columns:1fr;}
+  .section{padding:24px 16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="page-header" id="page-header">
+  <div class="header-inner">
+    <div class="photo-wrap" id="expert-photo">&#9878;</div>
+    <div class="header-info">
+      <h1 id="expert-name">Chargement...</h1>
+      <div class="subtitle" id="expert-subtitle"></div>
+      <div class="specialties" id="expert-specialties"></div>
+      <div class="rating" id="expert-rating"></div>
+      <div class="header-meta" id="expert-meta"></div>
+    </div>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="sticky-nav">
+  <div class="sticky-nav-inner">
+    <a href="#offres" class="active" onclick="scrollToSection('offres')">Consultations</a>
+    <a href="#rdv" onclick="scrollToSection('rdv')">Prendre RDV</a>
+    <a href="#avis" onclick="scrollToSection('avis')">Avis</a>
+    <a href="#apropos" onclick="scrollToSection('apropos')">A propos</a>
+    <a href="#contact" onclick="scrollToSection('contact')">Contact</a>
+  </div>
+</nav>
+
+<!-- OFFRES -->
+<section class="section" id="offres">
+  <h2 class="section-title">Consultations proposees</h2>
+  <div class="offres-grid" id="offres-grid">
+    <div class="loader"><div class="spinner"></div>Chargement des offres...</div>
+  </div>
+</section>
+
+<!-- PRISE DE RDV -->
+<section class="section" id="rdv" style="background:var(--bg2);">
+  <h2 class="section-title">Prendre rendez-vous</h2>
+
+  <div class="steps" id="booking-steps">
+    <div class="step active" data-step="1">1. Choisir l'offre</div>
+    <div class="step" data-step="2">2. Date & heure</div>
+    <div class="step" data-step="3">3. Vos informations</div>
+    <div class="step" data-step="4">4. Paiement</div>
+  </div>
+
+  <!-- STEP 1: Offre -->
+  <div id="step-1" class="booking-step">
+    <p style="color:var(--text2);margin-bottom:16px;">Selectionnez le type de consultation souhaitee ci-dessus, puis cliquez ci-dessous.</p>
+    <div id="selected-offre-summary" style="margin-bottom:16px;"></div>
+    <button class="btn btn-primary" onclick="goToStep(2)" id="btn-step1">Continuer &#8594;</button>
+  </div>
+
+  <!-- STEP 2: Date/Time -->
+  <div id="step-2" class="booking-step hide">
+    <p style="color:var(--text2);margin-bottom:16px;">Choisissez votre creneau :</p>
+    <div class="cal-strip" id="cal-strip"></div>
+    <div class="slots-grid" id="slots-grid">
+      <div style="color:var(--muted);font-size:13px;">Selectionnez un jour pour voir les creneaux disponibles.</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-ghost" onclick="goToStep(1)">&#8592; Retour</button>
+      <button class="btn btn-primary" onclick="goToStep(3)" id="btn-step2" disabled>Continuer &#8594;</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Info -->
+  <div id="step-3" class="booking-step hide">
+    <div class="booking-form">
+      <div class="form-grid">
+        <div class="field"><label>Prenom *</label><input id="b-prenom" required></div>
+        <div class="field"><label>Nom *</label><input id="b-nom" required></div>
+        <div class="field"><label>Email *</label><input id="b-email" type="email" required></div>
+        <div class="field"><label>Telephone *</label><input id="b-telephone" type="tel" required></div>
+        <div class="field full"><label>Decrivez votre problematique</label><textarea id="b-problematique" placeholder="Expliquez brievement votre situation juridique..."></textarea></div>
+        <div class="field full"><label>Documents (optionnel)</label><input id="b-documents" type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn btn-ghost" onclick="goToStep(2)">&#8592; Retour</button>
+        <button class="btn btn-primary" onclick="goToStep(4)">Continuer vers le paiement &#8594;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Payment -->
+  <div id="step-4" class="booking-step hide">
+    <div style="max-width:480px;">
+      <div class="booking-summary" id="booking-summary"></div>
+      <div id="stripe-element"></div>
+      <div id="payment-message" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none;"></div>
+      <button class="btn btn-primary btn-lg" onclick="submitPayment()" id="btn-pay" style="width:100%;justify-content:center;">
+        Payer et confirmer le rendez-vous
+      </button>
+      <div style="margin-top:12px;">
+        <button class="btn btn-ghost" onclick="goToStep(3)">&#8592; Retour</button>
+      </div>
+      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--muted);">
+        Paiement securise par Stripe. Vos donnees bancaires ne sont jamais stockees sur nos serveurs.
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRMATION -->
+  <div id="step-confirm" class="booking-step hide">
+    <div class="confirmation">
+      <div class="check">&#9989;</div>
+      <h2>Rendez-vous confirme !</h2>
+      <p>Vous allez recevoir un email de confirmation avec tous les details de votre consultation.</p>
+      <p id="confirm-details" style="font-weight:600;color:var(--text);"></p>
+    </div>
+  </div>
+</section>
+
+<!-- AVIS -->
+<section class="section" id="avis">
+  <h2 class="section-title">Avis clients</h2>
+  <div id="reviews-list">
+    <div class="loader"><div class="spinner"></div>Chargement...</div>
+  </div>
+</section>
+
+<!-- A PROPOS -->
+<section class="section" id="apropos" style="background:var(--bg2);">
+  <h2 class="section-title">A propos</h2>
+  <div class="description-text" id="expert-description"></div>
+</section>
+
+<!-- CONTACT -->
+<section class="section" id="contact">
+  <h2 class="section-title">Contact & Acces</h2>
+  <div class="contact-grid" id="contact-grid"></div>
+</section>
+
+<footer class="page-footer">
+  <strong>JADOMI</strong> &mdash; Plateforme de prise de rendez-vous juridique propulsee par JADOMI IA<br>
+  &copy; 2026 JADOMI. Tous droits reserves.
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const STRIPE_PK = 'STRIPE_PUBLISHABLE_KEY'; // Replace with actual Stripe publishable key
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function eur(n){return (Number(n)||0).toFixed(2).replace('.',',')+' \u20ac';}
+function toast(msg,kind){const t=$('toast');t.textContent=msg;t.className='toast show '+(kind||'');setTimeout(()=>t.className='toast',2800);}
+
+// Extract slug from URL
+const pathParts = window.location.pathname.split('/').filter(Boolean);
+const slug = pathParts[pathParts.length - 1] === 'index.html' ? pathParts[pathParts.length - 2] : pathParts[pathParts.length - 1];
+
+let profil = {};
+let offres = [];
+let disponibilites = {};
+let selectedOffre = null;
+let selectedDate = null;
+let selectedSlot = null;
+let stripe = null;
+let elements = null;
+let paymentElement = null;
+
+function scrollToSection(id){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.sticky-nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+id));
+}
+
+function renderStars(n){
+  let s='';
+  for(let i=1;i<=5;i++) s += i<=n ? '&#9733;' : '&#9734;';
+  return s;
+}
+
+async function loadProfile(){
+  try{
+    const r = await fetch('/api/juridique/public/profil/'+encodeURIComponent(slug)).then(r=>r.json());
+    profil = r.profil || r || {};
+
+    document.title = 'JADOMI \u2014 '+(profil.titre||'Me')+' '+(profil.prenom||'')+' '+(profil.nom||'');
+    $('expert-name').textContent = (profil.titre||'Me')+' '+(profil.prenom||'')+' '+(profil.nom||'');
+    $('expert-subtitle').textContent = [profil.barreau, ...(profil.langues||[])].filter(Boolean).join(' \u00b7 ');
+
+    if(profil.photo_url){
+      $('expert-photo').innerHTML = '<img src="'+esc(profil.photo_url)+'" alt="Photo">';
+    }
+
+    const specs = profil.specialites || [];
+    $('expert-specialties').innerHTML = specs.map(s => '<span class="specialty">'+esc(s)+'</span>').join('');
+
+    if(profil.rating_avg){
+      $('expert-rating').innerHTML = '<span class="stars">'+renderStars(Math.round(profil.rating_avg))+'</span> <strong>'+profil.rating_avg.toFixed(1)+'</strong> <span class="count">('+( profil.rating_count||0)+' avis)</span>';
+    }
+
+    const meta = [];
+    if(profil.adresse) meta.push('<span>&#128205; '+esc(profil.adresse)+'</span>');
+    if(profil.telephone) meta.push('<span>&#128222; '+esc(profil.telephone)+'</span>');
+    $('expert-meta').innerHTML = meta.join('');
+
+    $('expert-description').textContent = profil.description || 'Pas de description disponible.';
+
+    // Contact
+    const contacts = [];
+    if(profil.adresse) contacts.push('<div class="contact-item"><span class="ico">&#128205;</span><div class="info"><strong>Adresse</strong>'+esc(profil.adresse)+'</div></div>');
+    if(profil.telephone) contacts.push('<div class="contact-item"><span class="ico">&#128222;</span><div class="info"><strong>Telephone</strong>'+esc(profil.telephone)+'</div></div>');
+    if(profil.email) contacts.push('<div class="contact-item"><span class="ico">&#9993;</span><div class="info"><strong>Email</strong>'+esc(profil.email)+'</div></div>');
+    if(profil.site_web) contacts.push('<div class="contact-item"><span class="ico">&#127760;</span><div class="info"><strong>Site web</strong><a href="'+esc(profil.site_web)+'" target="_blank">'+esc(profil.site_web)+'</a></div></div>');
+    $('contact-grid').innerHTML = contacts.join('') || '<p style="color:var(--muted);">Pas d\'informations de contact disponibles.</p>';
+  }catch(e){
+    $('expert-name').textContent = 'Profil non trouve';
+  }
+}
+
+async function loadOffres(){
+  try{
+    const r = await fetch('/api/juridique/public/offres/'+encodeURIComponent(slug)).then(r=>r.json());
+    offres = r.offres || [];
+    if(!offres.length){
+      $('offres-grid').innerHTML = '<p style="color:var(--muted);">Aucune consultation disponible pour le moment.</p>';
+      return;
+    }
+    const typeIcons = {visio:'&#128249; Visio', cabinet:'&#127970; Cabinet', telephone:'&#128222; Telephone'};
+    $('offres-grid').innerHTML = offres.map(o => `
+      <div class="offre-card" data-id="${o.id}" onclick="selectOffre('${o.id}')">
+        <div class="offre-type">${typeIcons[o.type]||o.type||''}</div>
+        <div class="offre-titre">${esc(o.titre)}</div>
+        ${o.description ? '<div class="offre-desc">'+esc(o.description)+'</div>' : ''}
+        <div class="offre-bottom">
+          <div class="offre-prix">${eur(o.prix)}</div>
+          <div class="offre-duree">${o.duree||60} min</div>
+        </div>
+      </div>
+    `).join('');
+  }catch(e){
+    $('offres-grid').innerHTML = '<p style="color:var(--muted);">Impossible de charger les offres.</p>';
+  }
+}
+
+function selectOffre(id){
+  selectedOffre = offres.find(o => o.id === id);
+  document.querySelectorAll('.offre-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
+  if(selectedOffre){
+    const typeLabels = {visio:'Visio', cabinet:'Au cabinet', telephone:'Telephone'};
+    $('selected-offre-summary').innerHTML = `
+      <div style="padding:16px;background:var(--accent-soft);border:2px solid var(--accent);border-radius:12px;">
+        <strong>${esc(selectedOffre.titre)}</strong> &mdash; ${typeLabels[selectedOffre.type]||''} ${selectedOffre.duree||60} min<br>
+        <span style="font-family:var(--display);font-size:20px;font-weight:800;color:var(--accent);">${eur(selectedOffre.prix)}</span>
+      </div>`;
+  }
+}
+
+function goToStep(n){
+  if(n === 2 && !selectedOffre){ toast('Selectionnez une offre','error'); return; }
+  if(n === 3 && !selectedSlot){ toast('Selectionnez un creneau','error'); return; }
+  if(n === 4){
+    const prenom = $('b-prenom').value.trim();
+    const nom = $('b-nom').value.trim();
+    const email = $('b-email').value.trim();
+    const telephone = $('b-telephone').value.trim();
+    if(!prenom || !nom || !email || !telephone){ toast('Remplissez tous les champs obligatoires','error'); return; }
+    renderSummary();
+    initStripe();
+  }
+
+  document.querySelectorAll('.booking-step').forEach(s => s.classList.add('hide'));
+  $('step-'+n)?.classList.remove('hide');
+
+  document.querySelectorAll('.steps .step').forEach(s => {
+    const sn = Number(s.dataset.step);
+    s.classList.toggle('active', sn === n);
+    s.classList.toggle('done', sn < n);
+  });
+
+  if(n === 2) loadCalendar();
+}
+
+async function loadCalendar(){
+  try{
+    const r = await fetch('/api/juridique/public/disponibilites/'+encodeURIComponent(slug)).then(r=>r.json());
+    disponibilites = r.disponibilites || {};
+  }catch(_){}
+
+  const today = new Date();
+  let html = '';
+  const JOURS_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const MOIS_SHORT = ['jan','fev','mar','avr','mai','jun','jul','aou','sep','oct','nov','dec'];
+
+  for(let i = 0; i < 14; i++){
+    const d = new Date(today); d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0,10);
+    const dow = d.getDay();
+    const dayNames = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const dayKey = dayNames[dow];
+    const dispo = disponibilites[dayKey];
+    const isAvailable = dispo && dispo.active !== false;
+    const selected = selectedDate === ds;
+
+    html += `<div class="cal-day${selected?' selected':''}${!isAvailable?' disabled':''}" data-date="${ds}" onclick="selectDate('${ds}')">
+      <div class="dow">${JOURS_SHORT[dow]}</div>
+      <div class="dn">${d.getDate()}</div>
+      <div class="dm">${MOIS_SHORT[d.getMonth()]}</div>
+    </div>`;
+  }
+  $('cal-strip').innerHTML = html;
+}
+
+function selectDate(ds){
+  selectedDate = ds;
+  selectedSlot = null;
+  $('btn-step2').disabled = true;
+  document.querySelectorAll('.cal-day').forEach(c => c.classList.toggle('selected', c.dataset.date === ds));
+
+  const d = new Date(ds);
+  const dow = d.getDay();
+  const dayNames = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  const dispo = disponibilites[dayNames[dow]] || {};
+  const start = dispo.start || '09:00';
+  const end = dispo.end || '18:00';
+  const pause = dispo.pause || '12:30';
+  const duration = selectedOffre?.duree || 60;
+
+  const [sh,sm] = start.split(':').map(Number);
+  const [eh,em] = end.split(':').map(Number);
+  const [ph] = pause.split(':').map(Number);
+  const startMin = sh*60+sm;
+  const endMin = eh*60+em;
+
+  const slots = [];
+  for(let m = startMin; m + duration <= endMin; m += 30){
+    const h = Math.floor(m/60);
+    if(h === ph) continue;
+    const mins = m % 60;
+    slots.push(String(h).padStart(2,'0')+':'+String(mins).padStart(2,'0'));
+  }
+
+  if(!slots.length){
+    $('slots-grid').innerHTML = '<div style="color:var(--muted);font-size:13px;">Aucun creneau disponible ce jour.</div>';
+    return;
+  }
+
+  $('slots-grid').innerHTML = slots.map(s =>
+    '<button class="slot-btn" data-slot="'+s+'" onclick="selectSlot(\''+s+'\')">'+s+'</button>'
+  ).join('');
+}
+
+function selectSlot(s){
+  selectedSlot = s;
+  $('btn-step2').disabled = false;
+  document.querySelectorAll('.slot-btn').forEach(b => b.classList.toggle('selected', b.dataset.slot === s));
+}
+
+function renderSummary(){
+  const typeLabels = {visio:'Visio', cabinet:'Au cabinet', telephone:'Telephone'};
+  const d = new Date(selectedDate);
+  const dateStr = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  $('booking-summary').innerHTML = `
+    <div class="summary-row"><span>Consultation</span><span class="val">${esc(selectedOffre.titre)}</span></div>
+    <div class="summary-row"><span>Type</span><span class="val">${typeLabels[selectedOffre.type]||''}</span></div>
+    <div class="summary-row"><span>Date</span><span class="val">${dateStr}</span></div>
+    <div class="summary-row"><span>Heure</span><span class="val">${selectedSlot}</span></div>
+    <div class="summary-row"><span>Duree</span><span class="val">${selectedOffre.duree||60} min</span></div>
+    <div class="summary-row total"><span>Total</span><span class="val">${eur(selectedOffre.prix)}</span></div>
+  `;
+  $('confirm-details').textContent = selectedOffre.titre+' - '+dateStr+' a '+selectedSlot;
+}
+
+function initStripe(){
+  if(stripe) return;
+  try{
+    stripe = Stripe(STRIPE_PK);
+  }catch(e){
+    $('stripe-element').innerHTML = '<p style="color:var(--red);font-size:13px;">Stripe non configure. Contactez le professionnel.</p>';
+    return;
+  }
+  elements = stripe.elements();
+  paymentElement = elements.create('card',{
+    style:{
+      base:{fontSize:'16px',color:'#1e293b','::placeholder':{color:'#94a3b8'}},
+      invalid:{color:'#ef4444'}
+    }
+  });
+  paymentElement.mount('#stripe-element');
+}
+
+async function submitPayment(){
+  const btn = $('btn-pay');
+  btn.disabled = true; btn.textContent = 'Traitement en cours...';
+  $('payment-message').style.display = 'none';
+
+  try{
+    const payload = {
+      slug: slug,
+      offre_id: selectedOffre.id,
+      date: selectedDate,
+      heure: selectedSlot,
+      client_prenom: $('b-prenom').value.trim(),
+      client_nom: $('b-nom').value.trim(),
+      client_email: $('b-email').value.trim(),
+      client_telephone: $('b-telephone').value.trim(),
+      problematique: $('b-problematique').value.trim()
+    };
+
+    const res = await fetch('/api/juridique/public/reserver', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).then(r=>r.json());
+
+    if(!res.success && !res.client_secret){
+      throw new Error(res.error || 'Erreur lors de la reservation');
+    }
+
+    if(res.client_secret && stripe && paymentElement){
+      const {error, paymentIntent} = await stripe.confirmCardPayment(res.client_secret, {
+        payment_method: { card: paymentElement, billing_details: { name: payload.client_prenom+' '+payload.client_nom, email: payload.client_email } }
+      });
+      if(error){
+        $('payment-message').textContent = error.message;
+        $('payment-message').style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Payer et confirmer le rendez-vous';
+        return;
+      }
+    }
+
+    document.querySelectorAll('.booking-step').forEach(s => s.classList.add('hide'));
+    $('step-confirm').classList.remove('hide');
+    document.querySelectorAll('.steps .step').forEach(s => s.classList.add('done'));
+  }catch(e){
+    $('payment-message').textContent = e.message;
+    $('payment-message').style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Payer et confirmer le rendez-vous';
+  }
+}
+
+async function loadReviews(){
+  try{
+    const r = await fetch('/api/juridique/public/avis/'+encodeURIComponent(slug)).then(r=>r.json());
+    const avis = r.avis || [];
+    if(!avis.length){
+      $('reviews-list').innerHTML = '<p style="color:var(--muted);">Aucun avis pour le moment.</p>';
+      return;
+    }
+    $('reviews-list').innerHTML = avis.map(a => `
+      <div class="review-card">
+        <div class="review-header">
+          <span class="review-name">${esc(a.client_nom || 'Client')}</span>
+          <span class="review-date">${a.created_at ? new Date(a.created_at).toLocaleDateString('fr-FR') : ''}</span>
+        </div>
+        <div class="review-stars">${renderStars(a.note || 5)}</div>
+        <div class="review-text">${esc(a.commentaire || '')}</div>
+      </div>
+    `).join('');
+  }catch(_){
+    $('reviews-list').innerHTML = '<p style="color:var(--muted);">Impossible de charger les avis.</p>';
+  }
+}
+
+// Init
+(async function(){
+  if(!slug || slug === 'expert'){
+    $('expert-name').textContent = 'Page non trouvee';
+    return;
+  }
+  await loadProfile();
+  await loadOffres();
+  loadReviews();
+})();
+</script>
+</body>
+</html>

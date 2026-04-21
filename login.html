@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JADOMI — Connexion</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-:root{--bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--border:#2e2c29;--text:#f0ede8;--muted:#6b6760;--accent:#c8f060;--red:#f05050;--font:'DM Sans',sans-serif;--display:'Syne',sans-serif;}
+:root{--bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--border:rgba(99,102,241,0.25);--text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--red:#ef4444;--font:'DM Sans',sans-serif;--display:'Syne',sans-serif;}
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 32px;width:100%;max-width:400px;text-align:center;}
 .logo{font-family:var(--display);font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-1px;margin-bottom:8px;}
@@ -18,7 +19,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .field input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color 0.2s;}
 .field input:focus{border-color:var(--accent);}
 .btn{width:100%;padding:14px;background:var(--accent);color:#0f0e0d;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all 0.2s;margin-top:8px;}
-.btn:hover{background:#8fb840;}
+.btn:hover{background:#818cf8;}
 .btn-bio{width:100%;padding:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;font-family:var(--font);margin-top:10px;}
 .divider{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:12px;color:var(--muted);}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
@@ -54,20 +55,19 @@ let db;
 try{const{createClient}=supabase;db=createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){}
 
 // Destinations fonction du profil et des sociétés de l'user
-const DENTAL_PROFS = ['chirurgien_dentiste','orthodontiste'];
+const DENTAL_PROFS = ['chirurgien_dentiste','orthodontiste','veterinaire'];
 function getNextParam(){
   const p = new URLSearchParams(location.search).get('next');
-  // whitelist simple : uniquement chemins relatifs locaux sans //
-  if(p && /^[a-z0-9_-]+\.html(\?[^#]*)?$/i.test(p)) return p;
+  // whitelist : chemins relatifs locaux (avec ou sans /)
+  if(p && /^[a-z0-9_/.-]+\.html(\?[^#]*)?$/i.test(p) && !p.includes('//')) return p;
   return null;
 }
 async function destinationPour(user, accessToken){
   const next = getNextParam();
   if(next) return next;
   const prof = user?.user_metadata?.profession || user?.profession || '';
-  // Prothésiste : page dédiée historique
-  if(prof==='prothesiste') return 'prothesiste.html';
-  // Bootstrap silencieux cabinet pour historiques dentistes sans société
+
+  // Bootstrap silencieux cabinet pour dentistes sans societe
   if(DENTAL_PROFS.includes(prof)){
     try{
       await fetch('/api/societes/bootstrap-cabinet',{
@@ -77,8 +77,8 @@ async function destinationPour(user, accessToken){
       });
     }catch(e){}
   }
-  // Tout le monde va à index.html — l'onboarding overlay + switcher y sont intégrés
-  return 'index.html';
+  // Hub principal : organisation.html — toujours
+  return 'organisation.html';
 }
 (async()=>{
   try{
@@ -108,9 +108,7 @@ async function login(){
     const user=users.find(u=>u.email===email&&u.password===pass);
     if(user){
       localStorage.setItem('jadomi_session',JSON.stringify(user));
-      const prof = user?.profession || '';
-      const fallback = prof==='prothesiste' ? 'prothesiste.html' : (DENTAL_PROFS.includes(prof) ? 'index.html' : 'organisation.html');
-      window.location.href = fallback;
+      window.location.href = 'organisation.html';
     }
     else showError(e.message||'Email ou mot de passe incorrect');
   }
@@ -127,7 +125,7 @@ async function loginBiometrique(){
     }});
     // Si biometrie OK, chercher session sauvee
     const session=localStorage.getItem('jadomi_session');
-    if(session){window.location.href='index.html';}
+    if(session){window.location.href='organisation.html';}
     else showError('Connectez-vous d\'abord avec email/mot de passe');
   }catch(e){showError('Biometrie annulee ou non disponible');}
 }

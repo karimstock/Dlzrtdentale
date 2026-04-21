@@ -3,735 +3,677 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JADOMI — Mon organisation</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>JADOMI — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/ms-switcher.js" defer></script>
+<script src="/public/js/jadomi-legal-widget.js" defer></script>
+<script src="/public/js/jadomi-network-widget.js" defer></script>
+<script src="/public/js/jadomi-conformite-badge.js" defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
-  --bg:#0f0e0d;--surface:#1a1917;--surface2:#242220;--surface3:#2d2a26;
-  --border:#2e2c29;--text:#f0ede8;--muted:#8f8a82;
-  --accent:#c8f060;--accent-soft:rgba(200,240,96,0.1);
-  --red:#f05050;--green:#60d090;
-  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
-  --radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.35);
-  --trans:cubic-bezier(0.16,1,0.3,1);
+  --bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.15);--border2:rgba(99,102,241,0.08);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --glow:0 0 20px rgba(99,102,241,0.3);--glow2:0 0 30px rgba(99,102,241,0.15);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --radius:14px;--rs:10px;
 }
-html,body{height:100%;}
-body{
-  font-family:var(--font);background:var(--bg);color:var(--text);
-  -webkit-font-smoothing:antialiased;min-height:100vh;
-  background-image:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--accent) 6%,transparent) 0%,transparent 55%);
-  transition:background-image 0.6s var(--trans);
-}
-a{color:var(--accent);text-decoration:none;}
-button{font-family:var(--font);cursor:pointer;}
-::placeholder{color:#8a857c;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 15% 15%,rgba(99,102,241,0.07) 0%,transparent 50%),
+             radial-gradient(circle at 85% 80%,rgba(139,92,246,0.05) 0%,transparent 50%),
+             radial-gradient(circle at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 40%);}
+a{color:var(--accent3);text-decoration:none;}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.2);border-radius:3px;}
+.hide{display:none!important;}
 
-/* ===== NAV ===== */
-.nav{
-  position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);
-  background:rgba(15,14,13,0.85);border-bottom:1px solid var(--border);
-  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;
-}
-.nav-left{display:flex;align-items:center;gap:24px;}
-.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
-.switcher{position:relative;}
-.switcher-btn{
-  display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:13px;font-weight:600;
-  transition:all 0.2s var(--trans);
-}
-.switcher-btn:hover{border-color:var(--accent);}
-.switcher-btn .sw-icon{font-size:18px;}
-.switcher-btn .sw-chev{opacity:0.5;transition:transform 0.2s;}
-.switcher.open .switcher-btn .sw-chev{transform:rotate(180deg);}
-.switcher-menu{
-  position:absolute;top:calc(100% + 6px);left:0;min-width:280px;background:var(--surface);
-  border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:6px;
-  opacity:0;pointer-events:none;transform:translateY(-4px);transition:all 0.2s var(--trans);
-}
-.switcher.open .switcher-menu{opacity:1;pointer-events:auto;transform:translateY(0);}
-.sw-item{
-  display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
-  cursor:pointer;font-size:13px;transition:background 0.15s;
-}
-.sw-item:hover{background:var(--surface2);}
-.sw-item.active{background:var(--accent-soft);color:var(--accent);}
-.sw-item-icon{font-size:18px;}
-.sw-item-name{flex:1;font-weight:600;}
-.sw-item-role{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
-.sw-sep{height:1px;background:var(--border);margin:4px 6px;}
-.sw-add{color:var(--accent);font-weight:600;}
+/* SIDEBAR */
+.sidebar{width:260px;height:100vh;background:linear-gradient(180deg,var(--bg2) 0%,#110a28 100%);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:10;overflow-y:auto;}
+.sidebar::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;
+  background:linear-gradient(180deg,var(--accent),var(--accent2),var(--accent3),transparent);}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.sb-logo h1{font-size:22px;font-weight:900;letter-spacing:-1px;
+  background:linear-gradient(135deg,var(--accent),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo p{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:1px;text-transform:uppercase;}
+.sb-nav{padding:10px 8px;flex:1;}
+.sb-section{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:14px 12px 4px;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--rs);
+  font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .2s;border-left:2px solid transparent;margin:1px 0;}
+.sb-item:hover{background:rgba(99,102,241,0.06);color:var(--text);}
+.sb-item.active{background:rgba(99,102,241,0.1);color:var(--accent);border-left-color:var(--accent);font-weight:600;}
+.sb-item .ico{font-size:15px;width:18px;text-align:center;}
+.sb-soc{padding:4px 8px;}
+.sb-soc-item{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:7px;font-size:12px;color:var(--text2);cursor:pointer;transition:all .15s;}
+.sb-soc-item:hover{background:rgba(99,102,241,0.06);color:var(--text);}
+.sb-soc-item .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sb-user{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sb-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0;}
+.sb-uinfo{flex:1;min-width:0;}
+.sb-uname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-uemail{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-out{padding:5px 9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#f87171;font-size:10px;font-weight:600;}
+.sb-out:hover{background:rgba(239,68,68,0.2);}
 
-.nav-right{display:flex;align-items:center;gap:12px;}
-.avatar{
-  width:36px;height:36px;border-radius:50%;background:var(--accent);color:#0f0e0d;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;font-family:var(--display);
-  cursor:pointer;transition:transform 0.2s;
-}
-.avatar:hover{transform:scale(1.05);}
-.user-menu{position:relative;}
-.user-pop{
-  position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:var(--surface);
-  border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:6px;
-  opacity:0;pointer-events:none;transform:translateY(-4px);transition:all 0.2s var(--trans);
-}
-.user-menu.open .user-pop{opacity:1;pointer-events:auto;transform:translateY(0);}
-.up-head{padding:10px 12px;}
-.up-name{font-weight:700;font-size:14px;}
-.up-email{font-size:11px;color:var(--muted);}
-.up-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;font-size:13px;}
-.up-item:hover{background:var(--surface2);}
-.up-item.danger{color:#f08080;}
+/* MAIN */
+.main{flex:1;height:100vh;overflow-y:auto;position:relative;z-index:1;}
+.mi{max-width:1180px;margin:0 auto;padding:24px 28px 80px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.topbar h2{font-size:22px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.nav-right{}
 
-/* ===== MAIN ===== */
-.main{max-width:1100px;margin:0 auto;padding:40px 24px 120px;}
+/* STATS */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.sc{padding:20px;border-radius:var(--radius);position:relative;overflow:hidden;transition:all .3s;cursor:default;}
+.sc:hover{transform:translateY(-2px);box-shadow:var(--glow);}
+.sc.i{background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.08));border:1px solid rgba(99,102,241,.2);}
+.sc.c{background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(59,130,246,.08));border:1px solid rgba(6,182,212,.2);}
+.sc.e{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(20,184,166,.08));border:1px solid rgba(16,185,129,.2);}
+.sc.r{background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(244,63,94,.08));border:1px solid rgba(239,68,68,.2);}
+.sc-ico{font-size:26px;margin-bottom:8px;}
+.sc-val{font-size:30px;font-weight:800;letter-spacing:-1px;}
+.sc-lbl{font-size:11px;color:var(--text2);margin-top:3px;}
+.sc-delta{font-size:10px;font-weight:600;margin-top:5px;padding:2px 7px;border-radius:20px;display:inline-block;background:rgba(16,185,129,.15);color:#34d399;}
 
-/* ===== HUB : profil card ===== */
-.profile-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:20px;
-  padding:30px;display:flex;align-items:center;gap:22px;margin-bottom:28px;
-  position:relative;overflow:hidden;
-}
-.profile-card::before{
-  content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;
-  border-radius:50%;background:radial-gradient(circle,var(--accent-soft) 0%,transparent 70%);
-  pointer-events:none;
-}
-.profile-avatar{
-  width:72px;height:72px;border-radius:50%;background:var(--accent);color:#0f0e0d;
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;
-  font-family:var(--display);flex-shrink:0;
-}
-.profile-info h1{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-1px;margin-bottom:4px;}
-.profile-meta{font-size:13px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
-.profile-meta span{display:inline-flex;align-items:center;gap:6px;}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .3s;}
+.card:hover{border-color:rgba(99,102,241,.3);}
+.ct{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
 
-/* ===== SECTION TITLE ===== */
-.section-head{
-  display:flex;align-items:center;justify-content:space-between;margin:28px 0 14px;
-}
-.section-title{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-0.5px;}
-.btn-add{
-  display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--accent);color:#0f0e0d;
-  border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);
-}
-.btn-add:hover{transform:translateY(-1px);box-shadow:0 6px 20px color-mix(in srgb,var(--accent) 30%,transparent);}
+/* TABS */
+.tp{display:none;}.tp.a{display:block;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
 
-/* ===== SOCIETES GRID ===== */
-.societes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
-.soc-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:18px;
-  padding:22px;cursor:pointer;transition:all 0.25s var(--trans);
-  position:relative;overflow:hidden;
-}
-.soc-card:hover{transform:translateY(-3px);border-color:var(--soc-accent);box-shadow:0 12px 36px rgba(0,0,0,0.35);}
-.soc-card::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--soc-accent);
-  opacity:0;transition:opacity 0.25s;
-}
-.soc-card:hover::before,.soc-card.active::before{opacity:1;}
-.soc-card.active{border-color:var(--soc-accent);}
-.soc-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-.soc-icon{
-  width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-  font-size:22px;background:color-mix(in srgb,var(--soc-accent) 12%,var(--surface2));
-}
-.soc-name{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:-0.3px;}
-.soc-type{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
-.soc-role{
-  display:inline-block;padding:3px 9px;background:var(--surface2);border:1px solid var(--border);
-  border-radius:6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;
-  margin-top:10px;
-}
-.soc-role.proprietaire{color:var(--soc-accent);border-color:color-mix(in srgb,var(--soc-accent) 40%,transparent);}
-.soc-actions{display:flex;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
-.soc-act{
-  flex:1;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-  color:var(--muted);font-size:11px;font-weight:600;text-align:center;cursor:pointer;transition:all 0.15s;
-  display:flex;align-items:center;justify-content:center;gap:5px;text-decoration:none;
-}
-.soc-act:hover{color:var(--text);border-color:var(--soc-accent);background:color-mix(in srgb,var(--soc-accent) 6%,var(--surface2));}
-.soc-badge-active{
-  position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;color:var(--soc-accent);
-  text-transform:uppercase;letter-spacing:0.5px;
-}
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{text-align:left;padding:9px 12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border2);}
+.tbl tr:hover td{background:rgba(99,102,241,.03);}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.pi{background:rgba(99,102,241,.15);color:#a5b4fc;}
+.pc{background:rgba(6,182,212,.15);color:#67e8f9;}
+.pe{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.po{background:rgba(245,158,11,.15);color:#fcd34d;}
+.pr{background:rgba(239,68,68,.15);color:#fca5a5;}
+.pg{background:rgba(148,163,184,.15);color:#cbd5e1;}
 
-/* ===== EMPTY / ONBOARDING ===== */
-.onboard{
-  max-width:640px;margin:40px auto;padding:0 24px;text-align:center;
-}
-.onboard-progress{
-  display:flex;justify-content:center;gap:8px;margin-bottom:30px;
-}
-.onboard-progress span{
-  width:40px;height:4px;border-radius:4px;background:var(--surface3);transition:background 0.4s;
-}
-.onboard-progress span.done{background:var(--accent);}
-.onboard-progress span.active{background:var(--accent);box-shadow:0 0 16px var(--accent-soft);}
-.onboard h2{font-family:var(--display);font-size:30px;font-weight:800;letter-spacing:-1.2px;margin-bottom:10px;}
-.onboard p{color:var(--muted);font-size:14px;margin-bottom:30px;}
-.choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px;}
-.choice{
-  background:var(--surface);border:2px solid var(--border);border-radius:16px;
-  padding:22px 14px;cursor:pointer;transition:all 0.25s var(--trans);
-  display:flex;flex-direction:column;align-items:center;gap:8px;
-}
-.choice:hover{transform:translateY(-3px);border-color:var(--accent);}
-.choice.selected{
-  border-color:var(--accent);background:var(--accent-soft);
-  box-shadow:0 8px 26px color-mix(in srgb,var(--accent) 20%,transparent);
-}
-.choice-ico{font-size:32px;}
-.choice-name{font-size:13px;font-weight:600;text-align:center;}
-.choice-check{
-  position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;
-  background:var(--accent);color:#0f0e0d;display:none;align-items:center;justify-content:center;font-size:12px;
-}
-.choice{position:relative;}
-.choice.selected .choice-check{display:flex;}
-.onboard-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;}
-.btn{
-  padding:13px 24px;border:none;border-radius:12px;font-size:14px;font-weight:700;transition:all 0.2s var(--trans);
-}
-.btn-primary{background:var(--accent);color:#0f0e0d;}
-.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 30%,transparent);}
-.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
-.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
-.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+/* CHART */
+.cw{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:18px;}
+.cw h3{font-size:13px;font-weight:700;margin-bottom:14px;}
 
-/* Form step */
-.form-stack{display:flex;flex-direction:column;gap:14px;text-align:left;margin-bottom:20px;}
-.form-field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
-.form-field input,.form-field select{
-  width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-  color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color 0.2s;
-}
-.form-field input:focus,.form-field select:focus{border-color:var(--accent);}
+/* SOC CARDS */
+.soc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:14px;}
+.soc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;}
+.soc-card:hover{transform:translateY(-3px);box-shadow:var(--glow);}
+.soc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.soc-card.tc::before{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.soc-card.ts::before{background:linear-gradient(90deg,var(--accent3),var(--success));}
+.soc-card.to::before{background:linear-gradient(90deg,var(--warning),#f97316);}
+.soc-card.tl::before{background:linear-gradient(90deg,var(--accent2),#c084fc);}
+.soc-card.ta{border-style:dashed;border-color:var(--text3);}
+.soc-card.ta:hover{border-color:var(--accent);}
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.sh .sico{font-size:26px;}
+.sh .sn{font-size:14px;font-weight:700;}
+.sh .st{font-size:10px;color:var(--text3);}
+.sbtn{display:inline-flex;padding:7px 16px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:7px;color:var(--accent);font-size:11px;font-weight:600;transition:all .2s;}
+.sbtn:hover{background:var(--accent);color:#fff;}
 
-/* Welcome animation */
-.welcome{text-align:center;padding:80px 20px;}
-.welcome-burst{
-  width:96px;height:96px;margin:0 auto 24px;border-radius:50%;background:var(--accent);
-  display:flex;align-items:center;justify-content:center;font-size:48px;
-  animation:burst 0.8s var(--trans);
-}
-@keyframes burst{
-  0%{transform:scale(0);opacity:0;}
-  60%{transform:scale(1.15);opacity:1;}
-  100%{transform:scale(1);opacity:1;}
-}
-.welcome h2{font-family:var(--display);font-size:34px;font-weight:800;letter-spacing:-1.5px;margin-bottom:10px;animation:fadeUp 0.5s 0.2s var(--trans) both;}
-.welcome p{color:var(--muted);font-size:15px;animation:fadeUp 0.5s 0.35s var(--trans) both;}
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+/* PLANS */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.plan{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;text-align:center;transition:all .3s;}
+.plan.ft{border-color:var(--accent);box-shadow:var(--glow);}
+.plan-p{font-size:34px;font-weight:900;letter-spacing:-2px;margin:10px 0 2px;}
+.plan-n{font-size:15px;font-weight:700;}
+.plan-d{font-size:11px;color:var(--text3);}
 
-/* Loading */
-.loader{display:flex;justify-content:center;padding:80px 0;color:var(--muted);font-size:13px;}
-.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-right:10px;}
-@keyframes spin{to{transform:rotate(360deg);}}
+/* INTEGRATIONS */
+.ig{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.ic{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px;display:flex;align-items:center;gap:10px;}
+.id{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.id.on{background:var(--success);box-shadow:0 0 8px rgba(16,185,129,.5);}
+.id.off{background:var(--danger);box-shadow:0 0 8px rgba(239,68,68,.5);}
 
-/* Toast */
-.toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
-  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;
-  font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;
-}
+/* MSG */
+.mi2{padding:12px 16px;border-bottom:1px solid var(--border2);cursor:pointer;transition:background .15s;}
+.mi2:hover{background:rgba(99,102,241,.04);}
+.mi2.unread{border-left:3px solid var(--accent);}
+
+/* TOKEN */
+.tkb{display:flex;gap:8px;margin-bottom:18px;padding:12px;background:var(--surface2);border:1px solid rgba(245,158,11,.2);border-radius:var(--rs);}
+.fin{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;}
+.fin:focus{border-color:var(--accent);}
+.fl{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;}
+
+/* BUTTONS */
+.btn{padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;transition:all .2s;}
+.bp{background:var(--accent);color:#fff;}.bp:hover{box-shadow:var(--glow);transform:translateY(-1px);}
+.bp:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.bg{background:transparent;color:var(--text3);border:1px solid var(--border);}.bg:hover{color:var(--text);border-color:var(--text3);}
+.bs{padding:6px 12px;font-size:11px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;box-shadow:var(--shadow);opacity:0;z-index:200;transition:all .3s;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.toast.error{border-color:var(--red);color:#f08080;}
 
-/* Hide helpers */
-.hide{display:none !important;}
+/* ONBOARD */
+.ob-ov{position:fixed;inset:0;background:rgba(10,15,30,.92);backdrop-filter:blur(20px);z-index:90;display:flex;align-items:center;justify-content:center;}
+.ob-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:36px;max-width:560px;width:90%;box-shadow:var(--shadow);}
+.ob-box h2{font-size:20px;font-weight:800;margin-bottom:6px;}
+.ob-box p{color:var(--text2);font-size:13px;margin-bottom:20px;}
+.ob-g{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px;}
+.ob-c{padding:12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:all .2s;text-align:center;}
+.ob-c:hover{border-color:var(--accent);}
+.ob-c.sel{border-color:var(--accent);background:rgba(99,102,241,.1);box-shadow:var(--glow);}
+.ob-c .oi{font-size:26px;margin-bottom:4px;}
+.ob-c .ol{font-size:12px;font-weight:600;}
+.ob-a{display:flex;justify-content:space-between;align-items:center;}
 
-@media(max-width:640px){
-  .nav{padding:12px 16px;}
-  .nav-left{gap:12px;}
-  .switcher-btn{padding:6px 10px;font-size:12px;}
-  .main{padding:24px 16px 80px;}
-  .profile-card{padding:22px;gap:16px;}
-  .profile-avatar{width:58px;height:58px;font-size:22px;}
-  .profile-info h1{font-size:22px;}
-  .societes-grid{grid-template-columns:1fr;}
+/* SUBTABS */
+.stabs{display:flex;gap:4px;margin-bottom:16px;}
+.stab{padding:7px 14px;border-radius:7px;font-size:11px;font-weight:600;color:var(--text2);background:transparent;transition:all .2s;}
+.stab:hover{color:var(--text);background:rgba(99,102,241,.06);}
+.stab.a{background:var(--accent);color:#fff;}
+
+@media(max-width:768px){
+  body{flex-direction:column;overflow:auto;}
+  .sidebar{width:100%;height:auto;max-height:50px;overflow:hidden;}
+  .sb-nav,.sb-soc,.sb-user,.sb-logo p,.sb-section{display:none;}
+  .main{height:auto;overflow:visible;}
+  .mi{padding:14px;}
+  .sg{grid-template-columns:1fr 1fr;}
+  .two,.plans,.ig{grid-template-columns:1fr;}
+  .soc-grid{grid-template-columns:1fr;}
 }
 </style>
 </head>
 <body>
 
-<!-- ===== NAV ===== -->
-<nav class="nav" id="nav" style="display:none;">
-  <div class="nav-left">
-    <div class="logo">JADOMI</div>
-    <div class="switcher" id="switcher">
-      <button class="switcher-btn" onclick="toggleSwitcher()">
-        <span class="sw-icon" id="sw-active-icon">🏢</span>
-        <span id="sw-active-name">—</span>
-        <span class="sw-chev">▾</span>
-      </button>
-      <div class="switcher-menu" id="switcher-menu"></div>
+<div class="loader-screen" id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;">
+  <div style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;"></div>
+  <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+</div>
+
+<div class="ob-ov hide" id="onboard">
+<div class="ob-box">
+  <div id="os1"><h2>Bienvenue sur JADOMI</h2><p>Quelle est votre activite principale ?</p><div class="ob-g" id="obm"></div><div class="ob-a"><div></div><button class="btn bp" id="ob1" disabled onclick="obN(1)">Continuer</button></div></div>
+  <div id="os2" class="hide"><h2>Votre premiere societe</h2><p>Quel type de structure ?</p><div class="ob-g" id="obt"></div><div class="ob-a"><button class="btn bg" onclick="obB(2)">Retour</button><button class="btn bp" id="ob2" disabled onclick="obN(2)">Continuer</button></div></div>
+  <div id="os3" class="hide"><h2>Nommez votre societe</h2><p>Vous pourrez completer les details plus tard.</p><label class="fl">Nom</label><input class="fin" id="obn" placeholder="Ex: Precision Dentaire..."><div style="margin-top:16px;" class="ob-a"><button class="btn bg" onclick="obB(3)">Retour</button><button class="btn bp" onclick="obF()">Creer</button></div><button class="btn bg bs" style="margin-top:8px;width:100%;" onclick="obS()">Passer</button></div>
+</div>
+</div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo"><h1>JADOMI</h1><p>Plateforme SaaS</p></div>
+  <div class="sb-nav" id="aN">
+    <div class="sb-section">Administration</div>
+    <div class="sb-item active" onclick="sT('overview',this)"><span class="ico">📊</span>Vue d'ensemble</div>
+    <div class="sb-item" onclick="sT('compta',this)"><span class="ico">💰</span>Comptabilite</div>
+    <div class="sb-item" onclick="sT('users',this)"><span class="ico">👥</span>Clients & Users</div>
+    <div class="sb-item" onclick="sT('messages',this)"><span class="ico">📧</span>Messages</div>
+    <div class="sb-item" onclick="sT('analytics',this)"><span class="ico">📈</span>Analytics</div>
+    <div class="sb-item" onclick="sT('sectors',this)"><span class="ico">🏢</span>Secteurs</div>
+    <div class="sb-item" onclick="sT('plans',this)"><span class="ico">💳</span>Abonnements</div>
+    <div class="sb-item" onclick="sT('settings',this)"><span class="ico">⚙️</span>Parametres</div>
+    <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Acces rapide</div>
+  </div>
+  <div class="sb-nav"><div class="sb-section">Mes societes</div><div class="sb-soc" id="sbS"></div></div>
+  <div class="sb-user"><div class="sb-av" id="sbA">?</div><div class="sb-uinfo"><div class="sb-uname" id="sbN">...</div><div class="sb-uemail" id="sbE">...</div></div><button class="sb-out" onclick="lo()">Quitter</button></div>
+</aside>
+
+<div class="main"><div class="mi">
+<div class="topbar"><h2 id="pT">Vue d'ensemble</h2><div class="topbar-right"><div class="nav-right"></div></div></div>
+<div class="tkb hide" id="tB"><input class="fin" id="tI" type="password" placeholder="Token admin requis..."><button class="btn bp bs" onclick="sK()">Valider</button></div>
+
+<!-- OVERVIEW -->
+<div class="tp a" id="t-overview">
+  <div class="sg">
+    <div class="sc i"><div class="sc-ico">👥</div><div class="sc-val" id="xU">0</div><div class="sc-lbl">Utilisateurs</div><div class="sc-delta">—</div></div>
+    <div class="sc c"><div class="sc-ico">🏢</div><div class="sc-val" id="xS">0</div><div class="sc-lbl">Societes</div><div class="sc-delta">—</div></div>
+    <div class="sc e"><div class="sc-ico">💰</div><div class="sc-val" id="xM">0 €</div><div class="sc-lbl">Chiffre d'affaires / mois</div><div class="sc-delta">+0%</div></div>
+    <div class="sc r"><div class="sc-ico">⚠️</div><div class="sc-val" id="xI">0</div><div class="sc-lbl">Impayes</div><div class="sc-delta" style="background:rgba(239,68,68,.15);color:#f87171;">0</div></div>
+  </div>
+  <div class="cw"><h3>Revenus JADOMI — 12 mois</h3><canvas id="chR" height="80"></canvas></div>
+  <div class="two">
+    <div class="card"><div class="ct">⚡ Activite recente</div><div id="rA" style="font-size:12px;color:var(--text2);">Aucune activite</div></div>
+    <div class="card"><div class="ct">🔔 Alertes</div><div id="rL" style="font-size:12px;color:var(--text2);">Aucune alerte</div></div>
+  </div>
+</div>
+
+<!-- COMPTA -->
+<div class="tp" id="t-compta">
+  <div class="sg" style="grid-template-columns:repeat(3,1fr);">
+    <div class="sc i"><div class="sc-ico">💳</div><div class="sc-val">0 €</div><div class="sc-lbl">Abonnements</div></div>
+    <div class="sc c"><div class="sc-ico">⚡</div><div class="sc-val">0 €</div><div class="sc-lbl">Commission Rush</div></div>
+    <div class="sc e"><div class="sc-ico">📊</div><div class="sc-val">0 €</div><div class="sc-lbl">Total revenus</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;"><div class="ct">📉 Charges mensuelles</div>
+    <table class="tbl"><thead><tr><th>Poste</th><th>Montant</th></tr></thead><tbody>
+      <tr><td>VPS OVH</td><td>20,00 €</td></tr><tr><td>Supabase</td><td>25,00 €</td></tr><tr><td>Cloudflare R2</td><td>0,00 €</td></tr>
+      <tr><td>JADOMI IA (API)</td><td>~5,00 €</td></tr><tr><td>Stripe fees</td><td>~0,00 €</td></tr><tr><td>Domaine</td><td>~0,80 €</td></tr>
+      <tr><td style="font-weight:700;">TOTAL</td><td style="font-weight:700;">~50,80 €</td></tr>
+    </tbody></table></div>
+</div>
+
+<!-- USERS -->
+<div class="tp" id="t-users">
+  <div class="sg" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px;">
+    <div class="sc i"><div class="sc-val" id="uT">0</div><div class="sc-lbl">Total users</div></div>
+    <div class="sc c"><div class="sc-val" id="uA">0</div><div class="sc-lbl">Actifs</div></div>
+    <div class="sc e"><div class="sc-val" id="uR">0%</div><div class="sc-lbl">Activation</div></div>
+    <div class="sc r"><div class="sc-val">0%</div><div class="sc-lbl">Résiliations</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;"><div class="ct">👥 Segments par profession</div><div id="segT"></div></div>
+  <div class="card"><div class="ct">📋 Utilisateurs</div>
+    <div style="margin-bottom:10px;"><input class="fin" id="uSrch" placeholder="Rechercher..." style="max-width:280px;" oninput="fU()"></div>
+    <div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>Email</th><th>Profession</th><th>Actions</th></tr></thead><tbody id="uBod"></tbody></table></div>
+  </div>
+</div>
+
+<!-- MESSAGES -->
+<div class="tp" id="t-messages">
+  <div class="stabs">
+    <button class="stab a" onclick="sMT('inbox',this)">📬 Inbox</button>
+    <button class="stab" onclick="sMT('sug',this)">💡 Suggestions</button>
+    <button class="stab" onclick="sMT('camp',this)">📣 Campagnes</button>
+  </div>
+  <div id="mInbox" class="card"><div id="inL" style="font-size:12px;color:var(--text2);">Chargement...</div></div>
+  <div id="mSug" class="card hide"><div id="sgL" style="font-size:12px;color:var(--text2);">Chargement...</div></div>
+  <div id="mCamp" class="card hide"><a href="/public/admin-email.html" class="btn bp bs" style="margin-bottom:14px;display:inline-flex;">📧 Editeur campagnes</a><div id="cpL" style="font-size:12px;color:var(--text2);">Aucune</div></div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="tp" id="t-analytics">
+  <div class="two"><div class="cw"><h3>Users par profession</h3><canvas id="chP" height="200"></canvas></div><div class="cw"><h3>Societes par type</h3><canvas id="chS" height="200"></canvas></div></div>
+  <div class="sg" style="grid-template-columns:repeat(3,1fr);">
+    <div class="sc i"><div class="sc-ico">⚡</div><div class="sc-val">0</div><div class="sc-lbl">Rush/mois</div></div>
+    <div class="sc c"><div class="sc-ico">📋</div><div class="sc-val">0</div><div class="sc-lbl">LABO BL/mois</div></div>
+    <div class="sc e"><div class="sc-ico">📦</div><div class="sc-val">0</div><div class="sc-lbl">Scans/mois</div></div>
+  </div>
+</div>
+
+<!-- SECTORS -->
+<div class="tp" id="t-sectors">
+  <div class="sg" style="grid-template-columns:repeat(3,1fr);">
+    <div class="sc i" style="text-align:center;"><div class="sc-ico">🏥</div><div class="sc-val" id="seSa">0</div><div class="sc-lbl">Sante</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Dentistes+Protho+Ortho+Veto</div></div>
+    <div class="sc c" style="text-align:center;"><div class="sc-ico">🏠</div><div class="sc-val" id="seIm">0</div><div class="sc-lbl">Immobilier</div></div>
+    <div class="sc e" style="text-align:center;"><div class="sc-ico">🏢</div><div class="sc-val" id="seCo">0</div><div class="sc-lbl">Commerce</div></div>
+  </div>
+</div>
+
+<!-- PLANS -->
+<div class="tp" id="t-plans">
+  <div class="plans">
+    <div class="plan"><div class="plan-n">Decouverte</div><div class="plan-p">0 €</div><div class="plan-d">Gratuit · 1 societe</div><div style="margin-top:14px;font-size:12px;color:var(--text2);">0 abonnes</div></div>
+    <div class="plan"><div class="plan-n">Solo</div><div class="plan-p">29 €</div><div class="plan-d">/mois · 1 societe</div><div style="margin-top:14px;font-size:12px;color:var(--text2);">0 abonnes</div></div>
+    <div class="plan ft"><div class="plan-n">Pro</div><div class="plan-p">99 €</div><div class="plan-d">/mois · Illimite</div><div style="margin-top:14px;font-size:12px;color:var(--text2);">0 abonnes</div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="tp" id="t-settings">
+
+  <!-- COMMISSIONS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="ct">💰 Commissions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div><label class="fl">Commission Rush (%)</label><input class="fin" id="cfg-commission_rush" type="number" value="10" style="max-width:100px;"></div>
+      <div><label class="fl">Commission Services (%)</label><input class="fin" id="cfg-commission_services" type="number" value="8" style="max-width:100px;"></div>
+      <div><label class="fl">Commission Showroom (%)</label><input class="fin" id="cfg-commission_showroom" type="number" value="5" style="max-width:100px;"></div>
+      <div><label class="fl">Commission Juridique (%)</label><input class="fin" id="cfg-commission_juridique" type="number" value="5" style="max-width:100px;"></div>
+      <div><label class="fl">Commission BTP (%)</label><input class="fin" id="cfg-commission_btp" type="number" value="5" style="max-width:100px;"></div>
+    </div>
+    <button class="btn bp bs" style="margin-top:14px;" onclick="saveSettings('commissions')">Enregistrer les commissions</button>
+  </div>
+
+  <!-- ABONNEMENTS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="ct">📋 Abonnements</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div><label class="fl">Prix Solo (€/mois)</label><input class="fin" id="cfg-prix_solo" type="number" value="29" style="max-width:100px;"></div>
+      <div><label class="fl">Prix Pro (€/mois)</label><input class="fin" id="cfg-prix_pro" type="number" value="79" style="max-width:100px;"></div>
+      <div><label class="fl">Prix Business (€/mois)</label><input class="fin" id="cfg-prix_business" type="number" value="149" style="max-width:100px;"></div>
+      <div><label class="fl">Prix Entreprise (€/mois)</label><input class="fin" id="cfg-prix_entreprise" type="number" value="299" style="max-width:100px;"></div>
+    </div>
+    <button class="btn bp bs" style="margin-top:14px;" onclick="saveSettings('abonnements')">Enregistrer les prix</button>
+  </div>
+
+  <!-- INTEGRATIONS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="ct">🔌 Integrations</div>
+    <div class="ig">
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">Supabase</div><div style="font-size:10px;color:var(--text3);">Connecte</div></div></div>
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">OVH Email</div><div style="font-size:10px;color:var(--text3);">SMTP configure</div></div></div>
+      <div class="ic"><div class="id on" id="dR2"></div><div><div style="font-size:12px;font-weight:600;">Cloudflare R2</div><div style="font-size:10px;color:var(--text3);" id="sR2">...</div></div></div>
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">JADOMI IA</div><div style="font-size:10px;color:var(--text3);">Actif</div></div></div>
+      <div class="ic"><div class="id off" id="dSt"></div><div><div style="font-size:12px;font-weight:600;">Stripe</div><div style="font-size:10px;color:var(--text3);" id="sSt">Non configure</div></div></div>
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">Nginx</div><div style="font-size:10px;color:var(--text3);">jadomi.fr</div></div></div>
     </div>
   </div>
-  <div class="nav-right">
-    <div class="user-menu" id="user-menu">
-      <div class="avatar" id="nav-avatar" onclick="toggleUserMenu()">?</div>
-      <div class="user-pop">
-        <div class="up-head">
-          <div class="up-name" id="up-name">—</div>
-          <div class="up-email" id="up-email">—</div>
-        </div>
-        <div class="sw-sep"></div>
-        <div class="up-item" onclick="goto('organisation.html')">🏢 Mon organisation</div>
-        <div class="up-item" onclick="goto('billing.html')">💳 Abonnement</div>
-        <div class="up-item" onclick="goto('index.html')">🏠 Dashboard dentaire</div>
-        <div class="sw-sep"></div>
-        <div class="up-item danger" onclick="logout()">Déconnexion</div>
-      </div>
+
+  <!-- MAINTENANCE -->
+  <div class="card">
+    <div class="ct">🔧 Maintenance</div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <label class="fl" style="margin:0;">Mode maintenance</label>
+      <button class="btn bg bs" id="cfg-maintenance-btn" onclick="toggleMaintenance()" style="min-width:100px;">Desactive</button>
     </div>
+    <div><label class="fl">Message de maintenance</label><input class="fin" id="cfg-maintenance_message" value="JADOMI est en maintenance" style="width:100%;"></div>
+    <button class="btn bp bs" style="margin-top:14px;" onclick="saveSettings('maintenance')">Enregistrer</button>
   </div>
-</nav>
+</div>
 
-<!-- ===== MAIN ===== -->
-<main class="main" id="main">
-  <div class="loader" id="loader"><div class="spinner"></div>Chargement de votre espace…</div>
+<!-- ACCÈS RAPIDE -->
+<div class="tp" id="t-rapide">
+  <style>
+    .ar-section{margin-bottom:24px;}
+    .ar-section-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;padding-left:4px;}
+    .ar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+    .ar-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all 0.3s;text-decoration:none;display:block;position:relative;overflow:hidden;}
+    .ar-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:opacity 0.3s;}
+    .ar-card:hover{transform:translateY(-3px);border-color:rgba(99,102,241,0.4);box-shadow:0 0 24px rgba(99,102,241,0.2);}
+    .ar-card:hover::before{opacity:1;}
+    .ar-ico{font-size:24px;margin-bottom:8px;}
+    .ar-name{font-size:13px;font-weight:700;color:var(--text);}
+    .ar-desc{font-size:11px;color:var(--text3);margin-top:3px;}
+  </style>
 
-  <!-- HUB -->
-  <div id="hub" class="hide">
-    <div class="profile-card">
-      <div class="profile-avatar" id="hub-avatar">?</div>
-      <div class="profile-info">
-        <h1 id="hub-title">Bienvenue</h1>
-        <div class="profile-meta" id="hub-meta"></div>
-      </div>
-    </div>
-
-    <div class="section-head">
-      <div class="section-title">Mes sociétés</div>
-      <button class="btn-add" onclick="goto('wizard-societe.html')">+ Ajouter</button>
-    </div>
-    <div class="societes-grid" id="soc-grid"></div>
+  <!-- Recherche -->
+  <div style="margin-bottom:20px;">
+    <input class="fin" id="arSearch" type="text" placeholder="🔍 Rechercher un module..." oninput="filterAR()" style="width:100%;max-width:400px;">
   </div>
 
-  <!-- ONBOARDING -->
-  <div id="onboard" class="onboard hide">
-    <div class="onboard-progress">
-      <span id="p1" class="active"></span>
-      <span id="p2"></span>
-      <span id="p3"></span>
-    </div>
+  <!-- Filtres catégories -->
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;" id="arFilters">
+    <button class="btn bg bs ar-filter active" onclick="filterARCat('',this)" style="font-size:11px;padding:6px 12px;">Tous</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('sante',this)" style="font-size:11px;padding:6px 12px;">🦷 Sante</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('btp',this)" style="font-size:11px;padding:6px 12px;">🔧 BTP</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('services',this)" style="font-size:11px;padding:6px 12px;">🛍️ Services</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('juridique',this)" style="font-size:11px;padding:6px 12px;">⚖️ Juridique</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('createurs',this)" style="font-size:11px;padding:6px 12px;">✨ Createurs</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('immobilier',this)" style="font-size:11px;padding:6px 12px;">🏠 Immobilier</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('commerce',this)" style="font-size:11px;padding:6px 12px;">🏢 Commerce</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('outils',this)" style="font-size:11px;padding:6px 12px;">⚡ Outils</button>
+  </div>
 
-    <!-- Step 1 : métier -->
-    <div id="step1">
-      <h2>Qui êtes-vous ?</h2>
-      <p>Choisissez votre activité principale. Vous pourrez toujours la modifier.</p>
-      <div class="choice-grid" id="metiers-grid"></div>
-      <div class="onboard-actions">
-        <div></div>
-        <button class="btn btn-primary" id="btn-step1" onclick="nextStep(1)" disabled>Continuer →</button>
-      </div>
-    </div>
-
-    <!-- Step 2 : structures -->
-    <div id="step2" class="hide">
-      <h2>Quelles structures gérez-vous ?</h2>
-      <p>Sélectionnez toutes les entités pour lesquelles vous utiliserez JADOMI.</p>
-      <div class="choice-grid" id="structures-grid"></div>
-      <div class="onboard-actions">
-        <button class="btn btn-ghost" onclick="prevStep(2)">← Retour</button>
-        <button class="btn btn-primary" id="btn-step2" onclick="nextStep(2)" disabled>Continuer →</button>
-      </div>
-    </div>
-
-    <!-- Step 3 : configuration minimale première société -->
-    <div id="step3" class="hide">
-      <h2>Votre première société</h2>
-      <p id="step3-help">Un petit nom pour démarrer — vous compléterez les détails plus tard.</p>
-      <div class="form-stack">
-        <div class="form-field">
-          <label>Nom de la société</label>
-          <input id="soc-nom" placeholder="Ex : Precision Dentaire, SCI Bahmed, Cabinet Karim…">
-        </div>
-        <div class="form-field" id="field-siren-wrap" style="display:none;">
-          <label>SIREN (optionnel)</label>
-          <input id="soc-siren" placeholder="9 chiffres">
-        </div>
-      </div>
-      <div class="onboard-actions">
-        <button class="btn btn-ghost" onclick="prevStep(3)">← Retour</button>
-        <button class="btn btn-primary" id="btn-step3" onclick="finishOnboard()">Créer et continuer →</button>
-      </div>
-      <div style="margin-top:10px;"><button class="btn btn-ghost" onclick="skipFirstSociete()">Passer et configurer plus tard</button></div>
-    </div>
-
-    <!-- Welcome -->
-    <div id="welcome" class="welcome hide">
-      <div class="welcome-burst">🎉</div>
-      <h2 id="welcome-title">Bienvenue dans JADOMI !</h2>
-      <p id="welcome-sub">Votre espace est prêt.</p>
+  <div id="arSections">
+  <div class="ar-section" data-cat="sante">
+    <div class="ar-section-title">🦷 Sante</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="index.html" data-kw="cabinet dentaire stock commandes sos"><div class="ar-ico">🦷</div><div class="ar-name">Cabinet dentaire</div><div class="ar-desc">Dashboard principal</div></a>
+      <a class="ar-card" href="/public/labo/dashboard.html" data-kw="labo prothesiste bons livraison"><div class="ar-ico">🔬</div><div class="ar-name">Labo prothesiste</div><div class="ar-desc">Dashboard labo</div></a>
+      <a class="ar-card" href="/public/labo/facturation.html" data-kw="facture facturation labo"><div class="ar-ico">💰</div><div class="ar-name">Facturation Labo</div><div class="ar-desc">Factures labo</div></a>
+      <a class="ar-card" href="/public/labo/stock.html" data-kw="stock materiaux scanner labo"><div class="ar-ico">📦</div><div class="ar-name">Stock Labo</div><div class="ar-desc">Materiaux &amp; fournitures</div></a>
+      <a class="ar-card" href="/public/labo/dentistes.html" data-kw="dentistes clients labo"><div class="ar-ico">👥</div><div class="ar-name">Mes dentistes</div><div class="ar-desc">Clients du labo</div></a>
     </div>
   </div>
-</main>
+
+  <div class="ar-section" data-cat="btp">
+    <div class="ar-section-title">🔧 BTP &amp; Artisans</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/btp/dashboard.html" data-kw="btp artisan chantier"><div class="ar-ico">🔧</div><div class="ar-name">Artisan BTP</div><div class="ar-desc">Dashboard BTP</div></a>
+      <a class="ar-card" href="/public/btp/stock.html" data-kw="stock materiaux btp scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock BTP</div><div class="ar-desc">Materiaux chantier</div></a>
+      <a class="ar-card" href="/public/btp/factures.html" data-kw="facture btp artisan"><div class="ar-ico">📄</div><div class="ar-name">Factures BTP</div><div class="ar-desc">Facturation artisan</div></a>
+      <a class="ar-card" href="/public/btp/chantiers.html" data-kw="chantier btp"><div class="ar-ico">🏗️</div><div class="ar-name">Chantiers</div><div class="ar-desc">Gestion chantiers</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="services">
+    <div class="ar-section-title">🛍️ Services &amp; Bien-etre</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/services/dashboard.html" data-kw="services coiffeur esthetique"><div class="ar-ico">🛍️</div><div class="ar-name">Services</div><div class="ar-desc">Dashboard services</div></a>
+      <a class="ar-card" href="/public/services/stock.html" data-kw="stock produits capillaires services scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock Services</div><div class="ar-desc">Produits &amp; consommables</div></a>
+      <a class="ar-card" href="/public/services/prestations.html" data-kw="prestations services"><div class="ar-ico">🛒</div><div class="ar-name">Prestations</div><div class="ar-desc">Catalogue prestations</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="juridique">
+    <div class="ar-section-title">⚖️ Juridique</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/juridique/dashboard.html" data-kw="juridique avocat droit"><div class="ar-ico">⚖️</div><div class="ar-name">Juridique</div><div class="ar-desc">Dashboard juridique</div></a>
+      <a class="ar-card" href="/public/juridique/clients.html" data-kw="clients juridique"><div class="ar-ico">👥</div><div class="ar-name">Clients Juridique</div><div class="ar-desc">Gestion clients</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="createurs">
+    <div class="ar-section-title">✨ Createurs</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/showroom/dashboard.html" data-kw="showroom createur vitrine"><div class="ar-ico">✨</div><div class="ar-name">Showroom</div><div class="ar-desc">Dashboard createur</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="immobilier">
+    <div class="ar-section-title">🏠 Immobilier</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="sci.html" data-kw="sci immobilier biens locataires quittances"><div class="ar-ico">🏠</div><div class="ar-name">SCI</div><div class="ar-desc">Dashboard immobilier</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="commerce">
+    <div class="ar-section-title">🏢 Commerce</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="commerce.html" data-kw="commerce stock facture devis"><div class="ar-ico">🏢</div><div class="ar-name">Commerce</div><div class="ar-desc">Dashboard commerce</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="outils">
+    <div class="ar-section-title">⚡ Outils JADOMI</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/rush/nouvelle-demande.html" data-kw="rush urgence sous-traitance"><div class="ar-ico">⚡</div><div class="ar-name">Rush</div><div class="ar-desc">Demande urgente</div></a>
+      <a class="ar-card" href="/public/admin-email.html" data-kw="admin email campagne"><div class="ar-ico">📧</div><div class="ar-name">Admin Email</div><div class="ar-desc">Gestion emails</div></a>
+      <a class="ar-card" href="/public/annuaire/index.html" data-kw="annuaire professionnels recherche"><div class="ar-ico">🌐</div><div class="ar-name">Annuaire</div><div class="ar-desc">Annuaire pros</div></a>
+      <a class="ar-card" href="/public/deals/index.html" data-kw="deals promotions offres"><div class="ar-ico">🤝</div><div class="ar-name">Deals</div><div class="ar-desc">Offres exclusives</div></a>
+      <a class="ar-card" href="membres-societe.html" data-kw="membres equipe roles"><div class="ar-ico">👥</div><div class="ar-name">Membres</div><div class="ar-desc">Equipe &amp; roles</div></a>
+      <a class="ar-card" href="settings-societe.html" data-kw="parametres configuration societe"><div class="ar-ico">⚙️</div><div class="ar-name">Parametres</div><div class="ar-desc">Configuration societe</div></a>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- SOC SECTION -->
+<div style="margin-top:36px;" id="socS">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><h2 style="font-size:17px;font-weight:800;">Mes societes</h2><span class="pill pi" id="sC">0</span></div>
+  <div class="soc-grid" id="sG"></div>
+</div>
+
+</div></div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== CONFIG =====
-const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co',SK='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF',AE='karim_bahmed@yahoo.fr';
+const MR={cabinet_dentaire:'index.html',veterinaire:'index.html',prothesiste:'/public/labo/dashboard.html',orthodontiste:'/public/labo/dashboard.html',sci:'sci.html',juridique:'/public/juridique/dashboard.html',services:'/public/services/dashboard.html',artisan_btp:'/public/btp/dashboard.html',createur:'/public/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
+const TM={cabinet_dentaire:{i:'🦷',l:'Cabinet dentaire'},prothesiste:{i:'🔬',l:'Labo prothese'},orthodontiste:{i:'🦴',l:'Orthodontie'},veterinaire:{i:'🐾',l:'Veterinaire'},sci:{i:'🏠',l:'SCI'},societe_commerciale:{i:'🏢',l:'Societe commerciale'},sas:{i:'🏢',l:'SAS'},sarl:{i:'🏢',l:'SARL'},eurl:{i:'🏢',l:'EURL'},ei:{i:'👤',l:'EI'},auto_entrepreneur:{i:'📊',l:'Auto-entrepreneur'},autre:{i:'🏷️',l:'Autre'}};
+const CT=['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
+const ME=[{k:'chirurgien_dentiste',i:'🦷',l:'Dentiste'},{k:'orthodontiste',i:'🦴',l:'Orthodontiste'},{k:'prothesiste',i:'🔬',l:'Prothesiste'},{k:'veterinaire',i:'🐾',l:'Veterinaire'},{k:'dirigeant',i:'🏢',l:'Dirigeant'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
+const ST=[{k:'cabinet_dentaire',i:'🦷',l:'Cabinet dentaire'},{k:'sci',i:'🏠',l:'SCI'},{k:'sas',i:'🏢',l:'SAS/SARL'},{k:'profession_liberale',i:'👔',l:'Prof. liberale'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
+let db,tk,ss,socs=[],pf=null,isA=false,aU=[],at='';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function toast(m){const t=$('toast');t.textContent=m;t.className='toast show';setTimeout(()=>t.className='toast',3000);}
+function lo(){db?.auth.signOut();localStorage.clear();location.href='login.html';}
+try{db=supabase.createClient(SU,SK);}catch(e){}
 
-// ===== PALETTE ACCENT PAR TYPE SOCIÉTÉ =====
-const TYPE_META = {
-  cabinet_dentaire:     { ico:'🦷', label:'Cabinet dentaire',   accent:'#c8f060' },
-  sci:                  { ico:'🏠', label:'SCI',                accent:'#60a8f0' },
-  societe_commerciale:  { ico:'🏢', label:'Société commerciale',accent:'#f0a030' },
-  sas:                  { ico:'🏢', label:'SAS',                accent:'#f0a030' },
-  sarl:                 { ico:'🏢', label:'SARL',               accent:'#f0a030' },
-  eurl:                 { ico:'🏢', label:'EURL',               accent:'#f0a030' },
-  sa:                   { ico:'🏢', label:'SA',                 accent:'#f0a030' },
-  snc:                  { ico:'🏢', label:'SNC',                accent:'#f0a030' },
-  ei:                   { ico:'👤', label:'Entreprise indiv.',  accent:'#60f0d0' },
-  auto_entrepreneur:    { ico:'📊', label:'Auto-entrepreneur',  accent:'#60f0d0' },
-  profession_liberale:  { ico:'👔', label:'Profession libérale',accent:'#f060a0' },
-  association:          { ico:'🤝', label:'Association',        accent:'#a060f0' },
-  autre:                { ico:'🏷️', label:'Autre',              accent:'#8f8a82' }
+async function api(u,o={}){const h={'Content-Type':'application/json'};if(tk)h.Authorization='Bearer '+tk;return fetch(u,{...o,headers:{...h,...(o.headers||{})}}).then(r=>r.json()).catch(()=>({}));}
+async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'application/json','X-Admin-Token':at,...(o.headers||{})}}).then(r=>r.json()).catch(()=>({}));}
+
+function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilite',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Parametres',rapide:'Acces rapide'};
+  $('pT').textContent=tt[t]||t;}
+function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
+  el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
+function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
+
+(async function(){
+  const{data}=await db.auth.getSession();ss=data?.session;
+  if(!ss){const raw=localStorage.getItem('jadomi_session');if(raw)try{ss=JSON.parse(raw);}catch(e){} if(!ss)return location.href='login.html';}
+  tk=ss.access_token||ss.token;isA=(ss.user?.email||ss.email)===AE;
+  const[pr,sr]=await Promise.all([api('/api/profil'),api('/api/societes')]);
+  pf=pr?.profil||null;socs=sr?.societes||[];
+  if(!isA)$('aN').classList.add('hide');
+  const obD=pf?.onboarding_termine||localStorage.getItem('jadomi_onboard_skipped')==='1';
+  $('loader').style.display='none';
+  if(!obD&&socs.length===0){showOB();return;}
+  render();
+})().catch(e=>{$('loader').innerHTML='Erreur: '+e.message;});
+
+function render(){
+  const m=ss.user?.user_metadata||ss;const nm=((m.prenom||'')+' '+(m.nom||m.name||'')).trim()||ss.user?.email||'';
+  const em=ss.user?.email||ss.email||'';const ini=nm?nm.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase():em[0]?.toUpperCase();
+  $('sbA').textContent=ini;$('sbN').textContent=nm||em;$('sbE').textContent=em;
+  rSB();rSG();$('sC').textContent=socs.length;
+  if(isA){at=localStorage.getItem('jadomi_admin_token')||'';if(!at)$('tB').classList.remove('hide');else loadAdmin();}
+}
+function rSB(){const c=$('sbS');c.innerHTML='';const cl={cabinet_dentaire:'#6366f1',sci:'#06b6d4',veterinaire:'#10b981',prothesiste:'#8b5cf6',orthodontiste:'#8b5cf6'};
+  socs.forEach(s=>{const co=cl[s.type]||'#f59e0b';c.innerHTML+=`<div class="sb-soc-item" onclick="oS('${s.id}','${s.type}')"><span class="dot" style="background:${co};"></span>${esc(s.nom)}</div>`;});
+  c.innerHTML+=`<div class="sb-soc-item" style="color:var(--accent);font-weight:600;" onclick="location.href='wizard-societe.html'"><span class="dot" style="background:var(--accent);"></span>➕ Ajouter</div>`;}
+function rSG(){const g=$('sG');g.innerHTML='';
+  socs.forEach(s=>{const m=TM[s.type]||TM.autre;const tc=s.type==='cabinet_dentaire'||s.type==='veterinaire'?'tc':s.type==='sci'?'ts':s.type==='prothesiste'||s.type==='orthodontiste'?'tl':'to';
+    g.innerHTML+=`<div class="soc-card ${tc}" onclick="oS('${s.id}','${s.type}')"><div class="sh"><div class="sico">${m.i}</div><div><div class="sn">${esc(s.nom)}</div><div class="st">${m.l}</div></div></div><div style="margin-bottom:12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">${(s.role||'membre')}</div><div class="sbtn">Acceder →</div></div>`;});
+  g.innerHTML+=`<div class="soc-card ta" onclick="location.href='wizard-societe.html'" style="display:flex;align-items:center;justify-content:center;min-height:150px;"><div style="text-align:center;"><div style="font-size:30px;margin-bottom:6px;">➕</div><div style="font-size:13px;font-weight:600;color:var(--text3);">Ajouter une societe</div></div></div>`;}
+function oS(id,t){localStorage.setItem('societe_active_id',id);localStorage.setItem('selectedSocieteId',id);location.href=MR[t]||'organisation.html';}
+
+async function loadAdmin(){
+  const[seg,camp]=await Promise.all([aApi('/api/admin/email/segments'),aApi('/api/admin/email/campagnes')]);
+  const segs=seg?.segments||[];const tu=seg?.total_users||0;aU=[];
+  segs.forEach(s=>{(s.emails||[]).forEach(e=>aU.push({email:e,prof:s.segment,lbl:s.label,ico:s.icon}));});
+  $('xU').textContent=tu;$('xS').textContent=socs.length;$('uT').textContent=tu;$('uA').textContent=tu;$('uR').textContent=tu>0?'100%':'0%';
+  let sh='<table class="tbl"><thead><tr><th></th><th>Profession</th><th>Users</th><th>Actions</th></tr></thead><tbody>';
+  segs.forEach(s=>{sh+=`<tr><td>${s.icon}</td><td>${esc(s.label)}</td><td><strong>${s.count}</strong></td><td><a href="/public/admin-email.html" class="btn bg bs" style="margin-right:4px;">📧</a><a href="/api/admin/email/export/${s.segment}" class="btn bg bs" target="_blank">📥 CSV</a></td></tr>`;});
+  sh+=`<tr style="font-weight:700;"><td>👥</td><td>TOTAL</td><td>${tu}</td><td></td></tr></tbody></table>`;$('segT').innerHTML=sh;
+  rUT();lIn();
+  const camps=camp?.campagnes||[];if(camps.length){let ch='<table class="tbl"><thead><tr><th>Date</th><th>Sujet</th><th>Envoyes</th></tr></thead><tbody>';
+    camps.forEach(c=>{ch+=`<tr><td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td><td>${esc(c.sujet)}</td><td>${c.nb_envoyes||c.nb_destinataires||0}</td></tr>`;});
+    ch+='</tbody></table>';$('cpL').innerHTML=ch;}
+  rCh(segs);
+  const sa=segs.filter(s=>['chirurgien_dentiste','orthodontiste','prothesiste','veterinaire'].includes(s.segment)).reduce((a,s)=>a+s.count,0);
+  $('seSa').textContent=sa;$('seIm').textContent=socs.filter(s=>s.type==='sci').length;$('seCo').textContent=socs.filter(s=>CT.includes(s.type)).length;
+  try{const r2=await fetch('/api/rush/fichiers/status/r2').then(r=>r.json());$('sR2').textContent=r2.r2_available?'Actif':'Non config';
+    if(!r2.r2_available){$('dR2').classList.remove('on');$('dR2').classList.add('off');}}catch(e){}
+  try{const sg=await aApi('/api/suggestions/admin');const ls=sg?.suggestions||[];
+    if(ls.length){let h='';ls.slice(0,8).forEach(s=>{h+=`<div class="mi2"><div style="font-size:12px;font-weight:600;">${esc(s.titre||'Suggestion')}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;">${esc((s.description||'').slice(0,80))}</div></div>`;});$('sgL').innerHTML=h;}
+    else $('sgL').innerHTML='Aucune suggestion';}catch(e){$('sgL').innerHTML='Aucune suggestion';}
+}
+function rUT(){const q=($('uSrch')?.value||'').toLowerCase();const f=aU.filter(u=>!q||u.email.toLowerCase().includes(q)||(u.lbl||'').toLowerCase().includes(q));
+  const pc={chirurgien_dentiste:'pi',orthodontiste:'pc',prothesiste:'pi',veterinaire:'pe',dirigeant:'po',auto_entrepreneur:'po',autre:'pg'};
+  let h='';f.slice(0,50).forEach(u=>{h+=`<tr><td>${esc(u.email)}</td><td><span class="pill ${pc[u.prof]||'pg'}">${u.ico||''} ${esc(u.lbl||u.prof)}</span></td><td><a href="/public/admin-email.html" class="btn bg bs">📧</a></td></tr>`;});
+  $('uBod').innerHTML=h||'<tr><td colspan="3" style="color:var(--text3);text-align:center;">Aucun</td></tr>';}
+function fU(){rUT();}
+async function lIn(){try{const r=await aApi('/api/admin/email/inbox?limit=15');const ms=r?.messages||[];
+    if(!ms.length){$('inL').innerHTML='Aucun message';return;}
+    let h='';ms.forEach(m=>{h+=`<div class="mi2${m.seen?'':' unread'}"><div style="font-size:12px;font-weight:600;">${esc(m.from||m.from_address||'')}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;">${esc(m.subject)}</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">${m.date?new Date(m.date).toLocaleDateString('fr-FR'):''}</div></div>`;});
+    $('inL').innerHTML=h;}catch(e){$('inL').innerHTML='Erreur inbox';}}
+
+function rCh(segs){
+  const c1=$('chR')?.getContext('2d');if(c1){const gr=c1.createLinearGradient(0,0,0,200);gr.addColorStop(0,'rgba(99,102,241,0.3)');gr.addColorStop(1,'rgba(99,102,241,0)');
+    new Chart(c1,{type:'line',data:{labels:['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'],datasets:[{label:'€',data:[0,0,0,0,0,0,0,0,0,0,0,0],borderColor:'#6366f1',backgroundColor:gr,fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#6366f1'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#64748b'}},y:{grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#64748b'}}}}});}
+  const c2=$('chP')?.getContext('2d');if(c2){new Chart(c2,{type:'bar',data:{labels:segs.map(s=>s.label),datasets:[{data:segs.map(s=>s.count),backgroundColor:['#6366f1','#06b6d4','#8b5cf6','#10b981','#f59e0b','#ef4444','#64748b'],borderRadius:6}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#64748b'}},y:{grid:{display:false},ticks:{color:'#94a3b8'}}}}});}
+  const c3=$('chS')?.getContext('2d');if(c3){const tc={};socs.forEach(s=>{const t=(TM[s.type]||TM.autre).l;tc[t]=(tc[t]||0)+1;});
+    new Chart(c3,{type:'doughnut',data:{labels:Object.keys(tc),datasets:[{data:Object.values(tc),backgroundColor:['#6366f1','#06b6d4','#f59e0b','#8b5cf6','#10b981'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});}
+}
+
+// ONBOARDING
+let obM='',obT='';
+function showOB(){$('onboard').classList.remove('hide');const mg=$('obm');mg.innerHTML='';ME.forEach(m=>{mg.innerHTML+=`<div class="ob-c" onclick="obSM(this,'${m.k}')"><div class="oi">${m.i}</div><div class="ol">${m.l}</div></div>`;});
+  const tg=$('obt');tg.innerHTML='';ST.forEach(s=>{tg.innerHTML+=`<div class="ob-c" onclick="obST(this,'${s.k}')"><div class="oi">${s.i}</div><div class="ol">${s.l}</div></div>`;});}
+function obSM(el,k){obM=k;el.parentElement.querySelectorAll('.ob-c').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');$('ob1').disabled=false;}
+function obST(el,k){obT=k;el.parentElement.querySelectorAll('.ob-c').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');$('ob2').disabled=false;}
+function obN(s){if(s===1){$('os1').classList.add('hide');$('os2').classList.remove('hide');api('/api/profil',{method:'POST',body:JSON.stringify({metier:obM})});}
+  if(s===2){$('os2').classList.add('hide');$('os3').classList.remove('hide');}}
+function obB(s){if(s===2){$('os2').classList.add('hide');$('os1').classList.remove('hide');}if(s===3){$('os3').classList.add('hide');$('os2').classList.remove('hide');}}
+async function obF(){const n=$('obn').value.trim();if(!n){toast('Entrez un nom');return;}
+  const r=await api('/api/societes',{method:'POST',body:JSON.stringify({type:obT,nom:n,secteur:'autre'})});
+  if(r.success||r.societe){await api('/api/profil',{method:'POST',body:JSON.stringify({onboarding_termine:true})});
+    const s=r.societe||{};localStorage.setItem('societe_active_id',s.id);localStorage.setItem('selectedSocieteId',s.id);$('onboard').classList.add('hide');location.href=MR[obT]||'organisation.html';
+  }else toast(r.error||'Erreur');}
+async function obS(){localStorage.setItem('jadomi_onboard_skipped','1');await api('/api/profil',{method:'POST',body:JSON.stringify({onboarding_termine:true})}).catch(()=>{});$('onboard').classList.add('hide');socs=[];render();}
+
+// ============ PARAMETRES PLATEFORME ============
+const CFG_KEYS = {
+  commissions: ['commission_rush','commission_services','commission_showroom','commission_juridique','commission_btp'],
+  abonnements: ['prix_solo','prix_pro','prix_business','prix_entreprise'],
+  maintenance: ['maintenance_mode','maintenance_message']
 };
 
-const METIERS = [
-  { k:'chirurgien_dentiste',   ico:'🦷', label:'Chirurgien-dentiste',  suggest:['cabinet_dentaire'] },
-  { k:'orthodontiste',         ico:'🦴', label:'Orthodontiste',        suggest:['cabinet_dentaire'] },
-  { k:'prothesiste',           ico:'🔧', label:'Prothésiste',          suggest:['societe_commerciale'] },
-  { k:'veterinaire',           ico:'🐾', label:'Vétérinaire',          suggest:['profession_liberale'] },
-  { k:'medecin_paramedical',   ico:'⚕️', label:'Médecin / Paramédical',suggest:['profession_liberale'] },
-  { k:'professionnel_btp',     ico:'🏗️', label:'Professionnel BTP',   suggest:['sas','sarl','eurl'] },
-  { k:'esthetique',            ico:'💆', label:'Esthéticien / Coiffeur', suggest:['societe_commerciale','auto_entrepreneur'] },
-  { k:'restaurateur',          ico:'🍕', label:'Restaurateur',          suggest:['societe_commerciale'] },
-  { k:'avocat_notaire',        ico:'⚖️', label:'Avocat / Notaire',     suggest:['profession_liberale'] },
-  { k:'profession_liberale',   ico:'👔', label:'Profession libérale',  suggest:['profession_liberale'] },
-  { k:'dirigeant_entreprise',  ico:'🏢', label:"Dirigeant d'entreprise", suggest:['sas','sarl','eurl'] },
-  { k:'auto_entrepreneur',     ico:'📊', label:'Auto-entrepreneur',    suggest:['auto_entrepreneur'] },
-  { k:'investisseur_immobilier',ico:'🏠',label:'Investisseur SCI',     suggest:['sci'] },
-  { k:'autre',                 ico:'🏷️', label:'Autre',                suggest:[] }
-];
-
-const STRUCTURES = [
-  { k:'cabinet_dentaire',    ico:'🦷', label:'Mon cabinet dentaire' },
-  { k:'sci',                 ico:'🏠', label:'Une SCI (locatif)' },
-  { k:'societe_commerciale', ico:'🏢', label:'Société commerciale' },
-  { k:'auto_entrepreneur',   ico:'📊', label:'Activité en nom propre' },
-  { k:'profession_liberale', ico:'👔', label:'Profession libérale' },
-  { k:'association',         ico:'🤝', label:'Association' }
-];
-
-// ===== STATE =====
-let session=null, token=null, profil=null, societes=[], activeSocieteId=null;
-let onboardMetier=null, onboardStructures=new Set(), onboardFirstType=null;
-
-// ===== UTILS =====
-function $(id){return document.getElementById(id);}
-function toast(msg,err){
-  const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' error':'');
-  setTimeout(()=>t.className='toast'+(err?' error':''),3000);
+async function loadSettings() {
+  try {
+    const r = await aApi('/api/admin/parametres');
+    const params = r.parametres || r.data || [];
+    params.forEach(p => {
+      const el = $('cfg-'+p.cle);
+      if (el) el.value = p.valeur;
+      if (p.cle === 'maintenance_mode') {
+        const btn = $('cfg-maintenance-btn');
+        if (btn) { btn.textContent = p.valeur === 'true' ? 'Active' : 'Desactive'; btn.style.color = p.valeur === 'true' ? '#f05050' : ''; }
+      }
+    });
+  } catch(e) {}
 }
-function api(path, opts={}){
-  const h = { 'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{}) };
-  return fetch(path,{ ...opts, headers:h }).then(r=>r.json());
-}
-function setAccent(color){
-  document.documentElement.style.setProperty('--accent',color);
-  document.documentElement.style.setProperty('--accent-soft',
-    `color-mix(in srgb, ${color} 10%, transparent)`);
-}
-function initials(first,last){
-  return ((first||'')[0]||'')+((last||'')[0]||'') || (first||'?').slice(0,1).toUpperCase();
-}
-function goto(p){ window.location.href=p; }
-async function logout(){ try{ await db.auth.signOut(); }catch(e){} localStorage.clear(); goto('login.html'); }
 
-// ===== BOOT =====
-(async function boot(){
-  const { data } = await db.auth.getSession();
-  session = data?.session;
-  if(!session){ return goto('login.html?next=organisation.html'); }
-  token = session.access_token;
-
-  // charge profil + sociétés en parallèle
-  const [pr, sr] = await Promise.all([
-    api('/api/profil').catch(()=>({success:false})),
-    api('/api/societes').catch(()=>({success:false,societes:[]}))
-  ]);
-  profil = pr?.profil || null;
-  societes = sr?.societes || [];
-
-  // si pas d'onboarding ET pas de société → onboarding
-  const needOnboard = !profil?.onboarding_termine && societes.length===0;
-  $('loader').classList.add('hide');
-  if(needOnboard){ startOnboarding(); }
-  else{ showHub(); }
-})().catch(e=>{
-  console.error(e);
-  $('loader').textContent='Erreur de chargement : '+e.message;
-});
-
-// ===== HUB =====
-function showHub(){
-  $('nav').style.display='flex';
-  $('hub').classList.remove('hide');
-
-  // nav user
-  const prenom = profil?.prenom || session.user.user_metadata?.nom?.split(' ')[0] || '';
-  const nom = profil?.nom || session.user.user_metadata?.nom?.split(' ').slice(1).join(' ') || '';
-  const ini = initials(prenom, nom);
-  $('nav-avatar').textContent = ini || '?';
-  $('up-name').textContent = (prenom+' '+nom).trim() || session.user.email;
-  $('up-email').textContent = session.user.email;
-
-  // profile card
-  $('hub-avatar').textContent = ini || '?';
-  $('hub-title').textContent = prenom ? `Bonjour, ${prenom} 👋` : 'Bonjour 👋';
-  const metaEl = $('hub-meta'); metaEl.innerHTML='';
-  if(profil?.metier){
-    const m = METIERS.find(x=>x.k===profil.metier);
-    if(m) metaEl.insertAdjacentHTML('beforeend',`<span>${m.ico} ${m.label}</span>`);
+async function saveSettings(group) {
+  const keys = CFG_KEYS[group] || [];
+  const updates = [];
+  for (const k of keys) {
+    const el = $('cfg-'+k);
+    if (el) updates.push({ cle: k, valeur: String(el.value) });
   }
-  metaEl.insertAdjacentHTML('beforeend',`<span>🏢 ${societes.length} société${societes.length>1?'s':''}</span>`);
-
-  // switcher + grid
-  renderSocietes();
-
-  // détermine société active
-  const savedId = localStorage.getItem('societe_active_id');
-  const active = societes.find(s=>s.id===savedId) || societes[0];
-  if(active) setActiveSociete(active.id);
+  try {
+    const r = await aApi('/api/admin/parametres', { method:'POST', body:JSON.stringify({ parametres: updates }) });
+    if (r.ok || r.success) toast('Parametres enregistres');
+    else toast(r.error || 'Erreur');
+  } catch(e) { toast('Erreur reseau'); }
 }
 
-function renderSocietes(){
-  const grid = $('soc-grid'); grid.innerHTML='';
-  const menu = $('switcher-menu'); menu.innerHTML='';
-  if(societes.length===0){
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted);border:1px dashed var(--border);border-radius:18px;">
-      Aucune société pour l'instant.<br>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="goto('wizard-societe.html')">Créer ma première société</button>
-    </div>`;
-    $('sw-active-name').textContent='Aucune société';
-    return;
-  }
-  societes.forEach(s=>{
-    const meta = TYPE_META[s.type] || TYPE_META.autre;
-    const accent = s.couleur_accent || meta.accent;
-    const card = document.createElement('div');
-    card.className='soc-card';
-    card.style.setProperty('--soc-accent',accent);
-    card.dataset.id = s.id;
-    card.innerHTML = `
-      <div class="soc-badge-active" id="act-${s.id}">Active</div>
-      <div class="soc-head">
-        <div class="soc-icon">${s.icone||meta.ico}</div>
-        <div>
-          <div class="soc-name">${escapeHtml(s.nom)}</div>
-          <div class="soc-type">${meta.label}</div>
-        </div>
-      </div>
-      <div class="soc-role ${s.role||''}">${(s.role||'membre').toUpperCase()}</div>
-      <div class="soc-actions">
-        <a class="soc-act" href="settings-societe.html?id=${s.id}" onclick="event.stopPropagation();">⚙️</a>
-        <a class="soc-act" href="membres-societe.html?id=${s.id}" onclick="event.stopPropagation();">👥</a>
-        <a class="soc-act" href="mailing.html" onclick="event.stopPropagation();localStorage.setItem('societe_active_id',${JSON.stringify(s.id)});">📧</a>
-        <a class="soc-act" href="billing.html" onclick="event.stopPropagation();localStorage.setItem('societe_active_id',${JSON.stringify(s.id)});">💳</a>
-      </div>
-    `;
-    card.onclick = ()=>openSociete(s.id);
-    grid.appendChild(card);
-
-    // switcher menu item
-    const item = document.createElement('div');
-    item.className='sw-item';
-    item.dataset.id=s.id;
-    item.innerHTML = `
-      <div class="sw-item-icon">${s.icone||meta.ico}</div>
-      <div class="sw-item-name">${escapeHtml(s.nom)}</div>
-      <div class="sw-item-role">${s.role||''}</div>
-    `;
-    item.onclick = ()=>{ toggleSwitcher(false); openSociete(s.id); };
-    menu.appendChild(item);
-  });
-  // sep + add
-  menu.insertAdjacentHTML('beforeend',`<div class="sw-sep"></div>
-    <div class="sw-item sw-add" onclick="goto('wizard-societe.html')">+ Créer une société</div>`);
+function toggleMaintenance() {
+  const btn = $('cfg-maintenance-btn');
+  const isOn = btn.textContent === 'Active';
+  btn.textContent = isOn ? 'Desactive' : 'Active';
+  btn.style.color = isOn ? '' : '#f05050';
+  // Save immediately
+  aApi('/api/admin/parametres', { method:'POST', body:JSON.stringify({ parametres: [{ cle:'maintenance_mode', valeur: isOn ? 'false' : 'true' }] }) })
+    .then(() => toast(isOn ? 'Maintenance desactivee' : 'Maintenance activee'));
 }
 
-const MODULE_ROUTE = {
-  cabinet_dentaire:    'index.html',
-  sci:                 'sci.html',
-  societe_commerciale: 'commerce.html',
-  sas:'commerce.html', sarl:'commerce.html', eurl:'commerce.html',
-  sa:'commerce.html', snc:'commerce.html',
-  ei:'commerce.html', auto_entrepreneur:'commerce.html',
-  profession_liberale:'commerce.html',
-  association:'commerce.html', autre:'commerce.html'
+// Load settings when admin section is shown
+const origST = sT;
+sT = function(t, el) {
+  origST(t, el);
+  if (t === 'settings') loadSettings();
 };
 
-function setActiveSociete(id){
-  const s = societes.find(x=>x.id===id); if(!s) return;
-  activeSocieteId = id;
-  localStorage.setItem('societe_active_id', id);
-  const meta = TYPE_META[s.type] || TYPE_META.autre;
-  const accent = s.couleur_accent || meta.accent;
-  setAccent(accent);
-  $('sw-active-icon').textContent = s.icone || meta.ico;
-  $('sw-active-name').textContent = s.nom;
-  document.querySelectorAll('.soc-card').forEach(c=>{
-    c.classList.toggle('active', c.dataset.id===id);
-    const badge = c.querySelector('.soc-badge-active');
-    if(badge) badge.style.display = (c.dataset.id===id) ? 'block' : 'none';
-  });
-  document.querySelectorAll('.sw-item').forEach(i=>{
-    i.classList.toggle('active', i.dataset.id===id);
+// ============ ACCÈS RAPIDE SEARCH & FILTER ============
+let arActiveCat = '';
+function filterAR() {
+  const q = ($('arSearch')?.value || '').toLowerCase().trim();
+  document.querySelectorAll('#arSections .ar-section').forEach(s => {
+    if (arActiveCat && s.dataset.cat !== arActiveCat) { s.style.display = 'none'; return; }
+    let hasVisible = false;
+    s.querySelectorAll('.ar-card').forEach(c => {
+      const text = (c.textContent + ' ' + (c.dataset.kw || '')).toLowerCase();
+      const show = !q || text.includes(q);
+      c.style.display = show ? '' : 'none';
+      if (show) hasVisible = true;
+    });
+    s.style.display = hasVisible ? '' : 'none';
   });
 }
-
-function openSociete(id){
-  const s = societes.find(x=>x.id===id); if(!s) return;
-  setActiveSociete(id);
-  const route = MODULE_ROUTE[s.type] || 'organisation.html';
-  // petit délai pour laisser voir la transition d'accent
-  setTimeout(()=>{ location.href = route; }, 180);
+function filterARCat(cat, btn) {
+  arActiveCat = cat;
+  document.querySelectorAll('.ar-filter').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  filterAR();
 }
-
-function toggleSwitcher(force){
-  const el=$('switcher');
-  if(typeof force==='boolean') el.classList.toggle('open',force);
-  else el.classList.toggle('open');
-}
-function toggleUserMenu(){ $('user-menu').classList.toggle('open'); }
-document.addEventListener('click',(e)=>{
-  if(!e.target.closest('.switcher')) $('switcher')?.classList.remove('open');
-  if(!e.target.closest('.user-menu')) $('user-menu')?.classList.remove('open');
-});
-
-// ===== ONBOARDING =====
-function startOnboarding(){
-  $('onboard').classList.remove('hide');
-  renderMetiersGrid();
-  renderStructuresGrid();
-}
-function renderMetiersGrid(){
-  const grid=$('metiers-grid'); grid.innerHTML='';
-  METIERS.forEach(m=>{
-    const el=document.createElement('div'); el.className='choice';
-    el.innerHTML=`<div class="choice-check">✓</div><div class="choice-ico">${m.ico}</div><div class="choice-name">${m.label}</div>`;
-    el.onclick=()=>{
-      document.querySelectorAll('#metiers-grid .choice').forEach(c=>c.classList.remove('selected'));
-      el.classList.add('selected');
-      onboardMetier = m.k;
-      $('btn-step1').disabled=false;
-      // suggère structures
-      onboardStructures = new Set(m.suggest||[]);
-      refreshStructuresVisuals();
-    };
-    grid.appendChild(el);
-  });
-}
-function renderStructuresGrid(){
-  const grid=$('structures-grid'); grid.innerHTML='';
-  STRUCTURES.forEach(s=>{
-    const el=document.createElement('div'); el.className='choice'; el.dataset.k=s.k;
-    el.innerHTML=`<div class="choice-check">✓</div><div class="choice-ico">${s.ico}</div><div class="choice-name">${s.label}</div>`;
-    el.onclick=()=>{
-      if(onboardStructures.has(s.k)) onboardStructures.delete(s.k);
-      else onboardStructures.add(s.k);
-      refreshStructuresVisuals();
-    };
-    grid.appendChild(el);
-  });
-}
-function refreshStructuresVisuals(){
-  document.querySelectorAll('#structures-grid .choice').forEach(c=>{
-    c.classList.toggle('selected', onboardStructures.has(c.dataset.k));
-  });
-  $('btn-step2').disabled = onboardStructures.size===0;
-}
-function setProgress(n){
-  ['p1','p2','p3'].forEach((id,idx)=>{
-    const el=$(id); el.className='';
-    if(idx<n-1) el.className='done';
-    if(idx===n-1) el.className='active';
-  });
-}
-function nextStep(from){
-  if(from===1){
-    $('step1').classList.add('hide'); $('step2').classList.remove('hide'); setProgress(2);
-  } else if(from===2){
-    onboardFirstType = Array.from(onboardStructures)[0];
-    const meta = TYPE_META[onboardFirstType] || TYPE_META.autre;
-    setAccent(meta.accent);
-    $('step2').classList.add('hide'); $('step3').classList.remove('hide'); setProgress(3);
-    const help = `Type détecté : ${meta.ico} ${meta.label}. Ajoutez simplement un nom pour démarrer.`;
-    $('step3-help').textContent = help;
-    $('field-siren-wrap').style.display = ['sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','societe_commerciale'].includes(onboardFirstType) ? 'block' : 'none';
-  }
-}
-function prevStep(from){
-  if(from===2){ $('step2').classList.add('hide'); $('step1').classList.remove('hide'); setProgress(1); }
-  if(from===3){ $('step3').classList.add('hide'); $('step2').classList.remove('hide'); setProgress(2); }
-}
-
-async function saveProfil(){
-  const meta = session.user.user_metadata || {};
-  const [prenom,...rest] = (meta.nom||'').split(' ');
-  const payload = {
-    prenom: profil?.prenom || prenom || '',
-    nom: profil?.nom || rest.join(' ') || '',
-    metier: onboardMetier,
-    onboarding_termine: true
-  };
-  const r = await api('/api/profil',{ method:'PUT', body:JSON.stringify(payload) });
-  if(!r.success) throw new Error(r.error||'profil_error');
-  profil = r.profil;
-}
-async function createFirstSociete(){
-  const nom = $('soc-nom').value.trim();
-  if(!nom) throw new Error('Nom requis');
-  const siren = $('soc-siren')?.value.trim() || undefined;
-  const r = await api('/api/societes',{ method:'POST', body:JSON.stringify({
-    type: onboardFirstType, nom, siren
-  })});
-  if(!r.success) throw new Error(r.error||'create_error');
-  societes.unshift({ ...r.societe, role:'proprietaire' });
-  localStorage.setItem('societe_active_id', r.societe.id);
-}
-
-async function finishOnboard(){
-  const btn = $('btn-step3'); btn.disabled=true; btn.textContent='Création…';
-  try{
-    await saveProfil();
-    await createFirstSociete();
-    showWelcome();
-  }catch(e){
-    toast(e.message,true);
-    btn.disabled=false; btn.textContent='Créer et continuer →';
-  }
-}
-async function skipFirstSociete(){
-  try{
-    await saveProfil();
-    showWelcome(true);
-  }catch(e){ toast(e.message,true); }
-}
-function showWelcome(empty){
-  ['step1','step2','step3'].forEach(id=>$(id).classList.add('hide'));
-  $('welcome').classList.remove('hide');
-  const nom = profil?.prenom || profil?.nom || '';
-  $('welcome-title').textContent = nom ? `Bienvenue ${nom} 🎉` : 'Bienvenue dans JADOMI 🎉';
-  $('welcome-sub').textContent = empty ? 'Vous pourrez créer vos sociétés depuis le dashboard.' : 'Votre espace est prêt.';
-  setTimeout(()=>{
-    $('onboard').classList.add('hide');
-    showHub();
-  }, 2200);
-}
-
-// ===== helpers =====
-function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 </script>
 </body>
 </html>

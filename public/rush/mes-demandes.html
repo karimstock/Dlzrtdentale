@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Rush — Mes demandes</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--border:rgba(99,102,241,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--accent-dark:#818cf8;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* Layout */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #0a1628 0%, #121f3a 50%, #0a1628 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* Logo */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+.rush-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:var(--accent);padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.5px;margin-top:8px;}
+
+/* Nav */
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(16,185,129,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#0f0e0d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+
+/* Sidebar bottom */
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.user-card{background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);}
+.user-alias{font-size:13px;font-weight:600;color:var(--accent);font-family:var(--mono);}
+.user-label{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* Topbar */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.5px;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.2px;text-decoration:none;}
+.btn-accent{background:var(--accent);color:#0f0e0d;}
+.btn-accent:hover{background:var(--accent-dark);}
+.btn-accent:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-red{background:rgba(240,80,80,0.15);color:var(--red);border:1px solid rgba(240,80,80,0.4);}
+.btn-red:hover{background:rgba(240,80,80,0.25);}
+.btn-green{background:rgba(96,208,144,0.15);color:var(--green);border:1px solid rgba(96,208,144,0.4);}
+.btn-green:hover{background:rgba(96,208,144,0.25);}
+.btn-blue{background:rgba(96,168,240,0.15);color:var(--blue);border:1px solid rgba(96,168,240,0.4);}
+.btn-blue:hover{background:rgba(96,168,240,0.25);}
+.btn-amber{background:rgba(240,160,48,0.15);color:var(--amber);border:1px solid rgba(240,160,48,0.4);}
+.btn-amber:hover{background:rgba(240,160,48,0.25);}
+
+/* Content */
+.content{padding:24px 28px;flex:1;}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;margin-bottom:20px;width:fit-content;}
+.tab{padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;color:var(--muted);transition:all 0.15s;display:flex;align-items:center;gap:7px;}
+.tab:hover{color:var(--text);}
+.tab.active{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.tab-count{background:var(--accent);color:#0f0e0d;font-size:10px;font-weight:700;padding:1px 6px;border-radius:12px;}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:border-color 0.2s;}
+.card:hover{border-color:rgba(16,185,129,0.3);}
+.card-head{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;user-select:none;}
+.card-head:hover{background:rgba(255,255,255,0.02);}
+.card-body{display:none;border-top:1px solid var(--border);}
+.card-body.open{display:block;}
+
+/* Status badges */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge-ouverte{background:rgba(96,208,144,0.15);color:var(--green);border:1px solid rgba(96,208,144,0.3);}
+.badge-en_attente_devis{background:rgba(96,168,240,0.15);color:var(--blue);border:1px solid rgba(96,168,240,0.3);}
+.badge-devis_recu{background:rgba(16,185,129,0.15);color:var(--accent);border:1px solid rgba(16,185,129,0.3);}
+.badge-devis_accepte{background:rgba(160,96,240,0.15);color:var(--purple);border:1px solid rgba(160,96,240,0.3);}
+.badge-paiement_effectue{background:rgba(96,168,240,0.2);color:var(--blue);}
+.badge-en_fabrication{background:rgba(240,160,48,0.15);color:var(--amber);border:1px solid rgba(240,160,48,0.3);}
+.badge-en_livraison{background:rgba(240,160,48,0.2);color:var(--amber);}
+.badge-livree{background:rgba(96,208,144,0.2);color:var(--green);}
+.badge-validee{background:rgba(96,208,144,0.25);color:var(--green);border:1px solid rgba(96,208,144,0.5);}
+.badge-litige{background:rgba(240,80,80,0.15);color:var(--red);border:1px solid rgba(240,80,80,0.4);}
+.badge-annulee{background:rgba(107,103,96,0.2);color:var(--muted);}
+.badge-expiree{background:rgba(107,103,96,0.15);color:var(--muted);}
+.badge-urgent{background:rgba(240,80,80,0.15);color:var(--red);font-size:10px;}
+
+/* Demand card layout */
+.card-info{display:flex;flex:1;gap:14px;align-items:center;flex-wrap:wrap;}
+.card-type{font-family:var(--font-display);font-size:15px;font-weight:700;}
+.card-meta{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-arrow{font-size:16px;color:var(--muted);transition:transform 0.2s;}
+.card-arrow.open{transform:rotate(90deg);}
+.card-date{font-size:12px;color:var(--muted);}
+.nb-devis-badge{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;padding:3px 9px;font-family:var(--mono);color:var(--muted);}
+.nb-devis-badge.has-devis{color:var(--accent);border-color:rgba(16,185,129,0.35);}
+
+/* Quote list */
+.quote-list{padding:16px 20px;display:flex;flex-direction:column;gap:8px;}
+.quote-item{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;flex-wrap:wrap;}
+.quote-item.selected{border-color:var(--accent);background:rgba(16,185,129,0.04);}
+.quote-alias{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);min-width:130px;}
+.quote-price{font-family:var(--font-display);font-size:16px;font-weight:700;}
+.quote-delai{font-size:12px;color:var(--muted);}
+.quote-rating{font-size:12px;color:var(--amber);}
+.quote-msg{font-size:12px;color:var(--muted);flex:1;font-style:italic;}
+.quote-actions{display:flex;gap:6px;margin-left:auto;}
+.quote-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* Action buttons row */
+.demand-actions{padding:16px 20px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);}
+
+/* Detail section */
+.detail-section{padding:16px 20px;border-top:1px solid var(--border);}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:10px;}
+.detail-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;}
+.detail-key{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;}
+.detail-val{font-size:13px;font-weight:500;}
+
+/* Messaging */
+.msg-section{padding:0 20px 20px;}
+.msg-header{display:flex;align-items:center;gap:10px;padding:14px 0 10px;}
+.msg-title{font-size:14px;font-weight:600;}
+.ia-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);color:var(--accent);padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px;}
+.msg-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;padding-right:4px;margin-bottom:10px;}
+.msg-list::-webkit-scrollbar{width:4px;}
+.msg-list::-webkit-scrollbar-track{background:transparent;}
+.msg-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.msg-bubble{max-width:78%;display:flex;flex-direction:column;gap:3px;}
+.msg-bubble.mine{align-self:flex-end;align-items:flex-end;}
+.msg-bubble.other{align-self:flex-start;align-items:flex-start;}
+.msg-alias{font-size:10px;font-family:var(--mono);color:var(--muted);}
+.msg-text{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 13px;font-size:13px;line-height:1.5;}
+.msg-bubble.mine .msg-text{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);}
+.msg-time{font-size:10px;color:var(--muted);font-family:var(--mono);}
+.msg-input-row{display:flex;gap:8px;}
+.msg-input{flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--text);outline:none;resize:none;height:44px;}
+.msg-input:focus{border-color:var(--accent);}
+.msg-empty{text-align:center;color:var(--muted);font-size:12px;padding:20px 0;font-style:italic;}
+
+/* Available demands list */
+.avail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;}
+.avail-card:hover{border-color:rgba(16,185,129,0.4);background:rgba(16,185,129,0.02);}
+.avail-card.selected{border-color:var(--accent);}
+.avail-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.avail-type{font-family:var(--font-display);font-size:15px;font-weight:700;}
+.avail-meta{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap;}
+.avail-meta span{display:flex;align-items:center;gap:4px;}
+.avail-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-top:6px;}
+
+/* Quote form */
+.quote-form{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:14px;}
+.quote-form-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select,.form-textarea{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;background:var(--surface);color:var(--text);transition:border-color 0.15s;width:100%;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-textarea{resize:vertical;min-height:80px;}
+.form-select option{background:var(--surface);}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.4;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.empty-sub{font-size:13px;line-height:1.6;}
+
+/* Filters row */
+.filters-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:280px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:90vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:18px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;z-index:300;transition:transform 0.3s;display:flex;align-items:center;gap:8px;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* Spinner */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(16,185,129,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Tracking timeline */
+.track-line{display:flex;flex-direction:column;gap:0;padding:16px 20px;}
+.track-step{display:flex;gap:12px;align-items:flex-start;}
+.track-dot{width:20px;height:20px;border-radius:50%;background:var(--border);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:10px;}
+.track-dot.done{background:var(--accent);color:#0f0e0d;}
+.track-dot.active{background:var(--amber);animation:pulse 1.5s ease infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,160,48,0.4);}50%{box-shadow:0 0 0 6px rgba(240,160,48,0);}}
+.track-connector{width:2px;height:20px;background:var(--border);margin:2px 0 2px 9px;}
+.track-connector.done{background:var(--accent);}
+.track-info{padding-bottom:16px;}
+.track-label{font-size:13px;font-weight:500;}
+.track-date{font-size:11px;color:var(--muted);font-family:var(--mono);}
+
+/* Responsive */
+@media(max-width:780px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .content{padding:16px;}
+  .form-grid-3{grid-template-columns:1fr 1fr;}
+  .quote-item{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-sub">Rush — Sous-traitance anonyme</div>
+    <div class="rush-badge">⚡ RUSH</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Navigation</div>
+    <a class="nav-item" href="nouvelle-demande.html"><span class="ni">➕</span>Nouvelle demande</a>
+    <a class="nav-item active" href="mes-demandes.html"><span class="ni">📋</span>Mes demandes<span class="nav-badge" id="nav-badge-mes" style="display:none">0</span></a>
+    <a class="nav-item" href="#" onclick="switchTab('repondre');return false;"><span class="ni">💬</span>Repondre<span class="nav-badge" id="nav-badge-dispo" style="display:none">0</span></a>
+    <a class="nav-item" href="#" onclick="switchTab('suivi');return false;"><span class="ni">📦</span>Suivi livraisons</a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-card">
+      <div class="user-alias" id="sidebar-alias">—</div>
+      <div class="user-label">Votre alias JADOMI Rush</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title">JADOMI Rush</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="nouvelle-demande.html" class="btn btn-accent btn-sm">
+        <span>➕</span> Nouvelle demande
+      </a>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" id="tab-mes" onclick="switchTab('mes')">
+        📋 Mes demandes
+        <span class="tab-count" id="tc-mes" style="display:none">0</span>
+      </div>
+      <div class="tab" id="tab-repondre" onclick="switchTab('repondre')">
+        💬 Demandes disponibles
+        <span class="tab-count" id="tc-dispo" style="display:none">0</span>
+      </div>
+      <div class="tab" id="tab-suivi" onclick="switchTab('suivi')">
+        📦 Suivi
+      </div>
+    </div>
+
+    <!-- ======================== TAB MES DEMANDES ======================== -->
+    <div id="panel-mes">
+      <div class="filters-row">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">🔍</span>
+          <input type="text" placeholder="Rechercher..." id="search-mes" oninput="filterMesDemandes()">
+        </div>
+        <select class="filter-select" id="filter-statut" onchange="filterMesDemandes()">
+          <option value="">Tous les statuts</option>
+          <option value="ouverte">Ouverte</option>
+          <option value="devis_recu">Devis recu</option>
+          <option value="devis_accepte">Devis accepte</option>
+          <option value="en_fabrication">En fabrication</option>
+          <option value="en_livraison">En livraison</option>
+          <option value="livree">Livree</option>
+          <option value="validee">Validee</option>
+          <option value="litige">Litige</option>
+          <option value="annulee">Annulee</option>
+        </select>
+        <select class="filter-select" id="filter-urgence" onchange="filterMesDemandes()">
+          <option value="">Toutes urgences</option>
+          <option value="tres_urgent">Tres urgent</option>
+          <option value="urgent">Urgent</option>
+          <option value="normal">Normal</option>
+        </select>
+      </div>
+
+      <div id="mes-demandes-list">
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <div style="margin-top:12px;font-size:13px;color:var(--muted);">Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== TAB REPONDRE ======================== -->
+    <div id="panel-repondre" style="display:none;">
+      <div class="filters-row">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">🔍</span>
+          <input type="text" placeholder="Rechercher un acte..." id="search-dispo" oninput="filterDispo()">
+        </div>
+        <select class="filter-select" id="filter-type-dispo" onchange="filterDispo()">
+          <option value="">Tous types</option>
+          <option value="couronne_zircone">Couronne Zircone</option>
+          <option value="couronne_ceramo_metal">Couronne Ceramo-metal</option>
+          <option value="couronne_emax">Couronne E.max</option>
+          <option value="bridge">Bridge</option>
+          <option value="pac_complete">PAC Complete</option>
+          <option value="stellite">Stellite</option>
+          <option value="inlay_onlay">Inlay/Onlay</option>
+          <option value="facette">Facette</option>
+          <option value="gouttiere">Gouttiere</option>
+          <option value="reparation">Reparation</option>
+        </select>
+        <select class="filter-select" id="filter-urgence-dispo" onchange="filterDispo()">
+          <option value="">Toutes urgences</option>
+          <option value="tres_urgent">Tres urgent</option>
+          <option value="urgent">Urgent</option>
+          <option value="normal">Normal</option>
+        </select>
+      </div>
+
+      <div id="dispo-list">
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <div style="margin-top:12px;font-size:13px;color:var(--muted);">Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== TAB SUIVI ======================== -->
+    <div id="panel-suivi" style="display:none;">
+      <div id="suivi-list">
+        <div class="empty-state">
+          <div class="spinner"></div>
+          <div style="margin-top:12px;font-size:13px;color:var(--muted);">Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+</div><!-- /shell -->
+
+<!-- ======================== MODAL LITIGE ======================== -->
+<div class="modal-overlay" id="modal-litige">
+  <div class="modal">
+    <div class="modal-title">⚠️ Ouvrir un litige</div>
+    <input type="hidden" id="litige-demande-id">
+    <div class="form-field" style="margin-bottom:14px;">
+      <label class="form-label">Motif du litige <span style="color:var(--accent)">*</span></label>
+      <select class="form-select" id="litige-motif">
+        <option value="">-- Choisir --</option>
+        <option value="non_conforme">Travail non conforme aux specifications</option>
+        <option value="mauvaise_qualite">Qualite insuffisante</option>
+        <option value="retard">Retard de livraison</option>
+        <option value="casse">Produit casse a la reception</option>
+        <option value="manquant">Elements manquants</option>
+        <option value="autre">Autre motif</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Description du probleme</label>
+      <textarea class="form-textarea" id="litige-desc" rows="4" placeholder="Decrivez le probleme rencontre de facon objective et factuelle. JADOMI IA traitera votre demande sous 24-48h."></textarea>
+    </div>
+    <div style="background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.3);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-top:12px;">
+      ⚠️ Le paiement sera bloque le temps de la mediation JADOMI. Les deux parties resteront anonymes durant toute la procedure.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-litige')">Annuler</button>
+      <button class="btn btn-red" onclick="submitLitige()">Ouvrir le litige</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== MODAL VALIDATION LIVRAISON ======================== -->
+<div class="modal-overlay" id="modal-valider">
+  <div class="modal">
+    <div class="modal-title">✅ Valider la livraison</div>
+    <input type="hidden" id="valider-demande-id">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">
+      En validant la livraison, vous confirmez que le travail est conforme aux specifications. Le paiement sera immediatement libere au laboratoire sous-traitant.
+    </p>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label class="form-label">Note de satisfaction</label>
+      <div style="display:flex;gap:6px;font-size:24px;" id="rating-stars">
+        <span class="star" data-v="1" onclick="setRating(1)" style="cursor:pointer;opacity:0.4;">⭐</span>
+        <span class="star" data-v="2" onclick="setRating(2)" style="cursor:pointer;opacity:0.4;">⭐</span>
+        <span class="star" data-v="3" onclick="setRating(3)" style="cursor:pointer;opacity:0.4;">⭐</span>
+        <span class="star" data-v="4" onclick="setRating(4)" style="cursor:pointer;opacity:0.4;">⭐</span>
+        <span class="star" data-v="5" onclick="setRating(5)" style="cursor:pointer;opacity:0.4;">⭐</span>
+      </div>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Commentaire (optionnel)</label>
+      <textarea class="form-textarea" id="valider-comment" rows="3" placeholder="Qualite du travail, respect des specifications, delai..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-valider')">Annuler</button>
+      <button class="btn btn-green" onclick="submitValidation()">Valider et liberer le paiement</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://fzkjbwtnbkdvjlcyonpp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a2pid3RuYmtkdmpMY3lvbnBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3MjUzNzIsImV4cCI6MjA2MDMwMTM3Mn0.r0oNcjfFTNvKk3WvN8PZLjbGH0Kfzih4S2VxBHW3a9k';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const API = '/api/rush';
+let authToken = null;
+let currentUser = null;
+let mesDemandes = [];
+let dispoList = [];
+let messagePollers = {};
+let currentRating = 0;
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '/login.html'; return; }
+  authToken = session.access_token;
+  currentUser = session.user;
+  await loadUserAlias();
+
+  // Detect anchor tab
+  const hash = window.location.hash;
+  if (hash === '#repondre') switchTab('repondre');
+  else if (hash === '#suivi') switchTab('suivi');
+  else await loadMesDemandes();
+}
+
+async function loadUserAlias() {
+  try {
+    const r = await apiFetch('/api/rush/mon-profil');
+    if (r && r.alias) document.getElementById('sidebar-alias').textContent = r.alias;
+  } catch(e) {}
+}
+
+function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + authToken,
+      ...(options.headers || {})
+    }
+  }).then(async r => {
+    const txt = await r.text();
+    try { return JSON.parse(txt); } catch { return { _raw: txt }; }
+  });
+}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['mes','repondre','suivi'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'mes') loadMesDemandes();
+  else if (tab === 'repondre') loadDispoList();
+  else if (tab === 'suivi') loadSuivi();
+}
+
+// ─── Load mes demandes ────────────────────────────────────────────────────────
+async function loadMesDemandes() {
+  try {
+    const data = await apiFetch(API + '/demandes/mes');
+    mesDemandes = Array.isArray(data) ? data : (data.demandes || []);
+    const nb = mesDemandes.length;
+    document.getElementById('tc-mes').textContent = nb;
+    document.getElementById('tc-mes').style.display = nb ? '' : 'none';
+    document.getElementById('nav-badge-mes').textContent = mesDemandes.filter(d => d.statut === 'devis_recu').length;
+    document.getElementById('nav-badge-mes').style.display = mesDemandes.filter(d => d.statut === 'devis_recu').length ? '' : 'none';
+    renderMesDemandes(mesDemandes);
+  } catch(e) {
+    document.getElementById('mes-demandes-list').innerHTML = renderError('Impossible de charger vos demandes.');
+  }
+}
+
+function filterMesDemandes() {
+  const q = document.getElementById('search-mes').value.toLowerCase();
+  const statut = document.getElementById('filter-statut').value;
+  const urgence = document.getElementById('filter-urgence').value;
+  const filtered = mesDemandes.filter(d => {
+    if (statut && d.statut !== statut) return false;
+    if (urgence && d.urgence !== urgence) return false;
+    if (q && !(formatType(d.type_acte).toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  renderMesDemandes(filtered);
+}
+
+function renderMesDemandes(list) {
+  const container = document.getElementById('mes-demandes-list');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Aucune demande</div>
+      <div class="empty-sub">Vous n'avez pas encore de demande Rush. Commencez par en poster une !</div>
+      <br><a href="nouvelle-demande.html" class="btn btn-accent" style="margin-top:8px;">➕ Nouvelle demande</a>
+    </div>`;
+    return;
+  }
+  container.innerHTML = list.map(d => renderDemandeCard(d)).join('');
+}
+
+function renderDemandeCard(d) {
+  const nbDevis = (d.devis || []).length;
+  const hasDevis = nbDevis > 0;
+  const id = d.id || d.demande_id;
+  return `<div class="card" id="card-${id}">
+    <div class="card-head" onclick="toggleCard('${id}')">
+      <div class="card-info">
+        <div>
+          <div class="card-type">${formatType(d.type_acte)}</div>
+          <div class="card-meta">${formatDate(d.created_at)} · ${d.arcade ? formatArcade(d.arcade) + ' · ' : ''}${d.nb_dents ? d.nb_dents + ' dents · ' : ''}${d.teinte ? 'Teinte ' + d.teinte : ''}</div>
+        </div>
+        ${d.urgence !== 'normal' ? `<span class="badge badge-urgent">${d.urgence === 'tres_urgent' ? '🔴 Tres urgent' : '🟠 Urgent'}</span>` : ''}
+        <span class="${badgeClass(d.statut)}">${statusIcon(d.statut)} ${statusLabel(d.statut)}</span>
+        <span class="nb-devis-badge ${hasDevis ? 'has-devis' : ''}">${nbDevis} devis</span>
+        <span class="card-date">Livraison : ${formatDate(d.date_livraison)}</span>
+      </div>
+      <span class="card-arrow" id="arrow-${id}">›</span>
+    </div>
+    <div class="card-body" id="body-${id}">
+      ${renderDemandeDetail(d)}
+      ${renderQuoteList(d)}
+      ${renderDemandeActions(d)}
+      ${renderMessages(d)}
+    </div>
+  </div>`;
+}
+
+function renderDemandeDetail(d) {
+  const id = d.id || d.demande_id;
+  return `<div class="detail-section">
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Details de la demande</div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-key">Type</div><div class="detail-val">${formatType(d.type_acte)}</div></div>
+      ${d.materiau ? `<div class="detail-item"><div class="detail-key">Materiau</div><div class="detail-val">${d.materiau}</div></div>` : ''}
+      ${d.teinte ? `<div class="detail-item"><div class="detail-key">Teinte</div><div class="detail-val">${d.teinte}</div></div>` : ''}
+      ${d.arcade ? `<div class="detail-item"><div class="detail-key">Arcade</div><div class="detail-val">${formatArcade(d.arcade)}</div></div>` : ''}
+      ${d.nb_dents ? `<div class="detail-item"><div class="detail-key">Dents</div><div class="detail-val">${d.nb_dents}</div></div>` : ''}
+      ${d.budget_max ? `<div class="detail-item"><div class="detail-key">Budget max</div><div class="detail-val">${d.budget_max}€${d.budget_negociable ? ' (negociable)' : ''}</div></div>` : ''}
+      <div class="detail-item"><div class="detail-key">Urgence</div><div class="detail-val">${formatUrgence(d.urgence)}</div></div>
+    </div>
+    ${d.description ? `<div style="margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--muted);line-height:1.6;">${escHtml(d.description)}</div>` : ''}
+  </div>`;
+}
+
+function renderQuoteList(d) {
+  const id = d.id || d.demande_id;
+  const devis = d.devis || [];
+  if (!devis.length) {
+    return `<div class="quote-empty">Aucun devis recu pour l'instant. <span style="color:var(--muted);font-size:11px;">Les laboratoires partenaires seront notifies.</span></div>`;
+  }
+  const canAccept = ['ouverte','en_attente_devis','devis_recu'].includes(d.statut);
+  return `<div class="quote-list">
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${devis.length} devis recu(s)</div>
+    ${devis.map(dv => {
+      const dvId = dv.id || dv.devis_id;
+      const isSelected = d.devis_accepte_id === dvId;
+      return `<div class="quote-item ${isSelected ? 'selected' : ''}">
+        <span class="quote-alias">🏷️ ${escHtml(dv.alias_labo || 'Labo Anonyme')}</span>
+        <span class="quote-price">${dv.prix}€</span>
+        <span class="quote-delai">⏱ ${dv.delai} jour(s)</span>
+        <span class="quote-rating">⭐${dv.note_labo || '—'} (${dv.nb_travaux || 0} travaux)</span>
+        ${dv.message ? `<span class="quote-msg">"${escHtml(dv.message)}"</span>` : ''}
+        <div class="quote-actions">
+          ${isSelected ? '<span class="badge badge-validee">✅ Accepte</span>' : ''}
+          ${canAccept && !isSelected ? `<button class="btn btn-accent btn-sm" onclick="accepterDevis('${dvId}','${id}')">Accepter</button>` : ''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderDemandeActions(d) {
+  const id = d.id || d.demande_id;
+  const actions = [];
+
+  if (d.statut === 'devis_accepte') {
+    actions.push(`<button class="btn btn-accent btn-sm" onclick="payer('${id}')">💳 Payer via JADOMI</button>`);
+  }
+  if (d.statut === 'livree') {
+    actions.push(`<button class="btn btn-green btn-sm" onclick="openValider('${id}')">✅ Valider la livraison</button>`);
+    actions.push(`<button class="btn btn-red btn-sm" onclick="openLitige('${id}')">⚠️ Ouvrir un litige</button>`);
+  }
+  if (d.statut === 'en_fabrication' || d.statut === 'en_livraison') {
+    actions.push(`<span class="badge badge-en_fabrication">${d.statut === 'en_fabrication' ? '🔨 En fabrication' : '🚚 En livraison'}</span>`);
+  }
+  if (['ouverte','en_attente_devis'].includes(d.statut)) {
+    actions.push(`<button class="btn btn-ghost btn-sm" onclick="annulerDemande('${id}')">Annuler la demande</button>`);
+  }
+  if (!actions.length) return '';
+  return `<div class="demand-actions">${actions.join('')}</div>`;
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+function renderMessages(d) {
+  const id = d.id || d.demande_id;
+  return `<div class="msg-section">
+    <div class="msg-header">
+      <div class="msg-title">💬 Messagerie anonyme</div>
+      <div class="ia-chip">🤖 JADOMI IA protege votre anonymat</div>
+    </div>
+    <div class="msg-list" id="msgs-${id}">
+      <div class="msg-empty">Chargement des messages...</div>
+    </div>
+    <div class="msg-input-row">
+      <textarea class="msg-input" id="msg-input-${id}" placeholder="Message technique (JADOMI IA filtre toute donnee identifiante)..." onkeydown="onMsgKeydown(event,'${id}')"></textarea>
+      <button class="btn btn-accent btn-sm" onclick="sendMessage('${id}')">Envoyer</button>
+    </div>
+  </div>`;
+}
+
+async function loadMessages(demandeId) {
+  try {
+    const data = await apiFetch(API + '/messages/' + demandeId);
+    const msgs = Array.isArray(data) ? data : (data.messages || []);
+    renderMsgList(demandeId, msgs);
+  } catch(e) {
+    const el = document.getElementById('msgs-' + demandeId);
+    if (el) el.innerHTML = '<div class="msg-empty">Aucun message.</div>';
+  }
+}
+
+function renderMsgList(demandeId, msgs) {
+  const container = document.getElementById('msgs-' + demandeId);
+  if (!container) return;
+  if (!msgs.length) {
+    container.innerHTML = '<div class="msg-empty">Aucun message. Commencez la conversation !</div>';
+    return;
+  }
+  container.innerHTML = msgs.map(m => {
+    const isMine = m.auteur_id === currentUser?.id || m.is_mine;
+    const cls = isMine ? 'mine' : 'other';
+    return `<div class="msg-bubble ${cls}">
+      <span class="msg-alias">${escHtml(m.alias || (isMine ? 'Vous' : 'Labo Anonyme'))}</span>
+      <div class="msg-text">${escHtml(m.contenu || m.message || '')}</div>
+      <span class="msg-time">${formatDatetime(m.created_at)}</span>
+    </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function onMsgKeydown(e, id) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(id); }
+}
+
+async function sendMessage(demandeId) {
+  const input = document.getElementById('msg-input-' + demandeId);
+  if (!input) return;
+  const contenu = input.value.trim();
+  if (!contenu) return;
+  input.value = '';
+  try {
+    await apiFetch(API + '/messages', {
+      method: 'POST',
+      body: JSON.stringify({ demande_id: demandeId, contenu })
+    });
+    await loadMessages(demandeId);
+  } catch(e) {
+    showToast('⚠️ Erreur envoi message');
+    input.value = contenu;
+  }
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+async function accepterDevis(devisId, demandeId) {
+  if (!confirm('Accepter ce devis ? Le laboratoire sera notifie anonymement.')) return;
+  try {
+    await apiFetch(API + '/devis/' + devisId + '/accepter', { method: 'POST' });
+    showToast('✅ Devis accepte ! Vous pouvez maintenant proceder au paiement.');
+    await loadMesDemandes();
+  } catch(e) {
+    showToast('⚠️ Erreur : ' + (e.message || 'Veuillez reessayer.'));
+  }
+}
+
+async function payer(demandeId) {
+  showToast('⏳ Redirection vers le paiement...');
+  try {
+    const r = await apiFetch(API + '/paiement', {
+      method: 'POST',
+      body: JSON.stringify({ demande_id: demandeId })
+    });
+    if (r.url || r.checkout_url) {
+      window.location.href = r.url || r.checkout_url;
+    } else {
+      showToast('⚠️ Impossible d\'initialiser le paiement.');
+    }
+  } catch(e) {
+    showToast('⚠️ Erreur paiement');
+  }
+}
+
+function openValider(demandeId) {
+  document.getElementById('valider-demande-id').value = demandeId;
+  currentRating = 0;
+  document.querySelectorAll('.star').forEach(s => s.style.opacity = '0.4');
+  document.getElementById('valider-comment').value = '';
+  openModal('modal-valider');
+}
+
+async function submitValidation() {
+  const demandeId = document.getElementById('valider-demande-id').value;
+  if (!demandeId) return;
+  try {
+    await apiFetch(API + '/demandes/' + demandeId + '/valider', {
+      method: 'POST',
+      body: JSON.stringify({
+        note: currentRating || null,
+        commentaire: document.getElementById('valider-comment').value.trim() || null
+      })
+    });
+    closeModal('modal-valider');
+    showToast('✅ Livraison validee ! Le paiement a ete libere.');
+    await loadMesDemandes();
+  } catch(e) {
+    showToast('⚠️ Erreur validation');
+  }
+}
+
+function openLitige(demandeId) {
+  document.getElementById('litige-demande-id').value = demandeId;
+  document.getElementById('litige-motif').value = '';
+  document.getElementById('litige-desc').value = '';
+  openModal('modal-litige');
+}
+
+async function submitLitige() {
+  const demandeId = document.getElementById('litige-demande-id').value;
+  const motif = document.getElementById('litige-motif').value;
+  if (!motif) { showToast('⚠️ Selectionnez un motif'); return; }
+  try {
+    await apiFetch(API + '/demandes/' + demandeId + '/litige', {
+      method: 'POST',
+      body: JSON.stringify({
+        motif,
+        description: document.getElementById('litige-desc').value.trim()
+      })
+    });
+    closeModal('modal-litige');
+    showToast('⚠️ Litige ouvert. JADOMI vous contactera sous 24-48h.');
+    await loadMesDemandes();
+  } catch(e) {
+    showToast('⚠️ Erreur ouverture litige');
+  }
+}
+
+async function annulerDemande(demandeId) {
+  if (!confirm('Annuler cette demande ? Cette action est irreversible.')) return;
+  try {
+    await apiFetch(API + '/demandes/' + demandeId + '/annuler', { method: 'POST' });
+    showToast('Demande annulee.');
+    await loadMesDemandes();
+  } catch(e) {
+    showToast('⚠️ Erreur annulation');
+  }
+}
+
+function setRating(v) {
+  currentRating = v;
+  document.querySelectorAll('.star').forEach(s => {
+    s.style.opacity = parseInt(s.dataset.v) <= v ? '1' : '0.4';
+  });
+}
+
+// ─── Toggle card ──────────────────────────────────────────────────────────────
+function toggleCard(id) {
+  const body = document.getElementById('body-' + id);
+  const arrow = document.getElementById('arrow-' + id);
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (arrow) { arrow.classList.toggle('open', !isOpen); }
+  if (!isOpen) loadMessages(id);
+}
+
+// ─── Available demandes ───────────────────────────────────────────────────────
+async function loadDispoList() {
+  try {
+    const data = await apiFetch(API + '/demandes?statut=ouverte');
+    dispoList = Array.isArray(data) ? data : (data.demandes || []);
+    const nb = dispoList.length;
+    document.getElementById('tc-dispo').textContent = nb;
+    document.getElementById('tc-dispo').style.display = nb ? '' : 'none';
+    document.getElementById('nav-badge-dispo').textContent = nb;
+    document.getElementById('nav-badge-dispo').style.display = nb ? '' : 'none';
+    renderDispoList(dispoList);
+  } catch(e) {
+    document.getElementById('dispo-list').innerHTML = renderError('Impossible de charger les demandes disponibles.');
+  }
+}
+
+function filterDispo() {
+  const q = document.getElementById('search-dispo').value.toLowerCase();
+  const type = document.getElementById('filter-type-dispo').value;
+  const urgence = document.getElementById('filter-urgence-dispo').value;
+  const filtered = dispoList.filter(d => {
+    if (type && d.type_acte !== type) return false;
+    if (urgence && d.urgence !== urgence) return false;
+    if (q && !(formatType(d.type_acte).toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  renderDispoList(filtered);
+}
+
+function renderDispoList(list) {
+  const container = document.getElementById('dispo-list');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">💬</div>
+      <div class="empty-title">Aucune demande disponible</div>
+      <div class="empty-sub">Il n'y a pas de demande ouverte pour le moment. Revenez plus tard ou ajustez vos filtres.</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML = list.map(d => renderAvailCard(d)).join('');
+}
+
+function renderAvailCard(d) {
+  const id = d.id || d.demande_id;
+  const jours = Math.ceil((new Date(d.date_livraison) - new Date()) / 86400000);
+  return `<div class="avail-card" id="avail-${id}">
+    <div class="avail-top" onclick="toggleAvail('${id}')">
+      <div class="avail-type">${formatType(d.type_acte)}</div>
+      ${d.urgence !== 'normal' ? `<span class="badge badge-urgent">${d.urgence === 'tres_urgent' ? '🔴 Tres urgent' : '🟠 Urgent'}</span>` : ''}
+      <span class="badge badge-ouverte">Ouverte</span>
+      ${d.budget_max ? `<span style="font-family:var(--mono);font-size:12px;color:var(--accent);">Budget : ${d.budget_max}€</span>` : ''}
+    </div>
+    <div class="avail-meta">
+      <span>📅 Livraison dans ${jours > 0 ? jours + ' jour(s)' : 'urgence!'}</span>
+      ${d.arcade ? `<span>🦷 ${formatArcade(d.arcade)}</span>` : ''}
+      ${d.nb_dents ? `<span>🔢 ${d.nb_dents} dents</span>` : ''}
+      ${d.teinte ? `<span>🎨 Teinte ${d.teinte}</span>` : ''}
+      ${d.materiau ? `<span>⚗️ ${d.materiau}</span>` : ''}
+    </div>
+    ${d.description ? `<div class="avail-desc">${escHtml(d.description.slice(0, 200))}${d.description.length > 200 ? '...' : ''}</div>` : ''}
+    <div id="avail-form-${id}" style="display:none;">
+      ${renderQuoteForm(id)}
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;" onclick="event.stopPropagation()">
+      <button class="btn btn-accent btn-sm" onclick="toggleAvailForm('${id}')">💬 Repondre avec un devis</button>
+    </div>
+  </div>`;
+}
+
+function toggleAvail(id) {
+  const card = document.getElementById('avail-' + id);
+  if (card) card.classList.toggle('selected');
+}
+
+function toggleAvailForm(id) {
+  const form = document.getElementById('avail-form-' + id);
+  if (form) form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
+function renderQuoteForm(demandeId) {
+  return `<div class="quote-form" onclick="event.stopPropagation()">
+    <div class="quote-form-title">📝 Soumettre un devis</div>
+    <div class="form-grid-3">
+      <div class="form-field">
+        <label class="form-label">Prix (€) <span style="color:var(--accent)">*</span></label>
+        <input class="form-input" type="number" id="qf-prix-${demandeId}" min="1" max="9999" step="0.5" placeholder="Ex : 45">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Delai (jours) <span style="color:var(--accent)">*</span></label>
+        <input class="form-input" type="number" id="qf-delai-${demandeId}" min="1" max="90" placeholder="Ex : 5">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Disponibilite</label>
+        <select class="form-select" id="qf-dispo-${demandeId}">
+          <option value="immediate">Immediate</option>
+          <option value="2_jours">Sous 2 jours</option>
+          <option value="semaine">Cette semaine</option>
+        </select>
+      </div>
+      <div class="form-field full">
+        <label class="form-label">Message technique</label>
+        <textarea class="form-textarea" id="qf-msg-${demandeId}" rows="3" placeholder="Precisions techniques, questions, garanties offertes... (JADOMI IA filtre les donnees identifiantes)"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleAvailForm('${demandeId}')">Annuler</button>
+      <button class="btn btn-accent btn-sm" onclick="submitDevis('${demandeId}')">Envoyer le devis</button>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);">Votre identite reste completement anonyme. Le demandeur verra uniquement votre alias JADOMI.</div>
+  </div>`;
+}
+
+async function submitDevis(demandeId) {
+  const prix = parseFloat(document.getElementById('qf-prix-' + demandeId)?.value);
+  const delai = parseInt(document.getElementById('qf-delai-' + demandeId)?.value);
+  const msg = document.getElementById('qf-msg-' + demandeId)?.value?.trim() || '';
+  const dispo = document.getElementById('qf-dispo-' + demandeId)?.value || 'immediate';
+
+  if (!prix || prix <= 0) { showToast('⚠️ Veuillez indiquer un prix valide'); return; }
+  if (!delai || delai <= 0) { showToast('⚠️ Veuillez indiquer un delai valide'); return; }
+
+  try {
+    await apiFetch(API + '/devis', {
+      method: 'POST',
+      body: JSON.stringify({ demande_id: demandeId, prix, delai, message: msg, disponibilite: dispo })
+    });
+    showToast('✅ Devis envoye ! Vous serez notifie si le labo l\'accepte.');
+    toggleAvailForm(demandeId);
+  } catch(e) {
+    showToast('⚠️ Erreur envoi devis : ' + (e.message || 'Reessayez.'));
+  }
+}
+
+// ─── Suivi ────────────────────────────────────────────────────────────────────
+async function loadSuivi() {
+  try {
+    const data = await apiFetch(API + '/demandes/mes');
+    const all = Array.isArray(data) ? data : (data.demandes || []);
+    const enCours = all.filter(d => ['devis_accepte','paiement_effectue','en_fabrication','en_livraison','livree'].includes(d.statut));
+    renderSuivi(enCours);
+  } catch(e) {
+    document.getElementById('suivi-list').innerHTML = renderError('Impossible de charger le suivi.');
+  }
+}
+
+function renderSuivi(list) {
+  const container = document.getElementById('suivi-list');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <div class="empty-title">Aucune livraison en cours</div>
+      <div class="empty-sub">Vos commandes acceptees et en fabrication apparaitront ici avec leur suivi en temps reel.</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML = list.map(d => {
+    const id = d.id || d.demande_id;
+    const steps = [
+      { key: 'devis_accepte', label: 'Devis accepte', icon: '✅' },
+      { key: 'paiement_effectue', label: 'Paiement securise', icon: '💳' },
+      { key: 'en_fabrication', label: 'En fabrication', icon: '🔨' },
+      { key: 'en_livraison', label: 'En livraison', icon: '🚚' },
+      { key: 'livree', label: 'Livree', icon: '📦' },
+    ];
+    const statusOrder = ['devis_accepte','paiement_effectue','en_fabrication','en_livraison','livree','validee'];
+    const currentIdx = statusOrder.indexOf(d.statut);
+
+    return `<div class="card">
+      <div class="card-head" style="cursor:default;">
+        <div class="card-info">
+          <div><div class="card-type">${formatType(d.type_acte)}</div>
+          <div class="card-meta">Livraison prevue : ${formatDate(d.date_livraison)}</div></div>
+          <span class="${badgeClass(d.statut)}">${statusIcon(d.statut)} ${statusLabel(d.statut)}</span>
+        </div>
+      </div>
+      <div class="track-line">
+        ${steps.map((s, i) => {
+          const stepIdx = statusOrder.indexOf(s.key);
+          const isDone = currentIdx >= stepIdx;
+          const isActive = currentIdx === stepIdx;
+          return `
+            <div class="track-step">
+              <div class="track-dot ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}">${s.icon}</div>
+              <div class="track-info">
+                <div class="track-label" style="${isDone ? 'color:var(--text)' : 'color:var(--muted)'}">${s.label}</div>
+              </div>
+            </div>
+            ${i < steps.length - 1 ? `<div class="track-connector ${isDone ? 'done' : ''}"></div>` : ''}
+          `;
+        }).join('')}
+      </div>
+      ${d.statut === 'livree' ? `
+        <div class="demand-actions">
+          <button class="btn btn-green btn-sm" onclick="openValider('${id}')">✅ Valider la livraison</button>
+          <button class="btn btn-red btn-sm" onclick="openLitige('${id}')">⚠️ Ouvrir un litige</button>
+        </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ─── Modals ───────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, duration = 3500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function renderError(msg) {
+  return `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Erreur</div><div class="empty-sub">${escHtml(msg)}</div></div>`;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDatetime(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '';
+  return dt.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function formatType(v) {
+  const map = {
+    couronne_zircone:'Couronne Zircone', couronne_ceramo_metal:'Couronne Ceramo-metal',
+    couronne_emax:'Couronne E.max', couronne_cad:'Couronne CAD/CAM',
+    bridge:'Bridge', inlay_onlay:'Inlay / Onlay', facette:'Facette ceramique',
+    onlay_composite:'Onlay composite', pac_complete:'PAC Complete',
+    pac_partielle:'PAC Partielle', stellite:'Stellite', pap_resine:'PAP Resine',
+    prothese_immediate:'Prothese immediate', gouttiere:'Gouttiere',
+    appareil_ortho:'Appareil ortho amovible', couronne_implant:'Couronne sur implant',
+    bridge_implant:'Bridge sur implants', bar_implant:'Barre implantaire',
+    reparation:'Reparation / Rebasage', autre:'Autre'
+  };
+  return map[v] || v || '—';
+}
+
+function formatArcade(v) {
+  const map = { haut:'Maxillaire (haut)', bas:'Mandibule (bas)', les_deux:'Bimaxillaire' };
+  return map[v] || v;
+}
+
+function formatUrgence(v) {
+  const map = { normal:'Normal', urgent:'Urgent (48h)', tres_urgent:'Tres urgent (24h)' };
+  return map[v] || v || 'Normal';
+}
+
+function statusLabel(s) {
+  const m = {
+    ouverte:'Ouverte', en_attente_devis:'En attente', devis_recu:'Devis recu',
+    devis_accepte:'Devis accepte', paiement_effectue:'Paiement OK',
+    en_fabrication:'En fabrication', en_livraison:'En livraison',
+    livree:'Livree', validee:'Validee', litige:'Litige', annulee:'Annulee', expiree:'Expiree'
+  };
+  return m[s] || s || '—';
+}
+
+function statusIcon(s) {
+  const m = {
+    ouverte:'🟢', en_attente_devis:'⏳', devis_recu:'📩',
+    devis_accepte:'✅', paiement_effectue:'💳',
+    en_fabrication:'🔨', en_livraison:'🚚',
+    livree:'📦', validee:'✅', litige:'⚠️', annulee:'❌', expiree:'🕐'
+  };
+  return m[s] || '•';
+}
+
+function badgeClass(s) {
+  const m = {
+    ouverte:'badge badge-ouverte', en_attente_devis:'badge badge-en_attente_devis',
+    devis_recu:'badge badge-devis_recu', devis_accepte:'badge badge-devis_accepte',
+    paiement_effectue:'badge badge-paiement_effectue', en_fabrication:'badge badge-en_fabrication',
+    en_livraison:'badge badge-en_livraison', livree:'badge badge-livree',
+    validee:'badge badge-validee', litige:'badge badge-litige',
+    annulee:'badge badge-annulee', expiree:'badge badge-expiree'
+  };
+  return m[s] || 'badge';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>

@@ -70,7 +70,7 @@ function header(doc, societe, logoBuffer) {
   if (societe?.siren) lines.push(`SIREN : ${societe.siren}`);
   if (societe?.tva_intracom) lines.push(`TVA intracom : ${societe.tva_intracom}`);
   doc.text(lines.join('\n'), textX, top + 20);
-  doc.moveTo(48, top + 110).lineTo(547, top + 110).strokeColor('#c8f060').lineWidth(2).stroke();
+  doc.moveTo(48, top + 110).lineTo(547, top + 110).strokeColor('#10b981').lineWidth(2).stroke();
   doc.fillColor('#000').strokeColor('#000');
 }
 
@@ -128,22 +128,35 @@ async function buildQuittancePDF({ societe, locataire, bien, quittance }) {
     doc.text('Provisions sur charges', 56, y + 7);
     doc.text(EUR(quittance.charges), 450, y + 7, { width: 90, align: 'right' });
     y += 22;
-    doc.rect(48, y, 499, 26).fill('#c8f060').stroke('#c8f060');
+    doc.rect(48, y, 499, 26).fill('#10b981').stroke('#10b981');
     doc.fillColor('#000').font('Helvetica-Bold').fontSize(11);
     doc.text('Total reçu', 56, y + 8);
     doc.text(EUR(quittance.total), 450, y + 8, { width: 90, align: 'right' });
 
+    // --- Texte légal : pleine largeur, en bas, sous ligne séparatrice ---
+    const legalY = doc.y + 40;
+    doc.moveTo(48, legalY).lineTo(547, legalY).strokeColor('#ccc').lineWidth(0.5).stroke();
+
     doc.fillColor('#000').font('Helvetica').fontSize(10);
-    doc.moveDown(3);
     doc.text(
-      `Je soussigné·e, bailleur désigné ci-dessus, déclare avoir reçu de ${nomLoc} la somme de ${EUR(quittance.total)} au titre du loyer et des charges pour la période de ${MOIS_FR[quittance.mois-1]} ${quittance.annee} concernant le logement désigné ci-dessus, et lui en donne quittance, sous réserve de tous mes droits.`,
-      { align: 'justify' }
+      `Soussigné(e), bailleur désigné ci-dessus, déclare avoir reçu de ${nomLoc} la somme de ${EUR(quittance.total)} au titre du loyer et des charges pour la période de ${MOIS_FR[quittance.mois-1]} ${quittance.annee} concernant le logement désigné ci-dessus, et lui en donne quittance, sous réserve de tous mes droits.`,
+      48, legalY + 12, { width: 499, align: 'left' }
     );
-    doc.moveDown(2);
-    doc.text(`Fait le ${DATE(new Date())}`, { align: 'right' });
-    doc.moveDown(2);
-    doc.font('Helvetica-Oblique').fontSize(9).fillColor('#666')
-       .text('La présente quittance annule tous les reçus qui auraient pu être établis précédemment en cas de paiement partiel du montant du présent terme.', { align: 'justify' });
+
+    doc.moveDown(1.5);
+    doc.text(`Fait le ${DATE(new Date())}`, 48, doc.y, { width: 499, align: 'left' });
+
+    doc.moveDown(1.5);
+    doc.font('Helvetica').fontSize(9).fillColor('#666')
+       .text('La présente quittance annule tous les reçus qui auraient pu être établis précédemment en cas de paiement partiel du montant du présent terme.',
+         48, doc.y, { width: 499, align: 'left' });
+
+    // Signature bailleur (si nom société disponible)
+    if (societe?.nom) {
+      doc.moveDown(2);
+      doc.font('Helvetica').fontSize(10).fillColor('#000')
+         .text(`Le bailleur : ${societe.nom}`, 48, doc.y, { width: 499, align: 'right' });
+    }
   });
 }
 
@@ -224,28 +237,46 @@ async function buildFacturePDF({ societe, client, facture }) {
       doc.text(`Paiement en ${facture.nb_echeances} fois sans frais.`);
     }
 
+    if (facture.notes) { doc.moveDown(0.5); doc.font('Helvetica').fontSize(9).fillColor('#000').text(facture.notes); }
+
+    // --- Mentions légales : full-width footer at bottom ---
+    doc.moveDown(2);
+    doc.moveTo(48, doc.y).lineTo(547, doc.y).strokeColor('#ccc').lineWidth(0.5).stroke();
     doc.moveDown(0.5);
-    doc.font('Helvetica').fontSize(8).fillColor('#555');
+    doc.font('Helvetica').fontSize(8).fillColor('#666');
     doc.text(
-      `Pénalités de retard : ${societe?.penalites_retard || '3x taux BCE en vigueur'}. Indemnité forfaitaire pour frais de recouvrement : ${societe?.indemnite_recouvrement || 40}€ (art. L441-10 Code de commerce).`,
-      { align: 'justify' }
+      `Pénalités de retard : ${societe?.penalites_retard || '3x taux BCE en vigueur'}. Indemnité forfaitaire pour frais de recouvrement : ${societe?.indemnite_recouvrement || 40} € (art. L441-10 Code de commerce).`,
+      48, doc.y, { width: 499, align: 'left' }
     );
-    doc.text('Pas d\'escompte pour paiement anticipé. TVA exigible sur les débits.');
-    if (facture.notes) { doc.moveDown(0.3); doc.fillColor('#000').text(facture.notes); }
+    doc.text('Pas d\'escompte pour paiement anticipé. TVA exigible sur les débits.', 48, doc.y, { width: 499, align: 'left' });
+    doc.fillColor('#000').strokeColor('#000');
     footerCgv(doc, societe);
   });
 }
 
 function drawLignesTable(doc, lignes, doc_totals) {
-  const x0 = 48, xQte = 310, xPu = 360, xTva = 420, xTotal = 490;
+  const hasRemise = (lignes || []).some(l => Number(l.remise_pct || 0) > 0);
+  const hasGlobalRemise = Number(doc_totals?.remise_globale_pct || 0) > 0;
+
+  // Adjust column positions based on whether we show remise column
+  let x0, xQte, xPu, xRem, xTva, xTotal;
+  if (hasRemise) {
+    x0 = 48; xQte = 270; xPu = 315; xRem = 365; xTva = 405; xTotal = 450;
+  } else {
+    x0 = 48; xQte = 310; xPu = 360; xTva = 420; xTotal = 490;
+  }
+  const tableWidth = 499;
+  const totalColW = hasRemise ? 95 : 55;
+
   const y0 = doc.y;
-  doc.rect(48, y0, 499, 22).fill('#f4f1ea').stroke('#ddd');
+  doc.rect(48, y0, tableWidth, 22).fill('#f4f1ea').stroke('#ddd');
   doc.fillColor('#111').font('Helvetica-Bold').fontSize(9);
-  doc.text('Désignation', x0 + 6, y0 + 6, { width: 250 });
+  doc.text('Désignation', x0 + 6, y0 + 6, { width: hasRemise ? 210 : 250 });
   doc.text('Qté', xQte, y0 + 6, { width: 40, align: 'right' });
-  doc.text('PU HT', xPu, y0 + 6, { width: 50, align: 'right' });
+  doc.text('PU HT', xPu, y0 + 6, { width: 45, align: 'right' });
+  if (hasRemise) doc.text('Rem%', xRem, y0 + 6, { width: 35, align: 'right' });
   doc.text('TVA%', xTva, y0 + 6, { width: 40, align: 'right' });
-  doc.text('Total TTC', xTotal, y0 + 6, { width: 55, align: 'right' });
+  doc.text('Total TTC', xTotal, y0 + 6, { width: totalColW, align: 'right' });
 
   let y = y0 + 22;
   doc.fillColor('#000').font('Helvetica').fontSize(9);
@@ -253,34 +284,69 @@ function drawLignesTable(doc, lignes, doc_totals) {
   for (const l of (lignes || [])) {
     const qte = Number(l.quantite || 0);
     const pu = Number(l.prix_unitaire_ht || 0);
+    const remise = Number(l.remise_pct || 0);
     const tva = Number(l.taux_tva || 0);
-    const ht = qte * pu;
+    const ht_brut = qte * pu;
+    const ht = ht_brut * (1 - remise / 100);
     const mTva = ht * tva / 100;
     const ttc = ht + mTva;
     sousHt += ht; totTva += mTva; totTtc += ttc;
 
     const desc = [l.reference, l.designation, l.description].filter(Boolean).join(' — ');
-    const hDesc = doc.heightOfString(desc, { width: 250 });
+    const descWidth = hasRemise ? 210 : 250;
+    const hDesc = doc.heightOfString(desc, { width: descWidth });
     const hLine = Math.max(22, hDesc + 12);
-    doc.rect(48, y, 499, hLine).stroke('#eee');
-    doc.text(desc, x0 + 6, y + 6, { width: 250 });
+    doc.rect(48, y, tableWidth, hLine).stroke('#eee');
+    doc.text(desc, x0 + 6, y + 6, { width: descWidth });
     doc.text(String(qte), xQte, y + 6, { width: 40, align: 'right' });
-    doc.text(EUR(pu), xPu, y + 6, { width: 50, align: 'right' });
+    doc.text(EUR(pu), xPu, y + 6, { width: 45, align: 'right' });
+    if (hasRemise) {
+      if (remise > 0) {
+        doc.fillColor('#b00020').text(`-${remise}%`, xRem, y + 6, { width: 35, align: 'right' });
+        doc.fillColor('#000');
+      } else {
+        doc.text('—', xRem, y + 6, { width: 35, align: 'right' });
+      }
+    }
     doc.text(tva.toFixed(2), xTva, y + 6, { width: 40, align: 'right' });
-    doc.text(EUR(ttc), xTotal, y + 6, { width: 55, align: 'right' });
+    doc.text(EUR(ttc), xTotal, y + 6, { width: totalColW, align: 'right' });
     y += hLine;
   }
 
   y += 8;
   const labelX = 370, valX = 490;
   doc.font('Helvetica').fontSize(10);
-  doc.text('Sous-total HT', labelX, y, { width: 110, align: 'right' });
-  doc.text(EUR(doc_totals?.sous_total_ht ?? sousHt), valX, y, { width: 55, align: 'right' });
-  y += 16;
+
+  if (hasGlobalRemise) {
+    // Show sous-total before global discount
+    const sousHtBrut = doc_totals?.sous_total_ht_brut ?? sousHt;
+    doc.text('Sous-total HT', labelX, y, { width: 110, align: 'right' });
+    doc.text(EUR(sousHtBrut), valX, y, { width: 55, align: 'right' });
+    y += 16;
+    // Global discount line
+    const rgPct = Number(doc_totals.remise_globale_pct);
+    const rgMontant = Number(doc_totals.remise_globale_montant || 0);
+    doc.fillColor('#b00020');
+    doc.text(`Remise commerciale ${rgPct}%`, labelX - 60, y, { width: 170, align: 'right' });
+    doc.text(`-${EUR(rgMontant)}`, valX, y, { width: 55, align: 'right' });
+    doc.fillColor('#000');
+    y += 16;
+    // Total HT after discount
+    doc.font('Helvetica-Bold');
+    doc.text('Total HT remisé', labelX, y, { width: 110, align: 'right' });
+    doc.text(EUR(doc_totals?.sous_total_ht ?? sousHt), valX, y, { width: 55, align: 'right' });
+    doc.font('Helvetica');
+    y += 16;
+  } else {
+    doc.text('Sous-total HT', labelX, y, { width: 110, align: 'right' });
+    doc.text(EUR(doc_totals?.sous_total_ht ?? sousHt), valX, y, { width: 55, align: 'right' });
+    y += 16;
+  }
+
   doc.text('Total TVA', labelX, y, { width: 110, align: 'right' });
   doc.text(EUR(doc_totals?.total_tva ?? totTva), valX, y, { width: 55, align: 'right' });
   y += 18;
-  doc.rect(labelX - 6, y - 2, 180, 22).fill('#c8f060');
+  doc.rect(labelX - 6, y - 2, 180, 22).fill('#10b981');
   doc.fillColor('#000').font('Helvetica-Bold').fontSize(11);
   doc.text('Total TTC', labelX, y + 3, { width: 110, align: 'right' });
   doc.text(EUR(doc_totals?.total_ttc ?? totTtc), valX, y + 3, { width: 55, align: 'right' });
@@ -352,4 +418,65 @@ async function buildAvoirPDF({ societe, client, avoir, facture }) {
   });
 }
 
-module.exports = { buildQuittancePDF, buildDevisPDF, buildFacturePDF, buildAvoirPDF };
+// ======================================================================
+// FACTURE SCI (loyer) — adapte buildFacturePDF pour contexte locatif
+// ======================================================================
+async function buildFactureSciPDF({ societe, locataire, bien, facture }) {
+  const logo = await fetchLogoBuffer(societe?.logo_url);
+  return pdfToBuffer(doc => {
+    header(doc, societe, logo);
+    doc.moveDown(2);
+
+    doc.font('Helvetica-Bold').fontSize(18).text(`FACTURE  ${facture.numero}`, { align: 'right' });
+    doc.font('Helvetica').fontSize(10).moveDown(0.3)
+       .text(`Date d'émission : ${DATE(facture.date_emission)}`, { align: 'right' })
+       .text(`Période : ${MOIS_FR[facture.mois - 1]} ${facture.annee}`, { align: 'right' });
+
+    doc.moveDown(1.5);
+    doc.font('Helvetica-Bold').fontSize(11).text('Facturé à :');
+    doc.font('Helvetica').fontSize(10);
+    const nomLoc = locataire?.raison_sociale || `${locataire?.prenom || ''} ${locataire?.nom || ''}`.trim() || '—';
+    doc.text(nomLoc);
+    if (locataire?.adresse) doc.text(locataire.adresse);
+    if (locataire?.code_postal || locataire?.ville)
+      doc.text(`${locataire.code_postal || ''} ${locataire.ville || ''}`.trim());
+    if (locataire?.email) doc.text(`Email : ${locataire.email}`);
+
+    if (bien) {
+      doc.moveDown(0.5);
+      doc.font('Helvetica-Bold').text('Bien loué :');
+      doc.font('Helvetica');
+      const ad = [bien.adresse, `${bien.code_postal || ''} ${bien.ville || ''}`.trim()].filter(Boolean).join(', ');
+      doc.text(ad || bien.reference || '—');
+    }
+
+    doc.moveDown(1);
+    // Build lignes table
+    const lignes = facture.lignes || [];
+    drawLignesTable(doc, lignes, facture);
+
+    // Payment info
+    doc.moveDown(1);
+    doc.font('Helvetica-Bold').fontSize(10).text('Modalités de paiement');
+    doc.font('Helvetica').fontSize(9);
+    doc.text(`Conditions : ${societe?.conditions_paiement || 'à réception'}.`);
+    if (societe?.iban) doc.text(`IBAN : ${societe.iban}${societe.bic ? '   BIC : ' + societe.bic : ''}`);
+
+    if (facture.notes) { doc.moveDown(0.5); doc.font('Helvetica').fontSize(9).fillColor('#000').text(facture.notes); }
+
+    // --- Mentions légales : full-width footer ---
+    doc.moveDown(2);
+    doc.moveTo(48, doc.y).lineTo(547, doc.y).strokeColor('#ccc').lineWidth(0.5).stroke();
+    doc.moveDown(0.5);
+    doc.font('Helvetica').fontSize(8).fillColor('#666');
+    doc.text(
+      `Pénalités de retard : ${societe?.penalites_retard || '3x taux BCE en vigueur'}. Indemnité forfaitaire pour frais de recouvrement : ${societe?.indemnite_recouvrement || 40} € (art. L441-10 Code de commerce).`,
+      48, doc.y, { width: 499, align: 'left' }
+    );
+    doc.text('Pas d\'escompte pour paiement anticipé.', 48, doc.y, { width: 499, align: 'left' });
+    doc.fillColor('#000').strokeColor('#000');
+    footerCgv(doc, societe);
+  });
+}
+
+module.exports = { buildQuittancePDF, buildDevisPDF, buildFacturePDF, buildAvoirPDF, buildFactureSciPDF };

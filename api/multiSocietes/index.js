@@ -18,5 +18,6 @@ module.exports = function mountMultiSocietes(app) {
   try { require('./peremption')(app); } catch (e) { console.warn('[multi/peremption]', e.message); }
   try { require('./factureFournImport')(app); } catch (e) { console.warn('[multi/factureFournImport]', e.message); }
   try { require('./market')(app); } catch (e) { console.warn('[multi/market]', e.message); }
+  try { require('./communication')(app); } catch (e) { console.warn('[multi/communication]', e.message); }
   console.log('[JADOMI] Module multi-sociétés monté');
 };

@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Rush — Suivi commande</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<style>
+/* ── Reset & Variables ─────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;
+  --surface:#1e3460;
+  --surface2:#243870;
+  --surface3:#2a4080;
+  --border:rgba(99,102,241,0.25);
+  --border-active:rgba(99,102,241,0.35);
+  --accent:#6366f1;
+  --accent-dim:#818cf8;
+  --accent-bg:rgba(99,102,241,0.08);
+  --text:#f1f5f9;
+  --text-secondary:#94a3b8;
+  --muted:#94a3b8;
+  --green:#4ade80;
+  --green-bg:rgba(74,222,128,0.12);
+  --amber:#f59e0b;
+  --amber-bg:rgba(245,158,11,0.12);
+  --red:#ef4444;
+  --red-bg:rgba(248,113,113,0.12);
+  --blue:#60a5fa;
+  --blue-bg:rgba(96,165,250,0.12);
+  --purple:#a78bfa;
+  --purple-bg:rgba(167,139,250,0.12);
+  --radius:10px;
+  --radius-sm:6px;
+  --radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.5);
+  --font:'Inter',system-ui,sans-serif;
+  --sidebar-w:220px;
+  --topbar-h:58px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── Topbar ───────────────────────────────────────────── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar-h);
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:16px;z-index:200;
+}
+.topbar-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;}
+.logo-badge{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#0d1528,#1a1035);
+  border:1px solid var(--accent-dim);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+.logo-name{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;line-height:1;}
+.logo-sub{font-size:9px;color:var(--accent);letter-spacing:1px;font-weight:600;text-transform:uppercase;}
+.topbar-sep{width:1px;height:28px;background:var(--border);flex-shrink:0;}
+.topbar-nav{display:flex;gap:2px;flex:1;}
+.nav-link{
+  padding:6px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;
+  color:var(--text-secondary);text-decoration:none;transition:all .15s;cursor:pointer;border:none;background:none;
+}
+.nav-link:hover{background:var(--surface2);color:var(--text);}
+.nav-link.active{background:var(--accent-bg);color:var(--accent);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.user-pill{
+  display:flex;align-items:center;gap:8px;padding:5px 10px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:20px;
+  font-size:12px;color:var(--text-secondary);
+}
+.user-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+.btn-logout{
+  padding:5px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;
+  background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s;
+}
+.btn-logout:hover{border-color:var(--red);color:var(--red);}
+
+/* ── Main Layout ──────────────────────────────────────── */
+.main{
+  margin-top:var(--topbar-h);
+  padding:28px 24px;
+  max-width:1400px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.page-header{margin-bottom:24px;}
+.page-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+.page-subtitle{font-size:13px;color:var(--muted);}
+.ref-badge{
+  font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;
+  background:var(--accent-bg);color:var(--accent);border:1px solid rgba(16,185,129,0.2);
+}
+
+/* ── Grid Layout ─────────────────────────────────────── */
+.content-grid{
+  display:grid;
+  grid-template-columns:1fr 380px;
+  gap:20px;
+  align-items:start;
+}
+@media(max-width:1000px){
+  .content-grid{grid-template-columns:1fr;}
+}
+
+/* ── Left Column ─────────────────────────────────────── */
+.left-col{display:flex;flex-direction:column;gap:20px;}
+
+/* ── Card ────────────────────────────────────────────── */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:22px;
+}
+.card-title{
+  font-size:13px;font-weight:600;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:18px;
+  display:flex;align-items:center;gap:8px;
+}
+.card-title .ct-icon{font-size:15px;}
+
+/* ── Payment Banner ──────────────────────────────────── */
+.payment-banner{
+  padding:14px 18px;border-radius:var(--radius);
+  display:flex;align-items:center;gap:12px;margin-bottom:20px;
+  font-size:13px;font-weight:500;
+}
+.payment-banner.success{background:var(--green-bg);border:1px solid rgba(74,222,128,0.25);color:var(--green);}
+.payment-banner.cancel{background:var(--red-bg);border:1px solid rgba(248,113,113,0.25);color:var(--red);}
+
+/* ── Timeline / Stepper ──────────────────────────────── */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.step{
+  display:flex;gap:16px;position:relative;
+}
+.step:not(:last-child) .step-line{
+  position:absolute;left:19px;top:42px;bottom:0;width:2px;
+  background:var(--border);
+}
+.step-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;position:relative;z-index:1;}
+.step-icon{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;border:2px solid var(--border);background:var(--surface2);
+  transition:all .3s;flex-shrink:0;
+}
+.step-connector{flex:1;width:2px;background:var(--border);min-height:20px;margin:2px 0;}
+.step-body{flex:1;padding:6px 0 24px 0;}
+.step-label{font-size:13px;font-weight:600;color:var(--muted);line-height:1.3;transition:color .3s;}
+.step-date{font-size:11px;color:var(--muted);margin-top:2px;}
+.step-detail{margin-top:8px;font-size:12.5px;color:var(--text-secondary);}
+
+/* Step states */
+.step.done .step-icon{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+.step.done .step-label{color:var(--green);}
+.step.done .step-connector{background:var(--green);}
+.step.done .step-line{background:var(--green);}
+
+.step.active .step-icon{
+  background:var(--accent-bg);border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(16,185,129,0.12);
+  animation:pulse 2s infinite;
+}
+.step.active .step-label{color:var(--accent);font-weight:700;}
+
+.step.error .step-icon{background:var(--red-bg);border-color:var(--red);}
+.step.error .step-label{color:var(--red);}
+
+.step.warn .step-icon{background:var(--amber-bg);border-color:var(--amber);}
+.step.warn .step-label{color:var(--amber);}
+
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 4px rgba(16,185,129,0.12);}
+  50%{box-shadow:0 0 0 8px rgba(16,185,129,0.06);}
+}
+
+/* ── Countdown Badge ─────────────────────────────────── */
+.countdown-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+  background:var(--amber-bg);border:1px solid rgba(245,158,11,0.25);color:var(--amber);
+  margin-top:6px;
+}
+.countdown-badge.urgent{background:var(--red-bg);border-color:rgba(248,113,113,0.25);color:var(--red);}
+.countdown-badge.done{background:var(--green-bg);border-color:rgba(74,222,128,0.25);color:var(--green);}
+
+/* ── Tracking Card ───────────────────────────────────── */
+.tracking-info{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;border-radius:var(--radius-sm);
+  background:var(--surface3);border:1px solid var(--border);margin-top:8px;
+}
+.tracking-num{font-size:13px;font-weight:700;color:var(--text);flex:1;font-family:monospace;}
+.tracking-link{
+  font-size:11px;font-weight:600;color:var(--accent);text-decoration:none;
+  padding:3px 8px;border-radius:4px;border:1px solid rgba(16,185,129,0.2);
+  background:var(--accent-bg);
+}
+.tracking-link:hover{background:rgba(16,185,129,0.15);}
+
+/* ── Action Buttons ──────────────────────────────────── */
+.actions{display:flex;flex-wrap:wrap;gap:10px;padding-top:6px;}
+.btn{
+  padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s;border:none;display:inline-flex;align-items:center;gap:7px;
+}
+.btn-primary{background:var(--accent);color:#0f0e0d;}
+.btn-primary:hover{background:var(--accent-dim);}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--surface3);border-color:var(--border-active);}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,0.25);}
+.btn-danger:hover{background:rgba(248,113,113,0.2);}
+.btn-warn{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(245,158,11,0.25);}
+.btn-warn:hover{background:rgba(245,158,11,0.2);}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--text-secondary);}
+.btn-ghost:hover{border-color:var(--border-active);color:var(--text);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Payment Summary ─────────────────────────────────── */
+.payment-rows{display:flex;flex-direction:column;gap:10px;}
+.pay-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;}
+.pay-label{color:var(--text-secondary);}
+.pay-amount{font-weight:600;color:var(--text);}
+.pay-divider{height:1px;background:var(--border);margin:4px 0;}
+.pay-total .pay-label{color:var(--text);font-weight:700;}
+.pay-total .pay-amount{color:var(--accent);font-size:16px;font-weight:700;}
+.pay-commission{color:var(--muted) !important;font-size:12px !important;}
+.escrow-badge{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:var(--blue-bg);border:1px solid rgba(96,165,250,0.2);
+  border-radius:var(--radius-sm);font-size:12px;color:var(--blue);margin-top:12px;
+}
+.btn-pay{
+  width:100%;padding:11px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;
+  background:linear-gradient(135deg,#10b981,#9bbf3a);color:#0f0e0d;
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:14px;transition:all .15s;
+}
+.btn-pay:hover{background:linear-gradient(135deg,#d4f475,#a8cc45);}
+.btn-pay:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Files Panel ─────────────────────────────────────── */
+.files-list{display:flex;flex-direction:column;gap:8px;}
+.file-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
+}
+.file-icon{font-size:18px;flex-shrink:0;}
+.file-info{flex:1;min-width:0;}
+.file-name{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file-meta{font-size:11px;color:var(--muted);}
+.file-dl{
+  font-size:11px;font-weight:600;color:var(--accent);text-decoration:none;
+  padding:3px 8px;border-radius:4px;border:1px solid rgba(16,185,129,0.2);background:var(--accent-bg);flex-shrink:0;
+}
+.file-dl:hover{background:rgba(16,185,129,0.15);}
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--radius-sm);padding:20px;
+  text-align:center;cursor:pointer;transition:all .2s;margin-top:12px;
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-bg);}
+.upload-zone input{display:none;}
+.upload-zone-text{font-size:12px;color:var(--muted);}
+.upload-zone-text strong{color:var(--text-secondary);}
+.upload-progress{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden;display:none;}
+.upload-progress-bar{height:100%;background:var(--accent);border-radius:2px;width:0;transition:width .3s;}
+
+/* ── Expedition Form ─────────────────────────────────── */
+.inline-form{margin-top:12px;display:flex;flex-direction:column;gap:10px;}
+.form-row{display:flex;gap:8px;}
+.form-input{
+  flex:1;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font);transition:border-color .15s;
+}
+.form-input:focus{outline:none;border-color:var(--accent);}
+.form-select{
+  padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font);cursor:pointer;
+}
+.form-select:focus{outline:none;border-color:var(--accent);}
+.form-label{font-size:11px;color:var(--muted);margin-bottom:3px;}
+
+/* ── Right Column ─────────────────────────────────────── */
+.right-col{display:flex;flex-direction:column;gap:20px;}
+
+/* ── Messaging Panel ─────────────────────────────────── */
+.msg-panel{display:flex;flex-direction:column;height:520px;}
+.msg-list{
+  flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+  padding:4px 0;scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.msg-list::-webkit-scrollbar{width:4px;}
+.msg-list::-webkit-scrollbar-track{background:transparent;}
+.msg-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.msg-bubble{
+  display:flex;flex-direction:column;max-width:88%;
+}
+.msg-bubble.mine{align-self:flex-end;align-items:flex-end;}
+.msg-bubble.theirs{align-self:flex-start;}
+.msg-alias{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:3px;padding:0 4px;}
+.msg-content{
+  padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;
+}
+.msg-bubble.mine .msg-content{background:var(--accent-bg);border:1px solid rgba(16,185,129,0.2);color:var(--text);border-radius:12px 12px 2px 12px;}
+.msg-bubble.theirs .msg-content{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:12px 12px 12px 2px;}
+.msg-time{font-size:10px;color:var(--muted);margin-top:3px;padding:0 4px;}
+.msg-warning{
+  font-size:10px;color:var(--amber);padding:3px 8px;margin-top:3px;
+  background:var(--amber-bg);border-radius:4px;border:1px solid rgba(245,158,11,0.2);
+}
+.msg-input-row{
+  display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--border);margin-top:12px;
+}
+.msg-textarea{
+  flex:1;padding:9px 12px;border-radius:var(--radius-sm);font-size:13px;
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font);resize:none;line-height:1.4;transition:border-color .15s;
+  min-height:60px;
+}
+.msg-textarea:focus{outline:none;border-color:var(--accent);}
+.btn-send{
+  padding:9px 14px;border-radius:var(--radius-sm);background:var(--accent);
+  color:#0f0e0d;border:none;cursor:pointer;font-size:13px;font-weight:700;
+  display:flex;align-items:center;gap:5px;align-self:flex-end;transition:all .15s;
+}
+.btn-send:hover{background:var(--accent-dim);}
+.btn-send:disabled{opacity:.4;cursor:not-allowed;}
+.msg-ia-note{
+  font-size:10px;color:var(--muted);text-align:center;margin-top:6px;
+  padding:4px;background:var(--surface2);border-radius:4px;
+}
+
+/* ── Evaluation Form ─────────────────────────────────── */
+.eval-hidden{display:none;}
+.stars-row{display:flex;gap:4px;margin-top:6px;}
+.star{font-size:22px;cursor:pointer;color:var(--muted);transition:color .1s;line-height:1;}
+.star.active{color:#f59e0b;}
+.star:hover{color:#f59e0b;}
+.eval-cat{margin-bottom:14px;}
+.eval-label{font-size:12px;color:var(--text-secondary);font-weight:500;}
+.eval-textarea{
+  width:100%;padding:9px 12px;border-radius:var(--radius-sm);font-size:13px;
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font);resize:vertical;min-height:70px;transition:border-color .15s;margin-top:8px;
+}
+.eval-textarea:focus{outline:none;border-color:var(--accent);}
+
+/* ── Devis Panel ─────────────────────────────────────── */
+.devis-item{
+  padding:12px 14px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);margin-bottom:8px;
+}
+.devis-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.devis-alias{font-size:13px;font-weight:700;color:var(--text);}
+.devis-prix{font-size:15px;font-weight:700;color:var(--accent);}
+.devis-meta{font-size:11px;color:var(--muted);}
+.devis-msg{font-size:12px;color:var(--text-secondary);margin-top:6px;font-style:italic;}
+
+/* ── Status Chips ────────────────────────────────────── */
+.chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+}
+.chip-green{background:var(--green-bg);color:var(--green);border:1px solid rgba(74,222,128,0.2);}
+.chip-amber{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(245,158,11,0.2);}
+.chip-red{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,0.2);}
+.chip-blue{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(96,165,250,0.2);}
+.chip-accent{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(16,185,129,0.2);}
+.chip-muted{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+
+/* ── Toast ───────────────────────────────────────────── */
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{
+  padding:12px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;
+  display:flex;align-items:center;gap:8px;max-width:360px;
+  box-shadow:var(--shadow-md);animation:slideIn .2s ease;
+}
+.toast.success{background:#1a2e12;border:1px solid rgba(74,222,128,0.3);color:var(--green);}
+.toast.error{background:#2e1212;border:1px solid rgba(248,113,113,0.3);color:var(--red);}
+.toast.info{background:var(--surface);border:1px solid var(--border);color:var(--text);}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* ── Loading ─────────────────────────────────────────── */
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(15,14,13,0.85);
+  display:flex;align-items:center;justify-content:center;z-index:1000;
+}
+.spinner{
+  width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loader-text{color:var(--text-secondary);font-size:13px;margin-top:14px;text-align:center;}
+
+/* ── Auth Screen ─────────────────────────────────────── */
+.auth-screen{
+  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;
+}
+.auth-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:36px;max-width:420px;width:100%;
+}
+.auth-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+
+/* ── Error State ─────────────────────────────────────── */
+.error-state{
+  text-align:center;padding:60px 24px;
+}
+.error-emoji{font-size:48px;margin-bottom:16px;}
+.error-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;}
+.error-msg{font-size:13px;color:var(--muted);}
+
+/* ── Empty ───────────────────────────────────────────── */
+.empty-msg{text-align:center;padding:24px;color:var(--muted);font-size:13px;}
+.empty-icon{font-size:28px;margin-bottom:8px;}
+
+/* ── Collapsible ─────────────────────────────────────── */
+.collapsible-toggle{
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;
+  padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface2);
+  border:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text-secondary);
+  transition:all .15s;user-select:none;
+}
+.collapsible-toggle:hover{border-color:var(--border-active);color:var(--text);}
+.collapsible-body{display:none;margin-top:10px;}
+.collapsible-body.open{display:block;}
+
+/* ── Misc ─────────────────────────────────────────────── */
+.hidden{display:none!important;}
+.sep{height:1px;background:var(--border);margin:8px 0;}
+.text-muted{color:var(--muted);}
+.text-accent{color:var(--accent);}
+.fw7{font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div style="text-align:center;">
+    <div class="spinner"></div>
+    <div class="loader-text">Chargement de la commande…</div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Topbar -->
+<header class="topbar">
+  <a href="/public/rush/nouvelle-demande.html" class="topbar-logo">
+    <div class="logo-badge">🦷</div>
+    <div>
+      <div class="logo-name">JADOMI</div>
+      <div class="logo-sub">Rush</div>
+    </div>
+  </a>
+  <div class="topbar-sep"></div>
+  <nav class="topbar-nav">
+    <a href="/public/rush/nouvelle-demande.html" class="nav-link">Nouvelle demande</a>
+    <a href="/public/rush/mes-demandes.html" class="nav-link">Mes demandes</a>
+    <a href="/public/rush/repondre.html" class="nav-link">Repondre</a>
+    <span class="nav-link active">Suivi</span>
+  </nav>
+  <div class="topbar-right">
+    <div class="user-pill" id="userPill" style="display:none;">
+      <div class="user-dot"></div>
+      <span id="userAlias">—</span>
+    </div>
+    <button class="btn-logout" id="btnLogout" style="display:none;">Deconnexion</button>
+  </div>
+</header>
+
+<!-- Main Content -->
+<div class="main" id="mainContent" style="display:none;">
+
+  <!-- Payment Banner -->
+  <div id="paymentBanner" class="hidden"></div>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <span>Suivi de commande</span>
+      <span class="ref-badge" id="refBadge">RUSH-—</span>
+      <span id="statutChip"></span>
+    </div>
+    <div class="page-subtitle" id="pageSubtitle">Chargement…</div>
+  </div>
+
+  <!-- Grid -->
+  <div class="content-grid">
+
+    <!-- Left Column -->
+    <div class="left-col">
+
+      <!-- Timeline Card -->
+      <div class="card">
+        <div class="card-title"><span class="ct-icon">📍</span> Progression</div>
+        <div class="timeline" id="timeline"></div>
+
+        <!-- Actions principale -->
+        <div id="actionsZone" class="actions" style="margin-top:16px;"></div>
+      </div>
+
+      <!-- Devis Card (visible quand statut = en_attente_devis) -->
+      <div class="card hidden" id="devisCard">
+        <div class="card-title"><span class="ct-icon">📄</span> Devis recus</div>
+        <div id="devisList"></div>
+      </div>
+
+      <!-- Files Card -->
+      <div class="card">
+        <div class="card-title"><span class="ct-icon">📁</span> Fichiers</div>
+        <div class="files-list" id="filesList">
+          <div class="empty-msg"><div class="empty-icon">📂</div>Aucun fichier</div>
+        </div>
+        <div id="uploadZoneContainer"></div>
+      </div>
+
+      <!-- Evaluation Card (aparait apres validation) -->
+      <div class="card eval-hidden" id="evalCard">
+        <div class="card-title"><span class="ct-icon">⭐</span> Evaluation du sous-traitant</div>
+        <div id="evalContent"></div>
+      </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div class="right-col">
+
+      <!-- Payment Summary -->
+      <div class="card" id="paymentCard">
+        <div class="card-title"><span class="ct-icon">💰</span> Recapitulatif financier</div>
+        <div class="payment-rows" id="paymentRows">
+          <div class="empty-msg">Chargement…</div>
+        </div>
+      </div>
+
+      <!-- Messaging -->
+      <div class="card" style="padding-bottom:16px;">
+        <div class="card-title"><span class="ct-icon">💬</span> Messagerie anonyme</div>
+        <div class="msg-panel">
+          <div class="msg-list" id="msgList">
+            <div class="empty-msg"><div class="empty-icon">💬</div>Aucun message</div>
+          </div>
+          <div class="msg-input-row">
+            <textarea class="msg-textarea" id="msgInput" placeholder="Votre message… (filtrage JADOMI IA actif)" rows="2"></textarea>
+            <button class="btn-send" id="btnSend" onclick="sendMessage()">
+              <span>↑</span>
+            </button>
+          </div>
+          <div class="msg-ia-note">🔒 JADOMI IA filtre les infos personnelles automatiquement</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Auth Screen (fallback) -->
+<div class="auth-screen hidden" id="authScreen">
+  <div class="auth-card">
+    <div style="font-size:36px;margin-bottom:12px;">🦷</div>
+    <div class="auth-title">Connexion requise</div>
+    <div class="auth-sub">Vous devez etre connecte pour suivre une commande JADOMI Rush.</div>
+    <button class="btn btn-primary" style="width:100%;" onclick="window.location.href='/login.html?redirect='+encodeURIComponent(location.href)">
+      Se connecter
+    </button>
+  </div>
+</div>
+
+<!-- Error Screen -->
+<div class="error-state hidden" id="errorScreen">
+  <div class="error-emoji">⚠️</div>
+  <div class="error-title">Commande introuvable</div>
+  <div class="error-msg" id="errorMsg">Cette demande n'existe pas ou vous n'y avez pas acces.</div>
+  <button class="btn btn-secondary" style="margin-top:16px;" onclick="window.location.href='/public/rush/mes-demandes.html'">
+    Mes demandes
+  </button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// JADOMI Rush — Suivi commande
+// ═══════════════════════════════════════════════════════
+
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentSession = null;
+let demande = null;
+let userRole = null; // 'principal' | 'sous_traitant' | 'admin'
+let demandeId = null;
+let messagesInterval = null;
+let countdownInterval = null;
+let evalRatings = { qualite: 0, delai: 0, communication: 0 };
+
+// ── URL Params ────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+demandeId = params.get('id');
+const paymentStatus = params.get('payment');
+
+// ── Timeline Steps Definition ─────────────────────────
+const STEPS = [
+  { id: 'ouverte',            icon: '📋', label: 'Demande postee',          color: 'done' },
+  { id: 'en_attente_devis',   icon: '⏳', label: 'En attente de devis',     color: 'active', countdown: true, countdownKey: 'created_at', durationH: 2 },
+  { id: 'devis_selectionne',  icon: '✅', label: 'Prothesiste selectionne', color: 'done' },
+  { id: 'paiement_en_attente',icon: '💳', label: 'Paiement en attente',     color: 'active' },
+  { id: 'paiement_confirme',  icon: '💰', label: 'Paiement confirme',       color: 'done' },
+  { id: 'en_fabrication',     icon: '🔨', label: 'En fabrication',          color: 'active' },
+  { id: 'expedie',            icon: '📦', label: 'Expedie',                 color: 'done' },
+  { id: 'livre',              icon: '📬', label: 'Livre',                   color: 'done' },
+  { id: 'en_verification',    icon: '🔍', label: 'En verification (48h)',   color: 'active', countdown: true, countdownKey: 'date_livraison', durationH: 48 },
+  { id: 'valide',             icon: '✅', label: 'Valide — paiement libere', color: 'done' },
+];
+
+const STATUT_ORDER = [
+  'ouverte','en_attente_devis','devis_selectionne','attribuee',
+  'paiement_en_attente','paiement_confirme','en_fabrication',
+  'expedie','livre','en_verification','valide','retouche','litige'
+];
+
+function statutIndex(s) {
+  const idx = STATUT_ORDER.indexOf(s);
+  return idx === -1 ? 0 : idx;
+}
+
+// ── Init ──────────────────────────────────────────────
+(async function init() {
+  if (!demandeId) {
+    hideLoading(); showError('Aucun identifiant de commande fourni. Ajoutez ?id=DEMANDE_ID a l\'URL.');
+    return;
+  }
+
+  const { data: { session } } = await db.auth.getSession();
+  currentSession = session;
+  currentUser = session?.user || null;
+
+  if (!currentUser) {
+    hideLoading();
+    document.getElementById('authScreen').classList.remove('hidden');
+    return;
+  }
+
+  setupUserUI();
+  await loadDemande();
+  showPaymentBanner();
+  hideLoading();
+
+  // Polling messages toutes les 15s
+  messagesInterval = setInterval(loadMessages, 15000);
+})();
+
+// ── Auth UI ───────────────────────────────────────────
+function setupUserUI() {
+  const alias = currentUser.email?.split('@')[0] || 'Utilisateur';
+  document.getElementById('userAlias').textContent = alias;
+  document.getElementById('userPill').style.display = 'flex';
+  document.getElementById('btnLogout').style.display = 'inline-flex';
+  document.getElementById('btnLogout').onclick = async () => {
+    await db.auth.signOut();
+    location.href = '/login.html';
+  };
+}
+
+// ── Load Demande ──────────────────────────────────────
+async function loadDemande() {
+  try {
+    const token = currentSession?.access_token;
+    const url = `/api/rush/demandes?id=${demandeId}`;
+    // Try direct fetch with auth
+    const res = await fetch('/api/rush/demandes', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    // Find this specific demande
+    const all = json.demandes || [];
+    demande = all.find(d => String(d.id) === String(demandeId));
+
+    if (!demande) {
+      // Try fetching a single demande by query param
+      const res2 = await fetch(`/api/rush/demandes?demandeur_id=*`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      // Fallback: try Supabase direct query
+      const { data, error } = await db.from('rush_demandes').select('*').eq('id', parseInt(demandeId)).single();
+      if (error || !data) { showError('Commande introuvable.'); return; }
+      demande = data;
+    }
+
+    // Determine role
+    userRole = String(demande.demandeur_id) === String(currentUser.id) ? 'principal' : 'sous_traitant';
+
+    renderPage();
+    await loadMessages();
+    await loadFichiers();
+    await loadDevis();
+
+  } catch (e) {
+    console.error('[loadDemande]', e);
+    // Fallback direct Supabase
+    try {
+      const { data, error } = await db.from('rush_demandes').select('*').eq('id', parseInt(demandeId)).single();
+      if (error || !data) { showError('Impossible de charger la commande : ' + e.message); return; }
+      demande = data;
+      userRole = String(demande.demandeur_id) === String(currentUser.id) ? 'principal' : 'sous_traitant';
+      renderPage();
+      await loadMessages();
+      await loadFichiers();
+      await loadDevis();
+    } catch (e2) {
+      showError('Erreur de chargement : ' + e2.message);
+    }
+  }
+}
+
+// ── Render Page ───────────────────────────────────────
+function renderPage() {
+  const el = document.getElementById('mainContent');
+  el.style.display = 'block';
+
+  document.getElementById('refBadge').textContent = `RUSH-${demande.id}`;
+  document.getElementById('pageSubtitle').textContent = formatDate(demande.created_at) + ' · ' + (demande.type_travail || 'Type inconnu') + (demande.quantite > 1 ? ` × ${demande.quantite}` : '');
+
+  renderStatutChip();
+  renderTimeline();
+  renderPaymentSummary();
+  renderActions();
+  renderUploadZone();
+  renderEvalForm();
+}
+
+// ── Statut Chip ───────────────────────────────────────
+function renderStatutChip() {
+  const s = demande.statut;
+  const map = {
+    ouverte: ['chip-blue', 'Ouverte'],
+    en_attente_devis: ['chip-amber', 'En attente devis'],
+    devis_selectionne: ['chip-accent', 'Devis selectionne'],
+    attribuee: ['chip-accent', 'Attribuee'],
+    paiement_en_attente: ['chip-amber', 'Paiement en attente'],
+    paiement_confirme: ['chip-green', 'Paye'],
+    en_fabrication: ['chip-blue', 'En fabrication'],
+    expedie: ['chip-accent', 'Expedie'],
+    livre: ['chip-green', 'Livre'],
+    en_verification: ['chip-amber', 'En verification'],
+    valide: ['chip-green', 'Valide ✓'],
+    retouche: ['chip-amber', 'Retouche demandee'],
+    litige: ['chip-red', 'Litige ouvert'],
+  };
+  const [cls, lbl] = map[s] || ['chip-muted', s];
+  document.getElementById('statutChip').innerHTML = `<span class="chip ${cls}">${lbl}</span>`;
+}
+
+// ── Timeline ──────────────────────────────────────────
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  const currentIdx = statutIndex(demande.statut);
+
+  const extraSteps = [];
+  if (demande.statut === 'retouche') {
+    extraSteps.push({ id: 'retouche', icon: '❌', label: 'Retouche demandee', color: 'warn' });
+  }
+  if (demande.statut === 'litige') {
+    extraSteps.push({ id: 'litige', icon: '⚠️', label: 'Litige ouvert', color: 'error' });
+  }
+
+  const allSteps = [...STEPS, ...extraSteps];
+  let html = '';
+
+  allSteps.forEach((step, i) => {
+    const stepIdx = statutIndex(step.id);
+    let state = 'gray'; // future
+    if (stepIdx < currentIdx) state = 'done';
+    else if (stepIdx === currentIdx || step.id === demande.statut) state = 'active';
+    if (step.id === 'retouche' || step.id === 'litige') state = step.color === 'warn' ? 'warn' : 'error';
+
+    const isLast = i === allSteps.length - 1;
+    let detail = '';
+
+    // Extra details per step
+    if (step.id === 'en_attente_devis' && state === 'active') {
+      const remaining = getRemainingTime(demande.created_at, 2);
+      detail = `<div class="countdown-badge${remaining.urgent ? ' urgent' : ''}" id="countdown-devis">⏱ ${remaining.label}</div>`;
+    }
+    if (step.id === 'devis_selectionne' && stepIdx <= currentIdx && demande.preneur_id) {
+      detail = `<div class="step-detail">Prothesiste : <strong>${demande.alias_preneur || 'PROTH-***'}</strong> — <span class="text-accent">${formatEur(demande.total_paye || demande.tarif_propose)}</span></div>`;
+    }
+    if (step.id === 'expedie' && stepIdx <= currentIdx && demande.numero_suivi) {
+      const carrier = demande.transporteur || 'Colissimo';
+      const trackUrl = getTrackingUrl(carrier, demande.numero_suivi);
+      detail = `<div class="tracking-info"><div class="tracking-num">${demande.numero_suivi}</div><a class="tracking-link" href="${trackUrl}" target="_blank" rel="noopener">Suivre ↗</a></div>`;
+    }
+    if (step.id === 'en_verification' && state === 'active' && demande.date_livraison) {
+      const remaining = getRemainingTime(demande.date_livraison, 48);
+      const cls = remaining.urgent ? ' urgent' : (remaining.done ? ' done' : '');
+      detail = `<div class="countdown-badge${cls}" id="countdown-verif">⏱ ${remaining.label}</div>`;
+      if (remaining.done && demande.statut === 'en_verification') {
+        detail += `<div class="step-detail" style="color:var(--amber);margin-top:6px;font-size:12px;">⚠️ Delai expire — validation automatique en cours</div>`;
+      }
+    }
+
+    html += `
+    <div class="step ${state}">
+      ${!isLast ? '<div class="step-line"></div>' : ''}
+      <div class="step-left">
+        <div class="step-icon">${step.icon}</div>
+        ${!isLast ? '<div class="step-connector"></div>' : ''}
+      </div>
+      <div class="step-body">
+        <div class="step-label">${step.label}</div>
+        ${getStepDate(step.id) ? `<div class="step-date">${formatDate(getStepDate(step.id))}</div>` : ''}
+        ${detail}
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+
+  // Live countdowns
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(updateCountdowns, 1000);
+}
+
+function getStepDate(stepId) {
+  if (!demande) return null;
+  const map = {
+    ouverte: demande.created_at,
+    devis_selectionne: demande.date_attribution,
+    attribuee: demande.date_attribution,
+    paiement_confirme: demande.date_paiement,
+    expedie: demande.date_expedition,
+    livre: demande.date_livraison,
+    valide: demande.date_validation,
+  };
+  return map[stepId] || null;
+}
+
+function updateCountdowns() {
+  const devisEl = document.getElementById('countdown-devis');
+  if (devisEl && demande) {
+    const r = getRemainingTime(demande.created_at, 2);
+    devisEl.textContent = '⏱ ' + r.label;
+    devisEl.className = 'countdown-badge' + (r.urgent ? ' urgent' : '') + (r.done ? ' done' : '');
+  }
+  const verifEl = document.getElementById('countdown-verif');
+  if (verifEl && demande?.date_livraison) {
+    const r = getRemainingTime(demande.date_livraison, 48);
+    verifEl.textContent = '⏱ ' + r.label;
+    verifEl.className = 'countdown-badge' + (r.urgent ? ' urgent' : '') + (r.done ? ' done' : '');
+  }
+}
+
+function getRemainingTime(fromDate, durationH) {
+  const start = new Date(fromDate).getTime();
+  const end = start + durationH * 3600 * 1000;
+  const now = Date.now();
+  const diff = end - now;
+  if (diff <= 0) return { label: 'Delai expire', urgent: false, done: true };
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const urgent = diff < 30 * 60 * 1000; // < 30min
+  return { label: `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`, urgent, done: false };
+}
+
+// ── Payment Summary ───────────────────────────────────
+function renderPaymentSummary() {
+  const tarif = parseFloat(demande.tarif_propose) || 0;
+  const commission = parseFloat(demande.commission_jadomi) || Math.round(tarif * 0.10 * 100) / 100;
+  const transport = parseFloat(demande.cout_transport) || parseFloat(demande.livraison_estimee) || 0;
+  const total = parseFloat(demande.total_paye) || (tarif + transport);
+  const reversed = Math.round((tarif - commission) * 100) / 100;
+  const isPaid = ['paiement_confirme','en_fabrication','expedie','livre','en_verification','valide'].includes(demande.statut);
+  const isValide = demande.statut === 'valide';
+
+  const rows = document.getElementById('paymentRows');
+  rows.innerHTML = `
+    <div class="pay-row"><span class="pay-label">Travaux</span><span class="pay-amount">${formatEur(tarif)}</span></div>
+    <div class="pay-row"><span class="pay-label">Transport</span><span class="pay-amount">${formatEur(transport)}</span></div>
+    <div class="pay-row pay-commission"><span class="pay-label text-muted">Commission JADOMI (10%)</span><span class="pay-amount text-muted">— ${formatEur(commission)}</span></div>
+    <div class="pay-divider"></div>
+    <div class="pay-row pay-total"><span class="pay-label">Total a payer</span><span class="pay-amount">${formatEur(total)}</span></div>
+    ${userRole === 'sous_traitant' ? `<div class="pay-row"><span class="pay-label" style="font-size:12px;color:var(--green);">Vous recevrez</span><span class="pay-amount" style="color:var(--green);">${formatEur(reversed)}</span></div>` : ''}
+    <div class="escrow-badge">
+      🔒 <span>${isValide ? 'Paiement libere au sous-traitant' : isPaid ? 'Paiement en sequestre — libere apres validation' : 'Paiement securise via JADOMI'}</span>
+    </div>
+    ${userRole === 'principal' && demande.statut === 'paiement_en_attente' ? `<button class="btn-pay" id="btnPay" onclick="initiatePayment()">💳 Payer ${formatEur(total)}</button>` : ''}
+  `;
+}
+
+// ── Actions ───────────────────────────────────────────
+function renderActions() {
+  const zone = document.getElementById('actionsZone');
+  const s = demande.statut;
+  let html = '';
+
+  if (userRole === 'principal') {
+    if (s === 'expedie') {
+      html += `<button class="btn btn-primary" onclick="confirmReception()">📬 Confirmer reception</button>`;
+    }
+    if (s === 'en_verification') {
+      html += `<button class="btn btn-primary" onclick="validerLivraison()">✅ Valider livraison</button>`;
+      html += `<button class="btn btn-warn" onclick="demanderRetouche()">🔧 Demander retouche</button>`;
+      html += `<button class="btn btn-danger" onclick="ouvrirLitige()">⚠️ Ouvrir litige</button>`;
+    }
+  }
+
+  if (userRole === 'sous_traitant') {
+    if (s === 'en_fabrication' || s === 'paiement_confirme') {
+      html += `<button class="btn btn-primary" onclick="showExpeditionForm()">📦 Marquer expedie</button>`;
+    }
+  }
+
+  if (!html) {
+    const done = ['valide','retouche','litige'].includes(s);
+    if (!done) {
+      html = `<span class="text-muted" style="font-size:12px;">Aucune action disponible pour votre role a cette etape.</span>`;
+    }
+  }
+
+  zone.innerHTML = html;
+
+  // Expedition form (hidden by default)
+  if (userRole === 'sous_traitant' && (s === 'en_fabrication' || s === 'paiement_confirme')) {
+    zone.innerHTML += `
+    <div class="inline-form hidden" id="expeditionForm" style="width:100%;margin-top:4px;">
+      <div class="form-label">Numero de suivi</div>
+      <div class="form-row">
+        <select class="form-select" id="selectCarrier">
+          <option value="Colissimo">Colissimo</option>
+          <option value="Chronopost">Chronopost</option>
+          <option value="DHL">DHL</option>
+          <option value="GLS">GLS</option>
+          <option value="UPS">UPS</option>
+        </select>
+        <input type="text" class="form-input" id="trackingInput" placeholder="Ex: 2C12345678901" maxlength="30">
+        <button class="btn btn-primary" onclick="submitExpedition()">Envoyer</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('expeditionForm').classList.add('hidden')">Annuler</button>
+      </div>
+    </div>`;
+  }
+}
+
+// ── Expedition Form ───────────────────────────────────
+function showExpeditionForm() {
+  const form = document.getElementById('expeditionForm');
+  if (form) form.classList.remove('hidden');
+}
+
+async function submitExpedition() {
+  const num = document.getElementById('trackingInput')?.value?.trim();
+  const carrier = document.getElementById('selectCarrier')?.value;
+  if (!num) { showToast('Entrez un numero de suivi', 'error'); return; }
+
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch('/api/rush/transport/expedition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ demande_id: demandeId, numero_suivi: num, transporteur: carrier })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    showToast('Expedition enregistree !', 'success');
+    await reloadDemande();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── Actions Handlers ──────────────────────────────────
+async function confirmReception() {
+  if (!confirm('Confirmez-vous la reception du colis ?')) return;
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch('/api/rush/transport/reception', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ demande_id: demandeId })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Erreur');
+    showToast('Reception confirmee — vous avez 48h pour valider', 'success');
+    await reloadDemande();
+  } catch (e) {
+    // Fallback direct DB update
+    await db.from('rush_demandes').update({ statut: 'en_verification', date_livraison: new Date().toISOString() }).eq('id', parseInt(demandeId));
+    showToast('Reception confirmee', 'success');
+    await reloadDemande();
+  }
+}
+
+async function validerLivraison() {
+  if (!confirm('Valider la livraison et liberer le paiement au sous-traitant ?')) return;
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch('/api/rush/paiement/liberer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ demande_id: demandeId })
+    });
+    const json = await res.json();
+    if (json.success || res.status === 200) {
+      showToast('Livraison validee — paiement libere !', 'success');
+    } else {
+      // Fallback
+      await db.from('rush_demandes').update({ statut: 'valide', date_validation: new Date().toISOString() }).eq('id', parseInt(demandeId));
+      showToast('Livraison validee', 'success');
+    }
+    await reloadDemande();
+    // Show eval form
+    document.getElementById('evalCard').classList.remove('eval-hidden');
+  } catch (e) {
+    await db.from('rush_demandes').update({ statut: 'valide', date_validation: new Date().toISOString() }).eq('id', parseInt(demandeId));
+    showToast('Livraison validee', 'success');
+    await reloadDemande();
+    document.getElementById('evalCard').classList.remove('eval-hidden');
+  }
+}
+
+async function demanderRetouche() {
+  const raison = prompt('Decrivez le probleme necessitant une retouche :');
+  if (!raison) return;
+  try {
+    await db.from('rush_demandes').update({ statut: 'retouche', motif_retouche: raison }).eq('id', parseInt(demandeId));
+    showToast('Demande de retouche envoyee', 'success');
+    await reloadDemande();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+async function ouvrirLitige() {
+  const raison = prompt('Decrivez le litige en detail (sera transmis a JADOMI) :');
+  if (!raison) return;
+  try {
+    await db.from('rush_demandes').update({ statut: 'litige', motif_litige: raison }).eq('id', parseInt(demandeId));
+    showToast('Litige ouvert — JADOMI vous contactera sous 24h', 'success');
+    await reloadDemande();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+async function initiatePayment() {
+  const btn = document.getElementById('btnPay');
+  if (btn) btn.disabled = true;
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch('/api/rush/paiement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ demande_id: demandeId, payeur_id: currentUser.id })
+    });
+    const json = await res.json();
+    if (json.checkout_url || json.session?.url) {
+      location.href = json.checkout_url || json.session.url;
+    } else {
+      throw new Error(json.error || 'Erreur paiement');
+    }
+  } catch (e) {
+    showToast('Erreur paiement : ' + e.message, 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ── Devis ─────────────────────────────────────────────
+async function loadDevis() {
+  if (!['ouverte','en_attente_devis'].includes(demande.statut) && userRole !== 'principal') return;
+  try {
+    const { data } = await db.from('rush_devis').select('*').eq('demande_id', parseInt(demandeId)).order('prix_total_estime');
+    if (!data || data.length === 0) return;
+
+    const card = document.getElementById('devisCard');
+    card.classList.remove('hidden');
+    const list = document.getElementById('devisList');
+
+    const canSelect = userRole === 'principal' && demande.statut === 'en_attente_devis';
+    list.innerHTML = data.map(d => `
+      <div class="devis-item">
+        <div class="devis-header">
+          <div>
+            <div class="devis-alias">${d.alias_prothesiste || 'PROTH-***'}</div>
+            <div class="devis-meta">Delai fab. : ${d.delai_fabrication_jours}j · Transport : ${d.delai_livraison_jours || 2}j · Total : ${d.delai_fabrication_jours + (d.delai_livraison_jours||2)}j</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="devis-prix">${formatEur(d.prix_total_estime)}</div>
+            <div class="devis-meta">dont transport ${formatEur(d.cout_transport_estime)}</div>
+          </div>
+        </div>
+        ${d.message ? `<div class="devis-msg">"${escHtml(d.message)}"</div>` : ''}
+        ${canSelect ? `<button class="btn btn-primary" style="margin-top:10px;width:100%;" onclick="selectionnerDevis(${d.id}, ${d.prothesiste_id}, ${d.prix_total_estime})">Selectionner ce devis</button>` : ''}
+      </div>
+    `).join('');
+  } catch (e) {
+    console.warn('[loadDevis]', e);
+  }
+}
+
+async function selectionnerDevis(devisId, prothesisteId, prix) {
+  if (!confirm(`Confirmer la selection de ce devis pour ${formatEur(prix)} ?`)) return;
+  try {
+    await db.from('rush_demandes').update({
+      statut: 'paiement_en_attente',
+      preneur_id: prothesisteId,
+      total_paye: prix,
+      date_attribution: new Date().toISOString()
+    }).eq('id', parseInt(demandeId));
+    await db.from('rush_devis').update({ statut: 'selectionne' }).eq('id', devisId);
+    await db.from('rush_devis').update({ statut: 'refuse' }).eq('demande_id', parseInt(demandeId)).neq('id', devisId);
+    showToast('Devis selectionne — proceder au paiement', 'success');
+    await reloadDemande();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── Messages ──────────────────────────────────────────
+async function loadMessages() {
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch(`/api/rush/messages/${demandeId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const json = await res.json();
+    if (!json.success) return;
+    renderMessages(json.messages || []);
+  } catch (e) {
+    // Fallback Supabase direct
+    try {
+      const { data } = await db.from('rush_messages')
+        .select('id, alias_expediteur, expediteur_type, contenu_filtre, filtre_applique, infos_masquees, created_at')
+        .eq('demande_id', parseInt(demandeId))
+        .order('created_at');
+      renderMessages((data || []).map(m => ({ ...m, contenu: m.contenu_filtre })));
+    } catch (e2) { console.warn('[loadMessages]', e2); }
+  }
+}
+
+function renderMessages(messages) {
+  const list = document.getElementById('msgList');
+  if (!messages.length) {
+    list.innerHTML = '<div class="empty-msg"><div class="empty-icon">💬</div>Aucun message pour l\'instant</div>';
+    return;
+  }
+  const myId = currentUser.id;
+  list.innerHTML = messages.map(m => {
+    const isMine = String(m.expediteur_id) === String(myId) || (m.expediteur_type === (userRole === 'principal' ? 'prothesiste_principal' : 'sous_traitant'));
+    return `
+    <div class="msg-bubble ${isMine ? 'mine' : 'theirs'}">
+      <div class="msg-alias">${escHtml(m.alias_expediteur || '—')}</div>
+      <div class="msg-content">${escHtml(m.contenu || '')}</div>
+      ${m.infos_masquees ? '<div class="msg-warning">⚠️ JADOMI IA a masque des infos personnelles</div>' : ''}
+      <div class="msg-time">${formatTime(m.created_at)}</div>
+    </div>`;
+  }).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const contenu = input.value.trim();
+  if (!contenu) return;
+
+  const btn = document.getElementById('btnSend');
+  btn.disabled = true;
+
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch('/api/rush/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        demande_id: demandeId,
+        expediteur_id: currentUser.id,
+        expediteur_type: userRole === 'principal' ? 'prothesiste_principal' : 'sous_traitant',
+        contenu
+      })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.raison || json.error || 'Erreur envoi');
+    if (json.avertissement) showToast(json.avertissement, 'info');
+    input.value = '';
+    await loadMessages();
+  } catch (e) {
+    showToast('Message bloque : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Fichiers ──────────────────────────────────────────
+async function loadFichiers() {
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch(`/api/rush/fichiers/${demandeId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    let fichiers = [];
+    if (res.ok) {
+      const json = await res.json();
+      fichiers = json.fichiers || [];
+    } else {
+      // Fallback
+      const { data } = await db.from('rush_fichiers').select('*').eq('demande_id', parseInt(demandeId));
+      fichiers = data || [];
+    }
+    renderFichiers(fichiers);
+  } catch (e) {
+    const { data } = await db.from('rush_fichiers').select('*').eq('demande_id', parseInt(demandeId));
+    renderFichiers(data || []);
+  }
+}
+
+function renderFichiers(fichiers) {
+  const list = document.getElementById('filesList');
+  if (!fichiers.length) {
+    list.innerHTML = '<div class="empty-msg"><div class="empty-icon">📂</div>Aucun fichier joint</div>';
+    return;
+  }
+  list.innerHTML = fichiers.map(f => {
+    const ext = (f.format || f.nom_original?.split('.').pop() || '').toLowerCase();
+    const icon = ext === 'stl' || ext === 'obj' ? '🦷' : ext === 'pdf' ? '📄' : ['jpg','jpeg','png','webp'].includes(ext) ? '🖼️' : '📎';
+    const sizeKb = Math.round((f.taille_bytes || 0) / 1024);
+    const dl = f.url_download || f.url || '#';
+    return `
+    <div class="file-item">
+      <div class="file-icon">${icon}</div>
+      <div class="file-info">
+        <div class="file-name">${escHtml(f.nom_original || f.nom_stockage || 'fichier')}</div>
+        <div class="file-meta">${ext.toUpperCase()} · ${sizeKb > 1024 ? (sizeKb/1024).toFixed(1)+'Mo' : sizeKb+'Ko'} · ${formatDate(f.created_at)}</div>
+      </div>
+      ${dl !== '#' ? `<a class="file-dl" href="${dl}" target="_blank" rel="noopener">Telecharger</a>` : '<span class="file-dl" style="opacity:.4;cursor:default;">Indispo.</span>'}
+    </div>`;
+  }).join('');
+}
+
+// ── Upload Zone ───────────────────────────────────────
+function renderUploadZone() {
+  const container = document.getElementById('uploadZoneContainer');
+  const canUpload = userRole === 'sous_traitant' || (userRole === 'principal' && ['ouverte','en_attente_devis'].includes(demande.statut));
+  if (!canUpload) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+    <input type="file" id="fileInput" accept=".stl,.obj,.ply,.3mf,.jpg,.jpeg,.png,.webp,.zip" multiple onchange="handleFiles(this.files)">
+    <div class="upload-zone-text">
+      <strong>Deposer des fichiers ici</strong> ou cliquer pour parcourir<br>
+      <span>STL, OBJ, PLY, 3MF, JPG, PNG, WEBP, ZIP · Max 500 Mo</span>
+    </div>
+    <div class="upload-progress" id="uploadProgress"><div class="upload-progress-bar" id="uploadProgressBar"></div></div>
+  </div>`;
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone')?.classList.add('drag');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone')?.classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+
+async function handleFiles(files) {
+  if (!files || !files.length) return;
+  const progress = document.getElementById('uploadProgress');
+  const bar = document.getElementById('uploadProgressBar');
+  if (progress) progress.style.display = 'block';
+
+  for (const file of files) {
+    try {
+      const fd = new FormData();
+      fd.append('fichier', file);
+      fd.append('demande_id', demandeId);
+      fd.append('uploaded_by', userRole === 'principal' ? 'prothesiste_principal' : 'sous_traitant');
+
+      if (bar) bar.style.width = '30%';
+      const token = currentSession?.access_token;
+      const res = await fetch('/api/rush/fichiers/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+      });
+      if (bar) bar.style.width = '90%';
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showToast(`${file.name} uploade avec succes`, 'success');
+      if (bar) bar.style.width = '100%';
+    } catch (e) {
+      showToast(`Erreur upload ${file.name} : ${e.message}`, 'error');
+    }
+  }
+
+  setTimeout(() => {
+    if (progress) progress.style.display = 'none';
+    if (bar) bar.style.width = '0';
+  }, 800);
+  await loadFichiers();
+}
+
+// ── Evaluation Form ───────────────────────────────────
+function renderEvalForm() {
+  const card = document.getElementById('evalCard');
+  const content = document.getElementById('evalContent');
+  const show = demande.statut === 'valide' && userRole === 'principal';
+  if (!show) { card.classList.add('eval-hidden'); return; }
+  card.classList.remove('eval-hidden');
+
+  content.innerHTML = `
+    <div class="eval-cat">
+      <div class="eval-label">Qualite du travail</div>
+      <div class="stars-row" id="stars-qualite" data-key="qualite">${starsHTML('qualite')}</div>
+    </div>
+    <div class="eval-cat">
+      <div class="eval-label">Respect des delais</div>
+      <div class="stars-row" id="stars-delai" data-key="delai">${starsHTML('delai')}</div>
+    </div>
+    <div class="eval-cat">
+      <div class="eval-label">Communication</div>
+      <div class="stars-row" id="stars-communication" data-key="communication">${starsHTML('communication')}</div>
+    </div>
+    <div>
+      <div class="eval-label">Commentaire (optionnel)</div>
+      <textarea class="eval-textarea" id="evalComment" placeholder="Decrivez votre experience…"></textarea>
+    </div>
+    <button class="btn btn-primary" style="margin-top:12px;" onclick="submitEval()">Soumettre l'evaluation</button>
+  `;
+}
+
+function starsHTML(key) {
+  return [1,2,3,4,5].map(n =>
+    `<span class="star" onclick="setRating('${key}',${n})" data-val="${n}">★</span>`
+  ).join('');
+}
+
+function setRating(key, val) {
+  evalRatings[key] = val;
+  const row = document.getElementById(`stars-${key}`);
+  if (!row) return;
+  row.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.val) <= val);
+  });
+}
+
+async function submitEval() {
+  if (!evalRatings.qualite || !evalRatings.delai || !evalRatings.communication) {
+    showToast('Veuillez noter les 3 criteres', 'error'); return;
+  }
+  const comment = document.getElementById('evalComment')?.value || '';
+  try {
+    const token = currentSession?.access_token;
+    const res = await fetch('/api/rush/scores/evaluations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        demande_id: demandeId,
+        evaluateur_id: currentUser.id,
+        evalue_id: demande.preneur_id,
+        note_qualite: evalRatings.qualite,
+        note_delai: evalRatings.delai,
+        note_communication: evalRatings.communication,
+        commentaire: comment
+      })
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Evaluation soumise — merci !', 'success');
+      document.getElementById('evalCard').classList.add('eval-hidden');
+    } else throw new Error(json.error);
+  } catch (e) {
+    showToast('Erreur evaluation : ' + e.message, 'error');
+  }
+}
+
+// ── Payment Banner ────────────────────────────────────
+function showPaymentBanner() {
+  if (!paymentStatus) return;
+  const banner = document.getElementById('paymentBanner');
+  banner.classList.remove('hidden');
+  if (paymentStatus === 'success') {
+    banner.className = 'payment-banner success';
+    banner.innerHTML = '✅ Paiement recu avec succes — votre commande est maintenant en fabrication.';
+  } else if (paymentStatus === 'cancel') {
+    banner.className = 'payment-banner cancel';
+    banner.innerHTML = '❌ Paiement annule — la commande reste en attente. Reessayez quand vous voulez.';
+  }
+}
+
+// ── Reload ────────────────────────────────────────────
+async function reloadDemande() {
+  const { data } = await db.from('rush_demandes').select('*').eq('id', parseInt(demandeId)).single();
+  if (data) {
+    demande = data;
+    renderPage();
+    await loadDevis();
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────
+function formatEur(n) {
+  const v = parseFloat(n) || 0;
+  return v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+}
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function formatTime(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+}
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getTrackingUrl(carrier, num) {
+  const c = (carrier || '').toLowerCase();
+  if (c.includes('colissimo')) return `https://www.laposte.fr/outils/suivi-de-courrier-et-de-colis?code=${num}`;
+  if (c.includes('chronopost')) return `https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=${num}`;
+  if (c.includes('dhl')) return `https://www.dhl.com/fr-fr/home/tracking.html?tracking-id=${num}`;
+  if (c.includes('gls')) return `https://gls-group.com/track/${num}`;
+  if (c.includes('ups')) return `https://www.ups.com/track?tracknum=${num}`;
+  return `https://www.laposte.fr/outils/suivi-de-courrier-et-de-colis?code=${num}`;
+}
+
+// ── Toast ─────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  t.innerHTML = `<span>${icons[type] || ''}</span><span>${escHtml(msg)}</span>`;
+  container.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(100%)'; t.style.transition = 'all .3s'; setTimeout(() => t.remove(), 300); }, 4000);
+}
+
+// ── Loading ───────────────────────────────────────────
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+function showError(msg) {
+  document.getElementById('mainContent').style.display = 'none';
+  const screen = document.getElementById('errorScreen');
+  screen.classList.remove('hidden');
+  document.getElementById('errorMsg').textContent = msg;
+}
+
+// ── Keyboard: Enter pour envoyer message ──────────────
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'msgInput' && e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ── Cleanup ───────────────────────────────────────────
+window.addEventListener('beforeunload', () => {
+  if (messagesInterval) clearInterval(messagesInterval);
+  if (countdownInterval) clearInterval(countdownInterval);
+});
+</script>
+</body>
+</html>

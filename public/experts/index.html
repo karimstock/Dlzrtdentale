@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trouver un avocat / juriste — JADOMI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:#f8f9fa;color:#1a1a2e;line-height:1.6;}
+.header{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 0;}
+.header .container{display:flex;align-items:center;gap:16px;}
+.header .logo{font-size:22px;font-weight:800;color:#1a1a2e;text-decoration:none;}
+.header .logo span{color:#3b82f6;}
+.container{max-width:1100px;margin:0 auto;padding:0 20px;}
+
+.hero{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:48px 0 40px;text-align:center;}
+.hero h1{font-size:32px;font-weight:800;margin-bottom:8px;}
+.hero p{font-size:16px;opacity:.85;max-width:600px;margin:0 auto;}
+
+.filters{background:#fff;border-radius:16px;padding:20px 24px;margin:-24px auto 24px;max-width:900px;box-shadow:0 4px 20px rgba(0,0,0,.08);display:flex;gap:12px;flex-wrap:wrap;align-items:center;position:relative;z-index:1;}
+.filters select,.filters input{padding:10px 14px;border:1px solid #d1d5db;border-radius:10px;font-size:14px;font-family:inherit;background:#fff;}
+.filters select{min-width:180px;}
+.filters input{flex:1;min-width:150px;}
+.filters button{padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;}
+
+.results{max-width:900px;margin:0 auto 40px;padding:0 20px;}
+.result-count{font-size:14px;color:#6b7280;margin-bottom:16px;}
+
+.pro-card{background:#fff;border-radius:14px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.04);display:flex;gap:20px;align-items:center;transition:all .15s;}
+.pro-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.08);}
+.pro-avatar{width:72px;height:72px;border-radius:14px;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800;flex-shrink:0;}
+.pro-avatar img{width:72px;height:72px;border-radius:14px;object-fit:cover;}
+.pro-info{flex:1;min-width:0;}
+.pro-info .name{font-size:18px;font-weight:700;margin-bottom:2px;}
+.pro-info .specs{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;}
+.pro-info .specs span{background:#eff6ff;color:#3b82f6;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:500;}
+.pro-info .meta{font-size:13px;color:#6b7280;}
+.pro-info .rating{color:#f59e0b;font-size:13px;margin-top:4px;}
+.pro-right{text-align:right;flex-shrink:0;}
+.pro-right .price{font-size:22px;font-weight:800;color:#1a1a2e;}
+.pro-right .price-label{font-size:12px;color:#6b7280;}
+.pro-right .book-btn{display:inline-block;margin-top:8px;padding:10px 20px;background:#3b82f6;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:13px;}
+.pro-right .book-btn:hover{background:#2563eb;}
+
+.empty{text-align:center;padding:48px;color:#6b7280;}
+.loader{text-align:center;padding:48px;color:#6b7280;}
+
+@media(max-width:768px){
+  .filters{flex-direction:column;}
+  .pro-card{flex-direction:column;text-align:center;}
+  .pro-right{text-align:center;}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="container">
+    <a href="/" class="logo">JADO<span>MI</span></a>
+    <span style="color:#6b7280;font-size:13px;margin-left:auto;">Annuaire des professionnels juridiques</span>
+  </div>
+</div>
+
+<div class="hero">
+  <h1>⚖️ Trouvez votre avocat</h1>
+  <p>Consultez un professionnel du droit en visio, au cabinet ou par téléphone. Paiement sécurisé en ligne.</p>
+</div>
+
+<div class="filters" id="filters">
+  <select id="f-domaine">
+    <option value="">Tous les domaines</option>
+    <option value="droit_travail">👔 Droit du travail</option>
+    <option value="droit_immobilier">🏠 Droit immobilier</option>
+    <option value="droit_societes">💼 Droit des sociétés</option>
+    <option value="droit_famille">👨‍👩‍👧 Droit de la famille</option>
+    <option value="droit_commercial">📋 Droit commercial</option>
+    <option value="droit_routier">🚗 Droit routier</option>
+    <option value="droit_fiscal">💰 Droit fiscal</option>
+    <option value="droit_sante">🏥 Droit de la santé</option>
+    <option value="droit_penal">⚖️ Droit pénal</option>
+  </select>
+  <input id="f-ville" placeholder="Ville…">
+  <select id="f-type">
+    <option value="">Tous types</option>
+    <option value="avocat">Avocat</option>
+    <option value="juriste">Juriste</option>
+    <option value="notaire">Notaire</option>
+    <option value="expert_comptable">Expert-comptable</option>
+  </select>
+  <button onclick="search()">Rechercher</button>
+</div>
+
+<div class="results" id="results">
+  <div class="loader">Chargement…</div>
+</div>
+
+<script>
+const API = '/api/juridique/public';
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function search() {
+  const domaine = document.getElementById('f-domaine').value;
+  const ville = document.getElementById('f-ville').value.trim();
+  const type = document.getElementById('f-type').value;
+
+  const params = new URLSearchParams();
+  if (domaine) params.set('specialite', domaine);
+  if (ville) params.set('ville', ville);
+  if (type) params.set('type', type);
+  params.set('disponible', 'true');
+  params.set('limit', '50');
+
+  document.getElementById('results').innerHTML = '<div class="loader">Recherche…</div>';
+
+  try {
+    const r = await fetch(`${API}/search?${params}`).then(r => r.json());
+    const pros = r.professionnels || [];
+
+    if (!pros.length) {
+      document.getElementById('results').innerHTML = '<div class="empty">Aucun professionnel trouvé. Essayez d\'élargir vos critères.</div>';
+      return;
+    }
+
+    let html = `<div class="result-count">${pros.length} professionnel${pros.length>1?'s':''} trouvé${pros.length>1?'s':''}</div>`;
+    pros.forEach(p => {
+      const initials = (p.prenom?.[0]||'')+(p.nom?.[0]||'');
+      const stars = '★'.repeat(Math.round(p.note_moyenne))+'☆'.repeat(5-Math.round(p.note_moyenne));
+      html += `
+        <div class="pro-card">
+          <div class="pro-avatar">
+            ${p.photo_url ? `<img src="${esc(p.photo_url)}" alt="">` : esc(initials)}
+          </div>
+          <div class="pro-info">
+            <div class="name">${esc(p.titre||'')} ${esc(p.prenom)} ${esc(p.nom)}</div>
+            <div class="specs">${(p.specialites||[]).map(s=>`<span>${esc(s.replace(/_/g,' '))}</span>`).join('')}</div>
+            <div class="meta">${esc(p.type_professionnel)} ${p.ville ? '• '+esc(p.ville) : ''}</div>
+            <div class="rating">${stars} ${p.note_moyenne}/5 (${p.nb_avis} avis)</div>
+          </div>
+          <div class="pro-right">
+            ${p.offre_min ? `<div class="price">${p.offre_min.prix}€</div><div class="price-label">${p.offre_min.titre || p.offre_min.type}</div>` : ''}
+            <a class="book-btn" href="/expert/${esc(p.slug)}">Réserver →</a>
+          </div>
+        </div>
+      `;
+    });
+    document.getElementById('results').innerHTML = html;
+  } catch(e) {
+    document.getElementById('results').innerHTML = '<div class="empty">Erreur de chargement.</div>';
+  }
+}
+
+// Pré-remplir depuis les query params
+const params = new URLSearchParams(location.search);
+if (params.get('specialite')) document.getElementById('f-domaine').value = params.get('specialite');
+if (params.get('ville')) document.getElementById('f-ville').value = params.get('ville');
+
+search();
+</script>
+</body>
+</html>

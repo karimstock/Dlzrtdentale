@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Mes dentistes</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --primary:#1a56db;
+  --primary-dark:#1140a6;
+  --primary-light:#e8effc;
+  --primary-mid:#3b71e8;
+  --bg:#f4f6fb;
+  --surface:#ffffff;
+  --surface2:#f0f3f9;
+  --border:#e2e7f0;
+  --border-strong:#c8d0e0;
+  --text:#111827;
+  --text-secondary:#374151;
+  --muted:#6b7280;
+  --muted-light:#9ca3af;
+  --green:#059669;--green-bg:#d1fae5;
+  --amber:#d97706;--amber-bg:#fef3c7;
+  --red:#dc2626;--red-bg:#fee2e2;
+  --blue:#1a56db;--blue-bg:#e8effc;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.08),0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg:0 10px 40px rgba(0,0,0,0.10),0 4px 12px rgba(0,0,0,0.06);
+  --font:'Inter',system-ui,sans-serif;
+  --sidebar-w:240px;
+  --topbar-h:60px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+.shell{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;overflow:hidden;}
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--primary-mid));border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-icon svg{width:20px;height:20px;fill:#fff;}
+.logo-text{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;line-height:1.2;}
+.logo-sub{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0.3px;}
+.nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-section-label{padding:10px 22px 4px;font-size:10px;font-weight:600;color:var(--muted-light);text-transform:uppercase;letter-spacing:1.2px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 22px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none;position:relative;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-left-color:var(--primary);font-weight:600;}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;line-height:1.4;}
+.nav-badge.blue{background:var(--primary);}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);}
+.user-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;}
+.user-card:hover{background:var(--border);}
+.user-avatar{width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:10px;color:var(--muted);margin-top:1px;}
+.sidebar-toggle{display:none;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;}
+
+/* Main */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-breadcrumb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{background:var(--surface2);border-color:var(--border-strong);}
+.btn-ghost{background:transparent;color:var(--muted);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#b91c1c;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-xs{padding:4px 10px;font-size:11px;}
+.content{padding:28px;flex:1;}
+
+/* Search / filter bar */
+.filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:240px;}
+.search-wrap input{width:100%;padding:9px 12px 9px 36px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;transition:border-color 0.15s;}
+.search-wrap input:focus{border-color:var(--primary);}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted-light);font-size:14px;}
+.autocomplete-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);z-index:200;max-height:240px;overflow-y:auto;}
+.autocomplete-item{padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s;}
+.autocomplete-item:last-child{border-bottom:none;}
+.autocomplete-item:hover{background:var(--surface2);}
+.autocomplete-item-title{font-weight:600;color:var(--text);}
+.autocomplete-item-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+select.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+select.filter-select:focus{border-color:var(--primary);}
+
+/* Cards grid */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+.dentist-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;transition:box-shadow 0.15s,border-color 0.15s;cursor:pointer;position:relative;}
+.dentist-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary-mid);}
+.dentist-card-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;}
+.dentist-avatar{width:44px;height:44px;border-radius:50%;background:var(--primary-light);border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--primary);flex-shrink:0;}
+.dentist-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;}
+.dentist-cabinet{font-size:12px;color:var(--muted);margin-top:2px;}
+.dentist-card-body{display:flex;flex-direction:column;gap:6px;}
+.dentist-info-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);}
+.dentist-info-row .icon{font-size:13px;width:16px;text-align:center;color:var(--muted-light);}
+.dentist-card-footer{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-gray{background:#f3f4f6;color:var(--muted);}
+
+/* Modal */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;padding:20px;}
+.modal-backdrop.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:660px;max-height:90vh;display:flex;flex-direction:column;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:16px;font-weight:700;color:var(--text);}
+.modal-close{width:32px;height:32px;border:none;background:var(--surface2);border-radius:6px;font-size:18px;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.modal-close:hover{background:var(--red-bg);color:var(--red);}
+.modal-body{padding:24px;overflow-y:auto;flex:1;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:var(--surface2);}
+
+/* Form */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.form-row.single{grid-template-columns:1fr;}
+.form-row.triple{grid-template-columns:1fr 1fr 1fr;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+label{font-size:12px;font-weight:600;color:var(--text-secondary);letter-spacing:0.2px;}
+.form-control{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--text);background:var(--surface);outline:none;transition:border-color 0.15s;width:100%;}
+.form-control:focus{border-color:var(--primary);}
+.form-control::placeholder{color:var(--muted-light);}
+.form-section{margin-bottom:20px;}
+.form-section-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+
+/* DINUM search banner */
+.dinum-banner{background:var(--primary-light);border:1px solid #bfdbfe;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--primary);}
+.dinum-search-bar{display:flex;gap:8px;margin-bottom:16px;}
+.dinum-search-bar input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;}
+.dinum-search-bar input:focus{border-color:var(--primary);}
+
+/* Detail panel */
+.detail-panel{position:fixed;top:0;right:0;height:100vh;width:420px;background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);z-index:300;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s;}
+.detail-panel.open{transform:translateX(0);}
+.detail-panel-header{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid var(--border);}
+.detail-panel-body{flex:1;overflow-y:auto;padding:22px;}
+.detail-panel-footer{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--surface2);}
+.dp-section{margin-bottom:20px;}
+.dp-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;}
+.dp-field{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);gap:12px;}
+.dp-field:last-child{border-bottom:none;}
+.dp-label{font-size:12px;color:var(--muted);flex-shrink:0;}
+.dp-value{font-size:13px;font-weight:500;color:var(--text);text-align:right;word-break:break-all;}
+.dp-avatar{width:64px;height:64px;border-radius:50%;background:var(--primary-light);border:3px solid var(--primary);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--primary);margin:0 auto 16px;}
+
+/* Stats bar */
+.stats-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;display:flex;align-items:center;gap:10px;}
+.stat-pill-val{font-size:20px;font-weight:700;color:var(--text);}
+.stat-pill-label{font-size:11px;color:var(--muted);font-weight:500;}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 24px;}
+.empty-state-icon{font-size:40px;margin-bottom:12px;opacity:0.35;}
+.empty-state-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.empty-state-desc{font-size:13px;color:var(--muted);max-width:300px;margin:0 auto 16px;}
+
+/* Toast */
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:500;}
+.toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;max-width:360px;animation:slideIn 0.25s ease;}
+.toast.success{background:var(--green);}
+.toast.error{background:var(--red);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+/* Loading */
+.page-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
+.page-loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;}
+
+/* Toggle switch */
+.toggle-wrap{display:flex;align-items:center;gap:10px;font-size:13px;}
+.toggle{position:relative;width:40px;height:22px;cursor:pointer;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-slider{position:absolute;inset:0;background:var(--muted-light);border-radius:22px;transition:background 0.2s;}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform 0.2s;}
+.toggle input:checked~.toggle-slider{background:var(--primary);}
+.toggle input:checked~.toggle-slider::before{transform:translateX(18px);}
+
+/* Responsive */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
+  .sidebar.open{transform:translateX(0);}
+  .overlay.open{display:block;}
+  .main{margin-left:0;}
+  .topbar{padding:0 16px;}
+  .content{padding:16px;}
+  .sidebar-toggle{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:18px;color:var(--muted);}
+  .form-row{grid-template-columns:1fr;}
+  .form-row.triple{grid-template-columns:1fr 1fr;}
+  .detail-panel{width:100%;}
+  .cards-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="page-loading" id="pageLoading">
+  <div style="text-align:center;">
+    <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;">JADOMI LABO</div>
+    <div class="page-loading-spinner"></div>
+  </div>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
+
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">JADOMI LABO</div>
+        <div class="logo-sub">Prothétique dentaire</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">Principal</div>
+      <a class="nav-item" href="dashboard.html"><span class="ni">🏠</span> Tableau de bord</a>
+      <a class="nav-item active" href="dentistes.html"><span class="ni">👥</span> Mes dentistes</a>
+      <a class="nav-item" href="bons-livraison.html"><span class="ni">📋</span> Bons de laboratoire</a>
+      <a class="nav-item" href="facturation.html"><span class="ni">💰</span> Facturation</a>
+      <div class="nav-section-label" style="margin-top:8px;">Stock</div>
+      <a class="nav-item" href="stock.html"><span class="ni">📦</span> Stock &amp; Matériaux</a>
+      <a class="nav-item" href="stock.html#scanner"><span class="ni">🔍</span> Scanner</a>
+      <div class="nav-section-label" style="margin-top:8px;">Catalogue</div>
+      <a class="nav-item" href="catalogue.html"><span class="ni">📊</span> Catalogue</a>
+      <a class="nav-item" href="import-grille.html"><span class="ni">📥</span> Import grille tarifaire</a>
+      <div class="nav-section-label" style="margin-top:8px;">Compte</div>
+      <a class="nav-item" href="profil-labo.html"><span class="ni">⚙️</span> Paramètres laboratoire</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card" onclick="window.location.href='profil-labo.html'">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div style="min-width:0;">
+          <div class="user-name" id="userName">Chargement…</div>
+          <div class="user-role">Prothésiste</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+        <div>
+          <div class="topbar-title">Mes dentistes</div>
+          <div class="topbar-breadcrumb"><span>JADOMI LABO</span> › Dentistes</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openAddModal()">&#xFF0B; Ajouter dentiste</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" title="Déconnexion">&#x2715;</button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- Stats bar -->
+      <div class="stats-bar" id="statsBar">
+        <div class="stat-pill"><div class="stat-pill-val" id="statTotal">—</div><div class="stat-pill-label">Total dentistes</div></div>
+        <div class="stat-pill"><div class="stat-pill-val" style="color:var(--green)" id="statActifs">—</div><div class="stat-pill-label">Actifs</div></div>
+        <div class="stat-pill"><div class="stat-pill-val" style="color:var(--muted)" id="statInactifs">—</div><div class="stat-pill-label">Inactifs</div></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Rechercher par nom, cabinet, ville…" oninput="onSearchInput()" autocomplete="off">
+          <div class="autocomplete-list" id="autocompleteList" style="display:none;"></div>
+        </div>
+        <select class="filter-select" id="filterStatut" onchange="applyFilters()">
+          <option value="">Tous les statuts</option>
+          <option value="actif">Actifs</option>
+          <option value="inactif">Inactifs</option>
+        </select>
+        <select class="filter-select" id="filterVille" onchange="applyFilters()">
+          <option value="">Toutes les villes</option>
+        </select>
+      </div>
+
+      <!-- Cards grid -->
+      <div class="cards-grid" id="cardsGrid">
+        <div style="grid-column:1/-1;">
+          <div class="empty-state">
+            <div class="empty-state-icon">👥</div>
+            <div class="empty-state-title">Chargement des dentistes…</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-panel-header">
+    <div style="font-size:15px;font-weight:700;" id="dpTitle">Détail dentiste</div>
+    <button class="modal-close" onclick="closeDetail()">&#x2715;</button>
+  </div>
+  <div class="detail-panel-body" id="dpBody">
+    <!-- injected -->
+  </div>
+  <div class="detail-panel-footer">
+    <button class="btn btn-outline btn-sm" onclick="openEditModal()">✏️ Modifier</button>
+    <button class="btn btn-sm" id="dpToggleBtn" onclick="toggleDentistStatus()">—</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteDentist()">🗑️ Supprimer</button>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Ajouter un dentiste</div>
+      <button class="modal-close" onclick="closeModal('addModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- DINUM auto-fill -->
+      <div class="dinum-banner">
+        <span>🔍</span>
+        <span>Recherchez le cabinet dans la base DINUM pour remplissage automatique</span>
+      </div>
+      <div class="dinum-search-bar">
+        <input type="text" id="dinumSearch" placeholder="Tapez le nom ou la raison sociale…" oninput="debounceDinum()" onkeydown="if(event.key==='Enter')searchDinum()" autocomplete="off">
+        <button class="btn btn-outline" onclick="searchDinum()" id="dinumBtn">Rechercher</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:8px;">💡 Tapez au moins 3 caractères pour rechercher automatiquement un cabinet dentaire</div>
+      <div id="dinumResults" style="margin-bottom:16px;"></div>
+
+      <!-- Form -->
+      <div class="form-section">
+        <div class="form-section-title">Identité</div>
+        <div class="form-row triple">
+          <div class="form-group">
+            <label>Titre</label>
+            <select class="form-control" id="fTitre">
+              <option>Dr</option><option>Pr</option><option>M.</option><option>Mme</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prénom</label>
+            <input class="form-control" id="fPrenom" placeholder="Jean">
+          </div>
+          <div class="form-group">
+            <label>Nom *</label>
+            <input class="form-control" id="fNom" placeholder="DUPONT" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>N° RPPS</label>
+            <input class="form-control" id="fRpps" placeholder="10000000000">
+          </div>
+          <div class="form-group">
+            <label>Spécialité</label>
+            <input class="form-control" id="fSpecialite" placeholder="Chirurgien-dentiste">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Cabinet</div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label>Nom du cabinet</label>
+            <input class="form-control" id="fCabinet" placeholder="Cabinet dentaire…">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>SIREN</label>
+            <input class="form-control" id="fSiren" placeholder="123456789">
+          </div>
+          <div class="form-group">
+            <label>SIRET</label>
+            <input class="form-control" id="fSiret" placeholder="12345678900014">
+          </div>
+        </div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label>Adresse</label>
+            <input class="form-control" id="fAdresse" placeholder="12 rue de la Paix">
+          </div>
+        </div>
+        <div class="form-row triple">
+          <div class="form-group">
+            <label>Code postal</label>
+            <input class="form-control" id="fCp" placeholder="75001">
+          </div>
+          <div class="form-group" style="grid-column:span 2;">
+            <label>Ville</label>
+            <input class="form-control" id="fVille" placeholder="Paris">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Contact</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input class="form-control" id="fTel" placeholder="01 23 45 67 89" type="tel">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input class="form-control" id="fEmail" placeholder="contact@cabinet.fr" type="email">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Statut</div>
+        <div class="toggle-wrap">
+          <label class="toggle">
+            <input type="checkbox" id="fActif" checked>
+            <span class="toggle-slider"></span>
+          </label>
+          <span>Dentiste actif</span>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addModal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveDentist()" id="saveBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const API_BASE     = '/api/labo';
+
+let db, currentToken, currentSocieteId, currentUser;
+let allDentists = [];
+let editingId   = null;
+let selectedDentist = null;
+
+try {
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.error(e); }
+
+/* ── Auth ─────────────────────────────────────────────────── */
+async function initAuth() {
+  let session = null;
+  try { const { data } = await db.auth.getSession(); session = data?.session; } catch(e) {}
+  if (!session) {
+    const raw = localStorage.getItem('jadomi_session');
+    if (raw) try { session = JSON.parse(raw); } catch(e) {}
+  }
+  if (!session) { window.location.href = '/login.html?next=labo/dentistes.html'; return; }
+  currentToken    = session.access_token || session.token || null;
+  currentUser     = session.user || session;
+  currentSocieteId = localStorage.getItem('selectedSocieteId') || currentUser?.user_metadata?.defaultSocieteId || null;
+  renderUserInfo();
+  document.getElementById('pageLoading').style.display = 'none';
+  document.getElementById('appShell').style.display    = 'flex';
+  await loadDentists();
+}
+
+function renderUserInfo() {
+  const meta = currentUser?.user_metadata || {};
+  const nom  = (meta.prenom || '') + ' ' + (meta.nom || '');
+  const display = nom.trim() || currentUser?.email?.split('@')[0] || '?';
+  document.getElementById('userName').textContent  = display;
+  document.getElementById('userAvatar').textContent = display.charAt(0).toUpperCase();
+}
+
+function apiHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (currentToken)    h['Authorization']  = `Bearer ${currentToken}`;
+  if (currentSocieteId) h['X-Societe-Id'] = currentSocieteId;
+  return h;
+}
+
+async function logout() {
+  try { await db.auth.signOut(); } catch(e) {}
+  localStorage.removeItem('jadomi_session');
+  localStorage.removeItem('selectedSocieteId');
+  window.location.href = '/login.html';
+}
+
+/* ── Load dentists ─────────────────────────────────────────── */
+async function loadDentists() {
+  try {
+    const res = await fetch(`${API_BASE}/dentistes`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      allDentists = Array.isArray(data) ? data : (data.data || data.dentistes || []);
+    } else {
+      allDentists = [];
+    }
+  } catch(e) {
+    allDentists = [];
+    toast('Erreur de chargement', 'error');
+  }
+  renderStats();
+  populateVilleFilter();
+  applyFilters();
+}
+
+function renderStats() {
+  const actifs   = allDentists.filter(d => d.actif !== false).length;
+  const inactifs  = allDentists.length - actifs;
+  document.getElementById('statTotal').textContent   = allDentists.length;
+  document.getElementById('statActifs').textContent   = actifs;
+  document.getElementById('statInactifs').textContent = inactifs;
+}
+
+function populateVilleFilter() {
+  const villes = [...new Set(allDentists.map(d => d.ville).filter(Boolean))].sort();
+  const sel = document.getElementById('filterVille');
+  sel.innerHTML = '<option value="">Toutes les villes</option>';
+  villes.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+}
+
+function applyFilters() {
+  const q      = document.getElementById('searchInput').value.toLowerCase().trim();
+  const statut = document.getElementById('filterStatut').value;
+  const ville  = document.getElementById('filterVille').value;
+  let list = allDentists.filter(d => {
+    const txt = `${d.titre||''} ${d.prenom||''} ${d.nom||''} ${d.cabinet||''} ${d.ville||''} ${d.email||''}`.toLowerCase();
+    if (q && !txt.includes(q)) return false;
+    if (statut === 'actif'   && d.actif === false) return false;
+    if (statut === 'inactif' && d.actif !== false) return false;
+    if (ville && d.ville !== ville) return false;
+    return true;
+  });
+  renderCards(list);
+}
+
+function renderCards(list) {
+  const grid = document.getElementById('cardsGrid');
+  if (!list.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;"><div class="empty-state">
+      <div class="empty-state-icon">👥</div>
+      <div class="empty-state-title">Aucun dentiste trouvé</div>
+      <div class="empty-state-desc">Ajoutez votre premier dentiste client.</div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="openAddModal()">+ Ajouter dentiste</button>
+    </div></div>`;
+    return;
+  }
+  grid.innerHTML = list.map(d => {
+    const initials = ((d.prenom||'').charAt(0) + (d.nom||'').charAt(0)).toUpperCase() || '?';
+    const isActif  = d.actif !== false;
+    return `<div class="dentist-card" onclick="openDetail('${d.id}')">
+      <div class="dentist-card-header">
+        <div class="dentist-avatar">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="dentist-name">${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}</div>
+          <div class="dentist-cabinet">${d.cabinet||'—'}</div>
+        </div>
+        <span class="badge ${isActif?'badge-green':'badge-gray'}">${isActif?'Actif':'Inactif'}</span>
+      </div>
+      <div class="dentist-card-body">
+        ${d.ville ? `<div class="dentist-info-row"><span class="icon">📍</span>${d.cp||''} ${d.ville}</div>` : ''}
+        ${d.email ? `<div class="dentist-info-row"><span class="icon">✉️</span>${d.email}</div>` : ''}
+        ${d.tel   ? `<div class="dentist-info-row"><span class="icon">📞</span>${d.tel}</div>` : ''}
+        ${d.rpps  ? `<div class="dentist-info-row"><span class="icon">🏥</span>RPPS: ${d.rpps}</div>` : ''}
+      </div>
+      <div class="dentist-card-footer">
+        <span style="font-size:11px;color:var(--muted);">${d.siret||d.siren||''}</span>
+        <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();openDetail('${d.id}')">Voir</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Search autocomplete ───────────────────────────────────── */
+let acTimeout;
+function onSearchInput() {
+  clearTimeout(acTimeout);
+  const q = document.getElementById('searchInput').value.trim();
+  if (q.length < 2) { document.getElementById('autocompleteList').style.display='none'; applyFilters(); return; }
+  acTimeout = setTimeout(() => {
+    applyFilters();
+    const list = allDentists.filter(d => {
+      const txt = `${d.titre||''} ${d.prenom||''} ${d.nom||''} ${d.cabinet||''}`.toLowerCase();
+      return txt.includes(q.toLowerCase());
+    }).slice(0,6);
+    const ac = document.getElementById('autocompleteList');
+    if (!list.length) { ac.style.display='none'; return; }
+    ac.innerHTML = list.map(d => `<div class="autocomplete-item" onclick="selectAC('${d.id}')">
+      <div class="autocomplete-item-title">${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}</div>
+      <div class="autocomplete-item-sub">${d.cabinet||''} — ${d.ville||''}</div>
+    </div>`).join('');
+    ac.style.display = 'block';
+  }, 200);
+}
+function selectAC(id) {
+  document.getElementById('autocompleteList').style.display='none';
+  openDetail(id);
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) document.getElementById('autocompleteList').style.display='none';
+});
+
+/* ── Detail panel ──────────────────────────────────────────── */
+function openDetail(id) {
+  selectedDentist = allDentists.find(d => d.id == id);
+  if (!selectedDentist) return;
+  const d = selectedDentist;
+  const isActif = d.actif !== false;
+  const initials = ((d.prenom||'').charAt(0)+(d.nom||'').charAt(0)).toUpperCase()||'?';
+  document.getElementById('dpTitle').textContent = `${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}`;
+  document.getElementById('dpToggleBtn').textContent = isActif ? '⏸️ Désactiver' : '▶️ Activer';
+  document.getElementById('dpToggleBtn').className = `btn btn-sm ${isActif?'btn-outline':'btn-primary'}`;
+  document.getElementById('dpBody').innerHTML = `
+    <div class="dp-avatar">${initials}</div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:700;">${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${d.specialite||'Chirurgien-dentiste'}</div>
+      <span class="badge ${isActif?'badge-green':'badge-gray'}" style="margin-top:6px;">${isActif?'Actif':'Inactif'}</span>
+    </div>
+    <div class="dp-section">
+      <div class="dp-section-title">Cabinet</div>
+      <div class="dp-field"><span class="dp-label">Cabinet</span><span class="dp-value">${d.cabinet||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">Adresse</span><span class="dp-value">${d.adresse||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">Ville</span><span class="dp-value">${d.cp||''} ${d.ville||'—'}</span></div>
+    </div>
+    <div class="dp-section">
+      <div class="dp-section-title">Contact</div>
+      <div class="dp-field"><span class="dp-label">Téléphone</span><span class="dp-value">${d.tel||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">Email</span><span class="dp-value">${d.email||'—'}</span></div>
+    </div>
+    <div class="dp-section">
+      <div class="dp-section-title">Identifiants</div>
+      <div class="dp-field"><span class="dp-label">RPPS</span><span class="dp-value">${d.rpps||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">SIREN</span><span class="dp-value">${d.siren||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">SIRET</span><span class="dp-value">${d.siret||'—'}</span></div>
+    </div>
+  `;
+  document.getElementById('detailPanel').classList.add('open');
+}
+function closeDetail() { document.getElementById('detailPanel').classList.remove('open'); selectedDentist=null; }
+
+async function toggleDentistStatus() {
+  if (!selectedDentist) return;
+  const newStatus = selectedDentist.actif === false ? true : false;
+  try {
+    const res = await fetch(`${API_BASE}/dentistes/${selectedDentist.id}`, {
+      method:'PUT', headers: apiHeaders(),
+      body: JSON.stringify({ ...selectedDentist, actif: newStatus })
+    });
+    if (res.ok) {
+      selectedDentist.actif = newStatus;
+      const idx = allDentists.findIndex(d=>d.id===selectedDentist.id);
+      if (idx>=0) allDentists[idx].actif = newStatus;
+      renderStats();
+      applyFilters();
+      openDetail(selectedDentist.id);
+      toast(newStatus ? 'Dentiste activé' : 'Dentiste désactivé', 'success');
+    }
+  } catch(e) { toast('Erreur', 'error'); }
+}
+
+async function deleteDentist() {
+  if (!selectedDentist) return;
+  if (!confirm(`Supprimer ${selectedDentist.titre||'Dr'} ${selectedDentist.nom} ? Cette action est irréversible.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/dentistes/${selectedDentist.id}`, { method:'DELETE', headers:apiHeaders() });
+    if (res.ok) {
+      allDentists = allDentists.filter(d=>d.id!==selectedDentist.id);
+      closeDetail();
+      renderStats();
+      applyFilters();
+      toast('Dentiste supprimé', 'success');
+    }
+  } catch(e) { toast('Erreur', 'error'); }
+}
+
+/* ── Add / Edit modal ─────────────────────────────────────── */
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Ajouter un dentiste';
+  clearForm();
+  document.getElementById('addModal').classList.add('open');
+}
+
+function openEditModal() {
+  if (!selectedDentist) return;
+  editingId = selectedDentist.id;
+  document.getElementById('modalTitle').textContent = 'Modifier le dentiste';
+  fillForm(selectedDentist);
+  document.getElementById('addModal').classList.add('open');
+}
+
+function clearForm() {
+  ['fTitre','fPrenom','fNom','fRpps','fSpecialite','fCabinet','fSiren','fSiret','fAdresse','fCp','fVille','fTel','fEmail'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el.tagName==='SELECT') el.selectedIndex=0; else el.value='';
+  });
+  document.getElementById('fActif').checked = true;
+  document.getElementById('dinumResults').innerHTML='';
+  document.getElementById('dinumSearch').value='';
+}
+
+function fillForm(d) {
+  document.getElementById('fTitre').value  = d.titre  || 'Dr';
+  document.getElementById('fPrenom').value = d.prenom || '';
+  document.getElementById('fNom').value    = d.nom    || '';
+  document.getElementById('fRpps').value   = d.rpps   || '';
+  document.getElementById('fSpecialite').value = d.specialite || '';
+  document.getElementById('fCabinet').value = d.cabinet|| '';
+  document.getElementById('fSiren').value  = d.siren  || '';
+  document.getElementById('fSiret').value  = d.siret  || '';
+  document.getElementById('fAdresse').value= d.adresse|| '';
+  document.getElementById('fCp').value     = d.cp     || '';
+  document.getElementById('fVille').value  = d.ville  || '';
+  document.getElementById('fTel').value    = d.tel    || '';
+  document.getElementById('fEmail').value  = d.email  || '';
+  document.getElementById('fActif').checked = d.actif !== false;
+}
+
+function getFormData() {
+  return {
+    titre:     document.getElementById('fTitre').value,
+    prenom:    document.getElementById('fPrenom').value.trim(),
+    nom:       document.getElementById('fNom').value.trim(),
+    rpps:      document.getElementById('fRpps').value.trim(),
+    specialite:document.getElementById('fSpecialite').value.trim(),
+    cabinet:   document.getElementById('fCabinet').value.trim(),
+    siren:     document.getElementById('fSiren').value.trim(),
+    siret:     document.getElementById('fSiret').value.trim(),
+    adresse:   document.getElementById('fAdresse').value.trim(),
+    cp:        document.getElementById('fCp').value.trim(),
+    ville:     document.getElementById('fVille').value.trim(),
+    tel:       document.getElementById('fTel').value.trim(),
+    email:     document.getElementById('fEmail').value.trim(),
+    actif:     document.getElementById('fActif').checked,
+  };
+}
+
+async function saveDentist() {
+  const data = getFormData();
+  if (!data.nom) { toast('Le nom est requis', 'error'); return; }
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span> Enregistrement…';
+  try {
+    let res;
+    if (editingId) {
+      res = await fetch(`${API_BASE}/dentistes/${editingId}`, { method:'PUT', headers:apiHeaders(), body:JSON.stringify(data) });
+    } else {
+      res = await fetch(`${API_BASE}/dentistes`, { method:'POST', headers:apiHeaders(), body:JSON.stringify(data) });
+    }
+    if (res.ok) {
+      const saved = await res.json();
+      if (editingId) {
+        const idx = allDentists.findIndex(d=>d.id===editingId);
+        if (idx>=0) allDentists[idx] = { ...allDentists[idx], ...data, id:editingId };
+      } else {
+        allDentists.unshift(saved.data || { ...data, id: saved.id || Date.now() });
+      }
+      closeModal('addModal');
+      renderStats();
+      populateVilleFilter();
+      applyFilters();
+      toast(editingId ? 'Dentiste modifié' : 'Dentiste ajouté', 'success');
+    } else {
+      const err = await res.json().catch(()=>({}));
+      toast(err.message || 'Erreur serveur', 'error');
+    }
+  } catch(e) { toast('Erreur réseau', 'error'); }
+  finally { btn.disabled=false; btn.innerHTML='💾 Enregistrer'; }
+}
+
+/* ── DINUM search ──────────────────────────────────────────── */
+let _dinumTimer = null;
+function debounceDinum(){
+  clearTimeout(_dinumTimer);
+  const q = document.getElementById('dinumSearch').value.trim();
+  if(q.length < 3){ document.getElementById('dinumResults').innerHTML=''; return; }
+  _dinumTimer = setTimeout(()=> searchDinum(), 350);
+}
+
+async function searchDinum() {
+  const q = document.getElementById('dinumSearch').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('dinumBtn');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  try {
+    // Query both the backend proxy and the public API in parallel
+    const [backendRes, publicRes] = await Promise.all([
+      fetch(`${API_BASE}/dentistes/recherche-cabinet?q=${encodeURIComponent(q)}`, { headers:apiHeaders() })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(q)}&activite_principale=86.23Z&per_page=5`)
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+
+    // Merge results: backend results first, then public API
+    let list = [];
+    if (backendRes) {
+      const raw = Array.isArray(backendRes) ? backendRes : (backendRes.results || backendRes.resultats || backendRes.data || []);
+      // Normaliser les champs du proxy backend
+      for (const c of raw) {
+        list.push({
+          nom_cabinet: c.nom_cabinet || c.raison_sociale || c.nom || '',
+          nom: c.nom || c.raison_sociale || '',
+          siren: c.siren || '',
+          siret: c.siret || '',
+          adresse: c.adresse || c.adresse_ligne1 || '',
+          cp: c.cp || c.code_postal || '',
+          ville: c.ville || c.libelle_commune || '',
+          tel: c.tel || c.telephone || ''
+        });
+      }
+    }
+
+    // Add public API results (converted to same format)
+    if (publicRes && publicRes.results) {
+      const seenSiren = new Set(list.map(c => c.siren).filter(Boolean));
+      for (const e of publicRes.results) {
+        if (seenSiren.has(e.siren)) continue;
+        seenSiren.add(e.siren);
+        const siege = e.siege || {};
+        let adresse = siege.adresse || '';
+        const cp = siege.code_postal || '';
+        const ville = siege.libelle_commune || siege.commune || '';
+        if (cp && adresse.includes(cp)) adresse = adresse.substring(0, adresse.indexOf(cp)).trim();
+        list.push({
+          nom_cabinet: e.nom_complet || e.nom_raison_sociale || '',
+          nom: e.nom_complet || '',
+          siren: e.siren || '',
+          siret: siege.siret || '',
+          adresse: adresse,
+          cp: cp,
+          ville: ville,
+          tel: ''
+        });
+      }
+    }
+
+    if (list.length) {
+      renderDinumResults(list);
+    } else {
+      document.getElementById('dinumResults').innerHTML = '<p style="font-size:12px;color:var(--muted);">Aucun cabinet trouvé.</p>';
+    }
+  } catch(e) {
+    document.getElementById('dinumResults').innerHTML = '<p style="font-size:12px;color:var(--red,#ef4444);">Erreur de recherche.</p>';
+  } finally {
+    btn.textContent = 'Rechercher';
+    btn.disabled = false;
+  }
+}
+
+function renderDinumResults(list) {
+  const el = document.getElementById('dinumResults');
+  if (!list.length) { el.innerHTML='<p style="font-size:12px;color:var(--muted);">Aucun cabinet trouvé.</p>'; return; }
+  el.innerHTML = `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-height:180px;overflow-y:auto;">
+    ${list.slice(0,8).map((c,i) => `<div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="applyDinum(${i})" data-idx="${i}">
+      <div style="font-weight:600;color:var(--text);">${c.nom_cabinet||c.nom||'—'}</div>
+      <div style="color:var(--muted);margin-top:2px;">${c.adresse||''} ${c.cp||''} ${c.ville||''} — SIRET: ${c.siret||'—'}</div>
+    </div>`).join('')}
+  </div>`;
+  window._dinumData = list;
+}
+
+function applyDinum(idx) {
+  const c = window._dinumData[idx];
+  if (!c) return;
+  if (c.cabinet||c.nom_cabinet) document.getElementById('fCabinet').value = c.nom_cabinet||c.cabinet||'';
+  if (c.siret) document.getElementById('fSiret').value = c.siret;
+  if (c.siren) document.getElementById('fSiren').value = c.siren;
+  if (c.adresse) document.getElementById('fAdresse').value = c.adresse;
+  if (c.cp) document.getElementById('fCp').value = c.cp;
+  if (c.ville) document.getElementById('fVille').value = c.ville;
+  if (c.tel) document.getElementById('fTel').value = c.tel;
+  document.getElementById('dinumResults').innerHTML = '<p style="font-size:12px;color:var(--green);">✅ Cabinet importé. Vérifiez et complétez les champs.</p>';
+}
+
+/* ── Modal helpers ─────────────────────────────────────────── */
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.getElementById('addModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal('addModal'); });
+
+/* ── Sidebar ───────────────────────────────────────────────── */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ── Boot ──────────────────────────────────────────────────── */
+initAuth();
+</script>
+</body>
+</html>

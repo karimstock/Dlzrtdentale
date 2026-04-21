@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Rush — Nouvelle demande</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--border:rgba(99,102,241,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--accent-dark:#818cf8;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* Layout */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #0a1628 0%, #121f3a 50%, #0a1628 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* Logo */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+.rush-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:var(--accent);padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.5px;margin-top:8px;}
+
+/* Nav */
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(16,185,129,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+
+/* Sidebar bottom */
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.user-card{background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);}
+.user-alias{font-size:13px;font-weight:600;color:var(--accent);font-family:var(--mono);}
+.user-label{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* Topbar */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.5px;}
+.breadcrumb{font-size:12px;color:var(--muted);margin-top:2px;}
+.breadcrumb a{color:var(--muted);text-decoration:none;}
+.breadcrumb a:hover{color:var(--accent);}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.2px;}
+.btn-accent{background:var(--accent);color:#0f0e0d;}
+.btn-accent:hover{background:var(--accent-dark);}
+.btn-accent:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-lg{padding:13px 28px;font-size:14px;font-weight:600;}
+
+/* Content */
+.content{padding:28px;flex:1;max-width:860px;}
+
+/* Form sections */
+.form-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+.form-section-title{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+.form-section-title .num{width:26px;height:26px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.form-section-sub{font-size:12px;color:var(--muted);margin-bottom:20px;margin-left:36px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-label .req{color:var(--accent);}
+.form-input,.form-select,.form-textarea{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;background:var(--surface2);color:var(--text);transition:border-color 0.15s;width:100%;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-input.error,.form-select.error{border-color:var(--red);}
+.form-select option{background:var(--surface2);}
+.form-textarea{resize:vertical;min-height:90px;}
+.form-hint{font-size:11px;color:var(--muted);}
+.form-hint.warn{color:var(--amber);}
+
+/* File upload zone */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;background:var(--surface2);}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(16,185,129,0.04);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{font-size:32px;margin-bottom:10px;}
+.upload-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.upload-hint{font-size:12px;color:var(--muted);}
+.upload-list{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
+.upload-item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;}
+.upload-item-name{font-size:12px;font-family:var(--mono);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.upload-item-size{font-size:11px;color:var(--muted);}
+.upload-item-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px;transition:color 0.15s;}
+.upload-item-del:hover{color:var(--red);}
+.upload-progress{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+.upload-progress-bar{height:100%;background:var(--accent);transition:width 0.3s;}
+.rgpd-warn{display:none;background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.4);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--amber);margin-top:12px;line-height:1.6;}
+.rgpd-warn.visible{display:block;}
+
+/* Validation checklist */
+.validation-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;display:none;}
+.validation-panel.visible{display:block;}
+.validation-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.val-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.val-item:last-child{border-bottom:none;}
+.val-icon{width:20px;text-align:center;font-size:15px;flex-shrink:0;}
+.val-text{flex:1;}
+.val-ok{color:var(--green);}
+.val-err{color:var(--red);}
+.val-warn{color:var(--amber);}
+
+/* Budget range */
+.budget-range{display:flex;align-items:center;gap:10px;}
+.budget-range input[type=range]{flex:1;accent-color:var(--accent);}
+.budget-display{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent);min-width:60px;text-align:right;}
+
+/* Error / info banners */
+.banner{padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;display:none;}
+.banner.visible{display:flex;align-items:flex-start;gap:10px;}
+.banner-err{background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.4);color:var(--red);}
+.banner-ok{background:rgba(96,208,144,0.1);border:1px solid rgba(96,208,144,0.4);color:var(--green);}
+.banner-info{background:rgba(96,168,240,0.1);border:1px solid rgba(96,168,240,0.4);color:var(--blue);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;z-index:300;transition:transform 0.3s;display:flex;align-items:center;gap:8px;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* Spinner overlay */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(15,14,13,0.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.loading-overlay.open{display:flex;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Responsive */
+@media(max-width:780px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .form-grid{grid-template-columns:1fr;}
+  .content{padding:16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-sub">Rush — Sous-traitance anonyme</div>
+    <div class="rush-badge">⚡ RUSH</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Navigation</div>
+    <a class="nav-item active" href="nouvelle-demande.html"><span class="ni">➕</span>Nouvelle demande</a>
+    <a class="nav-item" href="mes-demandes.html"><span class="ni">📋</span>Mes demandes</a>
+    <a class="nav-item" href="mes-demandes.html#repondre"><span class="ni">💬</span>Repondre</a>
+    <a class="nav-item" href="mes-demandes.html#suivi"><span class="ni">📦</span>Suivi livraisons</a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-card">
+      <div class="user-alias" id="sidebar-alias">—</div>
+      <div class="user-label">Votre alias JADOMI Rush</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title">Nouvelle demande Rush</div>
+      <div class="breadcrumb"><a href="mes-demandes.html">Mes demandes</a> / Nouvelle demande</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span style="font-size:11px;color:var(--muted);">Anonymat garanti par JADOMI IA</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Info anonymat -->
+    <div class="banner banner-info visible" style="margin-bottom:20px;">
+      <span>🔒</span>
+      <div>Votre identite est protegee. Les autres laboratoires verront uniquement votre alias anonyme. <strong>JADOMI IA</strong> filtre toute donnee identifiante dans vos echanges.</div>
+    </div>
+
+    <!-- Error banner -->
+    <div class="banner banner-err" id="error-banner">
+      <span>⚠️</span>
+      <span id="error-text"></span>
+    </div>
+
+    <!-- SECTION 1 : Type d'acte -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <span class="num">1</span>
+        Type d'acte
+      </div>
+      <div class="form-section-sub">Selectionnez la categorie de travail prothesique</div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label class="form-label">Type d'acte <span class="req">*</span></label>
+          <select class="form-select" id="type-acte" onchange="onTypeActeChange()">
+            <option value="">-- Choisir un acte --</option>
+            <optgroup label="Prothese fixee">
+              <option value="couronne_zircone">Couronne Zircone</option>
+              <option value="couronne_ceramo_metal">Couronne Ceramo-metal</option>
+              <option value="couronne_emax">Couronne E.max (ceramique)</option>
+              <option value="couronne_cad">Couronne full-CAD/CAM</option>
+              <option value="bridge">Bridge</option>
+              <option value="inlay_onlay">Inlay / Onlay</option>
+              <option value="facette">Facette ceramique</option>
+              <option value="onlay_composite">Onlay composite</option>
+            </optgroup>
+            <optgroup label="Prothese amovible">
+              <option value="pac_complete">PAC complete (prothese amovible complete)</option>
+              <option value="pac_partielle">PAC partielle</option>
+              <option value="stellite">Stellite (PAP metal)</option>
+              <option value="pap_resine">PAP resine</option>
+              <option value="prothese_immediate">Prothese immediate</option>
+            </optgroup>
+            <optgroup label="Orthodontie / Para-prothese">
+              <option value="gouttiere">Gouttiere occlusale / thermoformee</option>
+              <option value="appareil_ortho">Appareil orthodontique amovible</option>
+              <option value="mainteneur_espace">Mainteneur d'espace</option>
+            </optgroup>
+            <optgroup label="Implantologie">
+              <option value="couronne_implant">Couronne sur implant</option>
+              <option value="bridge_implant">Bridge sur implants</option>
+              <option value="bar_implant">Barre implantaire</option>
+            </optgroup>
+            <optgroup label="Autre">
+              <option value="reparation">Reparation / Rebasage</option>
+              <option value="autre">Autre (preciser)</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2 : Specifications -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <span class="num">2</span>
+        Specifications techniques
+      </div>
+      <div class="form-section-sub">Renseignez les details techniques necessaires a la fabrication</div>
+      <div class="form-grid">
+
+        <div class="form-field">
+          <label class="form-label">Materiau souhaite</label>
+          <select class="form-select" id="materiau">
+            <option value="">-- Selectionner --</option>
+            <option value="zircone_monolithique">Zircone monolithique</option>
+            <option value="zircone_multicouche">Zircone multicouche</option>
+            <option value="emax">E.max (disilicate de lithium)</option>
+            <option value="ceramo_metal">Ceramo-metal (PFM)</option>
+            <option value="full_metal">Full metal</option>
+            <option value="composite_cao">Composite CAO</option>
+            <option value="pmma">PMMA</option>
+            <option value="resine_acrylique">Resine acrylique</option>
+            <option value="cobalt_chrome">Cobalt-Chrome (stellite)</option>
+            <option value="titane">Titane</option>
+            <option value="sans_preference">Sans preference / au choix du labo</option>
+          </select>
+        </div>
+
+        <div class="form-field" id="field-teinte">
+          <label class="form-label">Teinte dentaire <span class="req">*</span></label>
+          <select class="form-select" id="teinte" onchange="validateLive()">
+            <option value="">-- Selectionner --</option>
+            <optgroup label="Vita Classical">
+              <option>A1</option><option>A2</option><option>A3</option><option>A3.5</option><option>A4</option>
+              <option>B1</option><option>B2</option><option>B3</option><option>B4</option>
+              <option>C1</option><option>C2</option><option>C3</option><option>C4</option>
+              <option>D2</option><option>D3</option><option>D4</option>
+            </optgroup>
+            <optgroup label="Vita Bleach">
+              <option>BL1</option><option>BL2</option><option>BL3</option><option>BL4</option>
+            </optgroup>
+            <optgroup label="Ivoclar">
+              <option>110</option><option>120</option><option>130</option><option>140</option>
+              <option>210</option><option>220</option><option>310</option><option>320</option><option>330</option><option>340</option>
+              <option>410</option><option>420</option><option>430</option>
+            </optgroup>
+            <optgroup label="Autre">
+              <option value="a_personaliser">A personnaliser (preciser en description)</option>
+              <option value="non_applicable">Non applicable (metal, gouttiere...)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-field" id="field-teinte-gingivale" style="display:none;">
+          <label class="form-label">Teinte gingivale</label>
+          <select class="form-select" id="teinte-gingivale">
+            <option value="">-- Selectionner --</option>
+            <option value="rose_clair">Rose clair</option>
+            <option value="rose_moyen">Rose moyen</option>
+            <option value="rose_fonce">Rose fonce</option>
+            <option value="brun_clair">Brun clair</option>
+            <option value="brun_moyen">Brun moyen</option>
+            <option value="brun_fonce">Brun fonce</option>
+            <option value="a_preciser">A preciser en description</option>
+          </select>
+          <span class="form-hint">Obligatoire pour les PAC completes</span>
+        </div>
+
+        <div class="form-field" id="field-arcade">
+          <label class="form-label">Arcade <span class="req" id="arcade-req" style="display:none;">*</span></label>
+          <select class="form-select" id="arcade" onchange="validateLive()">
+            <option value="">-- Selectionner --</option>
+            <option value="haut">Maxillaire (haut)</option>
+            <option value="bas">Mandibule (bas)</option>
+            <option value="les_deux">Bimaxillaire (les deux)</option>
+          </select>
+        </div>
+
+        <div class="form-field" id="field-nb-dents">
+          <label class="form-label">Nombre de dents / elements <span class="req" id="nbdents-req" style="display:none;">*</span></label>
+          <input class="form-input" type="number" id="nb-dents" min="1" max="32" placeholder="Ex : 3" onchange="validateLive()">
+          <span class="form-hint">Pour un bridge, indiquer le nombre total d'elements</span>
+        </div>
+
+        <div class="form-field full">
+          <label class="form-label">Description technique <span class="req">*</span></label>
+          <textarea class="form-textarea" id="description" rows="4" placeholder="Decrivez les specifications : numerotation dentaire (FDI), type de preparation, forme de l'arc, instructions particulieres...&#10;&#10;Ex : Bridge 14-15-16, preparation chamfer, teinte personnalisee, connexion Ø4.1mm..."></textarea>
+          <span class="form-hint">Evitez tout element identifiant (nom du patient, nom de votre labo). JADOMI IA protege votre anonymat.</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 3 : Date livraison -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <span class="num">3</span>
+        Date de livraison souhaitee
+      </div>
+      <div class="form-section-sub">Indiquez la date a laquelle vous avez besoin du travail</div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Date de livraison <span class="req">*</span></label>
+          <input class="form-input" type="date" id="date-livraison" onchange="onDateChange()">
+          <span class="form-hint" id="date-hint"></span>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Urgence</label>
+          <select class="form-select" id="urgence">
+            <option value="normal">Normal</option>
+            <option value="urgent">Urgent (sous 48h)</option>
+            <option value="tres_urgent">Tres urgent (24h)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4 : Budget indicatif -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <span class="num">4</span>
+        Budget indicatif
+        <span style="font-size:11px;font-weight:400;color:var(--muted);font-family:var(--font);">Optionnel</span>
+      </div>
+      <div class="form-section-sub">Un budget indicatif peut attirer plus de reponses adaptees</div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label class="form-label">Budget maximum souhaite (€)</label>
+          <div class="budget-range">
+            <input type="range" id="budget-range" min="0" max="500" step="5" value="0" oninput="onBudgetChange(this.value)">
+            <span class="budget-display" id="budget-display">Non renseigne</span>
+          </div>
+          <span class="form-hint">0 = Budget non renseigne. JADOMI prend 10% de commission sur le montant final.</span>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Budget exact (€)</label>
+          <input class="form-input" type="number" id="budget-exact" min="0" max="9999" step="1" placeholder="Laisser vide si non renseigne" oninput="onBudgetExactChange(this.value)">
+        </div>
+        <div class="form-field" style="display:flex;flex-direction:column;justify-content:flex-end;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--muted);">
+            <input type="checkbox" id="budget-negociable" style="accent-color:var(--accent);width:16px;height:16px;">
+            Budget negociable
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5 : Fichiers -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <span class="num">5</span>
+        Fichiers joints
+        <span style="font-size:11px;font-weight:400;color:var(--muted);font-family:var(--font);">Optionnel</span>
+      </div>
+      <div class="form-section-sub">Joignez vos fichiers numeriques (STL, photos de teinte, radiographies...)</div>
+
+      <div class="upload-zone" id="upload-zone" onclick="triggerUpload()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="file-input" multiple accept=".stl,.obj,.3mf,.ply,.dcm,.jpg,.jpeg,.png,.pdf,.zip,.rar" onchange="onFilesSelected(this.files)" style="display:none;">
+        <div class="upload-icon">📁</div>
+        <div class="upload-title">Glissez vos fichiers ici ou cliquez pour parcourir</div>
+        <div class="upload-hint">STL, OBJ, 3MF, PLY, DICOM, JPG, PNG, PDF — Max 50 Mo par fichier</div>
+      </div>
+
+      <div class="rgpd-warn" id="rgpd-warn">
+        ⚠️ <strong>Avertissement RGPD</strong> — Vous avez joint des photos. Assurez-vous qu'elles ne permettent pas d'identifier le patient (pas de visage, pas d'informations personnelles visibles). JADOMI recommande de recadrer les images sur la zone de travail uniquement.
+      </div>
+
+      <div class="upload-list" id="upload-list"></div>
+    </div>
+
+    <!-- Validation checklist -->
+    <div class="validation-panel" id="validation-panel">
+      <div class="validation-title">✅ Verification avant envoi</div>
+      <div id="validation-items"></div>
+    </div>
+
+    <!-- Submit -->
+    <div style="display:flex;gap:12px;align-items:center;justify-content:flex-end;padding-top:8px;">
+      <a href="mes-demandes.html" class="btn btn-ghost">Annuler</a>
+      <button class="btn btn-accent btn-lg" id="btn-submit" onclick="submitDemande()">
+        <span>⚡</span> Publier ma demande Rush
+      </button>
+    </div>
+    <div style="text-align:right;margin-top:10px;font-size:11px;color:var(--muted);">
+      Votre demande sera visible uniquement des laboratoires partenaires JADOMI, sous votre alias anonyme.
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+</div><!-- /shell -->
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div style="text-align:center;">
+    <div class="spinner"></div>
+    <div style="margin-top:14px;font-size:13px;color:var(--muted);">Publication en cours...</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Supabase init ───────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://fzkjbwtnbkdvjlcyonpp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a2pid3RuYmtkdmpMY3lvbnBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3MjUzNzIsImV4cCI6MjA2MDMwMTM3Mn0.r0oNcjfFTNvKk3WvN8PZLjbGH0Kfzih4S2VxBHW3a9k';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const API = '/api/rush';
+let authToken = null;
+let currentUser = null;
+let uploadedFiles = [];
+let validationErrors = [];
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '/login.html'; return; }
+  authToken = session.access_token;
+  currentUser = session.user;
+  await loadUserAlias();
+  // Set min date for livraison
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('date-livraison').min = today;
+}
+
+async function loadUserAlias() {
+  try {
+    const r = await apiFetch('/api/rush/mon-profil');
+    if (r && r.alias) {
+      document.getElementById('sidebar-alias').textContent = r.alias;
+    }
+  } catch(e) {
+    document.getElementById('sidebar-alias').textContent = 'Labo ' + (currentUser?.email?.slice(0,3).toUpperCase() || '???');
+  }
+}
+
+function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + authToken,
+      ...(options.headers || {})
+    }
+  }).then(r => r.json());
+}
+
+// ─── Type acte logic ─────────────────────────────────────────────────────────
+const TYPES_AVEC_TEINTE = [
+  'couronne_zircone','couronne_ceramo_metal','couronne_emax','couronne_cad',
+  'bridge','inlay_onlay','facette','onlay_composite',
+  'couronne_implant','bridge_implant',
+  'pac_complete','pac_partielle','prothese_immediate'
+];
+const TYPES_PAC = ['pac_complete','pac_partielle','prothese_immediate'];
+const TYPES_ARCADE_REQUIS = ['pac_complete','pac_partielle','stellite','pap_resine','gouttiere','prothese_immediate'];
+const TYPES_NBDENTS_REQUIS = ['bridge','bridge_implant'];
+
+function onTypeActeChange() {
+  const type = document.getElementById('type-acte').value;
+
+  // Teinte
+  const withTeinte = TYPES_AVEC_TEINTE.includes(type);
+  document.getElementById('field-teinte').style.display = withTeinte ? '' : 'none';
+  document.getElementById('teinte').required = withTeinte;
+
+  // Teinte gingivale (PAC)
+  const isPac = TYPES_PAC.includes(type);
+  document.getElementById('field-teinte-gingivale').style.display = isPac ? '' : 'none';
+
+  // Arcade required
+  const arcadeReq = TYPES_ARCADE_REQUIS.includes(type);
+  document.getElementById('arcade-req').style.display = arcadeReq ? '' : 'none';
+
+  // Nb dents required
+  const nbReq = TYPES_NBDENTS_REQUIS.includes(type);
+  document.getElementById('nbdents-req').style.display = nbReq ? '' : 'none';
+
+  validateLive();
+}
+
+// ─── Date logic ───────────────────────────────────────────────────────────────
+function onDateChange() {
+  const val = document.getElementById('date-livraison').value;
+  const hint = document.getElementById('date-hint');
+  if (!val) { hint.textContent = ''; return; }
+  const chosen = new Date(val);
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const diff = Math.round((chosen - now) / 86400000);
+  if (diff < 0) {
+    hint.textContent = '⛔ Date passee — non valide.';
+    hint.className = 'form-hint warn';
+  } else if (diff === 0) {
+    hint.textContent = "⚠️ Aujourd'hui — delai tres court.";
+    hint.className = 'form-hint warn';
+  } else if (diff <= 2) {
+    hint.textContent = `⚡ Dans ${diff} jour(s) — urgence elevee.`;
+    hint.className = 'form-hint warn';
+  } else {
+    hint.textContent = `✓ Dans ${diff} jour(s).`;
+    hint.className = 'form-hint';
+  }
+  validateLive();
+}
+
+// ─── Budget ───────────────────────────────────────────────────────────────────
+function onBudgetChange(val) {
+  const n = parseInt(val);
+  const disp = document.getElementById('budget-display');
+  const exact = document.getElementById('budget-exact');
+  if (n === 0) { disp.textContent = 'Non renseigne'; disp.style.color = 'var(--muted)'; }
+  else { disp.textContent = n + ' €'; disp.style.color = 'var(--accent)'; exact.value = n; }
+}
+
+function onBudgetExactChange(val) {
+  const n = parseInt(val) || 0;
+  const range = document.getElementById('budget-range');
+  const disp = document.getElementById('budget-display');
+  if (n > 500) range.value = 500; else range.value = n;
+  if (n === 0) { disp.textContent = 'Non renseigne'; disp.style.color = 'var(--muted)'; }
+  else { disp.textContent = n + ' €'; disp.style.color = 'var(--accent)'; }
+}
+
+// ─── File upload ──────────────────────────────────────────────────────────────
+const PHOTO_EXTS = ['jpg','jpeg','png'];
+function triggerUpload() { document.getElementById('file-input').click(); }
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag-over');
+}
+function onDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  if (e.dataTransfer.files.length) onFilesSelected(e.dataTransfer.files);
+}
+
+async function onFilesSelected(files) {
+  const hasPhoto = Array.from(files).some(f => PHOTO_EXTS.some(ext => f.name.toLowerCase().endsWith('.' + ext)));
+  if (hasPhoto) document.getElementById('rgpd-warn').classList.add('visible');
+
+  for (const file of Array.from(files)) {
+    if (file.size > 50 * 1024 * 1024) { showToast('⚠️ ' + file.name + ' depasse 50 Mo'); continue; }
+    addFileToList(file);
+    await uploadFile(file);
+  }
+}
+
+function addFileToList(file) {
+  const id = 'file-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  const ext = file.name.split('.').pop().toUpperCase();
+  const size = file.size > 1024*1024 ? (file.size/1024/1024).toFixed(1) + ' Mo' : Math.round(file.size/1024) + ' Ko';
+  const list = document.getElementById('upload-list');
+  const item = document.createElement('div');
+  item.className = 'upload-item';
+  item.id = id;
+  item.innerHTML = `
+    <span style="font-size:14px;">📄</span>
+    <span class="upload-item-name">${escHtml(file.name)}</span>
+    <span class="upload-item-size">${ext} · ${size}</span>
+    <div class="upload-progress" style="width:60px;"><div class="upload-progress-bar" id="prog-${id}" style="width:0%"></div></div>
+    <button class="upload-item-del" onclick="removeFile('${id}')" title="Supprimer">×</button>
+  `;
+  list.appendChild(item);
+  uploadedFiles.push({ id, file, serverPath: null });
+}
+
+async function uploadFile(file) {
+  const entry = uploadedFiles.find(f => f.file === file);
+  if (!entry) return;
+  const progId = 'prog-' + entry.id;
+  const progEl = document.getElementById(progId);
+
+  try {
+    const fd = new FormData();
+    fd.append('fichier', file);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/fichiers/upload');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && progEl) {
+        progEl.style.width = Math.round(e.loaded / e.total * 100) + '%';
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const resp = JSON.parse(xhr.responseText);
+        entry.serverPath = resp.path || resp.url || resp.fichier_id;
+        if (progEl) progEl.style.background = 'var(--green)';
+      } else {
+        if (progEl) progEl.style.background = 'var(--red)';
+        showToast('⚠️ Erreur upload: ' + file.name);
+      }
+    };
+    xhr.onerror = () => {
+      if (progEl) progEl.style.background = 'var(--red)';
+    };
+    xhr.send(fd);
+  } catch(e) {
+    if (progEl) progEl.style.background = 'var(--red)';
+  }
+}
+
+function removeFile(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  uploadedFiles = uploadedFiles.filter(f => f.id !== id);
+  // Re-check RGPD warning
+  const hasPhoto = uploadedFiles.some(f => PHOTO_EXTS.some(ext => f.file.name.toLowerCase().endsWith('.' + ext)));
+  if (!hasPhoto) document.getElementById('rgpd-warn').classList.remove('visible');
+}
+
+// ─── Live validation ──────────────────────────────────────────────────────────
+function validateLive() {
+  const type = document.getElementById('type-acte').value;
+  if (!type) { document.getElementById('validation-panel').classList.remove('visible'); return; }
+
+  document.getElementById('validation-panel').classList.add('visible');
+  const items = [];
+  validationErrors = [];
+
+  // Type
+  items.push({ ok: true, text: 'Type d\'acte selectionne : <strong>' + formatType(type) + '</strong>' });
+
+  // Teinte pour couronnes/bridges
+  if (TYPES_AVEC_TEINTE.includes(type) && !TYPES_PAC.includes(type)) {
+    const teinte = document.getElementById('teinte').value;
+    if (!teinte) {
+      items.push({ ok: false, text: 'Teinte dentaire obligatoire pour cet acte' });
+      validationErrors.push('teinte');
+    } else {
+      items.push({ ok: true, text: 'Teinte : ' + teinte });
+    }
+  }
+
+  // PAC : arcade
+  if (TYPES_PAC.includes(type)) {
+    const arcade = document.getElementById('arcade').value;
+    if (!arcade) {
+      items.push({ ok: false, text: 'Arcade obligatoire pour une prothese amovible complete' });
+      validationErrors.push('arcade');
+    } else {
+      items.push({ ok: true, text: 'Arcade : ' + formatArcade(arcade) });
+    }
+  }
+
+  // Bridge : nb_dents
+  if (TYPES_NBDENTS_REQUIS.includes(type)) {
+    const nb = document.getElementById('nb-dents').value;
+    if (!nb || parseInt(nb) < 1) {
+      items.push({ ok: false, text: 'Nombre d\'elements obligatoire pour un bridge' });
+      validationErrors.push('nb_dents');
+    } else {
+      items.push({ ok: true, text: nb + ' element(s)' });
+    }
+  }
+
+  // Date livraison
+  const dateLiv = document.getElementById('date-livraison').value;
+  if (dateLiv) {
+    const chosen = new Date(dateLiv);
+    const now = new Date(); now.setHours(0,0,0,0);
+    if (chosen < now) {
+      items.push({ ok: false, text: 'Date de livraison dans le passe — non valide' });
+      validationErrors.push('date');
+    } else {
+      items.push({ ok: true, text: 'Livraison le ' + formatDate(dateLiv) });
+    }
+  }
+
+  // Description
+  const desc = document.getElementById('description').value.trim();
+  if (desc.length < 10) {
+    items.push({ ok: false, text: 'Description technique trop courte (minimum 10 caracteres)' });
+    validationErrors.push('description');
+  } else {
+    items.push({ ok: true, text: 'Description technique renseignee' });
+  }
+
+  renderValidation(items);
+}
+
+function renderValidation(items) {
+  const container = document.getElementById('validation-items');
+  container.innerHTML = items.map(it => {
+    const cls = it.ok ? 'val-ok' : 'val-err';
+    const icon = it.ok ? '✅' : '❌';
+    return `<div class="val-item ${cls}"><span class="val-icon">${icon}</span><span class="val-text">${it.text}</span></div>`;
+  }).join('');
+}
+
+// ─── Submit ───────────────────────────────────────────────────────────────────
+async function submitDemande() {
+  validateLive();
+  const type = document.getElementById('type-acte').value;
+
+  if (!type) { showError('Veuillez selectionner un type d\'acte.'); return; }
+  if (!document.getElementById('description').value.trim()) { showError('La description technique est obligatoire.'); return; }
+  if (!document.getElementById('date-livraison').value) { showError('La date de livraison est obligatoire.'); return; }
+
+  // Teinte check
+  if (TYPES_AVEC_TEINTE.includes(type) && !TYPES_PAC.includes(type)) {
+    if (!document.getElementById('teinte').value) {
+      showError('⚠️ Teinte obligatoire pour cet acte — la demande ne peut pas etre publiee sans teinte.');
+      document.getElementById('teinte').classList.add('error');
+      return;
+    }
+  }
+
+  // Bridge check
+  if (TYPES_NBDENTS_REQUIS.includes(type)) {
+    if (!document.getElementById('nb-dents').value) {
+      showError('⚠️ Le nombre d\'elements est obligatoire pour un bridge.');
+      document.getElementById('nb-dents').classList.add('error');
+      return;
+    }
+  }
+
+  // PAC check
+  if (TYPES_PAC.includes(type)) {
+    if (!document.getElementById('arcade').value) {
+      showError('⚠️ L\'arcade est obligatoire pour une prothese amovible complete.');
+      document.getElementById('arcade').classList.add('error');
+      return;
+    }
+  }
+
+  // Date check
+  const dateLiv = document.getElementById('date-livraison').value;
+  const chosen = new Date(dateLiv);
+  const now = new Date(); now.setHours(0,0,0,0);
+  if (chosen < now) {
+    showError('⛔ La date de livraison est dans le passe. Veuillez choisir une date future.');
+    return;
+  }
+
+  if (validationErrors.length > 0) {
+    showError('Corrigez les erreurs avant de publier votre demande.');
+    return;
+  }
+
+  // Build payload
+  const budgetExact = parseInt(document.getElementById('budget-exact').value) || 0;
+  const payload = {
+    type_acte: type,
+    materiau: document.getElementById('materiau').value || null,
+    teinte: document.getElementById('teinte').value || null,
+    teinte_gingivale: document.getElementById('teinte-gingivale').value || null,
+    arcade: document.getElementById('arcade').value || null,
+    nb_dents: parseInt(document.getElementById('nb-dents').value) || null,
+    description: document.getElementById('description').value.trim(),
+    date_livraison: dateLiv,
+    urgence: document.getElementById('urgence').value,
+    budget_max: budgetExact > 0 ? budgetExact : null,
+    budget_negociable: document.getElementById('budget-negociable').checked,
+    fichiers: uploadedFiles.filter(f => f.serverPath).map(f => f.serverPath)
+  };
+
+  document.getElementById('loading-overlay').classList.add('open');
+  document.getElementById('btn-submit').disabled = true;
+  hideError();
+
+  try {
+    const result = await apiFetch(API + '/demandes', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    if (result && (result.id || result.demande_id || result.success)) {
+      showToast('✅ Demande publiee avec succes !');
+      setTimeout(() => { window.location.href = 'mes-demandes.html'; }, 1200);
+    } else {
+      throw new Error(result?.message || result?.error || 'Erreur serveur');
+    }
+  } catch(e) {
+    document.getElementById('loading-overlay').classList.remove('open');
+    document.getElementById('btn-submit').disabled = false;
+    showError('Erreur lors de la publication : ' + (e.message || 'Veuillez reessayer.'));
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  document.getElementById('error-text').textContent = msg;
+  b.classList.add('visible');
+  b.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+function hideError() {
+  document.getElementById('error-banner').classList.remove('visible');
+}
+
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatType(v) {
+  const map = {
+    couronne_zircone:'Couronne Zircone', couronne_ceramo_metal:'Couronne Ceramo-metal',
+    couronne_emax:'Couronne E.max', bridge:'Bridge', pac_complete:'PAC Complete',
+    stellite:'Stellite', inlay_onlay:'Inlay/Onlay', facette:'Facette', gouttiere:'Gouttiere',
+    reparation:'Reparation', autre:'Autre'
+  };
+  return map[v] || v;
+}
+function formatArcade(v) {
+  const map = { haut:'Maxillaire (haut)', bas:'Mandibule (bas)', les_deux:'Bimaxillaire' };
+  return map[v] || v;
+}
+function formatDate(d) {
+  if (!d) return '';
+  const [y,m,j] = d.split('-');
+  return j + '/' + m + '/' + y;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>

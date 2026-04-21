@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Stock &amp; Matériaux</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --primary:#1a56db;--primary-dark:#1140a6;--primary-light:#e8effc;--primary-mid:#3b71e8;
+  --bg:#f4f6fb;--surface:#ffffff;--surface2:#f0f3f9;
+  --border:#e2e7f0;--border-strong:#c8d0e0;
+  --text:#111827;--text-secondary:#374151;--muted:#6b7280;--muted-light:#9ca3af;
+  --green:#059669;--green-bg:#d1fae5;
+  --amber:#d97706;--amber-bg:#fef3c7;
+  --red:#dc2626;--red-bg:#fee2e2;
+  --blue:#1a56db;--blue-bg:#e8effc;
+  --orange:#ea580c;--orange-bg:#ffedd5;
+  --yellow:#ca8a04;--yellow-bg:#fef9c3;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.08),0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg:0 10px 40px rgba(0,0,0,0.10),0 4px 12px rgba(0,0,0,0.06);
+  --font:'Inter',system-ui,sans-serif;
+  --sidebar-w:240px;--topbar-h:60px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+.shell{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;overflow:hidden;}
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--primary-mid));border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-icon svg{width:20px;height:20px;fill:#fff;}
+.logo-text{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;line-height:1.2;}
+.logo-sub{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0.3px;}
+.nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-section-label{padding:10px 22px 4px;font-size:10px;font-weight:600;color:var(--muted-light);text-transform:uppercase;letter-spacing:1.2px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 22px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-left-color:var(--primary);font-weight:600;}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);}
+.user-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;}
+.user-card:hover{background:var(--border);}
+.user-avatar{width:32px;height:32px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:10px;color:var(--muted);margin-top:1px;}
+.sidebar-toggle{display:none;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;}
+
+/* Main */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-breadcrumb{font-size:12px;color:var(--muted);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:#fff;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{background:var(--surface2);border-color:var(--border-strong);}
+.btn-ghost{background:transparent;color:var(--muted);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#b91c1c;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-success:hover{background:#047857;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-xs{padding:4px 10px;font-size:11px;}
+.content{padding:28px;flex:1;}
+
+/* Tabs */
+.tabs{display:flex;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:22px;box-shadow:var(--shadow);}
+.tab-btn{flex:1;padding:11px 16px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border:none;background:transparent;font-family:var(--font);border-right:1px solid var(--border);transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.tab-btn:last-child{border-right:none;}
+.tab-btn.active{background:var(--primary);color:#fff;font-weight:600;}
+.tab-btn:not(.active):hover{background:var(--surface2);color:var(--text);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* Filter bar */
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:220px;}
+.search-wrap input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;transition:border-color 0.15s;}
+.search-wrap input:focus{border-color:var(--primary);}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted-light);font-size:13px;}
+select.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+select.filter-select:focus{border-color:var(--primary);}
+
+/* Product grid */
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.product-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;transition:box-shadow 0.15s,border-color 0.15s;position:relative;}
+.product-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary-mid);}
+.product-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;}
+.product-name{font-size:13px;font-weight:700;color:var(--text);line-height:1.3;}
+.product-brand{font-size:11px;color:var(--muted);margin-top:2px;}
+.product-ean-badge{background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
+.qty-bar-wrap{margin:10px 0 8px;}
+.qty-bar-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;}
+.qty-bar-label .qty-val{font-weight:700;}
+.qty-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.qty-bar-fill{height:100%;border-radius:3px;transition:width 0.3s;}
+.qty-bar-fill.ok{background:var(--green);}
+.qty-bar-fill.warn{background:var(--amber);}
+.qty-bar-fill.danger{background:var(--red);}
+.product-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--muted);margin-bottom:10px;}
+.product-meta span{display:flex;align-items:center;gap:3px;}
+.product-card-footer{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);}
+.qty-ctrl{display:flex;align-items:center;gap:6px;}
+.qty-btn{width:28px;height:28px;border:1px solid var(--border);background:var(--surface2);border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text);transition:all 0.1s;line-height:1;}
+.qty-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+.qty-input{width:48px;text-align:center;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;font-family:var(--font);color:var(--text);outline:none;}
+.qty-input:focus{border-color:var(--primary);}
+.price-info{font-size:12px;font-weight:600;color:var(--text);}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-gray{background:#f3f4f6;color:var(--muted);}
+.badge-orange{background:var(--orange-bg);color:var(--orange);}
+
+/* Alert sections */
+.alert-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow);}
+.alert-section-header{padding:12px 18px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;}
+.alert-section-header.red{background:var(--red-bg);color:var(--red);border-bottom:1px solid #fca5a5;}
+.alert-section-header.orange{background:var(--orange-bg);color:var(--orange);border-bottom:1px solid #fed7aa;}
+.alert-section-header.yellow{background:var(--yellow-bg);color:var(--yellow);border-bottom:1px solid #fde68a;}
+.alert-section-header.blue{background:var(--blue-bg);color:var(--blue);border-bottom:1px solid #bfdbfe;}
+.alert-item{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);font-size:13px;}
+.alert-item:last-child{border-bottom:none;}
+.alert-item-name{font-weight:600;color:var(--text);}
+.alert-item-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.alert-empty{padding:14px 18px;font-size:12px;color:var(--muted);font-style:italic;}
+
+/* Scanner tab */
+.scanner-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;box-shadow:var(--shadow-md);max-width:560px;margin:0 auto;}
+.scanner-input-wrap{position:relative;margin-bottom:20px;}
+.scanner-input-wrap input{width:100%;padding:14px 48px 14px 16px;border:2px solid var(--border);border-radius:var(--radius);font-size:15px;font-family:var(--font);color:var(--text);outline:none;transition:border-color 0.15s;letter-spacing:1px;}
+.scanner-input-wrap input:focus{border-color:var(--primary);}
+.scanner-cam-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);}
+.scanner-hint{font-size:12px;color:var(--muted);text-align:center;margin-bottom:24px;}
+.waterfall{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.wf-step{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-size:13px;transition:all 0.2s;}
+.wf-step.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+.wf-step.done{background:var(--green-bg);border-color:#86efac;color:var(--green);}
+.wf-step.error{background:var(--red-bg);border-color:#fca5a5;color:var(--red);}
+.wf-icon{font-size:16px;width:20px;text-align:center;}
+.wf-spin{width:16px;height:16px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;opacity:0.7;}
+.scan-result-card{background:var(--surface);border:2px solid var(--primary);border-radius:var(--radius);padding:20px;margin-top:16px;}
+.scan-result-name{font-size:16px;font-weight:700;margin-bottom:8px;}
+.scan-result-fields{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:16px;}
+.scan-result-field{display:flex;gap:8px;}
+.srf-label{color:var(--muted);width:100px;flex-shrink:0;}
+
+/* Movements tab */
+.mv-table{width:100%;border-collapse:collapse;}
+.mv-table th{text-align:left;padding:10px 16px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.mv-table td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text-secondary);vertical-align:middle;}
+.mv-table tr:last-child td{border-bottom:none;}
+.mv-entree{color:var(--green);font-weight:600;}
+.mv-sortie{color:var(--red);font-weight:600;}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-size:14px;font-weight:600;color:var(--text);}
+
+/* Modal */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;padding:20px;}
+.modal-backdrop.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:15px;font-weight:700;}
+.modal-close{width:30px;height:30px;border:none;background:var(--surface2);border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;}
+.modal-close:hover{background:var(--red-bg);color:var(--red);}
+.modal-body{padding:22px;overflow-y:auto;flex:1;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);background:var(--surface2);display:flex;justify-content:flex-end;gap:10px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.form-row.single{grid-template-columns:1fr;}
+.form-row.triple{grid-template-columns:1fr 1fr 1fr;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+label.fl{font-size:12px;font-weight:600;color:var(--text-secondary);}
+.form-control{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--text);background:var(--surface);outline:none;transition:border-color 0.15s;width:100%;}
+.form-control:focus{border-color:var(--primary);}
+.form-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:16px;}
+.form-section-title:first-child{margin-top:0;}
+
+/* Peremption photo btn */
+.photo-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:opacity 0.15s;}
+.photo-btn:hover{opacity:0.9;}
+
+/* Tooltip */
+.tooltip-wrap{position:relative;display:inline-flex;}
+.tooltip-wrap .tooltip-box{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:99;}
+.tooltip-wrap:hover .tooltip-box{opacity:1;}
+
+/* Empty state */
+.empty-state{text-align:center;padding:48px 24px;}
+.empty-state-icon{font-size:36px;margin-bottom:12px;opacity:0.35;}
+.empty-state-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.empty-state-desc{font-size:13px;color:var(--muted);margin-bottom:14px;}
+
+/* Toast */
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:600;}
+.toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;max-width:360px;animation:slideIn 0.25s ease;}
+.toast.success{background:var(--green);}
+.toast.error{background:var(--red);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+.page-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
+.page-loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;}
+.spinner-sm{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
+  .sidebar.open{transform:translateX(0);}
+  .overlay.open{display:block;}
+  .main{margin-left:0;}
+  .topbar{padding:0 16px;}
+  .content{padding:16px;}
+  .sidebar-toggle{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:18px;color:var(--muted);}
+  .product-grid{grid-template-columns:1fr;}
+  .tabs .tab-btn{font-size:11px;padding:10px 8px;}
+  .form-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="page-loading" id="pageLoading">
+  <div style="text-align:center;">
+    <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;">JADOMI LABO</div>
+    <div class="page-loading-spinner"></div>
+  </div>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">JADOMI LABO</div>
+        <div class="logo-sub">Prothétique dentaire</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">Principal</div>
+      <a class="nav-item" href="dashboard.html"><span class="ni">🏠</span> Tableau de bord</a>
+      <a class="nav-item" href="dentistes.html"><span class="ni">👥</span> Mes dentistes</a>
+      <a class="nav-item" href="bons-livraison.html"><span class="ni">📋</span> Bons de laboratoire</a>
+      <a class="nav-item" href="facturation.html"><span class="ni">💰</span> Facturation</a>
+      <div class="nav-section-label" style="margin-top:8px;">Stock</div>
+      <a class="nav-item active" href="stock.html"><span class="ni">📦</span> Stock &amp; Matériaux</a>
+      <a class="nav-item" href="stock.html#scanner" onclick="switchTab('scanner');"><span class="ni">🔍</span> Scanner</a>
+      <div class="nav-section-label" style="margin-top:8px;">Catalogue</div>
+      <a class="nav-item" href="catalogue.html"><span class="ni">📊</span> Catalogue</a>
+      <a class="nav-item" href="import-grille.html"><span class="ni">📥</span> Import grille tarifaire</a>
+      <div class="nav-section-label" style="margin-top:8px;">Compte</div>
+      <a class="nav-item" href="profil-labo.html"><span class="ni">⚙️</span> Paramètres laboratoire</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card" onclick="window.location.href='profil-labo.html'">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div style="min-width:0;">
+          <div class="user-name" id="userName">Chargement…</div>
+          <div class="user-role">Prothésiste</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <div>
+          <div class="topbar-title">Stock &amp; Matériaux</div>
+          <div class="topbar-breadcrumb"><span style="color:var(--muted-light);">JADOMI LABO</span> › Stock</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openAddModal()">&#xFF0B; Ajouter produit</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" title="Déconnexion">&#x2715;</button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-inventaire" onclick="switchTab('inventaire')">📦 Inventaire</button>
+        <button class="tab-btn" id="tab-scanner" onclick="switchTab('scanner')">🔍 Scanner</button>
+        <button class="tab-btn" id="tab-import" onclick="switchTab('import')">📄 Import facture</button>
+        <button class="tab-btn" id="tab-alertes" onclick="switchTab('alertes')">🔔 Alertes <span id="alertBadge" style="background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px;display:none;">0</span></button>
+        <button class="tab-btn" id="tab-mouvements" onclick="switchTab('mouvements')">📊 Mouvements</button>
+      </div>
+
+      <!-- ════════════ TAB 1: INVENTAIRE ════════════ -->
+      <div class="tab-panel active" id="panel-inventaire">
+        <div class="filter-bar">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="invSearch" placeholder="Rechercher par nom, marque, fournisseur…" oninput="applyInvFilters()">
+          </div>
+          <select class="filter-select" id="invCategory" onchange="applyInvFilters()">
+            <option value="">Toutes catégories</option>
+            <option value="resines">Résines</option>
+            <option value="metaux">Métaux</option>
+            <option value="ceramiques">Céramiques</option>
+            <option value="alliages">Alliages</option>
+            <option value="consommables">Consommables</option>
+            <option value="outils">Outils</option>
+            <option value="autre">Autre</option>
+          </select>
+          <select class="filter-select" id="invSort" onchange="applyInvFilters()">
+            <option value="nom">Trier par nom</option>
+            <option value="qty_asc">Stock croissant</option>
+            <option value="qty_desc">Stock décroissant</option>
+            <option value="peremption">Péremption proche</option>
+          </select>
+        </div>
+        <div class="product-grid" id="productGrid">
+          <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Chargement du stock…</div>
+        </div>
+      </div>
+
+      <!-- ════════════ TAB 2: SCANNER ════════════ -->
+      <div class="tab-panel" id="panel-scanner">
+        <div class="scanner-card">
+          <div style="text-align:center;margin-bottom:22px;">
+            <div style="font-size:28px;margin-bottom:8px;">🔍</div>
+            <h2 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;">Scanner un produit</h2>
+            <p style="font-size:13px;color:var(--muted);">Scannez ou saisissez un code-barres pour identifier et gérer vos matériaux</p>
+          </div>
+          <div class="scanner-input-wrap">
+            <input type="text" id="scanInput" placeholder="EAN-13, Code128, QR, DataMatrix…" autocomplete="off" oninput="onScanInput()" onkeydown="if(event.key==='Enter') triggerScan()">
+            <button class="scanner-cam-btn" onclick="startCamera()" title="Activer la caméra">📷</button>
+          </div>
+          <p class="scanner-hint">Formats supportés : EAN-13, EAN-8, Code128, QR Code, DataMatrix, PDF417</p>
+
+          <!-- Camera feed (hidden by default) -->
+          <div id="cameraWrap" style="display:none;margin-bottom:16px;">
+            <video id="cameraFeed" style="width:100%;border-radius:var(--radius);border:2px solid var(--primary);" autoplay playsinline muted></video>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;" onclick="stopCamera()">❌ Fermer la caméra</button>
+          </div>
+
+          <!-- Waterfall lookup -->
+          <div class="waterfall" id="waterfall" style="display:none;">
+            <div class="wf-step" id="wf-supabase">
+              <span class="wf-icon">🗄️</span>
+              <span>Recherche dans votre stock Supabase…</span>
+            </div>
+            <div class="wf-step" id="wf-off">
+              <span class="wf-icon">🌐</span>
+              <span>Lookup OpenFoodFacts / Open Beauty Facts…</span>
+            </div>
+            <div class="wf-step" id="wf-ia">
+              <span class="wf-icon">✨</span>
+              <span>Analyse JADOMI IA…</span>
+            </div>
+          </div>
+
+          <!-- Scan result -->
+          <div id="scanResult" style="display:none;"></div>
+
+          <!-- Manual scan btn -->
+          <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="triggerScan()">🔍 Rechercher le produit</button>
+        </div>
+      </div>
+
+      <!-- ════════════ TAB IMPORT FACTURE ════════════ -->
+      <div class="tab-panel" id="panel-import">
+        <div class="scanner-card">
+          <div style="text-align:center;margin-bottom:22px;">
+            <div style="font-size:28px;margin-bottom:8px;">📄</div>
+            <h2 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;">Import facture fournisseur</h2>
+            <p style="font-size:13px;color:var(--muted);">Photographiez ou d&eacute;posez une facture fournisseur &mdash; JADOMI IA extrait automatiquement les produits et met &agrave; jour votre stock.</p>
+          </div>
+          <div id="importDropZone" style="border:2px dashed var(--border-strong);border-radius:var(--radius);padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:16px;background:var(--surface2);"
+               ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='rgba(26,86,219,0.05)'"
+               ondragleave="this.style.borderColor='var(--border-strong)';this.style.background='var(--surface2)'"
+               ondrop="event.preventDefault();this.style.borderColor='var(--border-strong)';this.style.background='var(--surface2)';handleImportDrop(event)">
+            <div style="font-size:36px;margin-bottom:8px;">📸</div>
+            <div style="font-weight:600;color:var(--text);margin-bottom:4px;">D&eacute;posez une photo ou un PDF ici</div>
+            <div style="font-size:12px;color:var(--muted);">ou cliquez pour s&eacute;lectionner un fichier</div>
+            <input type="file" id="importFileInput" accept="image/*,.pdf" style="display:none" onchange="handleImportFile(this.files[0])">
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+            <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('importFileInput').click()">📁 Parcourir</button>
+            <button class="btn btn-outline" style="flex:1;" onclick="captureImportPhoto()">📷 Prendre en photo</button>
+          </div>
+          <div id="importStatus" style="display:none;padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="spinner" style="width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+              <span id="importStatusText" style="font-size:13px;color:var(--muted);">Analyse en cours par JADOMI IA...</span>
+            </div>
+          </div>
+          <div id="importResult" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- ════════════ TAB 3: ALERTES ════════════ -->
+      <div class="tab-panel" id="panel-alertes">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;">🔔 Alertes stock</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">Produits nécessitant votre attention</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="photo-btn" onclick="openPhotoPeremption()">📷 Photo → Date péremption</button>
+            <button class="btn btn-outline btn-sm" onclick="loadAlertes()">🔄 Actualiser</button>
+          </div>
+        </div>
+
+        <!-- Peremption < 30j -->
+        <div class="alert-section">
+          <div class="alert-section-header red">🔴 Péremption dans moins de 30 jours</div>
+          <div id="alertRed"><div class="alert-empty">Chargement…</div></div>
+        </div>
+
+        <!-- Peremption 30-60j -->
+        <div class="alert-section">
+          <div class="alert-section-header orange">🟠 Péremption dans 30 à 60 jours</div>
+          <div id="alertOrange"><div class="alert-empty">Chargement…</div></div>
+        </div>
+
+        <!-- Peremption 60-90j -->
+        <div class="alert-section">
+          <div class="alert-section-header yellow">🟡 Péremption dans 60 à 90 jours</div>
+          <div id="alertYellow"><div class="alert-empty">Chargement…</div></div>
+        </div>
+
+        <!-- Stock bas -->
+        <div class="alert-section">
+          <div class="alert-section-header blue">📉 Stock bas (sous le seuil d'alerte)</div>
+          <div id="alertBas"><div class="alert-empty">Chargement…</div></div>
+        </div>
+      </div>
+
+      <!-- ════════════ TAB 4: MOUVEMENTS ════════════ -->
+      <div class="tab-panel" id="panel-mouvements">
+        <div class="filter-bar" style="margin-bottom:18px;">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="mvSearch" placeholder="Filtrer par produit…" oninput="applyMvFilters()">
+          </div>
+          <select class="filter-select" id="mvType" onchange="applyMvFilters()">
+            <option value="">Tous les types</option>
+            <option value="entree">Entrée</option>
+            <option value="sortie">Sortie</option>
+            <option value="ajustement">Ajustement</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadMouvements()">🔄 Actualiser</button>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 Journal des mouvements</div>
+            <div style="font-size:12px;color:var(--muted);" id="mvCountLabel">—</div>
+          </div>
+          <div id="mvTableWrap">
+            <table class="mv-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Produit</th>
+                  <th>Type</th>
+                  <th style="text-align:right;">Quantité</th>
+                  <th>Motif</th>
+                  <th>Utilisateur</th>
+                </tr>
+              </thead>
+              <tbody id="mvTbody">
+                <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted);">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ADD/EDIT PRODUCT MODAL -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="productModalTitle">Ajouter un produit</div>
+      <button class="modal-close" onclick="closeModal('productModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title">Identification</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="fl">Nom du produit *</label>
+          <input class="form-control" id="pNom" placeholder="Ex: Résine PMMA A2">
+        </div>
+        <div class="form-group">
+          <label class="fl">Marque</label>
+          <input class="form-control" id="pMarque" placeholder="Ex: Kulzer">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="fl">Catégorie</label>
+          <select class="form-control" id="pCategorie">
+            <option value="">Sélectionner…</option>
+            <option value="resines">Résines</option>
+            <option value="metaux">Métaux</option>
+            <option value="ceramiques">Céramiques</option>
+            <option value="alliages">Alliages</option>
+            <option value="consommables">Consommables</option>
+            <option value="outils">Outils</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="fl">Code-barres (EAN)</label>
+          <input class="form-control" id="pCodeBarre" placeholder="Ex: 3701234567890">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="fl">Référence fabricant</label>
+          <input class="form-control" id="pReference" placeholder="REF-12345">
+        </div>
+        <div class="form-group">
+          <label class="fl">Fournisseur</label>
+          <input class="form-control" id="pFournisseur" placeholder="Ex: Henry Schein">
+        </div>
+      </div>
+
+      <div class="form-section-title">Stock</div>
+      <div class="form-row triple">
+        <div class="form-group">
+          <label class="fl">Quantité actuelle</label>
+          <input class="form-control" id="pQuantite" type="number" min="0" step="0.01" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="fl">Unité</label>
+          <input class="form-control" id="pUnite" placeholder="g, ml, pcs…">
+        </div>
+        <div class="form-group">
+          <label class="fl">Seuil d'alerte</label>
+          <input class="form-control" id="pSeuilAlerte" type="number" min="0" placeholder="10">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="fl">Date de péremption</label>
+          <input class="form-control" id="pPeremption" type="date">
+        </div>
+        <div class="form-group">
+          <label class="fl">Emplacement</label>
+          <input class="form-control" id="pEmplacement" placeholder="Ex: Armoire A, étagère 2">
+        </div>
+      </div>
+
+      <div class="form-section-title">Tarif</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="fl">Prix d'achat HT (€)</label>
+          <input class="form-control" id="pPrixAchat" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="fl">Prix par unité (€)</label>
+          <input class="form-control" id="pPrixUnite" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:4px;">
+        <label class="fl">Notes</label>
+        <textarea class="form-control" id="pNotes" rows="2" placeholder="Informations complémentaires…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('productModal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveProduct()" id="saveProductBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADJUST QTY MODAL -->
+<div class="modal-backdrop" id="adjustModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title" id="adjustModalTitle">Ajuster le stock</div>
+      <button class="modal-close" onclick="closeModal('adjustModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div id="adjustProductName" style="font-size:14px;font-weight:600;margin-bottom:14px;"></div>
+      <div class="form-row single">
+        <div class="form-group">
+          <label class="fl">Type de mouvement</label>
+          <select class="form-control" id="adjustType">
+            <option value="entree">Entrée (+ stock)</option>
+            <option value="sortie">Sortie (- stock)</option>
+            <option value="ajustement">Ajustement (valeur absolue)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group">
+          <label class="fl">Quantité</label>
+          <input class="form-control" id="adjustQty" type="number" min="0" step="0.01" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group">
+          <label class="fl">Motif (optionnel)</label>
+          <input class="form-control" id="adjustMotif" placeholder="Ex: Réception commande, utilisation BL 42…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('adjustModal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveAdjust()" id="saveAdjustBtn">✅ Enregistrer le mouvement</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO PEREMPTION MODAL -->
+<div class="modal-backdrop" id="photoModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title">📷 Photo → Date de péremption</div>
+      <button class="modal-close" onclick="closeModal('photoModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Prenez une photo de la date de péremption imprimée sur l'emballage. JADOMI IA l'extraira automatiquement.</p>
+      <div id="photoFeedWrap" style="text-align:center;margin-bottom:16px;">
+        <video id="photoFeed" style="width:100%;border-radius:var(--radius);border:2px solid var(--border);display:none;" autoplay playsinline muted></video>
+        <canvas id="photoCanvas" style="display:none;"></canvas>
+        <div id="photoCaptured" style="display:none;margin-top:8px;">
+          <img id="photoImg" style="width:100%;border-radius:var(--radius);border:2px solid var(--green);" alt="Capture">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn btn-outline btn-sm" onclick="startPhotoCamera()" id="startCamBtn">📷 Ouvrir caméra</button>
+        <button class="btn btn-primary btn-sm" onclick="capturePhoto()" id="captureBtnPhoto" style="display:none;">📸 Capturer</button>
+        <label class="btn btn-outline btn-sm" style="cursor:pointer;">📁 Fichier <input type="file" accept="image/*" id="photoFileInput" style="display:none;" onchange="onPhotoFileSelected(event)"></label>
+      </div>
+      <div id="photoResultWrap" style="display:none;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Date détectée par JADOMI IA :</div>
+        <div class="form-group">
+          <label class="fl">Date de péremption extraite</label>
+          <input class="form-control" id="photoDateResult" type="date">
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;">Sélectionnez le produit à mettre à jour :</div>
+        <select class="form-control" id="photoProductSelect" style="margin-top:6px;">
+          <option value="">— Choisir un produit —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('photoModal')">Annuler</button>
+      <button class="btn btn-success" onclick="applyPhotoDate()" id="applyPhotoBtn" style="display:none;">✅ Appliquer la date</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const API_BASE     = '/api/labo';
+
+let db, currentToken, currentSocieteId, currentUser;
+let allProducts = [];
+let filteredProducts = [];
+let allMouvements = [];
+let editingProductId = null;
+let adjustingProductId = null;
+let cameraStream = null;
+let photoCameraStream = null;
+
+try {
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {}
+
+/* ── Auth ─────────────────────────────────────────────────── */
+async function initAuth() {
+  let session = null;
+  try { const { data } = await db.auth.getSession(); session = data?.session; } catch(e) {}
+  if (!session) {
+    const raw = localStorage.getItem('jadomi_session');
+    if (raw) try { session = JSON.parse(raw); } catch(e) {}
+  }
+  if (!session) { window.location.href = '/login.html?next=labo/stock.html'; return; }
+  currentToken     = session.access_token || session.token || null;
+  currentUser      = session.user || session;
+  currentSocieteId = localStorage.getItem('selectedSocieteId') || currentUser?.user_metadata?.defaultSocieteId || null;
+  renderUserInfo();
+  document.getElementById('pageLoading').style.display = 'none';
+  document.getElementById('appShell').style.display    = 'flex';
+  // Handle #scanner hash
+  if (window.location.hash === '#scanner') switchTab('scanner');
+  await loadStock();
+  loadAlertes();
+  loadMouvements();
+}
+
+function renderUserInfo() {
+  const meta = currentUser?.user_metadata || {};
+  const nom  = ((meta.prenom||'')+' '+(meta.nom||'')).trim() || currentUser?.email?.split('@')[0] || '?';
+  document.getElementById('userName').textContent  = nom;
+  document.getElementById('userAvatar').textContent = nom.charAt(0).toUpperCase();
+}
+
+function apiHeaders() {
+  const h = { 'Content-Type':'application/json' };
+  if (currentToken)    h['Authorization']  = `Bearer ${currentToken}`;
+  if (currentSocieteId) h['X-Societe-Id'] = currentSocieteId;
+  return h;
+}
+
+async function logout() {
+  try { await db.auth.signOut(); } catch(e) {}
+  localStorage.removeItem('jadomi_session');
+  localStorage.removeItem('selectedSocieteId');
+  window.location.href = '/login.html';
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+function switchTab(name) {
+  ['inventaire','scanner','import','alertes','mouvements'].forEach(t => {
+    document.getElementById(`tab-${t}`)?.classList.remove('active');
+    document.getElementById(`panel-${t}`)?.classList.remove('active');
+  });
+  document.getElementById(`tab-${name}`)?.classList.add('active');
+  document.getElementById(`panel-${name}`)?.classList.add('active');
+  if (name === 'scanner') document.getElementById('scanInput')?.focus();
+  history.replaceState(null,'', name==='scanner' ? '#scanner' : '#');
+}
+
+/* ── Import facture IA ────────────────────────────────────── */
+function handleImportDrop(e) {
+  const file = e.dataTransfer?.files?.[0];
+  if (file) handleImportFile(file);
+}
+
+function captureImportPhoto() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
+  inp.onchange = () => { if(inp.files[0]) handleImportFile(inp.files[0]); };
+  inp.click();
+}
+
+async function handleImportFile(file) {
+  if (!file) return;
+  const status = document.getElementById('importStatus');
+  const result = document.getElementById('importResult');
+  status.style.display = 'block';
+  result.style.display = 'none';
+  document.getElementById('importStatusText').textContent = 'Analyse en cours par JADOMI IA...';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const mediaType = file.type || 'image/jpeg';
+
+    const res = await fetch('/api/ia/extract-facture', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ image: base64, media_type: mediaType })
+    });
+    if (!res.ok) throw new Error('Erreur ' + res.status);
+    const data = await res.json();
+    const facture = data.facture || data;
+
+    status.style.display = 'none';
+    renderImportResult(facture);
+  } catch(e) {
+    status.style.display = 'none';
+    result.style.display = 'block';
+    result.innerHTML = `<div style="padding:16px;background:var(--red-bg,#fee2e2);border:1px solid var(--red,#dc2626);border-radius:var(--radius);color:var(--red,#dc2626);font-size:13px;">Erreur : ${e.message}</div>`;
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderImportResult(facture) {
+  const result = document.getElementById('importResult');
+  const produits = facture.produits || [];
+  result.style.display = 'block';
+  result.innerHTML = `
+    <div style="padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--text);">Facture analys\u00e9e</div>
+          <div style="font-size:12px;color:var(--muted);">${facture.fournisseur||'—'} &middot; ${facture.date_facture||'—'} &middot; ${facture.montant_ttc ? facture.montant_ttc+' \u20AC TTC' : ''}</div>
+        </div>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted);">
+          <th style="text-align:left;padding:6px 8px;">Produit</th>
+          <th style="text-align:right;padding:6px 8px;">Qt\u00e9</th>
+          <th style="text-align:right;padding:6px 8px;">PU</th>
+          <th style="text-align:right;padding:6px 8px;">Total</th>
+        </tr></thead>
+        <tbody>
+          ${produits.map(p => `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:6px 8px;font-weight:600;color:var(--text);">${p.nom||'—'}</td>
+            <td style="text-align:right;padding:6px 8px;">${p.quantite||1}</td>
+            <td style="text-align:right;padding:6px 8px;">${p.prix_unitaire ? p.prix_unitaire.toFixed(2)+' \u20AC' : '—'}</td>
+            <td style="text-align:right;padding:6px 8px;">${p.prix_total ? p.prix_total.toFixed(2)+' \u20AC' : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <button class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center;" onclick="ajouterProduitsImport()">
+        \u2705 Ajouter ${produits.length} produit${produits.length>1?'s':''} au stock
+      </button>
+    </div>
+  `;
+  window._importedFacture = facture;
+}
+
+async function ajouterProduitsImport() {
+  const facture = window._importedFacture;
+  if (!facture || !facture.produits) return;
+  let added = 0;
+  for (const p of facture.produits) {
+    try {
+      const existing = allProducts.find(x => x.nom && p.nom && x.nom.toLowerCase() === p.nom.toLowerCase());
+      if (existing) {
+        await fetch(`${API_BASE}/stock/${existing.id}/mouvement`, {
+          method:'POST', headers:apiHeaders(),
+          body: JSON.stringify({ type:'entree', quantite: (existing.quantite||0) + (p.quantite||1), motif: 'Import facture ' + (facture.fournisseur||'') })
+        });
+      } else {
+        await fetch(`${API_BASE}/stock`, {
+          method:'POST', headers:apiHeaders(),
+          body: JSON.stringify({
+            nom: p.nom, quantite: p.quantite||1, categorie:'autre',
+            fournisseur: facture.fournisseur||'', prix_achat: p.prix_unitaire||null,
+            date_peremption: p.date_peremption||null
+          })
+        });
+      }
+      added++;
+    } catch(e) {}
+  }
+  toast(added + ' produit'+(added>1?'s':'')+' ajout\u00e9'+(added>1?'s':'') + ' au stock', 'success');
+  await loadStock();
+  switchTab('inventaire');
+}
+
+/* ── Load stock ─────────────────────────────────────────────── */
+async function loadStock() {
+  try {
+    const res = await fetch(`${API_BASE}/stock`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      allProducts = Array.isArray(data) ? data : (data.data || data.produits || []);
+    } else { allProducts = []; }
+  } catch(e) { allProducts = []; toast('Erreur chargement stock', 'error'); }
+  populatePhotoProductSelect();
+  applyInvFilters();
+}
+
+/* ── Inventaire filters ─────────────────────────────────────── */
+function applyInvFilters() {
+  const q    = document.getElementById('invSearch').value.toLowerCase().trim();
+  const cat  = document.getElementById('invCategory').value;
+  const sort = document.getElementById('invSort').value;
+
+  let list = allProducts.filter(p => {
+    const txt = `${p.nom||''} ${p.marque||''} ${p.fournisseur||''} ${p.reference||''} ${p.code_barre||''}`.toLowerCase();
+    if (q && !txt.includes(q)) return false;
+    if (cat && p.categorie !== cat) return false;
+    return true;
+  });
+
+  // Sort
+  list.sort((a,b) => {
+    if (sort==='nom') return (a.nom||'').localeCompare(b.nom||'');
+    if (sort==='qty_asc') return (a.quantite||0)-(b.quantite||0);
+    if (sort==='qty_desc') return (b.quantite||0)-(a.quantite||0);
+    if (sort==='peremption') {
+      const da = a.date_peremption ? new Date(a.date_peremption) : new Date('2999-01-01');
+      const db2 = b.date_peremption ? new Date(b.date_peremption) : new Date('2999-01-01');
+      return da - db2;
+    }
+    return 0;
+  });
+  filteredProducts = list;
+  renderProductGrid();
+}
+
+function renderProductGrid() {
+  const grid = document.getElementById('productGrid');
+  if (!filteredProducts.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;"><div class="empty-state">
+      <div class="empty-state-icon">📦</div>
+      <div class="empty-state-title">Aucun produit en stock</div>
+      <div class="empty-state-desc">Ajoutez vos premiers matériaux en cliquant sur "Ajouter produit".</div>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter produit</button>
+    </div></div>`;
+    return;
+  }
+  grid.innerHTML = filteredProducts.map(p => productCard(p)).join('');
+}
+
+function productCard(p) {
+  const qty = p.quantite || 0;
+  const seuil = p.seuil_alerte || 0;
+  const max   = Math.max(qty, seuil * 2, 1);
+  const pct   = Math.min(100, (qty / max) * 100);
+  const fillClass = qty <= 0 ? 'danger' : (qty <= seuil ? 'warn' : 'ok');
+  const qtyColor  = qty <= 0 ? 'var(--red)' : (qty <= seuil ? 'var(--amber)' : 'var(--green)');
+
+  const eanBadge = p.code_barre ? `<span class="product-ean-badge" title="EAN: ${p.code_barre}">💰 EAN</span>` : '';
+
+  // Peremption badge
+  let peremBadge = '';
+  if (p.date_peremption) {
+    const daysLeft = Math.ceil((new Date(p.date_peremption) - new Date()) / 86400000);
+    if (daysLeft <= 30)  peremBadge = `<span class="badge badge-red" style="font-size:10px;">⚠️ ${daysLeft}j</span>`;
+    else if (daysLeft <= 60) peremBadge = `<span class="badge badge-orange" style="font-size:10px;">⏰ ${daysLeft}j</span>`;
+    else if (daysLeft <= 90) peremBadge = `<span class="badge badge-amber" style="font-size:10px;">📅 ${daysLeft}j</span>`;
+  }
+
+  // Price tooltip for multi-supplier
+  const priceHtml = p.prix_achat
+    ? `<div class="tooltip-wrap"><span class="price-info">${parseFloat(p.prix_achat).toFixed(2)} €</span><div class="tooltip-box">Prix d'achat HT</div></div>`
+    : '<span class="price-info" style="color:var(--muted-light);">—</span>';
+
+  return `<div class="product-card" id="pc-${p.id}">
+    <div class="product-card-header">
+      <div>
+        <div class="product-name">${p.nom||'—'} ${peremBadge}</div>
+        <div class="product-brand">${p.marque||''} ${p.fournisseur ? '· '+p.fournisseur : ''}</div>
+      </div>
+      ${eanBadge}
+    </div>
+    <div class="qty-bar-wrap">
+      <div class="qty-bar-label">
+        <span style="color:${qtyColor};" class="qty-val">${qty} ${p.unite||''}</span>
+        ${seuil>0 ? `<span style="color:var(--muted);font-size:10px;">seuil: ${seuil}</span>` : ''}
+      </div>
+      <div class="qty-bar"><div class="qty-bar-fill ${fillClass}" style="width:${pct}%;"></div></div>
+    </div>
+    <div class="product-meta">
+      ${p.categorie ? `<span>🏷️ ${p.categorie}</span>` : ''}
+      ${p.reference ? `<span>🔢 ${p.reference}</span>` : ''}
+      ${p.emplacement ? `<span>📍 ${p.emplacement}</span>` : ''}
+      ${p.date_peremption ? `<span>📅 ${new Date(p.date_peremption).toLocaleDateString('fr-FR')}</span>` : ''}
+    </div>
+    <div class="product-card-footer">
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="quickQty('${p.id}',-1)">−</button>
+        <input class="qty-input" type="number" value="${qty}" id="qi-${p.id}" onchange="setQty('${p.id}',this.value)" min="0" step="0.01">
+        <button class="qty-btn" onclick="quickQty('${p.id}',+1)">+</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${priceHtml}
+        <button class="btn btn-outline btn-xs" onclick="openEditModal('${p.id}')" title="Modifier">✏️</button>
+        <button class="btn btn-outline btn-xs" onclick="openAdjustModal('${p.id}')" title="Mouvement">📊</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteProduct('${p.id}')" title="Supprimer">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── Quick qty ──────────────────────────────────────────────── */
+async function quickQty(id, delta) {
+  const p = allProducts.find(x=>x.id==id);
+  if (!p) return;
+  const newQty = Math.max(0, (p.quantite||0) + delta);
+  await updateQty(id, newQty, delta > 0 ? 'entree' : 'sortie');
+}
+
+async function setQty(id, val) {
+  const newQty = parseFloat(val);
+  if (isNaN(newQty) || newQty < 0) return;
+  await updateQty(id, newQty, 'ajustement');
+}
+
+async function updateQty(id, newQty, type) {
+  try {
+    const res = await fetch(`${API_BASE}/stock/${id}/mouvement`, {
+      method:'POST', headers:apiHeaders(),
+      body: JSON.stringify({ type, quantite: newQty, motif: 'Ajustement rapide' })
+    });
+    if (res.ok) {
+      const p = allProducts.find(x=>x.id==id);
+      if (p) {
+        p.quantite = newQty;
+        const inp = document.getElementById(`qi-${id}`);
+        if (inp) inp.value = newQty;
+        // Re-render just this card
+        const el = document.getElementById(`pc-${id}`);
+        if (el) el.outerHTML = productCard(p);
+      }
+    } else { toast('Erreur mise à jour', 'error'); }
+  } catch(e) { toast('Erreur réseau', 'error'); }
+}
+
+/* ── Add/Edit modal ─────────────────────────────────────────── */
+function openAddModal() {
+  editingProductId = null;
+  document.getElementById('productModalTitle').textContent = 'Ajouter un produit';
+  clearProductForm();
+  document.getElementById('productModal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const p = allProducts.find(x=>x.id==id);
+  if (!p) return;
+  editingProductId = id;
+  document.getElementById('productModalTitle').textContent = 'Modifier le produit';
+  fillProductForm(p);
+  document.getElementById('productModal').classList.add('open');
+}
+
+function clearProductForm() {
+  ['pNom','pMarque','pReference','pFournisseur','pCodeBarre','pQuantite','pUnite','pSeuilAlerte','pPeremption','pEmplacement','pPrixAchat','pPrixUnite','pNotes'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('pCategorie').value='';
+}
+
+function fillProductForm(p) {
+  document.getElementById('pNom').value       = p.nom||'';
+  document.getElementById('pMarque').value    = p.marque||'';
+  document.getElementById('pReference').value = p.reference||'';
+  document.getElementById('pFournisseur').value = p.fournisseur||'';
+  document.getElementById('pCodeBarre').value = p.code_barre||'';
+  document.getElementById('pCategorie').value = p.categorie||'';
+  document.getElementById('pQuantite').value  = p.quantite||'';
+  document.getElementById('pUnite').value     = p.unite||'';
+  document.getElementById('pSeuilAlerte').value = p.seuil_alerte||'';
+  document.getElementById('pPeremption').value = p.date_peremption ? p.date_peremption.split('T')[0] : '';
+  document.getElementById('pEmplacement').value = p.emplacement||'';
+  document.getElementById('pPrixAchat').value  = p.prix_achat||'';
+  document.getElementById('pPrixUnite').value  = p.prix_unite||'';
+  document.getElementById('pNotes').value     = p.notes||'';
+}
+
+function getProductFormData() {
+  return {
+    nom:          document.getElementById('pNom').value.trim(),
+    marque:       document.getElementById('pMarque').value.trim(),
+    reference:    document.getElementById('pReference').value.trim(),
+    fournisseur:  document.getElementById('pFournisseur').value.trim(),
+    code_barre:   document.getElementById('pCodeBarre').value.trim(),
+    categorie:    document.getElementById('pCategorie').value,
+    quantite:     parseFloat(document.getElementById('pQuantite').value)||0,
+    unite:        document.getElementById('pUnite').value.trim(),
+    seuil_alerte: parseFloat(document.getElementById('pSeuilAlerte').value)||0,
+    date_peremption: document.getElementById('pPeremption').value||null,
+    emplacement:  document.getElementById('pEmplacement').value.trim(),
+    prix_achat:   parseFloat(document.getElementById('pPrixAchat').value)||null,
+    prix_unite:   parseFloat(document.getElementById('pPrixUnite').value)||null,
+    notes:        document.getElementById('pNotes').value.trim(),
+  };
+}
+
+async function saveProduct() {
+  const data = getProductFormData();
+  if (!data.nom) { toast('Le nom est requis', 'error'); return; }
+  const btn = document.getElementById('saveProductBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>';
+  try {
+    let res;
+    if (editingProductId) {
+      res = await fetch(`${API_BASE}/stock/${editingProductId}`, { method:'PUT', headers:apiHeaders(), body:JSON.stringify(data) });
+    } else {
+      res = await fetch(`${API_BASE}/stock`, { method:'POST', headers:apiHeaders(), body:JSON.stringify(data) });
+    }
+    if (res.ok) {
+      const saved = await res.json();
+      if (editingProductId) {
+        const idx = allProducts.findIndex(p=>p.id==editingProductId);
+        if (idx>=0) allProducts[idx] = { ...allProducts[idx], ...data };
+      } else {
+        allProducts.unshift(saved.data || { ...data, id: saved.id || Date.now() });
+      }
+      closeModal('productModal');
+      applyInvFilters();
+      populatePhotoProductSelect();
+      toast(editingProductId ? 'Produit modifié' : 'Produit ajouté', 'success');
+    } else { const e=await res.json().catch(()=>({})); toast(e.message||'Erreur', 'error'); }
+  } catch(e) { toast('Erreur réseau', 'error'); }
+  finally { btn.disabled=false; btn.innerHTML='💾 Enregistrer'; }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Supprimer ce produit du stock ?')) return;
+  try {
+    const res = await fetch(`${API_BASE}/stock/${id}`, { method:'DELETE', headers:apiHeaders() });
+    if (res.ok) {
+      allProducts = allProducts.filter(p=>p.id!=id);
+      applyInvFilters();
+      toast('Produit supprimé', 'success');
+    } else { toast('Erreur', 'error'); }
+  } catch(e) { toast('Erreur réseau', 'error'); }
+}
+
+/* ── Adjust modal ───────────────────────────────────────────── */
+function openAdjustModal(id) {
+  const p = allProducts.find(x=>x.id==id);
+  if (!p) return;
+  adjustingProductId = id;
+  document.getElementById('adjustModalTitle').textContent = 'Mouvement de stock';
+  document.getElementById('adjustProductName').textContent = p.nom;
+  document.getElementById('adjustType').value = 'entree';
+  document.getElementById('adjustQty').value  = '';
+  document.getElementById('adjustMotif').value= '';
+  document.getElementById('adjustModal').classList.add('open');
+}
+
+async function saveAdjust() {
+  const type  = document.getElementById('adjustType').value;
+  const qty   = parseFloat(document.getElementById('adjustQty').value);
+  const motif = document.getElementById('adjustMotif').value.trim();
+  if (isNaN(qty) || qty <= 0) { toast('Quantité invalide', 'error'); return; }
+  const btn = document.getElementById('saveAdjustBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
+  try {
+    const res = await fetch(`${API_BASE}/stock/${adjustingProductId}/mouvement`, {
+      method:'POST', headers:apiHeaders(),
+      body: JSON.stringify({ type, quantite: qty, motif })
+    });
+    if (res.ok) {
+      // Update local qty
+      const p = allProducts.find(x=>x.id==adjustingProductId);
+      if (p) {
+        if (type==='entree') p.quantite=(p.quantite||0)+qty;
+        else if (type==='sortie') p.quantite=Math.max(0,(p.quantite||0)-qty);
+        else if (type==='ajustement') p.quantite=qty;
+      }
+      closeModal('adjustModal');
+      applyInvFilters();
+      loadMouvements();
+      toast('Mouvement enregistré', 'success');
+    } else { toast('Erreur', 'error'); }
+  } catch(e) { toast('Erreur réseau', 'error'); }
+  finally { btn.disabled=false; btn.innerHTML='✅ Enregistrer le mouvement'; }
+}
+
+/* ── Scanner tab ─────────────────────────────────────────────── */
+let scanTimeout;
+function onScanInput() {
+  clearTimeout(scanTimeout);
+  const val = document.getElementById('scanInput').value.trim();
+  if (val.length >= 8) {
+    scanTimeout = setTimeout(() => triggerScan(), 400);
+  }
+}
+
+async function triggerScan() {
+  const code = document.getElementById('scanInput').value.trim();
+  if (!code) { toast('Saisissez un code-barres', 'error'); return; }
+
+  document.getElementById('waterfall').style.display = 'flex';
+  document.getElementById('scanResult').style.display = 'none';
+  resetWaterfall();
+
+  // Step 1: Supabase local stock
+  setWfStep('wf-supabase', 'active');
+  await sleep(400);
+  try {
+    const res = await fetch(`${API_BASE}/stock/scan/${encodeURIComponent(code)}`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      const prod = data.data || data;
+      if (prod && prod.id) {
+        setWfStep('wf-supabase', 'done');
+        setWfStep('wf-off', 'done');
+        setWfStep('wf-ia', 'done');
+        showScanResult(prod, true);
+        return;
+      }
+    }
+  } catch(e) {}
+  setWfStep('wf-supabase', 'error');
+
+  // Step 2: OpenFoodFacts
+  setWfStep('wf-off', 'active');
+  await sleep(600);
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 1 && data.product) {
+        const p = data.product;
+        setWfStep('wf-off', 'done');
+        setWfStep('wf-ia', 'done');
+        showScanResult({
+          nom: p.product_name||p.product_name_fr||'Produit inconnu',
+          marque: p.brands||'',
+          code_barre: code,
+          notes: p.categories||'',
+        }, false);
+        return;
+      }
+    }
+  } catch(e) {}
+  setWfStep('wf-off', 'error');
+
+  // Step 3: JADOMI IA
+  setWfStep('wf-ia', 'active');
+  await sleep(800);
+  setWfStep('wf-ia', 'done');
+  showScanResult({ code_barre: code, nom: `Produit ${code}` }, false);
+}
+
+function resetWaterfall() {
+  ['wf-supabase','wf-off','wf-ia'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.className = 'wf-step';
+  });
+}
+
+function setWfStep(id, state) {
+  const el = document.getElementById(id);
+  el.className = `wf-step ${state}`;
+  const icon = el.querySelector('.wf-icon');
+  if (state==='active') icon.innerHTML='<span class="wf-spin"></span>';
+  else if (state==='done') icon.textContent='✅';
+  else if (state==='error') icon.textContent='❌';
+}
+
+function showScanResult(product, exists) {
+  const el = document.getElementById('scanResult');
+  el.style.display = 'block';
+  const existsInStock = allProducts.find(p => p.code_barre === product.code_barre || p.id == product.id);
+
+  if (existsInStock || exists) {
+    const p = existsInStock || product;
+    el.innerHTML = `<div class="scan-result-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">📦</span>
+        <span class="badge badge-green">En stock</span>
+      </div>
+      <div class="scan-result-name">${p.nom}</div>
+      <div class="scan-result-fields">
+        ${p.marque ? `<div class="scan-result-field"><span class="srf-label">Marque :</span>${p.marque}</div>` : ''}
+        ${p.quantite!=null ? `<div class="scan-result-field"><span class="srf-label">Quantité :</span><strong>${p.quantite} ${p.unite||''}</strong></div>` : ''}
+        ${p.categorie ? `<div class="scan-result-field"><span class="srf-label">Catégorie :</span>${p.categorie}</div>` : ''}
+        ${p.date_peremption ? `<div class="scan-result-field"><span class="srf-label">Péremption :</span>${new Date(p.date_peremption).toLocaleDateString('fr-FR')}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openAdjustModal('${p.id}')">📊 Mouvement de stock</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditModal('${p.id}');switchTab('inventaire')">✏️ Modifier</button>
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="scan-result-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">🆕</span>
+        <span class="badge badge-amber">Nouveau produit</span>
+      </div>
+      <div class="scan-result-name">${product.nom||'Produit '+product.code_barre}</div>
+      <div class="scan-result-fields">
+        ${product.marque ? `<div class="scan-result-field"><span class="srf-label">Marque :</span>${product.marque}</div>` : ''}
+        <div class="scan-result-field"><span class="srf-label">Code-barres :</span>${product.code_barre}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addFromScan(${JSON.stringify(product).replace(/"/g,'&quot;')})">➕ Ajouter au stock</button>
+    </div>`;
+  }
+}
+
+function addFromScan(product) {
+  openAddModal();
+  if (product.nom) document.getElementById('pNom').value = product.nom;
+  if (product.marque) document.getElementById('pMarque').value = product.marque;
+  if (product.code_barre) document.getElementById('pCodeBarre').value = product.code_barre;
+  switchTab('inventaire');
+  document.getElementById('productModal').classList.add('open');
+}
+
+/* ── Camera (scanner) ───────────────────────────────────────── */
+async function startCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
+    document.getElementById('cameraFeed').srcObject = cameraStream;
+    document.getElementById('cameraWrap').style.display = 'block';
+    toast('Caméra activée — approchez le code-barres');
+  } catch(e) { toast('Impossible d\'accéder à la caméra', 'error'); }
+}
+
+function stopCamera() {
+  if (cameraStream) { cameraStream.getTracks().forEach(t=>t.stop()); cameraStream=null; }
+  document.getElementById('cameraWrap').style.display = 'none';
+}
+
+/* ── Alertes ────────────────────────────────────────────────── */
+async function loadAlertes() {
+  try {
+    const res = await fetch(`${API_BASE}/stock/alertes`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      renderAlertes(data.data || data);
+      return;
+    }
+  } catch(e) {}
+  // Fallback: compute from local stock
+  const now = new Date();
+  const perem30  = allProducts.filter(p => p.date_peremption && daysUntil(p.date_peremption) < 30  && daysUntil(p.date_peremption) >= 0);
+  const perem60  = allProducts.filter(p => p.date_peremption && daysUntil(p.date_peremption) >= 30 && daysUntil(p.date_peremption) < 60);
+  const perem90  = allProducts.filter(p => p.date_peremption && daysUntil(p.date_peremption) >= 60 && daysUntil(p.date_peremption) < 90);
+  const stockBas = allProducts.filter(p => p.seuil_alerte > 0 && (p.quantite||0) <= p.seuil_alerte);
+  renderAlertes({ peremption_rouge: perem30, peremption_orange: perem60, peremption_jaune: perem90, stock_bas: stockBas });
+}
+
+function daysUntil(dateStr) {
+  return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+}
+
+function renderAlertes(data) {
+  const totalAlerts = (data.peremption_rouge||[]).length + (data.stock_bas||[]).length;
+  const badge = document.getElementById('alertBadge');
+  if (totalAlerts > 0) { badge.style.display='inline'; badge.textContent=totalAlerts; } else { badge.style.display='none'; }
+
+  renderAlertSection('alertRed',    data.peremption_rouge   || [], p => `Péremption dans ${daysUntil(p.date_peremption)} jour(s)`);
+  renderAlertSection('alertOrange', data.peremption_orange  || [], p => `Péremption dans ${daysUntil(p.date_peremption)} jours`);
+  renderAlertSection('alertYellow', data.peremption_jaune   || [], p => `Péremption dans ${daysUntil(p.date_peremption)} jours`);
+  renderAlertSection('alertBas',    data.stock_bas          || [], p => `Stock: ${p.quantite||0} ${p.unite||''} (seuil: ${p.seuil_alerte})`);
+}
+
+function renderAlertSection(containerId, items, subtitle) {
+  const el = document.getElementById(containerId);
+  if (!items.length) { el.innerHTML='<div class="alert-empty">Aucune alerte — tout va bien ✅</div>'; return; }
+  el.innerHTML = items.map(p => `<div class="alert-item">
+    <div>
+      <div class="alert-item-name">${p.nom||'—'}</div>
+      <div class="alert-item-sub">${subtitle(p)} ${p.fournisseur?'· '+p.fournisseur:''}</div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-outline btn-xs" onclick="openEditModal('${p.id}');switchTab('inventaire')">✏️</button>
+      <button class="btn btn-outline btn-xs" onclick="openAdjustModal('${p.id}')">📊</button>
+    </div>
+  </div>`).join('');
+}
+
+/* ── Photo péremption ───────────────────────────────────────── */
+function openPhotoPeremption() {
+  document.getElementById('photoModal').classList.add('open');
+  document.getElementById('photoResultWrap').style.display = 'none';
+  document.getElementById('applyPhotoBtn').style.display = 'none';
+  document.getElementById('photoImg').src = '';
+  document.getElementById('photoCaptured').style.display = 'none';
+}
+
+async function startPhotoCamera() {
+  try {
+    photoCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
+    document.getElementById('photoFeed').srcObject = photoCameraStream;
+    document.getElementById('photoFeed').style.display = 'block';
+    document.getElementById('startCamBtn').style.display = 'none';
+    document.getElementById('captureBtnPhoto').style.display = 'flex';
+  } catch(e) { toast('Impossible d\'accéder à la caméra', 'error'); }
+}
+
+function capturePhoto() {
+  const video  = document.getElementById('photoFeed');
+  const canvas = document.getElementById('photoCanvas');
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  document.getElementById('photoImg').src = dataUrl;
+  document.getElementById('photoCaptured').style.display = 'block';
+  stopPhotoCamera();
+  analyzePhotoDate(canvas.toBlob ? null : dataUrl, dataUrl);
+}
+
+function onPhotoFileSelected(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('photoImg').src = ev.target.result;
+    document.getElementById('photoCaptured').style.display = 'block';
+    analyzePhotoDate(file, ev.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzePhotoDate(file, dataUrl) {
+  toast('Analyse de l\'image par JADOMI IA…');
+  try {
+    let body;
+    if (file) {
+      const fd = new FormData(); fd.append('image', file);
+      const res = await fetch(`${API_BASE}/stock/scan-peremption`, {
+        method:'POST',
+        headers: { Authorization: currentToken?`Bearer ${currentToken}`:'', 'X-Societe-Id': currentSocieteId||'' },
+        body: fd
+      });
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('photoDateResult').value = data.date_peremption||data.date||'';
+        document.getElementById('photoResultWrap').style.display = 'block';
+        document.getElementById('applyPhotoBtn').style.display = 'flex';
+        return;
+      }
+    }
+    // Fallback: try base64
+    const res = await fetch(`${API_BASE}/stock/scan-peremption`, {
+      method:'POST', headers:apiHeaders(),
+      body: JSON.stringify({ image_base64: dataUrl })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('photoDateResult').value = data.date_peremption||data.date||'';
+      document.getElementById('photoResultWrap').style.display = 'block';
+      document.getElementById('applyPhotoBtn').style.display = 'flex';
+    } else { toast('JADOMI IA n\'a pas pu extraire la date', 'error'); }
+  } catch(e) { toast('Erreur lors de l\'analyse', 'error'); }
+}
+
+async function applyPhotoDate() {
+  const date = document.getElementById('photoDateResult').value;
+  const productId = document.getElementById('photoProductSelect').value;
+  if (!date) { toast('Aucune date détectée', 'error'); return; }
+  if (!productId) { toast('Sélectionnez un produit', 'error'); return; }
+  try {
+    const res = await fetch(`${API_BASE}/stock/${productId}`, {
+      method:'PUT', headers:apiHeaders(),
+      body: JSON.stringify({ date_peremption: date })
+    });
+    if (res.ok) {
+      const p = allProducts.find(x=>x.id==productId);
+      if (p) p.date_peremption = date;
+      closeModal('photoModal');
+      applyInvFilters();
+      loadAlertes();
+      toast('Date de péremption mise à jour', 'success');
+    } else { toast('Erreur mise à jour', 'error'); }
+  } catch(e) { toast('Erreur', 'error'); }
+}
+
+function stopPhotoCamera() {
+  if (photoCameraStream) { photoCameraStream.getTracks().forEach(t=>t.stop()); photoCameraStream=null; }
+  document.getElementById('photoFeed').style.display = 'none';
+  document.getElementById('startCamBtn').style.display = 'flex';
+  document.getElementById('captureBtnPhoto').style.display = 'none';
+}
+
+function populatePhotoProductSelect() {
+  const sel = document.getElementById('photoProductSelect');
+  sel.innerHTML = '<option value="">— Choisir un produit —</option>';
+  allProducts.forEach(p => {
+    const o = document.createElement('option'); o.value=p.id; o.textContent=p.nom; sel.appendChild(o);
+  });
+}
+
+/* ── Mouvements ──────────────────────────────────────────────── */
+async function loadMouvements() {
+  try {
+    const res = await fetch(`${API_BASE}/stock/mouvements`, { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      allMouvements = Array.isArray(data) ? data : (data.data || data.mouvements || []);
+    } else { allMouvements = []; }
+  } catch(e) { allMouvements = []; }
+  applyMvFilters();
+}
+
+function applyMvFilters() {
+  const q    = document.getElementById('mvSearch').value.toLowerCase().trim();
+  const type = document.getElementById('mvType').value;
+  let list = allMouvements.filter(m => {
+    const txt = `${m.produit_nom||''} ${m.motif||''}`.toLowerCase();
+    if (q && !txt.includes(q)) return false;
+    if (type && m.type !== type) return false;
+    return true;
+  });
+  document.getElementById('mvCountLabel').textContent = `${list.length} mouvement${list.length!==1?'s':''}`;
+  renderMouvements(list);
+}
+
+function renderMouvements(list) {
+  const tbody = document.getElementById('mvTbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted);">Aucun mouvement enregistré</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(m => {
+    const isEntree = m.type === 'entree';
+    const isSortie = m.type === 'sortie';
+    const typeLabel = m.type === 'entree' ? '↑ Entrée' : m.type === 'sortie' ? '↓ Sortie' : '↔ Ajustement';
+    const typeClass = isEntree ? 'mv-entree' : isSortie ? 'mv-sortie' : '';
+    const date = m.created_at ? new Date(m.created_at).toLocaleString('fr-FR') : '—';
+    return `<tr>
+      <td>${date}</td>
+      <td class="td-main">${m.produit_nom||'—'}</td>
+      <td><span class="${typeClass}">${typeLabel}</span></td>
+      <td style="text-align:right;font-weight:600;">${isEntree?'+':''}${isSortie?'-':''}${m.quantite||0}</td>
+      <td>${m.motif||'—'}</td>
+      <td style="color:var(--muted);">${m.user_nom||m.user_email||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Helpers ────────────────────────────────────────────────── */
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+['productModal','adjustModal','photoModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(id); });
+});
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ── Boot ──────────────────────────────────────────────────── */
+initAuth();
+</script>
+</body>
+</html>

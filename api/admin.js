@@ -661,5 +661,37 @@ module.exports = function (app, supabase, anthropic) {
     } catch (e) { console.error('[CRON TVA tri]', e.message); }
   });
 
+  // =============================================
+  // PARAMETRES PLATEFORME
+  // =============================================
+  app.get('/api/admin/parametres', requireAdmin, async (req, res) => {
+    try {
+      const { data, error } = await supabase.from('parametres_plateforme').select('*').order('cle');
+      if (error) throw error;
+      res.json({ ok: true, parametres: data || [] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/admin/parametres', requireAdmin, async (req, res) => {
+    try {
+      const { parametres } = req.body;
+      if (!parametres || !Array.isArray(parametres)) {
+        return res.status(400).json({ error: 'parametres (array) requis' });
+      }
+      for (const p of parametres) {
+        if (!p.cle) continue;
+        const { error } = await supabase
+          .from('parametres_plateforme')
+          .upsert({ cle: p.cle, valeur: p.valeur, updated_at: new Date().toISOString() }, { onConflict: 'cle' });
+        if (error) console.error('[ADMIN parametres upsert]', p.cle, error.message);
+      }
+      res.json({ ok: true, success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   console.log('[ADMIN] Module admin charge — 4 cron jobs actifs');
 };

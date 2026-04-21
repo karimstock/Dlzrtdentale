@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Nouveau Bon de Livraison</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#ffffff;--bg-secondary:#f8f9fa;--surface:#ffffff;--surface2:#f1f3f5;
+  --border:#e0e3e8;--text:#1a1d23;--text-secondary:#6b7280;
+  --accent:#2563eb;--accent-light:#dbeafe;--accent-dark:#1d4ed8;
+  --success:#059669;--warning:#d97706;--danger:#dc2626;
+  --shadow:0 1px 3px rgba(0,0,0,0.1);--shadow-lg:0 4px 12px rgba(0,0,0,0.1);
+  --radius:8px;
+  --muted:#6b7280;--muted2:#9ca3af;--green:#059669;--green-l:#ecfdf5;
+  --amber:#d97706;--amber-l:#fffbeb;--red:#dc2626;--red-l:#fef2f2;
+  --primary:#2563eb;--primary-dark:#1d4ed8;--primary-light:#dbeafe;--primary-ring:rgba(37,99,235,0.25);
+  --font:'Inter',-apple-system,sans-serif;--font-display:'Inter',sans-serif;--mono:'SFMono-Regular',Consolas,monospace;
+  --radius-sm:6px;--radius-lg:12px;
+  --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+  --sidebar-w:240px;
+}
+
+body{font-family:var(--font);background:var(--bg-secondary);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;}
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:var(--sidebar-w);background:#ffffff;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;height:100vh;z-index:100;overflow:hidden;
+}
+.sidebar-logo{
+  padding:20px 22px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;
+}
+.logo-icon-nav{font-size:20px;}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-item{
+  display:flex;align-items:center;gap:11px;padding:9px 22px;
+  font-size:13px;font-weight:500;color:var(--muted);
+  cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;
+  text-decoration:none;
+}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-left-color:var(--primary);font-weight:600;}
+.nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.page-main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── LAYOUT ──────────────────────────────────────────── */
+.page-wrap{max-width:1320px;margin:0 auto;padding:24px 24px 80px;}
+.page-header{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+.back-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;transition:all 0.15s;}
+.back-btn:hover{border-color:var(--primary);color:var(--primary);}
+.page-title{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-0.5px;color:var(--text);}
+.page-subtitle{font-size:13px;color:var(--muted);margin-top:2px;}
+.draft-badge{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--amber-l);color:var(--amber);border:1px solid rgba(217,119,6,0.2);}
+
+/* ── SECTION CARDS ────────────────────────────────────── */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden;}
+.section-head{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid var(--border);background:var(--surface);}
+.section-num{width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.section-title{font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text);}
+.section-hint{margin-left:auto;font-size:12px;color:var(--muted);}
+.section-body{padding:22px;}
+
+/* ── FORM ELEMENTS ───────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.span-2{grid-column:span 2;}
+.span-3{grid-column:span 3;}
+
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.label .req{color:var(--red);}
+.input,.select,.textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;color:var(--text);background:var(--surface);transition:all 0.15s;outline:none;}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+.input::placeholder{color:var(--muted2);}
+.textarea{resize:vertical;min-height:80px;line-height:1.5;}
+.select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:16px;padding-right:34px;}
+
+/* ── AUTOCOMPLETE ────────────────────────────────────── */
+.autocomplete-wrap{position:relative;}
+.autocomplete-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:200;max-height:240px;overflow-y:auto;display:none;}
+.autocomplete-dropdown.open{display:block;}
+.ac-item{padding:10px 14px;cursor:pointer;font-size:13px;transition:background 0.1s;display:flex;flex-direction:column;gap:2px;}
+.ac-item:hover,.ac-item.focused{background:var(--primary-light);color:var(--primary);}
+.ac-item-sub{font-size:11px;color:var(--muted);}
+.ac-empty{padding:12px 14px;font-size:13px;color:var(--muted);text-align:center;}
+
+/* ── DENTISTE SELECTED ───────────────────────────────── */
+.dentiste-selected{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--primary-light);border:1px solid rgba(26,86,219,0.2);border-radius:var(--radius-sm);}
+.dentiste-avatar{width:36px;height:36px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.dentiste-info{flex:1;}
+.dentiste-name{font-size:14px;font-weight:600;color:var(--primary);}
+.dentiste-sub{font-size:12px;color:var(--muted);}
+.dentiste-clear{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:4px;}
+.dentiste-clear:hover{color:var(--red);}
+
+/* ── PRODUCTS SECTION ────────────────────────────────── */
+.products-layout{display:grid;grid-template-columns:220px 1fr;gap:16px;}
+
+/* Catalogue browser */
+.catalogue-browser{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);}
+.cat-head{padding:12px 14px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.cat-search{padding:8px;border-bottom:1px solid var(--border);}
+.cat-search input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;outline:none;}
+.cat-search input:focus{border-color:var(--primary);}
+.cat-list{max-height:420px;overflow-y:auto;}
+.cat-category{padding:9px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;transition:all 0.1s;}
+.cat-category:hover{background:var(--surface2);color:var(--text);}
+.cat-category.active{background:var(--primary-light);color:var(--primary);font-weight:600;}
+.cat-category:last-child{border-bottom:none;}
+.cat-count{font-size:11px;font-family:var(--mono);}
+.cat-products{background:var(--surface);}
+.cat-product{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;transition:all 0.1s;}
+.cat-product:hover{background:var(--primary-light);}
+.cat-product:last-child{border-bottom:none;}
+.cat-product-name{font-weight:500;flex:1;line-height:1.3;}
+.cat-product-price{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;}
+.cat-product-add{width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;flex-shrink:0;transition:transform 0.15s;}
+.cat-product-add:hover{transform:scale(1.15);}
+.cat-empty{padding:20px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* Cart table */
+.cart-wrap{display:flex;flex-direction:column;gap:10px;}
+.cart-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.cart-title{font-size:13px;font-weight:600;color:var(--text);}
+.cart-count{font-family:var(--mono);font-size:12px;color:var(--muted);}
+
+.cart-table-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+table.cart-table{width:100%;border-collapse:collapse;}
+table.cart-table thead th{background:var(--surface2);padding:10px 12px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;text-align:left;white-space:nowrap;}
+table.cart-table thead th.right{text-align:right;}
+table.cart-table tbody td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px;vertical-align:middle;}
+table.cart-table tbody tr:hover td{background:var(--surface2);}
+table.cart-table tfoot td{padding:10px 12px;border-top:2px solid var(--border);font-size:13px;font-weight:600;background:var(--surface2);}
+
+.cart-input{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--mono);font-size:13px;text-align:right;outline:none;background:var(--surface);}
+.cart-input:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-ring);}
+.qty-input{width:60px;}
+.price-input{width:90px;}
+.remise-input{width:65px;}
+
+.lot-row{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.lot-label{font-size:11px;color:var(--muted);white-space:nowrap;}
+.lot-input{flex:1;padding:4px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:var(--mono);outline:none;}
+.lot-input:focus{border-color:var(--primary);}
+
+.remove-btn{width:28px;height:28px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px;transition:all 0.15s;flex-shrink:0;}
+.remove-btn:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+.cart-empty{padding:32px;text-align:center;color:var(--muted);font-size:13px;}
+.cart-empty-icon{font-size:32px;margin-bottom:8px;opacity:0.5;}
+
+/* ── TOTALS ──────────────────────────────────────────── */
+.totals-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+.total-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.total-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.total-value{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-0.5px;color:var(--text);}
+.total-value.highlight{color:var(--primary);}
+.total-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+/* ── SHADE SECTION ───────────────────────────────────── */
+.shade-grid{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;}
+.shade-swatch{width:46px;height:46px;border-radius:var(--radius-sm);border:2px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all 0.15s;position:relative;overflow:hidden;}
+.shade-swatch:hover{transform:scale(1.1);z-index:2;box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+.shade-swatch.selected{border-color:var(--primary) !important;box-shadow:0 0 0 3px var(--primary-ring);transform:scale(1.12);z-index:3;}
+.shade-code{font-family:var(--mono);font-size:10px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.6);color:#fff;text-align:center;line-height:1.2;padding:0 2px;word-break:break-all;}
+.shade-group{margin-bottom:16px;}
+.shade-group-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;}
+
+.teinte-fields{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px;}
+.teinte-selected{padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);font-family:var(--mono);font-size:13px;font-weight:600;color:var(--primary);min-height:38px;display:flex;align-items:center;gap:8px;}
+.teinte-dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,0.15);flex-shrink:0;}
+
+.strat-group{display:flex;gap:10px;flex-wrap:wrap;}
+.strat-option{display:flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:all 0.15s;user-select:none;}
+.strat-option:hover{border-color:var(--primary);background:var(--primary-light);}
+.strat-option.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:600;}
+.strat-option input[type=radio]{accent-color:var(--primary);}
+
+/* ── BTN ─────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;text-decoration:none;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#047857;}
+.btn-sm{padding:7px 14px;font-size:12px;}
+.btn-xs{padding:5px 10px;font-size:12px;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-icon{width:32px;height:32px;padding:0;justify-content:center;font-size:15px;}
+
+/* ── STICKY BOTTOM ───────────────────────────────────── */
+.sticky-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:12px;z-index:90;box-shadow:0 -4px 20px rgba(0,0,0,0.08);}
+.sticky-bar-info{margin-right:auto;font-size:13px;color:var(--muted);}
+.sticky-bar-info strong{color:var(--text);}
+.save-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--muted2);}
+.save-dot.saving{background:var(--amber);animation:pulse 1s infinite;}
+.save-dot.saved{background:var(--green);}
+
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* ── MODAL ───────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);width:100%;max-width:520px;box-shadow:var(--shadow-lg);overflow:hidden;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.modal-title{font-family:var(--font-display);font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);line-height:1;padding:4px;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:22px;display:flex;flex-direction:column;gap:14px;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:var(--surface2);}
+
+/* ── TOAST ───────────────────────────────────────────── */
+.toast-wrap{position:fixed;top:70px;right:20px;z-index:600;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:12px 16px;border-radius:var(--radius);box-shadow:var(--shadow-md);font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;min-width:260px;max-width:380px;animation:slideIn 0.25s ease;}
+.toast-ok{background:#fff;border-left:4px solid var(--green);color:var(--text);}
+.toast-err{background:#fff;border-left:4px solid var(--red);color:var(--text);}
+.toast-info{background:#fff;border-left:4px solid var(--primary);color:var(--text);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:none;}}
+
+/* ── LOADING / SKELETON ──────────────────────────────── */
+.loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
+.loading-spinner.dark{border-color:rgba(26,86,219,0.2);border-top-color:var(--primary);}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.placeholder-text{color:var(--muted2);font-size:13px;font-style:italic;}
+
+/* ── MISC ────────────────────────────────────────────── */
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+.text-right{text-align:right;}
+.text-mono{font-family:var(--mono);}
+.text-sm{font-size:12px;}
+.text-muted{color:var(--muted);}
+.flex-center{display:flex;align-items:center;}
+.gap-8{gap:8px;}
+.hidden{display:none !important;}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.tag-tva{background:var(--amber-l);color:var(--amber);border:1px solid rgba(217,119,6,0.2);}
+.tag-exo{background:var(--green-l);color:var(--green);border:1px solid rgba(5,150,105,0.2);}
+.tag-mat{background:var(--primary-light);color:var(--primary);border:1px solid rgba(26,86,219,0.15);}
+.tag-teinte{background:#fdf4ff;color:#9333ea;border:1px solid rgba(147,51,234,0.2);}
+
+@media (max-width:900px){
+  .form-grid{grid-template-columns:1fr 1fr;}
+  .products-layout{grid-template-columns:1fr;}
+  .totals-grid{grid-template-columns:1fr 1fr;}
+  .teinte-fields{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo"><span class="logo-icon-nav">🦷</span> JADOMI LABO</div>
+  <div class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="dentistes.html" class="nav-item" data-page="dentistes"><span class="nav-icon">👥</span> Mes dentistes</a>
+    <a href="bons-livraison.html" class="nav-item active" data-page="bons-livraison"><span class="nav-icon">📋</span> Bons de laboratoire</a>
+    <a href="facturation.html" class="nav-item" data-page="facturation"><span class="nav-icon">💰</span> Facturation</a>
+    <a href="stock.html" class="nav-item" data-page="stock"><span class="nav-icon">📦</span> Stock &amp; Matériaux</a>
+    <a href="catalogue.html" class="nav-item" data-page="catalogue"><span class="nav-icon">📊</span> Catalogue</a>
+    <a href="import-grille.html" class="nav-item" data-page="import-grille"><span class="nav-icon">📥</span> Import grille</a>
+    <a href="profil-labo.html" class="nav-item" data-page="profil-labo"><span class="nav-icon">⚙️</span> Paramètres labo</a>
+  </div>
+</nav>
+
+<!-- PAGE MAIN -->
+<div class="page-main">
+<div class="page-wrap">
+
+  <!-- Header -->
+  <div class="page-header">
+    <a class="back-btn" href="/labo/bons-livraison.html">&#8592; Retour</a>
+    <div>
+      <div class="page-title">Nouveau bon de livraison</div>
+      <div class="page-subtitle" id="blNumeroHint">Numéro attribué à l'enregistrement</div>
+    </div>
+    <div class="draft-badge" id="statusBadge">&#9679;&nbsp;Brouillon</div>
+  </div>
+
+  <!-- ── SECTION 1 : Praticien & Patient ────────────── -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-num">1</div>
+      <div class="section-title">Praticien &amp; Patient</div>
+      <div class="section-hint">Informations de la commande</div>
+    </div>
+    <div class="section-body">
+      <div class="form-grid">
+
+        <!-- Dentiste -->
+        <div class="form-group span-2" id="dentisteGroup">
+          <label class="label">Dentiste <span class="req">*</span></label>
+          <!-- Search state -->
+          <div id="dentisteSearchWrap" class="autocomplete-wrap">
+            <input type="text" class="input" id="dentisteSearch" placeholder="Rechercher par nom, email…" autocomplete="off">
+            <div class="autocomplete-dropdown" id="dentisteDropdown">
+              <div class="ac-empty">Tapez au moins 2 caractères</div>
+            </div>
+          </div>
+          <!-- Selected state (hidden initially) -->
+          <div id="dentisteSelected" class="dentiste-selected hidden">
+            <div class="dentiste-avatar" id="dentAvatar"></div>
+            <div class="dentiste-info">
+              <div class="dentiste-name" id="dentName"></div>
+              <div class="dentiste-sub" id="dentSub"></div>
+            </div>
+            <button class="dentiste-clear" onclick="clearDentiste()" title="Changer de dentiste">&#10005;</button>
+          </div>
+          <div style="margin-top:6px;">
+            <button class="btn btn-ghost btn-xs" onclick="openModal('modalAddDentiste')">&#43; Ajouter dentiste</button>
+          </div>
+        </div>
+
+        <!-- Patient -->
+        <div class="form-group">
+          <label class="label">Initiales patient <span class="req">*</span></label>
+          <input type="text" class="input" id="patientInitiales" placeholder="ex. J.D." maxlength="10">
+          <span class="text-sm text-muted">RGPD — initiales uniquement</span>
+        </div>
+
+        <!-- Ref interne -->
+        <div class="form-group">
+          <label class="label">Référence interne</label>
+          <input type="text" class="input" id="refInterne" placeholder="ex. 2026-042">
+        </div>
+
+        <!-- Date livraison -->
+        <div class="form-group span-2" style="grid-column:span 2;">
+          <label class="label">Date de livraison prévue <span class="req">*</span></label>
+          <input type="date" class="input" id="dateLivraison">
+        </div>
+
+        <!-- Notes techniques -->
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="label">Notes techniques</label>
+          <textarea class="textarea" id="notesTechniques" placeholder="Instructions particulières, remarques…" rows="2"></textarea>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 2 : Produits / Lignes ──────────────── -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-num">2</div>
+      <div class="section-title">Produits</div>
+      <div class="section-hint" id="linesCount">0 ligne(s)</div>
+    </div>
+    <div class="section-body">
+      <div class="products-layout">
+
+        <!-- Catalogue browser -->
+        <div class="catalogue-browser">
+          <div class="cat-head">Catalogue</div>
+          <div class="cat-search">
+            <input type="text" id="catSearch" placeholder="&#128269; Rechercher…" oninput="filterCatalogue(this.value)">
+          </div>
+          <div class="cat-list" id="catList">
+            <div class="cat-empty"><span class="loading-spinner dark"></span></div>
+          </div>
+        </div>
+
+        <!-- Cart -->
+        <div class="cart-wrap">
+          <div class="cart-topbar">
+            <div>
+              <span class="cart-title">Lignes du bon</span>
+              <span class="cart-count" id="cartCount"> — 0 article</span>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="addCustomLine()">&#43; Ligne manuelle</button>
+            </div>
+          </div>
+          <div class="cart-table-wrap">
+            <table class="cart-table">
+              <thead>
+                <tr>
+                  <th style="width:32%;">Désignation</th>
+                  <th style="width:70px;" class="right">Qté</th>
+                  <th style="width:90px;" class="right">PU HT</th>
+                  <th style="width:70px;" class="right">Remise%</th>
+                  <th style="width:85px;" class="right">HT</th>
+                  <th style="width:85px;" class="right">TTC</th>
+                  <th style="width:36px;"></th>
+                </tr>
+              </thead>
+              <tbody id="cartBody">
+                <tr id="emptyCartRow">
+                  <td colspan="7" class="cart-empty">
+                    <div class="cart-empty-icon">&#128203;</div>
+                    Aucun produit — cliquez sur <strong>+</strong> dans le catalogue
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 3 : Teintes ────────────────────────── -->
+  <div class="section-card" id="sectionTeintes" style="display:none;">
+    <div class="section-head">
+      <div class="section-num">3</div>
+      <div class="section-title">Teintes</div>
+      <div class="section-hint">Sélection chromique des prothèses</div>
+    </div>
+    <div class="section-body">
+
+      <!-- Teintier selector -->
+      <div class="form-grid-3" style="margin-bottom:18px;">
+        <div class="form-group">
+          <label class="label">Système de teintes</label>
+          <select class="select" id="teintierSelect" onchange="onTeintierChange()">
+            <option value="">-- Choisir un teintier --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Stratification</label>
+          <div class="strat-group" id="stratGroup">
+            <label class="strat-option" onclick="selectStrat(this,'monochromatique')">
+              <input type="radio" name="strat" value="monochromatique"> Monochromatique
+            </label>
+            <label class="strat-option" onclick="selectStrat(this,'multi-couches')">
+              <input type="radio" name="strat" value="multi-couches"> Multi-couches
+            </label>
+            <label class="strat-option" onclick="selectStrat(this,'stratifiee')">
+              <input type="radio" name="strat" value="stratifiee"> Stratifiée
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teinte fields -->
+      <div class="teinte-fields">
+        <div class="form-group">
+          <label class="label">Teinte principale <span class="req">*</span></label>
+          <div class="teinte-selected" id="tpDisplay"><span class="placeholder-text">Non sélectionnée</span></div>
+        </div>
+        <div class="form-group">
+          <label class="label">Teinte collet</label>
+          <div class="teinte-selected" id="tcDisplay"><span class="placeholder-text">Non sélectionnée</span></div>
+        </div>
+        <div class="form-group">
+          <label class="label">Teinte incisive</label>
+          <div class="teinte-selected" id="tiDisplay"><span class="placeholder-text">Non sélectionnée</span></div>
+        </div>
+        <div class="form-group" id="teintegingivaleWrap" style="display:none;">
+          <label class="label">Teinte gingivale</label>
+          <div class="teinte-selected" id="tgDisplay"><span class="placeholder-text">Non sélectionnée</span></div>
+        </div>
+      </div>
+
+      <!-- Shade grid -->
+      <div id="shadeGrid" style="min-height:60px;margin-bottom:16px;">
+        <div class="placeholder-text">Sélectionnez un système de teintes pour afficher la palette.</div>
+      </div>
+
+      <!-- Notes caractérisation -->
+      <div class="form-group">
+        <label class="label">Notes de caractérisation</label>
+        <textarea class="textarea" id="teinteNotes" placeholder="Caractérisations, taches, vieillissement…" rows="2"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── SECTION 4 : Matériaux & Lots ──────────────── -->
+  <div class="section-card" id="sectionMateriaux" style="display:none;">
+    <div class="section-head">
+      <div class="section-num">4</div>
+      <div class="section-title">Matériaux &amp; Numéros de lot</div>
+      <div class="section-hint">Obligation ANSM — traçabilité des dispositifs médicaux</div>
+    </div>
+    <div class="section-body">
+      <div id="materiauxList" style="display:flex;flex-direction:column;gap:12px;">
+        <!-- injected per line -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 5 : Totaux ─────────────────────────── -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-num" id="totauxSectionNum">5</div>
+      <div class="section-title">Totaux</div>
+      <div class="section-hint">Calculés en temps réel</div>
+    </div>
+    <div class="section-body">
+      <div class="totals-grid">
+        <div class="total-box">
+          <div class="total-label">HT exonéré</div>
+          <div class="total-value" id="totHtExo">0,00 €</div>
+          <div class="total-sub">TVA 0%</div>
+        </div>
+        <div class="total-box">
+          <div class="total-label">HT taxable</div>
+          <div class="total-value" id="totHtTax">0,00 €</div>
+          <div class="total-sub">Soumis à TVA</div>
+        </div>
+        <div class="total-box">
+          <div class="total-label">TVA</div>
+          <div class="total-value" id="totTva">0,00 €</div>
+          <div class="total-sub" id="totTvaRate">—</div>
+        </div>
+        <div class="total-box">
+          <div class="total-label">Total TTC</div>
+          <div class="total-value highlight" id="totTtc">0,00 €</div>
+          <div class="total-sub">Montant final</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+</div><!-- /page-main -->
+</div><!-- /shell -->
+
+<!-- ═══════════════════════════════════════════════════
+     STICKY BOTTOM BAR
+═══════════════════════════════════════════════════ -->
+<div class="sticky-bar">
+  <div class="sticky-bar-info">
+    <span id="stickyTotal">TTC : <strong>0,00 €</strong></span>
+  </div>
+  <div class="save-status">
+    <div class="save-dot" id="saveDot"></div>
+    <span id="saveStatusText">Non enregistré</span>
+  </div>
+  <button class="btn btn-ghost" onclick="saveDraft()" id="btnDraft">
+    <span>&#128190;</span> Enregistrer brouillon
+  </button>
+  <button class="btn btn-primary" onclick="validateBl()" id="btnValidate">
+    <span>&#10004;</span> Valider &amp; générer PDF
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL — AJOUTER DENTISTE
+═══════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="modalAddDentiste">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Ajouter un dentiste</div>
+      <button class="modal-close" onclick="closeModal('modalAddDentiste')">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="label">Titre</label>
+          <select class="select" id="dTitre">
+            <option value="">—</option>
+            <option value="Dr">Dr</option>
+            <option value="Pr">Pr</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Nom <span class="req">*</span></label>
+          <input type="text" class="input" id="dNom" placeholder="DUPONT">
+        </div>
+        <div class="form-group">
+          <label class="label">Prénom</label>
+          <input type="text" class="input" id="dPrenom" placeholder="Jean">
+        </div>
+        <div class="form-group">
+          <label class="label">Email <span class="req">*</span></label>
+          <input type="email" class="input" id="dEmail" placeholder="jean.dupont@cabinet.fr">
+        </div>
+        <div class="form-group">
+          <label class="label">Téléphone</label>
+          <input type="tel" class="input" id="dTel" placeholder="06 00 00 00 00">
+        </div>
+        <div class="form-group">
+          <label class="label">RPPS</label>
+          <input type="text" class="input" id="dRpps" placeholder="N° RPPS">
+        </div>
+        <div class="form-group span-2" style="grid-column:1/-1;">
+          <label class="label">Cabinet / Raison sociale</label>
+          <input type="text" class="input" id="dCabinet" placeholder="Cabinet Dentaire Dupont">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="label">Ville</label>
+          <input type="text" class="input" id="dVille" placeholder="Paris">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modalAddDentiste')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitAddDentiste()" id="btnAddDentiste">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ──────────────────────────────────────────────
+   SUPABASE & AUTH
+────────────────────────────────────────────── */
+const SUPABASE_URL = window.SUPABASE_URL || 'https://placeholder.supabase.co';
+const SUPABASE_KEY = window.SUPABASE_ANON_KEY || 'placeholder-key';
+
+let supaClient = null;
+try { supaClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+let authToken = null;
+let societeId = null;
+let currentUser = null;
+
+async function initAuth() {
+  // Try localStorage fallback if Supabase not configured
+  const stored = localStorage.getItem('jadomi_session');
+  if (stored) {
+    try {
+      const s = JSON.parse(stored);
+      authToken = s.access_token;
+      societeId = s.societe_id;
+      currentUser = s.user;
+    } catch(e) {}
+  }
+
+  if (supaClient) {
+    try {
+      const { data: { session } } = await supaClient.auth.getSession();
+      if (session) {
+        authToken = session.access_token;
+        currentUser = session.user;
+        // societeId from user_metadata or localStorage
+        societeId = session.user.user_metadata?.societe_id || societeId;
+      }
+    } catch(e) {}
+  }
+
+  if (currentUser) {
+    const initials = (currentUser.email || '?').slice(0,2).toUpperCase();
+    document.getElementById('navAvatar').textContent = initials;
+    document.getElementById('navUserName').textContent = currentUser.email || '';
+  }
+}
+
+function apiHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  if (societeId) h['X-Societe-Id'] = societeId;
+  return h;
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch('/api/labo' + path, {
+    ...opts,
+    headers: { ...apiHeaders(), ...(opts.headers || {}) }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || 'Erreur API');
+  }
+  return res.json();
+}
+
+/* ──────────────────────────────────────────────
+   STATE
+────────────────────────────────────────────── */
+let blId = null;        // set after first save
+let selectedDentiste = null;
+let cartLines = [];     // { id, produit_id, designation, qty, pu, remise, tva_applicable, taux_tva, necessite_teinte, necessite_teinte_gingivale, necessite_materiau, materiau, numero_lot }
+let catalogue = [];     // all products
+let teintiers = [];     // all teintier systems
+let shadesBySystem = {};// code_systeme -> teintes[]
+let activeCat = null;
+let selectedTeintier = null;
+let teintes = { principale: null, collet: null, incisive: null, gingivale: null };
+let stratification = null;
+let activeShadeTarget = 'principale'; // which teinte field is being picked
+
+let saveTimeout = null;
+
+/* ──────────────────────────────────────────────
+   TOAST
+────────────────────────────────────────────── */
+function toast(msg, type = 'info') {
+  const icons = { ok: '&#10003;', err: '&#10007;', info: '&#8505;' };
+  const el = document.createElement('div');
+  el.className = `toast toast-${type === 'ok' ? 'ok' : type === 'err' ? 'err' : 'info'}`;
+  el.innerHTML = `<span>${icons[type] || icons.info}</span><span>${msg}</span>`;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+/* ──────────────────────────────────────────────
+   MODAL
+────────────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); });
+});
+
+/* ──────────────────────────────────────────────
+   DENTISTE AUTOCOMPLETE
+────────────────────────────────────────────── */
+let dentisteSearchTimer = null;
+
+document.getElementById('dentisteSearch').addEventListener('input', function() {
+  clearTimeout(dentisteSearchTimer);
+  const q = this.value.trim();
+  if (q.length < 2) {
+    setDropdown([]);
+    return;
+  }
+  dentisteSearchTimer = setTimeout(() => fetchDentistes(q), 300);
+});
+
+document.getElementById('dentisteSearch').addEventListener('keydown', function(e) {
+  const items = document.querySelectorAll('#dentisteDropdown .ac-item');
+  const focused = document.querySelector('#dentisteDropdown .ac-item.focused');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const next = focused ? focused.nextElementSibling : items[0];
+    if (next) { focused?.classList.remove('focused'); next.classList.add('focused'); }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const prev = focused?.previousElementSibling;
+    if (prev) { focused.classList.remove('focused'); prev.classList.add('focused'); }
+  } else if (e.key === 'Enter' && focused) {
+    focused.click();
+  } else if (e.key === 'Escape') {
+    document.getElementById('dentisteDropdown').classList.remove('open');
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('dentisteSearchWrap').contains(e.target)) {
+    document.getElementById('dentisteDropdown').classList.remove('open');
+  }
+});
+
+async function fetchDentistes(q) {
+  const dd = document.getElementById('dentisteDropdown');
+  dd.innerHTML = '<div class="ac-empty"><span class="loading-spinner dark"></span> Recherche…</div>';
+  dd.classList.add('open');
+  try {
+    const data = await apiFetch(`/dentistes?search=${encodeURIComponent(q)}`);
+    setDropdown(data.data || data);
+  } catch(e) {
+    dd.innerHTML = '<div class="ac-empty text-muted">Erreur de chargement</div>';
+  }
+}
+
+function setDropdown(items) {
+  const dd = document.getElementById('dentisteDropdown');
+  if (!items.length) {
+    dd.innerHTML = '<div class="ac-empty">Aucun résultat</div>';
+    dd.classList.add('open');
+    return;
+  }
+  dd.innerHTML = items.map(d => `
+    <div class="ac-item" onclick="selectDentiste(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+      <span>${d.titre ? d.titre + ' ' : ''}${d.nom}${d.prenom ? ' ' + d.prenom : ''}</span>
+      <span class="ac-item-sub">${d.raison_sociale_cabinet || ''} ${d.ville ? '· ' + d.ville : ''}</span>
+    </div>
+  `).join('');
+  dd.classList.add('open');
+}
+
+function selectDentiste(d) {
+  selectedDentiste = d;
+  document.getElementById('dentisteDropdown').classList.remove('open');
+  document.getElementById('dentisteSearchWrap').classList.add('hidden');
+
+  const initials = ((d.prenom || '')[0] || '') + ((d.nom || '')[0] || '');
+  document.getElementById('dentAvatar').textContent = initials.toUpperCase() || 'D';
+  document.getElementById('dentName').textContent = (d.titre ? d.titre + ' ' : '') + d.nom + (d.prenom ? ' ' + d.prenom : '');
+  document.getElementById('dentSub').textContent = [d.raison_sociale_cabinet, d.email, d.ville].filter(Boolean).join(' · ');
+  document.getElementById('dentisteSelected').classList.remove('hidden');
+}
+
+function clearDentiste() {
+  selectedDentiste = null;
+  document.getElementById('dentisteSelected').classList.add('hidden');
+  document.getElementById('dentisteSearchWrap').classList.remove('hidden');
+  document.getElementById('dentisteSearch').value = '';
+  document.getElementById('dentisteSearch').focus();
+}
+
+/* ──────────────────────────────────────────────
+   ADD DENTISTE MODAL
+────────────────────────────────────────────── */
+async function submitAddDentiste() {
+  const nom = document.getElementById('dNom').value.trim();
+  const email = document.getElementById('dEmail').value.trim();
+  if (!nom || !email) { toast('Nom et email obligatoires', 'err'); return; }
+
+  const btn = document.getElementById('btnAddDentiste');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Ajout…';
+
+  try {
+    const result = await apiFetch('/dentistes', {
+      method: 'POST',
+      body: JSON.stringify({
+        titre: document.getElementById('dTitre').value,
+        nom,
+        prenom: document.getElementById('dPrenom').value.trim(),
+        email,
+        telephone: document.getElementById('dTel').value.trim(),
+        rpps: document.getElementById('dRpps').value.trim(),
+        raison_sociale_cabinet: document.getElementById('dCabinet').value.trim(),
+        ville: document.getElementById('dVille').value.trim(),
+      })
+    });
+    selectDentiste(result.data || result);
+    closeModal('modalAddDentiste');
+    toast('Dentiste ajouté', 'ok');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Ajouter';
+  }
+}
+
+/* ──────────────────────────────────────────────
+   CATALOGUE BROWSER
+────────────────────────────────────────────── */
+async function loadCatalogue() {
+  try {
+    const data = await apiFetch('/catalogue');
+    catalogue = data.data || data;
+    renderCatalogueCategories();
+  } catch(e) {
+    document.getElementById('catList').innerHTML = '<div class="cat-empty text-muted">Erreur chargement</div>';
+  }
+}
+
+function categoriesMap() {
+  const map = {};
+  catalogue.forEach(p => {
+    if (!map[p.categorie]) map[p.categorie] = [];
+    map[p.categorie].push(p);
+  });
+  return map;
+}
+
+function renderCatalogueCategories(filter = '') {
+  const catList = document.getElementById('catList');
+  const map = categoriesMap();
+  const cats = Object.keys(map).sort();
+  const filt = filter.toLowerCase();
+
+  if (filt) {
+    // Show filtered products directly
+    const results = catalogue.filter(p =>
+      p.nom.toLowerCase().includes(filt) ||
+      (p.categorie||'').toLowerCase().includes(filt) ||
+      (p.description||'').toLowerCase().includes(filt)
+    );
+    if (!results.length) {
+      catList.innerHTML = '<div class="cat-empty">Aucun produit trouvé</div>';
+      return;
+    }
+    catList.innerHTML = results.map(p => productHTML(p)).join('');
+    return;
+  }
+
+  if (!cats.length) {
+    catList.innerHTML = '<div class="cat-empty">Catalogue vide</div>';
+    return;
+  }
+
+  catList.innerHTML = cats.map(cat => `
+    <div class="cat-category${activeCat===cat?' active':''}" onclick="toggleCat('${cat.replace(/'/g,"\\'")}')">
+      <span>${cat}</span>
+      <span class="cat-count">${map[cat].length}</span>
+    </div>
+    ${activeCat===cat ? map[cat].map(p => productHTML(p)).join('') : ''}
+  `).join('');
+}
+
+function productHTML(p) {
+  const tags = [];
+  if (p.necessite_teinte) tags.push('<span class="tag tag-teinte">Teinte</span>');
+  if (p.necessite_materiau) tags.push('<span class="tag tag-mat">Lot</span>');
+  if (p.tva_applicable) tags.push('<span class="tag tag-tva">TVA</span>');
+  return `
+    <div class="cat-product" onclick="addToCart(${p.id ? `'${p.id}'` : 'null'}, this)" data-product='${JSON.stringify(p).replace(/'/g,"&apos;")}'>
+      <div class="cat-product-name">
+        ${p.nom}${tags.length ? ' ' + tags.join('') : ''}
+        ${p.sous_categorie ? `<br><span class="text-sm text-muted">${p.sous_categorie}</span>` : ''}
+      </div>
+      <div class="cat-product-price">${formatEuro(p.prix_unitaire)}</div>
+      <button class="cat-product-add" title="Ajouter au bon">+</button>
+    </div>
+  `;
+}
+
+function toggleCat(cat) {
+  activeCat = activeCat === cat ? null : cat;
+  renderCatalogueCategories(document.getElementById('catSearch').value);
+}
+
+function filterCatalogue(val) {
+  activeCat = null;
+  renderCatalogueCategories(val);
+}
+
+/* ──────────────────────────────────────────────
+   CART
+────────────────────────────────────────────── */
+function addToCart(produitId, el) {
+  const raw = el.closest('.cat-product')?.dataset.product;
+  const p = raw ? JSON.parse(raw.replace(/&apos;/g,"'")) : null;
+  if (!p) return;
+
+  // Check if already in cart — increment qty
+  const existing = cartLines.find(l => l.produit_id === p.id);
+  if (existing) {
+    existing.qty++;
+    recalcLine(existing);
+    renderCart();
+    scheduleAutosave();
+    return;
+  }
+
+  const line = {
+    _uid: crypto.randomUUID(),
+    produit_id: p.id,
+    designation: p.nom,
+    qty: 1,
+    pu: parseFloat(p.prix_unitaire) || 0,
+    remise: 0,
+    tva_applicable: !!p.tva_applicable,
+    taux_tva: parseFloat(p.taux_tva) || 0,
+    necessite_teinte: !!p.necessite_teinte,
+    necessite_teinte_gingivale: !!p.necessite_teinte_gingivale,
+    necessite_materiau: !!p.necessite_materiau,
+    materiau: '',
+    numero_lot: '',
+    ht: 0,
+    ttc: 0,
+  };
+  recalcLine(line);
+  cartLines.push(line);
+  renderCart();
+  updateSections();
+  scheduleAutosave();
+}
+
+function addCustomLine() {
+  const line = {
+    _uid: crypto.randomUUID(),
+    produit_id: null,
+    designation: '',
+    qty: 1,
+    pu: 0,
+    remise: 0,
+    tva_applicable: false,
+    taux_tva: 0,
+    necessite_teinte: false,
+    necessite_teinte_gingivale: false,
+    necessite_materiau: false,
+    materiau: '',
+    numero_lot: '',
+    ht: 0,
+    ttc: 0,
+  };
+  cartLines.push(line);
+  renderCart();
+  scheduleAutosave();
+  // Focus the new designation input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.desig-input');
+    inputs[inputs.length - 1]?.focus();
+  }, 50);
+}
+
+function removeLine(uid) {
+  cartLines = cartLines.filter(l => l._uid !== uid);
+  renderCart();
+  updateSections();
+  scheduleAutosave();
+}
+
+function recalcLine(line) {
+  const remiseMult = 1 - (line.remise || 0) / 100;
+  const puNet = line.pu * remiseMult;
+  line.ht = Math.round(puNet * line.qty * 100) / 100;
+  const tvaRate = line.tva_applicable ? (line.taux_tva || 0) : 0;
+  line.ttc = Math.round(line.ht * (1 + tvaRate / 100) * 100) / 100;
+}
+
+function renderCart() {
+  const tbody = document.getElementById('cartBody');
+  const emptyRow = document.getElementById('emptyCartRow');
+  document.getElementById('linesCount').textContent = cartLines.length + ' ligne(s)';
+  document.getElementById('cartCount').textContent = ` — ${cartLines.length} article${cartLines.length !== 1 ? 's' : ''}`;
+
+  if (!cartLines.length) {
+    tbody.innerHTML = '';
+    tbody.appendChild(emptyRow || createEmptyRow());
+    document.getElementById('emptyCartRow')?.classList?.remove('hidden');
+    recalcTotals();
+    return;
+  }
+
+  tbody.innerHTML = cartLines.map((line, i) => {
+    const tvaTag = line.tva_applicable
+      ? `<span class="tag tag-tva">${line.taux_tva}%</span>`
+      : `<span class="tag tag-exo">Exo.</span>`;
+    const matRow = line.necessite_materiau ? `
+      <div class="lot-row">
+        <span class="lot-label">Matériau:</span>
+        <input class="lot-input" type="text" placeholder="Nom matériau" value="${esc(line.materiau)}"
+          onchange="updateLineProp('${line._uid}','materiau',this.value)">
+        <span class="lot-label">Lot:</span>
+        <input class="lot-input" type="text" placeholder="N° lot" value="${esc(line.numero_lot)}"
+          onchange="updateLineProp('${line._uid}','numero_lot',this.value)">
+      </div>` : '';
+    return `
+      <tr data-uid="${line._uid}">
+        <td>
+          <input class="cart-input desig-input" type="text" value="${esc(line.designation)}"
+            placeholder="Désignation…" style="width:100%;text-align:left;"
+            onchange="updateLineProp('${line._uid}','designation',this.value)">
+          <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">${tvaTag}${line.necessite_teinte?'<span class="tag tag-teinte">Teinte</span>':''}${line.necessite_materiau?'<span class="tag tag-mat">Lot ANSM</span>':''}</div>
+          ${matRow}
+        </td>
+        <td class="right">
+          <input class="cart-input qty-input" type="number" min="0.01" step="0.01" value="${line.qty}"
+            onchange="updateLineNum('${line._uid}','qty',this.value)">
+        </td>
+        <td class="right">
+          <input class="cart-input price-input" type="number" min="0" step="0.01" value="${line.pu}"
+            onchange="updateLineNum('${line._uid}','pu',this.value)">
+        </td>
+        <td class="right">
+          <input class="cart-input remise-input" type="number" min="0" max="100" step="0.1" value="${line.remise}"
+            onchange="updateLineNum('${line._uid}','remise',this.value)">
+        </td>
+        <td class="right text-mono">${formatEuro(line.ht)}</td>
+        <td class="right text-mono"><strong>${formatEuro(line.ttc)}</strong></td>
+        <td>
+          <button class="remove-btn" onclick="removeLine('${line._uid}')" title="Supprimer">&#215;</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  recalcTotals();
+}
+
+function createEmptyRow() {
+  const tr = document.createElement('tr');
+  tr.id = 'emptyCartRow';
+  tr.innerHTML = `<td colspan="7" class="cart-empty"><div class="cart-empty-icon">&#128203;</div>Aucun produit — cliquez sur <strong>+</strong> dans le catalogue</td>`;
+  return tr;
+}
+
+function updateLineProp(uid, prop, val) {
+  const line = cartLines.find(l => l._uid === uid);
+  if (!line) return;
+  line[prop] = val;
+  if (['qty','pu','remise'].includes(prop)) recalcLine(line);
+  recalcTotals();
+  scheduleAutosave();
+}
+
+function updateLineNum(uid, prop, val) {
+  const line = cartLines.find(l => l._uid === uid);
+  if (!line) return;
+  line[prop] = parseFloat(val) || 0;
+  recalcLine(line);
+  renderCartTotalsOnly();
+  scheduleAutosave();
+}
+
+function renderCartTotalsOnly() {
+  // Re-render just the HT/TTC cells and totals without a full redraw
+  cartLines.forEach(line => {
+    const tr = document.querySelector(`tr[data-uid="${line._uid}"]`);
+    if (!tr) return;
+    const tds = tr.querySelectorAll('td');
+    tds[4].textContent = formatEuro(line.ht);
+    tds[5].innerHTML = `<strong>${formatEuro(line.ttc)}</strong>`;
+  });
+  recalcTotals();
+}
+
+/* ──────────────────────────────────────────────
+   TOTALS
+────────────────────────────────────────────── */
+function recalcTotals() {
+  let htExo = 0, htTax = 0, tva = 0;
+  cartLines.forEach(l => {
+    if (l.tva_applicable) {
+      htTax += l.ht;
+      tva += l.ttc - l.ht;
+    } else {
+      htExo += l.ht;
+    }
+  });
+  const ttc = htExo + htTax + tva;
+
+  document.getElementById('totHtExo').textContent = formatEuro(htExo);
+  document.getElementById('totHtTax').textContent = formatEuro(htTax);
+  document.getElementById('totTva').textContent = formatEuro(tva);
+  document.getElementById('totTtc').textContent = formatEuro(ttc);
+  document.getElementById('stickyTotal').innerHTML = `TTC : <strong>${formatEuro(ttc)}</strong>`;
+}
+
+/* ──────────────────────────────────────────────
+   CONDITIONAL SECTIONS
+────────────────────────────────────────────── */
+function updateSections() {
+  const hasTeinte = cartLines.some(l => l.necessite_teinte);
+  const hasGingivale = cartLines.some(l => l.necessite_teinte_gingivale);
+  const hasMat = cartLines.some(l => l.necessite_materiau);
+
+  document.getElementById('sectionTeintes').style.display = hasTeinte ? '' : 'none';
+  document.getElementById('sectionMateriaux').style.display = hasMat ? '' : 'none';
+  document.getElementById('teintegingivaleWrap').style.display = hasGingivale ? '' : 'none';
+
+  // Update section numbers
+  let num = 3;
+  if (hasTeinte) { document.getElementById('sectionTeintes').querySelector('.section-num').textContent = num++; }
+  if (hasMat) { document.getElementById('sectionMateriaux').querySelector('.section-num').textContent = num++; }
+  document.getElementById('totauxSectionNum').textContent = num;
+
+  renderMateriauxSection();
+}
+
+function renderMateriauxSection() {
+  const lines = cartLines.filter(l => l.necessite_materiau);
+  const wrap = document.getElementById('materiauxList');
+  if (!lines.length) { wrap.innerHTML = '<div class="placeholder-text">Aucune ligne ne nécessite de matériau.</div>'; return; }
+  wrap.innerHTML = lines.map(line => `
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:center;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${esc(line.designation) || '<em>Ligne sans désignation</em>'}</div>
+        <span class="tag tag-mat" style="margin-top:4px;">Traçabilité ANSM requise</span>
+      </div>
+      <div class="form-group">
+        <label class="label">Matériau</label>
+        <input class="input" type="text" placeholder="ex. Zircone Y-TZP" value="${esc(line.materiau)}"
+          onchange="updateLineProp('${line._uid}','materiau',this.value)">
+      </div>
+      <div class="form-group">
+        <label class="label">N° de lot</label>
+        <input class="input" type="text" placeholder="ex. LOT2024-001" value="${esc(line.numero_lot)}"
+          onchange="updateLineProp('${line._uid}','numero_lot',this.value)">
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ──────────────────────────────────────────────
+   TEINTIERS / SHADES
+────────────────────────────────────────────── */
+async function loadTeintiers() {
+  try {
+    const data = await apiFetch('/teintiers');
+    teintiers = data.data || data;
+
+    // Group by code_systeme
+    teintiers.forEach(t => {
+      if (!shadesBySystem[t.code_systeme]) {
+        shadesBySystem[t.code_systeme] = { nom: t.nom_systeme, fabricant: t.fabricant, teintes: [] };
+      }
+      shadesBySystem[t.code_systeme].teintes.push(t);
+    });
+
+    const sel = document.getElementById('teintierSelect');
+    const systems = Object.keys(shadesBySystem);
+    sel.innerHTML = '<option value="">-- Choisir un teintier --</option>' +
+      systems.map(s => `<option value="${s}">${shadesBySystem[s].nom}${shadesBySystem[s].fabricant ? ' — ' + shadesBySystem[s].fabricant : ''}</option>`).join('');
+  } catch(e) {
+    // Silent fail — teintiers may not be loaded
+  }
+}
+
+function onTeintierChange() {
+  const code = document.getElementById('teintierSelect').value;
+  selectedTeintier = code || null;
+  teintes = { principale: null, collet: null, incisive: null, gingivale: null };
+  renderTeintePreviews();
+  renderShadeGrid();
+}
+
+function renderShadeGrid() {
+  const grid = document.getElementById('shadeGrid');
+  if (!selectedTeintier || !shadesBySystem[selectedTeintier]) {
+    grid.innerHTML = '<div class="placeholder-text">Sélectionnez un système de teintes pour afficher la palette.</div>';
+    return;
+  }
+
+  const sys = shadesBySystem[selectedTeintier];
+  const dentTeintes = sys.teintes.filter(t => t.type === 'dent');
+  const ginTeintes = sys.teintes.filter(t => t.type === 'gencive');
+
+  // Group by groupe field
+  const byGroupe = {};
+  dentTeintes.forEach(t => {
+    const g = t.groupe || 'Autres';
+    if (!byGroupe[g]) byGroupe[g] = [];
+    byGroupe[g].push(t);
+  });
+
+  let html = '';
+  const hasGingivale = cartLines.some(l => l.necessite_teinte_gingivale);
+
+  // Render teinte target switcher
+  html += `
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:600;color:var(--muted);align-self:center;">Sélectionner :</span>
+      ${['principale','collet','incisive'].map(k => `
+        <button class="btn btn-xs ${activeShadeTarget===k?'btn-primary':'btn-ghost'}"
+          onclick="setShadeTarget('${k}')">${shadeTargetLabel(k)}</button>
+      `).join('')}
+      ${hasGingivale && ginTeintes.length ? `<button class="btn btn-xs ${activeShadeTarget==='gingivale'?'btn-primary':'btn-ghost'}" onclick="setShadeTarget('gingivale')">Gingivale</button>` : ''}
+    </div>
+  `;
+
+  const targetTeintes = activeShadeTarget === 'gingivale' ? ginTeintes : dentTeintes;
+  const targetByGroupe = {};
+  targetTeintes.forEach(t => {
+    const g = t.groupe || 'Palette';
+    if (!targetByGroupe[g]) targetByGroupe[g] = [];
+    targetByGroupe[g].push(t);
+  });
+
+  Object.keys(targetByGroupe).sort().forEach(g => {
+    html += `<div class="shade-group"><div class="shade-group-label">${g}</div><div class="shade-grid">`;
+    targetByGroupe[g]
+      .sort((a, b) => (a.ordre_affichage || 0) - (b.ordre_affichage || 0))
+      .forEach(t => {
+        const hex = t.couleur_hex || '#cccccc';
+        const isSelected = teintes[activeShadeTarget]?.code_teinte === t.code_teinte;
+        const textColor = isLightColor(hex) ? '#1a202c' : '#ffffff';
+        html += `
+          <div class="shade-swatch${isSelected?' selected':''}"
+               style="background:${hex};border-color:${isSelected?'var(--primary)':'transparent'};"
+               onclick="selectShade(${JSON.stringify(t).replace(/"/g,'&quot;')})"
+               title="${t.code_teinte}${t.description ? ' — ' + t.description : ''}">
+            <span class="shade-code" style="color:${textColor};">${t.code_teinte}</span>
+          </div>
+        `;
+      });
+    html += '</div></div>';
+  });
+
+  grid.innerHTML = html;
+}
+
+function isLightColor(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 160;
+}
+
+function setShadeTarget(target) {
+  activeShadeTarget = target;
+  renderShadeGrid();
+}
+
+function shadeTargetLabel(k) {
+  return { principale:'Principale', collet:'Collet', incisive:'Incisive', gingivale:'Gingivale' }[k] || k;
+}
+
+function selectShade(t) {
+  teintes[activeShadeTarget] = t;
+  renderTeintePreviews();
+  renderShadeGrid();
+  scheduleAutosave();
+}
+
+function renderTeintePreviews() {
+  ['principale','collet','incisive','gingivale'].forEach(k => {
+    const el = document.getElementById('t' + k.charAt(0) + 'Display');
+    if (!el) return;
+    const t = teintes[k];
+    if (t) {
+      const dot = t.couleur_hex ? `<div class="teinte-dot" style="background:${t.couleur_hex};"></div>` : '';
+      el.innerHTML = `${dot}<strong>${t.code_teinte}</strong>${t.description ? ' — ' + t.description : ''}`;
+    } else {
+      el.innerHTML = '<span class="placeholder-text">Non sélectionnée</span>';
+    }
+  });
+}
+
+function selectStrat(label, val) {
+  document.querySelectorAll('.strat-option').forEach(el => el.classList.remove('selected'));
+  label.classList.add('selected');
+  stratification = val;
+  scheduleAutosave();
+}
+
+/* ──────────────────────────────────────────────
+   SAVE / VALIDATE
+────────────────────────────────────────────── */
+function scheduleAutosave() {
+  setSaveStatus('saving');
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => { /* No auto-POST, just visual feedback */ setSaveStatus('unsaved'); }, 1200);
+}
+
+function setSaveStatus(status) {
+  const dot = document.getElementById('saveDot');
+  const txt = document.getElementById('saveStatusText');
+  dot.className = 'save-dot';
+  if (status === 'saving') { dot.classList.add('saving'); txt.textContent = 'Modification…'; }
+  else if (status === 'saved') { dot.classList.add('saved'); txt.textContent = 'Enregistré'; }
+  else { txt.textContent = 'Non enregistré'; }
+}
+
+function buildPayload() {
+  return {
+    dentiste_id: selectedDentiste?.id || null,
+    patient_initiales: document.getElementById('patientInitiales').value.trim(),
+    patient_reference_interne: document.getElementById('refInterne').value.trim(),
+    date_livraison_prevue: document.getElementById('dateLivraison').value || null,
+    notes_techniques: document.getElementById('notesTechniques').value.trim(),
+    teintier_utilise: selectedTeintier || null,
+    teinte_principale: teintes.principale?.code_teinte || null,
+    teinte_collet: teintes.collet?.code_teinte || null,
+    teinte_incisive: teintes.incisive?.code_teinte || null,
+    teinte_gingivale: teintes.gingivale?.code_teinte || null,
+    teinte_notes: document.getElementById('teinteNotes').value.trim(),
+    stratification: stratification || null,
+    lignes: cartLines.map((l, i) => ({
+      produit_id: l.produit_id,
+      designation: l.designation,
+      quantite: l.qty,
+      prix_unitaire: l.pu,
+      remise_pct: l.remise,
+      tva_applicable: l.tva_applicable,
+      taux_tva: l.taux_tva,
+      materiau: l.materiau,
+      numero_lot_materiau: l.numero_lot,
+      ordre: i,
+    })),
+  };
+}
+
+async function saveDraft() {
+  if (!validateForm(false)) return;
+
+  const btn = document.getElementById('btnDraft');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Enregistrement…';
+  setSaveStatus('saving');
+
+  try {
+    let result;
+    if (blId) {
+      result = await apiFetch('/bons-livraison/' + blId, {
+        method: 'PATCH',
+        body: JSON.stringify(buildPayload()),
+      });
+    } else {
+      result = await apiFetch('/bons-livraison', {
+        method: 'POST',
+        body: JSON.stringify(buildPayload()),
+      });
+      blId = (result.data || result).id;
+      document.getElementById('blNumeroHint').textContent = 'BL N° ' + ((result.data || result).numero_bl || blId);
+    }
+    setSaveStatus('saved');
+    toast('Brouillon enregistré', 'ok');
+  } catch(e) {
+    setSaveStatus('unsaved');
+    toast('Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>&#128190;</span> Enregistrer brouillon';
+  }
+}
+
+async function validateBl() {
+  if (!validateForm(true)) return;
+
+  const btn = document.getElementById('btnValidate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Validation…';
+
+  try {
+    // Save first if no ID
+    if (!blId) {
+      const result = await apiFetch('/bons-livraison', {
+        method: 'POST',
+        body: JSON.stringify(buildPayload()),
+      });
+      blId = (result.data || result).id;
+    } else {
+      await apiFetch('/bons-livraison/' + blId, {
+        method: 'PATCH',
+        body: JSON.stringify(buildPayload()),
+      });
+    }
+
+    // Validate → PDF
+    const validated = await apiFetch('/bons-livraison/' + blId + '/valider', { method: 'POST' });
+    const pdfUrl = (validated.data || validated).pdf_bl_url;
+
+    document.getElementById('statusBadge').innerHTML = '&#10003;&nbsp;Livré';
+    document.getElementById('statusBadge').style.background = 'var(--green-l)';
+    document.getElementById('statusBadge').style.color = 'var(--green)';
+
+    toast('Bon de livraison validé !', 'ok');
+
+    if (pdfUrl) {
+      setTimeout(() => window.open(pdfUrl, '_blank'), 800);
+    } else {
+      setTimeout(() => window.location.href = '/labo/bons-livraison.html', 1500);
+    }
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>&#10004;</span> Valider &amp; générer PDF';
+  }
+}
+
+function validateForm(strict) {
+  if (!selectedDentiste) {
+    toast('Veuillez sélectionner un dentiste', 'err');
+    document.getElementById('dentisteSearch').focus();
+    return false;
+  }
+  if (!document.getElementById('patientInitiales').value.trim()) {
+    toast('Les initiales du patient sont requises (RGPD)', 'err');
+    document.getElementById('patientInitiales').focus();
+    return false;
+  }
+  if (!document.getElementById('dateLivraison').value) {
+    toast('La date de livraison prévue est requise', 'err');
+    document.getElementById('dateLivraison').focus();
+    return false;
+  }
+  if (strict && !cartLines.length) {
+    toast('Ajoutez au moins un produit au bon', 'err');
+    return false;
+  }
+  if (strict) {
+    // Check ANSM lots
+    const missingLot = cartLines.filter(l => l.necessite_materiau && (!l.materiau || !l.numero_lot));
+    if (missingLot.length) {
+      toast(`Matériau/lot ANSM manquant pour ${missingLot.length} ligne(s)`, 'err');
+      document.getElementById('sectionMateriaux').scrollIntoView({ behavior: 'smooth' });
+      return false;
+    }
+    // Check teinte principale
+    const needsTeinte = cartLines.some(l => l.necessite_teinte);
+    if (needsTeinte && !teintes.principale) {
+      toast('La teinte principale est requise', 'err');
+      document.getElementById('sectionTeintes').scrollIntoView({ behavior: 'smooth' });
+      return false;
+    }
+  }
+  return true;
+}
+
+/* ──────────────────────────────────────────────
+   UTILS
+────────────────────────────────────────────── */
+function formatEuro(n) {
+  return (parseFloat(n) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function esc(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ──────────────────────────────────────────────
+   INIT
+────────────────────────────────────────────── */
+async function init() {
+  // Set default delivery date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('dateLivraison').value = tomorrow.toISOString().slice(0, 10);
+
+  await initAuth();
+  await Promise.all([loadCatalogue(), loadTeintiers()]);
+  renderCart();
+  recalcTotals();
+}
+
+init();
+</script>
+</body>
+</html>

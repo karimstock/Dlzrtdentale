@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Agenda Consultations</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+:root{
+  --sidebar-w:260px;
+  --hour-h:60px;
+  --status-confirme:#3b82f6;
+  --status-en_attente:#f59e0b;
+  --status-annule:#ef4444;
+  --status-termine:#10b981;
+}
+
+/* NAV */
+.nav{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(15,31,61,0.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;gap:16px;}
+.nav-left{display:flex;align-items:center;gap:18px;min-width:0;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0;}
+.crumb{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;}
+.crumb-ico{font-size:20px;}
+.crumb-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crumb-sep{color:var(--muted);font-size:12px;}
+.crumb-module{font-size:13px;color:var(--muted);}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.nav-btn{padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;font-weight:600;transition:all 0.15s;text-decoration:none;}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* LAYOUT */
+.layout{display:flex;min-height:calc(100vh - 57px);}
+.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#0a1628 0%,#121f3a 50%,#0a1628 100%);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+.sidebar-link{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;transition:all 0.15s;text-decoration:none;border-left:3px solid transparent;}
+.sidebar-link:hover{background:rgba(99,102,241,0.1);color:var(--text);}
+.sidebar-link.active{background:rgba(99,102,241,0.15);color:var(--accent);border-left-color:var(--accent);}
+.sidebar-link .ico{font-size:18px;width:24px;text-align:center;}
+.sidebar-sep{height:1px;background:var(--border);margin:12px 16px;}
+
+.content{flex:1;padding:28px 28px 100px;overflow-x:hidden;}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.toolbar-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.page-title{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px;}
+
+/* BUTTONS */
+.btn{padding:10px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;transition:all 0.2s var(--trans);white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn-danger-outline{color:var(--danger);background:transparent;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+.btn-danger-outline:hover{background:rgba(239,68,68,0.1);}
+.btn-success{background:var(--success);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-warning{background:var(--warning);color:#000;border:none;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* VIEW TOGGLE */
+.view-toggle{display:flex;gap:2px;background:var(--surface2);border-radius:10px;padding:3px;}
+.view-toggle button{padding:8px 16px;border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;transition:all 0.15s;font-family:var(--font);}
+.view-toggle button.active{background:var(--accent);color:#fff;}
+
+/* CAL NAV */
+.cal-nav{display:flex;align-items:center;gap:8px;}
+.cal-nav button{padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;cursor:pointer;font-family:var(--font);transition:border-color 0.15s;}
+.cal-nav button:hover{border-color:var(--accent);}
+.cal-nav .today-btn{font-size:11px;font-weight:600;padding:6px 14px;}
+.cal-title{font-family:var(--display);font-size:16px;font-weight:700;min-width:180px;text-align:center;}
+
+/* ═══════════════════════════════════════
+   MONTH VIEW
+   ═══════════════════════════════════════ */
+.cal-month{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-month .day-header{padding:10px 8px;text-align:center;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.cal-month .day-cell{min-height:110px;background:rgba(30,52,96,0.4);border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;transition:border-color 0.15s;}
+.cal-month .day-cell:hover{border-color:var(--accent);}
+.cal-month .day-cell.today{border-color:var(--accent);background:var(--accent-soft);}
+.cal-month .day-cell.other{opacity:0.3;}
+.cal-month .day-cell.blocked{background:repeating-linear-gradient(45deg,rgba(239,68,68,0.06),rgba(239,68,68,0.06) 4px,transparent 4px,transparent 8px);border-color:rgba(239,68,68,0.3);}
+.cal-month .day-num{font-size:12px;font-weight:700;margin-bottom:4px;}
+.cal-month .day-event{font-size:10px;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;display:flex;align-items:center;gap:3px;}
+.cal-month .day-count{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* Event status colors */
+.ev-confirme{background:rgba(59,130,246,0.2);color:#60a5fa;border-left:3px solid var(--status-confirme);}
+.ev-en_attente{background:rgba(245,158,11,0.2);color:#fbbf24;border-left:3px solid var(--status-en_attente);}
+.ev-annule{background:rgba(239,68,68,0.15);color:#f87171;border-left:3px solid var(--status-annule);text-decoration:line-through;opacity:0.6;}
+.ev-termine{background:rgba(16,185,129,0.2);color:#34d399;border-left:3px solid var(--status-termine);}
+.ev-blocked{background:repeating-linear-gradient(45deg,rgba(239,68,68,0.15),rgba(239,68,68,0.15) 3px,rgba(239,68,68,0.05) 3px,rgba(239,68,68,0.05) 6px);color:#f87171;border-left:3px solid var(--status-annule);}
+
+/* ═══════════════════════════════════════
+   WEEK VIEW
+   ═══════════════════════════════════════ */
+.cal-week{display:grid;grid-template-columns:56px repeat(7,1fr);border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(30,52,96,0.3);}
+.cal-week .corner{background:var(--surface2);border-bottom:1px solid var(--border);border-right:1px solid rgba(99,102,241,0.1);}
+.cal-week .week-header{padding:10px 4px;text-align:center;font-size:11px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);background:var(--surface2);}
+.cal-week .week-header.today-h{color:var(--accent);background:var(--accent-soft);}
+.cal-week .week-header .hd-num{font-size:18px;font-weight:800;font-family:var(--display);display:block;margin-top:2px;}
+.cal-week .time-label{font-size:10px;color:var(--text3);text-align:right;padding:0 6px;border-right:1px solid rgba(99,102,241,0.1);height:var(--hour-h);display:flex;align-items:flex-start;justify-content:flex-end;padding-top:2px;}
+.cal-week .day-col{border-left:1px solid rgba(99,102,241,0.08);position:relative;height:var(--hour-h);border-bottom:1px solid rgba(99,102,241,0.06);}
+.cal-week .day-col:hover{background:rgba(99,102,241,0.04);}
+.cal-week .week-event{position:absolute;left:2px;right:2px;border-radius:5px;padding:3px 5px;font-size:10px;overflow:hidden;cursor:pointer;z-index:2;line-height:1.3;transition:transform 0.1s;}
+.cal-week .week-event:hover{transform:scale(1.02);z-index:3;}
+
+/* ═══════════════════════════════════════
+   DAY VIEW
+   ═══════════════════════════════════════ */
+.cal-day{display:grid;grid-template-columns:56px 1fr;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(30,52,96,0.3);}
+.cal-day .time-label{font-size:11px;color:var(--text3);text-align:right;padding:0 8px;border-right:1px solid rgba(99,102,241,0.1);height:var(--hour-h);display:flex;align-items:flex-start;justify-content:flex-end;padding-top:4px;}
+.cal-day .hour-row{position:relative;height:var(--hour-h);border-bottom:1px solid rgba(99,102,241,0.06);}
+.cal-day .hour-row:hover{background:rgba(99,102,241,0.04);}
+.cal-day .day-event{position:absolute;left:4px;right:4px;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer;z-index:2;overflow:hidden;transition:transform 0.1s;}
+.cal-day .day-event:hover{transform:scale(1.01);z-index:3;}
+.cal-day .day-event .ev-client{font-weight:700;font-size:13px;}
+.cal-day .day-event .ev-meta{font-size:11px;opacity:0.85;margin-top:2px;display:flex;align-items:center;gap:6px;}
+
+/* ═══════════════════════════════════════
+   CARDS
+   ═══════════════════════════════════════ */
+.card{background:rgba(30,52,96,0.6);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;backdrop-filter:blur(10px);}
+.card-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+/* TOGGLE PANEL */
+.panel-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.panel-toggle .chevron{transition:transform 0.2s;font-size:12px;color:var(--muted);}
+.panel-toggle.open .chevron{transform:rotate(180deg);}
+.panel-body{max-height:0;overflow:hidden;transition:max-height 0.3s var(--trans);}
+.panel-body.open{max-height:600px;}
+
+/* DISPONIBILITES */
+.dispo-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.dispo-table th{text-align:left;padding:8px 10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;border-bottom:1px solid var(--border);}
+.dispo-table td{padding:8px 6px;border-bottom:1px solid rgba(99,102,241,0.1);vertical-align:middle;}
+.dispo-table .day-name{font-weight:700;font-size:12px;min-width:80px;}
+.dispo-table input[type="time"]{padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100px;}
+.dispo-table input[type="time"]:focus{border-color:var(--accent);}
+.dispo-table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-bg.show{display:flex;}
+.modal{background:rgba(25,45,85,0.95);border:1px solid rgba(99,102,241,0.25);border-radius:18px;padding:28px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;backdrop-filter:blur(12px);box-shadow:var(--shadow),var(--glow2);animation:fadeInUp 0.25s var(--trans);}
+.modal-title{font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:rgba(20,40,80,0.6);border:1px solid rgba(99,102,241,0.3);border-radius:9px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color 0.2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.field textarea{resize:vertical;min-height:80px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap;}
+
+/* DETAIL GRID */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.detail-item{font-size:13px;}
+.detail-item .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px;}
+.detail-item .val{font-weight:600;}
+
+/* STATUS CHIP */
+.status-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;}
+.status-chip.confirme{background:rgba(59,130,246,0.15);color:#60a5fa;}
+.status-chip.en_attente{background:rgba(245,158,11,0.15);color:#fbbf24;}
+.status-chip.annule{background:rgba(239,68,68,0.15);color:#f87171;}
+.status-chip.termine{background:rgba(16,185,129,0.15);color:#34d399;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:rgba(25,45,85,0.95);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--danger);color:var(--danger);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+
+.loader{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+
+/* MOBILE */
+.mobile-menu-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:30;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:20px;box-shadow:var(--glow);}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .sidebar.mobile-open{display:flex;flex-direction:column;position:fixed;top:57px;left:0;z-index:25;height:calc(100vh - 57px);width:260px;box-shadow:8px 0 24px rgba(0,0,0,0.5);}
+  .content{padding:14px 10px 80px;}
+  .toolbar{flex-direction:column;align-items:stretch;gap:10px;}
+  .toolbar-left,.toolbar-right{justify-content:center;}
+  .view-toggle{display:none !important;}
+  .cal-month,.cal-week{display:none !important;}
+  .mobile-menu-btn{display:block !important;}
+  .form-grid{grid-template-columns:1fr;}
+  .detail-grid{grid-template-columns:1fr;}
+  .cal-title{font-size:14px;min-width:auto;}
+  .page-title{font-size:18px;}
+}
+
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <div class="logo">JADOMI</div>
+    <div class="crumb">
+      <span class="crumb-ico">&#9878;</span>
+      <span class="crumb-name">Professions Juridiques</span>
+      <span class="crumb-sep">&#183;</span>
+      <span class="crumb-module">Agenda</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a class="nav-btn" href="/organisation.html">&#8592; Retour</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="dashboard.html"><span class="ico">&#128202;</span> Vue d'ensemble</a>
+      <a class="sidebar-link active" href="agenda.html"><span class="ico">&#128197;</span> Agenda</a>
+      <a class="sidebar-link" href="clients.html"><span class="ico">&#128101;</span> Dossiers</a>
+      <a class="sidebar-link" href="comptabilite.html"><span class="ico">&#128176;</span> Honoraires</a>
+      <a class="sidebar-link" href="parametres.html"><span class="ico">&#9881;</span> Param&#232;tres</a>
+      <div class="sidebar-sep"></div>
+      <a class="sidebar-link" href="/expert/" target="_blank"><span class="ico">&#128279;</span> Ma page publique</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <!-- TOP BAR -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="page-title">&#128197; Agenda</div>
+        <div class="view-toggle" id="view-toggle">
+          <button data-view="day">Jour</button>
+          <button data-view="week">Semaine</button>
+          <button class="active" data-view="month">Mois</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <div class="cal-nav">
+          <button onclick="navCal(-1)" title="Pr&#233;c&#233;dent">&#8249;</button>
+          <button class="today-btn" onclick="navToday()">Aujourd'hui</button>
+          <button onclick="navCal(1)" title="Suivant">&#8250;</button>
+        </div>
+        <span class="cal-title" id="cal-title"></span>
+        <button class="btn-danger-outline" onclick="openBlockModal()">&#128683; Bloquer une journ&#233;e</button>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="calendar-container">
+      <div class="loader"><div class="spinner"></div>Chargement de l'agenda...</div>
+    </div>
+
+    <!-- DISPONIBILITES (togglable) -->
+    <div class="card" style="margin-top:24px;">
+      <div class="panel-toggle" id="dispo-toggle" onclick="toggleDispo()">
+        <div>
+          <div class="card-title">&#128337; Disponibilit&#233;s hebdomadaires</div>
+          <div class="card-sub" style="margin-bottom:0;">D&#233;finissez vos cr&#233;neaux de consultation</div>
+        </div>
+        <span class="chevron">&#9660;</span>
+      </div>
+      <div class="panel-body" id="dispo-panel">
+        <div style="padding-top:16px;">
+          <div id="dispo-container">
+            <div class="loader"><div class="spinner"></div>Chargement...</div>
+          </div>
+          <div style="margin-top:14px;">
+            <button class="btn btn-primary" onclick="saveDispo()">Enregistrer les disponibilit&#233;s</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: DETAIL RDV
+     ═══════════════════════════════════════ -->
+<div class="modal-bg" id="modal-rdv" onclick="if(event.target===this)closeModal('modal-rdv')">
+  <div class="modal" style="position:relative;">
+    <div class="modal-title" id="rdv-modal-title">D&#233;tail du rendez-vous</div>
+    <div id="rdv-detail"></div>
+    <div id="rdv-notes-section" style="margin-top:16px;display:none;">
+      <div class="field full">
+        <label>Notes</label>
+        <textarea id="rdv-notes" placeholder="Notes sur la consultation..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions" id="rdv-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-rdv')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: BLOQUER JOURNEE
+     ═══════════════════════════════════════ -->
+<div class="modal-bg" id="modal-block" onclick="if(event.target===this)closeModal('modal-block')">
+  <div class="modal">
+    <div class="modal-title">&#128683; Bloquer une journ&#233;e</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="block-date">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <div style="font-size:12px;color:var(--muted);padding-top:8px;">La journ&#233;e enti&#232;re sera bloqu&#233;e</div>
+      </div>
+      <div class="field full">
+        <label>Motif (optionnel)</label>
+        <input id="block-motif" placeholder="Cong&#233;, formation, audience...">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-block')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveBlock()">Bloquer cette journ&#233;e</button>
+    </div>
+  </div>
+</div>
+
+<button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('mobile-open')">&#9776;</button>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════
+   JADOMI IA — Agenda Professions Juridiques
+   ═══════════════════════════════════════ */
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let token = null, session = null, societeId = null;
+
+/* ── Helpers ── */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg, kind){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind||'');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+function openModal(id){ $(id).classList.add('show'); }
+function closeModal(id){ $(id).classList.remove('show'); }
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fmtDate(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function fmtTime(d){ return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+function fmtDateFR(d){ return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+
+const TYPE_ICONS = { visio:'\uD83D\uDCBB', cabinet:'\uD83D\uDCCD', telephone:'\uD83D\uDCDE', ecrit:'\u270D\uFE0F' };
+const TYPE_LABELS = { visio:'Visio', cabinet:'Cabinet', telephone:'T\u00e9l\u00e9phone', ecrit:'\u00c9crit' };
+function typeIcon(t){ return TYPE_ICONS[t] || '\uD83D\uDCCD'; }
+function typeLabel(t){ return TYPE_LABELS[t] || t || ''; }
+
+/* ── API with token refresh ── */
+async function api(path, opts={}){
+  try {
+    const { data: sd } = await db.auth.getSession();
+    if(sd?.session) token = sd.session.access_token;
+  } catch(_){}
+  const headers = {
+    'Content-Type':'application/json',
+    Authorization:'Bearer '+token,
+    'X-Societe-Id': societeId,
+    ...(opts.headers||{})
+  };
+  const r = await fetch(path, { ...opts, headers });
+  if(r.status === 401){
+    try {
+      const { data: ref } = await db.auth.refreshSession();
+      if(ref?.session){
+        token = ref.session.access_token;
+        return (await fetch(path, { ...opts, headers: { ...headers, Authorization:'Bearer '+token } })).json();
+      }
+    } catch(_){}
+    location.href = '/login.html';
+    return { success: false };
+  }
+  return r.json();
+}
+
+/* ── State ── */
+const JOURS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const JOURS_FULL = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const MOIS = ['Janvier','F\u00e9vrier','Mars','Avril','Mai','Juin','Juillet','Ao\u00fbt','Septembre','Octobre','Novembre','D\u00e9cembre'];
+
+let currentView = 'month';
+let currentDate = new Date();
+let reservations = [];
+let blocages = [];
+let dispoOpen = false;
+
+/* ── Navigation ── */
+function navCal(dir){
+  if(currentView === 'month') currentDate.setMonth(currentDate.getMonth() + dir);
+  else if(currentView === 'week') currentDate.setDate(currentDate.getDate() + dir * 7);
+  else currentDate.setDate(currentDate.getDate() + dir);
+  loadCalendar();
+}
+function navToday(){
+  currentDate = new Date();
+  loadCalendar();
+}
+
+/* ── View toggle ── */
+document.querySelectorAll('#view-toggle button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#view-toggle button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentView = b.dataset.view;
+    loadCalendar();
+  };
+});
+
+/* ── Force day view on mobile ── */
+function checkMobile(){
+  if(window.innerWidth <= 768){
+    currentView = 'day';
+    document.querySelectorAll('#view-toggle button').forEach(x => x.classList.toggle('active', x.dataset.view === 'day'));
+  }
+}
+window.addEventListener('resize', checkMobile);
+
+/* ═══════════════════════════════════════
+   LOAD CALENDAR DATA
+   ═══════════════════════════════════════ */
+async function loadCalendar(){
+  let start, end;
+  if(currentView === 'month'){
+    start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    // Extend to cover the visible grid
+    const dow = start.getDay(); const offset = dow === 0 ? 6 : dow - 1;
+    start.setDate(start.getDate() - offset);
+    end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const endDow = end.getDay(); const endOffset = endDow === 0 ? 0 : 7 - endDow;
+    end.setDate(end.getDate() + endOffset);
+    $('cal-title').textContent = MOIS[currentDate.getMonth()] + ' ' + currentDate.getFullYear();
+  } else if(currentView === 'week'){
+    const d = new Date(currentDate);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    start = new Date(d); start.setDate(diff);
+    end = new Date(start); end.setDate(end.getDate() + 6);
+    $('cal-title').textContent = start.getDate() + ' - ' + end.getDate() + ' ' + MOIS[end.getMonth()] + ' ' + end.getFullYear();
+  } else {
+    start = new Date(currentDate); end = new Date(currentDate);
+    const di = start.getDay() === 0 ? 6 : start.getDay() - 1;
+    $('cal-title').textContent = JOURS_FULL[di] + ' ' + start.getDate() + ' ' + MOIS[start.getMonth()] + ' ' + start.getFullYear();
+  }
+
+  const sStr = fmtDate(start);
+  const eStr = fmtDate(end);
+
+  try {
+    const [resData, blocData] = await Promise.all([
+      api('/api/juridique/reservations?from='+sStr+'&to='+eStr),
+      api('/api/juridique/agenda/blocages?from='+sStr+'&to='+eStr)
+    ]);
+    reservations = resData.reservations || resData.data || [];
+    blocages = blocData.blocages || blocData.data || [];
+  } catch(e){
+    reservations = [];
+    blocages = [];
+  }
+
+  if(currentView === 'month') renderMonth();
+  else if(currentView === 'week') renderWeek();
+  else renderDay();
+}
+
+/* ── Is date blocked? ── */
+function isBlocked(dateStr){
+  return blocages.some(b => {
+    const s = (b.date_debut || b.date || '').slice(0,10);
+    const e = (b.date_fin || b.date || '').slice(0,10);
+    return dateStr >= s && dateStr <= e;
+  });
+}
+function getBlockMotif(dateStr){
+  const b = blocages.find(bl => {
+    const s = (bl.date_debut || bl.date || '').slice(0,10);
+    const e = (bl.date_fin || bl.date || '').slice(0,10);
+    return dateStr >= s && dateStr <= e;
+  });
+  return b ? (b.motif || 'Journ\u00e9e bloqu\u00e9e') : '';
+}
+
+/* ── Status CSS class ── */
+function statusClass(s){
+  if(s === 'confirme' || s === 'confirmed') return 'ev-confirme';
+  if(s === 'en_attente' || s === 'pending') return 'ev-en_attente';
+  if(s === 'annule' || s === 'cancelled') return 'ev-annule';
+  if(s === 'termine' || s === 'done') return 'ev-termine';
+  return 'ev-en_attente';
+}
+
+/* ── Parse event time/date ── */
+function evDate(ev){
+  return new Date(ev.date_heure || ev.date);
+}
+function evDateStr(ev){
+  return (ev.date_heure || ev.date || '').slice(0,10);
+}
+
+/* ═══════════════════════════════════════
+   MONTH VIEW
+   ═══════════════════════════════════════ */
+function renderMonth(){
+  const year = currentDate.getFullYear(), month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  let startDow = firstDay.getDay(); if(startDow === 0) startDow = 7;
+  const today = fmtDate(new Date());
+
+  let html = '<div class="cal-month">';
+  JOURS.forEach(j => html += '<div class="day-header">'+j+'</div>');
+
+  // Previous month fill
+  for(let i = 1; i < startDow; i++){
+    const d = new Date(year, month, 1 - (startDow - i));
+    const ds = fmtDate(d);
+    html += '<div class="day-cell other'+(isBlocked(ds)?' blocked':'')+'"><div class="day-num">'+d.getDate()+'</div></div>';
+  }
+
+  // Current month
+  for(let d = 1; d <= lastDay.getDate(); d++){
+    const ds = year + '-' + pad2(month+1) + '-' + pad2(d);
+    const isToday = ds === today;
+    const blocked = isBlocked(ds);
+    const dayEvents = reservations.filter(r => evDateStr(r) === ds);
+
+    html += '<div class="day-cell'+(isToday?' today':'')+(blocked?' blocked':'')+'" onclick="goToDay(\''+ds+'\')">';
+    html += '<div class="day-num">'+d+'</div>';
+
+    if(blocked){
+      html += '<div class="day-event ev-blocked" style="font-size:9px;">&#128683; '+esc(getBlockMotif(ds))+'</div>';
+    }
+
+    dayEvents.slice(0,3).forEach(ev => {
+      const cls = statusClass(ev.statut);
+      const dt = evDate(ev);
+      const time = fmtTime(dt);
+      html += '<div class="day-event '+cls+'" onclick="event.stopPropagation();showRdv(\''+esc(ev.id)+'\')">'
+        + typeIcon(ev.type) + ' ' + time + ' ' + esc(ev.client_nom || ev.client_prenom || '') + '</div>';
+    });
+
+    if(dayEvents.length > 3){
+      html += '<div class="day-count">+' + (dayEvents.length - 3) + ' autre'+(dayEvents.length-3>1?'s':'')+'</div>';
+    }
+    html += '</div>';
+  }
+
+  // Next month fill
+  const totalCells = startDow - 1 + lastDay.getDate();
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for(let i = 1; i <= remaining; i++){
+    const d = new Date(year, month + 1, i);
+    const ds = fmtDate(d);
+    html += '<div class="day-cell other'+(isBlocked(ds)?' blocked':'')+'"><div class="day-num">'+i+'</div></div>';
+  }
+
+  html += '</div>';
+  $('calendar-container').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════
+   WEEK VIEW
+   ═══════════════════════════════════════ */
+function renderWeek(){
+  const d = new Date(currentDate);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const weekStart = new Date(d); weekStart.setDate(diff);
+  const today = fmtDate(new Date());
+  const START_HOUR = 8, END_HOUR = 20;
+
+  let html = '<div class="cal-week">';
+  // Header row
+  html += '<div class="corner"></div>';
+  const weekDates = [];
+  for(let i = 0; i < 7; i++){
+    const dd = new Date(weekStart); dd.setDate(dd.getDate() + i);
+    const ds = fmtDate(dd);
+    weekDates.push(ds);
+    html += '<div class="week-header'+(ds===today?' today-h':'')+'">'
+      + JOURS[i]
+      + '<span class="hd-num">' + dd.getDate() + '</span>'
+      + '</div>';
+  }
+
+  // Hour rows
+  for(let h = START_HOUR; h < END_HOUR; h++){
+    html += '<div class="time-label">' + pad2(h) + ':00</div>';
+    for(let i = 0; i < 7; i++){
+      const ds = weekDates[i];
+      const blocked = isBlocked(ds);
+      const slotEvents = reservations.filter(r => {
+        return evDateStr(r) === ds && evDate(r).getHours() === h;
+      });
+      html += '<div class="day-col'+(blocked?' blocked':'')+'" style="'+(blocked?'background:repeating-linear-gradient(45deg,rgba(239,68,68,0.04),rgba(239,68,68,0.04) 4px,transparent 4px,transparent 8px);':'')+'">';
+      slotEvents.forEach(ev => {
+        const dur = ev.duree || 30;
+        const dt = evDate(ev);
+        const minOffset = dt.getMinutes();
+        const topPx = (minOffset / 60) * 60; // offset within hour
+        const hPx = Math.max(22, (dur / 60) * 60);
+        const cls = statusClass(ev.statut);
+        html += '<div class="week-event '+cls+'" style="top:'+topPx+'px;height:'+hPx+'px;" onclick="showRdv(\''+esc(ev.id)+'\')">'
+          + '<strong>' + typeIcon(ev.type) + '</strong> '
+          + fmtTime(dt)
+          + '<br>' + esc(ev.client_nom || ev.client_prenom || '')
+          + '</div>';
+      });
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+  $('calendar-container').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════
+   DAY VIEW
+   ═══════════════════════════════════════ */
+function renderDay(){
+  const ds = fmtDate(currentDate);
+  const blocked = isBlocked(ds);
+  const START_HOUR = 8, END_HOUR = 20;
+
+  let html = '';
+  if(blocked){
+    html += '<div style="padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;margin-bottom:12px;font-size:13px;color:#f87171;">'
+      + '&#128683; <strong>Journ\u00e9e bloqu\u00e9e</strong> : ' + esc(getBlockMotif(ds))
+      + '</div>';
+  }
+
+  html += '<div class="cal-day">';
+  for(let h = START_HOUR; h < END_HOUR; h++){
+    html += '<div class="time-label">' + pad2(h) + ':00</div>';
+    html += '<div class="hour-row">';
+
+    const slotEvents = reservations.filter(r => {
+      return evDateStr(r) === ds && evDate(r).getHours() === h;
+    });
+
+    slotEvents.forEach(ev => {
+      const dur = ev.duree || 30;
+      const dt = evDate(ev);
+      const minOffset = dt.getMinutes();
+      const topPx = (minOffset / 60) * 60;
+      const hPx = Math.max(36, (dur / 60) * 60);
+      const cls = statusClass(ev.statut);
+
+      html += '<div class="day-event '+cls+'" style="top:'+topPx+'px;height:'+hPx+'px;" onclick="showRdv(\''+esc(ev.id)+'\')">'
+        + '<div class="ev-client">' + esc(ev.client_nom || ev.client_prenom || '') + '</div>'
+        + '<div class="ev-meta">'
+        + '<span>' + typeIcon(ev.type) + ' ' + typeLabel(ev.type) + '</span>'
+        + '<span>' + fmtTime(dt) + '</span>'
+        + '<span>' + dur + ' min</span>'
+        + '</div>'
+        + '</div>';
+    });
+
+    html += '</div>';
+  }
+  html += '</div>';
+  $('calendar-container').innerHTML = html;
+}
+
+/* ── Go to day view ── */
+function goToDay(dateStr){
+  currentDate = new Date(dateStr + 'T12:00:00');
+  currentView = 'day';
+  document.querySelectorAll('#view-toggle button').forEach(b => b.classList.toggle('active', b.dataset.view === 'day'));
+  loadCalendar();
+}
+
+/* ═══════════════════════════════════════
+   SHOW RDV DETAIL MODAL
+   ═══════════════════════════════════════ */
+function showRdv(id){
+  const r = reservations.find(x => String(x.id) === String(id));
+  if(!r) return;
+
+  const dt = evDate(r);
+  const clientName = r.client_nom || ((r.client_prenom || '') + ' ' + (r.client_nom_famille || '')).trim() || 'Client';
+  const statusNorm = (r.statut||'').replace('confirmed','confirme').replace('pending','en_attente').replace('cancelled','annule').replace('done','termine');
+
+  $('rdv-modal-title').innerHTML = typeIcon(r.type) + ' Rendez-vous avec ' + esc(clientName);
+
+  let html = '<div class="detail-grid">';
+  html += '<div class="detail-item"><div class="lbl">Client</div><div class="val">' + esc(clientName) + '</div></div>';
+  html += '<div class="detail-item"><div class="lbl">Statut</div><div class="val"><span class="status-chip '+esc(statusNorm)+'">' + esc(statusNorm.replace('_',' ')) + '</span></div></div>';
+  html += '<div class="detail-item"><div class="lbl">Date</div><div class="val">' + fmtDateFR(dt) + '</div></div>';
+  html += '<div class="detail-item"><div class="lbl">Heure</div><div class="val">' + fmtTime(dt) + ' (' + (r.duree||30) + ' min)</div></div>';
+  html += '<div class="detail-item"><div class="lbl">Type</div><div class="val">' + typeIcon(r.type) + ' ' + typeLabel(r.type) + '</div></div>';
+
+  if(r.client_email) html += '<div class="detail-item"><div class="lbl">Email</div><div class="val"><a href="mailto:'+esc(r.client_email)+'">'+esc(r.client_email)+'</a></div></div>';
+  if(r.client_tel || r.client_telephone) html += '<div class="detail-item"><div class="lbl">T\u00e9l\u00e9phone</div><div class="val">'+esc(r.client_tel||r.client_telephone)+'</div></div>';
+  if(r.offre_titre) html += '<div class="detail-item"><div class="lbl">Offre</div><div class="val">'+esc(r.offre_titre)+'</div></div>';
+  if(r.prix) html += '<div class="detail-item"><div class="lbl">Prix</div><div class="val">'+Number(r.prix).toFixed(2)+' \u20ac</div></div>';
+
+  html += '</div>';
+
+  if(r.problematique){
+    html += '<div style="margin-bottom:14px;">'
+      + '<div class="detail-item"><div class="lbl">Probl\u00e9matique</div>'
+      + '<div class="val" style="font-weight:400;line-height:1.5;margin-top:4px;padding:10px 12px;background:rgba(20,40,80,0.5);border-radius:8px;font-size:13px;">'
+      + esc(r.problematique) + '</div></div></div>';
+  }
+
+  $('rdv-detail').innerHTML = html;
+
+  // Notes section
+  const notesSection = $('rdv-notes-section');
+  notesSection.style.display = 'block';
+  $('rdv-notes').value = r.notes || '';
+
+  // Actions
+  let actions = '<button class="btn btn-ghost" onclick="closeModal(\'modal-rdv\')">Fermer</button>';
+
+  if(statusNorm === 'en_attente'){
+    actions = '<button class="btn btn-primary" onclick="updateStatut(\''+esc(r.id)+'\',\'confirme\')">&#10003; Confirmer</button>'
+      + '<button class="btn btn-danger-outline" style="border-radius:10px;" onclick="updateStatut(\''+esc(r.id)+'\',\'annule\')">Annuler</button>'
+      + actions;
+  }
+  if(statusNorm === 'confirme'){
+    actions = '<button class="btn-success" onclick="updateStatut(\''+esc(r.id)+'\',\'termine\')">&#10003; Terminer</button>'
+      + '<button class="btn btn-danger-outline" style="border-radius:10px;" onclick="updateStatut(\''+esc(r.id)+'\',\'annule\')">Annuler</button>'
+      + actions;
+    if(r.type === 'visio' && r.visio_token){
+      actions = '<a href="/visio/'+esc(r.visio_token)+'" class="btn btn-primary" target="_blank">&#128187; Rejoindre la visio</a>' + actions;
+    }
+  }
+
+  $('rdv-actions').innerHTML = actions;
+  openModal('modal-rdv');
+}
+
+/* ── Update status ── */
+async function updateStatut(id, newStatut){
+  try {
+    const r = await api('/api/juridique/reservations/'+id+'/statut', {
+      method: 'PATCH',
+      body: JSON.stringify({ statut: newStatut })
+    });
+    if(r.success !== false){
+      toast('Statut mis \u00e0 jour : ' + newStatut.replace('_',' '), 'ok');
+      closeModal('modal-rdv');
+      loadCalendar();
+    } else {
+      toast(r.error || 'Erreur lors de la mise \u00e0 jour', 'error');
+    }
+  } catch(e){
+    toast('Erreur r\u00e9seau', 'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   BLOQUER JOURNEE
+   ═══════════════════════════════════════ */
+function openBlockModal(){
+  $('block-date').value = fmtDate(new Date());
+  $('block-motif').value = '';
+  openModal('modal-block');
+}
+
+async function saveBlock(){
+  const date = $('block-date').value;
+  const motif = $('block-motif').value.trim();
+  if(!date){ toast('Date requise', 'error'); return; }
+
+  try {
+    const r = await api('/api/juridique/agenda/bloquer-journee', {
+      method: 'POST',
+      body: JSON.stringify({ date, motif })
+    });
+    if(r.success !== false){
+      toast('Journ\u00e9e bloqu\u00e9e avec succ\u00e8s', 'ok');
+      closeModal('modal-block');
+      loadCalendar();
+    } else {
+      toast(r.error || 'Erreur', 'error');
+    }
+  } catch(e){
+    toast('Erreur r\u00e9seau', 'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   DISPONIBILITES
+   ═══════════════════════════════════════ */
+let disponibilites = {};
+
+function toggleDispo(){
+  dispoOpen = !dispoOpen;
+  $('dispo-toggle').classList.toggle('open', dispoOpen);
+  $('dispo-panel').classList.toggle('open', dispoOpen);
+}
+
+async function loadDispo(){
+  try {
+    const r = await api('/api/juridique/agenda/disponibilites');
+    disponibilites = r.disponibilites || r.data || {};
+  } catch(_){
+    disponibilites = {};
+  }
+  renderDispo();
+}
+
+function renderDispo(){
+  const days = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+  let html = '<table class="dispo-table"><thead><tr>'
+    + '<th>Jour</th><th>D\u00e9but</th><th>Fin</th><th>Pause d\u00e9but</th><th>Pause fin</th><th>Actif</th>'
+    + '</tr></thead><tbody>';
+
+  days.forEach(d => {
+    const dd = disponibilites[d] || {};
+    const label = d.charAt(0).toUpperCase() + d.slice(1);
+    html += '<tr>'
+      + '<td class="day-name">' + label + '</td>'
+      + '<td><input type="time" id="dispo-'+d+'-start" value="'+(dd.start || dd.debut || '09:00')+'"></td>'
+      + '<td><input type="time" id="dispo-'+d+'-end" value="'+(dd.end || dd.fin || '18:00')+'"></td>'
+      + '<td><input type="time" id="dispo-'+d+'-pause-start" value="'+(dd.pause_start || dd.pause_debut || '12:00')+'"></td>'
+      + '<td><input type="time" id="dispo-'+d+'-pause-end" value="'+(dd.pause_end || dd.pause_fin || '13:00')+'"></td>'
+      + '<td><input type="checkbox" id="dispo-'+d+'-active" '+(dd.active !== false ? 'checked' : '')+'></td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table>';
+  $('dispo-container').innerHTML = html;
+}
+
+async function saveDispo(){
+  const days = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+  const data = {};
+  days.forEach(d => {
+    data[d] = {
+      start: $('dispo-'+d+'-start').value,
+      end: $('dispo-'+d+'-end').value,
+      pause_start: $('dispo-'+d+'-pause-start').value,
+      pause_end: $('dispo-'+d+'-pause-end').value,
+      active: $('dispo-'+d+'-active').checked
+    };
+  });
+
+  try {
+    const r = await api('/api/juridique/agenda/disponibilites', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    if(r.success !== false){
+      toast('Disponibilit\u00e9s enregistr\u00e9es', 'ok');
+    } else {
+      toast(r.error || 'Erreur', 'error');
+    }
+  } catch(e){
+    toast('Erreur r\u00e9seau', 'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════ */
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session) return location.href = '/login.html';
+  session = data.session;
+  token = session.access_token;
+  db.auth.onAuthStateChange((ev, s) => { if(s){ session = s; token = s.access_token; } });
+  societeId = localStorage.getItem('societe_active_id');
+  if(!societeId){ location.href = '/organisation.html'; return; }
+  checkMobile();
+  loadCalendar();
+  loadDispo();
+})();
+</script>
+</body>
+</html>

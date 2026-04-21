@@ -10,7 +10,14 @@
 
   const TYPE_ICO = {
     cabinet_dentaire: '🦷',
+    prothesiste: '🔬',
+    orthodontiste: '🦴',
+    veterinaire: '🐾',
     sci: '🏠',
+    juridique: '⚖️',
+    services: '🛍️',
+    artisan_btp: '🔧',
+    createur: '✨',
     societe_commerciale: '🏢',
     sas: '🏢', sarl: '🏢', eurl: '🏢', sa: '🏢', snc: '🏢',
     ei: '👤',
@@ -26,8 +33,15 @@
 
   // Couleur accent par type de société (fallback à la couleur custom stockée en DB si présente)
   const ACCENT_BY_TYPE = {
-    cabinet_dentaire: '#c8f060',
+    cabinet_dentaire: '#10b981',
+    prothesiste: '#2563eb',
+    orthodontiste: '#2563eb',
+    veterinaire: '#10b981',
     sci: '#60a8f0',
+    juridique: '#6366f1',
+    services: '#ec4899',
+    artisan_btp: '#f59e0b',
+    createur: '#d946ef',
     societe_commerciale: '#f0a030',
     sas: '#f0a030', sarl: '#f0a030', eurl: '#f0a030', sa: '#f0a030', snc: '#f0a030',
     ei: '#60f0d0',
@@ -38,7 +52,7 @@
   };
   function applyAccent(societe) {
     if (!societe) return;
-    const c = societe.couleur_accent || ACCENT_BY_TYPE[societe.type] || '#c8f060';
+    const c = societe.couleur_accent || ACCENT_BY_TYPE[societe.type] || '#10b981';
     document.documentElement.style.setProperty('--accent', c);
     try {
       document.documentElement.style.setProperty(
@@ -51,7 +65,14 @@
   function moduleUrlFor(s) {
     if (!s) return 'organisation.html';
     if (s.type === 'cabinet_dentaire') return 'index.html';
+    if (s.type === 'veterinaire') return 'index.html';
+    if (s.type === 'prothesiste') return '/public/labo/dashboard.html';
+    if (s.type === 'orthodontiste') return '/public/labo/dashboard.html';
     if (s.type === 'sci') return 'sci.html';
+    if (s.type === 'juridique') return '/public/juridique/dashboard.html';
+    if (s.type === 'services') return '/public/services/dashboard.html';
+    if (s.type === 'artisan_btp') return '/public/btp/dashboard.html';
+    if (s.type === 'createur') return '/public/showroom/dashboard.html';
     if (COMMERCE_TYPES.includes(s.type)) return 'commerce.html';
     return 'organisation.html';
   }
@@ -86,16 +107,16 @@
     st.textContent = `
       .ms-bell{position:relative;display:inline-flex;align-items:center;margin-right:6px;}
       .ms-bell-btn{padding:8px 10px;background:var(--surface2,#242220);border:1px solid var(--border,#2e2c29);border-radius:10px;color:var(--text,#f0ede8);font-size:14px;cursor:pointer;display:inline-flex;align-items:center;position:relative;}
-      .ms-bell-btn:hover{border-color:var(--accent,#c8f060);}
+      .ms-bell-btn:hover{border-color:var(--accent,#10b981);}
       .ms-bell-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f05050;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg,#0f0e0d);}
       .ms-bell-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;width:360px;max-width:calc(100vw - 40px);max-height:480px;overflow:auto;background:var(--surface,#1a1917);border:1px solid var(--border,#2e2c29);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.45);z-index:200;}
       .ms-bell-menu.open{display:block;}
       .ms-bell-head{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border,#2e2c29);font-size:12px;color:var(--muted,#8f8a82);}
-      .ms-bell-head a{color:var(--accent,#c8f060);cursor:pointer;font-weight:600;}
+      .ms-bell-head a{color:var(--accent,#10b981);cursor:pointer;font-weight:600;}
       .ms-bell-item{display:block;padding:10px 14px;border-bottom:1px solid var(--border,#2e2c29);cursor:pointer;text-decoration:none;color:var(--text,#f0ede8);}
       .ms-bell-item:hover{background:var(--surface2,#242220);}
       .ms-bell-item.urgente{border-left:3px solid #f05050;}
-      .ms-bell-item.unread{background:rgba(200,240,96,.04);}
+      .ms-bell-item.unread{background:rgba(16,185,129,.04);}
       .ms-bell-item .t{font-size:13px;font-weight:600;margin-bottom:2px;}
       .ms-bell-item .m{font-size:11px;color:var(--muted,#8f8a82);}
       .ms-bell-item .d{font-size:10px;color:var(--muted,#8f8a82);margin-top:4px;}
@@ -105,19 +126,19 @@
       .ms-urgent-banner .close{background:none;border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;padding:2px 8px;cursor:pointer;margin-left:12px;font-size:11px;}
       .ms-sw{position:relative;display:inline-flex;align-items:center;}
       .ms-sw-btn{padding:8px 12px;background:var(--surface2,#242220);border:1px solid var(--border,#2e2c29);border-radius:10px;color:var(--text,#f0ede8);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:8px;cursor:pointer;transition:all .15s;max-width:220px;}
-      .ms-sw-btn:hover{border-color:var(--accent,#c8f060);color:var(--accent,#c8f060);}
+      .ms-sw-btn:hover{border-color:var(--accent,#10b981);color:var(--accent,#10b981);}
       .ms-sw-btn .n{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
       .ms-sw-btn .c{opacity:.5;font-size:10px;}
       .ms-sw-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:280px;background:var(--surface,#1a1917);border:1px solid var(--border,#2e2c29);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.45);padding:6px;z-index:200;}
       .ms-sw-menu.open{display:block;}
       .ms-sw-item{display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--text,#f0ede8);text-decoration:none;font-size:13px;border-radius:8px;cursor:pointer;}
       .ms-sw-item:hover{background:var(--surface2,#242220);}
-      .ms-sw-item.active{background:rgba(200,240,96,.07);color:var(--accent,#c8f060);font-weight:700;}
+      .ms-sw-item.active{background:rgba(16,185,129,.07);color:var(--accent,#10b981);font-weight:700;}
       .ms-sw-item .ico{font-size:16px;}
       .ms-sw-item .nm{flex:1;font-weight:600;}
       .ms-sw-item .tg{font-size:10px;color:var(--muted,#8f8a82);text-transform:uppercase;letter-spacing:.5px;}
       .ms-sw-sep{height:1px;background:var(--border,#2e2c29);margin:4px 6px;}
-      .ms-sw-link{display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--accent,#c8f060);text-decoration:none;font-weight:600;font-size:12px;border-radius:8px;}
+      .ms-sw-link{display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--accent,#10b981);text-decoration:none;font-weight:600;font-size:12px;border-radius:8px;}
       .ms-sw-link.muted{color:var(--text,#f0ede8);font-weight:600;}
       .ms-sw-link:hover{background:var(--surface2,#242220);}
       .ms-sw-empty{padding:10px 12px;color:var(--muted,#8f8a82);font-size:12px;}
@@ -201,7 +222,14 @@
       for (const s of socs) {
         const isActive = active && active.id === s.id;
         const tag = s.type === 'cabinet_dentaire' ? 'Cabinet'
+          : s.type === 'prothesiste' ? 'Labo'
+          : s.type === 'orthodontiste' ? 'Ortho'
+          : s.type === 'veterinaire' ? 'Véto'
           : s.type === 'sci' ? 'SCI'
+          : s.type === 'juridique' ? 'Juridique'
+          : s.type === 'services' ? 'Services'
+          : s.type === 'artisan_btp' ? 'Artisan BTP'
+          : s.type === 'createur' ? 'Créateur'
           : COMMERCE_TYPES.includes(s.type) ? 'Commerce'
           : '';
         const icon = renderAvatar(s, 22);
@@ -223,7 +251,10 @@
     menu.querySelectorAll('.ms-sw-item').forEach(el => {
       el.addEventListener('click', (ev) => {
         const id = el.getAttribute('data-id');
-        if (id) localStorage.setItem('societe_active_id', id);
+        if (id) {
+          localStorage.setItem('societe_active_id', id);
+          localStorage.setItem('selectedSocieteId', id);
+        }
       });
     });
     btn.onclick = (e) => {
@@ -260,7 +291,7 @@
         if (nbUnread > 0) {
           badge.style.display = 'flex';
           badge.textContent = nbUnread > 99 ? '99+' : String(nbUnread);
-          badge.style.background = nbUrgent > 0 ? '#f05050' : 'var(--accent, #c8f060)';
+          badge.style.background = nbUrgent > 0 ? '#f05050' : 'var(--accent, #10b981)';
           badge.style.color = nbUrgent > 0 ? '#fff' : '#111';
         } else {
           badge.style.display = 'none';
@@ -376,15 +407,39 @@
 
     let activeId = localStorage.getItem('societe_active_id');
     let active = societes.find(s => s.id === activeId) || null;
-    // Page courante : si on est sur sci.html / commerce.html / index.html,
-    // et qu'aucune active stockée, trouver la première du type correspondant
+    // Forcer la societe correspondant au module de la page courante
     const p = currentPage();
-    if (!active) {
-      if (p === 'index.html') active = societes.find(s => s.type === 'cabinet_dentaire');
-      else if (p === 'sci.html') active = societes.find(s => s.type === 'sci');
-      else if (p === 'commerce.html') active = societes.find(s => COMMERCE_TYPES.includes(s.type));
-      active = active || societes[0] || null;
-      if (active) localStorage.setItem('societe_active_id', active.id);
+    const pathname = location.pathname;
+    if (p === 'index.html' || p === '' || p === '/') {
+      // index.html = cabinet dentaire TOUJOURS
+      const cabinet = societes.find(s => s.type === 'cabinet_dentaire' || s.type === 'veterinaire');
+      if (cabinet) { active = cabinet; localStorage.setItem('societe_active_id', cabinet.id); }
+    } else if (p === 'sci.html') {
+      const sci = societes.find(s => s.type === 'sci');
+      if (sci) { active = sci; localStorage.setItem('societe_active_id', sci.id); }
+    } else if (p === 'commerce.html') {
+      const comm = societes.find(s => COMMERCE_TYPES.includes(s.type));
+      if (comm) { active = comm; localStorage.setItem('societe_active_id', comm.id); }
+    } else if (pathname.includes('/labo/')) {
+      const labo = societes.find(s => s.type === 'prothesiste' || s.type === 'orthodontiste');
+      if (labo) { active = labo; localStorage.setItem('societe_active_id', labo.id); }
+    } else if (pathname.includes('/juridique/')) {
+      const jur = societes.find(s => s.type === 'juridique');
+      if (jur) { active = jur; localStorage.setItem('societe_active_id', jur.id); }
+    } else if (pathname.includes('/btp/')) {
+      const btp = societes.find(s => s.type === 'artisan_btp');
+      if (btp) { active = btp; localStorage.setItem('societe_active_id', btp.id); }
+    } else if (pathname.includes('/showroom/')) {
+      const cr = societes.find(s => s.type === 'createur');
+      if (cr) { active = cr; localStorage.setItem('societe_active_id', cr.id); }
+    } else if (pathname.includes('/services/')) {
+      const svc = societes.find(s => s.type === 'services');
+      if (svc) { active = svc; localStorage.setItem('societe_active_id', svc.id); }
+    }
+    if (!active) { active = societes[0] || null; }
+    if (active) {
+      localStorage.setItem('societe_active_id', active.id);
+      localStorage.setItem('selectedSocieteId', active.id);
     }
 
     // Exposer pour code page

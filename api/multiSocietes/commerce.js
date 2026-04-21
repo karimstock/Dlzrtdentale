@@ -3,6 +3,7 @@
 // Routes /api/commerce/* : catalogue, clients, devis, factures, Stripe
 // =============================================
 const express = require('express');
+const path = require('path');
 const multer = require('multer');
 const { parse: csvParse } = require('csv-parse/sync');
 const cron = require('node-cron');
@@ -112,22 +113,67 @@ async function enrichirDescriptionIA(designation) {
   } catch { return null; }
 }
 
-function calcTotaux(lignes = []) {
+const PLAN_LIMITS = { decouverte: 50, solo: 500, pro: 2000 };
+const IMPORT_COOLDOWN = 3600 * 1000; // 1h between imports
+
+async function checkImportLimits(societe) {
+  const plan = (societe.plan || 'decouverte').toLowerCase();
+  const maxProduits = PLAN_LIMITS[plan] || 50;
+
+  // Count current active products
+  const { count } = await admin().from('produits_societe')
+    .select('id', { count: 'exact', head: true })
+    .eq('societe_id', societe.id).eq('actif', true);
+
+  if ((count || 0) >= maxProduits) {
+    return { allowed: false, error: `Vous avez atteint la limite de ${maxProduits} produits de votre plan ${plan}. Passez au plan supérieur.`, count: count || 0, max: maxProduits };
+  }
+
+  // Check cooldown (1 import per hour)
+  const { data: lastJob } = await admin().from('import_jobs')
+    .select('started_at').eq('societe_id', societe.id)
+    .order('started_at', { ascending: false }).limit(1).maybeSingle();
+
+  if (lastJob?.started_at) {
+    const elapsed = Date.now() - new Date(lastJob.started_at).getTime();
+    if (elapsed < IMPORT_COOLDOWN) {
+      const minutes = Math.ceil((IMPORT_COOLDOWN - elapsed) / 60000);
+      return { allowed: false, error: `Veuillez patienter ${minutes} minute(s) avant le prochain import.` };
+    }
+  }
+
+  return { allowed: true, remaining: maxProduits - (count || 0), max: maxProduits };
+}
+
+function calcTotaux(lignes = [], remise_globale_pct = 0) {
   let sous_total_ht = 0, total_tva = 0, total_ttc = 0;
   for (const l of lignes) {
     const qte = Number(l.quantite || 0);
     const pu = Number(l.prix_unitaire_ht || 0);
+    const remise = Number(l.remise_pct || 0);
     const tva = Number(l.taux_tva || 0);
-    const ht = qte * pu;
+    const ht_brut = qte * pu;
+    const ht = ht_brut * (1 - remise / 100);
     const mTva = ht * tva / 100;
     sous_total_ht += ht;
     total_tva += mTva;
     total_ttc += ht + mTva;
   }
+  // Apply global discount
+  const rg = Number(remise_globale_pct || 0);
+  let remise_globale_montant = 0;
+  if (rg > 0) {
+    remise_globale_montant = +(sous_total_ht * rg / 100).toFixed(2);
+    const ratio = 1 - rg / 100;
+    sous_total_ht = sous_total_ht * ratio;
+    total_tva = total_tva * ratio;
+    total_ttc = total_ttc * ratio;
+  }
   return {
     sous_total_ht: +sous_total_ht.toFixed(2),
     total_tva: +total_tva.toFixed(2),
-    total_ttc: +total_ttc.toFixed(2)
+    total_ttc: +total_ttc.toFixed(2),
+    remise_globale_montant: +remise_globale_montant.toFixed(2)
   };
 }
 
@@ -269,141 +315,314 @@ module.exports = function mountCommerce(app) {
     res.json({ success: true, job: j });
   });
 
-  // Import WordPress (WP REST public + enrichissement IA JADOMI)
-  // Utilise GET /wp-json/wp/v2/products — pas besoin d'API key
-  // body : { site_url, enrichir_ia?:boolean }
-  router.post('/produits/import-wp-public', requireSociete(), async (req, res) => {
+  // Import depuis site web — fetch HTML + analyse Claude Sonnet
+  router.post('/import/site-web', requireSociete(), async (req, res) => {
     try {
-      const { site_url, enrichir_ia } = req.body || {};
-      if (!site_url) return res.status(400).json({ error: 'site_url requis' });
-      const base = String(site_url).replace(/\/$/, '').replace(/\/wp-json.*$/, '');
+      const limits = await checkImportLimits(req.societe);
+      if (!limits.allowed) return res.status(403).json({ success: false, error: limits.error });
 
-      // Répondre tout de suite avec un job id
-      const job = await newJob(req.societe.id, 'wp-rest', 0, req.user.id, 'produits');
-      const userId = req.user.id;
-      const societeId = req.societe.id;
-      res.json({ success: true, job_id: job.id, background: true });
+      const { url, page: pageNum } = req.body || {};
+      if (!url) return res.status(400).json({ error: 'url requis' });
 
-      (async () => {
-        let page = 1, all = [];
-        const perPage = 100;
-        while (page <= 50) {
-          try {
-            const r = await fetch(`${base}/wp-json/wp/v2/products?per_page=${perPage}&page=${page}`);
-            if (!r.ok) {
-              if (r.status === 404 && page === 1) {
-                // Pas de CPT "products" → tente fallback WooCommerce products stored as posts via /wc/store/v1
-                const r2 = await fetch(`${base}/wp-json/wc/store/v1/products?per_page=${perPage}&page=${page}`);
-                if (!r2.ok) { job.status = 'error'; job.error = 'Aucun endpoint WP products trouvé'; job.finished_at = Date.now(); return; }
-                const batch2 = await r2.json();
-                if (!Array.isArray(batch2) || !batch2.length) break;
-                all = all.concat(batch2);
-                if (batch2.length < perPage) break;
-                page++; continue;
-              }
-              break;
-            }
-            const batch = await r.json();
-            if (!Array.isArray(batch) || batch.length === 0) break;
-            all = all.concat(batch);
-            job.total = all.length + (batch.length === perPage ? perPage : 0);
-            if (batch.length < perPage) break;
-            page++;
-          } catch (e) { break; }
+      // Fetch HTML server-side (avoids CORS)
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let html;
+      try {
+        const r = await fetch(url, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'JADOMI-Import/1.0' }
+        });
+        clearTimeout(timeout);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        html = await r.text();
+      } catch (e) {
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') return res.status(408).json({ success: false, error: 'Le site met trop de temps à répondre (timeout 30s).' });
+        return res.status(400).json({ success: false, error: 'Site introuvable ou inaccessible.' });
+      }
+
+      // Truncate HTML to avoid token overflow (keep ~80KB)
+      if (html.length > 80000) html = html.substring(0, 80000);
+
+      // Call Claude Sonnet to extract products
+      const Anthropic = require('@anthropic-ai/sdk');
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+      const completion = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: `Tu analyses une page de boutique en ligne de fournitures dentaires.
+Extrais TOUS les produits visibles avec :
+- nom (désignation complète)
+- reference (code produit si présent, sinon null)
+- prix_ht (prix hors taxe en euros, si TTC divise par 1.2, sinon null)
+- description (courte)
+- categorie (déduite du contexte)
+- has_variantes (true si le produit existe en plusieurs tailles/teintes/diamètres/longueurs/conicités/formats)
+- variantes (tableau si has_variantes=true) : [{nom_variante, valeur, reference, prix_ht}]
+- ean (code-barres si présent, sinon null)
+
+Exemples de produits avec variantes :
+- Limes endodontiques (taille/longueur/conicité)
+- Composites (teinte/format/contenance)
+- Fraises (diamètre/longueur/grain)
+- Anesthésiques (dosage/parfum)
+
+Détecte aussi s'il y a d'autres pages (pagination) et indique-le.
+
+Retourne UNIQUEMENT un JSON valide avec cette structure :
+{"produits": [...], "has_next_page": false, "next_page_url": null}
+
+HTML de la page :
+${html}`
+        }]
+      });
+
+      let result;
+      try {
+        const text = completion.content[0].text;
+        // Extract JSON from response (might be wrapped in markdown code blocks)
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      } catch (e) {
+        return res.status(422).json({ success: false, error: 'Aucun produit détecté. Essayez le CSV.', raw: completion.content[0]?.text?.substring(0, 200) });
+      }
+
+      const produits = result.produits || [];
+      if (!produits.length) {
+        return res.json({ success: true, produits: [], message: 'Aucun produit détecté sur cette page. Essayez le CSV.' });
+      }
+
+      res.json({
+        success: true,
+        produits,
+        count: produits.length,
+        has_next_page: result.has_next_page || false,
+        next_page_url: result.next_page_url || null,
+        remaining: limits.remaining
+      });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Import CSV/XLSX avec support variantes
+  router.post('/import/csv', requireSociete(), upload.single('file'), async (req, res) => {
+    try {
+      const limits = await checkImportLimits(req.societe);
+      if (!limits.allowed) return res.status(403).json({ success: false, error: limits.error });
+
+      if (!req.file) return res.status(400).json({ error: 'file requis' });
+
+      let rows;
+      const ext = (req.file.originalname || '').split('.').pop().toLowerCase();
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        // Try xlsx parsing
+        try {
+          const XLSX = require('xlsx');
+          const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        } catch (e) {
+          return res.status(400).json({ error: 'Fichier Excel invalide. ' + e.message });
         }
-        job.total = all.length;
+      } else {
+        rows = csvParse(req.file.buffer, { columns: true, skip_empty_lines: true, trim: true, bom: true });
+      }
 
-        for (const p of all) {
-          try {
-            // WP REST v2 → title.rendered, content.rendered, meta champs perso
-            // WC Store → name, description, prices.price
-            const designation = p.title?.rendered || p.name || 'Sans nom';
-            const strip = s => String(s || '').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').trim().slice(0, 800);
-            let description = strip(p.excerpt?.rendered || p.short_description || p.content?.rendered || p.description);
+      if (!rows.length) return res.json({ success: true, produits: [], message: 'Fichier vide' });
 
-            const metaPrice = p.meta?._price ?? p.meta?._regular_price;
-            const prix_ht = parseFloat(
-              p.prices?.price ? (p.prices.price / 100)
-              : (metaPrice ?? p.regular_price ?? p.price ?? 0)
-            ) || 0;
+      // Group by product name to detect variants
+      const grouped = {};
+      for (const r of rows) {
+        const nom = (r.nom_produit || r.designation || r.nom || r.name || '').trim();
+        if (!nom) continue;
+        if (!grouped[nom]) grouped[nom] = { nom, rows: [] };
+        grouped[nom].rows.push(r);
+      }
 
-            const image_url = p.featured_image || p.images?.[0]?.src || p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null;
-            const sku = p.sku || p.meta?._sku || p.slug || String(p.id);
+      const produits = [];
+      for (const [nom, group] of Object.entries(grouped)) {
+        const first = group.rows[0];
+        const hasVariants = group.rows.length > 1 && group.rows.some(r => (r.variante_nom || r.variante_valeur || '').trim());
 
-            if (enrichir_ia && !description && designation) {
-              const ia = await enrichirDescriptionIA(designation);
-              if (ia) description = ia;
-            }
+        const produit = {
+          nom,
+          reference: first.reference || first.ref || null,
+          prix_ht: parseFloat((first.prix_ht || first.prix || '0').toString().replace(',', '.')) || 0,
+          taux_tva: parseFloat((first.tva_pct || first.taux_tva || first.tva || '20').toString().replace(',', '.')) || 20,
+          description: first.description || null,
+          categorie: first.categorie || first.category || null,
+          stock: parseInt(first.stock || first.stock_actuel || '0', 10) || 0,
+          ean: first.ean || first.code_barre || null,
+          has_variantes: hasVariants,
+          variantes: []
+        };
 
-            await admin().from('produits_societe').upsert({
-              societe_id: societeId,
-              reference: sku,
-              designation,
-              description: description || null,
-              prix_ht,
-              taux_tva: 20,
-              image_url,
-              source: 'wordpress',
-              external_id: String(p.id)
-            }, { onConflict: 'societe_id,reference' });
-            job.inserted++;
-          } catch { job.failed++; }
-          job.done++;
+        if (hasVariants) {
+          for (const r of group.rows) {
+            produit.variantes.push({
+              nom_variante: r.variante_nom || '',
+              valeur: r.variante_valeur || '',
+              reference: r.reference || r.ref || null,
+              prix_ht: parseFloat((r.prix_ht || r.prix || '0').toString().replace(',', '.')) || produit.prix_ht,
+              stock: parseInt(r.stock || r.stock_actuel || '0', 10) || 0,
+              ean: r.ean || r.code_barre || null
+            });
+          }
         }
 
-        job.status = 'done';
-        job.finished_at = Date.now();
-        await auditLog({ userId, societeId,
-          action: 'import_wp_public', entity: 'produits',
-          meta: { inserted: job.inserted, failed: job.failed, total: all.length }, req });
-      })().catch(e => { job.status = 'error'; job.error = e.message; job.finished_at = Date.now(); });
+        produits.push(produit);
+      }
+
+      res.json({ success: true, produits, count: produits.length, remaining: limits.remaining });
     } catch (e) { res.status(400).json({ success: false, error: e.message }); }
   });
 
-  // Import WordPress / WooCommerce
-  router.post('/produits/import-wordpress', requireSociete(), async (req, res) => {
+  // Import via PDF/Photo — Claude Haiku
+  router.post('/import/ia-fichier', requireSociete(), upload.single('file'), async (req, res) => {
     try {
-      const { site_url, consumer_key, consumer_secret } = req.body || {};
-      if (!site_url || !consumer_key || !consumer_secret)
-        return res.status(400).json({ error: 'site_url + consumer_key + consumer_secret requis' });
+      const limits = await checkImportLimits(req.societe);
+      if (!limits.allowed) return res.status(403).json({ success: false, error: limits.error });
 
-      const base = site_url.replace(/\/$/, '');
-      const auth = 'Basic ' + Buffer.from(`${consumer_key}:${consumer_secret}`).toString('base64');
-      let page = 1, all = [];
-      while (true) {
-        const r = await fetch(`${base}/wp-json/wc/v3/products?per_page=100&page=${page}`, {
-          headers: { Authorization: auth }
+      if (!req.file) return res.status(400).json({ error: 'file requis' });
+
+      const Anthropic = require('@anthropic-ai/sdk');
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+      const mime = req.file.mimetype || 'application/octet-stream';
+      const b64 = req.file.buffer.toString('base64');
+
+      let content;
+      if (mime.startsWith('image/')) {
+        content = [
+          { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
+          { type: 'text', text: `Extrais tous les produits de ce catalogue/photo dentaire. Pour chaque produit :
+nom, reference, prix_ht (en euros), description, categorie, has_variantes (true/false), variantes (tableau [{nom_variante, valeur, reference, prix_ht}] si applicable).
+Retourne UNIQUEMENT un JSON valide : {"produits": [...]}` }
+        ];
+      } else if (mime === 'application/pdf') {
+        content = [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+          { type: 'text', text: `Extrais tous les produits de ce catalogue dentaire PDF. Pour chaque produit :
+nom, reference, prix_ht (en euros), description, categorie, has_variantes (true/false), variantes (tableau [{nom_variante, valeur, reference, prix_ht}] si applicable).
+Retourne UNIQUEMENT un JSON valide : {"produits": [...]}` }
+        ];
+      } else {
+        return res.status(400).json({ error: 'Format non supporté. Utilisez PDF, JPG ou PNG.' });
+      }
+
+      const completion = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content }]
+      });
+
+      let result;
+      try {
+        const text = completion.content[0].text;
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      } catch {
+        return res.status(422).json({ success: false, error: 'Impossible d\'extraire les produits de ce fichier.' });
+      }
+
+      const produits = result.produits || [];
+      res.json({ success: true, produits, count: produits.length, remaining: limits.remaining });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  });
+
+  // Validation finale : import les produits sélectionnés en base avec variantes
+  router.post('/import/valider', requireSociete(), async (req, res) => {
+    try {
+      const limits = await checkImportLimits(req.societe);
+      if (!limits.allowed) return res.status(403).json({ success: false, error: limits.error });
+
+      const { produits, source } = req.body || {};
+      if (!Array.isArray(produits) || !produits.length) return res.status(400).json({ error: 'produits requis' });
+
+      // Check that importing won't exceed plan limit
+      if (produits.length > limits.remaining) {
+        return res.status(403).json({
+          success: false,
+          error: `Import de ${produits.length} produits impossible. Il vous reste ${limits.remaining} places sur votre plan (max ${limits.max}).`
         });
-        if (!r.ok) throw new Error(`WP API ${r.status}`);
-        const batch = await r.json();
-        if (!Array.isArray(batch) || batch.length === 0) break;
-        all = all.concat(batch);
-        if (batch.length < 100) break;
-        page++;
-        if (page > 50) break; // garde-fou
       }
-      let inserted = 0;
-      for (const p of all) {
-        await admin().from('produits_societe').upsert({
-          societe_id: req.societe.id,
-          reference: p.sku || null,
-          designation: p.name || 'Sans nom',
-          description: p.short_description || null,
-          prix_ht: parseFloat(p.regular_price || p.price || '0') || 0,
-          taux_tva: 20,
-          stock_actuel: p.stock_quantity || 0,
-          image_url: p.images?.[0]?.src || null,
-          source: 'wordpress',
-          external_id: String(p.id)
-        }, { onConflict: 'societe_id,reference' });
-        inserted++;
+
+      let inserted = 0, failed = 0;
+
+      for (const p of produits) {
+        try {
+          const parentData = {
+            societe_id: req.societe.id,
+            designation: p.nom || p.designation || 'Sans nom',
+            reference: p.reference || null,
+            description: p.description || null,
+            prix_ht: parseFloat(p.prix_ht) || 0,
+            taux_tva: parseFloat(p.taux_tva || 20) || 20,
+            stock_actuel: parseInt(p.stock || 0, 10) || 0,
+            code_barre: p.ean || null,
+            source: source || 'import',
+            has_variantes: !!(p.has_variantes && p.variantes?.length),
+            is_variante: false
+          };
+
+          const { data: parent, error } = await admin().from('produits_societe')
+            .insert(parentData).select('id').single();
+          if (error) throw error;
+          inserted++;
+
+          // Insert variants if any
+          if (p.has_variantes && Array.isArray(p.variantes) && p.variantes.length) {
+            for (const v of p.variantes) {
+              try {
+                await admin().from('produits_societe').insert({
+                  societe_id: req.societe.id,
+                  designation: `${parentData.designation} — ${v.valeur || v.nom_variante || ''}`.trim(),
+                  reference: v.reference || null,
+                  prix_ht: parseFloat(v.prix_ht) || parentData.prix_ht,
+                  taux_tva: parentData.taux_tva,
+                  stock_actuel: parseInt(v.stock || 0, 10) || 0,
+                  code_barre: v.ean || null,
+                  source: source || 'import',
+                  produit_parent_id: parent.id,
+                  variante_nom: v.nom_variante || null,
+                  variante_valeur: v.valeur || null,
+                  is_variante: true,
+                  has_variantes: false
+                });
+              } catch { /* variant insert failed, continue */ }
+            }
+          }
+        } catch { failed++; }
       }
-      await admin().from('integrations_wordpress').upsert({
-        societe_id: req.societe.id, site_url: base, consumer_key, consumer_secret,
-        dernier_sync: new Date().toISOString(), actif: true
-      }, { onConflict: 'societe_id' });
-      res.json({ success: true, inserted });
+
+      await auditLog({ userId: req.user.id, societeId: req.societe.id,
+        action: 'import_produits', entity: 'produits',
+        meta: { inserted, failed, source, total: produits.length }, req });
+
+      res.json({ success: true, inserted, failed });
     } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+  });
+
+  // Template CSV téléchargeable
+  router.get('/import/template-csv', (req, res) => {
+    const header = 'nom_produit,reference,variante_nom,variante_valeur,prix_ht,tva_pct,stock,description,categorie,ean';
+    const examples = `# Produit simple :
+Gants latex M,GL-M,,,12.50,20,100,Boîte de 100,Consommables,
+Masques chirurgicaux,MASK-50,,,8.90,20,200,Boîte de 50,Consommables,
+# Produit avec variantes (même nom_produit = regroupement automatique) :
+ProTaper Gold,PTG-F1-21,Taille-Longueur,F1-21mm,45.00,20,50,Lime rotative NiTi,Endodontie,
+ProTaper Gold,PTG-F1-25,Taille-Longueur,F1-25mm,45.00,20,50,Lime rotative NiTi,Endodontie,
+ProTaper Gold,PTG-F2-21,Taille-Longueur,F2-21mm,45.00,20,50,Lime rotative NiTi,Endodontie,
+Filtek Z350,FZ-A1-4G,Teinte-Format,A1-4g,28.00,20,30,Composite universel nanochargé,Restauration,
+Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanochargé,Restauration,`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="jadomi-import-template.csv"');
+    res.send('\uFEFF' + header + '\n' + examples);
   });
 
   // =====================================================================
@@ -475,7 +694,7 @@ module.exports = function mountCommerce(app) {
     try {
       const annee = new Date().getFullYear();
       const numero = await genNumero(req.societe.id, 'devis', annee);
-      const totaux = calcTotaux(req.body.lignes || []);
+      const totaux = calcTotaux(req.body.lignes || [], req.body.remise_globale_pct || 0);
       const payload = {
         societe_id: req.societe.id,
         client_id: req.body.client_id || null,
@@ -483,6 +702,7 @@ module.exports = function mountCommerce(app) {
         lignes: req.body.lignes || [],
         notes: req.body.notes || null,
         conditions: req.body.conditions || null,
+        remise_globale_pct: Number(req.body.remise_globale_pct || 0),
         ...totaux
       };
       const { data, error } = await admin().from('devis').insert(payload).select('*').single();
@@ -505,7 +725,7 @@ module.exports = function mountCommerce(app) {
       }
       const patch = { ...req.body };
       delete patch.statut; // le statut ne se change pas via cette route
-      if (patch.lignes) Object.assign(patch, calcTotaux(patch.lignes));
+      if (patch.lignes) Object.assign(patch, calcTotaux(patch.lignes, patch.remise_globale_pct ?? 0));
       delete patch.numero; // numérotation immuable
       const { data, error } = await admin().from('devis')
         .update(patch).eq('id', req.params.id).eq('societe_id', req.societe.id)
@@ -570,6 +790,8 @@ module.exports = function mountCommerce(app) {
         sous_total_ht: d.sous_total_ht,
         total_tva: d.total_tva,
         total_ttc: d.total_ttc,
+        remise_globale_pct: d.remise_globale_pct || 0,
+        remise_globale_montant: d.remise_globale_montant || 0,
         notes: d.notes
       }).select('*').single();
       if (error) throw error;
@@ -592,7 +814,7 @@ module.exports = function mountCommerce(app) {
     try {
       const annee = new Date().getFullYear();
       const numero = await genNumero(req.societe.id, 'facture', annee);
-      const totaux = calcTotaux(req.body.lignes || []);
+      const totaux = calcTotaux(req.body.lignes || [], req.body.remise_globale_pct || 0);
       const payload = {
         societe_id: req.societe.id,
         client_id: req.body.client_id || null,
@@ -600,6 +822,7 @@ module.exports = function mountCommerce(app) {
         lignes: req.body.lignes || [],
         nb_echeances: req.body.nb_echeances || 1,
         notes: req.body.notes || null,
+        remise_globale_pct: Number(req.body.remise_globale_pct || 0),
         ...totaux
       };
       const { data: f, error } = await admin().from('factures_societe').insert(payload).select('*').single();
@@ -642,7 +865,7 @@ module.exports = function mountCommerce(app) {
       const patch = { ...req.body };
       delete patch.numero;
       delete patch.statut; // jamais changer le statut ici
-      if (patch.lignes) Object.assign(patch, calcTotaux(patch.lignes));
+      if (patch.lignes) Object.assign(patch, calcTotaux(patch.lignes, patch.remise_globale_pct ?? 0));
       const { data, error } = await admin().from('factures_societe')
         .update(patch).eq('id', req.params.id).eq('societe_id', req.societe.id)
         .select('*').single();
@@ -700,7 +923,7 @@ module.exports = function mountCommerce(app) {
 
       let paymentLinkHtml = '';
       if (stripe && f.stripe_payment_link) {
-        paymentLinkHtml = `<p><a href="${f.stripe_payment_link}" style="background:#c8f060;color:#111;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;">Régler en ligne</a></p>`;
+        paymentLinkHtml = `<p><a href="${f.stripe_payment_link}" style="background:#10b981;color:#111;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;">Régler en ligne</a></p>`;
       }
       await mailer.sendMail({
         to: client.email,

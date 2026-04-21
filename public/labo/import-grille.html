@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Import grille tarifaire IA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#ffffff;--bg-secondary:#f8f9fa;--surface:#ffffff;--surface2:#f1f3f5;
+  --border:#e0e3e8;--text:#1a1d23;--text-secondary:#6b7280;
+  --accent:#2563eb;--accent-light:#dbeafe;--accent-dark:#1d4ed8;
+  --success:#059669;--warning:#d97706;--danger:#dc2626;
+  --shadow:0 1px 3px rgba(0,0,0,0.1);--shadow-lg:0 4px 12px rgba(0,0,0,0.1);
+  --radius:8px;
+  --muted:#6b7280;--amber:#d97706;--amber-l:#fffbeb;--red:#dc2626;--red-l:#fef2f2;
+  --blue:#2563eb;--blue-l:#dbeafe;--green:#059669;--green-l:#ecfdf5;--green-mid:#059669;
+  --ia:#6366f1;--ia-l:#eef2ff;
+  --font:'Inter',-apple-system,sans-serif;--font-display:'Inter',sans-serif;--mono:'SFMono-Regular',Consolas,monospace;
+  --radius-sm:6px;--radius-lg:12px;
+}
+body{font-family:var(--font);background:var(--bg-secondary);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:#ffffff;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.logo-icon-nav{font-size:20px;}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:9px 22px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-light);border-left-color:var(--accent);}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:var(--shadow);}
+.page-title{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-right{display:flex;gap:10px;align-items:center;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;letter-spacing:0.2px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-dark);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-ia{background:var(--ia-l);color:var(--ia);border:1px solid rgba(99,102,241,0.3);}
+.btn-ia:hover{background:#e0e7ff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#047857;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-full{width:100%;justify-content:center;}
+
+.content{padding:24px 28px;flex:1;}
+
+/* ===== UPLOAD ZONE ===== */
+.upload-section{margin-bottom:24px;}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-lg);padding:52px 40px;text-align:center;cursor:pointer;transition:all 0.25s;position:relative;background:var(--surface);}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-light);}
+.upload-zone.drag-over{transform:scale(1.01);}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{font-size:44px;margin-bottom:16px;display:block;}
+.upload-title{font-family:var(--font-display);font-size:20px;font-weight:700;margin-bottom:8px;}
+.upload-sub{font-size:13px;color:var(--muted);line-height:1.6;}
+.upload-formats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+.fmt-chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);border:1px solid var(--border);color:var(--muted);}
+
+/* ===== IA PROCESSING ===== */
+.ia-processing{display:none;background:var(--surface);border:1px solid rgba(99,102,241,0.3);border-radius:var(--radius-lg);padding:40px;text-align:center;margin-bottom:24px;box-shadow:var(--shadow);}
+.ia-processing.visible{display:block;}
+.ia-logo-anim{width:60px;height:60px;border-radius:50%;background:var(--ia-l);border:2px solid rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;animation:ia-pulse 1.8s ease-in-out infinite;font-size:26px;}
+@keyframes ia-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.2);border-color:rgba(99,102,241,0.4);}
+  50%{box-shadow:0 0 0 12px rgba(99,102,241,0);border-color:rgba(99,102,241,0.8);}
+}
+.ia-processing-title{font-size:18px;font-weight:700;color:var(--ia);margin-bottom:6px;}
+.ia-processing-sub{font-size:13px;color:var(--muted);}
+.ia-steps{display:flex;justify-content:center;gap:6px;margin-top:20px;flex-wrap:wrap;}
+.ia-step{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:all 0.3s;}
+.ia-step.active{background:var(--ia-l);color:var(--ia);border-color:rgba(99,102,241,0.4);}
+.ia-step.done{background:var(--green-l);color:var(--green);border-color:rgba(5,150,105,0.3);}
+
+/* ===== RESULTATS ===== */
+.results-section{display:none;margin-bottom:24px;}
+.results-section.visible{display:block;}
+
+.result-group{background:var(--surface);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+.result-group-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.result-group-title{font-family:var(--font-display);font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px;}
+.result-group-count{font-size:12px;font-family:var(--mono);}
+
+/* Couleurs groupes */
+.rg-green{border-top:3px solid var(--green);background:var(--surface);}
+.rg-green .result-group-head{background:var(--green-l);}
+.rg-green .result-group-title{color:var(--green);}
+.rg-green .result-group-count{color:var(--green);}
+
+.rg-orange{border-top:3px solid var(--amber);background:var(--surface);}
+.rg-orange .result-group-head{background:var(--amber-l);}
+.rg-orange .result-group-title{color:var(--amber);}
+.rg-orange .result-group-count{color:var(--amber);}
+
+.rg-blue{border-top:3px solid var(--blue);background:var(--surface);}
+.rg-blue .result-group-head{background:var(--blue-l);}
+.rg-blue .result-group-title{color:var(--blue);}
+.rg-blue .result-group-count{color:var(--blue);}
+
+/* Lignes de resultats */
+.result-line{display:grid;grid-template-columns:1fr 120px 120px 110px 36px;gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;}
+.result-line:last-child{border-bottom:none;}
+.result-line:hover{background:rgba(255,255,255,0.02);}
+.result-line-head{display:grid;grid-template-columns:1fr 120px 120px 110px 36px;gap:10px;padding:8px 20px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.result-line-head span{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;}
+
+.result-product{display:flex;flex-direction:column;}
+.result-product-name{font-weight:600;color:var(--text);}
+.result-product-match{font-size:11px;color:var(--muted);margin-top:2px;}
+.result-product-score{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;}
+.score-bar{height:4px;border-radius:2px;width:40px;background:var(--border);overflow:hidden;}
+.score-fill{height:100%;border-radius:2px;background:var(--green);}
+
+.result-price-input{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--mono);background:var(--surface);color:var(--text);outline:none;width:100%;text-align:right;}
+.result-price-input:focus{border-color:var(--accent);}
+
+.result-action-select{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;width:100%;cursor:pointer;}
+
+.result-del-btn{width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all 0.15s;color:var(--muted);}
+.result-del-btn:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* Bouton tout valider */
+.valider-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:24px;}
+.valider-summary{font-size:13px;color:var(--muted);}
+.valider-summary b{color:var(--text);}
+
+/* ===== HISTORIQUE ===== */
+.history-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px;}
+.history-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.history-title{font-family:var(--font-display);font-size:15px;font-weight:700;}
+
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--bg-secondary);}
+
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-encours{background:var(--amber-l);color:var(--amber);}
+.badge-extrait{background:var(--blue-l);color:var(--blue);}
+.badge-valide{background:var(--green-l);color:var(--green);}
+.badge-rejete{background:var(--red-l);color:var(--red);}
+
+.ia-chip{display:inline-flex;align-items:center;gap:6px;background:var(--ia-l);border:1px solid rgba(99,102,241,0.3);color:var(--ia);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:400;transition:transform 0.3s;min-width:220px;text-align:center;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.error{background:var(--red);}
+.toast.success{background:var(--green);}
+
+.loading-state,.empty-state{padding:40px;text-align:center;color:var(--muted);font-size:13px;}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:780px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .result-line,.result-line-head{grid-template-columns:1fr 90px 90px;}
+  .result-line>:nth-child(4),.result-line>:nth-child(5),
+  .result-line-head>:nth-child(4),.result-line-head>:nth-child(5){display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ======================== SIDEBAR ======================== -->
+<nav class="sidebar">
+  <div class="sidebar-logo"><span class="logo-icon-nav">🦷</span> JADOMI LABO</div>
+  <div class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="dentistes.html" class="nav-item" data-page="dentistes"><span class="nav-icon">👥</span> Mes dentistes</a>
+    <a href="bons-livraison.html" class="nav-item" data-page="bons-livraison"><span class="nav-icon">📋</span> Bons de laboratoire</a>
+    <a href="facturation.html" class="nav-item" data-page="facturation"><span class="nav-icon">💰</span> Facturation</a>
+    <a href="stock.html" class="nav-item" data-page="stock"><span class="nav-icon">📦</span> Stock &amp; Matériaux</a>
+    <a href="catalogue.html" class="nav-item" data-page="catalogue"><span class="nav-icon">📊</span> Catalogue</a>
+    <a href="import-grille.html" class="nav-item active" data-page="import-grille"><span class="nav-icon">📥</span> Import grille</a>
+    <a href="profil-labo.html" class="nav-item" data-page="profil-labo"><span class="nav-icon">⚙️</span> Paramètres labo</a>
+  </div>
+</nav>
+
+<!-- ======================== MAIN ======================== -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="page-title">Import grille tarifaire</div>
+      <div class="ia-chip">✨ JADOMI IA</div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost btn-sm" onclick="deconnexion()">Deconnexion</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== UPLOAD ZONE ===== -->
+    <div class="upload-section">
+      <div class="upload-zone" id="upload-zone"
+           ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="file-input" accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp"
+               onchange="onFileSelected(event)">
+        <span class="upload-icon">📂</span>
+        <div class="upload-title">Deposez votre grille tarifaire</div>
+        <div class="upload-sub">
+          Glissez-deposez votre fichier ici, ou cliquez pour parcourir<br>
+          JADOMI IA extrait et analyse automatiquement vos tarifs
+        </div>
+        <div class="upload-formats">
+          <span class="fmt-chip">PDF</span>
+          <span class="fmt-chip">XLSX</span>
+          <span class="fmt-chip">CSV</span>
+          <span class="fmt-chip">PNG</span>
+          <span class="fmt-chip">JPG</span>
+          <span class="fmt-chip">WEBP</span>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--muted);">Taille max : 20 Mo</div>
+      </div>
+    </div>
+
+    <!-- ===== IA EN TRAITEMENT ===== -->
+    <div class="ia-processing" id="ia-processing">
+      <div class="ia-logo-anim">✨</div>
+      <div class="ia-processing-title">JADOMI IA analyse votre grille...</div>
+      <div class="ia-processing-sub" id="ia-processing-sub">Extraction des donnees en cours, cela peut prendre quelques instants.</div>
+      <div class="ia-steps">
+        <div class="ia-step" id="step-upload">Envoi du fichier</div>
+        <div class="ia-step" id="step-extract">Extraction IA</div>
+        <div class="ia-step" id="step-match">Correspondances</div>
+        <div class="ia-step" id="step-done">Finalisation</div>
+      </div>
+    </div>
+
+    <!-- ===== RESULTATS ===== -->
+    <div class="results-section" id="results-section">
+
+      <!-- Barre de validation -->
+      <div class="valider-section" id="valider-bar">
+        <div class="valider-summary">
+          <b id="val-total">0</b> produits extraits &nbsp;·&nbsp;
+          <b style="color:var(--green)" id="val-auto">0</b> correspondances auto &nbsp;·&nbsp;
+          <b style="color:var(--amber)" id="val-verif">0</b> a verifier &nbsp;·&nbsp;
+          <b style="color:var(--blue)" id="val-new">0</b> nouveaux
+        </div>
+        <button class="btn btn-green" id="btn-tout-valider" onclick="toutValider()">
+          <span>✅</span> Tout valider
+        </button>
+      </div>
+
+      <!-- Groupe 1 : Matches auto (vert) -->
+      <div class="result-group rg-green" id="group-auto">
+        <div class="result-group-head">
+          <div class="result-group-title">
+            <span>✅</span>
+            Correspondances automatiques
+          </div>
+          <span class="result-group-count" id="count-auto">0 produit</span>
+        </div>
+        <div id="lines-auto"></div>
+      </div>
+
+      <!-- Groupe 2 : A verifier (orange) -->
+      <div class="result-group rg-orange" id="group-verif">
+        <div class="result-group-head">
+          <div class="result-group-title">
+            <span>⚠️</span>
+            A verifier
+          </div>
+          <span class="result-group-count" id="count-verif">0 produit</span>
+        </div>
+        <div id="lines-verif"></div>
+      </div>
+
+      <!-- Groupe 3 : Nouveaux (bleu) -->
+      <div class="result-group rg-blue" id="group-new">
+        <div class="result-group-head">
+          <div class="result-group-title">
+            <span>✦</span>
+            Nouveaux produits
+          </div>
+          <span class="result-group-count" id="count-new">0 produit</span>
+        </div>
+        <div id="lines-new"></div>
+      </div>
+
+    </div>
+
+    <!-- ===== HISTORIQUE IMPORTS ===== -->
+    <div class="history-section">
+      <div class="history-head">
+        <div>
+          <div class="history-title">Historique des imports</div>
+        </div>
+        <span id="history-count" style="font-size:12px;color:var(--muted);font-family:var(--mono);">—</span>
+      </div>
+      <div id="history-body">
+        <div class="loading-state"><div class="spinner"></div><br>Chargement...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ======================== TOAST ======================== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG SUPABASE + AUTH
+// ============================================================
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+let db;
+try { const { createClient } = supabase; db = createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+let currentToken = null;
+let currentSocieteId = null;
+let currentImportId = null;
+let currentLines = []; // [{id, nom, prix, action, score, produit_existant_id, groupe}]
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  currentToken = await getToken();
+  currentSocieteId = getSocieteId();
+  if (!currentToken) { window.location.href = '/login.html'; return; }
+  await Promise.all([chargerProfil(), chargerHistorique()]);
+}
+
+async function getToken() {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session?.access_token) return session.access_token;
+  } catch(e) {}
+  const s = localStorage.getItem('jadomi_session');
+  if (s) { try { return JSON.parse(s).token || null; } catch(e) {} }
+  return null;
+}
+
+function getSocieteId() {
+  return localStorage.getItem('selectedSocieteId') || localStorage.getItem('societe_active_id') || '';
+}
+
+function apiHeaders() {
+  const h = { 'Authorization': 'Bearer ' + currentToken };
+  if (currentSocieteId) h['X-Societe-Id'] = currentSocieteId;
+  return h;
+}
+
+async function deconnexion() {
+  try { await db.auth.signOut(); } catch(e) {}
+  localStorage.removeItem('jadomi_session');
+  window.location.href = '/login.html';
+}
+
+// ============================================================
+// PROFIL
+// ============================================================
+async function chargerProfil() {
+  try {
+    const r = await fetch('/api/labo/profil', { headers: { ...apiHeaders(), 'Content-Type': 'application/json' } });
+    if (!r.ok) return;
+    const d = await r.json();
+    const p = d.prothesiste || d;
+    document.getElementById('labo-nom').textContent = p.nom_labo || p.nom || 'Mon laboratoire';
+    document.getElementById('labo-pseudo').textContent = p.pseudo || 'PROTH-????';
+  } catch(e) {}
+}
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  const files = e.dataTransfer?.files;
+  if (files && files.length > 0) traiterFichier(files[0]);
+}
+
+function onFileSelected(e) {
+  const file = e.target.files[0];
+  if (file) traiterFichier(file);
+}
+
+// ============================================================
+// UPLOAD + EXTRACTION IA
+// ============================================================
+async function traiterFichier(file) {
+  // Validation taille
+  if (file.size > 20 * 1024 * 1024) {
+    showToast('Fichier trop volumineux. Maximum 20 Mo autorise.', true);
+    return;
+  }
+
+  // Validation format
+  const ext = file.name.split('.').pop().toLowerCase();
+  const formatsOk = ['pdf', 'xlsx', 'xls', 'csv', 'png', 'jpg', 'jpeg', 'webp'];
+  if (!formatsOk.includes(ext)) {
+    showToast('Format non supporte. Utilisez PDF, XLSX, CSV ou image.', true);
+    return;
+  }
+
+  // Masquer zone upload, afficher processing
+  document.getElementById('upload-zone').style.opacity = '0.5';
+  document.getElementById('upload-zone').style.pointerEvents = 'none';
+  afficherProcessing(true);
+  setStep('upload');
+  document.getElementById('ia-processing-sub').textContent = `Envoi de "${file.name}"...`;
+
+  try {
+    // Construire FormData
+    const formData = new FormData();
+    formData.append('fichier', file);
+
+    await delay(500);
+    setStep('extract');
+    document.getElementById('ia-processing-sub').textContent = 'JADOMI IA analyse votre grille — extraction des donnees...';
+
+    const r = await fetch('/api/labo/import-grille/upload', {
+      method: 'POST',
+      headers: apiHeaders(), // pas de Content-Type (multipart auto)
+      body: formData
+    });
+
+    await delay(600);
+    setStep('match');
+    document.getElementById('ia-processing-sub').textContent = 'Mise en correspondance avec votre catalogue...';
+    await delay(400);
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || 'Erreur ' + r.status);
+    }
+
+    const d = await r.json();
+    currentImportId = d.import_id;
+
+    setStep('done');
+    document.getElementById('ia-processing-sub').textContent = 'Analyse terminee — chargement des resultats...';
+    await delay(500);
+
+    // Charger le detail
+    await chargerDetailImport(currentImportId);
+
+    afficherProcessing(false);
+    document.getElementById('upload-zone').style.opacity = '1';
+    document.getElementById('upload-zone').style.pointerEvents = '';
+
+    // Reset input file
+    document.getElementById('file-input').value = '';
+
+    // Refresh historique
+    await chargerHistorique();
+
+    showToast('Extraction terminee : ' + (d.stats?.total_extraits || 0) + ' produits analyses', false);
+  } catch(e) {
+    afficherProcessing(false);
+    document.getElementById('upload-zone').style.opacity = '1';
+    document.getElementById('upload-zone').style.pointerEvents = '';
+    showToast('Erreur lors de l\'analyse: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// ETAPES PROCESSING
+// ============================================================
+function afficherProcessing(visible) {
+  document.getElementById('ia-processing').classList.toggle('visible', visible);
+  if (!visible) {
+    // Reset steps
+    ['upload','extract','match','done'].forEach(s => {
+      const el = document.getElementById('step-' + s);
+      el.classList.remove('active','done');
+    });
+  }
+}
+
+let currentStepIdx = -1;
+const stepOrder = ['upload', 'extract', 'match', 'done'];
+
+function setStep(stepId) {
+  const idx = stepOrder.indexOf(stepId);
+  stepOrder.forEach((s, i) => {
+    const el = document.getElementById('step-' + s);
+    el.classList.remove('active','done');
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add('active');
+  });
+}
+
+// ============================================================
+// CHARGER DETAIL IMPORT
+// ============================================================
+async function chargerDetailImport(id) {
+  try {
+    const r = await fetch('/api/labo/import-grille/' + id, {
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const d = await r.json();
+    const lignes = d.lignes || [];
+
+    // Categoriser
+    const auto = lignes.filter(l => l.action === 'match_auto');
+    const verif = lignes.filter(l => l.action === 'a_verifier');
+    const nouveaux = lignes.filter(l => l.action === 'nouveau' || l.action === 'creer');
+
+    // Sauvegarder pour validation
+    currentLines = lignes.map(l => ({
+      id: l.id,
+      nom: l.nom_extrait,
+      prix: l.prix_extrait,
+      action: l.action,
+      score: l.score_match,
+      produit_existant_id: l.produit_existant_id,
+      prix_override: null,
+      ignore: false,
+      groupe: auto.includes(l) ? 'auto' : (verif.includes(l) ? 'verif' : 'new')
+    }));
+
+    // Update stats
+    document.getElementById('val-total').textContent = lignes.length;
+    document.getElementById('val-auto').textContent = auto.length;
+    document.getElementById('val-verif').textContent = verif.length;
+    document.getElementById('val-new').textContent = nouveaux.length;
+
+    // Render groupes
+    rendreGroupe('auto', auto, 'count-auto', 'lines-auto', 'match_valide');
+    rendreGroupe('verif', verif, 'count-verif', 'lines-verif', 'match_valide');
+    rendreGroupe('new', nouveaux, 'count-new', 'lines-new', 'creer');
+
+    // Afficher
+    document.getElementById('results-section').classList.add('visible');
+    document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    showToast('Erreur chargement resultats: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// RENDER GROUPE
+// ============================================================
+function rendreGroupe(groupe, lignes, countId, bodyId, defaultAction) {
+  const n = lignes.length;
+  document.getElementById(countId).textContent = n + ' produit' + (n > 1 ? 's' : '');
+
+  if (n === 0) {
+    document.getElementById(bodyId).innerHTML = '<div class="empty-state" style="padding:20px;">Aucun produit dans cette categorie</div>';
+    return;
+  }
+
+  const header = `
+    <div class="result-line-head">
+      <span>Produit</span>
+      <span style="text-align:right;">Prix extrait (€ HT)</span>
+      <span style="text-align:right;">Prix a appliquer (€ HT)</span>
+      <span>Action</span>
+      <span></span>
+    </div>
+  `;
+
+  const rows = lignes.map((l, i) => {
+    const score = l.score_match != null ? Math.round(l.score_match * 100) : null;
+    const produitExistant = l.catalogue_produits || {};
+    const nomExistant = produitExistant.nom ? ` → ${produitExistant.nom}` : '';
+    const prixActuel = produitExistant.prix_unitaire ? ` (actuel: ${formatEur(produitExistant.prix_unitaire)})` : '';
+
+    const scoreHtml = score != null ? `
+      <div class="result-product-score">
+        <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${score>=80?'var(--green)':score>=50?'var(--amber)':'var(--red)'}"></div></div>
+        <span style="color:${score>=80?'var(--green)':score>=50?'var(--amber)':'var(--red)'}">${score}%</span>
+      </div>
+    ` : '';
+
+    const actionOptions = groupe === 'new'
+      ? `<option value="creer">Creer</option><option value="ignore">Ignorer</option>`
+      : `<option value="match_valide">Mettre a jour</option><option value="ignore">Ignorer</option>`;
+
+    return `
+      <div class="result-line" id="result-line-${l.id}">
+        <div class="result-product">
+          <div class="result-product-name">${esc(l.nom_extrait || '—')}</div>
+          <div class="result-product-match" style="display:${nomExistant ? 'block' : 'none'}">${esc(nomExistant)}${esc(prixActuel)}</div>
+          ${scoreHtml}
+        </div>
+        <div>
+          <input type="number" class="result-price-input" value="${l.prix_extrait != null ? l.prix_extrait : ''}"
+                 placeholder="—" step="0.01" min="0" readonly
+                 style="color:var(--muted);background:var(--bg);">
+        </div>
+        <div>
+          <input type="number" class="result-price-input" id="prix-override-${l.id}"
+                 value="${l.prix_extrait != null ? l.prix_extrait : ''}"
+                 placeholder="Prix a appliquer" step="0.01" min="0"
+                 oninput="setPrixOverride('${l.id}', this.value)">
+        </div>
+        <div>
+          <select class="result-action-select" id="action-${l.id}" onchange="setAction('${l.id}', this.value)">
+            ${actionOptions}
+          </select>
+        </div>
+        <div>
+          <button class="result-del-btn" title="Ignorer cette ligne" onclick="ignorerLigne('${l.id}')">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById(bodyId).innerHTML = header + rows;
+}
+
+// ============================================================
+// ACTIONS LIGNES
+// ============================================================
+function setPrixOverride(lineId, val) {
+  const line = currentLines.find(l => l.id == lineId);
+  if (line) line.prix_override = val !== '' ? parseFloat(val) : null;
+}
+
+function setAction(lineId, action) {
+  const line = currentLines.find(l => l.id == lineId);
+  if (line) line.action = action;
+}
+
+function ignorerLigne(lineId) {
+  const line = currentLines.find(l => l.id == lineId);
+  if (line) {
+    line.ignore = true;
+    line.action = 'ignore';
+    // Griser visuellement
+    const el = document.getElementById('result-line-' + lineId);
+    if (el) { el.style.opacity = '0.35'; el.style.pointerEvents = 'none'; }
+    const sel = document.getElementById('action-' + lineId);
+    if (sel) sel.value = 'ignore';
+  }
+}
+
+// ============================================================
+// TOUT VALIDER
+// ============================================================
+async function toutValider() {
+  if (!currentImportId) { showToast('Aucun import actif', true); return; }
+
+  const btn = document.getElementById('btn-tout-valider');
+  btn.disabled = true;
+  btn.textContent = 'Validation en cours...';
+
+  try {
+    const lignesValidees = currentLines.map(l => ({
+      id: l.id,
+      action: l.action || (l.groupe === 'new' ? 'creer' : 'match_valide'),
+      prix_override: l.prix_override
+    }));
+
+    const r = await fetch('/api/labo/import-grille/' + currentImportId + '/valider', {
+      method: 'POST',
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lignes_validees: lignesValidees })
+    });
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || 'Erreur ' + r.status);
+    }
+
+    const d = await r.json();
+    showToast(`Import valide : ${d.updated || 0} produit(s) mis a jour, ${d.created || 0} cree(s)`, false);
+
+    // Cacher les resultats
+    document.getElementById('results-section').classList.remove('visible');
+    currentImportId = null;
+    currentLines = [];
+
+    // Refresh historique
+    await chargerHistorique();
+  } catch(e) {
+    showToast('Erreur validation: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>✅</span> Tout valider';
+  }
+}
+
+// ============================================================
+// HISTORIQUE
+// ============================================================
+async function chargerHistorique() {
+  const body = document.getElementById('history-body');
+  try {
+    const r = await fetch('/api/labo/import-grille', {
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    const d = await r.json();
+    const imports = d.imports || [];
+    document.getElementById('history-count').textContent = imports.length + ' import' + (imports.length > 1 ? 's' : '');
+
+    if (imports.length === 0) {
+      body.innerHTML = '<div class="empty-state">Aucun import effectue</div>';
+      return;
+    }
+
+    const rows = imports.map(imp => {
+      const ext = (imp.type_fichier || '').toUpperCase();
+      return `
+        <tr>
+          <td>${formatDate(imp.created_at)}</td>
+          <td><span style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:3px 7px;border-radius:4px;">${esc(ext || '?')}</span></td>
+          <td>
+            ${imp.produits_extraits != null ? imp.produits_extraits + ' extraits' : '—'}
+            ${imp.produits_matches != null ? ` · ${imp.produits_matches} matches` : ''}
+            ${imp.produits_nouveaux != null ? ` · ${imp.produits_nouveaux} nouveaux` : ''}
+          </td>
+          <td><span class="badge badge-${imp.statut || 'encours'}">${labelStatutImport(imp.statut)}</span></td>
+          <td>
+            ${imp.statut === 'extrait' ? `<button class="btn btn-ghost btn-sm" onclick="rechargerImport('${imp.id}')">Reprendre</button>` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    body.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Resultats</th>
+            <th>Statut</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div class="empty-state" style="color:var(--red);">Erreur: ${e.message}</div>`;
+  }
+}
+
+async function rechargerImport(id) {
+  currentImportId = id;
+  afficherProcessing(true);
+  setStep('match');
+  document.getElementById('ia-processing-sub').textContent = 'Reprise de l\'import...';
+  await delay(400);
+  await chargerDetailImport(id);
+  afficherProcessing(false);
+}
+
+function labelStatutImport(s) {
+  const labels = { en_cours: 'En cours', extrait: 'Extrait', valide: 'Valide', rejete: 'Rejete' };
+  return labels[s] || s || '—';
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function formatEur(v) {
+  if (v == null || isNaN(v)) return '—';
+  return Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function formatDate(s) {
+  if (!s) return '—';
+  try {
+    return new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch(e) { return s; }
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : ' success') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3500);
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>
