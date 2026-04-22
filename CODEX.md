@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 28 — Device Mockups + Video Demo Integration
+**Derniere passe** : Passe 29 — Refacto Metiers Premium + Paramedical + Terminologie
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -172,6 +172,22 @@ Composant device-mockup.js auto-injectable (MacBook 3D + Browser window).
   (video MP4 dans device frame avec play button + poster fallback).
 - Scripts generation : capture-slides.js (Puppeteer) + generate-demo-videos.js
   (FFmpeg) pour generer les MP4 a partir des slides HTML.
+
+## 2.16 Refacto Metiers Premium + Paramedical (Passe 29)
+Repositionnement strategique en 5 groupes metiers :
+1. Medical premium (chirurgiens-dentistes, orthodontistes, prothesistes
+   dentaires) — terminologie corrigee, 3 landings dediees
+2. Paramedical (kines, osteos, podologues, orthophonistes, psychomot,
+   dieteticiens, sages-femmes, IDEL) — NOUVEAU GROUPE, landing dediee
+   avec 8 sous-specialites et ton medical respectueux
+3. Juridique (avocats) — inchange
+4. Gestion/Artisanat (SCI, createurs, BTP) — inchange
+5. Services & Bien-etre (coiffure, beaute, onglerie, esthetique, massage)
+   — recentre SANS paramedicaux
+Hub refait avec 5 sections groupees + Medical dropdown dans nav.
+Redirections 301 : /dentistes, /prothesistes, /coiffeurs.
+6 nouvelles photos DALL-E 3 (ortho, paramedical, bien-etre + renommages).
+Coach enrichi : contextes orthodontiste + paramedical ajoutes.
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -424,6 +440,28 @@ Chaque landing : hero Ken Burns + slider prestige 5 slides + pain points
 coherent. Cout : ~1.12 USD.
 server.js : 7 routes metier + route /assets statique ajoutees.
 
+## Passe 28 (23 avril 2026) -- Device Mockups MacBook/Browser + Video Demo
+Fichiers crees : public/js/device-mockup.js, scripts/capture-slides.js,
+scripts/generate-demo-videos.js. Slider prestige wrappe dans MacBook 3D
+frame (avocats, dentistes, btp, prothesistes) ou Browser window (coiffeurs,
+sci, createurs). Section video demo ajoutee entre hero et pain points.
+Composant auto-injectable avec parallax scroll.
+
+## Passe 29 (23 avril 2026) -- Refacto Metiers Premium + Paramedical
+Fichiers crees (5 nouvelles landings + hub refait) :
+- public/chirurgiens-dentistes.html (1064 l, rename de dentistes)
+- public/orthodontistes.html (1074 l, NOUVEAU)
+- public/prothesistes-dentaires.html (1105 l, rename de prothesistes)
+- public/professions-paramedicales.html (1162 l, NOUVEAU, 8 specialites)
+- public/services-bien-etre.html (1137 l, remplace coiffeurs, recentre)
+- public/landing.html (555 l, refait avec 5 groupes hierarchie)
+6 nouvelles photos DALL-E 3 (orthodontistes, paramedicaux, bien-etre).
+Hub restructure : Medical premium (3 XL) + Paramedical (1 XL) + Juridique
++ Gestion/Artisanat (3) + Bien-etre (1 XL). Nav dropdown Medical.
+Redirections 301 : /dentistes, /prothesistes, /coiffeurs.
+Terminologie corrigee : Dentiste → Chirurgien-dentiste.
+Coach : contextes orthodontiste + paramedical ajoutes.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -442,6 +480,8 @@ server.js : 7 routes metier + route /assets statique ajoutees.
 12. **Coach JADOMI personnalise** -- Onboarding et tooltips adaptes par profession pour maximiser adoption. Inspire de Notion/Linear/Stripe.
 13. **JADOMI Cinematic** -- Positionnement visuel premium noir+or, landing page fusionnant Linear/Stripe/Notion/Framer/Apple.
 14. **Landings par metier > Landing mixte** -- Message cible = conversion x3. Strategie Stripe/Shopify/Notion validee. 1 page par audience.
+15. **Segmentation respectueuse** -- Kine ≠ coiffeur. Paramedicaux (Ordre, secret medical, CPAM) distincts du bien-etre. Signal de respect = conversion.
+16. **Terminologie correcte** -- Chirurgien-dentiste (pas dentiste). Le titre officiel du metier est un signal de credibilite.
 
 ===============================================================
 # 8. ROADMAP
@@ -457,6 +497,8 @@ server.js : 7 routes metier + route /assets statique ajoutees.
 - [x] Coach JADOMI : welcome personnalise + tooltips (Passe 25)
 - [x] Landing page cinematic + demo interactive (Passe 26)
 - [x] 7 landings metier dedies + 14 photos DALL-E 3 (Passe 27)
+- [x] Device mockups MacBook/Browser (Passe 28)
+- [x] Refacto 5 groupes metier + paramedical + terminologie (Passe 29)
 - [ ] Executer migration SQL 22-29 dans Supabase
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js
