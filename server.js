@@ -109,6 +109,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Middleware : strip .html extension et rediriger vers URL propre
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') && !req.path.startsWith('/public/') && !req.path.startsWith('/api/')) {
+    const cleanPath = req.path.replace(/\.html$/, '');
+    return res.redirect(301, cleanPath);
+  }
+  next();
+});
+
 // app.use(express.json()) deplace plus bas pour permettre raw body sur webhook stripe
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/landing.html')));
 app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')));
