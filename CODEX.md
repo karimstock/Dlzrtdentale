@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 22 avril 2026
-**Derniere passe** : Passe 24 — Wizard Avocat Premium + Video Hero + OVH + Chatbot + Espace Client + RDV
+**Derniere passe** : Passe 26 — Landing Page Cinematic jadomi.fr
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -122,6 +122,31 @@ Systeme de RDV complet : types de consultation (prix, duree, mode),
 creneaux recurrents + dates specifiques, buffer entre RDV, algorithme
 anti-double-booking, emails confirmation auto HTML + rappel 24h,
 export calendrier .ics, admin dashboard pour l'avocat.
+
+## 2.12 Coach JADOMI (Passe 25)
+Systeme d'onboarding personnalise et tooltips explicatifs ludiques
+adaptes par profession.
+- Couche 1 : Welcome modal 3 etapes (salutation titre pro, features,
+  quickwins) avec salutation Maitre/Docteur/Bonjour selon metier
+- Couche 2 : Tooltips contextuels data-coach-tip-* sur onglets sidebar,
+  boutons cles. Activable/desactivable via bouton toggle dans topbar.
+  Memorisation par user (tooltips_seen dans BDD).
+- 7 profils complets : avocat, dentiste, prothesiste, sci, coiffeur,
+  btp, default — chacun avec features, quickwins, tooltips specifiques
+- Backend : /api/coach (state, welcome-shown/completed/skipped,
+  tooltip-seen, toggle-tooltips, generate-welcome)
+
+## 2.13 Landing Page Cinematic jadomi.fr (Passe 26)
+Page vitrine publique style Linear/Stripe/Framer (1605 lignes) :
+- Hero cinematographique : typing animation, shimmer dore, particules
+- Switcher metiers (7 professions) avec auto-rotation 8s + annotations
+- Carousel 12 themes avec scroll snap
+- Animation paniers groupes scroll-driven (1/5 → 5/5 + confetti)
+- Visualisation GPO : beam rotatif + 6 fournisseurs en cercle
+- Spotlight Coach JADOMI
+- Demo interactive sans inscription (/demo.html, 935 lignes, mock data)
+- Pricing 4 tiers (29/79/179/279€)
+- Social proof + CTA final + footer 4 colonnes
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -329,6 +354,33 @@ Fichiers modifies :
 Focus : experience bluff pour epouse avocate de Karim, qualite >= archers.fr
 TODO post-deploy : executer SQL 26 + 27 + 28 dans Supabase
 
+## Passe 25 (22 avril nuit) -- Coach JADOMI (Welcome + Tooltips)
+Fichiers crees :
+- sql/vitrines/29_user_onboarding_state.sql (table etat onboarding user)
+- lib/coach/profession-contexts.js (7 profils : avocat, dentiste,
+  prothesiste, sci, coiffeur, btp, default — features, quickwins, tooltips)
+- api/coach/index.js (7 endpoints : state, welcome-shown/completed/skipped,
+  tooltip-seen, toggle-tooltips, generate-welcome)
+- public/js/coach-welcome.js (modal welcome 3 etapes auto-injectable)
+- public/js/coach-tooltips.js (systeme tooltips data-coach-tip-* attributes)
+Fichiers modifies :
+- server.js (mount /api/coach)
+- index.html (include coach scripts + data-coach-tip-id sur sidebar items)
+- organisation.html (include coach scripts)
+TODO post-deploy : executer SQL 29 dans Supabase
+
+## Passe 26 (22 avril nuit) -- Landing Page Cinematic jadomi.fr
+Fichiers crees :
+- public/landing.html (1605 lignes, landing cinematique 10 sections)
+- public/demo.html (935 lignes, demo interactive standalone mock data)
+Fichiers modifies :
+- server.js (route / → public/landing.html, /demo → public/demo.html)
+10 sections : hero typing+shimmer, switcher 7 metiers, carousel 12
+themes, animation paniers groupes scroll-driven, visualisation GPO beam,
+spotlight Coach, demo interactive, pricing 4 tiers, social proof, CTA+footer.
+Demo : mini-dashboard 4 metiers, sidebar dynamique, 15+ panels mock data.
+Qualite cible : Linear.app / Stripe.com niveau.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -344,6 +396,8 @@ TODO post-deploy : executer SQL 26 + 27 + 28 dans Supabase
 9. **Anonymat par chaine logistique** -- JADOMI controle transport, pas besoin d'anonymisation
 10. **Groupon dentaire 48h / 5 cabinets min** -- Double trigger + urgence + progression visible
 11. **UX unifiee 1 bouton 3 modes** -- Simplifier radicalement au lieu d'empiler les entrees
+12. **Coach JADOMI personnalise** -- Onboarding et tooltips adaptes par profession pour maximiser adoption. Inspire de Notion/Linear/Stripe.
+13. **JADOMI Cinematic** -- Positionnement visuel premium noir+or, landing page fusionnant Linear/Stripe/Notion/Framer/Apple.
 
 ===============================================================
 # 8. ROADMAP
@@ -356,7 +410,9 @@ TODO post-deploy : executer SQL 26 + 27 + 28 dans Supabase
 - [x] Onglet paniers groupes + Polish UX (Passe 23)
 - [x] Wizard avocat premium + Video hero + OVH (Passe 24)
 - [x] Chatbot IA + Espace client + RDV en ligne (Passe 24)
-- [ ] Executer migration SQL 22 + 23 + 24 + 25 + 26 + 27 + 28 dans Supabase
+- [x] Coach JADOMI : welcome personnalise + tooltips (Passe 25)
+- [x] Landing page cinematic + demo interactive (Passe 26)
+- [ ] Executer migration SQL 22-29 dans Supabase
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js
 - [ ] Test live avec l'epouse de Karim ce soir
@@ -401,7 +457,7 @@ TODO post-deploy : executer SQL 26 + 27 + 28 dans Supabase
 ## Bugs a corriger
 - 5 sites dupliques en BDD (garder a8ac57cc-90d2-4ca2-a16b-b288cc437620)
 - Doublons produits dans Panier intelligent
-- Migrations SQL 22-28 pas encore executees dans Supabase
+- Migrations SQL 22-29 pas encore executees dans Supabase
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
@@ -414,7 +470,7 @@ TODO post-deploy : executer SQL 26 + 27 + 28 dans Supabase
 - SQL 25 pret pour nettoyage donnees test
 
 ## TODO produit
-- Executer SQL 22 + 23 + 24 + 25 + 26 + 27 + 28 dans Supabase (priorite critique)
+- Executer SQL 22-29 dans Supabase (priorite critique)
 - Lancer node scripts/seed-suppliers-dental.js apres SQL 22
 - Lancer node scripts/seed-transport-rates.js apres SQL 24
 - Tests beta avec 5 cabinets reels
