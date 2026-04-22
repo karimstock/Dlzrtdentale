@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 22 avril 2026
-**Derniere passe** : Passe 26 — Landing Page Cinematic jadomi.fr
+**Derniere mise a jour** : 23 avril 2026
+**Derniere passe** : Passe 27 — Landings Metier Dedies + Photos IA DALL-E 3
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -147,6 +147,19 @@ Page vitrine publique style Linear/Stripe/Framer (1605 lignes) :
 - Demo interactive sans inscription (/demo.html, 935 lignes, mock data)
 - Pricing 4 tiers (29/79/179/279€)
 - Social proof + CTA final + footer 4 colonnes
+
+## 2.14 Landings Metier Dedies + Photos IA (Passe 27)
+Suite au feedback Dr Karim (landing trop fourre-tout), creation de
+7 landings metier dediees + hub minimaliste. Strategie Stripe/Shopify.
+- Hub /public/landing.html : grid 7 cards metier avec photos IA
+- 7 landings ciblees (avocats, dentistes, coiffeurs, btp, prothesistes,
+  sci, createurs) chacune avec : hero Ken Burns + slider prestige 5 slides
+  + pain points + features grid + themes + temoignage + pricing + CTA
+- 14 photos IA DALL-E 3 HD (7 heros 16:9 + 7 portraits 1:1) en WebP
+  coherentes visuellement (style cinematographique commun)
+- Couleur accent par metier : emerald, blue, rose, bronze, pink, navy, purple
+- Slider Prestige : 5 mockups interface anime auto 4.5s + dots + 3D transitions
+- Navigation sticky commune avec burger mobile
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -381,6 +394,24 @@ spotlight Coach, demo interactive, pricing 4 tiers, social proof, CTA+footer.
 Demo : mini-dashboard 4 metiers, sidebar dynamique, 15+ panels mock data.
 Qualite cible : Linear.app / Stripe.com niveau.
 
+## Passe 27 (23 avril 2026) -- Landings Metier Dedies + Photos IA
+Fichiers crees (10 fichiers, 7 689 lignes HTML + 14 photos) :
+- scripts/generate-landing-photos.js (generation DALL-E 3 automatique)
+- public/landing.html (refait : hub minimaliste 375 lignes, grid 7 cards)
+- public/avocats.html (1013 lignes, landing avocat modele)
+- public/dentistes.html (1021 lignes, landing dentiste)
+- public/coiffeurs.html (1026 lignes, landing coiffeur)
+- public/btp.html (1064 lignes, landing artisan BTP)
+- public/prothesistes.html (1062 lignes, landing prothesiste)
+- public/sci.html (1060 lignes, landing SCI)
+- public/createurs.html (1068 lignes, landing createur)
+- public/assets/landings/{7 metiers}/hero.webp + portrait.webp (14 photos)
+Chaque landing : hero Ken Burns + slider prestige 5 slides + pain points
++ features grid + themes recommandes + temoignage + pricing + CTA.
+14 photos DALL-E 3 HD generees (2.1 MB total), style cinematographique
+coherent. Cout : ~1.12 USD.
+server.js : 7 routes metier + route /assets statique ajoutees.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -398,6 +429,7 @@ Qualite cible : Linear.app / Stripe.com niveau.
 11. **UX unifiee 1 bouton 3 modes** -- Simplifier radicalement au lieu d'empiler les entrees
 12. **Coach JADOMI personnalise** -- Onboarding et tooltips adaptes par profession pour maximiser adoption. Inspire de Notion/Linear/Stripe.
 13. **JADOMI Cinematic** -- Positionnement visuel premium noir+or, landing page fusionnant Linear/Stripe/Notion/Framer/Apple.
+14. **Landings par metier > Landing mixte** -- Message cible = conversion x3. Strategie Stripe/Shopify/Notion validee. 1 page par audience.
 
 ===============================================================
 # 8. ROADMAP
@@ -412,6 +444,7 @@ Qualite cible : Linear.app / Stripe.com niveau.
 - [x] Chatbot IA + Espace client + RDV en ligne (Passe 24)
 - [x] Coach JADOMI : welcome personnalise + tooltips (Passe 25)
 - [x] Landing page cinematic + demo interactive (Passe 26)
+- [x] 7 landings metier dedies + 14 photos DALL-E 3 (Passe 27)
 - [ ] Executer migration SQL 22-29 dans Supabase
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js

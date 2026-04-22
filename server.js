@@ -114,6 +114,16 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/landing.htm
 app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')));
 app.get('/tarifs', (req, res) => res.sendFile(path.join(__dirname, 'public/tarifs.html')));
 app.get('/demo', (req, res) => res.sendFile(path.join(__dirname, 'public/demo.html')));
+// Landings metier dedies (Passe 27)
+app.get('/avocats', (req, res) => res.sendFile(path.join(__dirname, 'public/avocats.html')));
+app.get('/dentistes', (req, res) => res.sendFile(path.join(__dirname, 'public/dentistes.html')));
+app.get('/coiffeurs', (req, res) => res.sendFile(path.join(__dirname, 'public/coiffeurs.html')));
+app.get('/btp', (req, res) => res.sendFile(path.join(__dirname, 'public/btp.html')));
+app.get('/prothesistes', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesistes.html')));
+app.get('/sci', (req, res) => res.sendFile(path.join(__dirname, 'public/sci.html')));
+app.get('/createurs', (req, res) => res.sendFile(path.join(__dirname, 'public/createurs.html')));
+// Servir /assets depuis /public/assets (pour les images landings)
+app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 app.use(express.static(path.join(__dirname)));
 
 // --- Anthropic Claude client ---
