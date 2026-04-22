@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1629">
+<title>Espace Client — JADOMI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1629;--bg2:#141b2d;--bg3:#1a2238;
+  --gold:#c9a961;--gold-dim:rgba(201,169,97,.15);--gold-glow:rgba(201,169,97,.25);
+  --text:#fff;--text-dim:rgba(255,255,255,.55);--text-mid:rgba(255,255,255,.75);
+  --glass:rgba(255,255,255,.04);--glass-border:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --blue:#3b82f6;--green:#22c55e;--orange:#f59e0b;--grey:#64748b;
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.5}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;font-weight:600}
+
+/* ── Header ── */
+.header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.5rem;background:rgba(15,22,41,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--gold-dim)}
+.header-title{display:flex;align-items:center;gap:.75rem}
+.header-title h1{font-size:1.1rem;font-weight:600}
+.header-title span{color:var(--gold)}
+.btn-logout{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text-mid);padding:.45rem 1rem;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.85rem;transition:all .3s var(--ease)}
+.btn-logout:hover{background:rgba(255,255,255,.08);color:#fff}
+.user-info{display:flex;align-items:center;gap:1rem}
+.user-email{font-size:.85rem;color:var(--text-dim);display:none}
+
+/* ── Views ── */
+.view{display:none;opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.view.active{display:block;opacity:1;transform:translateY(0)}
+
+/* ── Auth View ── */
+.auth-container{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 60px);padding:2rem}
+.auth-card{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:16px;padding:2.5rem;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.auth-card h2{text-align:center;margin-bottom:.5rem;font-size:1.5rem}
+.auth-card .subtitle{text-align:center;color:var(--text-dim);margin-bottom:2rem;font-size:.9rem}
+.auth-tabs{display:flex;gap:.25rem;background:rgba(255,255,255,.05);padding:.25rem;border-radius:8px;margin-bottom:2rem}
+.auth-tab{flex:1;padding:.55rem;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:.88rem;border-radius:6px;transition:all .3s var(--ease);font-weight:500}
+.auth-tab.active{background:var(--gold);color:var(--bg);font-weight:600}
+
+/* ── Float Label Groups ── */
+.field{position:relative;margin-bottom:1.25rem}
+.field input,.field textarea{width:100%;padding:1rem .9rem .5rem;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-family:inherit;font-size:.95rem;outline:none;transition:border-color .3s var(--ease)}
+.field input:focus,.field textarea:focus{border-color:var(--gold)}
+.field label{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:.95rem;pointer-events:none;transition:all .3s var(--ease)}
+.field textarea~label{top:1rem;transform:none}
+.field input:focus~label,.field input:not(:placeholder-shown)~label,
+.field textarea:focus~label,.field textarea:not(:placeholder-shown)~label{top:.35rem;transform:none;font-size:.72rem;color:var(--gold)}
+.btn-primary{width:100%;padding:.85rem;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-family:inherit;font-size:1rem;font-weight:600;cursor:pointer;transition:all .3s var(--ease)}
+.btn-primary:hover{box-shadow:0 8px 24px var(--gold-glow);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.auth-error{background:rgba(239,68,68,.12);color:#f87171;padding:.65rem .9rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem;display:none}
+
+/* ── Dashboard ── */
+.dashboard{max-width:1100px;margin:0 auto;padding:2rem 1.5rem}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem}
+.dash-header h2{font-size:1.4rem}
+.search-box{position:relative}
+.search-box input{padding:.55rem 1rem .55rem 2.4rem;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-family:inherit;font-size:.88rem;outline:none;width:240px;transition:border-color .3s var(--ease)}
+.search-box input:focus{border-color:var(--gold)}
+.search-box::before{content:'\1F50D';position:absolute;left:.75rem;top:50%;transform:translateY(-50%);font-size:.85rem;opacity:.4}
+.dossier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem}
+.dossier-card{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:1.5rem;cursor:pointer;transition:all .4s var(--ease);position:relative;overflow:hidden}
+.dossier-card:hover{border-color:var(--gold-dim);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.dossier-card .ref{font-family:'Syne',sans-serif;font-size:.78rem;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem}
+.dossier-card .title{font-size:1.05rem;font-weight:600;margin-bottom:.75rem}
+.dossier-card .meta{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--text-dim)}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.badge.en_cours{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge.clos{background:rgba(34,197,94,.15);color:var(--green)}
+.badge.en_attente{background:rgba(245,158,11,.15);color:var(--orange)}
+.badge.archive{background:rgba(100,116,139,.15);color:var(--grey)}
+
+/* ── Empty State ── */
+.empty-state{text-align:center;padding:4rem 2rem;color:var(--text-dim)}
+.empty-state .icon{font-size:3rem;margin-bottom:1rem;opacity:.3}
+.empty-state h3{color:var(--text-mid);margin-bottom:.5rem;font-size:1.1rem}
+.empty-state p{font-size:.9rem;max-width:360px;margin:0 auto}
+
+/* ── Dossier Detail ── */
+.detail{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.back-btn{display:inline-flex;align-items:center;gap:.4rem;color:var(--text-dim);text-decoration:none;font-size:.9rem;cursor:pointer;background:none;border:none;font-family:inherit;margin-bottom:1.5rem;transition:color .3s var(--ease)}
+.back-btn:hover{color:var(--gold)}
+.detail-header{margin-bottom:2rem}
+.detail-header .ref{font-size:.8rem;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem}
+.detail-header h2{font-size:1.5rem;margin-bottom:.5rem}
+.detail-header .meta-row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+
+.tabs{display:flex;gap:.25rem;background:rgba(255,255,255,.05);padding:.25rem;border-radius:8px;margin-bottom:2rem}
+.tab-btn{flex:1;padding:.6rem;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:.88rem;border-radius:6px;transition:all .3s var(--ease);font-weight:500}
+.tab-btn.active{background:var(--gold);color:var(--bg);font-weight:600}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Documents */
+.doc-list{display:flex;flex-direction:column;gap:.75rem}
+.doc-item{display:flex;align-items:center;justify-content:space-between;background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:1rem 1.25rem;transition:all .3s var(--ease)}
+.doc-item:hover{border-color:var(--gold-dim)}
+.doc-info{display:flex;align-items:center;gap:.85rem}
+.doc-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--gold-dim);border-radius:8px;font-size:1.1rem}
+.doc-name{font-weight:500;font-size:.92rem}
+.doc-meta{font-size:.78rem;color:var(--text-dim)}
+.btn-sm{padding:.45rem .85rem;border-radius:6px;font-size:.82rem;font-family:inherit;cursor:pointer;font-weight:500;transition:all .3s var(--ease);border:none}
+.btn-download{background:var(--gold-dim);color:var(--gold)}
+.btn-download:hover{background:var(--gold);color:var(--bg)}
+.upload-zone{border:2px dashed var(--glass-border);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;transition:all .3s var(--ease);margin-top:1rem}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--gold);background:var(--gold-dim)}
+.upload-zone p{color:var(--text-dim);font-size:.9rem;margin-top:.5rem}
+.upload-zone input{display:none}
+
+/* Messages */
+.msg-thread{display:flex;flex-direction:column;gap:1rem;max-height:450px;overflow-y:auto;padding-right:.5rem;margin-bottom:1.25rem}
+.msg-thread::-webkit-scrollbar{width:4px}
+.msg-thread::-webkit-scrollbar-thumb{background:var(--glass-border);border-radius:4px}
+.msg{max-width:80%;padding:.9rem 1.1rem;border-radius:12px;font-size:.9rem;line-height:1.55;position:relative}
+.msg.client{align-self:flex-end;background:var(--gold-dim);border-bottom-right-radius:4px}
+.msg.lawyer{align-self:flex-start;background:rgba(255,255,255,.06);border-bottom-left-radius:4px}
+.msg .sender{font-size:.72rem;font-weight:600;color:var(--gold);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.05em}
+.msg .time{font-size:.72rem;color:var(--text-dim);margin-top:.35rem}
+.msg-input-row{display:flex;gap:.75rem}
+.msg-input-row input{flex:1;padding:.75rem 1rem;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-family:inherit;font-size:.9rem;outline:none;transition:border-color .3s var(--ease)}
+.msg-input-row input:focus{border-color:var(--gold)}
+.btn-send{padding:.75rem 1.5rem;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer;font-size:.9rem;transition:all .3s var(--ease)}
+.btn-send:hover{box-shadow:0 6px 20px var(--gold-glow)}
+
+/* ── Loader ── */
+.loader{display:flex;justify-content:center;padding:3rem}
+.spinner{width:32px;height:32px;border:3px solid var(--glass-border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translate(-50%,80px);background:var(--gold);color:var(--bg);padding:.75rem 1.5rem;border-radius:8px;font-weight:600;font-size:.9rem;z-index:10000;transition:transform .4s var(--ease);pointer-events:none}
+.toast.show{transform:translate(-50%,0)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .header{padding:.65rem 1rem}
+  .header-title h1{font-size:.95rem}
+  .dashboard{padding:1.5rem 1rem}
+  .dossier-grid{grid-template-columns:1fr}
+  .detail{padding:1.5rem 1rem}
+  .msg{max-width:90%}
+  .search-box input{width:180px}
+  .auth-card{padding:2rem 1.5rem;margin:0 1rem}
+}
+@media(max-width:480px){
+  .search-box{width:100%;order:3}
+  .search-box input{width:100%}
+  .dash-header{flex-direction:column;align-items:flex-start}
+  .msg-input-row{flex-direction:column}
+  .btn-send{width:100%}
+  .user-email{display:none!important}
+  .tabs{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-title">
+    <h1>Espace Client <span>—</span> <span id="cabinetName">Cabinet</span></h1>
+  </div>
+  <div class="user-info">
+    <span class="user-email" id="userEmail"></span>
+    <button class="btn-logout" id="btnLogout" style="display:none" onclick="logout()">Deconnexion</button>
+  </div>
+</header>
+
+<!-- Auth View -->
+<div class="view active" id="viewAuth">
+  <div class="auth-container">
+    <div class="auth-card">
+      <h2>Bienvenue</h2>
+      <p class="subtitle">Connectez-vous pour acceder a vos dossiers</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Connexion</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Inscription</button>
+      </div>
+
+      <div class="auth-error" id="authError"></div>
+
+      <!-- Login Form -->
+      <form id="formLogin" onsubmit="handleLogin(event)">
+        <div class="field">
+          <input type="email" id="loginEmail" placeholder=" " required autocomplete="email">
+          <label>Adresse email</label>
+        </div>
+        <div class="field">
+          <input type="password" id="loginPassword" placeholder=" " required autocomplete="current-password">
+          <label>Mot de passe</label>
+        </div>
+        <button class="btn-primary" type="submit" id="btnLogin">Se connecter</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="formRegister" style="display:none" onsubmit="handleRegister(event)">
+        <div class="field">
+          <input type="text" id="regName" placeholder=" " required autocomplete="name">
+          <label>Nom complet</label>
+        </div>
+        <div class="field">
+          <input type="email" id="regEmail" placeholder=" " required autocomplete="email">
+          <label>Adresse email</label>
+        </div>
+        <div class="field">
+          <input type="password" id="regPassword" placeholder=" " required minlength="8" autocomplete="new-password">
+          <label>Mot de passe (8 car. min.)</label>
+        </div>
+        <div class="field">
+          <input type="tel" id="regPhone" placeholder=" " autocomplete="tel">
+          <label>Telephone (optionnel)</label>
+        </div>
+        <button class="btn-primary" type="submit" id="btnRegister">Creer mon compte</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard View -->
+<div class="view" id="viewDashboard">
+  <div class="dashboard">
+    <div class="dash-header">
+      <h2>Mes dossiers</h2>
+      <div class="search-box">
+        <input type="text" placeholder="Rechercher un dossier..." id="searchInput" oninput="filterDossiers()">
+      </div>
+    </div>
+    <div id="dossierLoader" class="loader"><div class="spinner"></div></div>
+    <div class="dossier-grid" id="dossierGrid"></div>
+    <div class="empty-state" id="emptyDossiers" style="display:none">
+      <div class="icon">&#128194;</div>
+      <h3>Aucun dossier</h3>
+      <p>Vous n'avez pas encore de dossier en cours. Votre avocat creera un dossier lorsqu'un mandat sera ouvert.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Dossier Detail View -->
+<div class="view" id="viewDetail">
+  <div class="detail">
+    <button class="back-btn" onclick="showView('viewDashboard')">&#8592; Retour aux dossiers</button>
+    <div class="detail-header">
+      <div class="ref" id="detailRef"></div>
+      <h2 id="detailTitle"></h2>
+      <div class="meta-row">
+        <span class="badge" id="detailBadge"></span>
+        <span style="font-size:.85rem;color:var(--text-dim)" id="detailDate"></span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tabDocs')">Documents</button>
+      <button class="tab-btn" onclick="switchTab('tabMessages')">Messages</button>
+      <button class="tab-btn" onclick="switchTab('tabTimeline')">Historique</button>
+    </div>
+
+    <!-- Documents Tab -->
+    <div class="tab-panel active" id="tabDocs">
+      <div id="docLoader" class="loader" style="display:none"><div class="spinner"></div></div>
+      <div class="doc-list" id="docList"></div>
+      <div class="empty-state" id="emptyDocs" style="display:none">
+        <div class="icon">&#128196;</div>
+        <h3>Aucun document</h3>
+        <p>Il n'y a pas encore de document dans ce dossier.</p>
+      </div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+        <div style="font-size:1.5rem;opacity:.4">&#8593;</div>
+        <p>Cliquez ou glissez un fichier pour l'envoyer</p>
+        <input type="file" id="fileInput" onchange="handleUpload(this.files[0])">
+      </div>
+    </div>
+
+    <!-- Messages Tab -->
+    <div class="tab-panel" id="tabMessages">
+      <div class="msg-thread" id="msgThread"></div>
+      <div class="empty-state" id="emptyMessages" style="display:none">
+        <div class="icon">&#128172;</div>
+        <h3>Aucun message</h3>
+        <p>Envoyez un premier message a votre avocat ci-dessous.</p>
+      </div>
+      <div class="msg-input-row">
+        <input type="text" id="msgInput" placeholder="Votre message..." onkeydown="if(event.key==='Enter')sendMessage()">
+        <button class="btn-send" onclick="sendMessage()">Envoyer</button>
+      </div>
+    </div>
+
+    <!-- Timeline Tab -->
+    <div class="tab-panel" id="tabTimeline">
+      <div id="timelineList" style="display:flex;flex-direction:column;gap:.5rem"></div>
+      <div class="empty-state" id="emptyTimeline" style="display:none">
+        <div class="icon">&#128337;</div>
+        <h3>Aucun evenement</h3>
+        <p>L'historique de ce dossier apparaitra ici.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ── */
+const API = '/api/client-portal';
+let token = sessionStorage.getItem('cp_token') || null;
+let dossiers = [];
+let currentDossier = null;
+
+/* ── Init ── */
+(function init() {
+  if (token) {
+    showDashboard();
+  }
+})();
+
+/* ── Auth Tabs ── */
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('formLogin').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('formRegister').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('authError').style.display = 'none';
+}
+
+/* ── Login ── */
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true; btn.textContent = 'Connexion...';
+  try {
+    const res = await apiFetch('/login', 'POST', {
+      email: document.getElementById('loginEmail').value,
+      password: document.getElementById('loginPassword').value
+    });
+    token = res.token;
+    sessionStorage.setItem('cp_token', token);
+    if (res.cabinetName) document.getElementById('cabinetName').textContent = res.cabinetName;
+    showDashboard();
+  } catch (err) {
+    showAuthError(err.message || 'Identifiants incorrects');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Se connecter';
+  }
+}
+
+/* ── Register ── */
+async function handleRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnRegister');
+  btn.disabled = true; btn.textContent = 'Creation...';
+  try {
+    const res = await apiFetch('/register', 'POST', {
+      name: document.getElementById('regName').value,
+      email: document.getElementById('regEmail').value,
+      password: document.getElementById('regPassword').value,
+      phone: document.getElementById('regPhone').value || undefined
+    });
+    token = res.token;
+    sessionStorage.setItem('cp_token', token);
+    showDashboard();
+    toast('Compte cree avec succes');
+  } catch (err) {
+    showAuthError(err.message || 'Erreur lors de l\'inscription');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Creer mon compte';
+  }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+/* ── Logout ── */
+function logout() {
+  token = null;
+  sessionStorage.removeItem('cp_token');
+  dossiers = [];
+  currentDossier = null;
+  showView('viewAuth');
+  document.getElementById('btnLogout').style.display = 'none';
+  document.querySelector('.user-email').style.display = 'none';
+}
+
+/* ── Dashboard ── */
+async function showDashboard() {
+  showView('viewDashboard');
+  document.getElementById('btnLogout').style.display = 'inline-block';
+  document.getElementById('dossierLoader').style.display = 'flex';
+  document.getElementById('dossierGrid').innerHTML = '';
+  document.getElementById('emptyDossiers').style.display = 'none';
+  try {
+    const res = await apiFetch('/dossiers', 'GET');
+    dossiers = res.dossiers || res || [];
+    if (res.email) {
+      document.getElementById('userEmail').textContent = res.email;
+      document.querySelector('.user-email').style.display = 'block';
+    }
+    if (res.cabinetName) document.getElementById('cabinetName').textContent = res.cabinetName;
+    renderDossiers(dossiers);
+  } catch (err) {
+    if (err.status === 401) { logout(); return; }
+    toast('Erreur lors du chargement');
+  } finally {
+    document.getElementById('dossierLoader').style.display = 'none';
+  }
+}
+
+function renderDossiers(list) {
+  const grid = document.getElementById('dossierGrid');
+  const empty = document.getElementById('emptyDossiers');
+  grid.innerHTML = '';
+  if (!list.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'dossier-card';
+    card.onclick = () => openDossier(d.id || d._id);
+    const statusLabels = { en_cours:'En cours', clos:'Clos', en_attente:'En attente', archive:'Archive' };
+    card.innerHTML = `
+      <div class="ref">${esc(d.reference || '')}</div>
+      <div class="title">${esc(d.title || d.titre || 'Sans titre')}</div>
+      <div class="meta">
+        <span class="badge ${d.status || d.statut || ''}">${statusLabels[d.status || d.statut] || d.status || d.statut || ''}</span>
+        <span>${formatDate(d.updatedAt || d.updated_at || d.createdAt)}</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function filterDossiers() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = dossiers.filter(d =>
+    (d.reference || '').toLowerCase().includes(q) ||
+    (d.title || d.titre || '').toLowerCase().includes(q)
+  );
+  renderDossiers(filtered);
+}
+
+/* ── Dossier Detail ── */
+async function openDossier(id) {
+  showView('viewDetail');
+  switchTab('tabDocs');
+  try {
+    const res = await apiFetch(`/dossiers/${id}`, 'GET');
+    currentDossier = res.dossier || res;
+    const d = currentDossier;
+    document.getElementById('detailRef').textContent = d.reference || '';
+    document.getElementById('detailTitle').textContent = d.title || d.titre || 'Sans titre';
+    const badge = document.getElementById('detailBadge');
+    const st = d.status || d.statut || '';
+    badge.className = 'badge ' + st;
+    const statusLabels = { en_cours:'En cours', clos:'Clos', en_attente:'En attente', archive:'Archive' };
+    badge.textContent = statusLabels[st] || st;
+    document.getElementById('detailDate').textContent = 'Mis a jour le ' + formatDate(d.updatedAt || d.updated_at || d.createdAt);
+
+    renderDocuments(d.documents || []);
+    renderTimeline(d.timeline || d.events || []);
+    loadMessages(d.id || d._id);
+  } catch (err) {
+    toast('Erreur lors du chargement du dossier');
+    showView('viewDashboard');
+  }
+}
+
+/* ── Documents ── */
+function renderDocuments(docs) {
+  const list = document.getElementById('docList');
+  const empty = document.getElementById('emptyDocs');
+  list.innerHTML = '';
+  if (!docs.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  docs.forEach(doc => {
+    const item = document.createElement('div');
+    item.className = 'doc-item';
+    const ext = (doc.name || doc.filename || '').split('.').pop().toUpperCase();
+    const icons = { PDF:'\uD83D\uDCC4', DOC:'\uD83D\uDCC4', DOCX:'\uD83D\uDCC4', JPG:'\uD83D\uDDBC', PNG:'\uD83D\uDDBC', XLS:'\uD83D\uDCCA', XLSX:'\uD83D\uDCCA' };
+    item.innerHTML = `
+      <div class="doc-info">
+        <div class="doc-icon">${icons[ext] || '\uD83D\uDCC1'}</div>
+        <div>
+          <div class="doc-name">${esc(doc.name || doc.filename || 'Document')}</div>
+          <div class="doc-meta">${ext} ${doc.size ? '— ' + formatSize(doc.size) : ''} ${doc.createdAt ? '— ' + formatDate(doc.createdAt) : ''}</div>
+        </div>
+      </div>
+      <button class="btn-sm btn-download" onclick="downloadDoc('${doc.id || doc._id}')">Telecharger</button>`;
+    list.appendChild(item);
+  });
+}
+
+async function downloadDoc(docId) {
+  try {
+    const res = await apiFetch(`/documents/${docId}/download`, 'GET');
+    if (res.url) window.open(res.url, '_blank');
+  } catch (err) {
+    toast('Erreur lors du telechargement');
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) handleUpload(file);
+}
+
+async function handleUpload(file) {
+  if (!file || !currentDossier) return;
+  const dossierId = currentDossier.id || currentDossier._id;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    toast('Envoi en cours...');
+    const res = await fetch(`${API}/dossiers/${dossierId}/documents`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    toast('Document envoye');
+    openDossier(dossierId);
+  } catch (err) {
+    toast('Erreur lors de l\'envoi');
+  }
+  document.getElementById('fileInput').value = '';
+}
+
+/* ── Messages ── */
+async function loadMessages(dossierId) {
+  const thread = document.getElementById('msgThread');
+  const empty = document.getElementById('emptyMessages');
+  thread.innerHTML = '';
+  try {
+    const res = await apiFetch(`/dossiers/${dossierId}/messages`, 'GET');
+    const msgs = res.messages || res || [];
+    if (!msgs.length) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    msgs.forEach(m => {
+      const div = document.createElement('div');
+      const isClient = m.from === 'client' || m.sender === 'client' || m.role === 'client';
+      div.className = 'msg ' + (isClient ? 'client' : 'lawyer');
+      div.innerHTML = `
+        <div class="sender">${isClient ? 'Vous' : 'Avocat'}</div>
+        <div>${esc(m.content || m.text || m.body || '')}</div>
+        <div class="time">${formatDate(m.createdAt || m.created_at || m.date)}</div>`;
+      thread.appendChild(div);
+    });
+    thread.scrollTop = thread.scrollHeight;
+  } catch (err) {
+    // silent
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !currentDossier) return;
+  const dossierId = currentDossier.id || currentDossier._id;
+  input.value = '';
+  try {
+    await apiFetch(`/dossiers/${dossierId}/messages`, 'POST', { content: text });
+    loadMessages(dossierId);
+  } catch (err) {
+    toast('Erreur lors de l\'envoi du message');
+  }
+}
+
+/* ── Timeline ── */
+function renderTimeline(events) {
+  const list = document.getElementById('timelineList');
+  const empty = document.getElementById('emptyTimeline');
+  list.innerHTML = '';
+  if (!events.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  events.forEach(ev => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;gap:1rem;align-items:flex-start;padding:.85rem 1rem;background:var(--glass);border:1px solid var(--glass-border);border-radius:10px';
+    item.innerHTML = `
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);margin-top:.45rem;flex-shrink:0"></div>
+      <div>
+        <div style="font-size:.9rem;font-weight:500">${esc(ev.label || ev.title || ev.description || '')}</div>
+        <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">${formatDate(ev.date || ev.createdAt)}</div>
+      </div>`;
+    list.appendChild(item);
+  });
+}
+
+/* ── View Management ── */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); }
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+/* ── API Helper ── */
+async function apiFetch(path, method, body) {
+  const opts = { method, headers: {} };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(API + path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || data.error || 'Erreur serveur');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+/* ── Utilities ── */
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function formatDate(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' });
+  } catch { return d; }
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' o';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' Ko';
+  return (bytes / 1048576).toFixed(1) + ' Mo';
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
