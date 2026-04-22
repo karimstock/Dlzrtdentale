@@ -112,6 +112,7 @@ app.get('/api/health', (req, res) => {
 // app.use(express.json()) deplace plus bas pour permettre raw body sur webhook stripe
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')));
+app.get('/tarifs', (req, res) => res.sendFile(path.join(__dirname, 'public/tarifs.html')));
 app.use(express.static(path.join(__dirname)));
 
 // --- Anthropic Claude client ---
@@ -245,6 +246,61 @@ try {
   require('./api/network/index')(app);
 } catch (e) {
   console.warn('[JADOMI] Module network non charge:', e.message);
+}
+
+// === JADOMI GPO Smart Queue Auction ===
+try {
+  require('./api/gpo')(app);
+  require('./lib/gpo-scheduler'); // lance le scheduler de timeouts
+} catch (e) {
+  console.warn('[JADOMI] Module GPO non charge:', e.message);
+}
+
+// Route publique fournisseur : /supplier/offer/:token → page HTML tokenisee
+app.get('/supplier/offer/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/supplier-offer.html'));
+});
+
+// Route admin GPO
+app.get('/admin/gpo', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/admin/gpo-suppliers.html'));
+});
+
+// === JADOMI Logistique (entrepots, transport, etiquettes) ===
+try {
+  require('./api/logistics')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module Logistique non charge:', e.message);
+}
+
+// === JADOMI Groupage Regional (Groupon dentaire) ===
+try {
+  require('./api/groupage')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module Groupage non charge:', e.message);
+}
+
+// === JADOMI Mon site internet (Vitrines) ===
+try {
+  require('./api/vitrines')(app);
+} catch (e) {
+  console.warn('[JADOMI] Module vitrines non charge:', e.message);
+}
+
+// === JADOMI Client Portal (espace client securise) ===
+try {
+  app.use('/api/client-portal', require('./api/client-portal'));
+  console.log('[JADOMI] Module Client Portal monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Client Portal non charge:', e.message);
+}
+
+// === JADOMI Appointments (prise de RDV en ligne) ===
+try {
+  app.use('/api/appointments', require('./api/appointments'));
+  console.log('[JADOMI] Module Appointments monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Appointments non charge:', e.message);
 }
 
 // === JADOMI Admin Email (inbox IMAP + campagnes mailing) ===

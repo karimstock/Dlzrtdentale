@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1629">
+<title>Prendre rendez-vous — JADOMI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1629;--bg2:#141b2d;--bg3:#1a2238;
+  --gold:#c9a961;--gold-dim:rgba(201,169,97,.15);--gold-glow:rgba(201,169,97,.25);
+  --text:#fff;--text-dim:rgba(255,255,255,.55);--text-mid:rgba(255,255,255,.75);
+  --glass:rgba(255,255,255,.04);--glass-border:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.5}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;font-weight:600}
+
+/* ── Layout ── */
+.page{max-width:760px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+.page-header{text-align:center;margin-bottom:2.5rem}
+.page-header h1{font-size:1.6rem;margin-bottom:.5rem}
+.page-header p{color:var(--text-dim);font-size:.95rem}
+
+/* ── Stepper ── */
+.stepper{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:2.5rem;flex-wrap:wrap}
+.step-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:600;border:2px solid var(--glass-border);color:var(--text-dim);transition:all .4s var(--ease);flex-shrink:0}
+.step-dot.active{border-color:var(--gold);background:var(--gold);color:var(--bg)}
+.step-dot.done{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
+.step-line{width:32px;height:2px;background:var(--glass-border);transition:background .4s var(--ease)}
+.step-line.done{background:var(--gold)}
+
+/* ── Steps (shared) ── */
+.step{display:none;opacity:0;transform:translateY(16px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.step.active{display:block;opacity:1;transform:translateY(0)}
+.step h2{font-size:1.2rem;margin-bottom:.35rem}
+.step .hint{color:var(--text-dim);font-size:.88rem;margin-bottom:1.75rem}
+
+/* ── Step 1: Types ── */
+.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}
+.type-card{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:1.5rem;cursor:pointer;transition:all .4s var(--ease)}
+.type-card:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+.type-card.selected{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 8px 30px rgba(201,169,97,.12)}
+.type-card h3{font-size:1rem;margin-bottom:.65rem}
+.type-meta{display:flex;flex-wrap:wrap;gap:.6rem;font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem}
+.type-meta span{display:flex;align-items:center;gap:.3rem}
+.type-price{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:600;color:var(--gold)}
+.type-desc{font-size:.85rem;color:var(--text-dim);margin-top:.5rem;line-height:1.5}
+
+/* ── Step 2: Calendar ── */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.cal-header h3{font-size:1.05rem}
+.cal-nav{display:flex;gap:.5rem}
+.cal-nav button{width:36px;height:36px;border-radius:8px;border:1px solid var(--glass-border);background:transparent;color:#fff;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .3s var(--ease)}
+.cal-nav button:hover{border-color:var(--gold);background:var(--gold-dim)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day-label{text-align:center;font-size:.72rem;color:var(--text-dim);padding:.5rem 0;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.cal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:.88rem;cursor:default;transition:all .3s var(--ease);border:1px solid transparent;position:relative}
+.cal-cell.empty{cursor:default}
+.cal-cell.past{color:rgba(255,255,255,.15)}
+.cal-cell.available{border-color:var(--gold-dim);background:var(--gold-dim);cursor:pointer;color:#fff;font-weight:500}
+.cal-cell.available:hover{border-color:var(--gold);background:var(--gold-glow);transform:scale(1.08)}
+.cal-cell.selected{background:var(--gold)!important;color:var(--bg)!important;font-weight:700;border-color:var(--gold)}
+.cal-cell.today::after{content:'';position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--gold)}
+
+/* ── Step 3: Time Slots ── */
+.selected-date{font-size:.95rem;color:var(--gold);margin-bottom:1.5rem;font-weight:500}
+.slots-grid{display:flex;flex-wrap:wrap;gap:.65rem}
+.slot-pill{padding:.65rem 1.25rem;border-radius:24px;border:1px solid var(--glass-border);background:var(--glass);cursor:pointer;font-family:inherit;font-size:.9rem;color:#fff;font-weight:500;transition:all .3s var(--ease)}
+.slot-pill:hover{border-color:var(--gold);background:var(--gold-dim)}
+.slot-pill.selected{background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600}
+.no-slots{text-align:center;padding:3rem;color:var(--text-dim)}
+.no-slots .icon{font-size:2rem;margin-bottom:.75rem;opacity:.3}
+
+/* ── Step 4: Contact Form ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-grid .full{grid-column:1/-1}
+.field{position:relative}
+.field input,.field textarea{width:100%;padding:1rem .9rem .5rem;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-family:inherit;font-size:.95rem;outline:none;transition:border-color .3s var(--ease);resize:vertical}
+.field textarea{min-height:100px}
+.field input:focus,.field textarea:focus{border-color:var(--gold)}
+.field label{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:.95rem;pointer-events:none;transition:all .3s var(--ease)}
+.field textarea~label{top:1rem;transform:none}
+.field input:focus~label,.field input:not(:placeholder-shown)~label,
+.field textarea:focus~label,.field textarea:not(:placeholder-shown)~label{top:.35rem;transform:none;font-size:.72rem;color:var(--gold)}
+
+/* ── Buttons ── */
+.btn-row{display:flex;gap:1rem;margin-top:2rem;justify-content:flex-end}
+.btn-back{padding:.75rem 1.25rem;border-radius:8px;border:1px solid var(--glass-border);background:transparent;color:var(--text-mid);cursor:pointer;font-family:inherit;font-size:.9rem;font-weight:500;transition:all .3s var(--ease)}
+.btn-back:hover{background:rgba(255,255,255,.05)}
+.btn-next{padding:.75rem 1.75rem;border-radius:8px;border:none;background:var(--gold);color:var(--bg);cursor:pointer;font-family:inherit;font-size:.95rem;font-weight:600;transition:all .3s var(--ease)}
+.btn-next:hover{box-shadow:0 8px 24px var(--gold-glow);transform:translateY(-1px)}
+.btn-next:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ── Step 5: Confirmation ── */
+.confirm-card{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:16px;padding:2.5rem;text-align:center;position:relative;overflow:hidden}
+.confirm-card .check{width:64px;height:64px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:1.8rem;animation:popIn .6s var(--ease)}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.confirm-card h2{margin-bottom:.5rem}
+.confirm-card .sub{color:var(--text-dim);margin-bottom:2rem;font-size:.92rem}
+.confirm-details{background:rgba(0,0,0,.2);border-radius:10px;padding:1.25rem 1.5rem;text-align:left;margin-bottom:2rem;display:flex;flex-direction:column;gap:.65rem}
+.confirm-details .row{display:flex;justify-content:space-between;font-size:.9rem}
+.confirm-details .row .label{color:var(--text-dim)}
+.confirm-details .row .value{font-weight:500;text-align:right}
+.cal-links{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+.cal-link{padding:.6rem 1.1rem;border-radius:8px;border:1px solid var(--glass-border);background:transparent;color:#fff;cursor:pointer;font-family:inherit;font-size:.85rem;text-decoration:none;transition:all .3s var(--ease);display:inline-flex;align-items:center;gap:.4rem}
+.cal-link:hover{border-color:var(--gold);background:var(--gold-dim)}
+
+/* ── Confetti ── */
+.confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1000;overflow:hidden}
+.confetti{position:absolute;width:8px;height:8px;border-radius:2px;opacity:.9;animation:confettiFall 3s var(--ease) forwards}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+/* ── Loader ── */
+.loader{display:flex;justify-content:center;padding:3rem}
+.spinner{width:32px;height:32px;border:3px solid var(--glass-border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Error ── */
+.error-msg{background:rgba(239,68,68,.12);color:#f87171;padding:.65rem .9rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem;display:none}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .page{padding:1.5rem 1rem 3rem}
+  .page-header h1{font-size:1.3rem}
+  .type-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .form-grid .full{grid-column:auto}
+  .cal-cell{font-size:.78rem}
+  .btn-row{flex-direction:column}
+  .btn-back,.btn-next{width:100%;text-align:center}
+  .confirm-card{padding:1.75rem 1.25rem}
+  .slots-grid{justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Prendre rendez-vous</h1>
+    <p>Reservez votre consultation en quelques etapes</p>
+  </div>
+
+  <!-- Stepper -->
+  <div class="stepper" id="stepper">
+    <div class="step-dot active" data-s="1">1</div>
+    <div class="step-line"></div>
+    <div class="step-dot" data-s="2">2</div>
+    <div class="step-line"></div>
+    <div class="step-dot" data-s="3">3</div>
+    <div class="step-line"></div>
+    <div class="step-dot" data-s="4">4</div>
+    <div class="step-line"></div>
+    <div class="step-dot" data-s="5">5</div>
+  </div>
+
+  <!-- Step 1: Consultation Type -->
+  <div class="step active" id="step1">
+    <h2>Type de consultation</h2>
+    <p class="hint">Choisissez le type de rendez-vous souhaite</p>
+    <div id="typesLoader" class="loader"><div class="spinner"></div></div>
+    <div class="type-grid" id="typeGrid"></div>
+    <div class="error-msg" id="typesError"></div>
+    <div class="btn-row">
+      <button class="btn-next" id="btnStep1" disabled onclick="goStep(2)">Suivant</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Calendar -->
+  <div class="step" id="step2">
+    <h2>Choisir une date</h2>
+    <p class="hint">Les dates disponibles sont surlignees</p>
+    <div class="cal-header">
+      <h3 id="calMonth"></h3>
+      <div class="cal-nav">
+        <button onclick="navMonth(-1)" aria-label="Mois precedent">&#8249;</button>
+        <button onclick="navMonth(1)" aria-label="Mois suivant">&#8250;</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(1)">Retour</button>
+      <button class="btn-next" id="btnStep2" disabled onclick="goStep(3)">Suivant</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Time Slots -->
+  <div class="step" id="step3">
+    <h2>Choisir un horaire</h2>
+    <p class="hint">Selectionnez un creneau disponible</p>
+    <div class="selected-date" id="selectedDateLabel"></div>
+    <div id="slotsLoader" class="loader" style="display:none"><div class="spinner"></div></div>
+    <div class="slots-grid" id="slotsGrid"></div>
+    <div class="no-slots" id="noSlots" style="display:none">
+      <div class="icon">&#128337;</div>
+      <p>Aucun creneau disponible pour cette date. Veuillez choisir une autre date.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(2)">Retour</button>
+      <button class="btn-next" id="btnStep3" disabled onclick="goStep(4)">Suivant</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Contact Form -->
+  <div class="step" id="step4">
+    <h2>Vos coordonnees</h2>
+    <p class="hint">Renseignez vos informations pour confirmer le rendez-vous</p>
+    <div class="error-msg" id="bookError"></div>
+    <form id="contactForm" onsubmit="handleBook(event)">
+      <div class="form-grid">
+        <div class="field">
+          <input type="text" id="cName" placeholder=" " required autocomplete="name">
+          <label>Nom complet</label>
+        </div>
+        <div class="field">
+          <input type="tel" id="cPhone" placeholder=" " required autocomplete="tel">
+          <label>Telephone</label>
+        </div>
+        <div class="field full">
+          <input type="email" id="cEmail" placeholder=" " required autocomplete="email">
+          <label>Adresse email</label>
+        </div>
+        <div class="field full">
+          <textarea id="cNotes" placeholder=" " rows="3"></textarea>
+          <label>Notes ou objet de la consultation (optionnel)</label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-back" type="button" onclick="goStep(3)">Retour</button>
+        <button class="btn-next" type="submit" id="btnBook">Confirmer le rendez-vous</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Step 5: Confirmation -->
+  <div class="step" id="step5">
+    <div class="confirm-card">
+      <div class="check">&#10003;</div>
+      <h2>Rendez-vous confirme</h2>
+      <p class="sub">Un email de confirmation vous sera envoye sous peu.</p>
+      <div class="confirm-details" id="confirmDetails"></div>
+      <div class="cal-links" id="calLinks"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+const params = new URLSearchParams(window.location.search);
+const siteId = params.get('site') || '';
+const API = `/api/appointments/public/${siteId}`;
+
+let types = [];
+let selectedType = null;
+let calYear, calMonth;
+let availableDates = new Set();
+let selectedDate = null;
+let selectedSlot = null;
+let bookingResult = null;
+
+/* ── Init ── */
+(function init() {
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+  loadTypes();
+})();
+
+/* ── Step Navigation ── */
+function goStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+
+  document.querySelectorAll('.step-dot').forEach(d => {
+    const s = parseInt(d.dataset.s);
+    d.classList.remove('active', 'done');
+    if (s === n) d.classList.add('active');
+    else if (s < n) d.classList.add('done');
+  });
+  document.querySelectorAll('.step-line').forEach((l, i) => {
+    l.classList.toggle('done', i < n - 1);
+  });
+
+  if (n === 2) renderCalendar();
+  if (n === 3 && selectedDate) loadSlots(selectedDate);
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Step 1: Load Types ── */
+async function loadTypes() {
+  try {
+    const res = await apiFetch('/types');
+    types = res.types || res || [];
+    renderTypes();
+  } catch (err) {
+    document.getElementById('typesError').textContent = 'Impossible de charger les types de consultation.';
+    document.getElementById('typesError').style.display = 'block';
+  } finally {
+    document.getElementById('typesLoader').style.display = 'none';
+  }
+}
+
+function renderTypes() {
+  const grid = document.getElementById('typeGrid');
+  grid.innerHTML = '';
+  types.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'type-card';
+    card.onclick = () => selectType(t, card);
+    const modeLabels = { visio:'Visioconference', cabinet:'En cabinet', phone:'Telephone', telephone:'Telephone' };
+    card.innerHTML = `
+      <h3>${esc(t.name || t.titre || '')}</h3>
+      <div class="type-meta">
+        <span>&#9201; ${t.duration || t.duree || 30} min</span>
+        <span>&#128205; ${modeLabels[t.mode] || t.mode || 'Cabinet'}</span>
+      </div>
+      ${t.price || t.prix ? `<div class="type-price">${(t.price || t.prix)}${typeof (t.price||t.prix)==='number' ? ' \u20AC' : ''}</div>` : '<div class="type-price">Gratuit</div>'}
+      ${t.description ? `<div class="type-desc">${esc(t.description)}</div>` : ''}`;
+    grid.appendChild(card);
+  });
+}
+
+function selectType(t, card) {
+  selectedType = t;
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  document.getElementById('btnStep1').disabled = false;
+  selectedDate = null;
+  selectedSlot = null;
+}
+
+/* ── Step 2: Calendar ── */
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  const monthNames = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+  document.getElementById('calMonth').textContent = monthNames[calMonth] + ' ' + calYear;
+
+  grid.innerHTML = '';
+  const dayLabels = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  dayLabels.forEach(d => {
+    const lbl = document.createElement('div');
+    lbl.className = 'cal-day-label';
+    lbl.textContent = d;
+    grid.appendChild(lbl);
+  });
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  let startIdx = firstDay.getDay() - 1;
+  if (startIdx < 0) startIdx = 6;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < startIdx; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell empty';
+    grid.appendChild(cell);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const cell = document.createElement('div');
+    const date = new Date(calYear, calMonth, d);
+    const dateStr = fmtISO(date);
+    cell.textContent = d;
+
+    if (date < today) {
+      cell.className = 'cal-cell past';
+    } else {
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      cell.className = 'cal-cell' + (isWeekend ? '' : ' available');
+      if (date.getTime() === today.getTime()) cell.classList.add('today');
+      if (!isWeekend) {
+        cell.onclick = () => selectDate(dateStr, cell);
+      }
+    }
+
+    if (selectedDate === dateStr) cell.classList.add('selected');
+    grid.appendChild(cell);
+  }
+}
+
+function navMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  selectedDate = null;
+  document.getElementById('btnStep2').disabled = true;
+  renderCalendar();
+}
+
+function selectDate(dateStr, cell) {
+  selectedDate = dateStr;
+  selectedSlot = null;
+  document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected'));
+  cell.classList.add('selected');
+  document.getElementById('btnStep2').disabled = false;
+  document.getElementById('btnStep3').disabled = true;
+}
+
+/* ── Step 3: Time Slots ── */
+async function loadSlots(dateStr) {
+  const grid = document.getElementById('slotsGrid');
+  const noSlots = document.getElementById('noSlots');
+  const loader = document.getElementById('slotsLoader');
+  grid.innerHTML = '';
+  noSlots.style.display = 'none';
+  loader.style.display = 'flex';
+
+  const dateObj = new Date(dateStr + 'T00:00:00');
+  document.getElementById('selectedDateLabel').textContent =
+    dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  const typeId = selectedType.id || selectedType._id;
+  try {
+    const res = await apiFetch(`/slots?date=${dateStr}&typeId=${typeId}`);
+    const slots = res.slots || res || [];
+    if (!slots.length) { noSlots.style.display = 'block'; loader.style.display = 'none'; return; }
+    slots.forEach(s => {
+      const pill = document.createElement('button');
+      pill.className = 'slot-pill';
+      pill.textContent = s.time || s.start || s;
+      pill.onclick = () => selectSlot(s, pill);
+      grid.appendChild(pill);
+    });
+  } catch (err) {
+    noSlots.style.display = 'block';
+  } finally {
+    loader.style.display = 'none';
+  }
+}
+
+function selectSlot(slot, pill) {
+  selectedSlot = slot;
+  document.querySelectorAll('.slot-pill').forEach(p => p.classList.remove('selected'));
+  pill.classList.add('selected');
+  document.getElementById('btnStep3').disabled = false;
+}
+
+/* ── Step 4: Book ── */
+async function handleBook(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnBook');
+  btn.disabled = true; btn.textContent = 'Reservation en cours...';
+  document.getElementById('bookError').style.display = 'none';
+
+  try {
+    const payload = {
+      typeId: selectedType.id || selectedType._id,
+      date: selectedDate,
+      time: selectedSlot.time || selectedSlot.start || selectedSlot,
+      name: document.getElementById('cName').value,
+      email: document.getElementById('cEmail').value,
+      phone: document.getElementById('cPhone').value,
+      notes: document.getElementById('cNotes').value || undefined
+    };
+    const res = await apiFetch('/book', 'POST', payload);
+    bookingResult = { ...payload, ...res };
+    showConfirmation();
+    goStep(5);
+    launchConfetti();
+  } catch (err) {
+    const el = document.getElementById('bookError');
+    el.textContent = err.message || 'Erreur lors de la reservation. Veuillez reessayer.';
+    el.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirmer le rendez-vous';
+  }
+}
+
+/* ── Step 5: Confirmation ── */
+function showConfirmation() {
+  const b = bookingResult;
+  const dateObj = new Date(b.date + 'T00:00:00');
+  const dateFmt = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const time = b.time;
+  const modeLabels = { visio:'Visioconference', cabinet:'En cabinet', phone:'Telephone', telephone:'Telephone' };
+
+  document.getElementById('confirmDetails').innerHTML = `
+    <div class="row"><span class="label">Consultation</span><span class="value">${esc(selectedType.name || selectedType.titre)}</span></div>
+    <div class="row"><span class="label">Date</span><span class="value">${dateFmt}</span></div>
+    <div class="row"><span class="label">Heure</span><span class="value">${esc(time)}</span></div>
+    <div class="row"><span class="label">Mode</span><span class="value">${modeLabels[selectedType.mode] || selectedType.mode || 'Cabinet'}</span></div>
+    <div class="row"><span class="label">Nom</span><span class="value">${esc(b.name)}</span></div>
+    <div class="row"><span class="label">Email</span><span class="value">${esc(b.email)}</span></div>`;
+
+  // Calendar links
+  const duration = selectedType.duration || selectedType.duree || 30;
+  const startDT = new Date(`${b.date}T${time.length === 5 ? time + ':00' : time}`);
+  const endDT = new Date(startDT.getTime() + duration * 60000);
+  const title = encodeURIComponent('Consultation - ' + (selectedType.name || selectedType.titre));
+  const fmtDT = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+  const googleUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmtDT(startDT)}/${fmtDT(endDT)}`;
+  const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${fmtDT(startDT)}\nDTEND:${fmtDT(endDT)}\nSUMMARY:${decodeURIComponent(title)}\nEND:VEVENT\nEND:VCALENDAR`;
+  const icsBlob = new Blob([icsContent], { type: 'text/calendar' });
+  const icsUrl = URL.createObjectURL(icsBlob);
+
+  document.getElementById('calLinks').innerHTML = `
+    <a class="cal-link" href="${googleUrl}" target="_blank" rel="noopener">&#128197; Google Calendar</a>
+    <a class="cal-link" href="${icsUrl}" download="rendez-vous.ics">&#128197; Telecharger .ics</a>`;
+}
+
+/* ── Confetti ── */
+function launchConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+  const colors = ['#c9a961', '#3b82f6', '#22c55e', '#f59e0b', '#a78bfa', '#f472b6'];
+  for (let i = 0; i < 60; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + '%';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 1.5 + 's';
+    c.style.width = (4 + Math.random() * 8) + 'px';
+    c.style.height = (4 + Math.random() * 8) + 'px';
+    container.appendChild(c);
+  }
+  setTimeout(() => container.remove(), 4500);
+}
+
+/* ── API Helper ── */
+async function apiFetch(path, method, body) {
+  method = method || 'GET';
+  const opts = { method, headers: {} };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(API + path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || data.error || 'Erreur serveur');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+/* ── Utilities ── */
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+</script>
+</body>
+</html>
