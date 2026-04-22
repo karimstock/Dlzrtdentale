@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 27 — Landings Metier Dedies + Photos IA DALL-E 3
+**Derniere passe** : Passe 28 — Device Mockups + Video Demo Integration
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -160,6 +160,18 @@ Suite au feedback Dr Karim (landing trop fourre-tout), creation de
 - Couleur accent par metier : emerald, blue, rose, bronze, pink, navy, purple
 - Slider Prestige : 5 mockups interface anime auto 4.5s + dots + 3D transitions
 - Navigation sticky commune avec burger mobile
+
+## 2.15 Device Mockups + Video Demo (Passe 28)
+Composant device-mockup.js auto-injectable (MacBook 3D + Browser window).
+- MacBook frame : bezel noir, notch, base, reflection, shadow, parallax
+  scroll (redresse au scroll). Utilise sur avocats/dentistes/btp/prothesistes.
+- Browser frame : chrome avec 3 dots + barre URL + lock icon. Utilise
+  sur coiffeurs/sci/createurs.
+- Slider prestige wrappe dans les device frames sur les 7 landings.
+- Section video demo ajoutee entre hero et pain points sur les 7 landings
+  (video MP4 dans device frame avec play button + poster fallback).
+- Scripts generation : capture-slides.js (Puppeteer) + generate-demo-videos.js
+  (FFmpeg) pour generer les MP4 a partir des slides HTML.
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
