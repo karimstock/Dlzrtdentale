@@ -284,6 +284,8 @@ tbody tr:hover td{background:var(--surface2);}
 }
 
 </style>
+<script src="/public/js/coach-welcome.js" defer></script>
+<script src="/public/js/coach-tooltips.js" defer></script>
 </head>
 <body>
 
@@ -353,13 +355,15 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-item" id="ms-nav-wizard" onclick="location.href='wizard-societe.html'"><span class="ni">➕</span>Ajouter une société</div>
     <div class="nav-section">Cabinet</div>
     <div class="nav-item" id="nav-labo-integre" style="display:none;" onclick="location.href='/public/labo/dashboard.html'"><span class="ni">🔬</span>Mon Labo</div>
-    <div class="nav-item active" onclick="showPage('stock',this)"><span class="ni">📦</span>Stock<span class="nav-badge" id="alert-badge" style="display:none">0</span></div>
-    <div class="nav-item" onclick="showPage('analytics',this)"><span class="ni">📊</span>Analytics</div>
+    <div class="nav-item" id="nav-vitrines" style="display:none;" onclick="location.href='/public/vitrines/mon-site.html'"><span class="ni">🌐</span>Mon site internet</div>
+    <div class="nav-item active" onclick="showPage('stock',this)" data-coach-tip-id="sidebar-stock"><span class="ni">📦</span>Stock<span class="nav-badge" id="alert-badge" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('analytics',this)" data-coach-tip-id="sidebar-analytics"><span class="ni">📊</span>Analytics</div>
     <div class="nav-item" onclick="showPage('deals',this)"><span class="ni">🔥</span>Flash Deals</div>
     <div class="nav-section">Achats</div>
-    <div class="nav-item" onclick="showPage('devis',this)"><span class="ni">📋</span>Appels d'offres</div>
-    <div class="nav-item" onclick="showPage('groupe',this)"><span class="ni">⚡</span>Paniers groupés</div>
-    <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">💰</span>Comptabilité</div>
+    <div class="nav-item" onclick="showPage('devis',this)" data-coach-tip-id="sidebar-commandes"><span class="ni">📋</span>Commandes</div>
+    <div class="nav-item" onclick="showPage('groupages',this)" data-coach-tip-id="sidebar-groupes"><span class="ni">🤝</span>Paniers groupés<span class="nav-badge" id="groupages-badge" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('groupe',this)" data-coach-tip-id="sidebar-scanner"><span class="ni">📥</span>Import stock</div>
+    <div class="nav-item" onclick="showPage('compta',this)" data-coach-tip-id="sidebar-compta"><span class="ni">💰</span>Comptabilité</div>
     <div class="nav-item" onclick="showPage('communication',this)"><span class="ni">📧</span>Communication</div>
     <div class="nav-section">Communauté</div>
     <div class="nav-item" onclick="showPage('marche',this)"><span class="ni">🏪</span>Marché</div>
@@ -398,7 +402,12 @@ tbody tr:hover td{background:var(--surface2);}
       <button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button>
       <button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>
     </div>
-    <div class="topbar-icons" id="topbar-icons"></div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" onclick="toggleNotifPanel()" aria-label="Notifications">
+        <span style="font-size:18px;">🔔</span>
+        <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#f05050;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:50%;display:none;align-items:center;justify-content:center;line-height:1;">0</span>
+      </div>
+    </div>
   </div>
 
   <div class="content">
@@ -507,14 +516,25 @@ tbody tr:hover td{background:var(--surface2);}
       </div>
     </div>
 
-    <!-- COMMANDES / PANIER -->
+    <!-- COMMANDES / PANIER + APPELS D'OFFRES GPO -->
     <div class="page" id="page-devis">
-      <div class="alert alert-accent" style="margin-bottom:16px;"><span class="alert-dot"></span><span>📋 Préparez votre commande — JADOMI négocie le meilleur prix</span></div>
+      <div class="alert alert-accent" style="margin-bottom:16px;"><span class="alert-dot"></span><span>📋 Vos commandes et appels d'offres GPO</span></div>
+
+      <!-- Panier classique -->
       <div id="panier-contenu"></div>
-      <div style="margin-top:12px;">
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-accent" onclick="optimiserPanierIA()">🤖 Optimiser le panier IA</button>
       </div>
       <div id="panier-optimise" style="margin-top:16px;"></div>
+
+      <!-- Historique Appels d'offres GPO -->
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-family:var(--font-display);font-size:15px;font-weight:700;">Appels d'offres GPO</div>
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="chargerAppelsOffres()">Actualiser</button>
+        </div>
+        <div id="gpo-appels-liste"><div style="color:var(--muted);font-size:12px;padding:12px;">Chargement...</div></div>
+      </div>
     </div>
 
     <!-- IMPORT STOCK -->
@@ -530,6 +550,41 @@ tbody tr:hover td{background:var(--surface2);}
           <input type="file" id="input-import" accept=".csv,.xlsx,.xls" style="display:none;" onchange="importerFichierStock(this.files[0])">
         </div>
         <div id="import-resultat"></div>
+      </div>
+    </div>
+
+    <!-- PANIERS GROUPES -->
+    <div class="page" id="page-groupages">
+      <div style="margin-bottom:20px;">
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;">Paniers group&eacute;s r&eacute;gionaux</div>
+        <div style="color:var(--muted);font-size:12px;">Rejoignez d'autres cabinets de votre r&eacute;gion pour &eacute;conomiser jusqu'&agrave; 30%</div>
+      </div>
+      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border);">
+        <div id="gp-tab-actives" onclick="switchGpTab('actives')" style="padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);">Campagnes actives <span id="gp-count-actives">0</span></div>
+        <div id="gp-tab-moi" onclick="switchGpTab('moi')" style="padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">Mes participations</div>
+        <div id="gp-tab-histo" onclick="switchGpTab('histo')" style="padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">Historique</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="gp-filter-region" onchange="loadGroupagesPage()" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+          <option value="">Toutes les r&eacute;gions</option>
+          <option value="Hauts-de-France">Hauts-de-France</option>
+          <option value="Ile-de-France">&Icirc;le-de-France</option>
+          <option value="Auvergne-Rhone-Alpes">Auvergne-Rh&ocirc;ne-Alpes</option>
+          <option value="Nouvelle-Aquitaine">Nouvelle-Aquitaine</option>
+          <option value="Occitanie">Occitanie</option>
+          <option value="Grand Est">Grand Est</option>
+          <option value="Provence-Alpes-Cote d'Azur">PACA</option>
+          <option value="Pays de la Loire">Pays de la Loire</option>
+          <option value="Bretagne">Bretagne</option>
+          <option value="Normandie">Normandie</option>
+        </select>
+      </div>
+      <div id="gp-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
+      <div id="gp-empty" style="display:none;text-align:center;padding:40px;">
+        <div style="font-size:40px;margin-bottom:12px;">🤝</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px;">Aucune campagne active</div>
+        <div style="color:var(--muted);font-size:12px;margin-bottom:16px;">Soyez le premier &agrave; en lancer une !</div>
+        <button class="btn btn-accent" onclick="openGroupageModal()" style="font-size:13px;">+ Cr&eacute;er un panier group&eacute;</button>
       </div>
     </div>
 
@@ -1336,6 +1391,14 @@ async function msLoadSocietes() {
     const navLaboIntegre = document.getElementById('nav-labo-integre');
     if (navLaboIntegre && cabinet && cabinet.has_labo_integre) {
       navLaboIntegre.style.display = 'flex';
+    }
+
+    // Mon site internet : afficher si plan illimite ET type cabinet_dentaire ou prothesiste
+    const navVitrines = document.getElementById('nav-vitrines');
+    const VITRINES_TYPES = ['cabinet_dentaire','prothesiste','cabinet_medical','medecin','kinesitherapeute','kine','osteopathe','orthoptiste','sage_femme','cabinet_avocat','avocat','notaire','expert_comptable','architecte','salon_coiffure','coiffeur','barbier','institut_beaute','estheticienne','spa','boutique_mode','pret_a_porter','bijouterie','bijoutier','joaillerie','fleuriste','restaurant','bistrot','brasserie','traiteur','maroquinier','plombier','chauffagiste'];
+    // TODO: remettre active.plan === 'illimite' quand la facturation est en place
+    if (navVitrines && active && VITRINES_TYPES.includes(active.type)) {
+      navVitrines.style.display = 'flex';
     }
 
     // Update cabinet card bottom
@@ -2979,10 +3042,10 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',compta:'Comptabilité',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'Marché dentaire',sos:'SOS Stock',green:'JADOMI Green',suggestions:'Suggestions',documents:'Mes documents',admin:'Admin JADOMI',communication:'Communication'};
+const titles = {stock:'Stock',compta:'Comptabilit\u00e9',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupages:'Paniers group\u00e9s',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'March\u00e9 dentaire',sos:'SOS Stock',green:'JADOMI Green',suggestions:'Suggestions',documents:'Mes documents',admin:'Admin JADOMI',communication:'Communication'};
 const actions = {
-  stock:`<button class="btn btn-ghost" onclick="ouvrirPanierIntelligent()">🧠 Panier intelligent</button><button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
-  analytics:``,deals:``,devis:``,groupe:``,fournisseurs:``,green:``,suggestions:``,documents:``
+  stock:`<button class="btn btn-accent" onclick="ouvrirCommandeUnifiee()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🛒 Commander</button><button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
+  analytics:``,deals:``,devis:``,groupages:`<button class="btn btn-accent" onclick="openGroupageModal()" style="font-size:12px;">+ Nouveau panier</button>`,groupe:``,fournisseurs:``,green:``,suggestions:``,documents:``
 };
 
 function showPage(id, el) {
@@ -2996,6 +3059,8 @@ function showPage(id, el) {
   if(id==='compta') pcComptaLoadDocs();
   if(id==='suggestions') { chargerMesSuggestions(); verifierAdminSuggestions(); }
   if(id==='communication') commInit();
+  if(id==='devis') chargerAppelsOffres();
+  if(id==='groupages') loadGroupagesPage();
 }
 
 // ═══════════════════════════════════
@@ -4161,7 +4226,10 @@ async function ouvrirPanierIntelligent() {
         <div><span style="color:var(--accent);font-weight:700;">${co2} kg</span> <span style="color:var(--muted);">CO2 économisé</span></div>
       </div>
     </div>
-    ${aCommander.length?`<button onclick="panierPredictVersCommande()" style="width:100%;padding:14px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;">📧 Commander les ${aCommander.length} produits →</button>`:''}`;
+    ${aCommander.length?`
+      <button onclick="panierPredictVersCommande()" style="width:100%;padding:14px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:10px;">📧 Commander les ${aCommander.length} produits →</button>
+      <button onclick="submitGpoRequest()" style="width:100%;padding:14px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🛒 Commander via JADOMI GPO (meilleur prix)</button>
+    `:''}`;
 
   window._predictACommander=aCommander;
 }
@@ -4175,6 +4243,753 @@ function panierPredictVersCommande() {
   showPage('devis',null);
   chargerPanier();
   showToast('🧠 '+items.length+' produits ajoutés au panier');
+}
+
+// ═══════════════════════════════════
+// COMMANDE UNIFIEE 3 MODES
+// ═══════════════════════════════════
+function ouvrirCommandeUnifiee(){
+  const m=document.createElement('div');
+  m.id='uom-overlay';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease;';
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  m.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:20px;padding:32px;max-width:820px;width:100%;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);">Comment voulez-vous commander ?</div>
+      <button onclick="this.closest('#uom-overlay').remove()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;">\u2715</button>
+    </div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:24px;">JADOMI vous aide \u00e0 commander au meilleur prix</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;" id="uom-grid">
+      <div class="uom-card" onclick="document.getElementById('uom-overlay').remove();openQuickOrderFlow();" style="background:rgba(255,255,255,0.03);border:1px solid #2e2c29;border-radius:16px;padding:20px;cursor:pointer;transition:all .4s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column;min-height:300px;" onmouseover="this.style.transform='translateY(-4px)';this.style.borderColor='#c9a961';" onmouseout="this.style.transform='';this.style.borderColor='#2e2c29';">
+        <div style="font-size:36px;margin-bottom:12px;">\ud83c\udfc3</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Commande rapide</div>
+        <div style="color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:12px;">Je sais ce qu'il me faut, chez quel fournisseur</div>
+        <div style="font-size:12px;color:var(--text);flex:1;">
+          <div style="padding:3px 0;">\u2713 Fournisseur choisi manuellement</div>
+          <div style="padding:3px 0;">\u2713 Prix fournisseur habituel</div>
+          <div style="padding:3px 0;">\u2713 Commande imm\u00e9diate</div>
+        </div>
+        <div style="padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600;background:rgba(255,255,255,0.04);color:var(--muted);margin-top:12px;">Aucune optimisation</div>
+      </div>
+      <div class="uom-card" onclick="document.getElementById('uom-overlay').remove();ouvrirPanierIntelligent();" style="background:linear-gradient(135deg,rgba(201,169,97,0.06),rgba(255,255,255,0.02));border:2px solid #c9a961;border-radius:16px;padding:20px;cursor:pointer;transition:all .4s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column;min-height:300px;position:relative;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 20px 60px rgba(0,0,0,0.4)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
+        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#c9a961;color:#1a1a1a;padding:3px 12px;border-radius:50px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Recommand\u00e9</div>
+        <div style="font-size:36px;margin-bottom:12px;">\ud83e\udd16</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px;">JADOMI optimis\u00e9e</div>
+        <div style="color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:12px;">L'IA trouve le meilleur prix pour vous</div>
+        <div style="font-size:12px;color:var(--text);flex:1;">
+          <div style="padding:3px 0;">\u2713 Tarif cible -15% vs march\u00e9</div>
+          <div style="padding:3px 0;">\u2713 Queue Auction \u00e9quitable</div>
+          <div style="padding:3px 0;">\u2713 Livraison 24-48h</div>
+          <div style="padding:3px 0;">\u2713 Livraison GRATUITE si > 150\u20ac</div>
+        </div>
+        <div style="padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600;background:rgba(201,169,97,0.12);color:#c9a961;margin-top:12px;">\u00c9conomies -15%</div>
+      </div>
+      <div class="uom-card" onclick="document.getElementById('uom-overlay').remove();openGroupageModal();" style="background:rgba(255,255,255,0.03);border:1px solid rgba(34,197,94,0.3);border-radius:16px;padding:20px;cursor:pointer;transition:all .4s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column;min-height:300px;" onmouseover="this.style.transform='translateY(-4px)';this.style.borderColor='#22c55e';" onmouseout="this.style.transform='';this.style.borderColor='rgba(34,197,94,0.3)';">
+        <div style="font-size:36px;margin-bottom:12px;">\ud83e\udd1d</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Group\u00e9e r\u00e9gionale</div>
+        <div style="color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:12px;">Rejoignez d'autres cabinets pour \u00e9conomiser +</div>
+        <div style="font-size:12px;color:var(--text);flex:1;">
+          <div style="padding:3px 0;">\u2713 -15% JADOMI + -10% volume</div>
+          <div style="padding:3px 0;">\u2713 Livraison group\u00e9e CO2 r\u00e9duit</div>
+          <div style="padding:3px 0;">\u2713 Timer 48h max</div>
+          <div style="padding:3px 0;">\u2713 D\u00e9clench\u00e9 \u00e0 5 cabinets</div>
+        </div>
+        <div style="padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600;background:rgba(34,197,94,0.12);color:#22c55e;margin-top:12px;">\u00c9conomies -25%</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted);">Vous pouvez combiner plusieurs types de commandes selon vos besoins</div>
+  </div>`;
+  // Responsive : 1 col sur mobile
+  const style=document.createElement('style');
+  style.textContent='@media(max-width:768px){#uom-grid{grid-template-columns:1fr !important;}}';
+  m.appendChild(style);
+  document.body.appendChild(m);
+}
+
+function openQuickOrderFlow(){
+  showPage('devis',null);
+  showToast('Ajoutez des produits au panier puis choisissez votre fournisseur');
+}
+
+// --- GROUPAGE MODAL ---
+async function openGroupageModal(){
+  const auth=getGpoAuth();
+  const m=document.createElement('div');
+  m.id='groupage-overlay';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  m.innerHTML=`<div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:28px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Commande group\u00e9e r\u00e9gionale</div>
+      <button onclick="this.closest('#groupage-overlay').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">\u2715</button>
+    </div>
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid #2e2c29;">
+      <div id="grp-tab-join" onclick="showGrpTab('join')" style="padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);">Rejoindre un panier</div>
+      <div id="grp-tab-create" onclick="showGrpTab('create')" style="padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">Cr\u00e9er un panier</div>
+    </div>
+    <div id="grp-panel-join"><div style="color:var(--muted);font-size:12px;padding:20px;text-align:center;">Chargement des campagnes...</div></div>
+    <div id="grp-panel-create" style="display:none;">
+      <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Titre de la campagne</label><input id="grp-title" style="width:100%;padding:10px;background:#0f0e0d;border:1px solid #2e2c29;border-radius:8px;color:var(--text);font-size:13px;" placeholder="Ex: Gants + Composites Hauts-de-France"></div>
+      <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">R\u00e9gion</label><select id="grp-region" style="width:100%;padding:10px;background:#0f0e0d;border:1px solid #2e2c29;border-radius:8px;color:var(--text);font-size:13px;">
+        <option value="Hauts-de-France">Hauts-de-France</option><option value="Ile-de-France">Ile-de-France</option><option value="Auvergne-Rhone-Alpes">Auvergne-Rh\u00f4ne-Alpes</option><option value="Nouvelle-Aquitaine">Nouvelle-Aquitaine</option><option value="Occitanie">Occitanie</option><option value="Grand Est">Grand Est</option><option value="Provence-Alpes-Cote d'Azur">Provence-Alpes-C\u00f4te d'Azur</option><option value="Pays de la Loire">Pays de la Loire</option><option value="Bretagne">Bretagne</option><option value="Normandie">Normandie</option><option value="Bourgogne-Franche-Comte">Bourgogne-Franche-Comt\u00e9</option><option value="Centre-Val de Loire">Centre-Val de Loire</option><option value="Corse">Corse</option>
+      </select></div>
+      <div style="margin-bottom:12px;"><label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Minimum de cabinets</label><select id="grp-min" style="width:100%;padding:10px;background:#0f0e0d;border:1px solid #2e2c29;border-radius:8px;color:var(--text);font-size:13px;"><option value="3">3 cabinets</option><option value="5" selected>5 cabinets (recommand\u00e9)</option><option value="10">10 cabinets</option></select></div>
+      <button onclick="creerCampagneGroupage()" style="width:100%;padding:14px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:50px;font-weight:700;font-size:14px;cursor:pointer;margin-top:8px;">Lancer la campagne 48h</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  chargerCampagnesGroupage();
+}
+
+function showGrpTab(tab){
+  document.getElementById('grp-tab-join').style.color=tab==='join'?'var(--accent)':'var(--muted)';
+  document.getElementById('grp-tab-join').style.borderBottomColor=tab==='join'?'var(--accent)':'transparent';
+  document.getElementById('grp-tab-create').style.color=tab==='create'?'var(--accent)':'var(--muted)';
+  document.getElementById('grp-tab-create').style.borderBottomColor=tab==='create'?'var(--accent)':'transparent';
+  document.getElementById('grp-panel-join').style.display=tab==='join'?'block':'none';
+  document.getElementById('grp-panel-create').style.display=tab==='create'?'block':'none';
+}
+
+async function chargerCampagnesGroupage(){
+  const el=document.getElementById('grp-panel-join');
+  if(!el)return;
+  const auth=getGpoAuth();
+  try{
+    const res=await fetch('/api/groupage/campaigns?status=collecting&limit=10',{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok) throw new Error('Erreur');
+    const data=await res.json();
+    const campaigns=data.campaigns||[];
+    if(!campaigns.length){
+      el.innerHTML='<div style="text-align:center;padding:24px;"><div style="font-size:32px;margin-bottom:8px;">\ud83d\udce6</div><div style="font-size:13px;color:var(--muted);">Aucune campagne en cours dans votre r\u00e9gion.<br>Cr\u00e9ez la premi\u00e8re !</div></div>';
+      return;
+    }
+    el.innerHTML=campaigns.map(c=>{
+      const deadline=new Date(c.collection_deadline);
+      const diff=deadline-new Date();
+      const h=Math.max(0,Math.floor(diff/3600000));
+      const m=Math.max(0,Math.floor((diff%3600000)/60000));
+      const items=Array.isArray(c.suggested_items)?c.suggested_items:[];
+      const itemNames=items.slice(0,3).map(i=>i.name||'?').join(', ');
+      return `<div style="background:var(--surface2);border:1px solid #2e2c29;border-radius:12px;padding:16px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:600;font-size:13px;">${c.title}</div>
+          <div style="font-size:11px;color:#f59e0b;">\u23f0 ${h}h${String(m).padStart(2,'0')}</div>
+        </div>
+        <div style="background:#0f0e0d;border-radius:8px;height:6px;margin-bottom:8px;overflow:hidden;"><div style="height:100%;background:var(--accent);width:${Math.min(100,c.current_cabinets_count/c.min_cabinets_required*100)}%;border-radius:8px;transition:width .5s;"></div></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">${c.current_cabinets_count}/${c.min_cabinets_required} cabinets inscrits</div>
+        ${itemNames?'<div style="font-size:11px;color:var(--text);margin-bottom:8px;">'+itemNames+'</div>':''}
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:11px;color:#22c55e;font-weight:600;">\u00c9conomies estim\u00e9es : -25%</span>
+          <button onclick="rejoindreCampagne('${c.id}')" style="padding:6px 14px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-size:11px;font-weight:700;cursor:pointer;">Rejoindre</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div style="color:#f05050;font-size:12px;padding:12px;">'+e.message+'</div>';
+  }
+}
+
+async function rejoindreCampagne(campaignId){
+  const auth=getGpoAuth();
+  if(!auth.token){showToast('Veuillez vous connecter');return;}
+  try{
+    const res=await fetch('/api/groupage/campaigns/'+campaignId+'/join',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId},body:JSON.stringify({societe_id:auth.societeId})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Erreur');
+    if(data.triggered){
+      showToast('Campagne d\u00e9clench\u00e9e ! Recherche fournisseur en cours...');
+    } else {
+      showToast('Inscrit ! '+data.current_count+'/'+data.min_required+' cabinets');
+    }
+    document.getElementById('groupage-overlay')?.remove();
+    chargerAppelsOffres();
+  }catch(e){showToast(e.message);}
+}
+
+async function creerCampagneGroupage(){
+  const auth=getGpoAuth();
+  if(!auth.token){showToast('Veuillez vous connecter');return;}
+  const title=document.getElementById('grp-title')?.value.trim();
+  const region=document.getElementById('grp-region')?.value;
+  const minCabinets=parseInt(document.getElementById('grp-min')?.value)||5;
+  if(!title){showToast('Titre requis');return;}
+  try{
+    const res=await fetch('/api/groupage/campaigns',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId},body:JSON.stringify({
+      title,region,min_cabinets_required:minCabinets,societe_id:auth.societeId,deadline_hours:48
+    })});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Erreur');
+    showToast('Campagne cr\u00e9\u00e9e ! Timer 48h lanc\u00e9. Partagez avec vos confr\u00e8res.');
+    document.getElementById('groupage-overlay')?.remove();
+  }catch(e){showToast(e.message);}
+}
+
+// ═══════════════════════════════════
+// PAGE PANIERS GROUPES (onglet sidebar)
+// ═══════════════════════════════════
+let _gpCurrentTab='actives';
+
+function switchGpTab(tab){
+  _gpCurrentTab=tab;
+  ['actives','moi','histo'].forEach(t=>{
+    const el=document.getElementById('gp-tab-'+t);
+    if(el){el.style.color=t===tab?'var(--accent)':'var(--muted)';el.style.borderBottomColor=t===tab?'var(--accent)':'transparent';}
+  });
+  loadGroupagesPage();
+}
+
+async function loadGroupagesPage(){
+  const auth=getGpoAuth();
+  const grid=document.getElementById('gp-grid');
+  const empty=document.getElementById('gp-empty');
+  if(!grid)return;
+
+  grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);font-size:12px;"><div class="spinner" style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 8px;"></div>Chargement...</div>';
+
+  try{
+    const region=document.getElementById('gp-filter-region')?.value||'';
+    let statusFilter='collecting';
+    if(_gpCurrentTab==='histo') statusFilter='';
+
+    let url='/api/groupage/campaigns?limit=30';
+    if(statusFilter) url+='&status='+statusFilter;
+    if(region) url+='&region='+encodeURIComponent(region);
+
+    const res=await fetch(url,{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok) throw new Error('Erreur '+res.status);
+    const data=await res.json();
+    let campaigns=data.campaigns||[];
+
+    // Tab "Mes participations" : filtrer cote client (pas de filtre backend pour l'instant)
+    // On affiche toutes et on indique celles auxquelles on participe
+
+    document.getElementById('gp-count-actives').textContent=campaigns.filter(c=>c.status==='collecting').length;
+
+    if(!campaigns.length){
+      grid.innerHTML='';
+      if(empty) empty.style.display='block';
+      return;
+    }
+    if(empty) empty.style.display='none';
+
+    grid.innerHTML=campaigns.map(c=>renderGpCard(c)).join('');
+    updateGpTimers();
+  }catch(e){
+    grid.innerHTML='<div style="grid-column:1/-1;color:#f05050;font-size:12px;padding:20px;">'+e.message+'</div>';
+  }
+}
+
+function renderGpCard(c){
+  const progress=Math.min(100,Math.round(c.current_cabinets_count/(c.min_cabinets_required||5)*100));
+  const items=Array.isArray(c.suggested_items)?c.suggested_items:[];
+  const itemChips=items.slice(0,2).map(i=>'<span style="padding:3px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:11px;color:rgba(255,255,255,0.85);">'+(i.name||'?')+'</span>').join(' ');
+  const extra=items.length>2?'<span style="font-size:11px;color:var(--muted);">+'+(items.length-2)+' autres</span>':'';
+  const statusBadge=c.status==='collecting'?'<span style="padding:3px 8px;background:rgba(34,197,94,0.15);color:#22c55e;border-radius:50px;font-size:11px;font-weight:600;">En cours</span>':
+    c.status==='triggered'?'<span style="padding:3px 8px;background:rgba(59,130,246,0.15);color:#3b82f6;border-radius:50px;font-size:11px;font-weight:600;">Lancee</span>':
+    c.status==='cancelled'?'<span style="padding:3px 8px;background:rgba(107,103,96,0.15);color:#9a9590;border-radius:50px;font-size:11px;font-weight:600;">Expiree</span>':
+    '<span style="padding:3px 8px;background:rgba(16,185,129,0.15);color:#10b981;border-radius:50px;font-size:11px;font-weight:600;">'+c.status+'</span>';
+
+  return `<div style="background:linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));border:1px solid rgba(34,197,94,0.2);border-radius:16px;padding:20px;transition:all .4s cubic-bezier(.16,1,.3,1);" onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='rgba(34,197,94,0.5)';this.style.boxShadow='0 16px 48px rgba(34,197,94,0.12)';" onmouseout="this.style.transform='';this.style.borderColor='rgba(34,197,94,0.2)';this.style.boxShadow='';">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      ${statusBadge}
+      <span class="gp-timer" data-deadline="${c.collection_deadline}" style="font-family:monospace;font-size:12px;color:rgba(255,255,255,0.6);"></span>
+    </div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${esc(c.title)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">\ud83d\udccd ${esc(c.region||'')} \u00b7 Cree ${gpTimeAgo(c.created_at)}</div>
+    <div style="margin-bottom:12px;">
+      <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:50px;overflow:hidden;margin-bottom:4px;"><div style="height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:50px;width:${progress}%;transition:width .6s cubic-bezier(.16,1,.3,1);"></div></div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);"><strong style="color:#22c55e;">${c.current_cabinets_count}</strong> / ${c.min_cabinets_required} cabinets inscrits</div>
+    </div>
+    ${itemChips||extra?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">'+itemChips+' '+extra+'</div>':''}
+    <div style="padding:8px;background:rgba(34,197,94,0.06);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.85);margin-bottom:12px;">\ud83d\udcb0 Economies estimees : <strong style="color:#22c55e;">-${c.estimated_savings_pct||25}%</strong></div>
+    <div style="display:flex;gap:6px;">
+      ${c.status==='collecting'?'<button onclick="gpRejoindreCampagne(\''+c.id+'\')" style="flex:1;padding:10px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:12px;cursor:pointer;">Rejoindre</button><button onclick="gpInviterConfrere(\''+c.id+'\',\''+esc(c.title)+'\')" style="width:36px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:50px;cursor:pointer;font-size:14px;text-align:center;" title="Inviter un confrere">\ud83d\udce7</button>':'<div style="font-size:11px;color:var(--muted);padding:10px;">Campagne '+c.status+'</div>'}
+    </div>
+  </div>`;
+}
+
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+function gpTimeAgo(iso){
+  const diff=Date.now()-new Date(iso).getTime();
+  const m=Math.floor(diff/60000);
+  if(m<60)return'il y a '+m+'min';
+  const h=Math.floor(m/60);
+  if(h<24)return'il y a '+h+'h';
+  return'il y a '+Math.floor(h/24)+'j';
+}
+
+function updateGpTimers(){
+  document.querySelectorAll('.gp-timer').forEach(el=>{
+    const deadline=new Date(el.dataset.deadline);
+    const diff=deadline-new Date();
+    if(diff<=0){el.textContent='\u23f0 Termine';el.style.color='rgba(255,255,255,0.3)';return;}
+    const d=Math.floor(diff/86400000);
+    const h=Math.floor((diff%86400000)/3600000);
+    const m=Math.floor((diff%3600000)/60000);
+    let txt='';
+    if(d>0) txt=d+'j '+h+'h';
+    else if(h>0) txt=h+'h '+m+'min';
+    else txt=m+'min';
+    el.textContent='\u23f0 '+txt;
+    if(diff<6*3600000){el.style.color='#f59e0b';}
+  });
+}
+setInterval(updateGpTimers,1000);
+
+async function gpRejoindreCampagne(campaignId){
+  const auth=getGpoAuth();
+  if(!auth.token){showToast('Veuillez vous connecter');return;}
+  try{
+    const res=await fetch('/api/groupage/campaigns/'+campaignId+'/join',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId},body:JSON.stringify({societe_id:auth.societeId})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Erreur');
+    if(data.triggered){
+      showToast('Panier DEBLOQUE ! Recherche fournisseur en cours...');
+      gpCelebrate(true);
+    } else {
+      showToast('Inscrit ! '+data.current_count+'/'+data.min_required+' cabinets');
+      gpCelebrate(false);
+    }
+    loadGroupagesPage();
+    updateGroupagesBadge();
+  }catch(e){showToast(e.message);}
+}
+
+function gpCelebrate(isMilestone){
+  if(window.confetti){
+    window.confetti(isMilestone?{particleCount:200,spread:120,origin:{y:0.6}}:{particleCount:80,spread:70,origin:{y:0.6}});
+  }
+}
+
+function gpInviterConfrere(campaignId,title){
+  const m=document.createElement('div');
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:250;display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  m.innerHTML=`<div style="background:#1a1917;border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px;">\ud83d\udce7 Inviter un confr\u00e8re</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Campagne : ${title}</div>
+    <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Email du confr\u00e8re</label>
+    <input id="invite-email" type="email" style="width:100%;padding:10px;background:#0f0e0d;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;margin-bottom:12px;" placeholder="confrere@cabinet.fr">
+    <button onclick="gpSendInvite('${campaignId}')" style="width:100%;padding:12px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;font-size:13px;cursor:pointer;">Envoyer l'invitation</button>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+async function gpSendInvite(campaignId){
+  const email=document.getElementById('invite-email')?.value.trim();
+  if(!email){showToast('Email requis');return;}
+  const auth=getGpoAuth();
+  try{
+    const res=await fetch('/api/groupage/campaigns/'+campaignId+'/invite',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId},body:JSON.stringify({email})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Erreur');
+    showToast('Invitation envoyee a '+email);
+    document.querySelector('div[style*="z-index:250"]')?.remove();
+  }catch(e){showToast(e.message);}
+}
+
+// Badge sidebar paniers groupes
+async function updateGroupagesBadge(){
+  try{
+    const auth=getGpoAuth();
+    if(!auth.token)return;
+    const res=await fetch('/api/groupage/campaigns?status=collecting&limit=50',{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok)return;
+    const data=await res.json();
+    const count=(data.campaigns||[]).length;
+    const badge=document.getElementById('groupages-badge');
+    if(badge){
+      if(count>0){badge.textContent=count;badge.style.display='inline-flex';}
+      else{badge.style.display='none';}
+    }
+  }catch(e){}
+}
+
+// ═══════════════════════════════════
+// NOTIFICATIONS BELL
+// ═══════════════════════════════════
+let _notifPanelOpen=false;
+
+async function loadNotifCount(){
+  try{
+    const auth=getGpoAuth();
+    if(!auth.token)return;
+    const res=await fetch('/api/notifications?unread_only=true&limit=1',{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok)return;
+    const data=await res.json();
+    const count=data.unread||data.total||(data.notifications||[]).length||0;
+    const badge=document.getElementById('notif-badge');
+    if(badge){
+      if(count>0){badge.textContent=count;badge.style.display='flex';}
+      else{badge.style.display='none';}
+    }
+  }catch(e){}
+}
+
+function toggleNotifPanel(){
+  if(_notifPanelOpen){
+    document.getElementById('notif-panel')?.remove();
+    _notifPanelOpen=false;
+    return;
+  }
+  _notifPanelOpen=true;
+  const panel=document.createElement('div');
+  panel.id='notif-panel';
+  panel.style.cssText='position:absolute;top:50px;right:16px;width:340px;max-height:400px;overflow-y:auto;background:#1a1917;border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,0.5);z-index:300;padding:12px;';
+  panel.innerHTML='<div style="font-weight:700;font-size:13px;margin-bottom:8px;">Notifications</div><div id="notif-list" style="font-size:12px;color:var(--muted);">Chargement...</div>';
+  document.querySelector('.topbar')?.appendChild(panel);
+  // Click outside to close
+  setTimeout(()=>{
+    const handler=e=>{if(!panel.contains(e.target)&&!e.target.closest('.topbar-icons')){panel.remove();_notifPanelOpen=false;document.removeEventListener('click',handler);}};
+    document.addEventListener('click',handler);
+  },100);
+  loadNotifList();
+}
+
+async function loadNotifList(){
+  const el=document.getElementById('notif-list');
+  if(!el)return;
+  try{
+    const auth=getGpoAuth();
+    const res=await fetch('/api/notifications?limit=20',{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok){el.textContent='Erreur chargement';return;}
+    const data=await res.json();
+    const notifs=data.notifications||[];
+    if(!notifs.length){el.textContent='Aucune notification';return;}
+    el.innerHTML=notifs.map(n=>{
+      const date=new Date(n.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const bg=n.lu?'transparent':'rgba(16,185,129,0.04)';
+      return '<div style="padding:8px;background:'+bg+';border-radius:8px;margin-bottom:4px;cursor:pointer;" onclick="markNotifRead(\''+n.id+'\')"><div style="font-weight:'+(n.lu?'400':'600')+';color:var(--text);font-size:12px;">'+esc(n.titre)+'</div>'+(n.message?'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+esc(n.message)+'</div>':'')+'<div style="font-size:10px;color:var(--muted);margin-top:2px;">'+date+'</div></div>';
+    }).join('');
+  }catch(e){el.textContent='Erreur';}
+}
+
+async function markNotifRead(id){
+  try{
+    const auth=getGpoAuth();
+    await fetch('/api/notifications/'+id+'/read',{method:'POST',headers:{'Authorization':'Bearer '+auth.token}});
+    loadNotifCount();
+    loadNotifList();
+  }catch(e){}
+}
+
+// Init au chargement
+setTimeout(()=>{updateGroupagesBadge();loadNotifCount();},2000);
+setInterval(()=>{updateGroupagesBadge();loadNotifCount();},30000);
+
+// ═══════════════════════════════════
+// GPO SMART QUEUE
+// ═══════════════════════════════════
+// Helper : recuperer le token Supabase + societe_id fiables
+function getGpoAuth() {
+  // 1. Priorite : window.jadomiMultiSocietes (set par le loader multi-societes)
+  const ms = window.jadomiMultiSocietes || {};
+  let token = ms.token || '';
+  let societeId = ms.active?.id || '';
+
+  // 2. Fallback : jadomi_session localStorage
+  if (!token) {
+    try {
+      const sess = JSON.parse(localStorage.getItem('jadomi_session') || '{}');
+      token = sess.access_token || sess.token || '';
+      if (!societeId) societeId = sess.societe_id || sess.id || '';
+    } catch(e) {}
+  }
+
+  // 3. Fallback : cle Supabase sb-xxx-auth-token dans localStorage
+  if (!token) {
+    try {
+      const sbKey = Object.keys(localStorage).find(k => k.includes('sb-') && k.includes('auth-token'));
+      if (sbKey) {
+        const sbData = JSON.parse(localStorage.getItem(sbKey));
+        token = sbData?.access_token || '';
+      }
+    } catch(e) {}
+  }
+
+  // 4. Fallback societe_id
+  if (!societeId) {
+    societeId = localStorage.getItem('societe_active_id') || localStorage.getItem('selectedSocieteId') || '';
+  }
+
+  return { token, societeId };
+}
+
+async function submitGpoRequest() {
+  const items=window._predictACommander||[];
+  if(!items.length){showToast('Panier vide');return;}
+  const { token, societeId } = getGpoAuth();
+  if(!token||!societeId){showToast('Veuillez vous reconnecter');return;}
+
+  document.querySelector('div[style*="z-index:200"]')?.remove();
+
+  const modal=document.createElement('div');
+  modal.id='gpo-tracking-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML=`<div style="background:#1a1917;border:1px solid var(--border);border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--accent);">🛒 JADOMI GPO</div>
+      <button onclick="fermerGpoTracking()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="gpo-status" style="text-align:center;padding:20px;">
+      <div class="spinner" style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 12px;"></div>
+      <div style="font-weight:600;color:var(--accent);margin-bottom:4px;">Envoi de la demande...</div>
+      <div style="font-size:12px;color:var(--muted);">Recherche du meilleur fournisseur en cours</div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+
+  try {
+    const res=await fetch('/api/gpo/requests',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':societeId},body:JSON.stringify({
+      societe_id:societeId,
+      items:items.map(p=>({name:p.nom,quantity:p.qte_recommandee||1,category:'Dentaire'})),
+      prefer_local:true
+    })});
+    const data=await res.json();
+
+    if(!res.ok){
+      document.getElementById('gpo-status').innerHTML='<div style="color:#f05050;font-weight:600;">Erreur : '+(data.error||'Reessayez')+'</div>';
+      return;
+    }
+
+    if(data.status==='failed'){
+      document.getElementById('gpo-status').innerHTML='<div style="font-size:32px;margin-bottom:8px;">\ud83d\ude14</div><div style="color:#f05050;font-weight:600;">Aucun fournisseur disponible</div><div style="font-size:12px;color:var(--muted);margin-top:4px;">Reessayez plus tard.</div>';
+      return;
+    }
+
+    if(data.request_id){
+      window._gpoRequestId=data.request_id;
+      updateGpoTracking(data);
+      startGpoPolling(data.request_id);
+    }
+  } catch(e) {
+    document.getElementById('gpo-status').innerHTML='<div style="color:#f05050;">Erreur: '+e.message+'</div>';
+  }
+}
+
+function updateGpoTracking(data) {
+  const el=document.getElementById('gpo-status');
+  if(!el) return;
+  // Normalise : POST retourne {status, first_attempt}, GET retourne {request, attempts, winner_supplier}
+  const fa=data.first_attempt||{};
+  const status=data.status||data.request?.status||'searching';
+  // Pour le polling, enrichir depuis attempts
+  if(data.attempts&&data.attempts.length&&!fa.supplier_name){
+    const current=data.attempts.filter(a=>a.response_status==='pending').pop()||data.attempts[data.attempts.length-1];
+    if(current){
+      fa.supplier_name=current.suppliers?.name||'';
+      fa.attempt_position=current.attempt_position;
+      fa.deadline_at=current.deadline_at;
+      fa.delay_minutes=null;
+    }
+  }
+
+  if(status==='searching'){
+    el.innerHTML=`
+      <div style="font-size:32px;margin-bottom:12px;">\ud83d\udd0d</div>
+      <div style="font-weight:600;color:var(--accent);margin-bottom:8px;">Recherche du meilleur fournisseur</div>
+      <div style="background:var(--surface2);border-radius:10px;padding:12px;margin:12px 0;">
+        <div style="font-size:13px;color:var(--text);">Fournisseur sollicit\u00e9 : <strong>${fa.supplier_name||'...'}</strong></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">Tentative ${fa.attempt_position||'?'} \u00b7 D\u00e9lai ${fa.delay_minutes||'?'} min</div>
+        ${fa.deadline_at?'<div id="gpo-countdown" style="font-size:20px;font-weight:700;color:var(--accent);margin-top:8px;">--:--</div>':''}
+      </div>`;
+    if(fa.deadline_at) startGpoCountdown(new Date(fa.deadline_at));
+  } else if(status==='accepted'){
+    const winner=data.winner_supplier||{};
+    const finalP=data.final_price_eur||data.request?.final_price_eur;
+    el.innerHTML=`
+      <div style="font-size:48px;margin-bottom:12px;">\ud83c\udf89</div>
+      <div style="font-weight:700;color:var(--accent);font-size:16px;margin-bottom:8px;">Commande accept\u00e9e !</div>
+      <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px;">
+        <div style="font-size:14px;font-weight:600;">${winner.name||'Fournisseur'}</div>
+        ${finalP?'<div style="font-size:20px;font-weight:700;color:var(--accent);margin-top:6px;">'+Number(finalP).toFixed(2)+'\u20ac</div>':''}
+      </div>
+      <button onclick="fermerGpoTracking();showPage('devis',null);" style="width:100%;margin-top:16px;padding:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:50px;font-size:13px;cursor:pointer;">Voir dans Appels d'offres</button>`;
+    stopGpoPolling();
+  } else if(status==='matched'){
+    const attempts=(data.attempts||[]).filter(a=>a.response_status==='counter_proposed');
+    const cp=attempts[attempts.length-1];
+    if(cp){
+      el.innerHTML=`
+        <div style="font-size:32px;margin-bottom:12px;">\ud83d\udcac</div>
+        <div style="font-weight:600;color:#f59e0b;margin-bottom:8px;">Contre-proposition re\u00e7ue</div>
+        <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px;margin:12px 0;">
+          <div style="font-size:13px;">${cp.suppliers?.name||'Fournisseur'} propose <strong>${Number(cp.counter_price_eur).toFixed(2)}\u20ac</strong></div>
+          ${cp.counter_comment?'<div style="font-size:12px;color:var(--muted);margin-top:4px;">'+cp.counter_comment+'</div>':''}
+        </div>
+        <button onclick="accepterContreProposition('${cp.id}')" style="width:100%;padding:12px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;cursor:pointer;margin-bottom:8px;">\u2705 Accepter ${Number(cp.counter_price_eur).toFixed(2)}\u20ac</button>
+        <button onclick="refuserContreProposition()" style="width:100%;padding:10px;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:50px;font-size:13px;cursor:pointer;">Passer au fournisseur suivant</button>`;
+    }
+    stopGpoPolling();
+  } else if(status==='failed'){
+    el.innerHTML='<div style="font-size:32px;margin-bottom:8px;">\ud83d\ude14</div><div style="color:#f05050;font-weight:600;">Aucun fournisseur disponible</div>';
+    stopGpoPolling();
+  }
+}
+
+let _gpoCountdownInterval=null;
+function startGpoCountdown(deadline){
+  clearInterval(_gpoCountdownInterval);
+  _gpoCountdownInterval=setInterval(()=>{
+    const el=document.getElementById('gpo-countdown');
+    if(!el){clearInterval(_gpoCountdownInterval);return;}
+    const diff=deadline-new Date();
+    if(diff<=0){el.textContent='00:00';el.style.color='#f05050';clearInterval(_gpoCountdownInterval);return;}
+    const m=Math.floor(diff/60000);const s=Math.floor((diff%60000)/1000);
+    el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    if(diff<120000) el.style.color='#f05050';
+  },1000);
+}
+
+let _gpoPolling=null;
+function startGpoPolling(requestId){
+  stopGpoPolling();
+  _gpoPolling=setInterval(async()=>{
+    try{
+      const auth=getGpoAuth();
+      const res=await fetch('/api/gpo/requests/'+requestId,{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+      if(!res.ok)return;
+      const data=await res.json();
+      updateGpoTracking(data);
+    }catch(e){}
+  },5000);
+}
+function stopGpoPolling(){clearInterval(_gpoPolling);_gpoPolling=null;}
+
+async function accepterContreProposition(attemptId){
+  try{
+    const auth=getGpoAuth();
+    const res=await fetch('/api/gpo/requests/'+window._gpoRequestId+'/confirm-counter',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId},body:JSON.stringify({attempt_id:attemptId})});
+    const data=await res.json();
+    if(data.success){
+      document.getElementById('gpo-status').innerHTML='<div style="font-size:48px;margin-bottom:12px;">\ud83c\udf89</div><div style="font-weight:700;color:var(--accent);font-size:16px;">Commande confirm\u00e9e !</div><div style="font-size:13px;color:var(--muted);margin-top:8px;">Prix final : '+Number(data.final_price_eur).toFixed(2)+'\u20ac</div>';
+    }
+  }catch(e){showToast('Erreur: '+e.message);}
+}
+
+function refuserContreProposition(){
+  startGpoPolling(window._gpoRequestId);
+  document.getElementById('gpo-status').innerHTML='<div class="spinner" style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 12px;"></div><div style="font-weight:600;color:var(--accent);">Passage au fournisseur suivant...</div>';
+}
+
+function fermerGpoTracking(){
+  stopGpoPolling();
+  clearInterval(_gpoCountdownInterval);
+  document.getElementById('gpo-tracking-modal')?.remove();
+}
+
+// --- Appels d'offres GPO liste ---
+async function chargerAppelsOffres(){
+  const el=document.getElementById('gpo-appels-liste');
+  if(!el)return;
+  const auth=getGpoAuth();
+  if(!auth.token||!auth.societeId){
+    el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px;">Connectez-vous pour voir vos appels d\'offres.</div>';
+    return;
+  }
+  el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px;display:flex;align-items:center;gap:8px;"><div class="spinner" style="width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;"></div>Chargement...</div>';
+  try{
+    const res=await fetch('/api/gpo/requests?societe_id='+auth.societeId+'&limit=20',{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok)throw new Error('Erreur '+res.status);
+    const data=await res.json();
+    const requests=data.requests||[];
+    if(!requests.length){
+      el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px;">Aucun appel d\'offres pour le moment. Utilisez le Panier intelligent pour lancer votre premiere commande GPO.</div>';
+      return;
+    }
+    el.innerHTML=requests.map(r=>{
+      const items=Array.isArray(r.items)?r.items:[];
+      const itemsStr=items.slice(0,3).map(i=>(i.quantity||1)+'\u00d7 '+(i.name||'?')).join(', ')+(items.length>3?' (+'+( items.length-3)+')':'');
+      const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const statusMap={searching:{label:'En recherche',color:'#f59e0b'},matched:{label:'Contre-proposition',color:'#3b82f6'},accepted:{label:'Accept\u00e9e',color:'#10b981'},fulfilled:{label:'Livr\u00e9e',color:'#10b981'},failed:{label:'Sans r\u00e9ponse',color:'#f05050'},cancelled:{label:'Annul\u00e9e',color:'var(--muted)'},pending:{label:'En attente',color:'var(--muted)'}};
+      const st=statusMap[r.status]||{label:r.status,color:'var(--muted)'};
+      const price=r.final_price_eur||r.total_target_eur;
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;" onclick="voirDetailGpo('${r.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:600;color:${st.color};">${st.label}</span>
+          <span style="font-size:11px;color:var(--muted);">${date}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:4px;">${itemsStr}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          ${price?'<span style="font-size:14px;font-weight:700;color:var(--accent);">'+Number(price).toFixed(2)+'\u20ac</span>':'<span style="font-size:12px;color:var(--muted);">Prix en cours</span>'}
+          <span style="font-size:11px;color:var(--muted);">${items.length} produit${items.length>1?'s':''}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div style="color:#f05050;font-size:12px;padding:12px;">'+e.message+'</div>';
+  }
+}
+
+async function voirDetailGpo(requestId){
+  const auth=getGpoAuth();
+  try{
+    const res=await fetch('/api/gpo/requests/'+requestId,{headers:{'Authorization':'Bearer '+auth.token,'X-Societe-Id':auth.societeId}});
+    if(!res.ok)return;
+    const data=await res.json();
+    const r=data.request;
+    const attempts=data.attempts||[];
+    const winner=data.winner_supplier;
+    const items=Array.isArray(r.items)?r.items:[];
+
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+
+    const statusMap={searching:'En recherche',matched:'Contre-proposition',accepted:'Accept\u00e9e',fulfilled:'Livr\u00e9e',failed:'Sans r\u00e9ponse',cancelled:'Annul\u00e9e',pending:'En attente'};
+    const statusColor={searching:'#f59e0b',matched:'#3b82f6',accepted:'#10b981',fulfilled:'#10b981',failed:'#f05050',cancelled:'var(--muted)'};
+
+    let attemptHtml='';
+    if(attempts.length){
+      attemptHtml='<div style="margin-top:16px;"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Historique des tentatives</div>';
+      attemptHtml+=attempts.map(a=>{
+        const s=a.suppliers||{};
+        const stMap={pending:'En attente',accepted:'Accept\u00e9',refused:'Refus\u00e9',counter_proposed:'Contre-proposition',timeout:'Timeout'};
+        const stCol={pending:'var(--muted)',accepted:'#10b981',refused:'#f05050',counter_proposed:'#f59e0b',timeout:'#6b6760'};
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:8px;margin-bottom:4px;font-size:12px;">
+          <div><strong>${s.name||'?'}</strong> <span style="color:var(--muted);">#${a.attempt_position}</span></div>
+          <span style="color:${stCol[a.response_status]||'var(--muted)'};">${stMap[a.response_status]||a.response_status}${a.counter_price_eur?' ('+Number(a.counter_price_eur).toFixed(2)+'\u20ac)':''}</span>
+        </div>`;
+      }).join('');
+      attemptHtml+='</div>';
+    }
+
+    // Si matched (contre-proposition), afficher bouton accepter
+    let counterBtn='';
+    if(r.status==='matched'){
+      const cp=attempts.find(a=>a.response_status==='counter_proposed');
+      if(cp){
+        counterBtn=`<div style="margin-top:16px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:13px;font-weight:600;color:#f59e0b;margin-bottom:8px;">Contre-proposition en attente</div>
+          <div style="font-size:13px;">${cp.suppliers?.name||'Fournisseur'} propose <strong>${Number(cp.counter_price_eur).toFixed(2)}\u20ac</strong></div>
+          <button onclick="accepterContreProposition('${cp.id}');this.closest('div[style*=z-index]').remove();" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);color:#0f0e0d;border:none;border-radius:50px;font-weight:700;cursor:pointer;">Accepter cette offre</button>
+        </div>`;
+      }
+    }
+
+    modal.innerHTML=`<div style="background:#1a1917;border:1px solid var(--border);border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-family:var(--font-display);font-size:16px;font-weight:700;">D\u00e9tail commande</div>
+        <button onclick="this.closest('div[style*=z-index]').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">\u2715</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:13px;font-weight:600;color:${statusColor[r.status]||'var(--muted)'};">${statusMap[r.status]||r.status}</span>
+        <span style="font-size:11px;color:var(--muted);">${new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+      </div>
+      ${winner?'<div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px;margin-bottom:12px;"><div style="font-size:12px;color:var(--muted);">Fournisseur gagnant</div><div style="font-size:14px;font-weight:600;">'+winner.name+'</div></div>':''}
+      <div style="margin-bottom:12px;">
+        ${items.map(i=>'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;"><span>'+(i.quantity||1)+'\u00d7 '+(i.name||'?')+'</span><span style="color:var(--accent);font-weight:600;">'+(i.target_price_eur?Number(i.target_price_eur*(i.quantity||1)).toFixed(2)+'\u20ac':'---')+'</span></div>').join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding-top:8px;border-top:2px solid var(--border);">
+        <span>Total</span>
+        <span style="color:var(--accent);">${r.final_price_eur||r.total_target_eur?Number(r.final_price_eur||r.total_target_eur).toFixed(2)+'\u20ac':'---'}</span>
+      </div>
+      ${counterBtn}
+      ${attemptHtml}
+    </div>`;
+    document.body.appendChild(modal);
+  }catch(e){showToast('Erreur: '+e.message);}
 }
 
 // ═══════════════════════════════════
@@ -6009,6 +6824,7 @@ function commSaveParams() {
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
 </body>
 </html>
 

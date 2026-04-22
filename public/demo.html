@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI — Demo interactive</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0a0a0f;--surface:rgba(255,255,255,0.04);--surface2:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.08);--border-hover:rgba(201,169,97,0.3);
+  --text:#f0ede8;--muted:#8a8a9a;--accent:#c9a961;--accent-dark:#a88940;--accent-glow:rgba(201,169,97,0.15);
+  --red:#f05050;--green:#60d090;--blue:#5b9bf5;--orange:#f0a050;--yellow:#e0c050;
+  --font:'DM Sans','Inter',sans-serif;--display:'Syne',sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --sidebar-w:220px;--header-h:64px;
+}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;min-height:100vh;}
+
+/* ===== HEADER ===== */
+.demo-header{
+  position:fixed;top:0;left:0;right:0;height:var(--header-h);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;z-index:100;
+  background:rgba(10,10,15,0.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.header-left{display:flex;align-items:center;gap:16px;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;cursor:default;}
+.demo-badge{
+  padding:4px 12px;border-radius:50px;font-size:11px;font-weight:700;letter-spacing:0.8px;
+  background:var(--accent-glow);color:var(--accent);border:1px solid rgba(201,169,97,0.25);
+  text-transform:uppercase;
+}
+.header-center{display:flex;gap:6px;align-items:center;}
+.prof-pill{
+  padding:8px 18px;border-radius:50px;font-size:13px;font-weight:600;
+  background:transparent;color:var(--muted);border:1px solid var(--border);
+  cursor:pointer;transition:all 0.4s var(--ease);letter-spacing:0.2px;
+  font-family:var(--font);
+}
+.prof-pill:hover{color:var(--text);border-color:var(--border-hover);background:var(--surface);}
+.prof-pill.active{
+  background:var(--accent);color:#0a0a0f;border-color:var(--accent);
+  box-shadow:0 4px 20px rgba(201,169,97,0.25);
+}
+.header-right{display:flex;align-items:center;}
+.cta-btn{
+  padding:10px 22px;border-radius:10px;font-size:13px;font-weight:700;
+  background:var(--accent);color:#0a0a0f;border:none;cursor:pointer;
+  font-family:var(--font);transition:all 0.3s var(--ease);letter-spacing:-0.2px;
+  display:flex;align-items:center;gap:6px;
+}
+.cta-btn:hover{background:var(--accent-dark);transform:translateY(-1px);box-shadow:0 8px 24px rgba(201,169,97,0.2);}
+
+/* ===== LAYOUT ===== */
+.demo-layout{
+  display:flex;margin-top:var(--header-h);min-height:calc(100vh - var(--header-h));
+}
+
+/* ===== SIDEBAR ===== */
+.demo-sidebar{
+  width:var(--sidebar-w);min-width:var(--sidebar-w);
+  background:rgba(255,255,255,0.02);border-right:1px solid var(--border);
+  padding:20px 12px;display:flex;flex-direction:column;gap:4px;
+  transition:all 0.4s var(--ease);
+}
+.sidebar-item{
+  padding:10px 14px;border-radius:10px;font-size:13px;font-weight:500;
+  color:var(--muted);cursor:pointer;transition:all 0.3s var(--ease);
+  display:flex;align-items:center;gap:10px;position:relative;
+}
+.sidebar-item:hover{color:var(--text);background:var(--surface);}
+.sidebar-item.active{
+  color:var(--accent);background:var(--accent-glow);font-weight:600;
+}
+.sidebar-item.active::before{
+  content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;border-radius:0 3px 3px 0;background:var(--accent);
+}
+.sidebar-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.sidebar-label{display:block;font-size:10px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;padding:16px 14px 8px;opacity:0.6;}
+
+/* ===== MAIN ===== */
+.demo-main{
+  flex:1;padding:28px 32px 100px;overflow-y:auto;position:relative;
+}
+.panel{
+  display:none;opacity:0;transform:translateY(12px);
+  transition:opacity 0.5s var(--ease),transform 0.5s var(--ease);
+}
+.panel.active{display:block;opacity:1;transform:translateY(0);}
+.panel-title{
+  font-family:var(--display);font-size:22px;font-weight:700;
+  letter-spacing:-0.8px;margin-bottom:6px;
+}
+.panel-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+
+/* ===== GLASS CARDS ===== */
+.glass-card{
+  background:rgba(255,255,255,0.03);border:1px solid var(--border);
+  border-radius:14px;padding:20px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:all 0.4s var(--ease);
+}
+.glass-card:hover{
+  border-color:var(--border-hover);transform:translateY(-3px);
+  box-shadow:0 12px 40px rgba(0,0,0,0.3);
+}
+
+/* ===== GRIDS ===== */
+.card-grid{display:grid;gap:16px;}
+.card-grid.cols-2{grid-template-columns:repeat(2,1fr);}
+.card-grid.cols-3{grid-template-columns:repeat(3,1fr);}
+@media(max-width:900px){.card-grid.cols-2,.card-grid.cols-3{grid-template-columns:1fr;}}
+
+/* ===== STATUS BADGES ===== */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:4px 10px;
+  border-radius:50px;font-size:11px;font-weight:600;letter-spacing:0.3px;
+}
+.badge.en_cours{background:rgba(91,155,245,0.12);color:var(--blue);}
+.badge.en_attente{background:rgba(240,160,80,0.12);color:var(--orange);}
+.badge.clos{background:rgba(96,208,144,0.12);color:var(--green);}
+.badge.critique{background:rgba(240,80,80,0.12);color:var(--red);}
+.badge.faible{background:rgba(224,192,80,0.12);color:var(--yellow);}
+.badge.ok{background:rgba(96,208,144,0.12);color:var(--green);}
+.badge.livre{background:rgba(96,208,144,0.12);color:var(--green);}
+.badge.en_preparation{background:rgba(91,155,245,0.12);color:var(--blue);}
+.badge.confirmee{background:rgba(96,208,144,0.12);color:var(--green);}
+.badge.en_attente_badge{background:rgba(240,160,80,0.12);color:var(--orange);}
+
+/* ===== TABLE ===== */
+.demo-table{width:100%;border-collapse:separate;border-spacing:0;}
+.demo-table th{
+  text-align:left;font-size:11px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:0.8px;padding:12px 16px;
+  border-bottom:1px solid var(--border);
+}
+.demo-table td{
+  padding:14px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.03);
+  transition:background 0.2s;
+}
+.demo-table tr:hover td{background:rgba(255,255,255,0.02);}
+.demo-table .qty-cell{font-weight:700;font-variant-numeric:tabular-nums;}
+
+/* ===== PROGRESS ===== */
+.progress-bar{
+  width:100%;height:8px;background:rgba(255,255,255,0.06);border-radius:50px;
+  overflow:hidden;
+}
+.progress-fill{
+  height:100%;border-radius:50px;background:linear-gradient(90deg,var(--accent),#e0c060);
+  transition:width 1.2s var(--ease);width:0;
+}
+
+/* ===== CALENDAR ===== */
+.calendar-slot{
+  display:flex;align-items:center;gap:16px;padding:14px 16px;
+  border-left:3px solid var(--accent);margin-bottom:12px;
+  background:var(--surface);border-radius:0 10px 10px 0;
+  transition:all 0.3s var(--ease);
+}
+.calendar-slot:hover{background:var(--surface2);transform:translateX(4px);}
+.cal-time{font-size:14px;font-weight:700;color:var(--accent);min-width:55px;font-variant-numeric:tabular-nums;}
+.cal-info{flex:1;}
+.cal-client{font-size:14px;font-weight:600;}
+.cal-type{font-size:12px;color:var(--muted);}
+.cal-duration{font-size:12px;color:var(--muted);background:var(--surface2);padding:4px 10px;border-radius:50px;font-weight:600;}
+
+/* ===== WEBSITE PREVIEW ===== */
+.site-preview{
+  background:linear-gradient(135deg,rgba(201,169,97,0.08),rgba(201,169,97,0.02));
+  border:1px solid rgba(201,169,97,0.15);border-radius:14px;overflow:hidden;
+}
+.site-preview-header{
+  padding:12px 16px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.site-dots{display:flex;gap:6px;}
+.site-dot{width:10px;height:10px;border-radius:50%;}
+.site-dot.r{background:#f05050;}.site-dot.y{background:#e0c050;}.site-dot.g{background:#60d090;}
+.site-preview-body{padding:28px;text-align:center;}
+.site-preview-body h3{font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:8px;}
+.site-preview-body p{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.site-theme-row{display:flex;gap:8px;justify-content:center;}
+.site-theme{
+  width:36px;height:36px;border-radius:8px;border:2px solid transparent;
+  cursor:pointer;transition:all 0.3s;
+}
+.site-theme:hover,.site-theme.active{border-color:var(--accent);transform:scale(1.1);}
+.site-nav-mock{display:flex;gap:16px;justify-content:center;margin-top:16px;}
+.site-nav-mock span{font-size:11px;color:var(--muted);padding:4px 10px;border-radius:6px;background:var(--surface);}
+
+/* ===== APPOINTMENT LIST ===== */
+.appt-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.04);
+  transition:all 0.3s var(--ease);
+}
+.appt-item:last-child{border-bottom:none;}
+.appt-item:hover{background:var(--surface);}
+.appt-left{display:flex;align-items:center;gap:14px;}
+.appt-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent-glow),var(--surface2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:var(--accent);
+}
+.appt-name{font-size:14px;font-weight:600;}
+.appt-service{font-size:12px;color:var(--muted);}
+.appt-time{font-size:13px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;}
+
+/* ===== CHANTIER CARDS ===== */
+.chantier-progress{margin-top:12px;}
+.chantier-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;}
+
+/* ===== DEVIS TABLE ===== */
+.devis-amount{font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);}
+
+/* ===== BOTTOM BANNER ===== */
+.demo-banner{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:14px 28px;text-align:center;
+  background:rgba(10,10,15,0.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);font-size:13px;color:var(--muted);
+  z-index:100;
+}
+.demo-banner strong{color:var(--accent);}
+.demo-banner a{color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px;margin-left:8px;}
+.demo-banner a:hover{color:var(--accent-dark);}
+
+/* ===== MOBILE ===== */
+.mobile-sidebar-toggle{
+  display:none;position:fixed;bottom:72px;right:16px;z-index:200;
+  width:48px;height:48px;border-radius:50%;background:var(--accent);
+  color:#0a0a0f;border:none;font-size:20px;cursor:pointer;
+  box-shadow:0 4px 20px rgba(201,169,97,0.3);
+  transition:all 0.3s var(--ease);
+}
+.mobile-sidebar-toggle:hover{transform:scale(1.05);}
+
+@media(max-width:768px){
+  .header-center{display:none;}
+  .demo-sidebar{
+    position:fixed;left:-260px;top:var(--header-h);bottom:0;
+    z-index:90;width:260px;min-width:260px;
+    background:rgba(10,10,15,0.96);backdrop-filter:blur(24px);
+    transition:left 0.4s var(--ease);
+  }
+  .demo-sidebar.open{left:0;}
+  .mobile-sidebar-toggle{display:flex;align-items:center;justify-content:center;}
+  .demo-main{padding:20px 16px 120px;}
+  .card-grid.cols-3{grid-template-columns:1fr;}
+  .card-grid.cols-2{grid-template-columns:1fr;}
+  /* mobile profession selector */
+  .mobile-prof-bar{
+    display:flex;gap:6px;padding:12px 16px;overflow-x:auto;
+    border-bottom:1px solid var(--border);background:rgba(10,10,15,0.6);
+  }
+  .mobile-prof-bar .prof-pill{white-space:nowrap;font-size:12px;padding:6px 14px;}
+}
+@media(min-width:769px){
+  .mobile-prof-bar{display:none !important;}
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
+.anim-in{animation:fadeInUp 0.5s var(--ease) both;}
+.anim-delay-1{animation-delay:0.05s;}
+.anim-delay-2{animation-delay:0.1s;}
+.anim-delay-3{animation-delay:0.15s;}
+.anim-delay-4{animation-delay:0.2s;}
+.anim-delay-5{animation-delay:0.25s;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.18);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="demo-header">
+  <div class="header-left">
+    <div class="logo">JADOMI</div>
+    <span class="demo-badge">Mode Demo</span>
+  </div>
+  <nav class="header-center" id="profTabs">
+    <button class="prof-pill active" data-prof="avocat">Avocat</button>
+    <button class="prof-pill" data-prof="dentiste">Dentiste</button>
+    <button class="prof-pill" data-prof="coiffeur">Coiffeur</button>
+    <button class="prof-pill" data-prof="btp">BTP</button>
+  </nav>
+  <div class="header-right">
+    <button class="cta-btn" onclick="window.location.href='/register.html'">Creer mon vrai espace <span style="font-size:16px">&rarr;</span></button>
+  </div>
+</header>
+
+<!-- MOBILE PROFESSION BAR -->
+<div class="mobile-prof-bar" id="mobileProfBar" style="margin-top:var(--header-h);position:fixed;left:0;right:0;z-index:95;">
+  <button class="prof-pill active" data-prof="avocat">Avocat</button>
+  <button class="prof-pill" data-prof="dentiste">Dentiste</button>
+  <button class="prof-pill" data-prof="coiffeur">Coiffeur</button>
+  <button class="prof-pill" data-prof="btp">BTP</button>
+</div>
+
+<!-- LAYOUT -->
+<div class="demo-layout">
+  <!-- SIDEBAR -->
+  <aside class="demo-sidebar" id="sidebar"></aside>
+
+  <!-- MAIN -->
+  <main class="demo-main" id="mainContent"></main>
+</div>
+
+<!-- MOBILE TOGGLE -->
+<button class="mobile-sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+
+<!-- BOTTOM BANNER -->
+<div class="demo-banner">
+  Ceci est une <strong>demo</strong>. Les donnees sont fictives.
+  <a href="/register.html">Creez votre espace pour commencer avec vos vraies donnees &rarr;</a>
+</div>
+
+<script>
+/* ============================================================
+   MOCK DATA
+   ============================================================ */
+const MOCK_DATA = {
+  avocat: {
+    dossiers: [
+      { ref: '2024-001', title: 'Succession Dupont', status: 'en_cours', statusLabel: 'En cours', lastUpdate: '22 avril 2026' },
+      { ref: '2024-002', title: 'Litige commercial Sarl Tech', status: 'en_attente', statusLabel: 'En attente', lastUpdate: '20 avril 2026' },
+      { ref: '2023-047', title: 'Divorce Martin', status: 'clos', statusLabel: 'Clos', lastUpdate: '15 mars 2026' }
+    ],
+    appointments: [
+      { time: '09:00', client: 'M. Dupont', type: 'Consultation initiale', duration: '1h' },
+      { time: '11:00', client: 'Mme. Leroy', type: 'Suivi dossier', duration: '30min' },
+      { time: '14:30', client: 'SCI Riviera', type: 'Visio', duration: '1h' }
+    ],
+    invoices: [
+      { ref: 'F-2026-042', client: 'M. Dupont', amount: '2 400 \u20ac', status: 'en_attente', statusLabel: 'En attente' },
+      { ref: 'F-2026-041', client: 'Sarl Tech', amount: '5 800 \u20ac', status: 'en_cours', statusLabel: 'Envoyee' },
+      { ref: 'F-2026-038', client: 'SCI Riviera', amount: '3 200 \u20ac', status: 'clos', statusLabel: 'Payee' }
+    ]
+  },
+  dentiste: {
+    products: [
+      { name: 'Composite Filtek Z350', qty: 3, min: 5, status: 'critique', statusLabel: 'Critique', price: '45 \u20ac' },
+      { name: 'Gants nitrile M', qty: 200, min: 50, status: 'ok', statusLabel: 'OK', price: '8 \u20ac' },
+      { name: 'Anesthesique Septanest', qty: 12, min: 10, status: 'faible', statusLabel: 'Faible', price: '35 \u20ac' },
+      { name: 'Fraise diamant FG', qty: 45, min: 20, status: 'ok', statusLabel: 'OK', price: '4 \u20ac' },
+      { name: 'Ciment Fuji IX', qty: 2, min: 3, status: 'critique', statusLabel: 'Critique', price: '55 \u20ac' }
+    ],
+    orders: [
+      { ref: 'CMD-2026-089', supplier: 'Henry Schein', total: '342 \u20ac', status: 'en_preparation', statusLabel: 'En preparation', date: '21 avril 2026' },
+      { ref: 'CMD-2026-085', supplier: 'Dental Express', total: '128 \u20ac', status: 'livre', statusLabel: 'Livre', date: '18 avril 2026' }
+    ],
+    paniers: [
+      { title: 'Groupement Composite Q2', members: 3, target: 5, savings: '18%', deadline: '30 avril 2026' }
+    ]
+  },
+  coiffeur: {
+    reservations: [
+      { time: '09:30', client: 'Sophie L.', service: 'Coupe + Brushing', duration: '45min', status: 'confirmee' },
+      { time: '10:30', client: 'Marie D.', service: 'Coloration', duration: '1h30', status: 'confirmee' },
+      { time: '13:00', client: 'Julie R.', service: 'Meches + Soin', duration: '2h', status: 'en_attente_badge' },
+      { time: '15:30', client: 'Camille B.', service: 'Coupe homme', duration: '30min', status: 'confirmee' }
+    ],
+    prestations: [
+      { name: 'Coupe femme', price: '35 \u20ac', duration: '45min', popular: true },
+      { name: 'Coupe homme', price: '22 \u20ac', duration: '30min', popular: true },
+      { name: 'Coloration', price: '55 \u20ac', duration: '1h30', popular: false },
+      { name: 'Meches', price: '70 \u20ac', duration: '2h', popular: false },
+      { name: 'Brushing', price: '20 \u20ac', duration: '30min', popular: true },
+      { name: 'Soin Keratine', price: '45 \u20ac', duration: '1h', popular: false }
+    ],
+    stats: {
+      rdvToday: 12, rdvWeek: 54, ca: '1 840 \u20ac', topService: 'Coupe + Brushing'
+    }
+  },
+  btp: {
+    chantiers: [
+      { name: 'Renovation Villa Beausoleil', client: 'M. Garnier', progress: 65, budget: '48 000 \u20ac', status: 'en_cours', statusLabel: 'En cours' },
+      { name: 'Extension Maison Dupuis', client: 'Mme. Dupuis', progress: 30, budget: '32 000 \u20ac', status: 'en_cours', statusLabel: 'En cours' },
+      { name: 'Terrasse Restaurant Le Marin', client: 'SAS Le Marin', progress: 100, budget: '15 000 \u20ac', status: 'clos', statusLabel: 'Termine' }
+    ],
+    devis: [
+      { ref: 'D-2026-018', client: 'M. Bernard', desc: 'Salle de bain complete', amount: '12 400 \u20ac', status: 'en_attente', statusLabel: 'En attente' },
+      { ref: 'D-2026-017', client: 'Mme. Petit', desc: 'Peinture appartement T3', amount: '4 200 \u20ac', status: 'clos', statusLabel: 'Accepte' },
+      { ref: 'D-2026-016', client: 'SCI Azur', desc: 'Ravalement facade', amount: '28 500 \u20ac', status: 'en_cours', statusLabel: 'Envoye' }
+    ],
+    stock: [
+      { name: 'Ciment Portland', qty: '12 sacs', status: 'ok', statusLabel: 'OK' },
+      { name: 'Placo BA13', qty: '8 plaques', status: 'faible', statusLabel: 'Faible' },
+      { name: 'Vis inox 5x60', qty: '~2000', status: 'ok', statusLabel: 'OK' },
+      { name: 'Enduit de lissage', qty: '2 seaux', status: 'critique', statusLabel: 'Critique' }
+    ]
+  }
+};
+
+/* ============================================================
+   SIDEBAR CONFIG
+   ============================================================ */
+const SIDEBARS = {
+  avocat: [
+    { id: 'site', icon: '\ud83c\udf10', label: 'Mon site' },
+    { id: 'dossiers', icon: '\ud83d\udcc1', label: 'Dossiers' },
+    { id: 'agenda', icon: '\ud83d\udcc5', label: 'Agenda' },
+    { id: 'facturation', icon: '\ud83d\udcb3', label: 'Facturation' },
+    { id: 'chatbot', icon: '\ud83e\udd16', label: 'Chatbot' },
+    { id: 'analytics', icon: '\ud83d\udcca', label: 'Analytics' }
+  ],
+  dentiste: [
+    { id: 'stock', icon: '\ud83d\udce6', label: 'Stock' },
+    { id: 'commandes', icon: '\ud83d\udced', label: 'Commandes' },
+    { id: 'paniers', icon: '\ud83d\uded2', label: 'Paniers groupes' },
+    { id: 'scanner', icon: '\ud83d\udcf7', label: 'Scanner' },
+    { id: 'green', icon: '\ud83c\udf3f', label: 'Green' },
+    { id: 'compta', icon: '\ud83e\uddee', label: 'Compta' }
+  ],
+  coiffeur: [
+    { id: 'reservations', icon: '\ud83d\udcc5', label: 'Reservations' },
+    { id: 'prestations', icon: '\u2702\ufe0f', label: 'Prestations' },
+    { id: 'vitrine', icon: '\ud83c\udf10', label: 'Site vitrine' },
+    { id: 'stats', icon: '\ud83d\udcca', label: 'Stats' }
+  ],
+  btp: [
+    { id: 'chantiers', icon: '\ud83c\udfd7\ufe0f', label: 'Chantiers' },
+    { id: 'devis', icon: '\ud83d\udcdd', label: 'Devis' },
+    { id: 'stockmat', icon: '\ud83e\uddf1', label: 'Stock materiaux' },
+    { id: 'comptabtp', icon: '\ud83e\uddee', label: 'Compta' }
+  ]
+};
+
+/* ============================================================
+   PANEL RENDERERS
+   ============================================================ */
+function renderPanel(prof, panelId) {
+  const key = prof + '_' + panelId;
+  const renderers = {
+    /* ------- AVOCAT ------- */
+    avocat_site: () => `
+      <div class="panel-title">Mon site</div>
+      <div class="panel-sub">Gerez l'apparence et le contenu de votre site professionnel</div>
+      <div class="site-preview glass-card" style="max-width:560px">
+        <div class="site-preview-header">
+          <div class="site-dots"><span class="site-dot r"></span><span class="site-dot y"></span><span class="site-dot g"></span></div>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">cabinet-martin.jadomi.fr</span>
+        </div>
+        <div class="site-preview-body">
+          <h3>Cabinet Martin</h3>
+          <p>Avocat en droit des affaires &mdash; Barreau de Nice</p>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Theme actif</div>
+          <div class="site-theme-row">
+            <div class="site-theme active" style="background:linear-gradient(135deg,#0a0a0f,#1a1a2e)"></div>
+            <div class="site-theme" style="background:linear-gradient(135deg,#1a1510,#2a2015)"></div>
+            <div class="site-theme" style="background:linear-gradient(135deg,#f5f0e8,#e8e0d0)"></div>
+            <div class="site-theme" style="background:linear-gradient(135deg,#0f1a15,#102a1a)"></div>
+          </div>
+          <div class="site-nav-mock" style="margin-top:20px">
+            <span>Accueil</span><span>Services</span><span>Honoraires</span><span>Contact</span>
+          </div>
+        </div>
+      </div>`,
+
+    avocat_dossiers: () => {
+      const d = MOCK_DATA.avocat.dossiers;
+      return `
+      <div class="panel-title">Dossiers</div>
+      <div class="panel-sub">${d.length} dossiers actifs</div>
+      <div class="card-grid cols-3">
+        ${d.map((x, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">#${x.ref}</span>
+            <span class="badge ${x.status}">${x.statusLabel}</span>
+          </div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:8px">${x.title}</div>
+          <div style="font-size:12px;color:var(--muted)">Derniere maj : ${x.lastUpdate}</div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    avocat_agenda: () => {
+      const a = MOCK_DATA.avocat.appointments;
+      return `
+      <div class="panel-title">Agenda</div>
+      <div class="panel-sub">Aujourd'hui &mdash; 22 avril 2026</div>
+      <div style="max-width:560px">
+        ${a.map((x, i) => `
+        <div class="calendar-slot anim-in anim-delay-${i+1}">
+          <div class="cal-time">${x.time}</div>
+          <div class="cal-info">
+            <div class="cal-client">${x.client}</div>
+            <div class="cal-type">${x.type}</div>
+          </div>
+          <div class="cal-duration">${x.duration}</div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    avocat_facturation: () => {
+      const inv = MOCK_DATA.avocat.invoices;
+      return `
+      <div class="panel-title">Facturation</div>
+      <div class="panel-sub">Suivi de vos factures et paiements</div>
+      <div class="glass-card" style="overflow-x:auto">
+        <table class="demo-table">
+          <thead><tr><th>Ref</th><th>Client</th><th>Montant</th><th>Statut</th></tr></thead>
+          <tbody>
+            ${inv.map(x => `<tr>
+              <td style="font-weight:600;color:var(--muted)">${x.ref}</td>
+              <td>${x.client}</td>
+              <td class="devis-amount">${x.amount}</td>
+              <td><span class="badge ${x.status}">${x.statusLabel}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    },
+
+    avocat_chatbot: () => `
+      <div class="panel-title">Chatbot IA</div>
+      <div class="panel-sub">Assistant juridique intelligent pour vos clients</div>
+      <div class="glass-card" style="max-width:480px">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="align-self:flex-start;background:var(--surface2);padding:10px 16px;border-radius:12px 12px 12px 4px;font-size:13px;max-width:80%">
+            Bonjour, bienvenue sur le chatbot du Cabinet Martin. Comment puis-je vous aider ?
+          </div>
+          <div style="align-self:flex-end;background:var(--accent-glow);border:1px solid rgba(201,169,97,0.2);padding:10px 16px;border-radius:12px 12px 4px 12px;font-size:13px;max-width:80%">
+            Je souhaite prendre rendez-vous pour une consultation en droit des affaires.
+          </div>
+          <div style="align-self:flex-start;background:var(--surface2);padding:10px 16px;border-radius:12px 12px 12px 4px;font-size:13px;max-width:80%">
+            Bien sur. Maitre Martin est disponible le 25 avril a 10h ou 14h30. Quelle plage vous conviendrait ?
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <input type="text" placeholder="Votre message..." style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font);outline:none" disabled>
+          <button style="padding:10px 16px;border-radius:10px;background:var(--accent);color:#0a0a0f;border:none;font-weight:700;font-size:13px;cursor:default;opacity:0.6">Envoyer</button>
+        </div>
+      </div>`,
+
+    avocat_analytics: () => `
+      <div class="panel-title">Analytics</div>
+      <div class="panel-sub">Statistiques de votre activite</div>
+      <div class="card-grid cols-3">
+        ${[
+          { label: 'Visites site', value: '342', sub: '+12% ce mois' },
+          { label: 'Dossiers actifs', value: '8', sub: '2 en attente' },
+          { label: 'CA mensuel', value: '11 400 \u20ac', sub: '+8% vs mars' }
+        ].map((s, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}" style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">${s.label}</div>
+          <div style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-1px">${s.value}</div>
+          <div style="font-size:11px;color:var(--green);margin-top:6px">${s.sub}</div>
+        </div>`).join('')}
+      </div>`,
+
+    /* ------- DENTISTE ------- */
+    dentiste_stock: () => {
+      const p = MOCK_DATA.dentiste.products;
+      return `
+      <div class="panel-title">Stock</div>
+      <div class="panel-sub">${p.filter(x=>x.status==='critique').length} produit(s) en alerte critique</div>
+      <div class="glass-card" style="overflow-x:auto">
+        <table class="demo-table">
+          <thead><tr><th>Produit</th><th>Qte</th><th>Seuil min</th><th>Prix unit.</th><th>Statut</th></tr></thead>
+          <tbody>
+            ${p.map(x => `<tr>
+              <td style="font-weight:600">${x.name}</td>
+              <td class="qty-cell" style="color:${x.status==='critique'?'var(--red)':x.status==='faible'?'var(--yellow)':'var(--text)'}">${x.qty}</td>
+              <td style="color:var(--muted)">${x.min}</td>
+              <td style="color:var(--muted)">${x.price}</td>
+              <td><span class="badge ${x.status}">${x.statusLabel}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    },
+
+    dentiste_commandes: () => {
+      const o = MOCK_DATA.dentiste.orders;
+      return `
+      <div class="panel-title">Commandes</div>
+      <div class="panel-sub">Historique de vos commandes fournisseurs</div>
+      <div class="card-grid cols-2">
+        ${o.map((x, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">${x.ref}</span>
+            <span class="badge ${x.status}">${x.statusLabel}</span>
+          </div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">${x.supplier}</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:4px">${x.date}</div>
+          <div style="font-size:16px;font-weight:700;color:var(--accent)">${x.total}</div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    dentiste_paniers: () => {
+      const p = MOCK_DATA.dentiste.paniers[0];
+      return `
+      <div class="panel-title">Paniers groupes</div>
+      <div class="panel-sub">Mutualisez vos commandes pour economiser</div>
+      <div class="glass-card anim-in" style="max-width:440px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">${p.title}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Date limite : ${p.deadline}</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
+          <span style="color:var(--muted)">Participants</span>
+          <span style="font-weight:700">${p.members}/${p.target}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" data-width="${(p.members/p.target)*100}"></div></div>
+        <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--green);font-weight:600">Economie estimee : ${p.savings}</span>
+          <button style="padding:8px 16px;border-radius:8px;background:var(--accent);color:#0a0a0f;border:none;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--font)">Rejoindre</button>
+        </div>
+      </div>`;
+    },
+
+    dentiste_scanner: () => `
+      <div class="panel-title">Scanner IA</div>
+      <div class="panel-sub">Scannez vos produits pour les ajouter automatiquement au stock</div>
+      <div class="glass-card" style="max-width:400px;text-align:center;padding:40px 20px">
+        <div style="font-size:48px;margin-bottom:16px;opacity:0.5">\ud83d\udcf7</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px">Scanner un produit</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Pointez la camera vers le code-barres ou le produit pour une reconnaissance automatique</div>
+        <button style="padding:10px 24px;border-radius:10px;background:var(--accent);color:#0a0a0f;border:none;font-weight:700;font-size:13px;cursor:default;opacity:0.6;font-family:var(--font)">Activer la camera</button>
+      </div>`,
+
+    dentiste_green: () => `
+      <div class="panel-title">Green</div>
+      <div class="panel-sub">Votre impact environnemental et alternatives eco-responsables</div>
+      <div class="card-grid cols-3">
+        ${[
+          { icon: '\ud83c\udf3f', label: 'Score eco', value: 'B+', color: 'var(--green)' },
+          { icon: '\u267b\ufe0f', label: 'Produits eco', value: '34%', color: 'var(--accent)' },
+          { icon: '\ud83d\udce6', label: 'Emballages reduits', value: '-18%', color: 'var(--green)' }
+        ].map((s, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}" style="text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">${s.icon}</div>
+          <div style="font-family:var(--display);font-size:24px;font-weight:800;color:${s.color};margin-bottom:4px">${s.value}</div>
+          <div style="font-size:12px;color:var(--muted)">${s.label}</div>
+        </div>`).join('')}
+      </div>`,
+
+    dentiste_compta: () => `
+      <div class="panel-title">Comptabilite</div>
+      <div class="panel-sub">Suivi de vos depenses et recettes</div>
+      <div class="card-grid cols-2">
+        <div class="glass-card anim-in anim-delay-1" style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">Depenses (avril)</div>
+          <div style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--red);letter-spacing:-1px">2 340 \u20ac</div>
+        </div>
+        <div class="glass-card anim-in anim-delay-2" style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">Recettes (avril)</div>
+          <div style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">12 600 \u20ac</div>
+        </div>
+      </div>`,
+
+    /* ------- COIFFEUR ------- */
+    coiffeur_reservations: () => {
+      const r = MOCK_DATA.coiffeur.reservations;
+      return `
+      <div class="panel-title">Reservations</div>
+      <div class="panel-sub">Aujourd'hui &mdash; ${r.length} rendez-vous</div>
+      <div class="glass-card">
+        ${r.map((x, i) => `
+        <div class="appt-item anim-in anim-delay-${i+1}">
+          <div class="appt-left">
+            <div class="appt-avatar">${x.client.charAt(0)}</div>
+            <div>
+              <div class="appt-name">${x.client}</div>
+              <div class="appt-service">${x.service} &middot; ${x.duration}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="badge ${x.status}">${x.status==='confirmee'?'Confirmee':'En attente'}</span>
+            <div class="appt-time">${x.time}</div>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    coiffeur_prestations: () => {
+      const p = MOCK_DATA.coiffeur.prestations;
+      return `
+      <div class="panel-title">Prestations</div>
+      <div class="panel-sub">Gerez votre carte de services et tarifs</div>
+      <div class="card-grid cols-3">
+        ${p.map((x, i) => `
+        <div class="glass-card anim-in anim-delay-${Math.min(i+1,5)}">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+            <span style="font-size:14px;font-weight:700">${x.name}</span>
+            ${x.popular ? '<span style="font-size:10px;background:var(--accent-glow);color:var(--accent);padding:2px 8px;border-radius:50px;font-weight:600">Populaire</span>' : ''}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Duree : ${x.duration}</div>
+          <div style="font-size:18px;font-weight:800;color:var(--accent)">${x.price}</div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    coiffeur_vitrine: () => `
+      <div class="panel-title">Site vitrine</div>
+      <div class="panel-sub">Votre presence en ligne en quelques clics</div>
+      <div class="site-preview glass-card" style="max-width:560px">
+        <div class="site-preview-header">
+          <div class="site-dots"><span class="site-dot r"></span><span class="site-dot y"></span><span class="site-dot g"></span></div>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">salon-elegance.jadomi.fr</span>
+        </div>
+        <div class="site-preview-body">
+          <h3>Salon Elegance</h3>
+          <p>Coiffure &amp; Bien-etre &mdash; Nice centre</p>
+          <div class="site-nav-mock" style="margin-top:16px">
+            <span>Accueil</span><span>Prestations</span><span>Galerie</span><span>Reserver</span>
+          </div>
+        </div>
+      </div>`,
+
+    coiffeur_stats: () => {
+      const s = MOCK_DATA.coiffeur.stats;
+      return `
+      <div class="panel-title">Statistiques</div>
+      <div class="panel-sub">Vue d'ensemble de votre activite</div>
+      <div class="card-grid cols-2">
+        ${[
+          { label: 'RDV aujourd\'hui', value: s.rdvToday },
+          { label: 'RDV cette semaine', value: s.rdvWeek },
+          { label: 'CA cette semaine', value: s.ca },
+          { label: 'Prestation star', value: s.topService }
+        ].map((x, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}" style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">${x.label}</div>
+          <div style="font-family:var(--display);font-size:${typeof x.value==='number'?'28':'18'}px;font-weight:800;color:var(--accent);letter-spacing:-0.5px">${x.value}</div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    /* ------- BTP ------- */
+    btp_chantiers: () => {
+      const c = MOCK_DATA.btp.chantiers;
+      return `
+      <div class="panel-title">Chantiers</div>
+      <div class="panel-sub">${c.filter(x=>x.status==='en_cours').length} chantier(s) en cours</div>
+      <div class="card-grid cols-3">
+        ${c.map((x, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">${x.client}</span>
+            <span class="badge ${x.status}">${x.statusLabel}</span>
+          </div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">${x.name}</div>
+          <div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:12px">${x.budget}</div>
+          <div class="chantier-progress">
+            <div class="chantier-label"><span>Avancement</span><span style="font-weight:700">${x.progress}%</span></div>
+            <div class="progress-bar"><div class="progress-fill" data-width="${x.progress}"></div></div>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    },
+
+    btp_devis: () => {
+      const d = MOCK_DATA.btp.devis;
+      return `
+      <div class="panel-title">Devis</div>
+      <div class="panel-sub">Creez et suivez vos devis clients</div>
+      <div class="glass-card" style="overflow-x:auto">
+        <table class="demo-table">
+          <thead><tr><th>Ref</th><th>Client</th><th>Description</th><th>Montant</th><th>Statut</th></tr></thead>
+          <tbody>
+            ${d.map(x => `<tr>
+              <td style="font-weight:600;color:var(--muted)">${x.ref}</td>
+              <td>${x.client}</td>
+              <td style="color:var(--muted)">${x.desc}</td>
+              <td class="devis-amount">${x.amount}</td>
+              <td><span class="badge ${x.status}">${x.statusLabel}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    },
+
+    btp_stockmat: () => {
+      const s = MOCK_DATA.btp.stock;
+      return `
+      <div class="panel-title">Stock materiaux</div>
+      <div class="panel-sub">Suivi en temps reel de vos materiaux</div>
+      <div class="glass-card" style="overflow-x:auto">
+        <table class="demo-table">
+          <thead><tr><th>Materiau</th><th>Quantite</th><th>Statut</th></tr></thead>
+          <tbody>
+            ${s.map(x => `<tr>
+              <td style="font-weight:600">${x.name}</td>
+              <td class="qty-cell">${x.qty}</td>
+              <td><span class="badge ${x.status}">${x.statusLabel}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    },
+
+    btp_comptabtp: () => `
+      <div class="panel-title">Comptabilite</div>
+      <div class="panel-sub">Suivi financier de vos chantiers</div>
+      <div class="card-grid cols-3">
+        ${[
+          { label: 'CA mensuel', value: '28 400 \u20ac', color: 'var(--accent)' },
+          { label: 'Charges', value: '16 200 \u20ac', color: 'var(--red)' },
+          { label: 'Marge nette', value: '12 200 \u20ac', color: 'var(--green)' }
+        ].map((s, i) => `
+        <div class="glass-card anim-in anim-delay-${i+1}" style="text-align:center">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">${s.label}</div>
+          <div style="font-family:var(--display);font-size:26px;font-weight:800;color:${s.color};letter-spacing:-1px">${s.value}</div>
+        </div>`).join('')}
+      </div>`
+  };
+
+  return (renderers[key] || (() => `
+    <div class="panel-title">${panelId}</div>
+    <div class="panel-sub">Contenu bientot disponible</div>
+    <div class="glass-card" style="text-align:center;padding:40px">
+      <div style="font-size:36px;opacity:0.3;margin-bottom:12px">\ud83d\udee0\ufe0f</div>
+      <div style="font-size:14px;color:var(--muted)">Ce module sera disponible dans votre espace personnel</div>
+    </div>
+  `))();
+}
+
+/* ============================================================
+   STATE + RENDERING
+   ============================================================ */
+let currentProf = 'avocat';
+let currentPanel = null;
+
+function buildSidebar(prof) {
+  const sidebar = document.getElementById('sidebar');
+  const items = SIDEBARS[prof];
+  sidebar.innerHTML = `<div class="sidebar-label">${prof.charAt(0).toUpperCase() + prof.slice(1)}</div>` +
+    items.map((item, i) => `
+      <div class="sidebar-item anim-in anim-delay-${Math.min(i+1,5)}" data-panel="${item.id}">
+        <span class="sidebar-icon">${item.icon}</span>
+        ${item.label}
+      </div>
+    `).join('');
+
+  // Bind clicks
+  sidebar.querySelectorAll('.sidebar-item').forEach(el => {
+    el.addEventListener('click', () => {
+      selectPanel(el.dataset.panel);
+      // close mobile sidebar
+      sidebar.classList.remove('open');
+    });
+  });
+
+  // Select first by default
+  selectPanel(items[0].id);
+}
+
+function selectPanel(panelId) {
+  currentPanel = panelId;
+  // Update sidebar active
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.panel === panelId);
+  });
+  // Render panel with animation
+  const main = document.getElementById('mainContent');
+  main.style.opacity = '0';
+  main.style.transform = 'translateY(12px)';
+  setTimeout(() => {
+    main.innerHTML = `<div class="panel active">${renderPanel(currentProf, panelId)}</div>`;
+    // Animate in
+    requestAnimationFrame(() => {
+      main.style.transition = 'opacity 0.45s cubic-bezier(.16,1,.3,1), transform 0.45s cubic-bezier(.16,1,.3,1)';
+      main.style.opacity = '1';
+      main.style.transform = 'translateY(0)';
+      // Animate progress bars
+      setTimeout(animateProgressBars, 100);
+    });
+  }, 180);
+}
+
+function animateProgressBars() {
+  document.querySelectorAll('.progress-fill[data-width]').forEach(bar => {
+    requestAnimationFrame(() => {
+      bar.style.width = bar.dataset.width + '%';
+    });
+  });
+}
+
+function selectProfession(prof) {
+  if (prof === currentProf) return;
+  currentProf = prof;
+  // Update all pill sets
+  document.querySelectorAll('.prof-pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.prof === prof);
+  });
+  buildSidebar(prof);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Profession tabs (header + mobile)
+  document.querySelectorAll('.prof-pill').forEach(pill => {
+    pill.addEventListener('click', () => selectProfession(pill.dataset.prof));
+  });
+
+  // Mobile sidebar toggle
+  const toggle = document.getElementById('sidebarToggle');
+  const sidebar = document.getElementById('sidebar');
+  toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+  // Close sidebar on outside click (mobile)
+  document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768 &&
+        sidebar.classList.contains('open') &&
+        !sidebar.contains(e.target) &&
+        e.target !== toggle) {
+      sidebar.classList.remove('open');
+    }
+  });
+
+  // Build initial state
+  buildSidebar('avocat');
+});
+</script>
+</body>
+</html>

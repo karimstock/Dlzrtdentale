@@ -110,9 +110,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // app.use(express.json()) deplace plus bas pour permettre raw body sur webhook stripe
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/landing.html')));
 app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')));
 app.get('/tarifs', (req, res) => res.sendFile(path.join(__dirname, 'public/tarifs.html')));
+app.get('/demo', (req, res) => res.sendFile(path.join(__dirname, 'public/demo.html')));
 app.use(express.static(path.join(__dirname)));
 
 // --- Anthropic Claude client ---
@@ -285,6 +286,14 @@ try {
   require('./api/vitrines')(app);
 } catch (e) {
   console.warn('[JADOMI] Module vitrines non charge:', e.message);
+}
+
+// === JADOMI Coach (onboarding personnalise + tooltips) ===
+try {
+  app.use('/api/coach', require('./api/coach'));
+  console.log('[JADOMI] Module Coach monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Coach non charge:', e.message);
 }
 
 // === JADOMI Client Portal (espace client securise) ===
