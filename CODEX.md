@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 34.2 — JADOMI Studio (Hub IA creation publicitaire dentaire)
+**Derniere passe** : Passe 34.3 — Demos JADOMI Studio (galerie visuelles DALL-E 3)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -670,6 +670,21 @@ UNSPLASH_ACCESS_KEY, PEXELS_API_KEY (a ajouter par Karim).
 Fallback gracieux : providers sans cle grises dans l'UI.
 TODO : executer SQL 35, ajouter cles API dans .env, tester DALL-E 3.
 
+## Passe 34.3 (23 avril 2026 nuit) -- Demos JADOMI Studio (galerie visuelles)
+Generation de demos visuelles pour la landing /jadomi-studio.
+Fichiers crees :
+- scripts/generate-studio-demos.js (generateur DALL-E 3 + upload R2)
+- public/assets/studio-demos.json (URLs R2 des demos generees)
+Fichiers modifies :
+- public/jadomi-studio.html (refonte complete : hero carousel infini
+  6 images auto-scroll, galerie demos 6 cards avec lightbox fullscreen,
+  badges DALL-E 3 HD, tags cout/type, responsive mobile)
+6 images DALL-E 3 HD (1792x1024) generees et uploadees sur R2 :
+formation-implanto, catalogue-premium, gestion-cabinet, congres-adf,
+prothese-ceramique, audience-ciblee. Total : 17.12 MB, cout $0.72.
+Sora 2 non disponible via API programmatique (webapp only pour l'instant).
+Landing passe de texte-only a showcase visuel impactant.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -728,6 +743,7 @@ TODO : executer SQL 35, ajouter cles API dans .env, tester DALL-E 3.
 - [ ] Installer puppeteer + axios sur VPS (npm install)
 - [x] JADOMI Ads : regie publicitaire verticale dentaire (Passe 34)
 - [x] JADOMI Studio : hub IA creation publicitaire dentaire (Passe 34.2)
+- [x] Demos Studio : 6 images DALL-E 3 HD + galerie landing (Passe 34.3)
 - [ ] Executer migration SQL 34 dans Supabase
 - [ ] Executer migration SQL 35 (Studio) dans Supabase
 - [ ] Ajouter ELEVENLABS_API_KEY, HEYGEN_API_KEY, UNSPLASH_ACCESS_KEY, PEXELS_API_KEY dans .env
