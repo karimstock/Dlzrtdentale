@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Analyser mon site existant</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--gold:#c9a961;--gold-light:#e8c77b;--bg:#0a0a0f;--surface:#1a1a1f;--surface2:#222228;--border:rgba(201,169,97,0.15);--text:#f0ede6;--muted:#8a857c;--green:#10b981;--red:#ef4444;--trans:cubic-bezier(0.16,1,0.3,1);}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.back-link{position:fixed;top:20px;left:20px;color:var(--muted);font-size:13px;text-decoration:none;z-index:10;}
+.back-link:hover{color:var(--text);}
+.container{max-width:800px;margin:0 auto;padding:80px 24px 60px;}
+
+h1{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;letter-spacing:-1.5px;text-align:center;margin-bottom:8px;background:linear-gradient(135deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.subtitle{text-align:center;color:var(--muted);font-size:14px;margin-bottom:40px;}
+
+/* URL Input */
+.url-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:24px;}
+.url-wrap{display:flex;gap:12px;}
+.url-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;color:var(--text);font-size:16px;font-family:'DM Sans',sans-serif;outline:none;}
+.url-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,169,97,0.1);}
+.url-btn{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#0a0a0f;border:none;border-radius:12px;padding:16px 28px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.3s;white-space:nowrap;}
+.url-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(201,169,97,0.3);}
+.url-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+/* Features list */
+.features{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;}
+.feature{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);}
+.feature-check{color:var(--gold);}
+
+/* Progress */
+.analysis-progress{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;display:none;}
+.progress-step{display:flex;align-items:center;gap:12px;padding:12px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.progress-step:last-child{border-bottom:none;}
+.progress-icon{width:24px;text-align:center;font-size:16px;}
+.progress-step.done .progress-icon{color:var(--green);}
+.progress-step.active .progress-icon{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.progress-step.pending{color:var(--muted);}
+.progress-bar{margin-top:16px;height:4px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:4px;transition:width 600ms var(--trans);width:0%;}
+
+/* Results */
+.results{display:none;}
+.scores-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.score-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;}
+.score-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+.score-value{font-family:'Syne',sans-serif;font-size:36px;font-weight:800;letter-spacing:-2px;}
+.score-grade{font-size:14px;font-weight:700;margin-top:4px;}
+.score-label{font-size:12px;color:var(--muted);margin-top:6px;}
+.grade-A{color:#10b981;} .grade-B{color:#3b82f6;} .grade-C{color:#f59e0b;} .grade-D{color:#f97316;} .grade-F{color:#ef4444;}
+
+.stats-row{display:flex;gap:16px;margin-bottom:24px;}
+.stat-chip{background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:10px 20px;display:flex;align-items:center;gap:8px;font-size:13px;}
+.stat-number{font-weight:700;color:var(--gold);}
+
+.issues-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;}
+.issues-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.issue-item{padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;display:flex;gap:8px;align-items:flex-start;}
+.issue-item:last-child{border-bottom:none;}
+.severity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.sev-critical{background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,0.5);}
+.sev-high{background:#f97316;}
+.sev-medium{background:#f59e0b;}
+.sev-low{background:#6b7280;}
+
+.cta-box{text-align:center;margin-top:32px;}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#0a0a0f;border:none;border-radius:99px;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s;text-decoration:none;}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(201,169,97,0.4);}
+
+@media(max-width:768px){
+  .url-wrap{flex-direction:column;}
+  .scores-grid{grid-template-columns:1fr 1fr;}
+  .features{grid-template-columns:1fr;}
+  .stats-row{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+<a href="/organisation.html" class="back-link">← Retour au dashboard</a>
+
+<div class="container">
+  <h1>Analysez votre site existant</h1>
+  <p class="subtitle">Entrez l'URL de votre site. JADOMI l'analyse en profondeur et vous dit tout.</p>
+
+  <!-- URL Input -->
+  <div class="url-card" id="url-card">
+    <div class="url-wrap">
+      <input class="url-input" id="url-input" type="url" placeholder="https://www.mon-cabinet.fr" autofocus>
+      <button class="url-btn" id="url-btn" onclick="startAnalysis()">Analyser mon site</button>
+    </div>
+    <div class="features">
+      <div class="feature"><span class="feature-check">✓</span>Récupération photos, vidéos et textes</div>
+      <div class="feature"><span class="feature-check">✓</span>Audit design (note A à F)</div>
+      <div class="feature"><span class="feature-check">✓</span>Détection failles de sécurité</div>
+      <div class="feature"><span class="feature-check">✓</span>Évaluation SEO et performance</div>
+      <div class="feature"><span class="feature-check">✓</span>Détection équipe et noms</div>
+      <div class="feature"><span class="feature-check">✓</span>Alertes RGPD automatiques</div>
+    </div>
+  </div>
+
+  <!-- Analysis Progress -->
+  <div class="analysis-progress" id="progress">
+    <div class="progress-step pending" data-step="crawl"><span class="progress-icon">⏳</span>Exploration du site (pages, liens)</div>
+    <div class="progress-step pending" data-step="download"><span class="progress-icon">⏳</span>Téléchargement des médias</div>
+    <div class="progress-step pending" data-step="vision"><span class="progress-icon">⏳</span>Analyse intelligente par Claude Vision</div>
+    <div class="progress-step pending" data-step="audit"><span class="progress-icon">⏳</span>Audit sécurité et SEO</div>
+    <div class="progress-step pending" data-step="done"><span class="progress-icon">⏳</span>Finalisation du rapport</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <h2 style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:8px;">Résultats de l'analyse</h2>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:24px;" id="result-url"></p>
+
+    <div class="scores-grid" id="scores-grid"></div>
+    <div class="stats-row" id="stats-row"></div>
+    <div id="issues-container"></div>
+
+    <div class="cta-box">
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;" id="assets-summary"></p>
+      <a class="cta-btn" id="cta-assets" href="#">Choisir mes médias et lancer la refonte →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let token=null,analysisId=null;
+
+(async()=>{
+  const{data}=await db.auth.getSession();
+  if(!data?.session)return location.href='/login.html';
+  token=data.session.access_token;
+})();
+
+function api(path,opts={}){
+  return fetch(path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,...(opts.headers||{})}}).then(r=>r.json());
+}
+
+async function startAnalysis(){
+  const url=document.getElementById('url-input').value.trim();
+  if(!url||!url.match(/^https?:\/\//)){alert('Entrez une URL valide (https://...)');return;}
+
+  document.getElementById('url-btn').disabled=true;
+  document.getElementById('url-btn').textContent='Lancement...';
+  document.getElementById('progress').style.display='block';
+
+  try{
+    const r=await api('/api/site-analysis/start',{method:'POST',body:JSON.stringify({url})});
+    if(!r.analysis_id){throw new Error(r.error||'Erreur');}
+    analysisId=r.analysis_id;
+    pollStatus();
+  }catch(e){
+    alert('Erreur : '+e.message);
+    document.getElementById('url-btn').disabled=false;
+    document.getElementById('url-btn').textContent='Analyser mon site';
+  }
+}
+
+async function pollStatus(){
+  const statusMap={
+    crawling:{step:'crawl',progress:20},
+    downloading:{step:'download',progress:40},
+    analyzing_vision:{step:'vision',progress:60},
+    auditing:{step:'audit',progress:80},
+    done:{step:'done',progress:100}
+  };
+
+  const interval=setInterval(async()=>{
+    try{
+      const r=await api('/api/site-analysis/'+analysisId);
+      const mapping=statusMap[r.status]||{step:'crawl',progress:10};
+
+      // Update progress steps
+      const steps=['crawl','download','vision','audit','done'];
+      const currentIdx=steps.indexOf(mapping.step);
+      steps.forEach((s,i)=>{
+        const el=document.querySelector(`[data-step="${s}"]`);
+        if(i<currentIdx){el.className='progress-step done';el.querySelector('.progress-icon').textContent='✅';}
+        else if(i===currentIdx){el.className='progress-step active';el.querySelector('.progress-icon').textContent='🔄';}
+        else{el.className='progress-step pending';}
+      });
+      document.getElementById('progress-fill').style.width=mapping.progress+'%';
+
+      if(r.status==='done'){
+        clearInterval(interval);
+        showResults(r);
+      }else if(r.status==='error'){
+        clearInterval(interval);
+        alert('Erreur d\'analyse : '+(r.error_message||'Erreur inconnue'));
+      }
+    }catch(e){console.warn('Poll error:',e);}
+  },3000);
+}
+
+function scoreToGrade(score){
+  if(score>=90)return'A';if(score>=75)return'B';if(score>=60)return'C';if(score>=45)return'D';return'F';
+}
+
+function showResults(data){
+  document.getElementById('progress').style.display='none';
+  document.getElementById('url-card').style.display='none';
+  document.getElementById('results').style.display='block';
+  document.getElementById('result-url').textContent=data.source_url;
+
+  // Scores
+  const audits=[
+    {label:'Design',data:data.design_audit},
+    {label:'Sécurité',data:data.security_audit},
+    {label:'SEO',data:data.seo_audit},
+    {label:'Performance',data:data.performance_audit}
+  ];
+  document.getElementById('scores-grid').innerHTML=audits.map(a=>{
+    const score=a.data?.score??'—';
+    const grade=typeof score==='number'?scoreToGrade(score):'—';
+    return `<div class="score-card"><div class="score-value">${score}</div><div class="score-grade grade-${grade}">${grade}</div><div class="score-label">${a.label}</div></div>`;
+  }).join('');
+
+  // Stats
+  const stats=[];
+  if(data.pages_explored)stats.push(`<div class="stat-chip">📄 <span class="stat-number">${data.pages_explored}</span> pages explorées</div>`);
+  const scraped=data.scraped_data||{};
+  if(scraped.images)stats.push(`<div class="stat-chip">📸 <span class="stat-number">${scraped.images.length}</span> images</div>`);
+  if(scraped.videos)stats.push(`<div class="stat-chip">🎥 <span class="stat-number">${scraped.videos.length}</span> vidéos</div>`);
+  if(data.team_members_detected&&data.team_members_detected.length)stats.push(`<div class="stat-chip">👥 <span class="stat-number">${data.team_members_detected.length}</span> membres d'équipe</div>`);
+  if(data.privacy_alerts)stats.push(`<div class="stat-chip">⚠️ <span class="stat-number">${data.privacy_alerts}</span> alertes RGPD</div>`);
+  document.getElementById('stats-row').innerHTML=stats.join('');
+
+  // Issues
+  const allIssues=[];
+  audits.forEach(a=>{
+    if(a.data?.issues)a.data.issues.forEach(issue=>allIssues.push({...issue,audit:a.label}));
+  });
+  const critical=allIssues.filter(i=>i.severity==='critical');
+  const high=allIssues.filter(i=>i.severity==='high');
+  const medium=allIssues.filter(i=>i.severity==='medium');
+
+  let issuesHTML='';
+  if(critical.length){
+    issuesHTML+=`<div class="issues-card"><div class="issues-title">🔴 ${critical.length} problème(s) critique(s)</div>${critical.map(i=>`<div class="issue-item"><div class="severity-dot sev-critical"></div><div><strong>${i.audit}</strong> — ${i.message}${i.details?'<br><span style="color:var(--muted);font-size:12px;">'+i.details+'</span>':''}</div></div>`).join('')}</div>`;
+  }
+  if(high.length){
+    issuesHTML+=`<div class="issues-card"><div class="issues-title">🟠 ${high.length} problème(s) important(s)</div>${high.map(i=>`<div class="issue-item"><div class="severity-dot sev-high"></div><div><strong>${i.audit}</strong> — ${i.message}</div></div>`).join('')}</div>`;
+  }
+  if(medium.length){
+    issuesHTML+=`<div class="issues-card"><div class="issues-title">🟡 ${medium.length} recommandation(s)</div>${medium.map(i=>`<div class="issue-item"><div class="severity-dot sev-medium"></div><div><strong>${i.audit}</strong> — ${i.message}</div></div>`).join('')}</div>`;
+  }
+  document.getElementById('issues-container').innerHTML=issuesHTML;
+
+  // Assets summary
+  const totalAssets=(scraped.images?.length||0)+(scraped.videos?.length||0);
+  document.getElementById('assets-summary').textContent=`${totalAssets} médias récupérés et prêts pour votre nouveau site JADOMI.`;
+  document.getElementById('cta-assets').href='/public/vitrines/import-assets.html?analysis_id='+analysisId;
+}
+</script>
+</body>
+</html>

@@ -313,6 +313,22 @@ try {
   console.warn('[JADOMI] Module vitrines non charge:', e.message);
 }
 
+// === JADOMI Site Analysis (Passe 33 — import site existant) ===
+try {
+  app.use('/api/site-analysis', require('./api/site-analysis'));
+  console.log('[JADOMI] Module Site Analysis monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Site Analysis non chargé:', e.message);
+}
+
+// === JADOMI Media Upload (Passe 33 — upload manuel) ===
+try {
+  app.use('/api/media', require('./api/media-upload'));
+  console.log('[JADOMI] Module Media Upload monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Media Upload non chargé:', e.message);
+}
+
 // === JADOMI Coach (onboarding personnalise + tooltips) ===
 try {
   app.use('/api/coach', require('./api/coach'));

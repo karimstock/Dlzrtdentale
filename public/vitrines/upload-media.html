@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Uploader mes médias</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--gold:#c9a961;--gold-light:#e8c77b;--bg:#0a0a0f;--surface:#1a1a1f;--surface2:#222228;--border:rgba(201,169,97,0.15);--text:#f0ede6;--muted:#8a857c;--green:#10b981;--trans:cubic-bezier(0.16,1,0.3,1);}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.back-link{position:fixed;top:20px;left:20px;color:var(--muted);font-size:13px;text-decoration:none;z-index:10;}
+.container{max-width:900px;margin:0 auto;padding:80px 24px 60px;}
+h1{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;text-align:center;margin-bottom:8px;background:linear-gradient(135deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.subtitle{text-align:center;color:var(--muted);font-size:14px;margin-bottom:40px;}
+
+.dropzone{border:2px dashed var(--border);border-radius:20px;padding:60px 20px;text-align:center;cursor:pointer;transition:all 0.3s var(--trans);background:var(--surface);margin-bottom:32px;}
+.dropzone:hover,.dropzone.dragover{border-color:var(--gold);background:rgba(201,169,97,0.03);}
+.dz-icon{font-size:48px;margin-bottom:16px;opacity:0.6;}
+.dz-title{font-size:18px;font-weight:700;margin-bottom:8px;}
+.dz-or{color:var(--muted);margin:12px 0;}
+.dz-btn{display:inline-flex;padding:12px 28px;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#0a0a0f;border:none;border-radius:99px;font-size:14px;font-weight:700;cursor:pointer;}
+.dz-help{font-size:12px;color:var(--muted);margin-top:12px;}
+
+.upload-queue{margin-bottom:24px;}
+.upload-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.upload-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--surface2);}
+.upload-info{flex:1;min-width:0;}
+.upload-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.upload-size{font-size:11px;color:var(--muted);}
+.upload-progress{height:3px;background:var(--surface2);border-radius:3px;margin-top:6px;overflow:hidden;}
+.upload-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:3px;transition:width 300ms;}
+.upload-status{font-size:12px;font-weight:600;}
+.upload-status.done{color:var(--green);}
+
+.uploaded-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:32px;}
+.uploaded-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative;}
+.uploaded-card img,.uploaded-card video{width:100%;aspect-ratio:1;object-fit:cover;}
+.uploaded-card .uc-name{padding:8px 10px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.uploaded-card .uc-remove{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.7);color:white;border:none;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;}
+.uploaded-card:hover .uc-remove{opacity:1;}
+
+.footer-actions{display:flex;justify-content:space-between;align-items:center;padding-top:20px;border-top:1px solid var(--border);}
+.footer-summary{font-size:13px;color:var(--muted);}
+.footer-btn{padding:14px 28px;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#0a0a0f;border:none;border-radius:99px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.3s;}
+.footer-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(201,169,97,0.3);}
+.footer-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+</style>
+</head>
+<body>
+<a href="/organisation.html" class="back-link">← Retour au dashboard</a>
+<div class="container">
+  <h1>Uploader vos médias</h1>
+  <p class="subtitle">Ajoutez photos et vidéos depuis votre ordinateur. Ces médias seront disponibles pour votre site.</p>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dz-icon">📤</div>
+    <div class="dz-title">Glissez-déposez vos fichiers ici</div>
+    <div class="dz-or">OU</div>
+    <button class="dz-btn" onclick="document.getElementById('file-input').click()">Sélectionner des fichiers</button>
+    <div class="dz-help">Formats acceptés : JPG, PNG, WebP, SVG, MP4, MOV, WebM — Max 500 MB par fichier</div>
+    <input type="file" id="file-input" multiple accept="image/*,video/*" style="display:none;">
+  </div>
+
+  <div class="upload-queue" id="upload-queue"></div>
+  <div class="uploaded-grid" id="uploaded-grid"></div>
+
+  <div class="footer-actions">
+    <div class="footer-summary" id="footer-summary">0 fichier uploadé</div>
+    <div style="display:flex;gap:12px;">
+      <a href="/organisation.html" style="padding:14px 24px;border:1px solid var(--border);border-radius:99px;color:var(--muted);text-decoration:none;font-size:14px;">Retour</a>
+      <button class="footer-btn" id="btn-continue" onclick="continueToBuilder()" disabled>Continuer vers le site builder →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let token=null,uploadedFiles=[];
+
+(async()=>{
+  const{data}=await db.auth.getSession();
+  if(!data?.session)return location.href='/login.html';
+  token=data.session.access_token;
+})();
+
+// Drag & drop
+const dz=document.getElementById('dropzone');
+const fi=document.getElementById('file-input');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleFiles(e.dataTransfer.files);});
+fi.addEventListener('change',()=>{if(fi.files.length)handleFiles(fi.files);});
+
+function handleFiles(files){
+  Array.from(files).forEach(file=>{
+    if(file.size>500*1024*1024){alert(file.name+' dépasse 500 MB');return;}
+    uploadFile(file);
+  });
+}
+
+async function uploadFile(file){
+  const id='upload-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+  const queue=document.getElementById('upload-queue');
+
+  // Create queue item
+  const item=document.createElement('div');
+  item.className='upload-item';
+  item.id=id;
+
+  const isImage=file.type.startsWith('image/');
+  let thumbHTML='<div class="upload-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;">'+(isImage?'📸':'🎥')+'</div>';
+  if(isImage){
+    const thumbUrl=URL.createObjectURL(file);
+    thumbHTML=`<img class="upload-thumb" src="${thumbUrl}">`;
+  }
+
+  item.innerHTML=`${thumbHTML}<div class="upload-info"><div class="upload-name">${file.name}</div><div class="upload-size">${formatSize(file.size)}</div><div class="upload-progress"><div class="upload-fill" id="${id}-fill" style="width:0%"></div></div></div><div class="upload-status" id="${id}-status">0%</div>`;
+  queue.appendChild(item);
+
+  // Upload
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('societe_id',localStorage.getItem('societe_active_id')||'');
+
+  try{
+    const xhr=new XMLHttpRequest();
+    xhr.upload.onprogress=e=>{
+      if(e.lengthComputable){
+        const pct=Math.round(e.loaded/e.total*100);
+        document.getElementById(id+'-fill').style.width=pct+'%';
+        document.getElementById(id+'-status').textContent=pct+'%';
+      }
+    };
+    xhr.onload=()=>{
+      if(xhr.status===200){
+        const data=JSON.parse(xhr.responseText);
+        document.getElementById(id+'-status').textContent='✓';
+        document.getElementById(id+'-status').className='upload-status done';
+        uploadedFiles.push({...data,name:file.name,type:file.type});
+        renderUploaded();
+      }else{
+        document.getElementById(id+'-status').textContent='Erreur';
+        document.getElementById(id+'-status').style.color='#ef4444';
+      }
+    };
+    xhr.onerror=()=>{document.getElementById(id+'-status').textContent='Erreur';};
+    xhr.open('POST','/api/media/upload');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.send(fd);
+  }catch(e){console.error(e);}
+}
+
+function renderUploaded(){
+  const grid=document.getElementById('uploaded-grid');
+  grid.innerHTML=uploadedFiles.map((f,i)=>{
+    const isImage=f.type?.startsWith('image/');
+    const preview=f.r2_url||f.original_r2_url||'';
+    return `<div class="uploaded-card">
+      ${isImage?`<img src="${preview}" alt="${f.name}">`:`<video src="${preview}" muted></video>`}
+      <div class="uc-name">${f.name}</div>
+      <button class="uc-remove" onclick="removeUploaded(${i})">✕</button>
+    </div>`;
+  }).join('');
+
+  document.getElementById('footer-summary').textContent=uploadedFiles.length+' fichier'+(uploadedFiles.length>1?'s':'')+' uploadé'+(uploadedFiles.length>1?'s':'');
+  document.getElementById('btn-continue').disabled=uploadedFiles.length===0;
+}
+
+function removeUploaded(idx){
+  uploadedFiles.splice(idx,1);
+  renderUploaded();
+}
+
+function continueToBuilder(){
+  // Store uploaded file refs for the site builder
+  localStorage.setItem('jadomi_uploaded_media',JSON.stringify(uploadedFiles.map(f=>f.id||f.asset_id)));
+  location.href='/public/vitrines/site-builder.html';
+}
+
+function formatSize(bytes){
+  if(bytes<1024)return bytes+' B';
+  if(bytes<1024*1024)return(bytes/1024).toFixed(1)+' KB';
+  return(bytes/1024/1024).toFixed(1)+' MB';
+}
+</script>
+</body>
+</html>
