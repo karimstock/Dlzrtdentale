@@ -352,6 +352,14 @@ try {
   console.warn('[JADOMI] Module Studio non charge:', e.message);
 }
 
+// === JADOMI Studio — Remotion Video Generation (Passe 35) ===
+try {
+  app.use('/api/studio/generate-ad-remotion', require('./api/studio/generate-ad-remotion'));
+  console.log('[JADOMI] Module Remotion (video generation) monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Remotion non charge:', e.message);
+}
+
 // === JADOMI Coach (onboarding personnalisé + tooltips) ===
 try {
   app.use('/api/coach', require('./api/coach'));
