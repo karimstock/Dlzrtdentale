@@ -31,7 +31,7 @@ export const JADOMI_CONFIG = {
     },
     adTemplate: {
       id: 'AdTemplate',
-      durationInFrames: 180, // 6 seconds
+      durationInFrames: 300, // 10 seconds
       title: 'Ad Template Annonceur',
     },
     statsAnimation: {
