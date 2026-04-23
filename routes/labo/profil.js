@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     if (req.prothesiste) {
-      return res.status(400).json({ error: 'Profil deja existant, utilisez PUT' });
+      return res.status(400).json({ error: 'Profil déjà existant, utilisez PUT' });
     }
 
     const body = req.body;
@@ -117,7 +117,7 @@ router.post('/template-catalogue', async (req, res) => {
       .eq('source_ajout', 'template_jadomi');
 
     if (count > 0) {
-      return res.status(400).json({ error: 'Template deja installe', count });
+      return res.status(400).json({ error: 'Template déjà installé', count });
     }
 
     // Lire le SQL template et remplacer le placeholder

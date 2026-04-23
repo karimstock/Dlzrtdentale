@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
       .single();
 
     if (error) {
-      if (error.code === '23505') return res.status(409).json({ error: 'Email deja utilise pour ce labo' });
+      if (error.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé pour ce labo' });
       throw error;
     }
     res.json({ success: true, dentiste: data });

@@ -619,10 +619,10 @@
     card1.dataset.choice = 'upload';
     card1.setAttribute('tabindex', '0');
     card1.setAttribute('role', 'button');
-    card1.setAttribute('aria-label', 'Telecharger votre logo existant');
+    card1.setAttribute('aria-label', 'Télécharger votre logo existant');
     card1.innerHTML =
       '<div class="logo-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>' +
-      '<div class="logo-card-title">J\'ai deja mon logo</div>' +
+      '<div class="logo-card-title">J\'ai déjà mon logo</div>' +
       '<div class="logo-card-desc">Telechargez votre logo existant</div>';
 
     // Card 2: Generate with AI
@@ -631,7 +631,7 @@
     card2.dataset.choice = 'generate';
     card2.setAttribute('tabindex', '0');
     card2.setAttribute('role', 'button');
-    card2.setAttribute('aria-label', 'Generer un logo par intelligence artificielle');
+    card2.setAttribute('aria-label', 'Générer un logo par intelligence artificielle');
     card2.innerHTML =
       '<div class="logo-card-price">+59 EUR</div>' +
       '<div class="logo-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l2.4 7.4H22l-6.2 4.5L18.2 21 12 16.5 5.8 21l2.4-7.1L2 9.4h7.6L12 2z"/></svg></div>' +
@@ -644,7 +644,7 @@
     card3.dataset.choice = 'skip';
     card3.setAttribute('tabindex', '0');
     card3.setAttribute('role', 'button');
-    card3.setAttribute('aria-label', 'Passer cette etape');
+    card3.setAttribute('aria-label', 'Passer cette étape');
     card3.innerHTML =
       '<div class="logo-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>' +
       '<div class="logo-card-title">Plus tard</div>' +
@@ -765,7 +765,7 @@
 
     var btn = document.createElement('button');
     btn.className = 'ob-cta';
-    btn.textContent = 'Generer mes 4 logos';
+    btn.textContent = 'Générer mes 4 logos';
     btn.setAttribute('aria-label', 'Lancer la generation de logos');
     panel.appendChild(btn);
 
@@ -1038,7 +1038,7 @@
     skipWrap.style.cssText = 'text-align:center;margin-top:1rem;';
     var skipBtn = document.createElement('button');
     skipBtn.className = 'ob-cta-secondary';
-    skipBtn.textContent = 'Passer cette etape';
+    skipBtn.textContent = 'Passer cette étape';
     skipBtn.style.cssText = 'font-size:0.85rem;padding:0.6rem 1.5rem;';
     skipBtn.addEventListener('click', function() {
       self.addUserMessage('Photos ajoutees plus tard');

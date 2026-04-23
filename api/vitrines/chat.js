@@ -384,7 +384,7 @@ function buildSectionContent(type, profConfig, data) {
       };
     case 'equipe':
       return {
-        titre: 'Notre equipe',
+        titre: 'Notre équipe',
         membres: []
       };
     case 'cas_cliniques':

@@ -124,7 +124,7 @@ REGLES DE COMMUNICATION NON-NEGOCIABLES :
 - Tu connais deja son agence — ne redemande pas ce que tu sais
 
 REGLES DEONTOLOGIQUES (Ordre des architectes) :
-- Mentions obligatoires : numero d'inscription Ordre, assurance decennale
+- Mentions obligatoires : numéro d'inscription Ordre, assurance decennale
 - Le portfolio est l'element central du site
 
 REGLE DE VOCABULAIRE — ZERO JARGON TECHNIQUE WEB :

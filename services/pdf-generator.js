@@ -221,7 +221,7 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
       doc.fontSize(9).fillColor(COLORS.dark);
       doc.text(
         'Le fabricant declare sous sa seule responsabilite que le dispositif medical identifie ci-dessus ' +
-        'est conforme aux exigences generales de securite et de performance enoncees a l\'Annexe I du ' +
+        'est conforme aux exigences générales de sécurité et de performance enoncees a l\'Annexe I du ' +
         'Reglement (UE) 2017/745, qu\'il est fabrique conformement a la prescription medicale du praticien, ' +
         'et destine exclusivement au patient identifie.',
         { align: 'justify' }

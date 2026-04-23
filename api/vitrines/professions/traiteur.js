@@ -28,9 +28,9 @@ module.exports = {
     { id: 'laboratoire', label: 'Laboratoire', poetic_label: 'Votre laboratoire — ou les plats naissent', required: true, rgpd_sensible: false },
     { id: 'buffets_realises', label: 'Buffets', poetic_label: 'Buffets realises — scenographie culinaire', required: true, rgpd_sensible: false },
     { id: 'plats_signatures', label: 'Plats signatures', poetic_label: 'Vos plats — signature du savoir-faire', required: true, rgpd_sensible: false },
-    { id: 'salle_demo', label: 'Salle demo', poetic_label: 'Salle de demonstration — degustation avant evenement', required: false, rgpd_sensible: false },
+    { id: 'salle_demo', label: 'Salle demo', poetic_label: 'Salle de demonstration — degustation avant événement', required: false, rgpd_sensible: false },
     { id: 'equipe_brigade', label: 'Brigade', poetic_label: 'Votre brigade — professionnalisme en mouvement', required: false, rgpd_sensible: false },
-    { id: 'evenements_realises', label: 'Evenements', poetic_label: 'Evenements — vos prestations en action', required: false, rgpd_sensible: false },
+    { id: 'evenements_realises', label: 'Événements', poetic_label: 'Événements — vos prestations en action', required: false, rgpd_sensible: false },
     { id: 'materiel_location', label: 'Materiel', poetic_label: 'Materiel — qualite jusqu\'au dernier detail', required: false, rgpd_sensible: false },
     { id: 'video_presentation', label: 'Video', poetic_label: 'Votre savoir-faire en 30 secondes', required: false, rgpd_sensible: false, media_type: 'video' }
   ],

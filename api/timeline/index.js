@@ -296,7 +296,7 @@ router.post('/practitioner/timelines/:id/steps', async (req, res) => {
         timeline_id: timeline.id,
         step_order: nextOrder,
         step_date: step_date || new Date().toISOString().slice(0, 10),
-        step_label: step_label || `Etape ${nextOrder}`,
+        step_label: step_label || `Étape ${nextOrder}`,
         clinical_notes: clinical_notes || null,
         measurements: measurements || null,
         next_appointment_date: next_appointment_date || null,
@@ -314,7 +314,7 @@ router.post('/practitioner/timelines/:id/steps', async (req, res) => {
     res.status(201).json(data);
   } catch (err) {
     console.error('[timeline] POST /practitioner/timelines/:id/steps', err);
-    res.status(500).json({ error: 'Erreur ajout etape' });
+    res.status(500).json({ error: 'Erreur ajout étape' });
   }
 });
 
@@ -329,7 +329,7 @@ router.patch('/practitioner/steps/:id', async (req, res) => {
       .single();
 
     if (!step || step.timelines?.societe_id !== req.societe.id) {
-      return res.status(404).json({ error: 'Etape introuvable' });
+      return res.status(404).json({ error: 'Étape introuvable' });
     }
 
     const allowed = ['step_date', 'step_label', 'clinical_notes', 'measurements', 'next_appointment_date', 'visible_to_patient'];
@@ -353,7 +353,7 @@ router.patch('/practitioner/steps/:id', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[timeline] PATCH /practitioner/steps/:id', err);
-    res.status(500).json({ error: 'Erreur mise a jour etape' });
+    res.status(500).json({ error: 'Erreur mise a jour étape' });
   }
 });
 
@@ -367,7 +367,7 @@ router.delete('/practitioner/steps/:id', async (req, res) => {
       .single();
 
     if (!step || step.timelines?.societe_id !== req.societe.id) {
-      return res.status(404).json({ error: 'Etape introuvable' });
+      return res.status(404).json({ error: 'Étape introuvable' });
     }
 
     // Delete photos from R2 first
@@ -395,7 +395,7 @@ router.delete('/practitioner/steps/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[timeline] DELETE /practitioner/steps/:id', err);
-    res.status(500).json({ error: 'Erreur suppression etape' });
+    res.status(500).json({ error: 'Erreur suppression étape' });
   }
 });
 
@@ -410,7 +410,7 @@ router.post('/practitioner/steps/:stepId/photos', upload.array('photos', 10), as
       .single();
 
     if (!step || step.timelines?.societe_id !== req.societe.id) {
-      return res.status(404).json({ error: 'Etape introuvable' });
+      return res.status(404).json({ error: 'Étape introuvable' });
     }
 
     if (!req.files || req.files.length === 0) {
@@ -575,7 +575,7 @@ router.post('/practitioner/steps/:id/ai-notes', async (req, res) => {
       .single();
 
     if (!step || step.timelines?.societe_id !== req.societe.id) {
-      return res.status(404).json({ error: 'Etape introuvable' });
+      return res.status(404).json({ error: 'Étape introuvable' });
     }
 
     const { data: photos } = await admin()
@@ -584,7 +584,7 @@ router.post('/practitioner/steps/:id/ai-notes', async (req, res) => {
       .eq('step_id', step.id);
 
     if (!photos || photos.length === 0) {
-      return res.status(400).json({ error: 'Aucune photo pour cette etape' });
+      return res.status(400).json({ error: 'Aucune photo pour cette étape' });
     }
 
     // Build image content for Claude
@@ -740,7 +740,7 @@ router.post('/practitioner/timelines/:id/generate-pdf', async (req, res) => {
       if (doc.y > 700) doc.addPage();
 
       doc.fontSize(14).font('Helvetica-Bold')
-        .text(`Etape ${step.step_order} — ${step.step_label}`);
+        .text(`Étape ${step.step_order} — ${step.step_label}`);
       doc.fontSize(10).font('Helvetica').fillColor('#666')
         .text(step.step_date || '');
       doc.fillColor('#000');

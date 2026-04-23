@@ -98,7 +98,7 @@ module.exports = {
       type: 'single_choice',
       options: [
         'Je laisse JADOMI choisir une belle adresse professionnelle (recommande)',
-        'J\'ai deja une adresse pour mon cabinet (ex: www.mon-cabinet.fr)',
+        'J\'ai déjà une adresse pour mon cabinet (ex: www.mon-cabinet.fr)',
         'Je ne sais pas, aidez-moi'
       ],
       required: true
@@ -192,7 +192,7 @@ EXPLICATIONS HUMAINES UNIQUEMENT :
 
 Si le Dr te pose une question technique, explique en analogie simple :
 - 'C'est un peu comme votre adresse postale, mais pour internet'
-- 'Pensez-y comme votre numero de telephone, mais pour votre site'
+- 'Pensez-y comme votre numéro de telephone, mais pour votre site'
 
 Rassure toujours : 'JADOMI s'occupe de tout ce cote technique, c'est inclus dans votre abonnement, vous n'avez rien a configurer.'
 
