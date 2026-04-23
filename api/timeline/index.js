@@ -78,20 +78,37 @@ router.use('/practitioner', authSupabase(), requireSociete());
 router.post('/practitioner/timelines', async (req, res) => {
   try {
     const {
-      site_id, patient_info, treatment_type, treatment_label,
+      site_id, societe_id: body_societe_id, patient_info, treatment_type, treatment_label,
       treatment_description, start_date, estimated_end_date,
       practitioner_name, practitioner_email, patient_account_id
     } = req.body;
 
-    if (!site_id || !treatment_type || !start_date) {
-      return res.status(400).json({ error: 'Champs obligatoires: site_id, treatment_type, start_date' });
+    const effectiveSocieteId = req.societe?.id || body_societe_id;
+
+    if (!treatment_type || !start_date) {
+      return res.status(400).json({ error: 'Champs obligatoires: treatment_type, start_date' });
+    }
+    if (!site_id && !effectiveSocieteId) {
+      return res.status(400).json({ error: 'site_id ou societe_id requis' });
+    }
+
+    // Auto-detect site_id from societe if not provided
+    let effectiveSiteId = site_id || null;
+    if (!effectiveSiteId && effectiveSocieteId) {
+      const { data: siteData } = await admin()
+        .from('vitrines_sites')
+        .select('id')
+        .eq('societe_id', effectiveSocieteId)
+        .limit(1)
+        .maybeSingle();
+      effectiveSiteId = siteData?.id || null;
     }
 
     const { data, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .insert({
-        societe_id: req.societe.id,
-        site_id,
+        societe_id: effectiveSocieteId,
+        site_id: effectiveSiteId,
         patient_info: patient_info || {},
         patient_account_id: patient_account_id || null,
         treatment_type,
@@ -102,8 +119,7 @@ router.post('/practitioner/timelines', async (req, res) => {
         practitioner_name: practitioner_name || null,
         practitioner_email: practitioner_email || null,
         status: 'en_cours',
-        visibility: 'private',
-        created_by: req.user.id
+        visibility: 'private'
       })
       .select()
       .single();
@@ -122,25 +138,28 @@ router.get('/practitioner/timelines', async (req, res) => {
     const { status, type, search } = req.query;
 
     let query = admin()
-      .from('timelines')
-      .select('*, timeline_steps(count), timeline_photos(count)')
+      .from('treatment_timelines')
+      .select('*')
       .eq('societe_id', req.societe.id)
-      .neq('status', 'supprime')
+      .neq('status', 'abandonne')
       .order('updated_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
     if (type) query = query.eq('treatment_type', type);
-    if (search) query = query.or(`patient_info->>last_name.ilike.%${search}%,patient_info->>first_name.ilike.%${search}%,treatment_label.ilike.%${search}%`);
+    if (search) query = query.or(`treatment_label.ilike.%${search}%`);
 
     const { data, error } = await query;
     if (error) throw error;
 
-    const timelines = (data || []).map(t => ({
-      ...t,
-      step_count: t.timeline_steps?.[0]?.count || 0,
-      photo_count: t.timeline_photos?.[0]?.count || 0,
-      timeline_steps: undefined,
-      timeline_photos: undefined
+    // Count steps/photos per timeline
+    const timelines = await Promise.all((data || []).map(async t => {
+      const { count: stepCount } = await admin()
+        .from('timeline_steps').select('*', { count: 'exact', head: true })
+        .eq('timeline_id', t.id);
+      const { count: photoCount } = await admin()
+        .from('timeline_photos').select('*', { count: 'exact', head: true })
+        .in('step_id', (await admin().from('timeline_steps').select('id').eq('timeline_id', t.id)).data?.map(s => s.id) || ['00000000-0000-0000-0000-000000000000']);
+      return { ...t, step_count: stepCount || 0, photo_count: photoCount || 0 };
     }));
 
     res.json(timelines);
@@ -154,7 +173,7 @@ router.get('/practitioner/timelines', async (req, res) => {
 router.get('/practitioner/timelines/:id', async (req, res) => {
   try {
     const { data: timeline, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('*')
       .eq('id', req.params.id)
       .eq('societe_id', req.societe.id)
@@ -209,7 +228,7 @@ router.patch('/practitioner/timelines/:id', async (req, res) => {
     updates.updated_at = new Date().toISOString();
 
     const { data, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .update(updates)
       .eq('id', req.params.id)
       .eq('societe_id', req.societe.id)
@@ -229,7 +248,7 @@ router.patch('/practitioner/timelines/:id', async (req, res) => {
 router.delete('/practitioner/timelines/:id', async (req, res) => {
   try {
     const { data, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .update({ status: 'abandonne', updated_at: new Date().toISOString() })
       .eq('id', req.params.id)
       .eq('societe_id', req.societe.id)
@@ -250,7 +269,7 @@ router.post('/practitioner/timelines/:id/steps', async (req, res) => {
   try {
     // Verify timeline ownership
     const { data: timeline } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('id')
       .eq('id', req.params.id)
       .eq('societe_id', req.societe.id)
@@ -290,7 +309,7 @@ router.post('/practitioner/timelines/:id/steps', async (req, res) => {
     if (error) throw error;
 
     // Touch timeline updated_at
-    await admin().from('timelines').update({ updated_at: new Date().toISOString() }).eq('id', timeline.id);
+    await admin().from('treatment_timelines').update({ updated_at: new Date().toISOString() }).eq('id', timeline.id);
 
     res.status(201).json(data);
   } catch (err) {
@@ -442,7 +461,7 @@ router.post('/practitioner/steps/:stepId/photos', upload.array('photos', 10), as
     }
 
     // Touch timeline updated_at
-    await admin().from('timelines').update({ updated_at: new Date().toISOString() }).eq('id', timelineId);
+    await admin().from('treatment_timelines').update({ updated_at: new Date().toISOString() }).eq('id', timelineId);
 
     res.status(201).json(results);
   } catch (err) {
@@ -598,7 +617,7 @@ router.post('/practitioner/steps/:id/ai-notes', async (req, res) => {
 router.post('/practitioner/timelines/:id/request-consent', async (req, res) => {
   try {
     const { data: timeline } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('*')
       .eq('id', req.params.id)
       .eq('societe_id', req.societe.id)
@@ -636,7 +655,7 @@ router.post('/practitioner/timelines/:id/request-consent', async (req, res) => {
 
     // Mark consent requested
     await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .update({ consent_requested_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', timeline.id);
 
@@ -651,7 +670,7 @@ router.post('/practitioner/timelines/:id/request-consent', async (req, res) => {
 router.post('/practitioner/timelines/:id/generate-pdf', async (req, res) => {
   try {
     const { data: timeline } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('*')
       .eq('id', req.params.id)
       .eq('societe_id', req.societe.id)
@@ -780,7 +799,7 @@ router.post('/practitioner/timelines/:id/generate-pdf', async (req, res) => {
 router.get('/patient/my-timelines', requireClient, async (req, res) => {
   try {
     const { data, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('*, timeline_steps(count), timeline_photos(count)')
       .eq('patient_account_id', req.client.id)
       .in('visibility', ['shared_with_patient', 'portfolio_anonymized'])
@@ -822,7 +841,7 @@ router.get('/patient/my-timelines', requireClient, async (req, res) => {
 router.get('/patient/timelines/:id', requireClient, async (req, res) => {
   try {
     const { data: timeline, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('*')
       .eq('id', req.params.id)
       .eq('patient_account_id', req.client.id)
@@ -882,7 +901,7 @@ router.post('/patient/timelines/:id/consent', requireClient, async (req, res) =>
     }
 
     const { data: timeline } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('id')
       .eq('id', req.params.id)
       .eq('patient_account_id', req.client.id)
@@ -891,7 +910,7 @@ router.post('/patient/timelines/:id/consent', requireClient, async (req, res) =>
     if (!timeline) return res.status(404).json({ error: 'Timeline introuvable' });
 
     const { data, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .update({
         consent_patient_signed: true,
         consent_signed_at: new Date().toISOString(),
@@ -914,7 +933,7 @@ router.post('/patient/timelines/:id/consent', requireClient, async (req, res) =>
 router.post('/patient/timelines/:id/revoke-consent', requireClient, async (req, res) => {
   try {
     const { data: timeline } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('id')
       .eq('id', req.params.id)
       .eq('patient_account_id', req.client.id)
@@ -923,7 +942,7 @@ router.post('/patient/timelines/:id/revoke-consent', requireClient, async (req, 
     if (!timeline) return res.status(404).json({ error: 'Timeline introuvable' });
 
     const { error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .update({
         consent_patient_signed: false,
         visibility: 'shared_with_patient',
@@ -947,7 +966,7 @@ router.post('/patient/timelines/:id/revoke-consent', requireClient, async (req, 
 router.get('/public/portfolio/:siteId', async (req, res) => {
   try {
     const { data: timelines, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('id, treatment_type, treatment_label, start_date, estimated_end_date, created_at')
       .eq('site_id', req.params.siteId)
       .eq('visibility', 'portfolio_anonymized')
@@ -998,7 +1017,7 @@ router.get('/public/portfolio/:siteId', async (req, res) => {
 router.get('/public/portfolio/:siteId/stats', async (req, res) => {
   try {
     const { data: timelines, error } = await admin()
-      .from('timelines')
+      .from('treatment_timelines')
       .select('id, treatment_type, start_date, estimated_end_date')
       .eq('site_id', req.params.siteId)
       .eq('visibility', 'portfolio_anonymized')
