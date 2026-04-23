@@ -98,7 +98,8 @@
     } catch (e) {}
 
     // Get steps
-    var steps = window.getTourSteps ? window.getTourSteps(metier) : null;
+    var steps = window.getTourSteps ? window.getTourSteps(metier) :
+                (window.TOUR_STEPS ? (window.TOUR_STEPS[metier] || window.TOUR_STEPS.default) : null);
     if (!steps || !steps.length || !window.JadomiTourGuide) return;
 
     // Launch tour
