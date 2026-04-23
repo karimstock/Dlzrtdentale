@@ -43,7 +43,7 @@ const globalLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de requetes, reessayez dans 15 minutes' },
+  message: { error: 'Trop de requêtes, réessayez dans 15 minutes' },
   skip: (req) => req.path === '/api/health'
 });
 app.use('/api/', globalLimiter);
@@ -54,7 +54,7 @@ app.use('/api/auth/login', rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de tentatives, reessayez dans 15 minutes' }
+  message: { error: 'Trop de tentatives, réessayez dans 15 minutes' }
 }));
 
 // Strict register : 3 creations / heure / IP
@@ -63,7 +63,7 @@ app.use('/api/auth/register', rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de creations de compte, reessayez dans 1 heure' }
+  message: { error: 'Trop de créations de compte, réessayez dans 1 heure' }
 }));
 
 // Modere forgot-password : 5 / 15 min / IP
@@ -72,7 +72,7 @@ app.use('/api/auth/forgot-password', rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de demandes, reessayez dans 15 minutes' }
+  message: { error: 'Trop de demandes, réessayez dans 15 minutes' }
 }));
 
 // === Performance: in-memory cache helper ===
@@ -123,7 +123,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/landing.htm
 app.get('/m', (req, res) => res.sendFile(path.join(__dirname, 'mobile.html')));
 app.get('/tarifs', (req, res) => res.sendFile(path.join(__dirname, 'public/tarifs.html')));
 app.get('/demo', (req, res) => res.sendFile(path.join(__dirname, 'public/demo.html')));
-// Landings metier dedies (Passe 27 + 5-group hierarchy)
+// Landings métier dédiés (Passe 27 + 5-group hierarchy)
 app.get('/avocats', (req, res) => res.sendFile(path.join(__dirname, 'public/avocats.html')));
 app.get('/btp', (req, res) => res.sendFile(path.join(__dirname, 'public/btp.html')));
 app.get('/sci', (req, res) => res.sendFile(path.join(__dirname, 'public/sci.html')));
@@ -158,12 +158,12 @@ if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
   supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
-  console.log('[JADOMI] Supabase admin (service_role) initialise');
+  console.log('[JADOMI] Supabase admin (service_role) initialisé');
 } else {
   console.warn('[JADOMI] SUPABASE_SERVICE_ROLE_KEY absent — yahoo_oauth_tokens indisponible');
 }
 function supaAdminOrThrow() {
-  if (!supabaseAdmin) throw new Error('SUPABASE_SERVICE_ROLE_KEY non configure sur le serveur');
+  if (!supabaseAdmin) throw new Error('SUPABASE_SERVICE_ROLE_KEY non configuré sur le serveur');
   return supabaseAdmin;
 }
 
@@ -172,9 +172,9 @@ function supaAdminOrThrow() {
 try {
   const mountAdmin = require('./api/admin');
   mountAdmin(app, supabase, anthropic);
-  console.log('[JADOMI] Module Admin monte');
+  console.log('[JADOMI] Module Admin monté');
 } catch (e) {
-  console.warn('[JADOMI] Module Admin non charge:', e.message);
+  console.warn('[JADOMI] Module Admin non chargé:', e.message);
 }
 
 // === Webhook Stripe Billing (raw body requis — mount AVANT express.json) ===
@@ -229,49 +229,49 @@ const requireAuthSSE = () => async (req, res, next) => {
 try {
   require('./api/multiSocietes')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module multi-sociétés non charge:', e.message);
+  console.warn('[JADOMI] Module multi-sociétés non chargé:', e.message);
 }
 
 // === JADOMI Module Professions Juridiques ===
 try {
   require('./api/juridique/index')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module juridique non charge:', e.message);
+  console.warn('[JADOMI] Module juridique non chargé:', e.message);
 }
 
 // === JADOMI Module Artisan BTP ===
 try {
   require('./api/btp/index')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module BTP non charge:', e.message);
+  console.warn('[JADOMI] Module BTP non chargé:', e.message);
 }
 
 // === JADOMI Module Network (Annuaire + Parrainage + Deals) ===
 try {
   require('./api/network/index')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module Network non charge:', e.message);
+  console.warn('[JADOMI] Module Network non chargé:', e.message);
 }
 
 // === JADOMI Module Services & Marketplace ===
 try {
   require('./api/services/index')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module services non charge:', e.message);
+  console.warn('[JADOMI] Module services non chargé:', e.message);
 }
 
 // === JADOMI Module Showroom Créateurs ===
 try {
   require('./api/showroom/index')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module showroom non charge:', e.message);
+  console.warn('[JADOMI] Module showroom non chargé:', e.message);
 }
 
 // === JADOMI Network (Annuaire + Parrainage + Deals) ===
 try {
   require('./api/network/index')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module network non charge:', e.message);
+  console.warn('[JADOMI] Module network non chargé:', e.message);
 }
 
 // === JADOMI GPO Smart Queue Auction ===
@@ -279,7 +279,7 @@ try {
   require('./api/gpo')(app);
   require('./lib/gpo-scheduler'); // lance le scheduler de timeouts
 } catch (e) {
-  console.warn('[JADOMI] Module GPO non charge:', e.message);
+  console.warn('[JADOMI] Module GPO non chargé:', e.message);
 }
 
 // Route publique fournisseur : /supplier/offer/:token → page HTML tokenisee
@@ -296,21 +296,21 @@ app.get('/admin/gpo', (req, res) => {
 try {
   require('./api/logistics')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module Logistique non charge:', e.message);
+  console.warn('[JADOMI] Module Logistique non chargé:', e.message);
 }
 
 // === JADOMI Groupage Regional (Groupon dentaire) ===
 try {
   require('./api/groupage')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module Groupage non charge:', e.message);
+  console.warn('[JADOMI] Module Groupage non chargé:', e.message);
 }
 
 // === JADOMI Mon site internet (Vitrines) ===
 try {
   require('./api/vitrines')(app);
 } catch (e) {
-  console.warn('[JADOMI] Module vitrines non charge:', e.message);
+  console.warn('[JADOMI] Module vitrines non chargé:', e.message);
 }
 
 // === JADOMI Site Analysis (Passe 33 — import site existant) ===
@@ -329,36 +329,36 @@ try {
   console.warn('[JADOMI] Module Media Upload non chargé:', e.message);
 }
 
-// === JADOMI Coach (onboarding personnalise + tooltips) ===
+// === JADOMI Coach (onboarding personnalisé + tooltips) ===
 try {
   app.use('/api/coach', require('./api/coach'));
-  console.log('[JADOMI] Module Coach monte');
+  console.log('[JADOMI] Module Coach monté');
 } catch (e) {
-  console.warn('[JADOMI] Module Coach non charge:', e.message);
+  console.warn('[JADOMI] Module Coach non chargé:', e.message);
 }
 
 // === JADOMI Timeline (suivi visuel chronologique patient) ===
 try {
   app.use('/api/timeline', require('./api/timeline'));
-  console.log('[JADOMI] Module Timeline monte');
+  console.log('[JADOMI] Module Timeline monté');
 } catch (e) {
-  console.warn('[JADOMI] Module Timeline non charge:', e.message);
+  console.warn('[JADOMI] Module Timeline non chargé:', e.message);
 }
 
-// === JADOMI Client Portal (espace client securise) ===
+// === JADOMI Client Portal (espace client sécurisé) ===
 try {
   app.use('/api/client-portal', require('./api/client-portal'));
-  console.log('[JADOMI] Module Client Portal monte');
+  console.log('[JADOMI] Module Client Portal monté');
 } catch (e) {
-  console.warn('[JADOMI] Module Client Portal non charge:', e.message);
+  console.warn('[JADOMI] Module Client Portal non chargé:', e.message);
 }
 
 // === JADOMI Appointments (prise de RDV en ligne) ===
 try {
   app.use('/api/appointments', require('./api/appointments'));
-  console.log('[JADOMI] Module Appointments monte');
+  console.log('[JADOMI] Module Appointments monté');
 } catch (e) {
-  console.warn('[JADOMI] Module Appointments non charge:', e.message);
+  console.warn('[JADOMI] Module Appointments non chargé:', e.message);
 }
 
 // === JADOMI Admin Email (inbox IMAP + campagnes mailing) ===
@@ -366,16 +366,16 @@ try {
   const { mountAdminEmail } = require('./api/admin-email');
   mountAdminEmail(app, supabase);
 } catch (e) {
-  console.warn('[JADOMI] Module Admin Email non charge:', e.message);
+  console.warn('[JADOMI] Module Admin Email non chargé:', e.message);
 }
 
 // === JADOMI Email service (OVH Pro) ===
 let emailService = null;
 try {
   emailService = require('./api/emailService');
-  console.log('[JADOMI] Module emailService charge');
+  console.log('[JADOMI] Module emailService chargé');
 } catch (e) {
-  console.warn('[JADOMI] emailService non charge:', e.message);
+  console.warn('[JADOMI] emailService non chargé:', e.message);
 }
 
 // POST /api/auth/forgot-password — envoi lien de reinitialisation via Supabase
@@ -714,7 +714,7 @@ app.post('/api/stripe/subscribe', requireAuth(), async (req, res) => {
         success: true,
         simulated: true,
         contrat_id: contratId,
-        message: 'Stripe non configure — mode simulation',
+        message: 'Stripe non configuré — mode simulation',
         prix_mensuel: prix,
         prix_annuel: prixAnnuel
       });
@@ -770,19 +770,19 @@ app.post('/api/contrats/generer', requireAuth(), async (req, res) => {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 3000,
-      messages: [{ role: 'user', content: `Genere un contrat d'abonnement HTML professionnel pour JADOMI.
+      messages: [{ role: 'user', content: `Génère un contrat d'abonnement HTML professionnel pour JADOMI.
 
-CLIENT: ${nom} · ${email} · Cabinet: ${cabinet_nom || 'Non renseigne'}
+CLIENT: ${nom} · ${email} · Cabinet: ${cabinet_nom || 'Non renseigné'}
 CONTRAT: ${numContrat} · Date: ${dateStr}
 PLAN: ${plan} · ${periodicite || 'mensuel'} · ${prix_mensuel || 29}€/mois (annuel: ${prixAnnuel}€/an -15%)
 
-Inclure: identite client, plan choisi + prix, fonctionnalites incluses (IA JADOMI, vocal, scan, factures, SOS, marche, Green, Predict), conditions d'utilisation, politique de resiliation (mensuel: resiliable a tout moment sans frais; annuel: engagement 12 mois non remboursable), duree et renouvellement automatique, signature JADOMI pre-apposee.
+Inclure: identité client, plan choisi + prix, fonctionnalités incluses (IA JADOMI, vocal, scan, factures, SOS, marché, Green, Predict), conditions d'utilisation, politique de résiliation (mensuel: résiliable à tout moment sans frais; annuel: engagement 12 mois non remboursable), durée et renouvellement automatique, signature JADOMI pré-apposée.
 
-Design: fond blanc, accent vert #10b981, logo "JADOMI" en haut, tableau fonctionnalites, zone signature client en bas.
+Design: fond blanc, accent vert #10b981, logo "JADOMI" en haut, tableau fonctionnalités, zone signature client en bas.
 Retourne UNIQUEMENT le HTML complet. Pas de markdown.` }]
     });
 
-    const contenuHtml = response.content?.[0]?.text || '<p>Erreur generation contrat</p>';
+    const contenuHtml = response.content?.[0]?.text || '<p>Erreur génération contrat</p>';
 
     // Save to Supabase documents
     const doc = {
@@ -849,15 +849,15 @@ app.post('/api/contrats/resilier', requireAuth(), async (req, res) => {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2500,
-      messages: [{ role: 'user', content: `Genere un contrat de resiliation HTML professionnel pour JADOMI.
+      messages: [{ role: 'user', content: `Génère un contrat de résiliation HTML professionnel pour JADOMI.
 
-CLIENT: ${nom || 'Client'} · ${email || ''} · Cabinet: ${cabinet_nom || 'Non renseigne'}
-RESILIATION: ${numResiliation} · Date demande: ${dateStr}
-PLAN RESILIE: ${plan || 'solo'} · ${prix_mensuel || 29}€/mois
+CLIENT: ${nom || 'Client'} · ${email || ''} · Cabinet: ${cabinet_nom || 'Non renseigné'}
+RÉSILIATION: ${numResiliation} · Date demande: ${dateStr}
+PLAN RÉSILIÉ: ${plan || 'solo'} · ${prix_mensuel || 29}€/mois
 DATE FIN EFFECTIVE: ${dateFinStr}
-MOTIF: ${motif || 'Non precise'}
+MOTIF: ${motif || 'Non précisé'}
 
-Inclure: identite client, cabinet concerne uniquement, date effective de fin, conditions financieres (abonnement actif jusqu'a fin de periode, aucun remboursement pour periode en cours), numero contrat original, numero de resiliation.
+Inclure: identité client, cabinet concerné uniquement, date effective de fin, conditions financières (abonnement actif jusqu'à fin de période, aucun remboursement pour période en cours), numéro contrat original, numéro de résiliation.
 
 Design: fond blanc, accent rouge #f05050 pour titre, logo "JADOMI" en haut, zone signature client en bas.
 Retourne UNIQUEMENT le HTML complet.` }]
@@ -870,7 +870,7 @@ Retourne UNIQUEMENT le HTML complet.` }]
       await supabase.from('documents').insert([{
         user_id: user_id || null,
         type: 'resiliation',
-        nom: 'Resiliation ' + (cabinet_nom || plan) + ' - ' + numResiliation,
+        nom: 'Résiliation ' + (cabinet_nom || plan) + ' - ' + numResiliation,
         contenu_html: contenuHtml,
         signe: false,
         token_signature: token,
@@ -928,11 +928,11 @@ app.get('/api/signature/:token', async (req, res) => {
     } catch(e) {}
 
     if (!doc) {
-      return res.send(`<!DOCTYPE html><html><head><title>JADOMI</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#f05050;">Lien invalide ou expire</h1><p style="color:#6b6760;">Ce lien de signature n'est plus valide.</p><a href="/" style="color:#10b981;">Retour a JADOMI</a></div></body></html>`);
+      return res.send(`<!DOCTYPE html><html><head><title>JADOMI</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#f05050;">Lien invalide ou expiré</h1><p style="color:#6b6760;">Ce lien de signature n'est plus valide.</p><a href="/" style="color:#10b981;">Retour à JADOMI</a></div></body></html>`);
     }
 
     if (doc.signe) {
-      return res.send(`<!DOCTYPE html><html><head><title>JADOMI — Document signe</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#60d090;">✅ Document deja signe</h1><p style="color:#6b6760;">Ce document a ete signe le ${doc.date_signature ? new Date(doc.date_signature).toLocaleDateString('fr-FR') : ''}.</p><a href="/" style="color:#10b981;">Retour a JADOMI</a></div></body></html>`);
+      return res.send(`<!DOCTYPE html><html><head><title>JADOMI — Document signé</title></head><body style="background:#0f0e0d;color:#f0ede8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><h1 style="color:#60d090;">✅ Document déjà signé</h1><p style="color:#6b6760;">Ce document a été signé le ${doc.date_signature ? new Date(doc.date_signature).toLocaleDateString('fr-FR') : ''}.</p><a href="/" style="color:#10b981;">Retour à JADOMI</a></div></body></html>`);
     }
 
     // Render signature page
@@ -940,7 +940,7 @@ app.get('/api/signature/:token', async (req, res) => {
 <html lang="fr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>JADOMI — Signature electronique</title>
+<title>JADOMI — Signature électronique</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -967,11 +967,11 @@ body{font-family:'DM Sans',sans-serif;background:#0f0e0d;color:#f0ede8;min-heigh
 <div class="container">
   <div class="header">
     <div class="logo">JADOMI</div>
-    <div style="font-size:13px;color:#6b6760;">Signature electronique securisee</div>
+    <div style="font-size:13px;color:#6b6760;">Signature électronique sécurisée</div>
   </div>
   <div class="doc-wrap" id="doc-content">${doc.contenu_html || ''}</div>
   <div class="sign-section">
-    <div class="sign-title">Signature electronique</div>
+    <div class="sign-title">Signature électronique</div>
     <div class="field">
       <label>Nom complet (tel que sur le contrat)</label>
       <input type="text" id="sign-name" placeholder="Dr Jean Martin">
@@ -980,7 +980,7 @@ body{font-family:'DM Sans',sans-serif;background:#0f0e0d;color:#f0ede8;min-heigh
       <input type="checkbox" id="sign-accept">
       Je confirme avoir lu et j'accepte les conditions de ce document.
     </label>
-    <button class="btn-sign" id="btn-sign" onclick="signerDocument()" disabled>Signer electroniquement</button>
+    <button class="btn-sign" id="btn-sign" onclick="signerDocument()" disabled>Signer électroniquement</button>
     <div id="sign-status"></div>
   </div>
 </div>
@@ -1006,15 +1006,15 @@ async function signerDocument(){
     const data=await resp.json();
     if(data.success){
       status.style.color='#60d090';
-      status.textContent='✅ Document signe avec succes !';
-      btn.textContent='✅ Signe';
+      status.textContent='✅ Document signé avec succès !';
+      btn.textContent='✅ Signé';
       btn.style.background='#60d090';
     } else {
       throw new Error(data.error||'Erreur');
     }
   }catch(e){
     status.style.color='#f05050';status.textContent='Erreur: '+e.message;
-    btn.disabled=false;btn.textContent='Signer electroniquement';
+    btn.disabled=false;btn.textContent='Signer électroniquement';
   }
 }
 </script>
@@ -1169,13 +1169,13 @@ Reponds UNIQUEMENT en JSON:
 
     if (score <= 3) {
       emailSubject = 'Merci pour votre suggestion JADOMI';
-      emailBody = `Bonjour ${prenomClient},\n\nMerci pour votre suggestion : "${titre}"\n\nNous l'avons etudiee avec attention. Elle est pour l'instant trop complexe a integrer dans notre roadmap.\n\n${analyse.conseil_alternatif ? 'Nous vous recommandons plutot : ' + analyse.conseil_alternatif + '\n\n' : ''}N'hesitez pas a nous soumettre d'autres idees !\n\nL'equipe JADOMI — contact@jadomi.fr`;
+      emailBody = `Bonjour ${prenomClient},\n\nMerci pour votre suggestion : "${titre}"\n\nNous l'avons étudiée avec attention. Elle est pour l'instant trop complexe à intégrer dans notre roadmap.\n\n${analyse.conseil_alternatif ? 'Nous vous recommandons plutôt : ' + analyse.conseil_alternatif + '\n\n' : ''}N'hésitez pas à nous soumettre d'autres idées !\n\nL'équipe JADOMI — contact@jadomi.fr`;
     } else if (score <= 7) {
-      emailSubject = 'Votre suggestion est a l\'etude ! 🧠';
-      emailBody = `Bonjour ${prenomClient},\n\nExcellente suggestion !\n"${titre}"\n\nElle est officiellement en phase d'etude. Si nous l'implementons, vous serez le premier informe et recevrez 1 mois gratuit en remerciement ! 🎁\n\nMerci de contribuer a ameliorer JADOMI.\n\nL'equipe JADOMI`;
+      emailSubject = 'Votre suggestion est à l\'étude ! 🧠';
+      emailBody = `Bonjour ${prenomClient},\n\nExcellente suggestion !\n"${titre}"\n\nElle est officiellement en phase d'étude. Si nous l'implémentons, vous serez le premier informé et recevrez 1 mois gratuit en remerciement ! 🎁\n\nMerci de contribuer à améliorer JADOMI.\n\nL'équipe JADOMI`;
     } else {
-      emailSubject = '🔥 Votre idee est exceptionnelle !';
-      emailBody = `Bonjour ${prenomClient},\n\nWOW ! Merci pour cette idee incroyable :\n"${titre}"\n\nNous avons immediatement transmis votre suggestion a notre equipe technique. Elle est si pertinente que nous travaillons dessus en priorite !\n\nVous serez beta-testeur en avant-premiere.\nVotre prochain mois est offert ! 🎁\n\nDr Karim BAHMED — Fondateur JADOMI\ncontact@jadomi.fr`;
+      emailSubject = '🔥 Votre idée est exceptionnelle !';
+      emailBody = `Bonjour ${prenomClient},\n\nWOW ! Merci pour cette idée incroyable :\n"${titre}"\n\nNous avons immédiatement transmis votre suggestion à notre équipe technique. Elle est si pertinente que nous travaillons dessus en priorité !\n\nVous serez bêta-testeur en avant-première.\nVotre prochain mois est offert ! 🎁\n\nDr Karim BAHMED — Fondateur JADOMI\ncontact@jadomi.fr`;
     }
 
     // Mark email as sent (actual sending requires SMTP config)
@@ -1235,16 +1235,16 @@ app.get('/api/suggestions/admin', requireAuth(), async (req, res) => {
 });
 
 // =============================================
-// JADOMI Rush — module sous-traitance prothesistes
+// JADOMI Rush — module sous-traitance prothésistes
 // =============================================
 try {
   const { createRushRouter } = require('./api/rush');
   app.use('/api/rush', createRushRouter(supabase));
   // Servir les STL uploadés
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-  console.log('[JADOMI] Module Rush prothesistes monte sur /api/rush');
+  console.log('[JADOMI] Module Rush prothésistes monté sur /api/rush');
 } catch (e) {
-  console.warn('[JADOMI] Module Rush non charge:', e.message);
+  console.warn('[JADOMI] Module Rush non chargé:', e.message);
 }
 
 // =============================================
@@ -1269,51 +1269,51 @@ try {
     const { nettoyerFichiersExpires, isR2Available } = require('./services/r2-storage');
     cronLib.schedule('0 3 * * *', async () => {
       if (!isR2Available()) return;
-      console.log('[RUSH R2] Nettoyage quotidien fichiers expires...');
+      console.log('[RUSH R2] Nettoyage quotidien fichiers expirés...');
       try {
         const result = await nettoyerFichiersExpires();
-        console.log('[RUSH R2] Nettoyage termine:', result.deleted, 'fichiers supprimes');
+        console.log('[RUSH R2] Nettoyage terminé:', result.deleted, 'fichiers supprimés');
       } catch (e) {
         console.error('[RUSH R2] Erreur nettoyage:', e.message);
       }
     });
-    console.log('[JADOMI] CRON nettoyage R2 programme (03h00 quotidien)');
+    console.log('[JADOMI] CRON nettoyage R2 programmé (03h00 quotidien)');
   } catch (cronErr) {
-    console.warn('[JADOMI] CRON R2 non configure:', cronErr.message);
+    console.warn('[JADOMI] CRON R2 non configuré:', cronErr.message);
   }
-  console.log('[JADOMI] Module Rush ENRICHI monte (devis, fichiers, paiement, messages, scoring, transport)');
+  console.log('[JADOMI] Module Rush ENRICHI monté (devis, fichiers, paiement, messages, scoring, transport)');
 } catch (e) {
-  console.warn('[JADOMI] Module Rush enrichi non charge:', e.message);
+  console.warn('[JADOMI] Module Rush enrichi non chargé:', e.message);
 }
 
 // =============================================
-// JADOMI Plateforme — Routes prothesistes & commandes
+// JADOMI Plateforme — Routes prothésistes & commandes
 // =============================================
 try {
   const { createProthesistesRouter } = require('./api/routes/prothesistes');
   app.use('/api/prothesistes', createProthesistesRouter(supabase));
-  console.log('[JADOMI] Module Prothesistes monte sur /api/prothesistes');
+  console.log('[JADOMI] Module Prothésistes monté sur /api/prothésistes');
 } catch (e) {
-  console.warn('[JADOMI] Module Prothesistes non charge:', e.message);
+  console.warn('[JADOMI] Module Prothésistes non chargé:', e.message);
 }
 
 try {
   const { createCommandesRouter } = require('./api/routes/commandes');
   app.use('/api/commandes', createCommandesRouter(supabase));
-  console.log('[JADOMI] Module Commandes monte sur /api/commandes');
+  console.log('[JADOMI] Module Commandes monté sur /api/commandes');
 } catch (e) {
-  console.warn('[JADOMI] Module Commandes non charge:', e.message);
+  console.warn('[JADOMI] Module Commandes non chargé:', e.message);
 }
 
 // =============================================
-// JADOMI LABO — Module gestion laboratoire prothesiste
+// JADOMI LABO — Module gestion laboratoire prothésiste
 // =============================================
 try {
   const { createLaboRouter } = require('./routes/labo');
   app.use('/api/labo', createLaboRouter());
-  console.log('[JADOMI] Module LABO monte sur /api/labo');
+  console.log('[JADOMI] Module LABO monté sur /api/labo');
 } catch (e) {
-  console.warn('[JADOMI] Module LABO non charge:', e.message);
+  console.warn('[JADOMI] Module LABO non chargé:', e.message);
 }
 
 // =============================================
@@ -1323,7 +1323,7 @@ try {
   const mountCommunication = require('./api/multiSocietes/communication');
   mountCommunication(app);
 } catch (e) {
-  console.warn('[JADOMI] Module Communication non charge:', e.message);
+  console.warn('[JADOMI] Module Communication non chargé:', e.message);
 }
 
 // =============================================
@@ -2849,7 +2849,7 @@ app.get('/api/tva/config/:userId', requireAuth(), async (req, res) => {
   try {
     // Ignore param URL — on se fie uniquement au JWT
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { data, error } = await supabaseAdmin
       .from('user_tva_config')
       .select('*')
@@ -2864,7 +2864,7 @@ app.post('/api/tva/config', requireAuth(), async (req, res) => {
   try {
     const { statut_tva, profession, ca_annuel_estime, seuil_franchise, numero_tva } = req.body || {};
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { error } = await supabaseAdmin
       .from('user_tva_config')
       .upsert({
@@ -2886,7 +2886,7 @@ app.get('/api/compta/recap/:userId', requireAuth(), async (req, res) => {
     const userId = req.user.id;
     const { annee } = req.query;
     const anneeVal = annee || new Date().getFullYear();
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
 
     const { data: tvaConfig } = await supabaseAdmin
       .from('user_tva_config')
@@ -2975,7 +2975,7 @@ app.get('/api/compta/document/:id/pdf', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { data: doc } = await supabaseAdmin
       .from('documents_compta')
       .select('storage_path')
@@ -2996,7 +2996,7 @@ app.patch('/api/compta/document/:id/paiement', requireAuth(), async (req, res) =
     const { id } = req.params;
     const { mode_paiement } = req.body || {};
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
       .update({ mode_paiement })
@@ -3011,7 +3011,7 @@ app.patch('/api/compta/document/:id/mois', requireAuth(), async (req, res) => {
     const { id } = req.params;
     const { mois } = req.body || {};
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
       .update({ mois_manuel: mois })
@@ -3026,7 +3026,7 @@ app.patch('/api/compta/document/:id', requireAuth(), async (req, res) => {
     const { id } = req.params;
     const { tags, commentaire } = req.body || {};
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
       .update({ tags, commentaire })
@@ -3040,7 +3040,7 @@ app.delete('/api/compta/document/:id', requireAuth(), async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { error } = await supabaseAdmin
       .from('documents_compta')
       .delete()
@@ -3055,7 +3055,7 @@ app.get('/api/compta/export/:userId', requireAuth(), async (req, res) => {
     const userId = req.user.id;
     const { annee } = req.query;
     const anneeVal = annee || new Date().getFullYear();
-    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configure' });
+    if (!supabaseAdmin) return res.status(500).json({ error: 'supabaseAdmin non configuré' });
     const { data: docs } = await supabaseAdmin
       .from('documents_compta')
       .select('*')
