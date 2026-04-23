@@ -355,7 +355,8 @@ try {
 // === JADOMI Studio — Remotion Video Generation (Passe 35) ===
 try {
   app.use('/api/studio/generate-ad-remotion', require('./api/studio/generate-ad-remotion'));
-  console.log('[JADOMI] Module Remotion (video generation) monte');
+  app.use('/api/studio/generate-premium-ad', require('./api/studio/generate-premium-ad'));
+  console.log('[JADOMI] Module Remotion (video generation + premium ads) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Remotion non charge:', e.message);
 }
