@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 31 — Tour Guide Interactif (Intercom-style)
+**Derniere passe** : Passe 33 — Refonte UX + Import Site Intelligent + Site Builder
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -219,11 +219,33 @@ Tour guide qui se declenche automatiquement a la 1ere connexion :
 - SQL 32 : enrichissement user_onboarding_state
 - API : 4 nouveaux endpoints (tour-completed, tour-skipped, tour-restart, tour-steps)
 
+## 2.19 Module Mon Site Internet Premium (Passe 33)
+Module payant dans le dashboard (onglet sidebar avec badge Premium).
+3 options : creer de zero (chatbot guide), analyser site existant
+(scraping + audit), uploader medias locaux (drag-drop).
+- Site Builder Chatbot : 8 etapes conversationnelles, preview live,
+  themes 12 options, slogan IA, publication checkmark dore SVG
+- Import Site : Puppeteer/Cheerio scraping, audit design/securite/SEO
+  avec scores A-F, import assets en DB
+- Asset Picker : grid responsive, filtres type/contexte, auto-select
+  Claude, selection HD, validation pour site builder
+- Upload Manuel : drag-drop max 500 MB, progress bar, R2 ou local
+- SQL 33 : site_analyses, analyzed_pages, imported_assets, societe_modules
+- API : /api/site-analysis/* (7 endpoints) + /api/media/upload
+
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
 Conforme facture, Mes documents, Fournisseurs, Mailing & campagnes
 (HTML, ciblage, stats, RGPD), Module Compta/Tresorerie, Scanner IA
 factures, Scan releves bancaires.
+
+## 2.20 Wizard Societe Simplifie (Passe 33)
+Wizard avocat reduit a 3 etapes (infos → specialites → recap).
+Etapes visual/structure/domain/optional/preview retirees (deplacees
+dans module Mon Site Internet du dashboard). Min 1 specialite au
+lieu de 3. Liste enrichie : 18 domaines de droit + 8 types
+d'intervention. Contentieux et Arbitrage separes. Conseil ajoute.
+Audit orthographique complet (accents corrigés partout).
 
 ===============================================================
 # 3. SOCIETES DU FONDATEUR
@@ -522,6 +544,24 @@ Fichiers modifies :
 Inspiration : Intercom Product Tours, Shepherd.js, intro.js.
 TODO post-deploy : executer SQL 32 dans Supabase.
 
+## Passe 33 (23 avril 2026 soir) -- Refonte UX + Import Site + Site Builder
+Feedback terrain epouse avocate (8 bugs). Refonte complete :
+Fichiers crees (8 fichiers, ~2000 lignes) :
+- sql/vitrines/33_passe33_modules_analysis.sql (4 tables)
+- public/vitrines/site-builder.html (chatbot 8 etapes + preview live)
+- public/vitrines/import-site.html (analyse URL + progress + rapport)
+- public/vitrines/upload-media.html (drag-drop + upload R2)
+- public/vitrines/import-assets.html (asset picker + filtres + auto-select)
+- api/site-analysis/index.js (scraping Puppeteer + audits design/secu/SEO)
+- api/media-upload.js (upload multipart + R2 + fallback local)
+Fichiers modifies :
+- wizard-societe.html (min 1 spe, 18 domaines + 8 interventions, accents)
+- organisation.html (onglet Mon Site Internet Premium + tour steps)
+- server.js (mount /api/site-analysis + /api/media)
+Decisions : wizard simplifie 2 min, site = module dashboard payant,
+3 options (creer/analyser/uploader), asset picker granulaire.
+TODO : executer SQL 33, installer puppeteer/axios, configurer Stripe.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -545,6 +585,8 @@ TODO post-deploy : executer SQL 32 dans Supabase.
 17. **JADOMI Timeline = moat concurrentiel** -- Suivi visuel chronologique patient avant/apres. Feature killer. Idee originale Karim 4h du matin 23 avril 2026.
 18. **Zero nom propre reel sur le site public** -- Noms fictifs uniquement (Dubois, Martin, Leroy, Moreau).
 19. **Tour guide actif > tooltips passifs** -- Un tour interactif etape par etape est 3x plus efficace pour l'activation qu'un tooltip au hover.
+20. **Wizard simple, site dans dashboard** -- Le wizard cree le compte cabinet (2 min gratuit). Le site internet est un module payant premium dans le dashboard, pas force dans le wizard. Feedback epouse avocate 23 avril 2026.
+21. **Import + create + upload = 3 options** -- Module Mon Site Internet propose 3 chemins compatibles : creer de zero, analyser existant, uploader medias locaux. L'utilisateur qui a deja un site ne doit pas etre force a repartir de zero.
 
 ===============================================================
 # 8. ROADMAP
@@ -568,6 +610,10 @@ TODO post-deploy : executer SQL 32 dans Supabase.
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js
 - [ ] Test live avec l'epouse de Karim ce soir
+- [x] Refonte UX wizard + dashboard + module site internet (Passe 33)
+- [ ] Executer migration SQL 33 dans Supabase
+- [ ] Installer puppeteer + axios sur VPS (npm install)
+- [ ] Configurer Stripe pour modules premium (Passe 34)
 - [ ] Feedback post-test utilisateur
 - [ ] Parler aux 2 associes DENTALEVOLUTION
 - [ ] RDV avocat (CGV + partenariat)
@@ -614,6 +660,14 @@ TODO post-deploy : executer SQL 32 dans Supabase.
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
 - JWT_SECRET du client-portal utilise fallback — ajouter dans .env pour production
+
+## Corriges par Passe 33
+- Wizard specialites avocat min 3 -> min 1
+- Contentieux et Arbitrage fusionnes -> separes
+- Manque Conseil dans domaines -> ajoute
+- Fautes accents wizard (selection, generation, verification, etc)
+- Site force dans wizard -> deplace dans dashboard (module payant)
+- Pas d'option site existant -> 3 options (creer/analyser/uploader)
 
 ## Corriges par Passe 23
 - Acces paniers groupes en 3 clics -> 1 clic (onglet sidebar dedie)
