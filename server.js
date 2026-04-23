@@ -133,6 +133,9 @@ app.get('/orthodontistes', (req, res) => res.sendFile(path.join(__dirname, 'publ
 app.get('/prothesistes-dentaires', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesistes-dentaires.html')));
 app.get('/professions-paramedicales', (req, res) => res.sendFile(path.join(__dirname, 'public/professions-paramedicales.html')));
 app.get('/services-bien-etre', (req, res) => res.sendFile(path.join(__dirname, 'public/services-bien-etre.html')));
+// JADOMI Ads (Passe 34)
+app.get('/jadomi-ads', (req, res) => res.sendFile(path.join(__dirname, 'public/jadomi-ads.html')));
+app.get('/dashboard-annonceur', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard-annonceur.html')));
 // 301 redirects for old URLs
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
@@ -327,6 +330,15 @@ try {
   console.log('[JADOMI] Module Media Upload monté');
 } catch (e) {
   console.warn('[JADOMI] Module Media Upload non chargé:', e.message);
+}
+
+// === JADOMI Ads — Régie publicitaire verticale (Passe 34) ===
+try {
+  const mountAds = require('./api/ads');
+  mountAds(app, supabase, anthropic);
+  console.log('[JADOMI] Module Ads (régie publicitaire) monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Ads non chargé:', e.message);
 }
 
 // === JADOMI Coach (onboarding personnalisé + tooltips) ===

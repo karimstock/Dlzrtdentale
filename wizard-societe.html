@@ -55,6 +55,35 @@ h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-1.2
 .t-desc{font-size:11px;color:var(--muted);line-height:1.4;}
 .t-check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#0f0e0d;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
 .t-card.selected .t-check{display:flex;}
+.t-badge-gold{display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(201,169,97,0.15);color:#c9a961;font-size:10px;font-weight:700;margin-top:4px;letter-spacing:0.3px;}
+.t-card .t-ico-svg{width:30px;height:30px;color:var(--muted);flex-shrink:0;}
+.t-card.selected .t-ico-svg{color:#c9a961;}
+.t-examples{font-size:10px;color:var(--muted);font-style:italic;margin-top:2px;line-height:1.3;}
+
+.formateur-toggle-card{
+  background:var(--surface2);border:2px solid var(--border);border-radius:14px;
+  padding:20px;cursor:pointer;transition:all 0.25s var(--trans);margin-bottom:18px;
+}
+.formateur-toggle-card:hover{border-color:rgba(201,169,97,0.5);transform:translateY(-2px);}
+.formateur-toggle-card.active{border-color:#c9a961;background:rgba(201,169,97,0.08);}
+.formateur-toggle-row{display:flex;align-items:center;gap:14px;}
+.formateur-toggle-switch{
+  width:48px;height:26px;border-radius:13px;background:var(--surface3);
+  position:relative;transition:background 0.3s var(--trans);flex-shrink:0;
+}
+.formateur-toggle-switch::after{
+  content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:50%;background:var(--muted);transition:all 0.3s var(--trans);
+}
+.formateur-toggle-card.active .formateur-toggle-switch{background:#c9a961;}
+.formateur-toggle-card.active .formateur-toggle-switch::after{left:25px;background:#1a1a1a;}
+.formateur-msg{
+  margin-top:14px;padding:14px 16px;border-radius:10px;font-size:13px;line-height:1.6;
+  animation:fadeSlide 0.3s var(--trans);
+}
+.formateur-msg-yes{background:rgba(201,169,97,0.1);border:1px solid rgba(201,169,97,0.25);color:#e8c77b;}
+.formateur-msg-no{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
 
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
 .full{grid-column:1/-1;}
@@ -303,6 +332,25 @@ h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-1.2
       </div>
     </div>
 
+    <!-- STEP FORMATEUR : question formation pour cabinets dentaires -->
+    <div id="sFormateur" class="hide">
+      <h1>Dispensez-vous des formations ?</h1>
+      <div class="sub">Cette information nous permet de vous proposer des outils adaptés.</div>
+      <div class="formateur-toggle-card" id="formateur-toggle" onclick="toggleFormateur()">
+        <div class="formateur-toggle-row">
+          <div class="formateur-toggle-switch"></div>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;">Dispensez-vous des formations DPC, workshops, cours ou conférences pour vos confrères ?</div>
+          </div>
+        </div>
+        <div id="formateur-msg"></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(3)">← Retour</button>
+        <button class="btn btn-primary" onclick="continueFromFormateur()">Continuer →</button>
+      </div>
+    </div>
+
     <!-- STEP 4 : récap + paiement -->
     <div id="s4" class="hide">
       <h1>Récapitulatif</h1>
@@ -324,7 +372,7 @@ h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-1.2
         <div class="price-note">Par société — dégressif à partir de la 2<sup>e</sup> (à confirmer).<br>Premier mois offert · Résiliable à tout moment.</div>
       </div>
       <div class="actions">
-        <button class="btn btn-ghost" onclick="go(3)">← Retour</button>
+        <button class="btn btn-ghost" onclick="goBackFromRecap()">← Retour</button>
         <button class="btn btn-primary" id="btn-finish" onclick="createSociete()">Créer ma société →</button>
       </div>
     </div>
@@ -535,7 +583,9 @@ const TYPES = [
   { k:'auto_entrepreneur',   ico:'📊', label:'Auto-entrepreneur',    desc:'Micro-BIC / Micro-BNC',          accent:'#60f0d0' },
   { k:'profession_liberale', ico:'👔', label:'Profession libérale',  desc:'Avocat · Médecin · Architecte…', accent:'#f060a0' },
   { k:'association',         ico:'🤝', label:'Association',          desc:'Loi 1901',                       accent:'#a060f0' },
-  { k:'societe_commerciale', ico:'🏪', label:'Autre société comm.',  desc:'Toute autre forme',              accent:'#f0a030' }
+  { k:'societe_commerciale', ico:'🏪', label:'Autre société comm.',  desc:'Toute autre forme',              accent:'#f0a030' },
+  { k:'societe_dentaire',    ico:'svg_building', label:'Société dentaire', desc:'Laboratoire, fabricant, distributeur, éditeur logiciel', examples:'Henry Schein, Dentsply, Julie Software...', accent:'#c9a961', badge:'Accès régie pub' },
+  { k:'centre_formation_dentaire', ico:'svg_graduation', label:'Centre de formation dentaire', desc:'Plateforme ou formateur individuel dentaire', examples:'LearnyLib, French Tooth, Formateur indépendant', accent:'#c9a961', badge:'Accès régie pub' }
 ];
 
 // Champs par type
@@ -655,6 +705,33 @@ const FIELDS = {
     { k:'ville', label:'Ville' },
     { k:'email', label:'Email de contact', type:'email' }
   ],
+  societe_dentaire: [
+    { k:'nom', label:'Dénomination de la société', req:true, ph:'Henry Schein France' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres', req:true, hint:'Obligatoire sur vos factures' },
+    { k:'tva_intracom', label:'N° TVA intracommunautaire', req:true, ph:'FR12345678901' },
+    { k:'capital_social', label:'Capital social (€)', type:'number' },
+    { k:'rcs_ville', label:'RCS (ville)', ph:'Paris' },
+    { k:'adresse', label:'Adresse siège', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@societe.fr' },
+    { k:'email_facturation', label:'Email facturation', type:'email', req:true, ph:'factures@societe.fr' },
+    { k:'email_mailing', label:'Email mailing', type:'email', req:true, ph:'marketing@societe.fr', hint:'Expéditeur des campagnes publicitaires' },
+    { k:'site_web', label:'URL du site internet', type:'url', ph:'https://societe.fr' }
+  ],
+  centre_formation_dentaire: [
+    { k:'nom', label:'Nom de l\'organisme de formation', req:true, ph:'LearnyLib, French Tooth...' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres', req:true },
+    { k:'nda', label:'N° de déclaration d\'activité (NDA)', ph:'11 chiffres', hint:'Numéro délivré par la DREETS' },
+    { k:'adresse', label:'Adresse siège', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@formation.fr' },
+    { k:'email_mailing', label:'Email mailing', type:'email', ph:'marketing@formation.fr', hint:'Expéditeur des campagnes publicitaires' },
+    { k:'site_web', label:'URL du site internet', type:'url', ph:'https://formation.fr' }
+  ],
   autre: [
     { k:'nom', label:'Nom', req:true },
     { k:'sous_type', label:'Type (texte libre)', ph:'Précisez' },
@@ -694,7 +771,8 @@ const SECTEURS = [
 // Types de société qui VENDENT à d'autres pros → on affiche l'étape secteurs
 const TYPES_AVEC_CIBLAGE = new Set([
   'societe_commerciale','sas','sarl','eurl','sa','snc',
-  'ei','auto_entrepreneur','profession_liberale','association','autre'
+  'ei','auto_entrepreneur','profession_liberale','association','autre',
+  'societe_dentaire','centre_formation_dentaire'
 ]);
 
 // Modules par type
@@ -706,6 +784,8 @@ const MODULES_BY_TYPE = {
   services: ['reservations','compta','marketplace','mailing'],
   artisan_btp: ['chantiers','devis_factures_btp','stock_btp','compta'],
   createur: ['showroom_vitrine','commandes_createur','compta'],
+  societe_dentaire: ['devis_factures','compta','scanner_factures','mailing','stock_ia'],
+  centre_formation_dentaire: ['devis_factures','compta','mailing'],
   default: ['devis_factures','compta','scanner_factures','mailing']
 };
 const MODULES_META = {
@@ -732,6 +812,7 @@ let session=null, token=null;
 let selectedType=null, selectedAccent='#10b981';
 let form={}, modules=new Set(), secteursCibles=new Set();
 let stagedLogo=null; // File à uploader APRÈS création société
+let isFormationProvider=false; // flag formateur dentaire
 
 function wzStageLogo(file){
   if(!file) return;
@@ -795,11 +876,18 @@ const MARK_ONBOARDING = URL_PARAMS.get('onboarding') === '1';
   document.querySelectorAll('a[href="organisation.html"]').forEach(a => a.href = NEXT_URL);
 })();
 
+const SVG_ICONS = {
+  svg_building: '<svg class="t-ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>',
+  svg_graduation: '<svg class="t-ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10l-10-5L2 10l10 5 10-5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/><path d="M22 10v6"/></svg>'
+};
 function renderTypes(){
   const grid = $('types-grid'); grid.innerHTML='';
   TYPES.forEach(t=>{
     const el=document.createElement('div'); el.className='t-card'; el.dataset.k=t.k;
-    el.innerHTML=`<div class="t-check">✓</div><div class="t-ico">${t.ico}</div><div class="t-name">${t.label}</div><div class="t-desc">${t.desc}</div>`;
+    const icoHtml = SVG_ICONS[t.ico] ? SVG_ICONS[t.ico] : `<div class="t-ico">${t.ico}</div>`;
+    const examplesHtml = t.examples ? `<div class="t-examples">${t.examples}</div>` : '';
+    const badgeHtml = t.badge ? `<div class="t-badge-gold">${t.badge}</div>` : '';
+    el.innerHTML=`<div class="t-check">✓</div>${icoHtml}<div class="t-name">${t.label}</div><div class="t-desc">${t.desc}</div>${examplesHtml}${badgeHtml}`;
     el.onclick=()=>{
       selectedType=t.k; setAccent(t.accent);
       document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));
@@ -873,6 +961,9 @@ function renderSummary(){
     rows.push(['À qui vous vendez', cibles]);
   }
   rows.push(['Modules activés', Array.from(modules).map(k=>MODULES_META[k]?.name||k).join(' · ') || '—']);
+  if(selectedType==='cabinet_dentaire'){
+    rows.push(['Formateur', isFormationProvider ? 'Oui — accès régie pub JADOMI Ads' : 'Non']);
+  }
 
   $('summary').innerHTML = rows.map(r=>`<div class="summary-row"><span>${r[0]}</span><span>${escape(r[1])}</span></div>`).join('');
 }
@@ -924,8 +1015,15 @@ function go(step){
     window.__cameFromSecteurs = false;
     renderModules();
   }
-  if(step===4){ collectForm(); renderSummary(); }
-  ['s1','s2','sSect','s3','s4'].forEach(id=>$(id).classList.add('hide'));
+  if(step===4){
+    // Si cabinet dentaire → passer par l'étape formateur d'abord
+    if(selectedType==='cabinet_dentaire' && !window.__cameFromFormateur){
+      return goFormateur();
+    }
+    window.__cameFromFormateur = false;
+    collectForm(); renderSummary();
+  }
+  ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
   const map = { 1:'s1', 2:'s2', 3:'s3', 4:'s4' };
   $(map[step]).classList.remove('hide');
   setProgress(step);
@@ -934,7 +1032,7 @@ function go(step){
 
 function goSecteurs(){
   renderSecteurs();
-  ['s1','s2','sSect','s3','s4'].forEach(id=>$(id).classList.add('hide'));
+  ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
   $('sSect').classList.remove('hide');
   setProgress(3, true);
   window.scrollTo({top:0,behavior:'smooth'});
@@ -978,6 +1076,35 @@ function validateStep2(){
   go(3);
 }
 
+function goFormateur(){
+  ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
+  $('sFormateur').classList.remove('hide');
+  updateFormateurMsg();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function toggleFormateur(){
+  isFormationProvider = !isFormationProvider;
+  const card = $('formateur-toggle');
+  card.classList.toggle('active', isFormationProvider);
+  updateFormateurMsg();
+}
+function updateFormateurMsg(){
+  const box = $('formateur-msg');
+  if(isFormationProvider){
+    box.innerHTML = '<div class="formateur-msg formateur-msg-yes">En tant que formateur, vous avez accès à la régie publicitaire JADOMI Ads pour promouvoir vos formations auprès de 42 000 confrères vérifiés.</div>';
+  } else {
+    box.innerHTML = '<div class="formateur-msg formateur-msg-no">Vous pourrez activer cette option plus tard dans vos paramètres.</div>';
+  }
+}
+function continueFromFormateur(){
+  window.__cameFromFormateur = true;
+  go(4);
+}
+function goBackFromRecap(){
+  if(selectedType==='cabinet_dentaire') return goFormateur();
+  go(3);
+}
+
 async function createSociete(){
   const btn = $('btn-finish'); btn.disabled=true; btn.textContent='Création…';
   try{
@@ -989,6 +1116,9 @@ async function createSociete(){
     };
     if(TYPES_AVEC_CIBLAGE.has(selectedType)){
       payload.secteurs_cibles = Array.from(secteursCibles);
+    }
+    if(selectedType==='cabinet_dentaire'){
+      payload.is_formation_provider = isFormationProvider;
     }
     // nettoie empty strings
     Object.keys(payload).forEach(k => payload[k]===''&&delete payload[k]);
@@ -1010,7 +1140,7 @@ async function createSociete(){
     if(MARK_ONBOARDING){
       try{ await api('/api/profil',{method:'PUT',body:JSON.stringify({onboarding_termine:true})}); }catch{}
     }
-    ['s1','s2','sSect','s3','s4'].forEach(id=>$(id).classList.add('hide'));
+    ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
     $('done').classList.remove('hide');
     // Gère la queue multi-création
     let next = NEXT_URL;
