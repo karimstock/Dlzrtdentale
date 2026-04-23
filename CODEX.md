@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 33 — Refonte UX + Import Site Intelligent + Site Builder
+**Derniere passe** : Passe 34 — JADOMI Ads (regie publicitaire verticale dentaire)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -233,6 +233,24 @@ Module payant dans le dashboard (onglet sidebar avec badge Premium).
 - SQL 33 : site_analyses, analyzed_pages, imported_assets, societe_modules
 - API : /api/site-analysis/* (7 endpoints) + /api/media/upload
 
+## 2.21 JADOMI Ads — Regie publicitaire verticale (Passe 34)
+Regie pub self-serve type Meta/TikTok/LinkedIn, 100% dentaire verifie.
+Double revenu : droit entree mensuel (49-999EUR) + consommation pub (CPC/CPM/CPA).
+- Landing commerciale /jadomi-ads (hero, stats, pricing 3 tiers, comparatif Facebook, FAQ)
+- Dashboard annonceur /dashboard-annonceur (8 panels SPA type Meta Ads Manager)
+- Wizard creation campagne 5 etapes (objectif, ciblage, budget, creatif, lancement)
+- Ciblage ultra-precis : profession, specialite, region, structure, anciennete, comportement
+- Encheres : bid * quality_score, priorite tier (Enterprise > Pro > Starter)
+- Composant JadomiAdSlot (banner 728x90, sidebar 300x250, native-feed)
+- Wallet prepaid + auto-recharge + Stripe subscriptions
+- Admin moderation campagnes (auto Claude Vision + revue manuelle)
+- 11 tables SQL : ad_campaigns, ad_creatives, ad_impressions, ad_clicks,
+  ad_conversions, advertiser_wallets, advertiser_subscriptions,
+  audience_segments_saved, ad_templates, ad_media_library + ALTER societes
+- 25+ endpoints API /api/ads/* (CRUD, delivery, wallet, subscription, admin)
+- Clients cibles : societes dentaires (labos, fabricants), centres formation,
+  dentistes formateurs (question auto wizard)
+
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
 Conforme facture, Mes documents, Fournisseurs, Mailing & campagnes
@@ -286,6 +304,16 @@ Upsell : Generation logo IA one-shot +59EUR
 | Silver | 500EUR | 3 | Distributeurs regionaux |
 | Gold | 1 500EUR | 8 | Distributeurs nationaux |
 | Platinum | 4 000EUR | 20 | Henry Schein, DPI, GACD |
+
+## Revenus regie JADOMI Ads (annonceurs)
+| Tier | Prix/mois | Campagnes | Cible |
+|---|---|---|---|
+| Starter | 49EUR | 1 | Formateurs independants, petits labos |
+| Pro | 199EUR | 5 | LearnyLib, French Tooth, Julie, Logos_W |
+| Enterprise | 999EUR | Illimite | Henry Schein, Dentsply, Planmeca, 3M |
+
++ Consommation pub : CPC 0.50-2EUR / CPM 10-30EUR / CPA 50-200EUR
++ Wallet prepaid avec auto-recharge
 
 ## Projections
 - **24 mois** : 500 cabinets x 150EUR/mois + 50 fournisseurs = ARR ~1,3 MEUR
@@ -562,6 +590,28 @@ Decisions : wizard simplifie 2 min, site = module dashboard payant,
 3 options (creer/analyser/uploader), asset picker granulaire.
 TODO : executer SQL 33, installer puppeteer/axios, configurer Stripe.
 
+## Passe 34 (23 avril 2026 nuit) -- JADOMI Ads (regie publicitaire verticale)
+Regie pub self-serve type Meta/TikTok/LinkedIn, 100% dentaire verifie.
+Fichiers crees (6 fichiers, ~8000 lignes) :
+- sql/vitrines/34_jadomi_ads.sql (11 tables : ad_campaigns, ad_creatives,
+  ad_impressions, ad_clicks, ad_conversions, advertiser_wallets,
+  advertiser_subscriptions, audience_segments_saved, ad_templates,
+  ad_media_library + ALTER societes)
+- api/ads/index.js (25+ endpoints : CRUD campagnes, delivery auction,
+  wallet Stripe, subscription, admin moderation, Claude Vision analyse)
+- public/jadomi-ads.html (landing commerciale premium Linear/Stripe)
+- public/dashboard-annonceur.html (SPA 8 panels type Meta Ads Manager,
+  wizard campagne 5 etapes, analytics Chart.js, wallet prepaid)
+- public/js/ad-slot.js (composant reutilisable : banner/sidebar/native)
+Fichiers modifies :
+- server.js (mount /api/ads + routes /jadomi-ads + /dashboard-annonceur)
+- public/landing.html (section "Qui peut utiliser JADOMI" 6 cards)
+- wizard-societe.html (cards societe dentaire + centre formation +
+  question formateur DPC avec toggle auto is_formation_provider)
+Nouveaux clients cibles : societes dentaires, centres formation, formateurs.
+Double revenu : abonnement 49-999EUR/mois + consommation CPC/CPM/CPA.
+TODO : executer SQL 34, configurer STRIPE_SECRET_KEY.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -587,6 +637,9 @@ TODO : executer SQL 33, installer puppeteer/axios, configurer Stripe.
 19. **Tour guide actif > tooltips passifs** -- Un tour interactif etape par etape est 3x plus efficace pour l'activation qu'un tooltip au hover.
 20. **Wizard simple, site dans dashboard** -- Le wizard cree le compte cabinet (2 min gratuit). Le site internet est un module payant premium dans le dashboard, pas force dans le wizard. Feedback epouse avocate 23 avril 2026.
 21. **Import + create + upload = 3 options** -- Module Mon Site Internet propose 3 chemins compatibles : creer de zero, analyser existant, uploader medias locaux. L'utilisateur qui a deja un site ne doit pas etre force a repartir de zero.
+22. **JADOMI Ads = regie publicitaire verticale** -- Modele Meta/TikTok/LinkedIn mais 100% dentaire verifie. Double revenu (abonnement + consommation). Ciblage RPPS/ADELI impossible a truquer. ROI x5 vs Facebook pour annonceurs.
+23. **Annonceurs = nouveaux clients** -- Societes dentaires (Henry Schein, Dentsply), centres formation (LearnyLib, French Tooth), dentistes formateurs. Question auto dans wizard pour detecter les formateurs.
+24. **Wallet prepaid** -- Systeme TikTok : l'annonceur recharge son wallet, la pub debite en temps reel. Auto-recharge optionnelle. Pas de facturation post-hoc complexe.
 
 ===============================================================
 # 8. ROADMAP
@@ -613,7 +666,11 @@ TODO : executer SQL 33, installer puppeteer/axios, configurer Stripe.
 - [x] Refonte UX wizard + dashboard + module site internet (Passe 33)
 - [ ] Executer migration SQL 33 dans Supabase
 - [ ] Installer puppeteer + axios sur VPS (npm install)
-- [ ] Configurer Stripe pour modules premium (Passe 34)
+- [x] JADOMI Ads : regie publicitaire verticale dentaire (Passe 34)
+- [ ] Executer migration SQL 34 dans Supabase
+- [ ] Configurer STRIPE_SECRET_KEY dans .env
+- [ ] Configurer OPENAI_API_KEY pour DALL-E generation creatives
+- [ ] Contacter LearnyLib / French Tooth pour beta annonceur
 - [ ] Feedback post-test utilisateur
 - [ ] Parler aux 2 associes DENTALEVOLUTION
 - [ ] RDV avocat (CGV + partenariat)
