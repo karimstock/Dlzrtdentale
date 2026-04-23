@@ -716,6 +716,15 @@ Fichiers modifies :
   4 phases (intro logo, titre+prix, info cards, CTA+outro)
 - css/animations.css : styles demo-live-section complets + responsive
 Ad-template re-rendu : 1.7 MB, 10s, motion design avec spring physics.
+
+## Passe 35.3 (23 avril 2026) -- Photos reelles Pexels + overlay JADOMI
+Feedback Karim : "images DALL-E font trop ChatGPT / pas realiste".
+6 images DALL-E remplacees par vraies photos Pexels HD + overlay Sharp :
+- Gradient dark bas + titre blanc + sous-titre or + badge JADOMI STUDIO
+- WebP optimise : 46-85 KB chacune (48x plus leger que PNG DALL-E)
+- Photographes credites : Fauntleroy, kaboompics, Bertelli, weCare Media
+- Script : scripts/generate-real-gallery-images.js (Pexels API + Sharp)
+- Cout : 0 EUR. Decision : vraies photos >> IA pour credibilite B2B.
 - scripts/generate-passe35-videos.js (Sora 2 API)
 - scripts/generate-passe35-images.js (DALL-E 3 API)
 - public/assets/passe-35/ (lottie, videos, images directories)
