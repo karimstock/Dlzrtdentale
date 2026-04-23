@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/animations.css">
     <style>
         /* ========================================
            JADOMI Design System - Core
@@ -1243,14 +1244,15 @@
      Hero
      ============================================ -->
 <section class="hero" id="hero">
-    <canvas class="particle-canvas" id="particleCanvas"></canvas>
+    <!-- Passe 35: Three.js neural network dataflow (desktop only) -->
+    <canvas class="particle-canvas dataflow-canvas" id="particleCanvas"></canvas>
     <div class="hero-content">
         <div class="hero-badge">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             Plateforme publicitaire certifiee
         </div>
-        <h1 class="hero-title">JADOMI Ads</h1>
-        <p class="hero-subtitle">La regie publicitaire 100% dentaire verifiee</p>
+        <h1 class="hero-title" data-glitch>JADOMI Ads</h1>
+        <p class="hero-subtitle" data-typing="La regie publicitaire 100% dentaire verifiee" style="visibility:hidden">La regie publicitaire 100% dentaire verifiee</p>
         <p class="hero-description">
             Atteignez directement <strong>42 000 chirurgiens-dentistes verifies</strong> par leur numero RPPS.
             Un ROI x5 superieur a Facebook, avec <strong>zero faux profils</strong> et un ciblage inegale
@@ -1447,7 +1449,7 @@
             <p class="section-subtitle">Comparez objectivement les deux plateformes pour vos campagnes a destination des dentistes.</p>
         </div>
         <div class="comparison-wrapper reveal">
-            <table class="comparison-table">
+            <table class="comparison-table" data-comparatif-table>
                 <thead>
                     <tr>
                         <th>Critere</th>
@@ -1508,7 +1510,7 @@
         </div>
         <div class="pricing-grid">
             <!-- Starter -->
-            <div class="pricing-card reveal reveal-delay-1">
+            <div class="pricing-card pricing-card-3d reveal reveal-delay-1" data-tilt>
                 <div class="pricing-name">STARTER</div>
                 <div class="pricing-price">
                     <span class="pricing-amount">49&#x20AC;</span>
@@ -1537,7 +1539,7 @@
             </div>
 
             <!-- Pro -->
-            <div class="pricing-card featured reveal reveal-delay-2">
+            <div class="pricing-card pricing-card-3d featured popular reveal reveal-delay-2" data-tilt>
                 <span class="pricing-badge">POPULAIRE</span>
                 <div class="pricing-name">PRO</div>
                 <div class="pricing-price">
@@ -1575,7 +1577,7 @@
             </div>
 
             <!-- Enterprise -->
-            <div class="pricing-card reveal reveal-delay-3">
+            <div class="pricing-card pricing-card-3d reveal reveal-delay-3" data-tilt>
                 <div class="pricing-name">ENTERPRISE</div>
                 <div class="pricing-price">
                     <span class="pricing-amount">999&#x20AC;</span>
@@ -1728,63 +1730,66 @@
     'use strict';
 
     /* ========================================
-       Particle / Shimmer Background
+       Particle Background — now handled by Three.js dataflow-three.js (Passe 35)
+       Canvas 2D fallback for mobile only
        ======================================== */
-    const canvas = document.getElementById('particleCanvas');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        let w, h;
-        const PARTICLE_COUNT = 60;
+    if (window.innerWidth < 768) {
+        const canvas = document.getElementById('particleCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            let w, h;
+            const PARTICLE_COUNT = 30;
 
-        function resize() {
-            w = canvas.width = canvas.parentElement.offsetWidth;
-            h = canvas.height = canvas.parentElement.offsetHeight;
-        }
-
-        function createParticles() {
-            particles = [];
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                particles.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    vx: (Math.random() - 0.5) * 0.3,
-                    vy: (Math.random() - 0.5) * 0.3,
-                    size: Math.random() * 2 + 0.5,
-                    opacity: Math.random() * 0.4 + 0.1,
-                    pulse: Math.random() * Math.PI * 2
-                });
+            function resize() {
+                w = canvas.width = canvas.parentElement.offsetWidth;
+                h = canvas.height = canvas.parentElement.offsetHeight;
             }
-        }
 
-        function drawParticles() {
-            ctx.clearRect(0, 0, w, h);
-            particles.forEach(function(p) {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.pulse += 0.01;
+            function createParticles() {
+                particles = [];
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    particles.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        vx: (Math.random() - 0.5) * 0.3,
+                        vy: (Math.random() - 0.5) * 0.3,
+                        size: Math.random() * 2 + 0.5,
+                        opacity: Math.random() * 0.4 + 0.1,
+                        pulse: Math.random() * Math.PI * 2
+                    });
+                }
+            }
 
-                if (p.x < 0) p.x = w;
-                if (p.x > w) p.x = 0;
-                if (p.y < 0) p.y = h;
-                if (p.y > h) p.y = 0;
+            function drawParticles() {
+                ctx.clearRect(0, 0, w, h);
+                particles.forEach(function(p) {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.pulse += 0.01;
 
-                var currentOpacity = p.opacity * (0.6 + 0.4 * Math.sin(p.pulse));
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(201, 169, 97, ' + currentOpacity + ')';
-                ctx.fill();
-            });
-            requestAnimationFrame(drawParticles);
-        }
+                    if (p.x < 0) p.x = w;
+                    if (p.x > w) p.x = 0;
+                    if (p.y < 0) p.y = h;
+                    if (p.y > h) p.y = 0;
 
-        resize();
-        createParticles();
-        drawParticles();
-        window.addEventListener('resize', function() {
+                    var currentOpacity = p.opacity * (0.6 + 0.4 * Math.sin(p.pulse));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(201, 169, 97, ' + currentOpacity + ')';
+                    ctx.fill();
+                });
+                requestAnimationFrame(drawParticles);
+            }
+
             resize();
             createParticles();
-        });
+            drawParticles();
+            window.addEventListener('resize', function() {
+                resize();
+                createParticles();
+            });
+        }
     }
 
     /* ========================================
@@ -1946,6 +1951,13 @@
 
 })();
 </script>
+
+<!-- Passe 35: CDN Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js" defer></script>
+<script src="/js/animations/index.js" defer></script>
 
 </body>
 </html>
