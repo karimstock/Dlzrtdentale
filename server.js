@@ -3085,6 +3085,23 @@ process.on('uncaughtException', (err) => {
 });
 
 // =============================================
+// Fallback : servir .html correspondant pour URLs sans extension
+// =============================================
+const fs = require('fs');
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || path.extname(req.path)) return next();
+  const candidates = [
+    path.join(__dirname, req.path + '.html'),
+    path.join(__dirname, 'public' + req.path + '.html'),
+    path.join(__dirname, 'public/vitrines' + req.path + '.html')
+  ];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c) && fs.statSync(c).isFile()) return res.sendFile(c); } catch {}
+  }
+  next();
+});
+
+// =============================================
 // Start server (skip on Vercel — exporte l'app pour @vercel/node)
 // =============================================
 if (!process.env.VERCEL) {
