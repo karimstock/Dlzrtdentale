@@ -699,6 +699,23 @@ Fichiers crees (30+ fichiers, ~3000 lignes) :
   counters, interactions, particles-three, dataflow-three,
   hero-homepage, hero-ads, hero-studio, lottie-loader, index)
 - public/css/animations.css (premium hover, marquee, lightbox, responsive)
+- 3 videos Pexels HD (hero-homepage, hero-ads, hero-studio)
+- 3 compositions Remotion rendues (hero, stats, ad-template)
+- scripts/generate-passe35-pexels-videos.js (Pexels API)
+
+## Passe 35.2 (23 avril 2026) -- Fix galerie + demo live Remotion
+Fix images galerie /jadomi-studio cassees (R2 inaccessible).
+Fichiers crees :
+- scripts/fix-studio-gallery-images.js (DALL-E 3 → local)
+- 6 images DALL-E 3 HD en local /public/assets/studio-demos/*.webp
+  (PNG→WebP via ffmpeg, 132-399 KB chacune au lieu de 2.5-3.5 MB)
+Fichiers modifies :
+- jadomi-studio.html : URLs R2 → chemins locaux WebP + section
+  "Demo Live" Remotion (video ad-template + 3 etapes + CTA)
+- remotion/compositions/AdTemplate.tsx : v2 enrichie 10s (300 frames),
+  4 phases (intro logo, titre+prix, info cards, CTA+outro)
+- css/animations.css : styles demo-live-section complets + responsive
+Ad-template re-rendu : 1.7 MB, 10s, motion design avec spring physics.
 - scripts/generate-passe35-videos.js (Sora 2 API)
 - scripts/generate-passe35-images.js (DALL-E 3 API)
 - public/assets/passe-35/ (lottie, videos, images directories)
