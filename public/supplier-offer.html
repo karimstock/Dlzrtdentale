@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JADOMI — Commande fournisseur</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#0f0e0d; color:#e8e6e1; min-height:100vh; }
+    .header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; background:#1a1917; border-bottom:1px solid #2e2c29; }
+    .logo { font-size:22px; font-weight:800; color:#10b981; letter-spacing:-0.5px; }
+    .timer { display:flex; align-items:center; gap:8px; background:#1e1d1b; padding:8px 16px; border-radius:50px; font-size:14px; font-weight:600; }
+    .timer.expired { color:#f05050; }
+    .timer.active { color:#10b981; }
+    .container { max-width:640px; margin:0 auto; padding:24px 16px; }
+    .card { background:#1a1917; border:1px solid #2e2c29; border-radius:16px; padding:24px; margin-bottom:20px; }
+    .card h2 { font-size:18px; font-weight:700; margin-bottom:8px; }
+    .card p { color:#9a9590; font-size:14px; line-height:1.6; }
+    .discovery-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:50px; font-size:12px; font-weight:600; margin-top:8px; }
+    .items-table { width:100%; border-collapse:collapse; margin:16px 0; }
+    .items-table th { text-align:left; padding:10px 8px; font-size:11px; color:#6b6760; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #2e2c29; }
+    .items-table td { padding:12px 8px; font-size:14px; border-bottom:1px solid #1e1d1b; }
+    .items-table .price { font-weight:600; color:#10b981; }
+    .items-table .market { color:#6b6760; text-decoration:line-through; font-size:12px; }
+    .total-row td { font-weight:700; font-size:15px; border-top:2px solid #2e2c29; padding-top:14px; }
+    .savings-bar { display:flex; align-items:center; gap:10px; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:12px; padding:12px 16px; margin-top:12px; }
+    .savings-pct { background:#10b981; color:#0f0e0d; padding:4px 10px; border-radius:50px; font-size:13px; font-weight:700; }
+    .savings-text { color:#10b981; font-size:13px; }
+    .green-test-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:12px; padding:10px 16px; margin-top:12px; font-size:13px; color:#10b981; font-weight:600; }
+    .response-section { margin-top:8px; }
+    .response-section h2 { margin-bottom:16px; }
+    .actions { display:flex; flex-direction:column; gap:12px; }
+    .action-btn { display:flex; align-items:center; gap:12px; padding:16px 20px; border-radius:14px; border:2px solid #2e2c29; background:#1e1d1b; cursor:pointer; transition:all 0.2s; }
+    .action-btn:hover { border-color:#10b981; transform:translateY(-1px); }
+    .action-btn.active { border-color:#10b981; background:rgba(16,185,129,0.06); }
+    .action-btn .icon { font-size:24px; flex-shrink:0; }
+    .action-btn .label { font-weight:600; font-size:14px; }
+    .action-btn .sublabel { font-size:12px; color:#6b6760; margin-top:2px; }
+    .action-btn.accept .label { color:#10b981; }
+    .action-btn.counter .label { color:#f59e0b; }
+    .action-btn.refuse .label { color:#f05050; }
+    .counter-form { display:none; margin-top:16px; background:#1e1d1b; border-radius:12px; padding:20px; }
+    .counter-form.show { display:block; }
+    .counter-form label { display:block; font-size:13px; color:#9a9590; margin-bottom:6px; }
+    .counter-form input, .counter-form textarea { width:100%; padding:12px; background:#0f0e0d; border:1px solid #2e2c29; border-radius:10px; color:#e8e6e1; font-size:14px; margin-bottom:12px; }
+    .counter-form textarea { resize:vertical; min-height:60px; }
+    .btn-primary { width:100%; padding:14px; background:#10b981; color:#0f0e0d; border:none; border-radius:50px; font-weight:700; font-size:15px; cursor:pointer; transition:all 0.2s; }
+    .btn-primary:hover { background:#0ea572; }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+    .thanks-section { display:none; text-align:center; padding:20px 0; }
+    .thanks-section.show { display:block; }
+    .thanks-section .icon { font-size:48px; margin-bottom:12px; }
+    .thanks-section h2 { color:#10b981; margin-bottom:8px; }
+    .signup-box { background:#1e1d1b; border:1px solid #2e2c29; border-radius:14px; padding:20px; margin-top:20px; text-align:left; }
+    .signup-box h3 { font-size:14px; margin-bottom:4px; }
+    .signup-box p { font-size:12px; color:#6b6760; margin-bottom:12px; }
+    .signup-box input { width:100%; padding:10px; background:#0f0e0d; border:1px solid #2e2c29; border-radius:8px; color:#e8e6e1; font-size:13px; margin-bottom:8px; }
+    .loading { display:flex; align-items:center; justify-content:center; gap:10px; padding:40px; color:#6b6760; }
+    .spinner { width:20px; height:20px; border:2px solid #2e2c29; border-top-color:#10b981; border-radius:50%; animation:spin 0.6s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .error-msg { text-align:center; padding:40px; color:#f05050; }
+    @media(max-width:480px) {
+      .container { padding:16px 12px; }
+      .card { padding:18px; }
+      .items-table th, .items-table td { padding:8px 4px; font-size:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">JADOMI</div>
+    <div class="timer active" id="timer">
+      <span>&#9200;</span>
+      <span id="countdown">--:--</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="loading" class="loading"><div class="spinner"></div>Chargement de l'offre...</div>
+    <div id="error" class="error-msg" style="display:none;"></div>
+
+    <div id="content" style="display:none;">
+      <!-- Intro -->
+      <div class="card" id="intro-card">
+        <h2>Un cabinet dentaire souhaite commander chez vous</h2>
+        <p id="intro-text">JADOMI connecte les professionnels de sant&eacute; avec leurs fournisseurs. R&eacute;pondez sans compte. D&eacute;couvrez-nous si vous voulez.</p>
+        <div id="green-test-badge" class="green-test-badge" style="display:none;">
+          &#128154; 1er test Green-Test &minus;15% &mdash; D&eacute;couverte offerte au client
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="card">
+        <h2>&#128230; Commande demand&eacute;e</h2>
+        <table class="items-table">
+          <thead>
+            <tr><th>Produit</th><th>Qt&eacute;</th><th>Tarif cible</th><th>March&eacute;</th></tr>
+          </thead>
+          <tbody id="items-body"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="2">TOTAL</td>
+              <td class="price" id="total-target">---</td>
+              <td class="market" id="total-market">---</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="savings-bar" id="savings-bar" style="display:none;">
+          <span class="savings-pct" id="savings-pct">-15%</span>
+          <span class="savings-text" id="savings-text">Économies client via JADOMI</span>
+        </div>
+      </div>
+
+      <!-- Response -->
+      <div class="card response-section" id="response-section">
+        <h2>Votre r&eacute;ponse</h2>
+        <div class="actions" id="actions">
+          <div class="action-btn accept" onclick="doAccept()">
+            <div class="icon">&#9989;</div>
+            <div>
+              <div class="label">Accepter au tarif cible</div>
+              <div class="sublabel" id="accept-sublabel">--- total</div>
+            </div>
+          </div>
+          <div class="action-btn counter" onclick="showCounter()">
+            <div class="icon">&#128172;</div>
+            <div>
+              <div class="label">Contre-proposer</div>
+              <div class="sublabel">Proposer votre prix</div>
+            </div>
+          </div>
+          <div class="action-btn refuse" onclick="doRefuse()">
+            <div class="icon">&#10060;</div>
+            <div>
+              <div class="label">Refuser</div>
+              <div class="sublabel">Pas pour nous</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="counter-form" id="counter-form">
+          <label>Votre prix (&#8364; TTC)</label>
+          <input type="number" id="counter-price" step="0.01" min="0" placeholder="Ex: 510.00">
+          <label>Commentaire (optionnel)</label>
+          <textarea id="counter-comment" placeholder="Justification, d&eacute;lais, conditions..."></textarea>
+          <button class="btn-primary" onclick="doCounter()">Envoyer ma proposition</button>
+        </div>
+      </div>
+
+      <!-- Thanks -->
+      <div class="thanks-section" id="thanks-section">
+        <div class="icon">&#127881;</div>
+        <h2>Merci pour votre r&eacute;ponse rapide</h2>
+        <p style="color:#9a9590;font-size:14px;" id="thanks-msg">Le cabinet va recevoir votre offre. Vous serez notifi&eacute;(e) d&egrave;s validation.</p>
+
+        <div class="signup-box" id="signup-box">
+          <h3>Continuer &agrave; recevoir des commandes JADOMI ?</h3>
+          <p>Cr&eacute;ez votre compte gratuit, entrez dans la file d'attente, recevez d'autres commandes.</p>
+          <input type="email" id="signup-email" placeholder="Votre email">
+          <input type="tel" id="signup-phone" placeholder="T&eacute;l&eacute;phone (optionnel)">
+          <button class="btn-primary" onclick="doSignup()" style="margin-top:4px;">Cr&eacute;er mon compte gratuit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const TOKEN = window.location.pathname.split('/').pop();
+let offerData = null;
+let countdownInterval = null;
+
+async function loadOffer() {
+  try {
+    const res = await fetch('/api/gpo/public/offer/' + TOKEN);
+    if (!res.ok) throw new Error('Offre introuvable');
+    offerData = await res.json();
+
+    if (offerData.response_status !== 'pending') {
+      showAlreadyResponded();
+      return;
+    }
+
+    renderOffer();
+    startCountdown();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').textContent = e.message || 'Erreur de chargement';
+  }
+}
+
+function renderOffer() {
+  const items = offerData.items || [];
+  const tbody = document.getElementById('items-body');
+  tbody.innerHTML = items.map(i => {
+    const tp = i.target_price_eur ? (i.target_price_eur * (i.quantity || 1)).toFixed(2) + '\u20ac' : '---';
+    const mp = i.market_price_eur ? (i.market_price_eur * (i.quantity || 1)).toFixed(2) + '\u20ac' : '---';
+    return '<tr><td>' + esc(i.name) + '</td><td>' + (i.quantity || 1) + '</td><td class="price">' + tp + '</td><td class="market">' + mp + '</td></tr>';
+  }).join('');
+
+  if (offerData.total_target_eur) {
+    document.getElementById('total-target').textContent = Number(offerData.total_target_eur).toFixed(2) + '\u20ac';
+    document.getElementById('accept-sublabel').textContent = Number(offerData.total_target_eur).toFixed(2) + '\u20ac total';
+  }
+  if (offerData.total_market_eur) {
+    document.getElementById('total-market').textContent = Number(offerData.total_market_eur).toFixed(2) + '\u20ac';
+  }
+  if (offerData.savings_eur && offerData.total_market_eur) {
+    document.getElementById('savings-bar').style.display = 'flex';
+    const pct = Math.round(offerData.savings_eur / offerData.total_market_eur * 100);
+    document.getElementById('savings-pct').textContent = '-' + pct + '%';
+    document.getElementById('savings-text').textContent = '\u00c9conomies client via JADOMI : ' + Number(offerData.savings_eur).toFixed(2) + '\u20ac';
+  }
+
+  if (offerData.is_green_test) {
+    document.getElementById('green-test-badge').style.display = 'flex';
+  }
+
+  if (offerData.supplier_status === 'active') {
+    document.getElementById('intro-card').querySelector('h2').textContent = 'Nouvelle commande JADOMI';
+    document.getElementById('intro-text').textContent = 'Un cabinet dentaire JADOMI souhaite commander chez vous. R\u00e9pondez avant la fin du compte \u00e0 rebours.';
+  }
+}
+
+function startCountdown() {
+  const deadline = new Date(offerData.deadline_at);
+  const timer = document.getElementById('timer');
+  const cd = document.getElementById('countdown');
+
+  function tick() {
+    const diff = deadline - new Date();
+    if (diff <= 0) {
+      cd.textContent = '00:00';
+      timer.className = 'timer expired';
+      clearInterval(countdownInterval);
+      return;
+    }
+    const m = Math.floor(diff / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    cd.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    if (diff < 120000) timer.className = 'timer expired';
+  }
+
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+}
+
+function showAlreadyResponded() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  document.getElementById('response-section').style.display = 'none';
+  document.getElementById('thanks-section').classList.add('show');
+
+  const msg = {
+    'accepted': 'Vous avez accept\u00e9 cette commande. Le cabinet a \u00e9t\u00e9 notifi\u00e9.',
+    'refused': 'Vous avez refus\u00e9 cette commande.',
+    'counter_proposed': 'Votre contre-proposition a \u00e9t\u00e9 envoy\u00e9e. En attente de validation du cabinet.',
+    'timeout': 'Le d\u00e9lai de r\u00e9ponse est d\u00e9pass\u00e9.'
+  };
+  document.getElementById('thanks-msg').textContent = msg[offerData.response_status] || 'R\u00e9ponse d\u00e9j\u00e0 envoy\u00e9e.';
+  document.getElementById('timer').style.display = 'none';
+
+  renderOffer();
+}
+
+async function doAccept() {
+  if (!confirm('Accepter la commande au tarif cible JADOMI ?')) return;
+  try {
+    const res = await fetch('/api/gpo/public/offer/' + TOKEN + '/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showThanks('Commande accept\u00e9e ! Le cabinet va recevoir votre confirmation.');
+  } catch (e) {
+    alert(e.message || 'Erreur');
+  }
+}
+
+function showCounter() {
+  document.getElementById('counter-form').classList.toggle('show');
+}
+
+async function doCounter() {
+  const price = parseFloat(document.getElementById('counter-price').value);
+  const comment = document.getElementById('counter-comment').value.trim();
+  if (!price || price <= 0) { alert('Saisissez un prix valide'); return; }
+  try {
+    const res = await fetch('/api/gpo/public/offer/' + TOKEN + '/counter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ counter_price_eur: price, comment })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showThanks('Votre contre-proposition de ' + price.toFixed(2) + '\u20ac a \u00e9t\u00e9 envoy\u00e9e. Le cabinet d\u00e9cidera.');
+  } catch (e) {
+    alert(e.message || 'Erreur');
+  }
+}
+
+async function doRefuse() {
+  if (!confirm('Refuser cette commande ? Elle sera propos\u00e9e au fournisseur suivant.')) return;
+  try {
+    const res = await fetch('/api/gpo/public/offer/' + TOKEN + '/refuse', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    showThanks('Commande refus\u00e9e. Elle sera propos\u00e9e au fournisseur suivant.');
+  } catch (e) {
+    alert(e.message || 'Erreur');
+  }
+}
+
+function showThanks(msg) {
+  clearInterval(countdownInterval);
+  document.getElementById('response-section').style.display = 'none';
+  document.getElementById('thanks-section').classList.add('show');
+  document.getElementById('thanks-msg').textContent = msg;
+  document.getElementById('timer').style.display = 'none';
+
+  if (offerData.supplier_status === 'active') {
+    document.getElementById('signup-box').style.display = 'none';
+  }
+}
+
+async function doSignup() {
+  const email = document.getElementById('signup-email').value.trim();
+  const phone = document.getElementById('signup-phone').value.trim();
+  if (!email) { alert('Email requis'); return; }
+  try {
+    const res = await fetch('/api/gpo/public/offer/' + TOKEN + '/signup-extra', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById('signup-box').innerHTML = '<p style="color:#10b981;font-weight:600;padding:12px;">&#9989; Compte cr\u00e9\u00e9 ! Vous recevrez les prochaines commandes par email.</p>';
+  } catch (e) {
+    alert(e.message || 'Erreur');
+  }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+loadOffer();
+</script>
+</body>
+</html>

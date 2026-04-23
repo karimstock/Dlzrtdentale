@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1c">
+<title>JADOMI — Mon site internet</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0f1c;color:#f8fafc;font-family:'DM Sans',sans-serif;min-height:100vh}
+.dh{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.5rem;background:#0f172a;border-bottom:1px solid rgba(201,169,97,.12);flex-wrap:wrap;gap:.75rem}
+.dh a{color:rgba(255,255,255,.6);text-decoration:none;font-size:.88rem}.dh a:hover{color:#c9a961}
+.dh h1{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:500;margin-left:.75rem}
+.dh-left{display:flex;align-items:center}
+.sb{padding:.2rem .6rem;border-radius:4px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-left:.75rem}
+.sb-draft{background:rgba(251,191,36,.15);color:#fbbf24}
+.sb-pub{background:rgba(34,197,94,.15);color:#22c55e}
+.bp{background:#c9a961;color:#0f172a;border:none;padding:.55rem 1.2rem;border-radius:6px;font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit}
+.bp:hover{box-shadow:0 4px 12px rgba(201,169,97,.3);transform:translateY(-1px)}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.06);padding:0 1.5rem;background:#0f172a}
+.tab{background:none;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.5);padding:.85rem 1.25rem;cursor:pointer;font-family:inherit;font-size:.9rem;font-weight:500;transition:all .2s}
+.tab:hover{color:#fff}
+.tab.active{color:#c9a961;border-bottom-color:#c9a961}
+.tc{display:none;padding:1.5rem}
+.tc.active{display:block}
+
+/* Apercu */
+.apercu{display:flex;flex-direction:column;align-items:center;gap:1rem}
+.dt-mini{display:flex;gap:.35rem;background:rgba(255,255,255,.05);padding:.25rem;border-radius:8px}
+.dt-btn{background:transparent;border:none;color:rgba(255,255,255,.6);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:.82rem}
+.dt-btn.active{background:#c9a961;color:#0f172a;font-weight:600}
+.aframe{background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5);transition:all .4s cubic-bezier(.16,1,.3,1);overflow:hidden;width:100%;max-width:1400px;height:calc(100vh - 200px);border-radius:6px}
+.aframe.tablet{width:820px;max-width:100%;height:calc(100vh - 200px);border-radius:20px;border:10px solid #1a1a1a}
+.aframe.mobile{width:390px;max-width:100%;height:calc(100vh - 200px);border-radius:36px;border:10px solid #1a1a1a}
+.aframe iframe{width:100%;height:100%;border:none;border-radius:inherit}
+.a-acts{display:flex;gap:.75rem}
+.a-acts a,.a-acts button{padding:.5rem 1rem;border-radius:6px;font-size:.85rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;text-decoration:none;font-family:inherit}
+.a-acts a:hover,.a-acts button:hover{background:rgba(201,169,97,.1);border-color:rgba(201,169,97,.3)}
+
+/* Medias */
+.ml{display:grid;grid-template-columns:240px 1fr;gap:0;min-height:calc(100vh - 180px)}
+.ms{background:rgba(255,255,255,.02);border-right:1px solid rgba(255,255,255,.06);padding:1rem 0}
+.ms h3{font-family:'Syne',sans-serif;font-size:.95rem;padding:0 1rem;margin-bottom:.75rem}
+.ms-add{background:none;border:1px dashed rgba(201,169,97,.3);color:#c9a961;width:calc(100% - 2rem);margin:0 1rem;padding:.5rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:.82rem}
+.ms-add:hover{background:rgba(201,169,97,.08)}
+.si{display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;cursor:pointer;transition:all .15s;font-size:.88rem;color:rgba(255,255,255,.7)}
+.si:hover{background:rgba(255,255,255,.04);color:#fff}
+.si.active{background:rgba(201,169,97,.1);color:#c9a961;border-right:2px solid #c9a961}
+.si .s-ico{font-size:1.1rem;width:20px;text-align:center;flex-shrink:0}
+.si .s-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si .s-cnt{font-size:.72rem;color:rgba(255,255,255,.35);min-width:20px;text-align:right}
+.mc{padding:1.5rem}
+.mc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+.mc-header h2{font-family:'Syne',sans-serif;font-size:1.2rem;margin:0 0 .25rem}
+.mc-header p{color:rgba(255,255,255,.5);font-size:.88rem;margin:0}
+.mc-acts{display:flex;gap:.5rem}
+.mc-acts button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-family:inherit;font-size:.85rem}
+.mc-acts button:hover{background:rgba(201,169,97,.1);border-color:rgba(201,169,97,.3)}
+.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem}
+.mcard{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;transition:all .3s}
+.mcard:hover{border-color:rgba(201,169,97,.3);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.mcard img,.mcard video{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.mcard-info{padding:.6rem .75rem;display:flex;justify-content:space-between;align-items:center}
+.mcard-type{font-size:.7rem;color:#c9a961;font-weight:600;letter-spacing:.05em}
+.mcard-acts{display:flex;gap:.3rem}
+.mcard-acts button{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:.9rem;padding:2px}
+.mcard-acts button:hover{color:#fff}
+.mcard-acts button.danger:hover{color:#ef4444}
+.mcard.dragging{opacity:.4;border-color:#c9a961}
+.mg-empty{grid-column:1/-1;text-align:center;padding:4rem 2rem;color:rgba(255,255,255,.4)}
+.dz-active{background:rgba(201,169,97,.08);border:2px dashed rgba(201,169,97,.4);border-radius:12px}
+
+/* Contenu */
+.cl{max-width:900px;margin:0 auto}
+.cl-toolbar{display:flex;justify-content:flex-end;gap:.75rem;margin-bottom:1.5rem}
+.cs{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;margin-bottom:1rem;overflow:hidden}
+.cs summary{padding:1rem 1.25rem;cursor:pointer;font-family:'Syne',sans-serif;font-size:1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.cs summary::-webkit-details-marker{display:none}
+.cs summary::before{content:'▸';margin-right:.5rem;transition:transform .2s}
+.cs[open] summary::before{transform:rotate(90deg)}
+.cs-body{padding:0 1.25rem 1.25rem}
+.fg{margin-bottom:1rem}
+.fg label{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:rgba(255,255,255,.5);margin-bottom:.4rem;font-weight:500}
+.fg input,.fg textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.6rem .8rem;color:#f8fafc;font-family:inherit;font-size:.92rem}
+.fg input:focus,.fg textarea:focus{outline:none;border-color:#c9a961}
+.fg textarea{min-height:80px;resize:vertical}
+.fg .regen-btn{background:none;border:none;color:#c9a961;cursor:pointer;font-size:.8rem;font-weight:600}
+.fg .regen-btn:hover{text-decoration:underline}
+.fg.modified input,.fg.modified textarea{border-color:rgba(201,169,97,.5)}
+
+/* Params */
+.pl{max-width:900px;margin:0 auto}
+.pg{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:1.5rem;margin-bottom:1.25rem}
+.pg h2{font-family:'Syne',sans-serif;font-size:1.05rem;margin:0 0 1rem;color:#c9a961}
+.pg p{font-size:.85rem;color:rgba(255,255,255,.5);margin-bottom:1rem}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.fg2 input,.fg2 select{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.6rem .8rem;color:#f8fafc;font-family:inherit;font-size:.92rem;width:100%}
+.fg2 input:focus{outline:none;border-color:#c9a961}
+.pub-status{display:flex;align-items:center;justify-content:space-between;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.06)}
+code{background:rgba(201,169,97,.1);padding:.2rem .5rem;border-radius:4px;font-size:.85rem;color:#c9a961}
+
+/* Toast */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translate(-50%,80px);background:#c9a961;color:#0f172a;padding:.75rem 1.5rem;border-radius:8px;font-weight:600;z-index:10000;transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.toast.show{transform:translate(-50%,0)}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:9999}
+.modal.open{display:flex}
+.modal-c{background:#1e293b;border-radius:16px;padding:2rem;max-width:450px;width:90%}
+.modal-c h3{font-family:'Syne',sans-serif;margin-bottom:1rem}
+.modal-c input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.6rem .8rem;color:#fff;margin-bottom:.75rem;font-family:inherit}
+.modal-c .modal-acts{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem}
+
+/* Responsive */
+@media(max-width:900px){
+  .ml{grid-template-columns:1fr}
+  .ms{display:none}
+  .fg2{grid-template-columns:1fr}
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab{white-space:nowrap;font-size:.82rem;padding:.7rem .9rem}
+}
+@media(max-width:500px){
+  .mg{grid-template-columns:repeat(2,1fr)}
+  .dh h1{font-size:.95rem}
+}
+</style>
+</head>
+<body>
+
+<div class="dh">
+  <div class="dh-left">
+    <a href="javascript:history.back()">&larr;</a>
+    <h1 id="title">Mon site internet</h1>
+    <span class="sb sb-draft" id="badge">Brouillon</span>
+  </div>
+  <button class="bp" id="pub-btn" onclick="publishSite()">Publier</button>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-t="apercu" onclick="st('apercu')">Apercu</button>
+  <button class="tab" data-t="medias" onclick="st('medias')">Medias</button>
+  <button class="tab" data-t="contenu" onclick="st('contenu')">Contenu</button>
+  <button class="tab" data-t="parametres" onclick="st('parametres')">Parametres</button>
+</nav>
+
+<!-- APERCU -->
+<div class="tc active" id="tc-apercu">
+  <div class="apercu">
+    <div class="dt-mini">
+      <button class="dt-btn active" onclick="setDev('desktop',this)">Desktop</button>
+      <button class="dt-btn" onclick="setDev('tablet',this)">Tablette</button>
+      <button class="dt-btn" onclick="setDev('mobile',this)">Mobile</button>
+    </div>
+    <div class="aframe" id="aframe"><iframe id="prev-ifr" src="about:blank"></iframe></div>
+    <div class="a-acts">
+      <a id="preview-link" target="_blank">Plein ecran</a>
+      <button onclick="document.getElementById('prev-ifr').src=document.getElementById('prev-ifr').src">Actualiser</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEDIAS -->
+<div class="tc" id="tc-medias">
+  <div class="ml">
+    <aside class="ms">
+      <h3>Sections</h3>
+      <ul id="sec-list" style="list-style:none;padding:0;margin:0 0 .75rem"></ul>
+      <button class="ms-add" onclick="showAddModal()">+ Ajouter section</button>
+    </aside>
+    <div class="mc">
+      <div class="mc-header">
+        <div><h2 id="sec-name">Selectionnez une section</h2><p id="sec-desc"></p></div>
+        <div class="mc-acts">
+          <button onclick="addMedia('photo')">Photo</button>
+          <button onclick="addMedia('video')">Video</button>
+        </div>
+      </div>
+      <div class="mg" id="mgrid"><div class="mg-empty">Selectionnez une section a gauche.</div></div>
+      <input type="file" id="fi-photo" accept="image/*" multiple style="display:none" onchange="handleUpload(this.files)">
+      <input type="file" id="fi-video" accept="video/*" style="display:none" onchange="handleUpload(this.files)">
+    </div>
+  </div>
+</div>
+
+<!-- CONTENU -->
+<div class="tc" id="tc-contenu">
+  <div class="cl">
+    <div class="cl-toolbar">
+      <button class="mc-acts" style="display:inline" onclick="saveContent()">Enregistrer</button>
+    </div>
+    <div id="content-sections"></div>
+  </div>
+</div>
+
+<!-- PARAMETRES -->
+<div class="tc" id="tc-parametres">
+  <div class="pl" id="params-form"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal">
+  <div class="modal-c">
+    <h3>Nouvelle section</h3>
+    <input id="m-name" placeholder="Nom de la section">
+    <input id="m-desc" placeholder="Description (optionnel)">
+    <input id="m-icon" placeholder="Emoji (ex: 📸)" maxlength="2" value="📁">
+    <div class="modal-acts">
+      <button class="mc-acts" style="display:inline" onclick="closeModal()">Annuler</button>
+      <button class="bp" onclick="createSection()">Creer</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+var db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var p=new URLSearchParams(location.search);
+var siteId=p.get('siteId');
+var socId=localStorage.getItem('societe_active_id');
+var siteData=null,allSections=[],curSection=null,contentSections=[];
+
+async function getToken(){var s=await db.auth.getSession();if(!s.data.session){location.href='/login.html';return null}return s.data.session.access_token}
+async function api(path,opts){opts=opts||{};var token=await getToken();if(!token)return null;var h={'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':socId};var r=await fetch('/api/vitrines'+path,Object.assign({},opts,{headers:h}));return r.json()}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+
+// Init
+async function init(){
+  if(!siteId){
+    var d=await api('/dashboard/site');
+    if(d&&d.has_site){siteId=d.site.id;history.replaceState(null,'',location.pathname+'?siteId='+siteId)}
+    else{document.getElementById('title').textContent='Pas encore de site';return}
+  }
+  // Load site info
+  var d=await api('/dashboard/site');
+  if(!d||!d.has_site)return;
+  siteData=d.site;
+  document.getElementById('title').textContent='Mon site internet — '+esc(siteData.slug);
+  var b=document.getElementById('badge');
+  if(siteData.status==='published'){b.textContent='Publie';b.className='sb sb-pub';document.getElementById('pub-btn').textContent='Republier'}
+  document.getElementById('prev-ifr').src='/site/preview-'+siteId;
+  document.getElementById('preview-link').href='/public/vitrines/preview.html?siteId='+siteId;
+  // Check tab from URL
+  var tab=p.get('tab')||'apercu';
+  st(tab);
+}
+
+function st(tab){
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('active',b.dataset.t===tab)});
+  document.querySelectorAll('.tc').forEach(function(c){c.classList.toggle('active',c.id==='tc-'+tab)});
+  history.replaceState(null,'',location.pathname+'?siteId='+siteId+'&tab='+tab);
+  if(tab==='medias'&&!allSections.length)loadSections();
+  if(tab==='contenu'&&!contentSections.length)loadContent();
+  if(tab==='parametres')loadParams();
+}
+
+// ============ APERCU ============
+function setDev(d,btn){
+  document.getElementById('aframe').className='aframe '+(d==='desktop'?'':d);
+  document.querySelectorAll('.dt-btn').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+}
+
+// ============ MEDIAS ============
+async function loadSections(){
+  var r=await api('/editor/sections/'+siteId);
+  if(!r||!r.success)return;
+  allSections=r.sections;
+  renderSections();
+  if(allSections.length)selectSection(allSections[0].id);
+}
+function renderSections(){
+  document.getElementById('sec-list').innerHTML=allSections.map(function(s){
+    return'<li class="si'+(curSection===s.id?' active':'')+'" data-sid="'+s.id+'" onclick="selectSection(\''+s.id+'\')"><span class="s-ico">'+esc(s.icon)+'</span><span class="s-name">'+esc(s.name)+'</span><span class="s-cnt">'+s.count+'</span></li>';
+  }).join('');
+}
+async function selectSection(sid){
+  curSection=sid;
+  renderSections();
+  var sec=allSections.find(function(s){return s.id===sid});
+  document.getElementById('sec-name').textContent=sec?sec.poetic_label||sec.name:'';
+  document.getElementById('sec-desc').textContent='';
+  // Load medias
+  var r=await api('/photos/site/'+siteId);
+  if(!r||!r.success)return;
+  var filtered=(r.photos||[]).filter(function(m){return m.category===sid});
+  renderMediaGrid(filtered);
+}
+function renderMediaGrid(medias){
+  var g=document.getElementById('mgrid');
+  if(!medias.length){g.innerHTML='<div class="mg-empty">Aucun media. Ajoutez des photos ou videos.</div>';return}
+  g.innerHTML=medias.map(function(m){
+    var tag=m.media_type==='video'?'<video src="'+m.url+'" muted></video>':'<img src="'+(m.url||'')+'" loading="lazy">';
+    return'<div class="mcard" data-mid="'+m.id+'">'+tag+'<div class="mcard-info"><span class="mcard-type">'+(m.media_type==='video'?'VIDEO':'PHOTO')+'</span><div class="mcard-acts"><button onclick="replaceMedia(\''+m.id+'\')">&#128260;</button><button class="danger" onclick="deleteMedia(\''+m.id+'\',this)">&#128465;</button></div></div></div>';
+  }).join('');
+}
+function addMedia(type){
+  document.getElementById('fi-'+type).click();
+}
+async function handleUpload(files){
+  if(!curSection||!files.length)return;
+  var token=await getToken();
+  for(var i=0;i<files.length;i++){
+    var fd=new FormData();fd.append('photo',files[i]);fd.append('siteId',siteId);fd.append('category',curSection);
+    await fetch('/api/vitrines/photos/upload',{method:'POST',headers:{'Authorization':'Bearer '+token,'X-Societe-Id':socId},body:fd});
+  }
+  toast(files.length+' media(s) ajoute(s)');
+  selectSection(curSection);
+  loadSections();
+}
+async function deleteMedia(mid,btn){
+  if(!confirm('Supprimer ?'))return;
+  var card=btn.closest('.mcard');
+  await api('/photos/bulk-update',{method:'PATCH',body:JSON.stringify({siteId:siteId,changes:[{photo_id:mid,delete:true}]})});
+  if(card){card.style.opacity='0';card.style.transform='scale(.8)';card.style.transition='all .3s';setTimeout(function(){card.remove()},300)}
+  toast('Supprime');
+  loadSections();
+}
+function replaceMedia(mid){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*,video/*';
+  inp.onchange=async function(){
+    if(!inp.files.length)return;
+    var token=await getToken();
+    var fd=new FormData();fd.append('photo',inp.files[0]);fd.append('siteId',siteId);fd.append('category',curSection);
+    // Delete old + upload new
+    await api('/photos/bulk-update',{method:'PATCH',body:JSON.stringify({siteId:siteId,changes:[{photo_id:mid,delete:true}]})});
+    await fetch('/api/vitrines/photos/upload',{method:'POST',headers:{'Authorization':'Bearer '+token,'X-Societe-Id':socId},body:fd});
+    toast('Remplace');selectSection(curSection);
+  };inp.click();
+}
+function showAddModal(){document.getElementById('modal').classList.add('open')}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+async function createSection(){
+  var name=document.getElementById('m-name').value.trim();
+  if(!name){alert('Nom requis');return}
+  await api('/editor/custom-sections',{method:'POST',body:JSON.stringify({site_id:siteId,name:name,description:document.getElementById('m-desc').value,icon:document.getElementById('m-icon').value||'📁'})});
+  closeModal();toast('Section creee');loadSections();
+}
+
+// ============ CONTENU ============
+async function loadContent(){
+  var r=await api('/editor/content/'+siteId);
+  if(!r||!r.success)return;
+  contentSections=r.sections;
+  renderContent();
+}
+function renderContent(){
+  var el=document.getElementById('content-sections');
+  el.innerHTML=contentSections.map(function(s){
+    var fields=flattenContent(s.content||{});
+    return'<details class="cs" data-secid="'+s.id+'" open><summary><span>'+esc(s.type)+'</span></summary><div class="cs-body">'+
+      fields.map(function(f){
+        var isText=f.value&&f.value.length>100;
+        return'<div class="fg"><label>'+esc(f.path)+' <button class="regen-btn" onclick="regenField(\''+s.id+'\',\''+f.path+'\',this)">Regenerer</button></label>'+
+          (isText?'<textarea data-secid="'+s.id+'" data-path="'+f.path+'" oninput="markMod(this)">'+esc(f.value)+'</textarea>':'<input data-secid="'+s.id+'" data-path="'+f.path+'" value="'+esc(f.value)+'" oninput="markMod(this)">')+
+        '</div>';
+      }).join('')+
+    '</div></details>';
+  }).join('');
+}
+function flattenContent(obj,prefix){
+  prefix=prefix||'';var result=[];
+  Object.keys(obj).forEach(function(k){
+    var v=obj[k],path=prefix?prefix+'.'+k:k;
+    if(typeof v==='string'||typeof v==='number'){result.push({path:path,value:String(v)})}
+    else if(Array.isArray(v)){result.push({path:path,value:JSON.stringify(v)})}
+    else if(v&&typeof v==='object'){result=result.concat(flattenContent(v,path))}
+  });
+  return result;
+}
+function markMod(el){el.closest('.fg').classList.add('modified')}
+async function saveContent(){
+  var mods=document.querySelectorAll('.fg.modified input, .fg.modified textarea');
+  for(var i=0;i<mods.length;i++){
+    var el=mods[i],secId=el.dataset.secid,path=el.dataset.path,val=el.value;
+    // Rebuild content object
+    var sec=contentSections.find(function(s){return s.id===secId});
+    if(!sec)continue;
+    setNested(sec.content,path,val);
+    await api('/editor/section/'+secId,{method:'PATCH',body:JSON.stringify({content:sec.content})});
+    el.closest('.fg').classList.remove('modified');
+  }
+  toast('Contenu enregistre');
+}
+function setNested(obj,path,val){
+  var keys=path.split('.');var cur=obj;
+  for(var i=0;i<keys.length-1;i++){if(!cur[keys[i]]||typeof cur[keys[i]]!=='object')cur[keys[i]]={};cur=cur[keys[i]]}
+  cur[keys[keys.length-1]]=val;
+}
+async function regenField(secId,fieldPath,btn){
+  btn.textContent='...';
+  var sec=contentSections.find(function(s){return s.id===secId});
+  var cur=getNested(sec?sec.content:{},fieldPath)||'';
+  var r=await api('/editor/ai/regenerate-field',{method:'POST',body:JSON.stringify({site_id:siteId,field_path:fieldPath,current_value:cur})});
+  btn.textContent='Regenerer';
+  if(r&&r.success){
+    var el=document.querySelector('[data-secid="'+secId+'"][data-path="'+fieldPath+'"]');
+    if(el){el.value=r.value;if(el.tagName==='TEXTAREA')el.textContent=r.value;markMod(el)}
+    toast('Regenere par l\'IA');
+  }
+}
+function getNested(obj,path){var keys=path.split('.');var cur=obj;for(var i=0;i<keys.length;i++){if(!cur)return'';cur=cur[keys[i]]}return cur}
+
+// ============ PARAMETRES ============
+async function loadParams(){
+  var r=await api('/infos/complete');
+  if(!r||!r.success)return;
+  var s=r.societe;
+  var el=document.getElementById('params-form');
+  el.innerHTML=
+    '<div class="pg"><h2>Cabinet</h2><div class="fg2">'+
+    pf('adresse',s)+pf('telephone',s)+pf('email',s)+pf('horaires',s)+
+    '</div></div>'+
+    '<div class="pg"><h2>Mentions legales</h2><p>Obligatoires pour publier en conformite.</p><div class="fg2">'+
+    pf('siret',s)+pf('rpps',s)+pf('ordre_numero',s)+
+    '</div></div>'+
+    '<div class="pg"><h2>Reseaux sociaux</h2><div class="fg2">'+
+    pf('social_instagram',s)+pf('social_facebook',s)+pf('social_linkedin',s)+
+    '</div></div>'+
+    '<div class="pg"><h2>Publication</h2>'+
+    '<p>URL : <code>/site/'+esc(siteData?siteData.slug:'')+'</code></p>'+
+    '<div class="pub-status"><span>Statut : '+(siteData&&siteData.status==='published'?'Publie':'Brouillon')+'</span><button class="bp" onclick="publishSite()">Publier</button></div>'+
+    '</div>';
+  // Attach blur save
+  el.querySelectorAll('.p-input').forEach(function(inp){
+    inp.addEventListener('blur',function(){saveParam(inp.dataset.f,inp.value)});
+  });
+}
+function pf(f,s){
+  var labels={adresse:'Adresse',telephone:'Telephone',email:'Email',horaires:'Horaires',siret:'SIRET',rpps:'RPPS',ordre_numero:'N° Ordre',social_instagram:'Instagram',social_facebook:'Facebook',social_linkedin:'LinkedIn'};
+  return'<input class="p-input" data-f="'+f+'" placeholder="'+(labels[f]||f)+'" value="'+esc(s[f]||'')+'">';
+}
+async function saveParam(f,val){
+  var body={};body[f]=val;
+  var r=await api('/infos/update',{method:'PATCH',body:JSON.stringify(body)});
+  if(r&&r.success)toast('Enregistre');
+}
+
+// ============ PUBLISH ============
+async function publishSite(){
+  if(!confirm('Publier votre site ?'))return;
+  var r=await api('/publish',{method:'POST',body:JSON.stringify({siteId:siteId})});
+  if(r&&r.success){
+    toast('Site publie !');
+    document.getElementById('badge').textContent='Publie';document.getElementById('badge').className='sb sb-pub';
+    document.getElementById('pub-btn').textContent='Republier';
+  } else alert(r?r.error:'Erreur');
+}
+
+init();
+</script>
+</body>
+</html>

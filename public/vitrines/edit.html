@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JADOMI — Modifier mon site</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/jadomi-theme.css">
+  <link rel="stylesheet" href="/public/vitrines/vitrines.css?v=3">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/public/vitrines/labels.js"></script>
+</head>
+<body>
+  <div class="vitrines-edit-container">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+      <h1 style="font-family:'Syne',sans-serif;font-size:1.5rem;margin:0" id="edit-title"></h1>
+      <div style="display:flex;gap:0.75rem">
+        <button class="btn-vitrines-secondary" onclick="window.location.href='/public/vitrines/dashboard.html'">Retour</button>
+        <a class="btn-vitrines-secondary" id="btn-preview" href="#" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px">Voir en reel</a>
+        <button class="btn-vitrines-primary" id="btn-publish" onclick="publishSite()">Publier</button>
+      </div>
+    </div>
+
+    <!-- Quota bar -->
+    <div class="vitrines-quota-bar" id="quota-bar" style="display:none">
+      <span style="font-size:0.85rem" id="quota-label"></span>
+      <div class="quota-progress"><div class="bar" id="quota-bar-fill"></div></div>
+      <span style="font-size:0.8rem;color:var(--text-secondary)" id="quota-count"></span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="vitrines-edit-tabs">
+      <button class="active" data-tab="inline" onclick="switchTab('inline')" id="tab-inline"></button>
+      <button data-tab="photos" onclick="switchTab('photos')">Mes photos</button>
+      <button data-tab="conversation" onclick="switchTab('conversation')" id="tab-conversation"></button>
+      <button data-tab="settings" onclick="switchTab('settings')" id="tab-settings"></button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="tab-content-inline">
+      <div id="sections-list"></div>
+    </div>
+
+    <div id="tab-content-photos" style="display:none">
+      <div id="tinder-banner" style="margin-bottom:1.5rem;padding:1.25rem;background:linear-gradient(135deg,rgba(201,169,97,0.15),rgba(201,169,97,0.05));border:1px solid rgba(201,169,97,0.3);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:1rem">
+        <div><h3 style="font-family:'Syne',sans-serif;font-size:1.1rem;margin-bottom:0.3rem;color:#c9a961">Classer mes photos rapidement</h3><p style="font-size:0.9rem;color:rgba(255,255,255,0.7)">L'IA propose 2-3 options par photo. Vous choisissez en 1 clic. <strong>40 secondes pour 18 photos.</strong></p></div>
+        <a id="tinder-link" href="#" style="background:#c9a961;color:#0f172a;padding:0.75rem 1.5rem;border-radius:8px;text-decoration:none;font-weight:600;white-space:nowrap">Demarrer</a>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <p style="color:var(--text-secondary);font-size:0.9rem">Glissez les photos dans la bonne categorie. Les changements sont enregistres au clic sur "Enregistrer".</p>
+        <div style="display:flex;gap:0.75rem">
+          <button class="btn-vitrines-secondary" onclick="reanalyzeAll()" id="btn-reanalyze">Re-analyser avec l'IA</button>
+          <button class="btn-vitrines-primary" onclick="saveBulkPhotos()" id="btn-save-photos">Enregistrer les modifications</button>
+        </div>
+      </div>
+      <div id="photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.25rem"></div>
+    </div>
+
+    <div id="tab-content-conversation" style="display:none">
+      <div style="max-width:700px;margin:0 auto">
+        <div class="vitrines-chat-messages" id="edit-messages" style="height:400px;background:var(--surface);border-radius:16px;border:1px solid var(--border);margin-bottom:1rem"></div>
+        <div class="vitrines-chat-input" style="padding:0">
+          <textarea id="edit-input" rows="1" placeholder="" onkeydown="handleEditKey(event)"></textarea>
+          <button class="btn-vitrines-primary" id="edit-send-btn" onclick="sendEditMessage()">Envoyer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-content-settings" style="display:none">
+      <div class="vitrines-settings-grid" id="settings-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+    const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const L = window.VITRINE_LABELS;
+
+    document.getElementById('edit-title').textContent = L.edit_title;
+    document.getElementById('tab-inline').textContent = L.edit_mode_inline;
+    document.getElementById('tab-conversation').textContent = L.edit_mode_conversation;
+    document.getElementById('tab-settings').textContent = L.edit_mode_settings;
+    document.getElementById('edit-input').placeholder = L.edit_placeholder;
+
+    const siteId = new URLSearchParams(window.location.search).get('siteId');
+    let sections = [];
+    let siteData = null;
+
+    // ---- API ----
+    async function api(path, opts = {}) {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return; }
+      let token = session.access_token;
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'X-Societe-Id': localStorage.getItem('societe_active_id'),
+        ...(opts.headers || {})
+      };
+      let res = await fetch('/api/vitrines' + path, { ...opts, headers });
+      if (res.status === 401) {
+        const { data } = await db.auth.refreshSession();
+        if (data?.session) {
+          headers['Authorization'] = 'Bearer ' + data.session.access_token;
+          res = await fetch('/api/vitrines' + path, { ...opts, headers });
+        } else { window.location.href = '/login.html'; return; }
+      }
+      return res;
+    }
+
+    async function apiJson(path, opts = {}) {
+      const res = await api(path, opts);
+      return res ? res.json() : null;
+    }
+
+    // ---- Tabs ----
+    function switchTab(tab) {
+      document.querySelectorAll('.vitrines-edit-tabs button').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+      ['inline', 'photos', 'conversation', 'settings'].forEach(t => {
+        var el = document.getElementById('tab-content-' + t);
+        if (el) el.style.display = t === tab ? 'block' : 'none';
+      });
+      if (tab === 'photos') loadPhotos();
+    }
+
+    // ---- Photos tab ----
+    var photosData = [];
+    var photosCategories = [];
+    var photosChanges = {};
+
+    async function loadPhotos() {
+      if (!siteId) return;
+      var result = await apiJson('/photos/' + siteId);
+      if (!result || !result.success) return;
+      photosData = result.medias || [];
+      photosCategories = result.categories || [];
+      renderPhotos();
+    }
+
+    function renderPhotos() {
+      var grid = document.getElementById('photos-grid');
+      if (!photosData.length) {
+        grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:3rem">Aucune photo. Retournez dans l\'onboarding pour en ajouter.</p>';
+        return;
+      }
+      grid.innerHTML = photosData.map(function(m) {
+        var isChanged = photosChanges[m.id];
+        var comment = (m.ai_analysis && m.ai_analysis.comment) ? m.ai_analysis.comment : '';
+        var confidence = m.ai_confidence ? Math.round(m.ai_confidence * 100) + '%' : '';
+        var isAuto = m.auto_categorized;
+        return '<div class="vitrines-settings-card" style="padding:1rem;' + (isChanged ? 'border-color:var(--accent);' : '') + '" data-photo-id="' + m.id + '">'
+          + (m.url ? (m.media_type === 'video' ? '<video src="' + m.url + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px" muted></video>' : '<img src="' + m.url + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px" loading="lazy">') : '<div style="width:100%;aspect-ratio:4/3;background:var(--surface-elevated);border-radius:8px"></div>')
+          + (comment ? '<p style="font-size:0.78rem;color:var(--text-secondary);margin:0.75rem 0 0.5rem;font-style:italic;line-height:1.4">"' + escAttr(comment).substring(0, 150) + (comment.length > 150 ? '...' : '') + '"</p>' : '')
+          + (isAuto && confidence ? '<span style="font-size:0.7rem;color:var(--accent);display:block;margin-bottom:0.5rem">Categorie suggeree par l\'IA (' + confidence + ')</span>' : '')
+          + '<select style="width:100%;padding:0.5rem;background:var(--surface-elevated);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:0.85rem;margin-top:0.5rem" onchange="markPhotoChange(\'' + m.id + '\', this.value)">'
+          + photosCategories.map(function(c) {
+              return '<option value="' + c.id + '"' + (m.category === c.id ? ' selected' : '') + '>' + escAttr(c.poetic_label || c.label) + '</option>';
+            }).join('')
+          + '</select>'
+          + '<button style="margin-top:0.5rem;width:100%;padding:0.4rem;background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.2);border-radius:8px;cursor:pointer;font-size:0.8rem" onclick="markPhotoDelete(\'' + m.id + '\')">Supprimer</button>'
+          + '</div>';
+      }).join('');
+    }
+
+    function markPhotoChange(photoId, newCategory) {
+      photosChanges[photoId] = { photo_id: photoId, category: newCategory };
+      // Highlight changed card
+      var card = document.querySelector('[data-photo-id="' + photoId + '"]');
+      if (card) card.style.borderColor = 'var(--accent)';
+    }
+
+    async function markPhotoDelete(photoId) {
+      if (!confirm('Supprimer cette photo definitivement ?')) return;
+      var card = document.querySelector('[data-photo-id="' + photoId + '"]');
+      try {
+        var result = await apiJson('/photos/bulk-update', {
+          method: 'PATCH',
+          body: JSON.stringify({ siteId: siteId, changes: [{ photo_id: photoId, delete: true }] })
+        });
+        if (result && result.success) {
+          if (card) {
+            card.style.transition = 'all 0.3s';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.8)';
+            setTimeout(function() { card.remove(); }, 300);
+          }
+          showEditToast('Photo supprimee');
+        } else {
+          alert(result ? result.error : 'Erreur');
+        }
+      } catch (e) {
+        alert('Erreur : ' + e.message);
+      }
+    }
+
+    function showEditToast(msg) {
+      var t = document.createElement('div');
+      t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#c9a961;color:#0f172a;padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;box-shadow:0 10px 30px rgba(201,169,97,0.4);z-index:10000;';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(function() { t.remove(); }, 300); }, 2000);
+    }
+
+    async function saveBulkPhotos() {
+      var changes = Object.values(photosChanges);
+      if (!changes.length) { alert('Aucune modification.'); return; }
+      var btn = document.getElementById('btn-save-photos');
+      btn.textContent = 'Enregistrement...';
+      btn.disabled = true;
+      var result = await apiJson('/photos/bulk-update', {
+        method: 'PATCH',
+        body: JSON.stringify({ siteId: siteId, changes: changes })
+      });
+      btn.textContent = 'Enregistrer les modifications';
+      btn.disabled = false;
+      if (result && result.success) {
+        photosChanges = {};
+        alert('Modifications enregistrees : ' + result.updated + ' mises a jour, ' + result.deleted + ' supprimees.');
+        loadPhotos();
+      } else {
+        alert(result ? result.error : 'Erreur');
+      }
+    }
+
+    async function reanalyzeAll() {
+      if (!confirm('Re-analyser toutes les photos avec l\'IA ? Cela peut prendre quelques minutes.')) return;
+      var btn = document.getElementById('btn-reanalyze');
+      btn.textContent = 'Analyse en cours...';
+      btn.disabled = true;
+      var result = await apiJson('/photos/reanalyze/' + siteId, { method: 'POST' });
+      btn.textContent = 'Re-analyser avec l\'IA';
+      btn.disabled = false;
+      if (result && result.success) {
+        alert('Analyse terminee : ' + result.total + ' photos traitees.');
+        photosChanges = {};
+        loadPhotos();
+      } else {
+        alert(result ? result.error : 'Erreur');
+      }
+    }
+
+    function escAttr(str) { return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // ---- Inline Edit ----
+    function renderSections() {
+      const container = document.getElementById('sections-list');
+      container.innerHTML = sections.map(s => `
+        <div class="vitrines-settings-card" style="margin-bottom:1rem" data-section-id="${s.id}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+            <h3 style="font-family:'Syne',sans-serif;font-size:1rem;margin:0;text-transform:capitalize">${s.type}</h3>
+            <button class="btn-vitrines-secondary" style="padding:0.3rem 0.6rem;font-size:0.75rem" onclick="regenerateSection('${s.id}', '${s.type}')">${L.edit_regenerate}</button>
+          </div>
+          <div class="section-fields">
+            ${renderFields(s.id, s.content, '')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderFields(sectionId, obj, prefix) {
+      if (!obj || typeof obj !== 'object') return '';
+      return Object.entries(obj).map(([key, val]) => {
+        const path = prefix ? prefix + '.' + key : key;
+        if (typeof val === 'string') {
+          return `
+            <div style="margin-bottom:0.75rem">
+              <label style="display:block;font-size:0.8rem;color:var(--text-secondary);margin-bottom:4px">${key}</label>
+              <input type="text" value="${escapeAttr(val)}" style="width:100%;background:var(--surface-elevated);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem;color:var(--text-primary);font-size:0.85rem"
+                onchange="saveField('${sectionId}', '${path}', this.value)">
+            </div>
+          `;
+        }
+        if (Array.isArray(val)) {
+          return `
+            <div style="margin-bottom:0.75rem">
+              <label style="display:block;font-size:0.8rem;color:var(--text-secondary);margin-bottom:4px">${key} (${val.length} elements)</label>
+              <span style="font-size:0.75rem;color:var(--text-secondary)">${JSON.stringify(val).substring(0, 100)}...</span>
+            </div>
+          `;
+        }
+        if (typeof val === 'object' && val !== null) {
+          return `
+            <details style="margin-bottom:0.5rem">
+              <summary style="font-size:0.85rem;cursor:pointer;color:var(--accent)">${key}</summary>
+              <div style="padding-left:1rem;margin-top:0.5rem">${renderFields(sectionId, val, path)}</div>
+            </details>
+          `;
+        }
+        return '';
+      }).join('');
+    }
+
+    function escapeAttr(str) { return String(str).replace(/"/g, '&quot;'); }
+
+    async function saveField(sectionId, fieldPath, value) {
+      const result = await apiJson('/edit/text', {
+        method: 'PATCH',
+        body: JSON.stringify({ siteId, sectionId, fieldPath, value })
+      });
+      if (!result || !result.success) {
+        alert(result ? result.error : L.error_generic);
+      }
+    }
+
+    async function regenerateSection(sectionId, sectionType) {
+      const instructions = prompt('Instructions pour la regeneration (optionnel) :');
+      const result = await apiJson('/edit/regenerate', {
+        method: 'POST',
+        body: JSON.stringify({ siteId, sectionId, fieldPath: 'titre', instructions })
+      });
+      if (result && result.success) {
+        loadSite();
+      } else {
+        alert(result ? result.error : L.error_generic);
+      }
+    }
+
+    // ---- Conversation Edit ----
+    let isEditStreaming = false;
+
+    function addEditBubble(role, text) {
+      const div = document.createElement('div');
+      div.className = 'vitrines-chat-bubble ' + role;
+      div.textContent = text;
+      document.getElementById('edit-messages').appendChild(div);
+      const el = document.getElementById('edit-messages');
+      el.scrollTop = el.scrollHeight;
+      return div;
+    }
+
+    async function sendEditMessage() {
+      if (isEditStreaming) return;
+      const input = document.getElementById('edit-input');
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = '';
+      addEditBubble('user', message);
+      isEditStreaming = true;
+
+      try {
+        const { data: { session } } = await db.auth.getSession();
+        const res = await fetch('/api/vitrines/edit/conversation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + session.access_token,
+            'X-Societe-Id': localStorage.getItem('societe_active_id')
+          },
+          body: JSON.stringify({ siteId, message })
+        });
+
+        const bubble = addEditBubble('assistant', '');
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'text') {
+                fullText += data.content;
+                bubble.textContent = fullText;
+              } else if (data.type === 'done' && data.actions && data.actions.length > 0) {
+                loadSite(); // Recharger les sections
+              }
+            } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (err) {
+        addEditBubble('assistant', L.error_generic);
+      } finally {
+        isEditStreaming = false;
+      }
+    }
+
+    function handleEditKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendEditMessage(); }
+    }
+
+    // ---- Settings ----
+    function renderSettings() {
+      if (!siteData) return;
+      document.getElementById('settings-grid').innerHTML = `
+        <div class="vitrines-settings-card">
+          <h3>${L.settings_palette}</h3>
+          <div class="vitrines-palette-grid">
+            ${['ivory_gold','slate_blue','forest_green','warm_terracotta','midnight_purple','ocean_teal'].map(p => `
+              <div class="vitrines-palette-item ${siteData.palette === p ? 'active' : ''}" onclick="changePalette('${p}')">
+                <span style="font-size:0.75rem">${p.replace('_', ' ')}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="vitrines-settings-card">
+          <h3>${L.settings_typography}</h3>
+          <select style="width:100%;background:var(--surface-elevated);border:1px solid var(--border);border-radius:8px;padding:0.5rem;color:var(--text-primary)" onchange="changeTypography(this.value)">
+            ${['editorial','modern','classic','minimal'].map(t =>
+              '<option value="' + t + '"' + (siteData.typography === t ? ' selected' : '') + '>' + t + '</option>'
+            ).join('')}
+          </select>
+        </div>
+        <div class="vitrines-settings-card">
+          <h3>${L.settings_domain}</h3>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem">
+            ${siteData.custom_domain ? 'Domaine actuel : ' + siteData.custom_domain : 'Aucun domaine personnalise'}
+          </p>
+          <button class="btn-vitrines-secondary" onclick="window.location.href='/public/vitrines/parametres.html?siteId=${siteId}'">${L.cta_domains}</button>
+        </div>
+      `;
+    }
+
+    async function changePalette(palette) {
+      // Utilisation directe de l'update (necessite un endpoint dedie ou edit/text sur le site)
+      // Pour l'instant on le fait via Supabase direct (RLS)
+      const { error } = await db.from('vitrines_sites').update({ palette }).eq('id', siteId);
+      if (!error) { siteData.palette = palette; renderSettings(); }
+    }
+
+    async function changeTypography(typography) {
+      const { error } = await db.from('vitrines_sites').update({ typography }).eq('id', siteId);
+      if (!error) { siteData.typography = typography; }
+    }
+
+    // ---- Publish ----
+    async function publishSite() {
+      if (!confirm('Publier votre site internet ?')) return;
+      const result = await apiJson('/publish', {
+        method: 'POST',
+        body: JSON.stringify({ siteId })
+      });
+      if (result && result.success) {
+        alert('Site publie ! URL : ' + result.public_url);
+        loadSite();
+      } else {
+        alert(result ? result.error : L.error_publish);
+      }
+    }
+
+    // ---- Load ----
+    async function loadSite() {
+      if (!siteId) { window.location.href = '/public/vitrines/dashboard.html'; return; }
+
+      const result = await apiJson('/preview/' + siteId);
+      if (!result || !result.success) {
+        alert(result ? result.error : L.error_generic);
+        return;
+      }
+
+      siteData = result.site;
+      sections = result.sections || [];
+      renderSections();
+      renderSettings();
+      loadQuotas();
+      // Set tinder link + preview link
+      var tinderLink = document.getElementById('tinder-link');
+      if (tinderLink) tinderLink.href = '/public/vitrines/photos-tinder.html?siteId=' + siteId;
+      var previewLink = document.getElementById('btn-preview');
+      if (previewLink) previewLink.href = '/public/vitrines/preview.html?siteId=' + siteId;
+    }
+
+    async function loadQuotas() {
+      const result = await apiJson('/quotas/' + siteId);
+      if (!result || !result.success) return;
+      const q = result.quotas.ai_regenerations;
+      document.getElementById('quota-bar').style.display = 'flex';
+      document.getElementById('quota-label').textContent = L.quotas_regenerations;
+      document.getElementById('quota-count').textContent = q.used + ' / ' + q.limit;
+      document.getElementById('quota-bar-fill').style.width = Math.round((q.used / q.limit) * 100) + '%';
+    }
+
+    loadSite();
+  </script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JADOMI — Mon site internet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/jadomi-theme.css">
+  <link rel="stylesheet" href="/public/vitrines/vitrines.css?v=3">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/public/vitrines/labels.js"></script>
+</head>
+<body>
+  <div class="vitrines-dashboard" id="app">
+    <h1 id="page-title"></h1>
+    <div id="loading" style="text-align:center;padding:4rem">Chargement...</div>
+    <div id="content" style="display:none"></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+    const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const L = window.VITRINE_LABELS;
+
+    document.getElementById('page-title').textContent = L.module_name;
+
+    // ---- API helper ----
+    async function api(path, opts = {}) {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return; }
+
+      let token = session.access_token;
+      const societeId = localStorage.getItem('societe_active_id');
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'X-Societe-Id': societeId,
+        ...(opts.headers || {})
+      };
+
+      let res = await fetch('/api/vitrines' + path, { ...opts, headers });
+
+      // Auto-refresh sur 401
+      if (res.status === 401) {
+        const { data: refreshData } = await db.auth.refreshSession();
+        if (refreshData?.session) {
+          token = refreshData.session.access_token;
+          headers['Authorization'] = 'Bearer ' + token;
+          res = await fetch('/api/vitrines' + path, { ...opts, headers });
+        } else {
+          window.location.href = '/login.html';
+          return;
+        }
+      }
+
+      return res.json();
+    }
+
+    // ---- Chargement ----
+    async function loadDashboard() {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return; }
+
+      const societeId = localStorage.getItem('societe_active_id');
+      if (!societeId) { window.location.href = '/public/dashboard.html'; return; }
+
+      // Chercher si un site existe deja
+      const result = await api('/preview/' + societeId).catch(() => null);
+
+      // Chercher tous les sites de cette societe via une approche differente
+      const token = session.access_token;
+      const sitesRes = await fetch('/api/vitrines/chat/init', {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'X-Societe-Id': societeId
+        }
+      });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      // Verifier si un site existe en essayant de recuperer la conversation
+      try {
+        const convRes = await fetch('/api/vitrines/chat/init', {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'X-Societe-Id': societeId
+          }
+        });
+        const convData = await convRes.json();
+
+        // Tenter de trouver un site existant
+        const allSites = await fetchSites(token, societeId);
+
+        if (allSites && allSites.length > 0) {
+          renderSiteCard(allSites[0]);
+        } else {
+          renderEmptyState();
+        }
+      } catch (e) {
+        renderEmptyState();
+      }
+    }
+
+    async function fetchSites(token, societeId) {
+      // Utiliser le preview endpoint avec un ID connu n'est pas ideal
+      // On utilise une approche via Supabase direct (lecture RLS)
+      const { data, error } = await db
+        .from('vitrines_sites')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+
+    function renderEmptyState() {
+      document.getElementById('content').innerHTML = `
+        <div class="vitrines-empty-state">
+          <h2>${L.dashboard_no_site}</h2>
+          <p>${L.dashboard_no_site_desc}</p>
+          <button class="btn-vitrines-primary" onclick="window.location.href='/public/vitrines/onboarding.html'">${L.cta_create}</button>
+        </div>
+      `;
+    }
+
+    function renderSiteCard(site) {
+      const statusLabel = L['status_' + site.status] || site.status;
+      const isPublished = site.status === 'published';
+      const isDraft = site.status === 'draft';
+
+      let actionsHtml = '';
+      if (isDraft) {
+        actionsHtml = `
+          <button class="btn-vitrines-primary" onclick="window.location.href='/public/vitrines/onboarding.html?siteId=${site.id}'">${L.cta_resume}</button>
+          <button class="btn-vitrines-secondary" onclick="previewSite('${site.id}')">${L.cta_preview}</button>
+        `;
+      } else if (isPublished) {
+        actionsHtml = `
+          <button class="btn-vitrines-primary" onclick="window.location.href='/public/vitrines/edit.html?siteId=${site.id}'">${L.cta_edit}</button>
+          <button class="btn-vitrines-secondary" onclick="window.open('/site/${site.slug}', '_blank')">${L.cta_preview}</button>
+          <button class="btn-vitrines-secondary" onclick="window.location.href='/public/vitrines/parametres.html?siteId=${site.id}'">${L.cta_settings}</button>
+        `;
+      } else {
+        actionsHtml = `
+          <button class="btn-vitrines-primary" onclick="window.location.href='/public/vitrines/edit.html?siteId=${site.id}'">${L.cta_edit}</button>
+          <button class="btn-vitrines-secondary" onclick="publishSite('${site.id}')">${L.cta_publish}</button>
+        `;
+      }
+
+      let statsHtml = '';
+      if (isPublished) {
+        statsHtml = `<div id="stats-grid" class="vitrines-stats-grid"></div>`;
+      }
+
+      document.getElementById('content').innerHTML = `
+        <div class="vitrines-site-card">
+          <div class="site-header">
+            <div>
+              <h2 style="font-family:'Syne',sans-serif;font-size:1.3rem;margin:0">${site.slug}</h2>
+              <p style="color:var(--text-secondary);font-size:0.85rem;margin:4px 0 0">
+                ${site.profession_id} &middot; Cree le ${new Date(site.created_at).toLocaleDateString('fr-FR')}
+              </p>
+            </div>
+            <span class="site-status ${site.status}">${statusLabel}</span>
+          </div>
+          ${isPublished ? '<p style="font-size:0.85rem;color:var(--text-secondary)">URL : <a href="/site/' + site.slug + '" target="_blank" style="color:var(--accent)">/site/' + site.slug + '</a></p>' : ''}
+          <div class="vitrines-actions">${actionsHtml}</div>
+          ${statsHtml}
+        </div>
+      `;
+
+      if (isPublished) loadStats(site.id);
+    }
+
+    async function loadStats(siteId) {
+      const grid = document.getElementById('stats-grid');
+      if (!grid) return;
+      try {
+        // Pas de route stats aggregees, on affiche les quotas
+        const result = await api('/quotas/' + siteId);
+        if (!result.success) return;
+        const q = result.quotas;
+        grid.innerHTML = `
+          <div class="vitrines-stat-card">
+            <div class="stat-value">${q.ai_regenerations.remaining}</div>
+            <div class="stat-label">${L.quotas_regenerations} ${L.quotas_remaining}</div>
+          </div>
+          <div class="vitrines-stat-card">
+            <div class="stat-value">${q.palette_changes.remaining}</div>
+            <div class="stat-label">${L.quotas_palette_changes} ${L.quotas_remaining}</div>
+          </div>
+          <div class="vitrines-stat-card">
+            <div class="stat-value">${q.additional_seo_pages.remaining}</div>
+            <div class="stat-label">${L.quotas_seo_pages} ${L.quotas_remaining}</div>
+          </div>
+        `;
+      } catch (e) { /* ignore */ }
+    }
+
+    function previewSite(siteId) {
+      window.location.href = '/public/vitrines/onboarding.html?siteId=' + siteId + '&mode=preview';
+    }
+
+    async function publishSite(siteId) {
+      if (!confirm('Publier votre site internet ?')) return;
+      const result = await api('/publish', {
+        method: 'POST',
+        body: JSON.stringify({ siteId })
+      });
+      if (result.success) {
+        alert('Votre site est en ligne : ' + result.public_url);
+        loadDashboard();
+      } else {
+        alert(result.error || L.error_publish);
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
