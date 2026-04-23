@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 34 — JADOMI Ads (regie publicitaire verticale dentaire)
+**Derniere passe** : Passe 34.2 — JADOMI Studio (Hub IA creation publicitaire dentaire)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -251,6 +251,30 @@ Double revenu : droit entree mensuel (49-999EUR) + consommation pub (CPC/CPM/CPA
 - Clients cibles : societes dentaires (labos, fabricants), centres formation,
   dentistes formateurs (question auto wizard)
 
+## 2.22 JADOMI Studio — Hub IA creation publicitaire (Passe 34.2)
+Marketplace d'IA verticalisee dentaire. Orchestrateur d'APIs.
+"Creez des pubs qualite studio (2000EUR) pour 50-200EUR."
+- Pattern AI Provider (base + 7 providers concrets)
+- Router central avec gestion coins, rate limits, R2 upload, logging
+- Prompt enhancer Claude (brief simple → prompt technique optimise)
+- Moderateur pre-generation (code deontologie dentaire)
+- Bibliotheque personnelle de creations sauvegardees
+- 12 API endpoints /api/studio/* (generate-image, generate-video,
+  generate-voice, generate-avatar, stock/images, stock/videos,
+  library CRUD, enhance-prompt, providers-status, wallet)
+- APIs integrees V1 : OpenAI (DALL-E 3, Sora 2, TTS), ElevenLabs,
+  HeyGen, Unsplash (gratuit), Pexels (gratuit)
+- Dashboard annonceur enrichi : tab Studio Creatif avec 6 sous-tabs
+  (images, videos, voix, avatars, stock, bibliotheque)
+- Modal generation 4 etapes (brief, recap+prompt, loading, resultat)
+- Landing publique /jadomi-studio
+- Fallback gracieux : providers indisponibles grises dans l'UI
+- Tarification coins : images 30-100, videos 40-360, voix 10-30,
+  avatars 200+, stock GRATUIT
+- Marges : images 87-98%, videos 87%, voix 93-98%, avatars 68%
+- SQL 35 : ai_generations_log, studio_library, studio_rate_limits
+  + seed features_pricing pour Studio
+
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
 Conforme facture, Mes documents, Fournisseurs, Mailing & campagnes
@@ -341,7 +365,11 @@ Upsell : Generation logo IA one-shot +59EUR
 
 ## Variables .env
 - ANTHROPIC_API_KEY
-- OPENAI_API_KEY (a ajouter pour activer logo IA)
+- OPENAI_API_KEY (logo IA + Studio DALL-E/Sora/TTS)
+- ELEVENLABS_API_KEY (Studio voix premium — a ajouter)
+- HEYGEN_API_KEY (Studio avatars parlants — a ajouter)
+- UNSPLASH_ACCESS_KEY (Studio stock photos — a ajouter)
+- PEXELS_API_KEY (Studio stock videos — a ajouter)
 - Supabase keys
 - Cloudflare R2
 - SMTP (OVH Pro : pro1.mail.ovh.net)
@@ -612,6 +640,36 @@ Nouveaux clients cibles : societes dentaires, centres formation, formateurs.
 Double revenu : abonnement 49-999EUR/mois + consommation CPC/CPM/CPA.
 TODO : executer SQL 34, configurer STRIPE_SECRET_KEY.
 
+## Passe 34.2 (23 avril 2026 nuit) -- JADOMI Studio (Hub IA creation publicitaire)
+Marketplace d'IA verticalisee dentaire, orchestrateur d'APIs best-in-class.
+Fichiers crees (18 fichiers, ~3200 lignes) :
+- sql/vitrines/35_jadomi_studio.sql (3 tables : ai_generations_log,
+  studio_library, studio_rate_limits + seed features_pricing)
+- lib/ai-studio/providers/base-provider.js (interface commune)
+- lib/ai-studio/providers/openai-image.js (DALL-E 3 images)
+- lib/ai-studio/providers/openai-video.js (Sora 2 videos)
+- lib/ai-studio/providers/openai-tts.js (voix OpenAI TTS)
+- lib/ai-studio/providers/elevenlabs.js (voix premium ElevenLabs)
+- lib/ai-studio/providers/heygen.js (avatars parlants HeyGen)
+- lib/ai-studio/providers/unsplash.js (stock photos gratuit)
+- lib/ai-studio/providers/pexels.js (stock videos gratuit)
+- lib/ai-studio/router.js (orchestrateur : wallet, rate limits, R2, log)
+- lib/ai-studio/prompt-enhancer.js (Claude optimise briefs → prompts)
+- lib/ai-studio/moderator.js (validation deontologie dentaire)
+- api/studio/index.js (12 endpoints : generation, stock, library, wallet)
+- public/css/studio.css (design premium dark+gold glassmorphism)
+- public/js/studio-ui.js (logique front StudioUI : tabs, modal, API calls)
+- public/jadomi-studio.html (landing publique vitrine)
+Fichiers modifies :
+- public/dashboard-annonceur.html (tab Studio Creatif + 6 sous-tabs +
+  modal generation 4 etapes + cards providers)
+- server.js (route /jadomi-studio + mount /api/studio module)
+APIs integrees : OpenAI (DALL-E 3, Sora 2, TTS), ElevenLabs, HeyGen,
+Unsplash, Pexels. Cles env : ELEVENLABS_API_KEY, HEYGEN_API_KEY,
+UNSPLASH_ACCESS_KEY, PEXELS_API_KEY (a ajouter par Karim).
+Fallback gracieux : providers sans cle grises dans l'UI.
+TODO : executer SQL 35, ajouter cles API dans .env, tester DALL-E 3.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -639,7 +697,9 @@ TODO : executer SQL 34, configurer STRIPE_SECRET_KEY.
 21. **Import + create + upload = 3 options** -- Module Mon Site Internet propose 3 chemins compatibles : creer de zero, analyser existant, uploader medias locaux. L'utilisateur qui a deja un site ne doit pas etre force a repartir de zero.
 22. **JADOMI Ads = regie publicitaire verticale** -- Modele Meta/TikTok/LinkedIn mais 100% dentaire verifie. Double revenu (abonnement + consommation). Ciblage RPPS/ADELI impossible a truquer. ROI x5 vs Facebook pour annonceurs.
 23. **Annonceurs = nouveaux clients** -- Societes dentaires (Henry Schein, Dentsply), centres formation (LearnyLib, French Tooth), dentistes formateurs. Question auto dans wizard pour detecter les formateurs.
-24. **Wallet prepaid** -- Systeme TikTok : l'annonceur recharge son wallet, la pub debite en temps reel. Auto-recharge optionnelle. Pas de facturation post-hoc complexe.
+24. **Wallet prepaid** -- Systeme TikTok
+25. **JADOMI Studio = marketplace IA verticale** -- Orchestrateur d'APIs (DALL-E, Sora, ElevenLabs, HeyGen, Unsplash, Pexels). UX simplifiee + vertical dentaire + audience captive. Moat : 42k dentistes + prompts optimises + wallet integre. Comparable OpenRouter/Replicate mais non-dev-focused.
+26. **Gratuit + payant en escalier** -- Stock photos/videos gratuit (fidélisation) puis IA payante par tier (standard → premium → luxe). Le gratuit attire, le premium convertit. : l'annonceur recharge son wallet, la pub debite en temps reel. Auto-recharge optionnelle. Pas de facturation post-hoc complexe.
 
 ===============================================================
 # 8. ROADMAP
@@ -667,7 +727,10 @@ TODO : executer SQL 34, configurer STRIPE_SECRET_KEY.
 - [ ] Executer migration SQL 33 dans Supabase
 - [ ] Installer puppeteer + axios sur VPS (npm install)
 - [x] JADOMI Ads : regie publicitaire verticale dentaire (Passe 34)
+- [x] JADOMI Studio : hub IA creation publicitaire dentaire (Passe 34.2)
 - [ ] Executer migration SQL 34 dans Supabase
+- [ ] Executer migration SQL 35 (Studio) dans Supabase
+- [ ] Ajouter ELEVENLABS_API_KEY, HEYGEN_API_KEY, UNSPLASH_ACCESS_KEY, PEXELS_API_KEY dans .env
 - [ ] Configurer STRIPE_SECRET_KEY dans .env
 - [ ] Configurer OPENAI_API_KEY pour DALL-E generation creatives
 - [ ] Contacter LearnyLib / French Tooth pour beta annonceur
