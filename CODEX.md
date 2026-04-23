@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 34.3 — Demos JADOMI Studio (galerie visuelles DALL-E 3)
+**Derniere passe** : Passe 35 — Refonte visuelle premium Awwwards (GSAP + Three.js + Remotion)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -685,6 +685,33 @@ prothese-ceramique, audience-ciblee. Total : 17.12 MB, cout $0.72.
 Sora 2 non disponible via API programmatique (webapp only pour l'instant).
 Landing passe de texte-only a showcase visuel impactant.
 
+## Passe 35 (23 avril 2026) -- Refonte visuelle premium Awwwards
+Transformation visuelle niveau Awwwards (Linear, Stripe, Apple).
+Dogfooding : JADOMI = vitrine ultime de ce qu'on peut creer.
+Fichiers crees (30+ fichiers, ~3000 lignes) :
+- remotion/ : Root.tsx, index.ts, config.ts, 3 compositions
+  (HeroHomepage, AdTemplate, StatsAnimation), 4 elements
+  (JadomiLogo, GoldParticles, TextReveal, CounterAnimation)
+- api/studio/generate-ad-remotion.js (endpoint Remotion 50 coins)
+- api/studio/generate-premium-ad.js (pipeline complet 150 coins,
+  Sora 2 + ElevenLabs + Remotion, marge 89%)
+- public/js/animations/ : 10 fichiers (gsap-core, scroll-reveals,
+  counters, interactions, particles-three, dataflow-three,
+  hero-homepage, hero-ads, hero-studio, lottie-loader, index)
+- public/css/animations.css (premium hover, marquee, lightbox, responsive)
+- scripts/generate-passe35-videos.js (Sora 2 API)
+- scripts/generate-passe35-images.js (DALL-E 3 API)
+- public/assets/passe-35/ (lottie, videos, images directories)
+Fichiers modifies :
+- landing.html (hero premium + particules + stats + marquee)
+- jadomi-ads.html (Three.js dataflow + typing + 3D tilt pricing)
+- jadomi-studio.html (orbiting logos + price shrink + scroll reveals)
+- dashboard-annonceur.html (carte Remotion + modal templates)
+- server.js (routes Remotion + premium-ad)
+Libs : gsap, three, lottie-web, lenis. CDN : GSAP 3.12, Three r128.
+Performance : prefers-reduced-motion, Three.js desktop-only,
+IntersectionObserver lazy, defer loading, code splitting par page.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -715,6 +742,8 @@ Landing passe de texte-only a showcase visuel impactant.
 24. **Wallet prepaid** -- Systeme TikTok
 25. **JADOMI Studio = marketplace IA verticale** -- Orchestrateur d'APIs (DALL-E, Sora, ElevenLabs, HeyGen, Unsplash, Pexels). UX simplifiee + vertical dentaire + audience captive. Moat : 42k dentistes + prompts optimises + wallet integre. Comparable OpenRouter/Replicate mais non-dev-focused.
 26. **Gratuit + payant en escalier** -- Stock photos/videos gratuit (fidélisation) puis IA payante par tier (standard → premium → luxe). Le gratuit attire, le premium convertit. : l'annonceur recharge son wallet, la pub debite en temps reel. Auto-recharge optionnelle. Pas de facturation post-hoc complexe.
+27. **Dogfooding premium** -- Si JADOMI vend des sites IA et des videos aux pros sante, le site JADOMI lui-meme DOIT etre la vitrine ultime. Niveau Awwwards (Linear, Stripe, Apple). Conversion x2, ARPU x2, credibilite Fortune 500.
+28. **Motion design > avatars** -- Focus Remotion + Sora 2 pour la generation video. Pas de Synthesia/HeyGen pour l'instant. Avatars humains plus tard quand traction validee.
 
 ===============================================================
 # 8. ROADMAP
@@ -744,6 +773,9 @@ Landing passe de texte-only a showcase visuel impactant.
 - [x] JADOMI Ads : regie publicitaire verticale dentaire (Passe 34)
 - [x] JADOMI Studio : hub IA creation publicitaire dentaire (Passe 34.2)
 - [x] Demos Studio : 6 images DALL-E 3 HD + galerie landing (Passe 34.3)
+- [x] Refonte visuelle premium Awwwards (GSAP + Three.js + Remotion) (Passe 35)
+- [ ] Generer videos Sora 2 : node scripts/generate-passe35-videos.js
+- [ ] Generer images DALL-E 3 : node scripts/generate-passe35-images.js
 - [ ] Executer migration SQL 34 dans Supabase
 - [ ] Executer migration SQL 35 (Studio) dans Supabase
 - [ ] Ajouter ELEVENLABS_API_KEY, HEYGEN_API_KEY, UNSPLASH_ACCESS_KEY, PEXELS_API_KEY dans .env
