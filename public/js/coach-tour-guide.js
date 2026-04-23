@@ -11,10 +11,10 @@
 .jt-overlay.active{opacity:1}
 .jt-overlay svg{width:100%;height:100%;position:absolute;inset:0}
 .jt-overlay .jt-mask-bg{fill:rgba(10,10,15,.82)}
-.jt-overlay .jt-spotlight{rx:12;ry:12;transition:x .5s cubic-bezier(.16,1,.3,1),y .5s cubic-bezier(.16,1,.3,1),width .5s cubic-bezier(.16,1,.3,1),height .5s cubic-bezier(.16,1,.3,1)}
-.jt-overlay .jt-spotlight-glow{stroke:#c9a961;stroke-width:2;fill:none;rx:12;ry:12;filter:url(#jt-glow);transition:x .5s cubic-bezier(.16,1,.3,1),y .5s cubic-bezier(.16,1,.3,1),width .5s cubic-bezier(.16,1,.3,1),height .5s cubic-bezier(.16,1,.3,1)}
-.jt-tooltip{position:fixed;z-index:9999;width:380px;background:linear-gradient(145deg,#1f1f2b,#12121a);border:1px solid rgba(201,169,97,.3);border-radius:20px;padding:0;box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 60px rgba(201,169,97,.12);opacity:0;transform:translateY(12px) scale(.96);transition:all .5s cubic-bezier(.16,1,.3,1);pointer-events:auto}
-.jt-tooltip.visible{opacity:1;transform:translateY(0) scale(1)}
+.jt-overlay .jt-spotlight{rx:12;ry:12;transition:x .7s cubic-bezier(.4,0,.2,1),y .7s cubic-bezier(.4,0,.2,1),width .7s cubic-bezier(.4,0,.2,1),height .7s cubic-bezier(.4,0,.2,1)}
+.jt-overlay .jt-spotlight-glow{stroke:#c9a961;stroke-width:2;fill:none;rx:12;ry:12;filter:url(#jt-glow);transition:x .7s cubic-bezier(.4,0,.2,1),y .7s cubic-bezier(.4,0,.2,1),width .7s cubic-bezier(.4,0,.2,1),height .7s cubic-bezier(.4,0,.2,1)}
+.jt-tooltip{position:fixed;z-index:9999;width:380px;background:linear-gradient(145deg,#1f1f2b,#12121a);border:1px solid rgba(201,169,97,.3);border-radius:20px;padding:0;box-shadow:0 24px 80px rgba(0,0,0,.5),0 0 60px rgba(201,169,97,.12);opacity:0;transform:translateY(12px) scale(.96);filter:blur(4px);transition:opacity .5s ease,transform .6s cubic-bezier(.34,1.56,.64,1),filter .4s ease;pointer-events:auto}
+.jt-tooltip.visible{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
 .jt-progress{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 12px;border-bottom:1px solid rgba(255,255,255,.06)}
 .jt-step-count{font-size:.72rem;color:#c9a961;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .jt-dots{display:flex;gap:5px}
@@ -33,14 +33,20 @@
 .jt-btn-prev:hover{background:rgba(255,255,255,.05);color:#fff;border-color:rgba(255,255,255,.25)}
 .jt-btn-next{background:linear-gradient(135deg,#c9a961,#e8c77b);color:#1a1a1f;box-shadow:0 8px 24px rgba(201,169,97,.3)}
 .jt-btn-next:hover{transform:translateY(-1px);box-shadow:0 12px 36px rgba(201,169,97,.45)}
-.jt-completion{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.85);z-index:10000;background:linear-gradient(145deg,#1f1f2b,#12121a);border:2px solid #c9a961;border-radius:24px;padding:48px 40px;text-align:center;box-shadow:0 40px 120px rgba(201,169,97,.25);opacity:0;transition:all .6s cubic-bezier(.16,1,.3,1);min-width:380px}
-.jt-completion.visible{opacity:1;transform:translate(-50%,-50%) scale(1)}
-.jt-completion-icon{font-size:3.5rem;margin-bottom:16px}
-.jt-completion h3{font-family:'Syne',serif;font-size:1.6rem;color:#c9a961;margin:0 0 10px}
-.jt-completion p{color:rgba(255,255,255,.75);font-size:.95rem;line-height:1.5;margin:0}
-.jt-confetti{position:fixed;inset:0;pointer-events:none;z-index:10001}
-.jt-confetti span{position:absolute;top:-10px;animation:jtFall 2.5s ease-out forwards}
-@keyframes jtFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.jt-completion{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .6s ease}
+.jt-completion.visible{opacity:1}
+.jt-completion.fade-out{opacity:0;transition:opacity .8s ease}
+.jt-completion-backdrop{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(201,169,97,.1),rgba(10,10,15,.85) 60%);backdrop-filter:blur(16px)}
+.jt-completion-content{position:relative;text-align:center;transform:translateY(16px);transition:transform 1s cubic-bezier(.16,1,.3,1)}
+.jt-completion.visible .jt-completion-content{transform:translateY(0)}
+.jt-checkmark{margin-bottom:28px}
+.jt-check-circle{stroke-dasharray:188;stroke-dashoffset:188;animation:jtDrawCircle .8s ease-out .2s forwards}
+.jt-check-tick{stroke-dasharray:40;stroke-dashoffset:40;animation:jtDrawTick .4s ease-out .9s forwards}
+@keyframes jtDrawCircle{to{stroke-dashoffset:0}}
+@keyframes jtDrawTick{to{stroke-dashoffset:0}}
+.jt-completion h3{font-family:'Syne',serif;font-size:2.2rem;font-weight:300;color:#fff;letter-spacing:-.02em;margin:0 0 6px}
+.jt-completion .jt-user-name{font-family:'Syne',serif;font-size:1rem;color:#c9a961;font-weight:500;margin:0 0 20px;letter-spacing:.02em}
+.jt-completion p{color:rgba(255,255,255,.6);font-size:.95rem;line-height:1.6;max-width:380px;margin:0 auto}
 @media(max-width:640px){.jt-tooltip{width:calc(100vw - 32px);left:16px!important;right:16px!important}.jt-completion{min-width:auto;width:calc(100vw - 40px)}}
 @media(prefers-reduced-motion:reduce){.jt-overlay,.jt-tooltip,.jt-completion,.jt-overlay .jt-spotlight,.jt-overlay .jt-spotlight-glow{transition:none!important;animation:none!important}}
 `;
@@ -138,11 +144,12 @@
         return this._complete();
       }
 
-      // Scroll to element
+      // Phase 1: hide tooltip, scroll to element
+      this.tooltip.classList.remove('visible');
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await new Promise(r => setTimeout(r, 350));
+      await new Promise(r => setTimeout(r, 300));
 
-      // Position spotlight
+      // Phase 2: move spotlight (smooth CSS transition handles animation)
       const pad = step.padding || 10;
       const rect = el.getBoundingClientRect();
       const spotlight = this.overlay.querySelector('.jt-spotlight');
@@ -153,6 +160,9 @@
         r.setAttribute('width', rect.width + pad * 2);
         r.setAttribute('height', rect.height + pad * 2);
       });
+
+      // Phase 3: wait for spotlight to settle, then show tooltip
+      await new Promise(r => setTimeout(r, 450));
 
       // Update tooltip content
       this.tooltip.querySelector('.jt-step-count').textContent = `Etape ${idx + 1} / ${this.steps.length}`;
@@ -171,7 +181,7 @@
       prevBtn.style.visibility = idx === 0 ? 'hidden' : 'visible';
       nextBtn.textContent = idx === this.steps.length - 1 ? "C'est parti !" : 'Suivant →';
 
-      // Position tooltip
+      // Position tooltip then reveal
       this._positionTooltip(rect, step.placement || 'bottom');
       this.tooltip.classList.add('visible');
     }
@@ -250,38 +260,32 @@
 
     _complete() {
       this._cleanup();
-      this._showConfetti();
       this._showCompletion();
       this.onComplete();
-    }
-
-    _showConfetti() {
-      const container = document.createElement('div');
-      container.className = 'jt-confetti';
-      const colors = ['#c9a961', '#e8c77b', '#7c3aed', '#22c55e', '#3b82f6', '#ec4899'];
-      for (let i = 0; i < 60; i++) {
-        const c = document.createElement('span');
-        const size = 5 + Math.random() * 8;
-        c.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random() * colors.length)]};border-radius:${Math.random() > .5 ? '50%' : '2px'};animation-delay:${Math.random() * .6}s;animation-duration:${1.8 + Math.random() * 1.5}s;`;
-        container.appendChild(c);
-      }
-      document.body.appendChild(container);
-      setTimeout(() => container.remove(), 4000);
     }
 
     _showCompletion() {
       const toast = document.createElement('div');
       toast.className = 'jt-completion';
       toast.innerHTML = `
-        <div class="jt-completion-icon">🎉</div>
-        <h3>Bienvenue sur JADOMI !</h3>
-        <p>Vous maitrisez maintenant les fonctionnalites essentielles.<br>Vous pouvez relancer ce tour a tout moment depuis les parametres.</p>`;
+        <div class="jt-completion-backdrop"></div>
+        <div class="jt-completion-content">
+          <div class="jt-checkmark">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+              <circle class="jt-check-circle" cx="40" cy="40" r="36" stroke="#c9a961" stroke-width="2"/>
+              <path class="jt-check-tick" d="M24 42l10 10 22-24" stroke="#c9a961" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <h3>Bienvenue</h3>
+          <div class="jt-user-name">Votre espace professionnel est pret.</div>
+          <p>Vous maitrisez maintenant les fonctionnalites essentielles. Vous pouvez relancer ce tour a tout moment depuis les parametres.</p>
+        </div>`;
       document.body.appendChild(toast);
       requestAnimationFrame(() => toast.classList.add('visible'));
       setTimeout(() => {
-        toast.classList.remove('visible');
-        setTimeout(() => toast.remove(), 500);
-      }, 4500);
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 800);
+      }, 4000);
     }
 
     _cleanup() {
