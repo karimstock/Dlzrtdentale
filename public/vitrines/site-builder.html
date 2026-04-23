@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Créer mon site internet</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--gold:#c9a961;--gold-light:#e8c77b;--bg:#0a0a0f;--surface:#1a1a1f;--surface2:#222228;--border:rgba(201,169,97,0.15);--text:#f0ede6;--muted:#8a857c;--trans:cubic-bezier(0.16,1,0.3,1);}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;}
+.container{display:grid;grid-template-columns:420px 1fr;height:100vh;}
+
+/* Chatbot Panel */
+.chatbot-panel{background:linear-gradient(180deg,#1a1a1f,#0f0f15);border-right:1px solid var(--border);padding:40px 32px;display:flex;flex-direction:column;overflow-y:auto;}
+.chatbot-header{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.chatbot-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-light));display:flex;align-items:center;justify-content:center;font-size:24px;animation:pulse 3s ease-in-out infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(201,169,97,0.3);}50%{box-shadow:0 0 40px rgba(201,169,97,0.6);}}
+.chatbot-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.chatbot-status{font-size:12px;color:var(--gold);display:flex;align-items:center;gap:4px;}
+.chatbot-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);}
+
+.chat-messages{flex:1;display:flex;flex-direction:column;gap:16px;padding-bottom:24px;}
+.chat-bubble{background:rgba(201,169,97,0.05);border:1px solid rgba(201,169,97,0.15);border-radius:20px 20px 20px 4px;padding:20px 24px;color:white;font-size:1rem;line-height:1.6;min-height:60px;animation:fadeInUp 500ms var(--trans);}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.chat-options{display:flex;flex-direction:column;gap:10px;}
+.chat-option{background:transparent;border:1px solid rgba(255,255,255,0.12);color:white;padding:14px 20px;border-radius:12px;text-align:left;cursor:pointer;transition:all 300ms var(--trans);font-size:14px;font-family:'DM Sans',sans-serif;}
+.chat-option:hover{border-color:var(--gold);background:rgba(201,169,97,0.08);transform:translateX(4px);}
+.chat-option.selected{border-color:var(--gold);background:rgba(201,169,97,0.15);}
+.chat-option:nth-child(1){animation:slideInRight 400ms var(--trans) backwards;}
+.chat-option:nth-child(2){animation:slideInRight 400ms var(--trans) 100ms backwards;}
+.chat-option:nth-child(3){animation:slideInRight 400ms var(--trans) 200ms backwards;}
+.chat-option:nth-child(4){animation:slideInRight 400ms var(--trans) 300ms backwards;}
+@keyframes slideInRight{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+.chat-input-wrap{display:flex;gap:8px;margin-top:auto;}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;}
+.chat-input:focus{border-color:var(--gold);}
+.chat-send{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#0a0a0f;border:none;border-radius:12px;padding:14px 20px;font-weight:700;cursor:pointer;transition:all 0.3s;}
+.chat-send:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(201,169,97,0.3);}
+.chat-send:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+/* Color Picker */
+.color-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0;}
+.color-swatch{width:100%;aspect-ratio:1;border-radius:12px;cursor:pointer;border:3px solid transparent;transition:all 0.3s;position:relative;}
+.color-swatch:hover{transform:scale(1.1);}
+.color-swatch.selected{border-color:white;box-shadow:0 0 20px rgba(201,169,97,0.4);}
+.color-swatch.selected::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+
+/* Theme Cards */
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;}
+.theme-card{border:2px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.3s var(--trans);text-align:center;}
+.theme-card:hover{border-color:rgba(255,255,255,0.2);transform:translateY(-2px);}
+.theme-card.selected{border-color:var(--gold);box-shadow:0 0 24px rgba(201,169,97,0.2);}
+.theme-preview{height:60px;border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;}
+.theme-name{font-size:12px;font-weight:600;}
+
+/* Progress */
+.chat-progress{display:flex;gap:6px;margin-bottom:16px;}
+.chat-dot{width:8px;height:8px;border-radius:50%;background:var(--surface2);transition:background 0.3s;}
+.chat-dot.done{background:var(--gold);}
+.chat-dot.current{background:var(--gold);box-shadow:0 0 8px var(--gold);}
+
+/* Preview Panel */
+.preview-panel{background:#111;padding:32px;overflow-y:auto;display:flex;align-items:center;justify-content:center;}
+.preview-placeholder{text-align:center;color:var(--muted);}
+.preview-placeholder .pp-icon{font-size:48px;margin-bottom:16px;opacity:0.5;}
+.preview-placeholder p{font-size:14px;}
+.preview-iframe{width:100%;height:100%;border:1px solid rgba(255,255,255,0.08);border-radius:16px;background:white;}
+
+/* Back button */
+.back-link{position:fixed;top:20px;left:20px;color:var(--muted);font-size:13px;text-decoration:none;z-index:10;transition:color 0.2s;}
+.back-link:hover{color:var(--text);}
+
+/* Publish overlay */
+.publish-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.95);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 600ms;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.publish-content{text-align:center;}
+.checkmark-circle{width:96px;height:96px;margin:0 auto 24px;}
+.checkmark-circle svg{width:96px;height:96px;}
+.checkmark-circle .circle{stroke:var(--gold);stroke-dasharray:283;stroke-dashoffset:283;animation:drawCircle 600ms 200ms forwards;}
+.checkmark-circle .check{stroke:var(--gold);stroke-dasharray:50;stroke-dashoffset:50;animation:drawCheck 400ms 700ms forwards;}
+@keyframes drawCircle{to{stroke-dashoffset:0;}}
+@keyframes drawCheck{to{stroke-dashoffset:0;}}
+.publish-title{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.publish-subtitle{color:var(--muted);font-size:14px;}
+
+@media(max-width:900px){
+  .container{grid-template-columns:1fr;grid-template-rows:1fr 0;}
+  .preview-panel{display:none;}
+}
+</style>
+</head>
+<body>
+<a href="/organisation.html" class="back-link">← Retour au dashboard</a>
+
+<div class="container">
+  <div class="chatbot-panel">
+    <div class="chatbot-header">
+      <div class="chatbot-avatar">💡</div>
+      <div>
+        <div class="chatbot-name">Assistant JADOMI</div>
+        <div class="chatbot-status">En ligne</div>
+      </div>
+    </div>
+    <div class="chat-progress" id="progress"></div>
+    <div class="chat-messages" id="messages"></div>
+  </div>
+  <div class="preview-panel" id="preview-panel">
+    <div class="preview-placeholder">
+      <div class="pp-icon">🎨</div>
+      <p>L'aperçu de votre site apparaîtra ici<br>au fur et à mesure de vos choix.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const THEMES=[
+  {id:'charcoal_bronze',name:'Charcoal Bronze',bg:'#1a1a1a',accent:'#c9a961',text:'#f5f0e5',rec:true},
+  {id:'midnight_emerald',name:'Midnight Emerald',bg:'#0a1e1a',accent:'#2dd4a0',text:'#e0fff5',rec:true},
+  {id:'bordeaux_velvet',name:'Bordeaux Velvet',bg:'#1a0a0f',accent:'#c44569',text:'#ffe0e8',rec:true},
+  {id:'ivory_gold',name:'Ivory Gold',bg:'#faf7f0',accent:'#c9a961',text:'#1a1a1a'},
+  {id:'royal_purple',name:'Royal Purple',bg:'#1a0a2e',accent:'#a78bfa',text:'#ede9fe'},
+  {id:'navy_saffron',name:'Navy Saffron',bg:'#0f1b3d',accent:'#f59e0b',text:'#fef3c7'},
+  {id:'ocean_deep',name:'Ocean Deep',bg:'#0a1929',accent:'#38bdf8',text:'#e0f2fe'},
+  {id:'clinical_white',name:'Clinical White',bg:'#f8fafc',accent:'#3b82f6',text:'#1e293b'},
+  {id:'sage_forest',name:'Sage Forest',bg:'#0f1a14',accent:'#86efac',text:'#f0fdf4'},
+  {id:'terracotta',name:'Terracotta',bg:'#1a110e',accent:'#ea580c',text:'#fff7ed'},
+  {id:'rose_porcelain',name:'Rose Porcelain',bg:'#1a0f14',accent:'#f472b6',text:'#fdf2f8'},
+  {id:'pure_minimal',name:'Pure Minimal',bg:'#0a0a0a',accent:'#ffffff',text:'#e0e0e0'}
+];
+
+const COLOR_SUGGESTIONS=['#c9a961','#2c5f2d','#1e3a5f','#8b0000','#4a148c','#0d47a1','#1b5e20','#b71c1c'];
+
+const STEPS=[
+  {id:'atmosphere',question:"Bonjour ! Créons ensemble votre site professionnel. Quelle atmosphère souhaitez-vous transmettre ?",
+   options:[{label:'Classique et rassurant',value:'classic'},{label:'Moderne et dynamique',value:'modern'},{label:'Minimaliste et premium',value:'minimal'},{label:'Chaleureux et humain',value:'warm'}]},
+  {id:'theme',question:"Excellent choix. Voici nos thèmes recommandés. Lequel vous plaît ?",type:'theme'},
+  {id:'color',question:"Quelle couleur principale pour votre identité ?",type:'color'},
+  {id:'hero',question:"Pour votre page d'accueil, préférez-vous une photo ou une vidéo en fond ?",
+   options:[{label:'Une vidéo en fond (cinématique)',value:'video'},{label:'Une photo professionnelle',value:'photo'},{label:'Un fond uni épuré',value:'solid'},{label:'Je choisirai plus tard',value:'later'}]},
+  {id:'slogan',question:"Quel sera le slogan principal de votre site ? Quelques mots qui résument votre identité.",type:'input',placeholder:'Ex : Des solutions créatives pour vos droits',
+   aiButton:true,aiLabel:'Laisser l\'IA proposer 3 slogans'},
+  {id:'sections',question:"Quelles sections souhaitez-vous sur votre site ?",type:'multi',
+   options:[{label:'Accueil',value:'accueil',default:true},{label:'Le cabinet / À propos',value:'cabinet',default:true},{label:'Expertises / Services',value:'expertises',default:true},{label:'L\'équipe',value:'equipe',default:true},{label:'Actualités / Blog',value:'actualites'},{label:'Contact',value:'contact',default:true},{label:'Prise de RDV en ligne',value:'rdv',badge:'Premium'},{label:'Espace client sécurisé',value:'espace_client',badge:'Premium'},{label:'FAQ',value:'faq'},{label:'Tarifs / Honoraires',value:'tarifs'},{label:'Témoignages',value:'temoignages'},{label:'Publications',value:'publications'}]},
+  {id:'modules',question:"Souhaitez-vous activer ces modules avancés ?",type:'multi',
+   options:[{label:'Chatbot IA 24/7',value:'chatbot',badge:'Inclus'},{label:'Espace client sécurisé',value:'espace_client',badge:'Inclus'},{label:'Prise de RDV en ligne',value:'rdv',badge:'Inclus'},{label:'Mentions légales RGPD auto',value:'legal',badge:'Gratuit'}]},
+  {id:'confirm',question:"Parfait ! Votre site est prêt à être publié. Vérifiez le résumé et lancez la publication.",type:'confirm'}
+];
+
+let currentStep=0, answers={}, session=null, token=null;
+
+// Boot
+(async function(){
+  const{data}=await db.auth.getSession();
+  if(!data?.session) return location.href='/login.html';
+  session=data.session; token=session.access_token;
+  renderProgress();
+  showStep(0);
+})();
+
+function renderProgress(){
+  const el=document.getElementById('progress');
+  el.innerHTML=STEPS.map((_,i)=>`<div class="chat-dot${i<currentStep?' done':''}${i===currentStep?' current':''}"></div>`).join('');
+}
+
+function showStep(idx){
+  currentStep=idx;
+  renderProgress();
+  const step=STEPS[idx];
+  const msgs=document.getElementById('messages');
+
+  // Add bubble
+  const bubble=document.createElement('div');
+  bubble.className='chat-bubble';
+  bubble.textContent='';
+  msgs.appendChild(bubble);
+
+  // Typewriter effect
+  let i=0;
+  const typing=setInterval(()=>{
+    if(i<step.question.length){bubble.textContent+=step.question[i];i++;msgs.scrollTop=msgs.scrollHeight;}
+    else{clearInterval(typing);showStepOptions(step,msgs);}
+  },18);
+}
+
+function showStepOptions(step,container){
+  if(step.type==='theme'){
+    const grid=document.createElement('div');
+    grid.className='theme-grid';
+    THEMES.forEach(t=>{
+      const card=document.createElement('div');
+      card.className='theme-card'+(t.rec?' recommended':'');
+      card.innerHTML=`<div class="theme-preview" style="background:${t.bg};color:${t.accent};">Aa</div><div class="theme-name">${t.name}${t.rec?' ⭐':''}</div>`;
+      card.onclick=()=>{
+        grid.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+        answers.theme=t.id;
+        updatePreview();
+        setTimeout(()=>showStep(currentStep+1),600);
+      };
+      grid.appendChild(card);
+    });
+    container.appendChild(grid);
+  } else if(step.type==='color'){
+    const grid=document.createElement('div');
+    grid.className='color-grid';
+    COLOR_SUGGESTIONS.forEach(c=>{
+      const sw=document.createElement('div');
+      sw.className='color-swatch';
+      sw.style.background=c;
+      sw.onclick=()=>{
+        grid.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+        sw.classList.add('selected');
+        answers.primaryColor=c;
+        updatePreview();
+        setTimeout(()=>showStep(currentStep+1),600);
+      };
+      grid.appendChild(sw);
+    });
+    container.appendChild(grid);
+  } else if(step.type==='input'){
+    const wrap=document.createElement('div');
+    wrap.className='chat-input-wrap';
+    wrap.innerHTML=`<input class="chat-input" id="step-input" placeholder="${step.placeholder||''}" maxlength="80"><button class="chat-send" onclick="submitInput()">→</button>`;
+    if(step.aiButton){
+      const aiBtn=document.createElement('button');
+      aiBtn.className='chat-option';
+      aiBtn.style.marginTop='8px';
+      aiBtn.textContent='✨ '+step.aiLabel;
+      aiBtn.onclick=()=>generateAISlogans(container);
+      container.appendChild(aiBtn);
+    }
+    container.appendChild(wrap);
+    wrap.querySelector('input').focus();
+    wrap.querySelector('input').onkeydown=e=>{if(e.key==='Enter')submitInput();};
+  } else if(step.type==='multi'){
+    const optDiv=document.createElement('div');
+    optDiv.className='chat-options';
+    const selected=new Set(step.options.filter(o=>o.default).map(o=>o.value));
+    step.options.forEach(opt=>{
+      const btn=document.createElement('button');
+      btn.className='chat-option'+(selected.has(opt.value)?' selected':'');
+      btn.innerHTML=opt.label+(opt.badge?` <span style="background:rgba(201,169,97,0.2);color:#c9a961;padding:2px 8px;border-radius:99px;font-size:11px;margin-left:6px;">${opt.badge}</span>`:'');
+      btn.onclick=()=>{
+        if(selected.has(opt.value)){selected.delete(opt.value);btn.classList.remove('selected');}
+        else{selected.add(opt.value);btn.classList.add('selected');}
+      };
+      optDiv.appendChild(btn);
+    });
+    const nextBtn=document.createElement('button');
+    nextBtn.className='chat-send';
+    nextBtn.style.marginTop='12px';
+    nextBtn.textContent='Continuer →';
+    nextBtn.onclick=()=>{answers[step.id]=Array.from(selected);updatePreview();showStep(currentStep+1);};
+    container.appendChild(optDiv);
+    container.appendChild(nextBtn);
+  } else if(step.type==='confirm'){
+    renderConfirmation(container);
+  } else if(step.options){
+    const optDiv=document.createElement('div');
+    optDiv.className='chat-options';
+    step.options.forEach(opt=>{
+      const btn=document.createElement('button');
+      btn.className='chat-option';
+      btn.textContent=opt.label;
+      btn.onclick=()=>{
+        answers[step.id]=opt.value;
+        btn.classList.add('selected');
+        updatePreview();
+        setTimeout(()=>showStep(currentStep+1),500);
+      };
+      optDiv.appendChild(btn);
+    });
+    container.appendChild(optDiv);
+  }
+  container.scrollTop=container.scrollHeight;
+}
+
+function submitInput(){
+  const input=document.getElementById('step-input');
+  if(!input||!input.value.trim())return;
+  const step=STEPS[currentStep];
+  answers[step.id]=input.value.trim();
+  updatePreview();
+  showStep(currentStep+1);
+}
+
+async function generateAISlogans(container){
+  const societeId=localStorage.getItem('societe_active_id');
+  try{
+    const r=await fetch('/api/vitrines/ai/generate-slogan',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({societe_id:societeId})
+    }).then(r=>r.json());
+    if(r.slogans&&r.slogans.length){
+      const optDiv=document.createElement('div');
+      optDiv.className='chat-options';
+      r.slogans.forEach(s=>{
+        const btn=document.createElement('button');
+        btn.className='chat-option';
+        btn.textContent=s.text;
+        btn.onclick=()=>{
+          answers.slogan=s.text;
+          const input=document.getElementById('step-input');
+          if(input)input.value=s.text;
+          updatePreview();
+          showStep(currentStep+1);
+        };
+        optDiv.appendChild(btn);
+      });
+      container.appendChild(optDiv);
+    }
+  }catch(e){console.warn('AI slogan error:',e);}
+}
+
+function renderConfirmation(container){
+  const theme=THEMES.find(t=>t.id===answers.theme)||THEMES[0];
+  const summary=document.createElement('div');
+  summary.style.cssText='background:rgba(201,169,97,0.05);border:1px solid rgba(201,169,97,0.2);border-radius:16px;padding:20px;margin:12px 0;';
+  const rows=[
+    ['Atmosphère',answers.atmosphere||'—'],
+    ['Thème',theme.name],
+    ['Couleur',answers.primaryColor||'—'],
+    ['Hero',answers.hero||'—'],
+    ['Slogan',answers.slogan||'—'],
+    ['Sections',(answers.sections||[]).join(', ')],
+    ['Modules',(answers.modules||[]).join(', ')]
+  ];
+  summary.innerHTML=rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:var(--muted);">${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  container.appendChild(summary);
+
+  const pubBtn=document.createElement('button');
+  pubBtn.className='chat-send';
+  pubBtn.style.cssText='width:100%;margin-top:16px;padding:16px;font-size:16px;';
+  pubBtn.textContent='Publier mon site maintenant';
+  pubBtn.onclick=publishSite;
+  container.appendChild(pubBtn);
+}
+
+function updatePreview(){
+  const panel=document.getElementById('preview-panel');
+  const theme=THEMES.find(t=>t.id===answers.theme)||THEMES[0];
+  panel.innerHTML=`<div style="width:100%;height:100%;background:${theme.bg};border-radius:16px;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="padding:20px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:${theme.accent};">CABINET</div>
+      <div style="display:flex;gap:16px;font-size:12px;color:${theme.text};">Accueil · Cabinet · Contact</div>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;position:relative;">
+      ${answers.primaryColor?`<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,${answers.primaryColor}15,transparent 70%);"></div>`:''}
+      <div style="position:relative;z-index:1;">
+        <div style="font-size:10px;letter-spacing:0.3em;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;">CABINET D'AVOCATS</div>
+        <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:${theme.text};margin-bottom:8px;">${answers.slogan||'VOTRE SLOGAN ICI'}</div>
+        <div style="margin-top:20px;display:flex;gap:8px;justify-content:center;">
+          <span style="background:${theme.accent};color:${theme.bg};padding:8px 20px;border-radius:99px;font-size:12px;font-weight:700;">Prendre rendez-vous</span>
+          <span style="border:1px solid rgba(255,255,255,0.3);color:${theme.text};padding:8px 20px;border-radius:99px;font-size:12px;">Découvrir</span>
+        </div>
+      </div>
+    </div>
+    <div style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:rgba(255,255,255,0.3);text-align:center;">Aperçu en temps réel — JADOMI</div>
+  </div>`;
+}
+
+async function publishSite(){
+  const overlay=document.createElement('div');
+  overlay.className='publish-overlay';
+  overlay.innerHTML=`<div class="publish-content">
+    <div class="checkmark-circle"><svg viewBox="0 0 96 96"><circle class="circle" cx="48" cy="48" r="45" fill="none" stroke-width="3"/><path class="check" d="M28 50 L42 64 L68 34" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="publish-title">Votre site est en ligne</div>
+    <div class="publish-subtitle">Félicitations, votre site professionnel est maintenant accessible.</div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  try{
+    const societeId=localStorage.getItem('societe_active_id');
+    await fetch('/api/vitrines/sites/publish',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({societe_id:societeId,...answers})
+    });
+  }catch(e){console.warn('Publish error:',e);}
+
+  setTimeout(()=>location.href='/organisation.html',3500);
+}
+</script>
+</body>
+</html>
