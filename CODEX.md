@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 30 — JADOMI Timeline (suivi visuel chronologique patient)
+**Derniere passe** : Passe 31 — Tour Guide Interactif (Intercom-style)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -203,6 +203,21 @@ Module transversal de suivi visuel patient avant/apres :
 - Rapport PDF auto-genere, notes cliniques IA
 - 3 tables SQL : treatment_timelines, timeline_steps, timeline_photos
 - API : 20 endpoints (praticien CRUD + patient lecture + portfolio public)
+
+## 2.18 Tour Guide Interactif — Onboarding Intercom-style (Passe 31)
+Tour guide qui se declenche automatiquement a la 1ere connexion :
+- Overlay sombre avec trou spotlight (SVG mask) sur l'element guide
+- Glow dore autour de l'element eclaire
+- Bulle explicative animee avec titre + description + icone
+- Navigation : Precedent / Suivant / Passer (+ clavier fleches/Escape)
+- Dots de progression (done/current)
+- Confettis + toast de felicitations a la fin
+- 10 profils de tour (avocat, dentiste, orthodontiste, prothesiste,
+  paramedical, sci, coiffeur, btp, createur, default) — 5-6 etapes chacun
+- Memorisation en BDD (tour_completed, tour_skipped, tour_restart_count)
+- Bouton "Refaire le tour" disponible dans les parametres
+- SQL 32 : enrichissement user_onboarding_state
+- API : 4 nouveaux endpoints (tour-completed, tour-skipped, tour-restart, tour-steps)
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -494,6 +509,19 @@ Fichiers modifies :
 Feature killer : aucun SaaS dentaire francais ne propose ca.
 TODO post-deploy : executer SQL 30 dans Supabase.
 
+## Passe 31 (23 avril 2026) -- Tour Guide Interactif Intercom-style
+Fichiers crees :
+- sql/vitrines/32_tour_guide.sql (enrichissement user_onboarding_state)
+- public/js/coach-tour-guide.js (composant tour SVG spotlight + tooltip)
+- lib/coach/tour-steps.js (10 profils metier, 5-6 etapes chacun)
+Fichiers modifies :
+- api/coach/index.js (+4 endpoints : tour-completed, tour-skipped,
+  tour-restart, tour-steps)
+- index.html (auto-declenchement tour au 1er login)
+- organisation.html (inclusion scripts tour)
+Inspiration : Intercom Product Tours, Shepherd.js, intro.js.
+TODO post-deploy : executer SQL 32 dans Supabase.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -516,6 +544,7 @@ TODO post-deploy : executer SQL 30 dans Supabase.
 16. **Terminologie correcte** -- Chirurgien-dentiste (pas dentiste). Le titre officiel du metier est un signal de credibilite.
 17. **JADOMI Timeline = moat concurrentiel** -- Suivi visuel chronologique patient avant/apres. Feature killer. Idee originale Karim 4h du matin 23 avril 2026.
 18. **Zero nom propre reel sur le site public** -- Noms fictifs uniquement (Dubois, Martin, Leroy, Moreau).
+19. **Tour guide actif > tooltips passifs** -- Un tour interactif etape par etape est 3x plus efficace pour l'activation qu'un tooltip au hover.
 
 ===============================================================
 # 8. ROADMAP
@@ -534,7 +563,8 @@ TODO post-deploy : executer SQL 30 dans Supabase.
 - [x] Device mockups MacBook/Browser (Passe 28)
 - [x] Refacto 5 groupes metier + paramedical + terminologie (Passe 29)
 - [x] JADOMI Timeline : suivi visuel patient avant/apres (Passe 30)
-- [ ] Executer migration SQL 22-30 dans Supabase
+- [x] Tour Guide Interactif Intercom-style (Passe 31)
+- [ ] Executer migration SQL 22-32 dans Supabase
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js
 - [ ] Test live avec l'epouse de Karim ce soir

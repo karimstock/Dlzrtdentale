@@ -286,6 +286,37 @@ tbody tr:hover td{background:var(--surface2);}
 </style>
 <script src="/public/js/coach-welcome.js" defer></script>
 <script src="/public/js/coach-tooltips.js" defer></script>
+<script src="/public/js/coach-tour-guide.js" defer></script>
+<script src="/lib/coach/tour-steps.js" defer></script>
+<script defer>
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(async function() {
+    try {
+      var token = null;
+      var keys = Object.keys(localStorage).filter(function(k){return k.startsWith('sb-');});
+      for (var i=0;i<keys.length;i++){try{var v=JSON.parse(localStorage.getItem(keys[i]));if(v&&v.access_token){token=v.access_token;break;}}catch(e){}}
+      if (!token) return;
+      var societeId = localStorage.getItem('societe_active_id') || localStorage.getItem('selectedSocieteId');
+      if (!societeId) return;
+      var stateRes = await fetch('/api/coach/state?societe_id=' + societeId, {headers:{'Authorization':'Bearer '+token}});
+      if (!stateRes.ok) return;
+      var state = (await stateRes.json()).state;
+      if (state && (state.tour_completed || state.tour_skipped)) return;
+      var socRes = await fetch('/api/societes/' + societeId, {headers:{'Authorization':'Bearer '+token}});
+      var socType = 'default';
+      if (socRes.ok) { var soc = await socRes.json(); socType = (soc.societe||soc).type || 'default'; }
+      var steps = window.getTourSteps ? window.getTourSteps(socType) : [];
+      if (!steps.length || !window.JadomiTourGuide) return;
+      var tour = new JadomiTourGuide({
+        steps: steps,
+        onComplete: function(){fetch('/api/coach/tour-completed',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({societe_id:societeId})}).catch(function(){});},
+        onSkip: function(){fetch('/api/coach/tour-skipped',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({societe_id:societeId})}).catch(function(){});}
+      });
+      tour.start();
+    } catch(e) { console.warn('[Tour Guide]', e); }
+  }, 2500);
+});
+</script>
 </head>
 <body>
 
