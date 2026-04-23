@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1629">
+<title>Mes Traitements — JADOMI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1629;--bg2:#141b2d;--bg3:#1a2238;
+  --gold:#c9a961;--gold-dim:rgba(201,169,97,.15);--gold-glow:rgba(201,169,97,.25);
+  --text:#fff;--text-dim:rgba(255,255,255,.55);--text-mid:rgba(255,255,255,.75);
+  --glass:rgba(255,255,255,.04);--glass-border:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --blue:#3b82f6;--green:#22c55e;--orange:#f59e0b;--grey:#64748b;
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.5}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;font-weight:600}
+
+/* ── Header ── */
+.header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.5rem;background:rgba(15,22,41,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--gold-dim)}
+.header-left{display:flex;align-items:center;gap:.75rem}
+.header-left h1{font-size:1.1rem;font-weight:600}
+.header-left span{color:var(--gold)}
+.back-link{color:var(--text-dim);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:.35rem;transition:color .3s var(--ease)}
+.back-link:hover{color:var(--gold)}
+.user-info{display:flex;align-items:center;gap:1rem}
+.user-name{font-size:.88rem;color:var(--text-mid)}
+
+/* ── Views ── */
+.view{display:none;opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.view.active{display:block;opacity:1;transform:translateY(0)}
+
+/* ── Treatment List ── */
+.treatment-list{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.treatment-list h2{font-size:1.35rem;margin-bottom:1.5rem}
+.treatment-card{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;cursor:pointer;transition:all .4s var(--ease);position:relative;overflow:hidden}
+.treatment-card:hover{border-color:var(--gold-dim);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.treatment-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem}
+.treatment-label{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:600}
+.treatment-practitioner{font-size:.85rem;color:var(--text-dim);margin-top:.25rem}
+.treatment-dates{font-size:.8rem;color:var(--text-dim);margin-top:.15rem}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.badge.en_cours{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge.termine{background:rgba(34,197,94,.15);color:var(--green)}
+.badge.planifie{background:rgba(245,158,11,.15);color:var(--orange)}
+.badge.annule{background:rgba(100,116,139,.15);color:var(--grey)}
+
+/* Progress bar */
+.progress-row{margin-top:.75rem}
+.progress-label{display:flex;justify-content:space-between;font-size:.78rem;color:var(--text-dim);margin-bottom:.35rem}
+.progress-bar{width:100%;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),#e8d5a0);border-radius:3px;transition:width .6s var(--ease)}
+
+.btn-evolution{display:inline-flex;align-items:center;gap:.4rem;margin-top:1rem;padding:.55rem 1.1rem;background:var(--gold-dim);color:var(--gold);border:none;border-radius:8px;font-family:inherit;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .3s var(--ease)}
+.btn-evolution:hover{background:var(--gold);color:var(--bg)}
+
+/* ── Empty State ── */
+.empty-state{text-align:center;padding:4rem 2rem;color:var(--text-dim)}
+.empty-state .icon{font-size:3rem;margin-bottom:1rem;opacity:.3}
+.empty-state h3{color:var(--text-mid);margin-bottom:.5rem;font-size:1.1rem}
+.empty-state p{font-size:.9rem;max-width:360px;margin:0 auto}
+
+/* ── Timeline Detail ── */
+.detail{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.back-btn{display:inline-flex;align-items:center;gap:.4rem;color:var(--text-dim);text-decoration:none;font-size:.9rem;cursor:pointer;background:none;border:none;font-family:inherit;margin-bottom:1.5rem;transition:color .3s var(--ease)}
+.back-btn:hover{color:var(--gold)}
+.detail-header{margin-bottom:2rem}
+.detail-header h2{font-size:1.5rem;margin-bottom:.35rem}
+.detail-header .meta-row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--text-dim)}
+
+/* Horizontal timeline */
+.timeline-track{position:relative;padding:2rem 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.timeline-line{display:flex;align-items:center;position:relative;min-width:max-content;padding:0 2rem}
+.timeline-line::before{content:'';position:absolute;top:50%;left:2rem;right:2rem;height:2px;background:rgba(255,255,255,.1);transform:translateY(-50%)}
+.timeline-dot-wrap{display:flex;flex-direction:column;align-items:center;position:relative;z-index:1;min-width:100px;cursor:pointer}
+.timeline-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--glass-border);background:var(--bg2);transition:all .4s var(--ease);display:flex;align-items:center;justify-content:center}
+.timeline-dot.completed{background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px var(--gold-glow)}
+.timeline-dot.current{border-color:var(--gold);box-shadow:0 0 16px var(--gold-glow);animation:pulse-dot 2s infinite}
+.timeline-dot-wrap:hover .timeline-dot{transform:scale(1.25)}
+.timeline-dot-wrap.active .timeline-dot{transform:scale(1.35)}
+.timeline-dot-label{font-size:.72rem;color:var(--text-dim);margin-top:.55rem;text-align:center;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.timeline-dot-date{font-size:.65rem;color:var(--text-dim);margin-top:.15rem;opacity:.6}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 8px var(--gold-glow)}50%{box-shadow:0 0 20px var(--gold-glow)}}
+
+/* Step detail card */
+.step-card{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:1.75rem;margin-top:1.5rem;transition:all .4s var(--ease)}
+.step-card h3{font-size:1.1rem;margin-bottom:.5rem}
+.step-date{font-size:.82rem;color:var(--gold);margin-bottom:1rem}
+.step-notes{font-size:.9rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.25rem}
+.step-photos{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem}
+.step-photo{width:80px;height:80px;border-radius:8px;object-fit:cover;border:1px solid var(--glass-border);cursor:pointer;transition:all .3s var(--ease)}
+.step-photo:hover{transform:scale(1.08);border-color:var(--gold)}
+.next-appointment{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;background:var(--gold-dim);border-radius:8px;font-size:.85rem;color:var(--gold);margin-top:1rem}
+.step-nav{display:flex;justify-content:space-between;margin-top:1.5rem}
+.step-nav-btn{padding:.55rem 1.1rem;border-radius:8px;font-family:inherit;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .3s var(--ease);border:1px solid var(--glass-border);background:transparent;color:var(--text-mid)}
+.step-nav-btn:hover{background:rgba(255,255,255,.06);color:#fff}
+.step-nav-btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-before-after{display:inline-flex;align-items:center;gap:.5rem;margin-top:1rem;padding:.65rem 1.3rem;background:var(--gold);color:var(--bg);border:none;border-radius:8px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .3s var(--ease)}
+.btn-before-after:hover{box-shadow:0 8px 24px var(--gold-glow);transform:translateY(-1px)}
+
+/* ── Before/After Modal ── */
+.ba-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);display:none;align-items:center;justify-content:center;flex-direction:column;opacity:0;transition:opacity .5s var(--ease)}
+.ba-overlay.open{display:flex;opacity:1}
+.ba-close{position:absolute;top:1.25rem;right:1.5rem;background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;z-index:10;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .3s var(--ease)}
+.ba-close:hover{background:rgba(255,255,255,.08);color:#fff}
+.ba-container{position:relative;width:90vw;max-width:700px;aspect-ratio:4/3;border-radius:16px;overflow:hidden;box-shadow:0 0 60px var(--gold-glow),0 30px 80px rgba(0,0,0,.5);user-select:none;-webkit-user-select:none;touch-action:none}
+.ba-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ba-after{clip-path:inset(0 0 0 50%);z-index:2}
+.ba-handle{position:absolute;top:0;bottom:0;left:50%;width:3px;background:var(--gold);z-index:5;transform:translateX(-50%);pointer-events:none}
+.ba-handle::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;background:var(--gold);border-radius:50%;box-shadow:0 0 20px var(--gold-glow);display:flex;align-items:center;justify-content:center}
+.ba-handle-arrows{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--bg);font-size:.85rem;font-weight:700;pointer-events:none}
+.ba-date-overlay{position:absolute;bottom:1.25rem;left:0;right:0;display:flex;justify-content:space-between;padding:0 1.25rem;z-index:8;pointer-events:none}
+.ba-date-tag{padding:.4rem .85rem;background:rgba(15,22,41,.8);backdrop-filter:blur(8px);border-radius:6px;font-size:.78rem;font-weight:600;color:var(--gold);letter-spacing:.03em}
+.ba-actions{display:flex;gap:1rem;margin-top:1.25rem;align-items:center}
+.btn-share{padding:.55rem 1.2rem;border-radius:8px;background:var(--gold-dim);color:var(--gold);border:none;font-family:inherit;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .3s var(--ease)}
+.btn-share:hover{background:var(--gold);color:var(--bg)}
+.ba-autoplay-label{font-size:.78rem;color:var(--text-dim)}
+
+/* Gold glow BG effect */
+.ba-glow{position:absolute;inset:-40px;z-index:-1;background:radial-gradient(ellipse at center,var(--gold-glow) 0%,transparent 70%);opacity:.4;filter:blur(40px);animation:glow-pulse 4s ease-in-out infinite alternate}
+@keyframes glow-pulse{0%{opacity:.3;transform:scale(.95)}100%{opacity:.55;transform:scale(1.05)}}
+
+/* ── Loader ── */
+.loader{display:flex;justify-content:center;padding:3rem}
+.spinner{width:32px;height:32px;border:3px solid var(--glass-border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translate(-50%,80px);background:var(--gold);color:var(--bg);padding:.75rem 1.5rem;border-radius:8px;font-weight:600;font-size:.9rem;z-index:10000;transition:transform .4s var(--ease);pointer-events:none}
+.toast.show{transform:translate(-50%,0)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .header{padding:.65rem 1rem}
+  .header-left h1{font-size:.95rem}
+  .treatment-list{padding:1.5rem 1rem}
+  .detail{padding:1.5rem 1rem}
+  .ba-container{width:95vw;border-radius:12px}
+  .step-photos{gap:.5rem}
+  .step-photo{width:64px;height:64px}
+  .timeline-dot-wrap{min-width:80px}
+}
+@media(max-width:480px){
+  .treatment-card-header{flex-direction:column;gap:.5rem}
+  .detail-header .meta-row{flex-direction:column;gap:.35rem}
+  .step-nav{flex-direction:column;gap:.5rem}
+  .step-nav-btn{width:100%;text-align:center}
+  .ba-date-overlay{flex-direction:column;align-items:center;gap:.35rem}
+  .ba-actions{flex-direction:column}
+  .btn-share{width:100%;text-align:center}
+  .user-name{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <a href="/public/vitrines/espace-client.html" class="back-link" aria-label="Retour a l'espace client">&#8592;</a>
+    <h1>Mes traitements <span>—</span> <span id="headerSiteName">Mon praticien</span></h1>
+  </div>
+  <div class="user-info">
+    <span class="user-name" id="patientName"></span>
+  </div>
+</header>
+
+<!-- Treatment List View -->
+<div class="view active" id="viewList">
+  <div class="treatment-list">
+    <h2>Mon parcours de soins</h2>
+    <div id="listLoader" class="loader"><div class="spinner"></div></div>
+    <div id="treatmentGrid"></div>
+    <div class="empty-state" id="emptyTreatments" style="display:none">
+      <div class="icon">&#128203;</div>
+      <h3>Aucun traitement en cours</h3>
+      <p>Votre praticien ajoutera vos traitements ici au fur et a mesure de votre suivi.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Timeline Detail View -->
+<div class="view" id="viewDetail">
+  <div class="detail">
+    <button class="back-btn" onclick="showView('viewList')" aria-label="Retour a la liste">&#8592; Retour a mes traitements</button>
+    <div class="detail-header">
+      <h2 id="detailLabel"></h2>
+      <div class="meta-row">
+        <span class="badge" id="detailBadge"></span>
+        <span id="detailPractitioner"></span>
+        <span id="detailDates"></span>
+      </div>
+    </div>
+
+    <!-- Horizontal Timeline -->
+    <div class="timeline-track" id="timelineTrack">
+      <div class="timeline-line" id="timelineLine"></div>
+    </div>
+
+    <!-- Step Detail -->
+    <div class="step-card" id="stepCard" style="display:none">
+      <h3 id="stepLabel"></h3>
+      <div class="step-date" id="stepDate"></div>
+      <div class="step-notes" id="stepNotes"></div>
+      <div class="step-photos" id="stepPhotos"></div>
+      <div class="next-appointment" id="nextAppointment" style="display:none">
+        <span>&#128197;</span> Prochain rendez-vous : <strong id="nextAppDate"></strong>
+      </div>
+      <button class="btn-before-after" id="btnBeforeAfter" style="display:none" onclick="openBeforeAfter()">
+        Avant / Apres &#8594;
+      </button>
+      <div class="step-nav">
+        <button class="step-nav-btn" id="btnPrevStep" onclick="navigateStep(-1)">&#8592; Etape precedente</button>
+        <button class="step-nav-btn" id="btnNextStep" onclick="navigateStep(1)">Etape suivante &#8594;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Before/After Modal -->
+<div class="ba-overlay" id="baOverlay" role="dialog" aria-label="Comparaison avant-apres">
+  <div class="ba-glow"></div>
+  <button class="ba-close" onclick="closeBeforeAfter()" aria-label="Fermer">&#10005;</button>
+  <div class="ba-container" id="baContainer">
+    <img class="ba-img ba-before" id="baBefore" alt="Avant traitement">
+    <img class="ba-img ba-after" id="baAfter" alt="Apres traitement">
+    <div class="ba-handle" id="baHandle"></div>
+    <div class="ba-handle-arrows">&#9664;&#9654;</div>
+    <div class="ba-date-overlay">
+      <span class="ba-date-tag" id="baDateBefore">Avant</span>
+      <span class="ba-date-tag" id="baDateAfter">Apres</span>
+    </div>
+  </div>
+  <div class="ba-actions">
+    <button class="btn-share" id="btnShare" style="display:none" onclick="shareBeforeAfter()">Partager</button>
+    <span class="ba-autoplay-label" id="baAutoplayLabel">Lecture automatique</span>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ── */
+const API = '/api/timeline/patient';
+let token = sessionStorage.getItem('cp_token') || null;
+let patientData = null;
+let treatments = [];
+let currentTreatment = null;
+let currentSteps = [];
+let currentStepIndex = 0;
+let baAnimId = null;
+let baDragging = false;
+
+/* ── Init ── */
+(function init() {
+  if (!token) {
+    window.location.href = '/public/vitrines/espace-client.html';
+    return;
+  }
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    patientData = payload;
+    const nameEl = document.getElementById('patientName');
+    if (payload.name) nameEl.textContent = payload.name;
+    if (payload.siteName) document.getElementById('headerSiteName').textContent = payload.siteName;
+  } catch (e) { /* ignore parse errors */ }
+  loadTreatments();
+})();
+
+/* ── Load Treatments ── */
+async function loadTreatments() {
+  const loader = document.getElementById('listLoader');
+  const grid = document.getElementById('treatmentGrid');
+  const empty = document.getElementById('emptyTreatments');
+  loader.style.display = 'flex';
+  grid.innerHTML = '';
+  empty.style.display = 'none';
+  try {
+    const res = await apiFetch('/treatments', 'GET');
+    treatments = res.treatments || res || [];
+    if (!treatments.length) {
+      empty.style.display = 'block';
+    } else {
+      renderTreatmentList(treatments);
+    }
+  } catch (err) {
+    if (err.status === 401) {
+      sessionStorage.removeItem('cp_token');
+      window.location.href = '/public/vitrines/espace-client.html';
+      return;
+    }
+    toast('Erreur lors du chargement de vos traitements');
+  } finally {
+    loader.style.display = 'none';
+  }
+}
+
+/* ── Render Treatment Cards ── */
+function renderTreatmentList(list) {
+  const grid = document.getElementById('treatmentGrid');
+  grid.innerHTML = '';
+  const statusLabels = {
+    en_cours: 'En cours',
+    termine: 'Termine',
+    planifie: 'Planifie',
+    annule: 'Annule'
+  };
+  list.forEach((t, idx) => {
+    const card = document.createElement('div');
+    card.className = 'treatment-card';
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', 'Voir le traitement ' + esc(t.label || t.title || ''));
+    const status = t.status || 'en_cours';
+    const progress = computeProgress(t);
+    const startDate = formatDate(t.startDate || t.start_date || t.createdAt);
+    const endDate = t.endDate || t.end_date ? formatDate(t.endDate || t.end_date) : 'En cours';
+    card.innerHTML = `
+      <div class="treatment-card-header">
+        <div>
+          <div class="treatment-label">${esc(t.label || t.title || 'Traitement')}</div>
+          <div class="treatment-practitioner">${esc(t.practitionerName || t.practitioner_name || '')}</div>
+          <div class="treatment-dates">${startDate} — ${endDate}</div>
+        </div>
+        <span class="badge ${status}">${statusLabels[status] || status}</span>
+      </div>
+      <div class="progress-row">
+        <div class="progress-label">
+          <span>Progression</span>
+          <span>${progress}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progress}%"></div>
+        </div>
+      </div>
+      <button class="btn-evolution" onclick="event.stopPropagation();openTimeline(${idx})">
+        Voir mon evolution &#8594;
+      </button>`;
+    card.onclick = () => openTimeline(idx);
+    grid.appendChild(card);
+  });
+}
+
+function computeProgress(t) {
+  if (t.progress !== undefined) return Math.round(t.progress);
+  const steps = t.steps || [];
+  if (!steps.length) return 0;
+  const completed = steps.filter(s => s.completed || s.status === 'completed').length;
+  return Math.round((completed / steps.length) * 100);
+}
+
+/* ── Open Timeline Detail ── */
+async function openTimeline(idx) {
+  const t = treatments[idx];
+  if (!t) return;
+  currentTreatment = t;
+  showView('viewDetail');
+
+  document.getElementById('detailLabel').textContent = t.label || t.title || 'Traitement';
+  const badge = document.getElementById('detailBadge');
+  const status = t.status || 'en_cours';
+  const statusLabels = { en_cours:'En cours', termine:'Termine', planifie:'Planifie', annule:'Annule' };
+  badge.className = 'badge ' + status;
+  badge.textContent = statusLabels[status] || status;
+  document.getElementById('detailPractitioner').textContent = t.practitionerName || t.practitioner_name || '';
+  const startDate = formatDate(t.startDate || t.start_date || t.createdAt);
+  const endDate = t.endDate || t.end_date ? formatDate(t.endDate || t.end_date) : 'En cours';
+  document.getElementById('detailDates').textContent = startDate + ' — ' + endDate;
+
+  /* Load steps */
+  try {
+    const treatmentId = t.id || t._id;
+    const res = await apiFetch(`/treatments/${treatmentId}/steps`, 'GET');
+    currentSteps = res.steps || res || [];
+  } catch (err) {
+    currentSteps = t.steps || [];
+  }
+
+  renderTimelineDots();
+  if (currentSteps.length) {
+    selectStep(0);
+  } else {
+    document.getElementById('stepCard').style.display = 'none';
+  }
+}
+
+/* ── Timeline Dots ── */
+function renderTimelineDots() {
+  const line = document.getElementById('timelineLine');
+  line.innerHTML = '';
+  currentSteps.forEach((step, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'timeline-dot-wrap';
+    wrap.setAttribute('role', 'button');
+    wrap.setAttribute('aria-label', esc(step.label || step.title || 'Etape ' + (i + 1)));
+    const isCompleted = step.completed || step.status === 'completed';
+    const isCurrent = step.status === 'current' || (!isCompleted && i === findCurrentIndex());
+    wrap.innerHTML = `
+      <div class="timeline-dot ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}"></div>
+      <div class="timeline-dot-label">${esc(step.label || step.title || 'Etape ' + (i + 1))}</div>
+      <div class="timeline-dot-date">${formatDateShort(step.date || step.createdAt)}</div>`;
+    wrap.onclick = () => selectStep(i);
+    line.appendChild(wrap);
+  });
+}
+
+function findCurrentIndex() {
+  for (let i = 0; i < currentSteps.length; i++) {
+    if (!currentSteps[i].completed && currentSteps[i].status !== 'completed') return i;
+  }
+  return currentSteps.length - 1;
+}
+
+/* ── Select Step ── */
+function selectStep(idx) {
+  if (idx < 0 || idx >= currentSteps.length) return;
+  currentStepIndex = idx;
+  const step = currentSteps[idx];
+  const card = document.getElementById('stepCard');
+  card.style.display = 'block';
+
+  /* Highlight active dot */
+  document.querySelectorAll('.timeline-dot-wrap').forEach((w, i) => {
+    w.classList.toggle('active', i === idx);
+  });
+
+  /* Scroll dot into view */
+  const track = document.getElementById('timelineTrack');
+  const dots = document.querySelectorAll('.timeline-dot-wrap');
+  if (dots[idx]) {
+    dots[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  /* Fill card */
+  document.getElementById('stepLabel').textContent = step.label || step.title || 'Etape ' + (idx + 1);
+  document.getElementById('stepDate').textContent = formatDate(step.date || step.createdAt);
+
+  const notesEl = document.getElementById('stepNotes');
+  const visibleNotes = (step.notes || []).filter(n => n.visible !== false);
+  if (step.note) {
+    notesEl.textContent = step.note;
+    notesEl.style.display = 'block';
+  } else if (visibleNotes.length) {
+    notesEl.innerHTML = visibleNotes.map(n => `<p>${esc(n.text || n.content || '')}</p>`).join('');
+    notesEl.style.display = 'block';
+  } else if (step.description) {
+    notesEl.textContent = step.description;
+    notesEl.style.display = 'block';
+  } else {
+    notesEl.style.display = 'none';
+  }
+
+  /* Photos */
+  const photosEl = document.getElementById('stepPhotos');
+  const photos = step.photos || step.images || [];
+  if (photos.length) {
+    photosEl.innerHTML = photos.map(p =>
+      `<img class="step-photo" src="${esc(p.url || p.src || p)}" alt="${esc(p.label || 'Photo')}" onclick="window.open(this.src,'_blank')">`
+    ).join('');
+    photosEl.style.display = 'flex';
+  } else {
+    photosEl.style.display = 'none';
+  }
+
+  /* Next appointment */
+  const nextApp = document.getElementById('nextAppointment');
+  if (step.nextAppointment || step.next_appointment) {
+    nextApp.style.display = 'flex';
+    document.getElementById('nextAppDate').textContent = formatDate(step.nextAppointment || step.next_appointment);
+  } else {
+    nextApp.style.display = 'none';
+  }
+
+  /* Before/After button */
+  const btnBA = document.getElementById('btnBeforeAfter');
+  const hasBefore = hasBeforeAfterPhotos();
+  btnBA.style.display = hasBefore ? 'inline-flex' : 'none';
+
+  /* Nav buttons */
+  document.getElementById('btnPrevStep').disabled = idx === 0;
+  document.getElementById('btnNextStep').disabled = idx === currentSteps.length - 1;
+}
+
+function navigateStep(dir) {
+  selectStep(currentStepIndex + dir);
+}
+
+function hasBeforeAfterPhotos() {
+  if (!currentSteps.length) return false;
+  const first = currentSteps[0];
+  const current = currentSteps[currentStepIndex];
+  const firstPhotos = first.photos || first.images || [];
+  const currentPhotos = current.photos || current.images || [];
+  return firstPhotos.length > 0 && currentPhotos.length > 0 && currentStepIndex > 0;
+}
+
+/* ── Before/After Slider ── */
+function openBeforeAfter() {
+  const overlay = document.getElementById('baOverlay');
+  const first = currentSteps[0];
+  const current = currentSteps[currentStepIndex];
+  const beforePhotos = first.photos || first.images || [];
+  const afterPhotos = current.photos || current.images || [];
+  if (!beforePhotos.length || !afterPhotos.length) return;
+
+  const beforeSrc = beforePhotos[0].url || beforePhotos[0].src || beforePhotos[0];
+  const afterSrc = afterPhotos[0].url || afterPhotos[0].src || afterPhotos[0];
+
+  document.getElementById('baBefore').src = beforeSrc;
+  document.getElementById('baAfter').src = afterSrc;
+  document.getElementById('baDateBefore').textContent = formatDate(first.date || first.createdAt);
+  document.getElementById('baDateAfter').textContent = formatDate(current.date || current.createdAt);
+
+  /* Share button */
+  const btnShare = document.getElementById('btnShare');
+  const hasConsent = currentTreatment.consentSigned || currentTreatment.consent_signed;
+  btnShare.style.display = hasConsent ? 'inline-block' : 'none';
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  /* Reset slider to 50% */
+  updateSliderPosition(50);
+
+  /* Start autoplay */
+  startAutoplay();
+
+  /* Init drag events */
+  initBASlider();
+}
+
+function closeBeforeAfter() {
+  const overlay = document.getElementById('baOverlay');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  stopAutoplay();
+}
+
+function updateSliderPosition(pct) {
+  pct = Math.max(0, Math.min(100, pct));
+  document.getElementById('baAfter').style.clipPath = `inset(0 0 0 ${pct}%)`;
+  document.getElementById('baHandle').style.left = pct + '%';
+}
+
+/* ── BA Slider Drag ── */
+function initBASlider() {
+  const container = document.getElementById('baContainer');
+
+  function getPercent(clientX) {
+    const rect = container.getBoundingClientRect();
+    return Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+  }
+
+  container.onmousedown = function(e) {
+    baDragging = true;
+    stopAutoplay();
+    updateSliderPosition(getPercent(e.clientX));
+  };
+  document.onmousemove = function(e) {
+    if (baDragging) updateSliderPosition(getPercent(e.clientX));
+  };
+  document.onmouseup = function() { baDragging = false; };
+
+  container.ontouchstart = function(e) {
+    baDragging = true;
+    stopAutoplay();
+    updateSliderPosition(getPercent(e.touches[0].clientX));
+  };
+  container.ontouchmove = function(e) {
+    if (baDragging) {
+      e.preventDefault();
+      updateSliderPosition(getPercent(e.touches[0].clientX));
+    }
+  };
+  container.ontouchend = function() { baDragging = false; };
+}
+
+/* ── Autoplay Animation ── */
+let autoplayDirection = 1;
+let autoplayPct = 0;
+const AUTOPLAY_DURATION = 5000; /* 5 seconds per sweep */
+
+function startAutoplay() {
+  stopAutoplay();
+  autoplayPct = 0;
+  autoplayDirection = 1;
+  let startTime = null;
+  document.getElementById('baAutoplayLabel').textContent = 'Lecture automatique';
+
+  function animate(timestamp) {
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const cycle = (elapsed % (AUTOPLAY_DURATION * 2));
+
+    if (cycle < AUTOPLAY_DURATION) {
+      autoplayPct = (cycle / AUTOPLAY_DURATION) * 100;
+    } else {
+      autoplayPct = 100 - ((cycle - AUTOPLAY_DURATION) / AUTOPLAY_DURATION) * 100;
+    }
+
+    updateSliderPosition(autoplayPct);
+    baAnimId = requestAnimationFrame(animate);
+  }
+
+  baAnimId = requestAnimationFrame(animate);
+}
+
+function stopAutoplay() {
+  if (baAnimId) {
+    cancelAnimationFrame(baAnimId);
+    baAnimId = null;
+  }
+  document.getElementById('baAutoplayLabel').textContent = 'Glissez pour comparer';
+}
+
+/* ── Share ── */
+async function shareBeforeAfter() {
+  if (!currentTreatment) return;
+  try {
+    const treatmentId = currentTreatment.id || currentTreatment._id;
+    await apiFetch(`/treatments/${treatmentId}/share`, 'POST', {
+      stepIndex: currentStepIndex
+    });
+    toast('Lien de partage copie');
+  } catch (err) {
+    /* Fallback: native share API */
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Mon evolution — ' + (currentTreatment.label || ''),
+          text: 'Decouvrez mon evolution de traitement',
+          url: window.location.href
+        });
+      } catch (e) { /* user cancelled */ }
+    } else {
+      toast('Partage non disponible');
+    }
+  }
+}
+
+/* Close modal on Escape */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('baOverlay');
+    if (overlay.classList.contains('open')) {
+      closeBeforeAfter();
+    }
+  }
+});
+
+/* ── View Management ── */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── API Helper ── */
+async function apiFetch(path, method, body) {
+  const opts = { method, headers: {} };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(API + path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || data.error || 'Erreur serveur');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+/* ── Utilities ── */
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch { return d; }
+}
+
+function formatDateShort(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  } catch { return d; }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

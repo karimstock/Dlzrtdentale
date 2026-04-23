@@ -321,6 +321,14 @@ try {
   console.warn('[JADOMI] Module Coach non charge:', e.message);
 }
 
+// === JADOMI Timeline (suivi visuel chronologique patient) ===
+try {
+  app.use('/api/timeline', require('./api/timeline'));
+  console.log('[JADOMI] Module Timeline monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Timeline non charge:', e.message);
+}
+
 // === JADOMI Client Portal (espace client securise) ===
 try {
   app.use('/api/client-portal', require('./api/client-portal'));
