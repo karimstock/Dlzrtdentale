@@ -39,11 +39,13 @@
 .jt-completion-backdrop{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(201,169,97,.1),rgba(10,10,15,.85) 60%);backdrop-filter:blur(16px)}
 .jt-completion-content{position:relative;text-align:center;transform:translateY(16px);transition:transform 1s cubic-bezier(.16,1,.3,1)}
 .jt-completion.visible .jt-completion-content{transform:translateY(0)}
-.jt-checkmark{margin-bottom:28px}
-.jt-check-circle{stroke-dasharray:188;stroke-dashoffset:188;animation:jtDrawCircle .8s ease-out .2s forwards}
-.jt-check-tick{stroke-dasharray:40;stroke-dashoffset:40;animation:jtDrawTick .4s ease-out .9s forwards}
+.jt-checkmark{margin-bottom:28px;display:flex;justify-content:center;filter:drop-shadow(0 0 20px rgba(201,169,97,.4))}
+.jt-checkmark svg{animation:jtGlow 3s ease-in-out 1.8s infinite}
+.jt-check-circle{stroke-dasharray:276;stroke-dashoffset:276;animation:jtDrawCircle 1s cubic-bezier(.65,0,.45,1) .2s forwards}
+.jt-check-tick{stroke-dasharray:68;stroke-dashoffset:68;animation:jtDrawTick .5s cubic-bezier(.65,0,.45,1) 1.1s forwards}
 @keyframes jtDrawCircle{to{stroke-dashoffset:0}}
 @keyframes jtDrawTick{to{stroke-dashoffset:0}}
+@keyframes jtGlow{0%,100%{filter:drop-shadow(0 0 20px rgba(201,169,97,.4))}50%{filter:drop-shadow(0 0 32px rgba(201,169,97,.65))}}
 .jt-completion h3{font-family:'Syne',serif;font-size:2.2rem;font-weight:300;color:#fff;letter-spacing:-.02em;margin:0 0 6px}
 .jt-completion .jt-user-name{font-family:'Syne',serif;font-size:1rem;color:#c9a961;font-weight:500;margin:0 0 20px;letter-spacing:.02em}
 .jt-completion p{color:rgba(255,255,255,.6);font-size:.95rem;line-height:1.6;max-width:380px;margin:0 auto}
@@ -271,14 +273,14 @@
         <div class="jt-completion-backdrop"></div>
         <div class="jt-completion-content">
           <div class="jt-checkmark">
-            <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-              <circle class="jt-check-circle" cx="40" cy="40" r="36" stroke="#c9a961" stroke-width="2"/>
-              <path class="jt-check-tick" d="M24 42l10 10 22-24" stroke="#c9a961" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <svg width="96" height="96" viewBox="0 0 96 96" fill="none">
+              <circle class="jt-check-circle" cx="48" cy="48" r="44" stroke="#c9a961" stroke-width="2"/>
+              <path class="jt-check-tick" d="M28 50l14 14 26-28" stroke="#c9a961" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
             </svg>
           </div>
-          <h3>Bienvenue</h3>
-          <div class="jt-user-name">Votre espace professionnel est pret.</div>
-          <p>Vous maitrisez maintenant les fonctionnalites essentielles. Vous pouvez relancer ce tour a tout moment depuis les parametres.</p>
+          <h3>Tout est pret.</h3>
+          <div class="jt-user-name">Votre espace professionnel est configure.</div>
+          <p>Vous pouvez relancer cette visite guidee depuis vos parametres.</p>
         </div>`;
       document.body.appendChild(toast);
       requestAnimationFrame(() => toast.classList.add('visible'));
