@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 29 — Refacto Metiers Premium + Paramedical + Terminologie
+**Derniere passe** : Passe 30 — JADOMI Timeline (suivi visuel chronologique patient)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -188,6 +188,21 @@ Hub refait avec 5 sections groupees + Medical dropdown dans nav.
 Redirections 301 : /dentistes, /prothesistes, /coiffeurs.
 6 nouvelles photos DALL-E 3 (ortho, paramedical, bien-etre + renommages).
 Coach enrichi : contextes orthodontiste + paramedical ajoutes.
+
+## 2.17 JADOMI Timeline — Suivi Visuel Chronologique (Passe 30)
+Module transversal de suivi visuel patient avant/apres :
+- Praticien documente chaque etape avec photos + notes cliniques
+- Patient accede a son evolution depuis espace client securise
+- Cabinet genere portfolio anonymise automatiquement pour vitrine
+- Utilisable : ortho, facettes, greffes, couronnes, implants,
+  blanchiments, bruxisme (CD), fabrication cas (prothesistes),
+  kine post-op, podologie (paramedicaux)
+- Claude Vision : detection visage + suggestion crop anonymisation
+- Consentement RGPD integre (demande → signature → retrait possible)
+- Slider avant/apres cinematographique (drag + autoplay + touch)
+- Rapport PDF auto-genere, notes cliniques IA
+- 3 tables SQL : treatment_timelines, timeline_steps, timeline_photos
+- API : 20 endpoints (praticien CRUD + patient lecture + portfolio public)
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -462,6 +477,23 @@ Redirections 301 : /dentistes, /prothesistes, /coiffeurs.
 Terminologie corrigee : Dentiste → Chirurgien-dentiste.
 Coach : contextes orthodontiste + paramedical ajoutes.
 
+## Passe 30 (23 avril 2026) -- JADOMI Timeline + Hotfix noms propres
+Fichiers crees :
+- sql/vitrines/30_timeline.sql (3 tables : treatment_timelines,
+  timeline_steps, timeline_photos)
+- api/timeline/index.js (20 endpoints : praticien CRUD, patient lecture,
+  portfolio public, upload photos R2 + Claude Vision, PDF, consent)
+- public/vitrines/timelines.html (dashboard praticien : liste, detail,
+  slider avant/apres, upload photos, notes IA)
+- public/vitrines/mes-traitements.html (vue patient : timeline, slider
+  cinematographique avec autoplay, partage)
+- public/js/portfolio-slider.js (composant portfolio auto-injectable)
+Fichiers modifies :
+- server.js (mount /api/timeline)
+- public/avocats.html (hotfix : Amrane → Dubois, noms fictifs)
+Feature killer : aucun SaaS dentaire francais ne propose ca.
+TODO post-deploy : executer SQL 30 dans Supabase.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -482,6 +514,8 @@ Coach : contextes orthodontiste + paramedical ajoutes.
 14. **Landings par metier > Landing mixte** -- Message cible = conversion x3. Strategie Stripe/Shopify/Notion validee. 1 page par audience.
 15. **Segmentation respectueuse** -- Kine ≠ coiffeur. Paramedicaux (Ordre, secret medical, CPAM) distincts du bien-etre. Signal de respect = conversion.
 16. **Terminologie correcte** -- Chirurgien-dentiste (pas dentiste). Le titre officiel du metier est un signal de credibilite.
+17. **JADOMI Timeline = moat concurrentiel** -- Suivi visuel chronologique patient avant/apres. Feature killer. Idee originale Karim 4h du matin 23 avril 2026.
+18. **Zero nom propre reel sur le site public** -- Noms fictifs uniquement (Dubois, Martin, Leroy, Moreau).
 
 ===============================================================
 # 8. ROADMAP
@@ -499,7 +533,8 @@ Coach : contextes orthodontiste + paramedical ajoutes.
 - [x] 7 landings metier dedies + 14 photos DALL-E 3 (Passe 27)
 - [x] Device mockups MacBook/Browser (Passe 28)
 - [x] Refacto 5 groupes metier + paramedical + terminologie (Passe 29)
-- [ ] Executer migration SQL 22-29 dans Supabase
+- [x] JADOMI Timeline : suivi visuel patient avant/apres (Passe 30)
+- [ ] Executer migration SQL 22-30 dans Supabase
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js
 - [ ] Test live avec l'epouse de Karim ce soir

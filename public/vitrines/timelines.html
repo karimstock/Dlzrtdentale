@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1629">
+<title>JADOMI Timeline — Suivi patient</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1629;--bg2:#141b2d;--bg3:#1a2238;
+  --gold:#c9a961;--gold-dim:rgba(201,169,97,.15);--gold-glow:rgba(201,169,97,.25);
+  --purple:#7c3aed;--purple-dim:rgba(124,58,237,.15);
+  --text:#fff;--text-dim:rgba(255,255,255,.55);--text-mid:rgba(255,255,255,.75);
+  --glass:rgba(255,255,255,.04);--glass-border:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --radius:12px;--radius-lg:16px;
+  --blue:#3b82f6;--green:#22c55e;--orange:#f59e0b;--grey:#6b7280;--red:#ef4444;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.5}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;font-weight:600}
+a{color:var(--gold);text-decoration:none}
+
+/* ── Header ── */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 2rem;border-bottom:1px solid var(--glass-border);background:rgba(0,0,0,.3);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:sticky;top:0;z-index:100}
+.top-left{display:flex;align-items:center;gap:1.25rem}
+.back-link{display:flex;align-items:center;gap:.4rem;color:var(--text-dim);font-size:.88rem;transition:color .3s var(--ease)}
+.back-link:hover{color:var(--gold)}
+.top-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:600}
+.btn-primary{background:var(--gold);color:var(--bg);border:none;padding:.65rem 1.5rem;border-radius:8px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .3s var(--ease);display:flex;align-items:center;gap:.5rem}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(201,169,97,.25)}
+
+/* ── Container ── */
+.container{max-width:1200px;margin:0 auto;padding:2rem 2rem 4rem}
+
+/* ── View transitions ── */
+.view{display:none;opacity:0;transform:translateY(12px);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.view.active{display:block;opacity:1;transform:translateY(0)}
+
+/* ── Filter Bar ── */
+.filter-bar{display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:2rem;align-items:center}
+.filter-bar select,.filter-bar input{background:var(--glass);border:1px solid var(--glass-border);color:var(--text);padding:.6rem 1rem;border-radius:8px;font-family:inherit;font-size:.88rem;transition:border-color .3s var(--ease);outline:none}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--gold)}
+.filter-bar input{flex:1;min-width:200px}
+.filter-bar select{min-width:160px}
+
+/* ── Timeline Grid ── */
+.tl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem}
+.tl-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:1.5rem;cursor:pointer;transition:all .4s var(--ease);position:relative;overflow:hidden}
+.tl-card:hover{border-color:rgba(201,169,97,.3);transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,.3)}
+.tl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),transparent);opacity:0;transition:opacity .4s var(--ease)}
+.tl-card:hover::before{opacity:1}
+.tl-patient{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:600;margin-bottom:.25rem}
+.tl-treatment{font-size:.88rem;color:var(--text-mid);margin-bottom:.75rem}
+.tl-meta{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.75rem}
+.badge{display:inline-flex;align-items:center;padding:.2rem .65rem;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.badge-type{background:var(--gold-dim);color:var(--gold)}
+.badge-en_cours{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-termine{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-suspendu{background:rgba(245,158,11,.15);color:var(--orange)}
+.badge-abandonne{background:rgba(107,114,128,.2);color:var(--grey)}
+.tl-stats{display:flex;gap:1.25rem;font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem}
+.tl-stats span{display:flex;align-items:center;gap:.35rem}
+.progress-track{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),#e8c988);transition:width .6s var(--ease)}
+.tl-footer{display:flex;justify-content:space-between;align-items:center;margin-top:1rem}
+.tl-date{font-size:.8rem;color:var(--text-dim)}
+.btn-voir{background:transparent;border:1px solid var(--gold-dim);color:var(--gold);padding:.4rem 1rem;border-radius:6px;font-family:inherit;font-size:.82rem;font-weight:500;cursor:pointer;transition:all .3s var(--ease)}
+.btn-voir:hover{background:var(--gold);color:var(--bg)}
+
+/* ── Detail View ── */
+.detail-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.5rem;margin-bottom:2rem;align-items:flex-start}
+.detail-info h2{font-size:1.4rem;margin-bottom:.35rem}
+.detail-info .sub{color:var(--text-dim);font-size:.92rem}
+.detail-actions{display:flex;gap:.65rem;flex-wrap:wrap}
+.btn-outline{background:transparent;border:1px solid var(--glass-border);color:var(--text-mid);padding:.55rem 1.15rem;border-radius:8px;font-family:inherit;font-size:.85rem;cursor:pointer;transition:all .3s var(--ease);display:flex;align-items:center;gap:.4rem}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-outline.purple{border-color:var(--purple-dim);color:var(--purple)}
+.btn-outline.purple:hover{border-color:var(--purple);background:var(--purple-dim)}
+
+/* ── Steps ── */
+.steps-list{position:relative;padding-left:2.5rem}
+.steps-list::before{content:'';position:absolute;left:14px;top:0;bottom:0;width:2px;background:var(--glass-border)}
+.step-card{position:relative;background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.25rem;transition:all .4s var(--ease)}
+.step-card:hover{border-color:rgba(201,169,97,.2)}
+.step-card::before{content:'';position:absolute;left:-2.5rem;top:1.6rem;width:12px;height:12px;border-radius:50%;background:var(--gold);border:3px solid var(--bg);z-index:1;transform:translateX(9px)}
+.step-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem}
+.step-num{font-family:'Syne',sans-serif;font-weight:700;color:var(--gold);font-size:.82rem;letter-spacing:.05em}
+.step-date{font-size:.82rem;color:var(--text-dim)}
+.step-label{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:600;margin-bottom:.5rem}
+.step-notes{font-size:.9rem;color:var(--text-mid);line-height:1.65;margin-bottom:1rem}
+.step-notes p{margin-bottom:.5rem}
+.step-photos{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+.step-thumb{width:80px;height:80px;border-radius:8px;object-fit:cover;cursor:pointer;border:1px solid var(--glass-border);transition:all .3s var(--ease)}
+.step-thumb:hover{border-color:var(--gold);transform:scale(1.05)}
+.step-bottom{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.step-toggle{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--text-dim)}
+.step-toggle input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
+.btn-sm{background:transparent;border:1px solid var(--glass-border);color:var(--text-dim);padding:.3rem .75rem;border-radius:6px;font-family:inherit;font-size:.78rem;cursor:pointer;transition:all .3s var(--ease)}
+.btn-sm:hover{border-color:var(--gold);color:var(--gold)}
+.btn-sm.purple:hover{border-color:var(--purple);color:var(--purple)}
+.btn-add-step{width:100%;margin-top:.5rem;padding:1rem;border:2px dashed var(--glass-border);border-radius:var(--radius);background:transparent;color:var(--text-dim);font-family:inherit;font-size:.92rem;cursor:pointer;transition:all .4s var(--ease);display:flex;align-items:center;justify-content:center;gap:.5rem}
+.btn-add-step:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+
+/* ── Modals ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:200;display:none;align-items:center;justify-content:center;opacity:0;transition:opacity .35s var(--ease)}
+.modal-overlay.open{display:flex;opacity:1}
+.modal{background:var(--bg2);border:1px solid var(--glass-border);border-radius:var(--radius-lg);width:90%;max-width:560px;max-height:85vh;overflow-y:auto;padding:2rem;transform:scale(.92) translateY(20px);transition:transform .45s var(--ease);position:relative}
+.modal-overlay.open .modal{transform:scale(1) translateY(0)}
+.modal h3{font-family:'Syne',sans-serif;font-size:1.2rem;margin-bottom:1.5rem}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:all .3s var(--ease)}
+.modal-close:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.form-group{margin-bottom:1.25rem}
+.form-group label{display:block;font-size:.85rem;color:var(--text-mid);margin-bottom:.4rem;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--glass);border:1px solid var(--glass-border);color:var(--text);padding:.7rem 1rem;border-radius:8px;font-family:inherit;font-size:.9rem;outline:none;transition:border-color .3s var(--ease)}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--gold)}
+.form-group textarea{resize:vertical;min-height:100px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.5rem}
+.btn-cancel{background:transparent;border:1px solid var(--glass-border);color:var(--text-dim);padding:.6rem 1.25rem;border-radius:8px;font-family:inherit;font-size:.88rem;cursor:pointer;transition:all .3s var(--ease)}
+.btn-cancel:hover{border-color:var(--text-mid);color:var(--text)}
+
+/* ── Drag & Drop Zone ── */
+.drop-zone{border:2px dashed var(--glass-border);border-radius:var(--radius);padding:2.5rem;text-align:center;cursor:pointer;transition:all .4s var(--ease);background:var(--glass)}
+.drop-zone.dragover{border-color:var(--gold);background:var(--gold-dim)}
+.drop-zone p{color:var(--text-dim);font-size:.92rem;margin-bottom:.5rem}
+.drop-zone .icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
+.drop-zone input[type=file]{display:none}
+.upload-previews{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+.upload-preview{position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden}
+.upload-preview img{width:100%;height:100%;object-fit:cover}
+.upload-preview .remove{position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* ── Before/After Slider ── */
+.ba-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .5s var(--ease)}
+.ba-overlay.open{display:flex;opacity:1}
+.ba-header{text-align:center;margin-bottom:1.5rem;z-index:1}
+.ba-header h3{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:600;margin-bottom:.35rem}
+.ba-dates{font-size:.92rem;color:var(--gold);font-weight:500}
+.ba-close{position:absolute;top:1.5rem;right:1.5rem;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s var(--ease);z-index:2}
+.ba-close:hover{background:rgba(255,255,255,.15);transform:scale(1.08)}
+.ba-container{width:90%;max-width:800px;position:relative}
+.ba-slider{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;border-radius:16px;cursor:ew-resize;user-select:none;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06)}
+.ba-slider img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.ba-slider .ba-after{clip-path:inset(0 0 0 50%);transition:clip-path .02s linear}
+.ba-slider .ba-label{position:absolute;bottom:16px;padding:.4rem .85rem;border-radius:6px;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;z-index:5;pointer-events:none}
+.ba-label.before{left:16px;background:rgba(0,0,0,.65);color:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
+.ba-label.after{right:16px;background:rgba(201,169,97,.85);color:var(--bg);backdrop-filter:blur(8px)}
+.ba-handle{position:absolute;top:0;bottom:0;left:50%;width:3px;background:rgba(255,255,255,.9);transform:translateX(-50%);z-index:10;pointer-events:none;transition:left .02s linear;box-shadow:0 0 20px rgba(255,255,255,.15)}
+.ba-handle::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:rgba(255,255,255,.92);border-radius:50%;box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 4px rgba(255,255,255,.15);animation:handlePulse 2.5s ease-in-out infinite}
+.ba-handle::after{content:'\2194';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;color:#1a1a1a;font-weight:bold;z-index:1}
+@keyframes handlePulse{0%,100%{box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 4px rgba(255,255,255,.15)}50%{box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 8px rgba(255,255,255,.08)}}
+.ba-steps-nav{display:flex;gap:.5rem;margin-top:1.5rem;justify-content:center;flex-wrap:wrap}
+.ba-step-btn{background:var(--glass);border:1px solid var(--glass-border);color:var(--text-dim);padding:.45rem 1rem;border-radius:20px;font-family:inherit;font-size:.8rem;cursor:pointer;transition:all .3s var(--ease)}
+.ba-step-btn:hover{border-color:var(--gold);color:var(--gold)}
+.ba-step-btn.active{background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600}
+
+/* ── Lightbox ── */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:250;display:none;align-items:center;justify-content:center;cursor:zoom-out;opacity:0;transition:opacity .35s var(--ease)}
+.lightbox.open{display:flex;opacity:1}
+.lightbox img{max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+
+/* ── Empty State ── */
+.empty-state{text-align:center;padding:4rem 2rem}
+.empty-state .icon{font-size:3rem;opacity:.3;margin-bottom:1rem}
+.empty-state p{color:var(--text-dim);font-size:1rem;margin-bottom:1.5rem}
+
+/* ── Loading ── */
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--glass-border);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-center{display:flex;align-items:center;justify-content:center;padding:4rem;gap:.75rem;color:var(--text-dim)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .top-bar{padding:1rem 1.25rem}
+  .top-title{font-size:1.1rem}
+  .container{padding:1.25rem 1rem 3rem}
+  .tl-grid{grid-template-columns:1fr}
+  .filter-bar{flex-direction:column}
+  .filter-bar select,.filter-bar input{width:100%}
+  .detail-header{flex-direction:column}
+  .form-row{grid-template-columns:1fr}
+  .ba-container{width:95%}
+  .steps-list{padding-left:2rem}
+  .step-card::before{left:-2rem;transform:translateX(7px)}
+}
+@media(max-width:480px){
+  .btn-primary span.label{display:none}
+  .detail-actions{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="top-bar">
+  <div class="top-left">
+    <a href="/public/vitrines/societe-dashboard.html" class="back-link">&larr; Organisation</a>
+    <span class="top-title">JADOMI Timeline</span>
+  </div>
+  <button class="btn-primary" onclick="openModal('new-timeline')">+ <span class="label">Nouvelle timeline</span></button>
+</header>
+
+<div class="container">
+
+  <!-- ═══ VIEW 1 : List ═══ -->
+  <div id="view-list" class="view active">
+    <div class="filter-bar">
+      <select id="filter-type" aria-label="Type de traitement"><option value="">Tous les types</option></select>
+      <select id="filter-status" aria-label="Statut">
+        <option value="">Tous les statuts</option>
+        <option value="en_cours">En cours</option>
+        <option value="termine">Termine</option>
+        <option value="suspendu">Suspendu</option>
+        <option value="abandonne">Abandonne</option>
+      </select>
+      <input type="search" id="filter-search" placeholder="Rechercher un patient ou traitement..." aria-label="Recherche">
+    </div>
+    <div id="tl-list" class="tl-grid"></div>
+    <div id="tl-empty" class="empty-state" style="display:none">
+      <div class="icon">&#128203;</div>
+      <p>Aucune timeline pour le moment. Creez votre premiere timeline de suivi patient.</p>
+      <button class="btn-primary" onclick="openModal('new-timeline')">+ Nouvelle timeline</button>
+    </div>
+    <div id="tl-loading" class="loading-center"><span class="spinner"></span> Chargement...</div>
+  </div>
+
+  <!-- ═══ VIEW 2 : Detail ═══ -->
+  <div id="view-detail" class="view">
+    <button class="btn-outline" onclick="showView('list')" style="margin-bottom:1.5rem">&larr; Retour aux timelines</button>
+    <div class="detail-header">
+      <div class="detail-info">
+        <h2 id="detail-patient"></h2>
+        <div class="sub" id="detail-sub"></div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn-outline" onclick="generatePdf()">&#128196; Rapport PDF</button>
+        <button class="btn-outline" onclick="shareToPatient()">&#128228; Partager au patient</button>
+        <button class="btn-outline" onclick="openBeforeAfter()">&#9683; Avant/Apres</button>
+      </div>
+    </div>
+    <div id="steps-container" class="steps-list"></div>
+    <button class="btn-add-step" onclick="openModal('new-step')">+ Ajouter une etape</button>
+  </div>
+</div>
+
+<!-- ═══ Before/After Overlay ═══ -->
+<div id="ba-overlay" class="ba-overlay">
+  <button class="ba-close" onclick="closeBeforeAfter()" aria-label="Fermer">&times;</button>
+  <div class="ba-header">
+    <h3>Avant / Apres</h3>
+    <div class="ba-dates" id="ba-dates"></div>
+  </div>
+  <div class="ba-container">
+    <div class="ba-slider" id="ba-slider">
+      <img class="ba-before" id="ba-img-before" src="" alt="Avant">
+      <img class="ba-after" id="ba-img-after" src="" alt="Apres">
+      <span class="ba-label before">Avant</span>
+      <span class="ba-label after">Apres</span>
+      <div class="ba-handle" id="ba-handle"></div>
+    </div>
+    <div class="ba-steps-nav" id="ba-steps-nav"></div>
+  </div>
+</div>
+
+<!-- ═══ Lightbox ═══ -->
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Photo">
+</div>
+
+<!-- ═══ Modal: New Timeline ═══ -->
+<div class="modal-overlay" id="modal-new-timeline">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('new-timeline')">&times;</button>
+    <h3>Nouvelle timeline</h3>
+    <form id="form-new-timeline" onsubmit="return handleNewTimeline(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prenom du patient</label>
+          <input name="first_name" required placeholder="Prenom">
+        </div>
+        <div class="form-group">
+          <label>Nom du patient</label>
+          <input name="last_name" required placeholder="Nom">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email du patient (optionnel)</label>
+        <input name="email" type="email" placeholder="patient@email.com">
+      </div>
+      <div class="form-group">
+        <label>Type de traitement</label>
+        <select name="treatment_type" required>
+          <option value="">Choisir...</option>
+          <option value="orthodontie">Orthodontie</option>
+          <option value="implantologie">Implantologie</option>
+          <option value="prothese">Prothese</option>
+          <option value="esthetique">Esthetique</option>
+          <option value="parodontie">Parodontie</option>
+          <option value="chirurgie">Chirurgie</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Intitule du traitement</label>
+        <input name="treatment_label" required placeholder="Ex: Aligneurs Invisalign">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date de debut</label>
+          <input name="start_date" type="date" required>
+        </div>
+        <div class="form-group">
+          <label>Nombre d'etapes estimees</label>
+          <input name="estimated_steps" type="number" min="1" placeholder="10">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description (optionnel)</label>
+        <textarea name="description" placeholder="Notes generales sur le plan de traitement..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal('new-timeline')">Annuler</button>
+        <button type="submit" class="btn-primary" id="btn-submit-tl">Creer la timeline</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Modal: New Step ═══ -->
+<div class="modal-overlay" id="modal-new-step">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('new-step')">&times;</button>
+    <h3>Nouvelle etape</h3>
+    <form id="form-new-step" onsubmit="return handleNewStep(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input name="step_date" type="date" required>
+        </div>
+        <div class="form-group">
+          <label>Intitule</label>
+          <input name="label" required placeholder="Ex: Pose des brackets">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes cliniques</label>
+        <textarea name="notes" placeholder="Observations, mesures, consignes..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Mesures (JSON, optionnel)</label>
+        <input name="measurements" placeholder='{"overjet":"3mm","overbite":"2mm"}'>
+      </div>
+      <div class="form-group">
+        <label>Prochain rendez-vous</label>
+        <input name="next_appointment" type="date">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" name="visible_patient" checked style="accent-color:var(--gold);width:16px;height:16px">
+          Visible par le patient
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal('new-step')">Annuler</button>
+        <button type="submit" class="btn-primary" id="btn-submit-step">Ajouter l'etape</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Modal: Photo Upload ═══ -->
+<div class="modal-overlay" id="modal-photo-upload">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('photo-upload')">&times;</button>
+    <h3>Ajouter des photos</h3>
+    <form id="form-photo-upload" onsubmit="return handlePhotoUpload(event)">
+      <div class="form-group">
+        <label>Type de photo</label>
+        <select name="photo_type">
+          <option value="intra_oral">Intra-oral</option>
+          <option value="extra_oral">Extra-oral</option>
+          <option value="radiographie">Radiographie</option>
+          <option value="scan_3d">Scan 3D</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Legende (optionnel)</label>
+        <input name="caption" placeholder="Description de la photo">
+      </div>
+      <div class="drop-zone" id="drop-zone">
+        <div class="icon">&#128247;</div>
+        <p>Glissez vos photos ici ou cliquez pour parcourir</p>
+        <p style="font-size:.78rem;color:var(--text-dim)">JPG, PNG, WEBP - Max 10 Mo par fichier</p>
+        <input type="file" id="file-input" multiple accept="image/*">
+      </div>
+      <div class="upload-previews" id="upload-previews"></div>
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal('photo-upload')">Annuler</button>
+        <button type="submit" class="btn-primary" id="btn-submit-photos">Envoyer les photos</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   JADOMI Timeline — Practitioner Dashboard
+   ════════════════════════════════════════ */
+
+// ── Auth ──
+function getAuth() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+  for (const k of keys) {
+    try { const v = JSON.parse(localStorage.getItem(k)); if (v?.access_token) return v.access_token; } catch {}
+  }
+  return null;
+}
+function getSocieteId() {
+  return localStorage.getItem('societe_active_id') || localStorage.getItem('selectedSocieteId');
+}
+
+// ── State ──
+let timelines = [];
+let currentTimeline = null;
+let currentSteps = [];
+let pendingFiles = [];
+let uploadStepId = null;
+let baBeforeIdx = 0;
+let baAfterIdx = -1; // -1 means last
+
+const STATUS_LABELS = { en_cours: 'En cours', termine: 'Termine', suspendu: 'Suspendu', abandonne: 'Abandonne' };
+const TYPE_COLORS = {
+  orthodontie: '#3b82f6', implantologie: '#8b5cf6', prothese: '#c9a961',
+  esthetique: '#ec4899', parodontie: '#22c55e', chirurgie: '#ef4444', autre: '#6b7280'
+};
+
+// ── API helper ──
+async function api(path, opts = {}) {
+  const token = getAuth();
+  if (!token) { window.location.href = '/login.html'; return null; }
+  const societeId = getSocieteId();
+  const headers = {
+    'Authorization': 'Bearer ' + token,
+    'X-Societe-Id': societeId || '',
+    ...(opts.headers || {})
+  };
+  if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  try {
+    const res = await fetch('/api/timeline/practitioner' + path, { ...opts, headers });
+    if (res.status === 401) { window.location.href = '/login.html'; return null; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Erreur serveur'); }
+    return res.json();
+  } catch (e) { console.error('API error:', e); throw e; }
+}
+
+// ── View Switching ──
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => {
+    v.style.opacity = '0';
+    v.style.transform = 'translateY(12px)';
+    setTimeout(() => v.classList.remove('active'), 350);
+  });
+  setTimeout(() => {
+    const el = document.getElementById('view-' + name);
+    if (el) {
+      el.classList.add('active');
+      requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; });
+    }
+  }, 200);
+}
+
+// ── Modal ──
+function openModal(name) {
+  const el = document.getElementById('modal-' + name);
+  if (!el) return;
+  el.style.display = 'flex';
+  requestAnimationFrame(() => el.classList.add('open'));
+  if (name === 'new-timeline') {
+    const d = document.querySelector('[name=start_date]');
+    if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
+  }
+  if (name === 'new-step') {
+    const d = document.querySelector('[name=step_date]');
+    if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
+  }
+}
+function closeModal(name) {
+  const el = document.getElementById('modal-' + name);
+  if (!el) return;
+  el.classList.remove('open');
+  setTimeout(() => { el.style.display = 'none'; }, 400);
+  if (name === 'photo-upload') { pendingFiles = []; renderUploadPreviews(); }
+}
+
+// Click outside modal to close
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', e => {
+    if (e.target === ov) {
+      const name = ov.id.replace('modal-', '');
+      closeModal(name);
+    }
+  });
+});
+
+// ── Load Timelines ──
+async function loadTimelines() {
+  const loading = document.getElementById('tl-loading');
+  const empty = document.getElementById('tl-empty');
+  const list = document.getElementById('tl-list');
+  loading.style.display = 'flex';
+  empty.style.display = 'none';
+  list.innerHTML = '';
+  try {
+    const data = await api('/timelines');
+    timelines = data?.timelines || data || [];
+    populateTypeFilter();
+    renderTimelines();
+  } catch (e) {
+    list.innerHTML = '<div class="empty-state"><p>Erreur de chargement. Veuillez reessayer.</p></div>';
+  } finally {
+    loading.style.display = 'none';
+  }
+}
+
+function populateTypeFilter() {
+  const sel = document.getElementById('filter-type');
+  const types = [...new Set(timelines.map(t => t.treatment_type).filter(Boolean))];
+  sel.innerHTML = '<option value="">Tous les types</option>';
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    sel.appendChild(opt);
+  });
+}
+
+function getFilteredTimelines() {
+  const type = document.getElementById('filter-type').value;
+  const status = document.getElementById('filter-status').value;
+  const search = document.getElementById('filter-search').value.toLowerCase().trim();
+  return timelines.filter(t => {
+    if (type && t.treatment_type !== type) return false;
+    if (status && t.status !== status) return false;
+    if (search) {
+      const name = getPatientName(t).toLowerCase();
+      const label = (t.treatment_label || '').toLowerCase();
+      if (!name.includes(search) && !label.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+function getPatientName(tl) {
+  if (tl.patient_info?.first_name) return tl.patient_info.first_name + ' ' + (tl.patient_info.last_name || '');
+  if (tl.patient_account?.full_name) return tl.patient_account.full_name;
+  return 'Patient inconnu';
+}
+
+function renderTimelines() {
+  const list = document.getElementById('tl-list');
+  const empty = document.getElementById('tl-empty');
+  const filtered = getFilteredTimelines();
+  if (filtered.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = timelines.length === 0 ? 'block' : 'none';
+    if (timelines.length > 0 && filtered.length === 0) {
+      list.innerHTML = '<div class="empty-state"><p>Aucune timeline ne correspond a vos filtres.</p></div>';
+    }
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = filtered.map(tl => {
+    const name = getPatientName(tl);
+    const stepsDone = tl.steps_count || tl.step_count || 0;
+    const estimated = tl.estimated_steps || stepsDone || 1;
+    const pct = Math.min(100, Math.round((stepsDone / estimated) * 100));
+    const photoCount = tl.photos_count || tl.photo_count || 0;
+    const typeColor = TYPE_COLORS[tl.treatment_type] || TYPE_COLORS.autre;
+    const startDate = tl.start_date ? new Date(tl.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    return `
+      <div class="tl-card" onclick="openTimeline('${tl.id}')">
+        <div class="tl-patient">${esc(name)}</div>
+        <div class="tl-treatment">${esc(tl.treatment_label || '')}</div>
+        <div class="tl-meta">
+          <span class="badge" style="background:${typeColor}22;color:${typeColor}">${esc(tl.treatment_type || 'autre')}</span>
+          <span class="badge badge-${tl.status || 'en_cours'}">${STATUS_LABELS[tl.status] || tl.status || 'En cours'}</span>
+        </div>
+        <div class="tl-stats">
+          <span>&#128203; ${stepsDone} etape${stepsDone > 1 ? 's' : ''}</span>
+          <span>&#128247; ${photoCount} photo${photoCount > 1 ? 's' : ''}</span>
+          <span>&#128197; ${startDate}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="tl-footer">
+          <span class="tl-date">${pct}% complete</span>
+          <button class="btn-voir" onclick="event.stopPropagation();openTimeline('${tl.id}')">Voir &rarr;</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Filter events ──
+document.getElementById('filter-type').addEventListener('change', renderTimelines);
+document.getElementById('filter-status').addEventListener('change', renderTimelines);
+document.getElementById('filter-search').addEventListener('input', renderTimelines);
+
+// ── Open Timeline Detail ──
+async function openTimeline(id) {
+  showView('detail');
+  const container = document.getElementById('steps-container');
+  container.innerHTML = '<div class="loading-center"><span class="spinner"></span> Chargement...</div>';
+  try {
+    const data = await api('/timelines/' + id);
+    currentTimeline = data?.timeline || data;
+    currentSteps = currentTimeline?.steps || data?.steps || [];
+    renderDetail();
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state"><p>Erreur de chargement de la timeline.</p></div>';
+  }
+}
+
+function renderDetail() {
+  if (!currentTimeline) return;
+  const tl = currentTimeline;
+  document.getElementById('detail-patient').textContent = getPatientName(tl);
+  const start = tl.start_date ? new Date(tl.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const statusLabel = STATUS_LABELS[tl.status] || tl.status || '';
+  document.getElementById('detail-sub').innerHTML =
+    `${esc(tl.treatment_label || '')} &mdash; ${start} &mdash; <span class="badge badge-${tl.status || 'en_cours'}">${statusLabel}</span>`;
+  renderSteps();
+}
+
+function renderSteps() {
+  const container = document.getElementById('steps-container');
+  if (!currentSteps.length) {
+    container.innerHTML = '<div class="empty-state"><p>Aucune etape enregistree. Ajoutez la premiere etape de suivi.</p></div>';
+    return;
+  }
+  const sorted = [...currentSteps].sort((a, b) => new Date(a.step_date || a.date) - new Date(b.step_date || b.date));
+  container.innerHTML = sorted.map((step, i) => {
+    const date = step.step_date || step.date;
+    const dateStr = date ? new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const photos = step.photos || [];
+    const notesHtml = renderMarkdown(step.clinical_notes || step.notes || '');
+    const vis = step.visible_patient !== false;
+    return `
+      <div class="step-card" data-step-id="${step.id}">
+        <div class="step-top">
+          <span class="step-num">ETAPE ${i + 1}</span>
+          <span class="step-date">${dateStr}</span>
+        </div>
+        <div class="step-label">${esc(step.label || step.title || 'Etape ' + (i + 1))}</div>
+        ${notesHtml ? `<div class="step-notes">${notesHtml}</div>` : ''}
+        ${photos.length ? `<div class="step-photos">${photos.map(p => `<img class="step-thumb" src="${esc(p.url || p.photo_url)}" alt="${esc(p.caption || '')}" onclick="event.stopPropagation();openLightbox('${esc(p.url || p.photo_url)}')">`).join('')}</div>` : ''}
+        <div class="step-bottom">
+          <label class="step-toggle">
+            <input type="checkbox" ${vis ? 'checked' : ''} onchange="toggleVisibility('${step.id}',this.checked)">
+            Visible patient
+          </label>
+          <button class="btn-sm" onclick="openPhotoUpload('${step.id}')">&#128247; Photos</button>
+          <button class="btn-sm" onclick="editStep('${step.id}')">&#9998; Editer</button>
+          <button class="btn-sm" onclick="deleteStep('${step.id}')" style="color:var(--red)">&#128465; Suppr.</button>
+          <button class="btn-sm purple" onclick="requestAiNotes('${step.id}')">&#9733; Notes IA</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Simple markdown rendering ──
+function renderMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
+    .split('<br><br>').map(p => '<p>' + p + '</p>').join('');
+}
+
+function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+// ── Create Timeline ──
+async function handleNewTimeline(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('btn-submit-tl');
+  btn.disabled = true; btn.textContent = 'Creation...';
+  try {
+    const body = {
+      patient_info: {
+        first_name: form.first_name.value.trim(),
+        last_name: form.last_name.value.trim(),
+        email: form.email.value.trim() || undefined
+      },
+      treatment_type: form.treatment_type.value,
+      treatment_label: form.treatment_label.value.trim(),
+      start_date: form.start_date.value,
+      estimated_steps: parseInt(form.estimated_steps.value) || undefined,
+      description: form.description.value.trim() || undefined
+    };
+    await api('/timelines', { method: 'POST', body: JSON.stringify(body) });
+    closeModal('new-timeline');
+    form.reset();
+    loadTimelines();
+  } catch (err) {
+    alert('Erreur: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Creer la timeline';
+  }
+}
+
+// ── Create Step ──
+async function handleNewStep(e) {
+  e.preventDefault();
+  if (!currentTimeline) return;
+  const form = e.target;
+  const btn = document.getElementById('btn-submit-step');
+  btn.disabled = true; btn.textContent = 'Ajout...';
+  try {
+    let measurements;
+    if (form.measurements.value.trim()) {
+      try { measurements = JSON.parse(form.measurements.value); } catch { alert('Format JSON invalide pour les mesures.'); btn.disabled = false; btn.textContent = "Ajouter l'etape"; return; }
+    }
+    const body = {
+      step_date: form.step_date.value,
+      label: form.label.value.trim(),
+      clinical_notes: form.notes.value.trim() || undefined,
+      measurements,
+      next_appointment_date: form.next_appointment.value || undefined,
+      visible_patient: form.visible_patient.checked
+    };
+    const result = await api('/timelines/' + currentTimeline.id + '/steps', { method: 'POST', body: JSON.stringify(body) });
+    currentSteps.push(result?.step || result);
+    renderSteps();
+    closeModal('new-step');
+    form.reset();
+  } catch (err) {
+    alert('Erreur: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Ajouter l'etape";
+  }
+}
+
+// ── Photo Upload ──
+function openPhotoUpload(stepId) {
+  uploadStepId = stepId;
+  pendingFiles = [];
+  renderUploadPreviews();
+  openModal('photo-upload');
+}
+
+// Drag & drop
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e => addFiles(e.target.files));
+
+function addFiles(files) {
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    if (f.size > 10 * 1024 * 1024) { alert(f.name + ' depasse 10 Mo.'); continue; }
+    pendingFiles.push(f);
+  }
+  renderUploadPreviews();
+}
+
+function renderUploadPreviews() {
+  const container = document.getElementById('upload-previews');
+  container.innerHTML = '';
+  pendingFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'upload-preview';
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    const btn = document.createElement('button');
+    btn.className = 'remove';
+    btn.textContent = '\u00d7';
+    btn.onclick = () => { pendingFiles.splice(i, 1); renderUploadPreviews(); };
+    div.appendChild(img);
+    div.appendChild(btn);
+    container.appendChild(div);
+  });
+}
+
+async function handlePhotoUpload(e) {
+  e.preventDefault();
+  if (!uploadStepId || !pendingFiles.length) { alert('Aucune photo selectionnee.'); return; }
+  const btn = document.getElementById('btn-submit-photos');
+  btn.disabled = true; btn.textContent = 'Envoi...';
+  const form = e.target;
+  try {
+    for (const file of pendingFiles) {
+      const fd = new FormData();
+      fd.append('photo', file);
+      fd.append('photo_type', form.photo_type.value);
+      fd.append('caption', form.caption.value.trim());
+      await api('/timelines/' + currentTimeline.id + '/steps/' + uploadStepId + '/photos', { method: 'POST', body: fd, headers: {} });
+    }
+    closeModal('photo-upload');
+    // Refresh steps
+    await openTimeline(currentTimeline.id);
+  } catch (err) {
+    alert('Erreur upload: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Envoyer les photos';
+  }
+}
+
+// ── Step Actions ──
+async function toggleVisibility(stepId, visible) {
+  try {
+    await api('/timelines/' + currentTimeline.id + '/steps/' + stepId, {
+      method: 'PATCH', body: JSON.stringify({ visible_patient: visible })
+    });
+  } catch (e) { alert('Erreur: ' + e.message); }
+}
+
+async function editStep(stepId) {
+  const step = currentSteps.find(s => s.id === stepId);
+  if (!step) return;
+  const form = document.getElementById('form-new-step');
+  form.step_date.value = (step.step_date || step.date || '').split('T')[0];
+  form.label.value = step.label || step.title || '';
+  form.notes.value = step.clinical_notes || step.notes || '';
+  form.measurements.value = step.measurements ? JSON.stringify(step.measurements) : '';
+  form.next_appointment.value = (step.next_appointment_date || '').split('T')[0];
+  form.visible_patient.checked = step.visible_patient !== false;
+  // Override form submit for editing
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit-step');
+    btn.disabled = true; btn.textContent = 'Mise a jour...';
+    try {
+      let measurements;
+      if (form.measurements.value.trim()) {
+        try { measurements = JSON.parse(form.measurements.value); } catch { alert('Format JSON invalide.'); btn.disabled = false; btn.textContent = "Modifier"; return; }
+      }
+      await api('/timelines/' + currentTimeline.id + '/steps/' + stepId, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          step_date: form.step_date.value,
+          label: form.label.value.trim(),
+          clinical_notes: form.notes.value.trim() || undefined,
+          measurements,
+          next_appointment_date: form.next_appointment.value || undefined,
+          visible_patient: form.visible_patient.checked
+        })
+      });
+      closeModal('new-step');
+      form.onsubmit = handleNewStep;
+      form.reset();
+      await openTimeline(currentTimeline.id);
+    } catch (err) { alert('Erreur: ' + err.message); }
+    finally { btn.disabled = false; btn.textContent = "Ajouter l'etape"; }
+  };
+  openModal('new-step');
+  document.querySelector('#modal-new-step h3').textContent = "Modifier l'etape";
+  document.getElementById('btn-submit-step').textContent = 'Modifier';
+}
+
+async function deleteStep(stepId) {
+  if (!confirm('Supprimer cette etape ? Cette action est irreversible.')) return;
+  try {
+    await api('/timelines/' + currentTimeline.id + '/steps/' + stepId, { method: 'DELETE' });
+    currentSteps = currentSteps.filter(s => s.id !== stepId);
+    renderSteps();
+  } catch (e) { alert('Erreur: ' + e.message); }
+}
+
+async function requestAiNotes(stepId) {
+  const step = currentSteps.find(s => s.id === stepId);
+  if (!step) return;
+  const card = document.querySelector(`[data-step-id="${stepId}"]`);
+  const btn = card?.querySelector('.purple');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analyse...'; }
+  try {
+    const result = await api('/timelines/' + currentTimeline.id + '/steps/' + stepId + '/ai-notes', { method: 'POST' });
+    if (result?.notes || result?.ai_notes) {
+      alert('Notes IA generees:\n\n' + (result.notes || result.ai_notes));
+      await openTimeline(currentTimeline.id);
+    }
+  } catch (e) {
+    alert('Erreur IA: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#9733; Notes IA'; }
+  }
+}
+
+// ── PDF / Share ──
+async function generatePdf() {
+  if (!currentTimeline) return;
+  try {
+    const token = getAuth();
+    const res = await fetch('/api/timeline/practitioner/timelines/' + currentTimeline.id + '/pdf', {
+      headers: { 'Authorization': 'Bearer ' + token, 'X-Societe-Id': getSocieteId() || '' }
+    });
+    if (!res.ok) throw new Error('Erreur generation PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'timeline-' + currentTimeline.id + '.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) { alert('Erreur PDF: ' + e.message); }
+}
+
+async function shareToPatient() {
+  if (!currentTimeline) return;
+  if (!confirm('Envoyer le lien de suivi au patient ?')) return;
+  try {
+    await api('/timelines/' + currentTimeline.id + '/share', { method: 'POST' });
+    alert('Lien de suivi envoye au patient avec succes.');
+  } catch (e) { alert('Erreur: ' + e.message); }
+}
+
+// ── Lightbox ──
+function openLightbox(url) {
+  const el = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = url;
+  el.style.display = 'flex';
+  requestAnimationFrame(() => el.classList.add('open'));
+}
+function closeLightbox() {
+  const el = document.getElementById('lightbox');
+  el.classList.remove('open');
+  setTimeout(() => el.style.display = 'none', 350);
+}
+
+// ── Before / After Slider ──
+let baPhotos = []; // {url, date, stepIndex, label}
+let baCurrentBefore = 0;
+let baCurrentAfter = 0;
+
+function collectStepPhotos() {
+  baPhotos = [];
+  if (!currentSteps) return;
+  const sorted = [...currentSteps].sort((a, b) => new Date(a.step_date || a.date) - new Date(b.step_date || b.date));
+  sorted.forEach((step, idx) => {
+    const photos = step.photos || [];
+    photos.forEach(p => {
+      baPhotos.push({
+        url: p.url || p.photo_url,
+        date: step.step_date || step.date,
+        stepIndex: idx,
+        label: step.label || step.title || 'Etape ' + (idx + 1)
+      });
+    });
+  });
+}
+
+function openBeforeAfter() {
+  collectStepPhotos();
+  if (baPhotos.length < 2) { alert('Il faut au moins 2 photos pour la comparaison avant/apres.'); return; }
+  baCurrentBefore = 0;
+  baCurrentAfter = baPhotos.length - 1;
+  renderBeforeAfter();
+  const el = document.getElementById('ba-overlay');
+  el.style.display = 'flex';
+  requestAnimationFrame(() => el.classList.add('open'));
+}
+
+function closeBeforeAfter() {
+  const el = document.getElementById('ba-overlay');
+  el.classList.remove('open');
+  setTimeout(() => el.style.display = 'none', 500);
+}
+
+function renderBeforeAfter() {
+  const before = baPhotos[baCurrentBefore];
+  const after = baPhotos[baCurrentAfter];
+  document.getElementById('ba-img-before').src = before.url;
+  document.getElementById('ba-img-after').src = after.url;
+  // Dates
+  const d1 = before.date ? new Date(before.date) : null;
+  const d2 = after.date ? new Date(after.date) : null;
+  let dateStr = '';
+  if (d1 && d2) {
+    const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const months = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24 * 30.44)));
+    const dur = months >= 12 ? Math.floor(months / 12) + ' an' + (Math.floor(months / 12) > 1 ? 's' : '') : months + ' mois';
+    dateStr = fmt(d1) + ' &rarr; ' + fmt(d2) + ' (' + dur + ')';
+  }
+  document.getElementById('ba-dates').innerHTML = dateStr;
+  // Step nav
+  const nav = document.getElementById('ba-steps-nav');
+  const uniqueSteps = [];
+  const seen = new Set();
+  baPhotos.forEach((p, i) => {
+    if (!seen.has(p.stepIndex)) { seen.add(p.stepIndex); uniqueSteps.push({ idx: i, step: p.stepIndex, label: p.label }); }
+  });
+  nav.innerHTML = uniqueSteps.map(s => {
+    const isB = s.idx === baCurrentBefore;
+    const isA = s.idx === baCurrentAfter;
+    return `<button class="ba-step-btn ${isB || isA ? 'active' : ''}" onclick="setBAStep(${s.idx})">${esc(s.label)}</button>`;
+  }).join('');
+  // Reset handle
+  setSliderPosition(50);
+}
+
+function setBAStep(idx) {
+  if (idx <= baCurrentBefore) {
+    baCurrentBefore = idx;
+    if (baCurrentAfter <= baCurrentBefore) baCurrentAfter = Math.min(baPhotos.length - 1, baCurrentBefore + 1);
+  } else {
+    baCurrentAfter = idx;
+  }
+  renderBeforeAfter();
+}
+
+// ── Slider Drag Logic ──
+function setSliderPosition(pct) {
+  pct = Math.max(2, Math.min(98, pct));
+  const handle = document.getElementById('ba-handle');
+  const after = document.querySelector('.ba-after');
+  handle.style.left = pct + '%';
+  after.style.clipPath = 'inset(0 0 0 ' + pct + '%)';
+}
+
+(function initSlider() {
+  const slider = document.getElementById('ba-slider');
+  let dragging = false;
+
+  function getPos(e) {
+    const rect = slider.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    return (x / rect.width) * 100;
+  }
+  function onStart(e) { e.preventDefault(); dragging = true; setSliderPosition(getPos(e)); }
+  function onMove(e) { if (!dragging) return; e.preventDefault(); setSliderPosition(getPos(e)); }
+  function onEnd() { dragging = false; }
+
+  slider.addEventListener('mousedown', onStart);
+  slider.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('mouseup', onEnd);
+  window.addEventListener('touchend', onEnd);
+})();
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('ba-overlay').classList.contains('open')) return closeBeforeAfter();
+    if (document.getElementById('lightbox').classList.contains('open')) return closeLightbox();
+    document.querySelectorAll('.modal-overlay.open').forEach(m => {
+      closeModal(m.id.replace('modal-', ''));
+    });
+  }
+});
+
+// ── Init ──
+loadTimelines();
+</script>
+</body>
+</html>
