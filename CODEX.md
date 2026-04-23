@@ -677,6 +677,12 @@ TODO : executer SQL 34, configurer STRIPE_SECRET_KEY.
 - [ ] Audit complet modules existants
 - [ ] Nettoyer 5 sites dupliques en BDD
 
+- [ ] Passe 38 : Systeme JADOMI Coins (wallet tokens type PlayStation/Steam)
+  - Packs : 100/500/1000/2500/10000 coins
+  - Gamification : bonus quotidien, quetes, niveaux Bronze→Diamant
+  - Integration abonnements : Standard 100 coins/mois, Premium 500, Elite 1500
+  - SQL preparatoire deja cree : sql/vitrines/38_coins_wallet_structure.sql
+
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
 - [ ] Base 200+ fournisseurs seedee
