@@ -242,7 +242,7 @@ router.post('/:id/valider', async (req, res) => {
       .single();
 
     if (!bl) return res.status(404).json({ error: 'BL non trouve' });
-    if (bl.statut !== 'brouillon') return res.status(400).json({ error: 'BL deja valide' });
+    if (bl.statut !== 'brouillon') return res.status(400).json({ error: 'BL déjà validé' });
 
     const { data: dentiste } = await admin()
       .from('dentistes_clients')

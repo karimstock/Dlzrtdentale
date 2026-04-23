@@ -21,7 +21,7 @@ module.exports = {
     { id: 'assurance', label: 'Assurance decennale et assureur ?', type: 'free_text', required: true },
     { id: 'urgence_24h', label: 'Proposez-vous un depannage 24h/7j ?', type: 'single_choice', options: ['Oui', 'Non', 'En semaine uniquement'], required: true },
     { id: 'fabricants', label: 'Avec quels fabricants travaillez-vous ?', type: 'free_text', required: false },
-    { id: 'services', label: 'Quels services proposez-vous ?', type: 'multi', options: ['devis gratuit', 'garantie pieces et main d\'oeuvre', 'reponse rapide', 'intervention sous 1h', 'entretien annuel'], required: true },
+    { id: 'services', label: 'Quels services proposez-vous ?', type: 'multi', options: ['devis gratuit', 'garantie pieces et main d\'oeuvre', 'réponse rapide', 'intervention sous 1h', 'entretien annuel'], required: true },
     { id: 'adresse_site', label: 'Comment vos clients trouveraient-ils votre entreprise sur internet ?', type: 'single_choice', options: ['Je laisse JADOMI choisir (recommande)', 'J\'ai deja une adresse', 'Je ne sais pas'], required: true }
   ],
 

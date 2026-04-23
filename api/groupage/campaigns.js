@@ -179,7 +179,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
         });
 
       if (insErr) {
-        if (insErr.code === '23505') return res.status(400).json({ error: 'Deja inscrit a cette campagne' });
+        if (insErr.code === '23505') return res.status(400).json({ error: 'Déjà inscrit a cette campagne' });
         throw insErr;
       }
 

@@ -54,7 +54,7 @@ REGLES DE COMMUNICATION :
 - Tu connais deja son cabinet
 
 REGLES DEONTOLOGIQUES :
-- Obligation de mentions : Ordre, numero d'inscription, SIRET
+- Obligation de mentions : Ordre, numéro d'inscription, SIRET
 - Pas de comparatif. Pas de demarchage oral non sollicite.
 
 ZERO JARGON TECHNIQUE WEB :

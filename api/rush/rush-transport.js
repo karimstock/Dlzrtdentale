@@ -67,7 +67,7 @@ function createTransportRouter(supabase) {
 
       res.json({
         success: true,
-        message: 'Reception confirmee — vous avez 48h pour valider ou signaler un probleme'
+        message: 'Reception confirmee — vous avez 48h pour valider ou signaler un problème'
       });
     } catch (e) {
       console.error('[RUSH reception]', e.message);

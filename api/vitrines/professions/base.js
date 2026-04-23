@@ -65,7 +65,7 @@ function buildSystemPrompt(professionConfig, societeData, mode, userData) {
 
   if (mode === 'edition') {
     prompt += `\n\nMODE EDITION :
-Tu interviens sur un site deja cree. Le professionnel souhaite modifier des elements.
+Tu interviens sur un site déjà créé. Le professionnel souhaite modifier des elements.
 Quand tu identifies une modification precise, encadre-la avec :
 <ACTION type="edit_text" section="[section_type]" field="[field_path]">
 [nouveau contenu]

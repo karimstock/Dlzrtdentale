@@ -263,7 +263,7 @@
     var config = {
       greeting: 'Bonjour, comment puis-je vous aider ?',
       cabinetName: 'Cabinet',
-      escalationText: 'Souhaitez-vous etre mis en relation avec un membre de notre equipe ?',
+      escalationText: 'Souhaitez-vous etre mis en relation avec un membre de notre équipe ?',
       contactUrl: '#contact'
     };
 
@@ -374,7 +374,7 @@
           isWaiting = false;
           sendBtn.disabled = false;
 
-          var reply = (data && data.reply) ? data.reply : 'Merci pour votre message. Un membre de notre equipe reviendra vers vous.';
+          var reply = (data && data.reply) ? data.reply : 'Merci pour votre message. Un membre de notre équipe reviendra vers vous.';
           addBotMessage(reply);
 
           if (userMsgCount >= ESCALATION_AFTER) {
@@ -385,7 +385,7 @@
           hideTyping();
           isWaiting = false;
           sendBtn.disabled = false;
-          addBotMessage('Nous rencontrons un probleme technique. Veuillez reessayer ou nous contacter directement.');
+          addBotMessage('Nous rencontrons un problème technique. Veuillez reessayer ou nous contacter directement.');
         });
     }
 

@@ -60,7 +60,7 @@ router.get('/:code', async (req, res) => {
       .order('ordre_affichage');
 
     if (error) throw error;
-    if (!data || data.length === 0) return res.status(404).json({ error: 'Systeme non trouve' });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Système non trouvé' });
 
     res.json({
       code: data[0].code_systeme,

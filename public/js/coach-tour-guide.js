@@ -118,8 +118,8 @@
           <p class="jt-desc"></p>
         </div>
         <div class="jt-actions">
-          <button class="jt-btn-prev" aria-label="Etape precedente">← Precedent</button>
-          <button class="jt-btn-next" aria-label="Etape suivante">Suivant →</button>
+          <button class="jt-btn-prev" aria-label="Étape précédente">← Précédent</button>
+          <button class="jt-btn-next" aria-label="Étape suivante">Suivant →</button>
         </div>`;
       document.body.appendChild(this.tooltip);
 

@@ -153,7 +153,7 @@ module.exports = function(router) {
         .map(r => r.value);
 
       if (!logos.length) {
-        return res.status(500).json({ success: false, error: 'Aucun logo genere' });
+        return res.status(500).json({ success: false, error: 'Aucun logo généré' });
       }
 
       res.json({ success: true, logos });

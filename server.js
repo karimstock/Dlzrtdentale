@@ -1129,7 +1129,7 @@ Categorie: ${categorie || 'autre'}
 
 Score 1-10:
 1-3 = trop complexe ou hors perimetre
-4-6 = interessant a etudier
+4-6 = intéressant a etudier
 7-8 = tres bonne idee a planifier
 9-10 = idee revolutionnaire urgente
 
@@ -1514,7 +1514,7 @@ REJETER (retourner {"type_document":"personnel","selectionne":false}) si :
 - Image trop petite, logo, icone, avatar, banniere publicitaire, signature email
 - Bouton/badge reseau social (Facebook, LinkedIn, TikTok, Instagram, Twitter, YouTube)
 - Image de tracking (pixel invisible, tracker analytics)
-- Photo personnelle, selfie, capture d'ecran hors contexte pro
+- Photo personnelle, selfie, capture d'écran hors contexte pro
 - Aucun fournisseur identifiable, aucune date, aucun montant, aucune description de service
 
 ACCEPTER uniquement si document financier/pro avec AU MINIMUM :
@@ -1717,7 +1717,7 @@ app.post('/api/analyser-document', requireAuth(), async (req, res) => {
 
     if (existing) return res.json({
       doublon: true,
-      message: `Document deja importe le ${new Date(existing.created_at).toLocaleDateString('fr-FR')}`
+      message: `Document déjà importé le ${new Date(existing.created_at).toLocaleDateString('fr-FR')}`
     });
 
     res.json({ ...data, hash });

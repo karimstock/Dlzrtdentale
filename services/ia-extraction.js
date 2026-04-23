@@ -97,12 +97,12 @@ async function extraireDepuisPdfTexte(pdfText) {
 function parseResponse(content) {
   // Extraire le JSON de la reponse
   const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Pas de JSON dans la reponse IA');
+  if (!jsonMatch) throw new Error('Pas de JSON dans la réponse IA');
 
   try {
     const data = JSON.parse(jsonMatch[0]);
     if (!data.produits || !Array.isArray(data.produits)) {
-      throw new Error('Format de reponse invalide : pas de tableau produits');
+      throw new Error('Format de réponse invalide : pas de tableau produits');
     }
     return data;
   } catch (e) {
