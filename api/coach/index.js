@@ -262,4 +262,99 @@ router.post('/generate-welcome', async (req, res) => {
   }
 });
 
+// ------------------------------------------
+// POST /tour-completed — Mark tour as completed
+// ------------------------------------------
+router.post('/tour-completed', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { societe_id } = req.body;
+    if (!societe_id) return res.status(400).json({ error: 'societe_id requis' });
+
+    await getOrCreateState(userId, societe_id);
+    await admin()
+      .from('user_onboarding_state')
+      .update({
+        tour_completed: true,
+        tour_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('societe_id', societe_id);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[coach/tour-completed]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------
+// POST /tour-skipped — Mark tour as skipped
+// ------------------------------------------
+router.post('/tour-skipped', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { societe_id } = req.body;
+    if (!societe_id) return res.status(400).json({ error: 'societe_id requis' });
+
+    await getOrCreateState(userId, societe_id);
+    await admin()
+      .from('user_onboarding_state')
+      .update({
+        tour_skipped: true,
+        tour_skipped_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('societe_id', societe_id);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[coach/tour-skipped]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------
+// POST /tour-restart — Reset tour so it replays
+// ------------------------------------------
+router.post('/tour-restart', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { societe_id } = req.body;
+    if (!societe_id) return res.status(400).json({ error: 'societe_id requis' });
+
+    await admin()
+      .from('user_onboarding_state')
+      .update({
+        tour_completed: false,
+        tour_skipped: false,
+        tour_current_step: 0,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('societe_id', societe_id);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[coach/tour-restart]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------
+// GET /tour-steps/:type — Get tour steps for profession type
+// ------------------------------------------
+router.get('/tour-steps/:type', async (req, res) => {
+  try {
+    const { getTourSteps } = require('../../lib/coach/tour-steps');
+    const steps = getTourSteps(req.params.type);
+    res.json({ success: true, steps });
+  } catch (err) {
+    console.error('[coach/tour-steps]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
