@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JADOMI Admin — GPO Fournisseurs</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root { --bg:#0f0e0d; --surface:#1a1917; --surface2:#1e1d1b; --border:#2e2c29; --text:#e8e6e1; --muted:#6b6760; --accent:#10b981; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    .header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; background:var(--surface); border-bottom:1px solid var(--border); }
+    .header h1 { font-size:18px; font-weight:700; }
+    .header .logo { color:var(--accent); font-size:20px; font-weight:800; }
+    .header a { color:var(--muted); text-decoration:none; font-size:13px; }
+    .tabs { display:flex; gap:0; background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; overflow-x:auto; }
+    .tab { padding:12px 20px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; transition:all 0.2s; }
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .container { max-width:1100px; margin:0 auto; padding:24px 16px; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:24px; }
+    .kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; }
+    .kpi .value { font-size:28px; font-weight:700; color:var(--accent); }
+    .kpi .label { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+    .toolbar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+    .toolbar input, .toolbar select { padding:8px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; }
+    .toolbar input { flex:1; min-width:200px; }
+    .btn { padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .btn-accent { background:var(--accent); color:var(--bg); }
+    .btn-accent:hover { background:#0ea572; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .btn-ghost:hover { border-color:var(--accent); }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:10px 8px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); }
+    td { padding:10px 8px; font-size:13px; border-bottom:1px solid var(--surface2); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:50px; font-size:11px; font-weight:600; }
+    .badge-active { background:rgba(16,185,129,0.15); color:#10b981; }
+    .badge-extracted { background:rgba(107,103,96,0.2); color:#9a9590; }
+    .badge-invited { background:rgba(245,158,11,0.15); color:#f59e0b; }
+    .badge-suspended { background:rgba(240,80,80,0.15); color:#f05050; }
+    .badge-bronze { background:#cd7f3220; color:#cd7f32; }
+    .badge-silver { background:#c0c0c020; color:#c0c0c0; }
+    .badge-gold { background:#ffd70020; color:#ffd700; }
+    .badge-platinum { background:#e5e4e220; color:#e5e4e2; }
+    .stars { color:#f59e0b; font-size:12px; }
+    .actions-cell { display:flex; gap:6px; }
+    .actions-cell .btn { padding:4px 10px; font-size:11px; }
+    .empty { text-align:center; padding:40px; color:var(--muted); }
+    .spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; max-width:500px; width:100%; max-height:80vh; overflow-y:auto; }
+    .modal h3 { margin-bottom:16px; }
+    .modal label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+    .modal input, .modal select { width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; }
+    .requests-list { display:flex; flex-direction:column; gap:10px; }
+    .req-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; }
+    .req-card .status { font-size:12px; font-weight:600; }
+    .status-searching { color:#f59e0b; }
+    .status-accepted { color:#10b981; }
+    .status-failed { color:#f05050; }
+    .status-matched { color:#3b82f6; }
+    .status-fulfilled { color:#10b981; }
+    .status-cancelled { color:var(--muted); }
+    @media(max-width:768px) {
+      .kpi-grid { grid-template-columns:repeat(2,1fr); }
+      table { font-size:12px; }
+      th, td { padding:8px 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div><span class="logo">JADOMI</span> <span style="color:var(--muted);font-size:13px;margin-left:8px;">Admin GPO</span></div>
+    <a href="/">&#8592; Retour</a>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">Tableau de bord</div>
+    <div class="tab" onclick="switchTab('suppliers')">Fournisseurs</div>
+    <div class="tab" onclick="switchTab('target-prices')">Tarifs cibles</div>
+    <div class="tab" onclick="switchTab('requests')">Demandes GPO</div>
+  </div>
+
+  <div class="container">
+    <!-- TAB 1: Dashboard -->
+    <div class="tab-content active" id="tab-dashboard">
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi"><div class="value" id="kpi-suppliers">-</div><div class="label">Fournisseurs actifs</div></div>
+        <div class="kpi"><div class="value" id="kpi-extracted">-</div><div class="label">Identifi&eacute;s (factures)</div></div>
+        <div class="kpi"><div class="value" id="kpi-requests">-</div><div class="label">Demandes totales</div></div>
+        <div class="kpi"><div class="value" id="kpi-pending">-</div><div class="label">En cours</div></div>
+        <div class="kpi"><div class="value" id="kpi-accepted">-</div><div class="label">Accept&eacute;es</div></div>
+        <div class="kpi"><div class="value" id="kpi-savings">-</div><div class="label">&Eacute;conomies (&euro;)</div></div>
+      </div>
+      <h3 style="margin-bottom:12px;">Derni&egrave;res demandes</h3>
+      <div id="recent-requests" class="requests-list"><div class="empty"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- TAB 2: Suppliers -->
+    <div class="tab-content" id="tab-suppliers">
+      <div class="toolbar">
+        <input type="text" id="search-suppliers" placeholder="Rechercher nom, email, ville..." oninput="debounceLoadSuppliers()">
+        <select id="filter-status" onchange="loadSuppliers()">
+          <option value="">Tous statuts</option>
+          <option value="active">Actif</option>
+          <option value="extracted">Identifi&eacute;</option>
+          <option value="invited">Invit&eacute;</option>
+          <option value="suspended">Suspendu</option>
+        </select>
+        <select id="filter-tier" onchange="loadSuppliers()">
+          <option value="">Tous tiers</option>
+          <option value="bronze">Bronze</option>
+          <option value="silver">Silver</option>
+          <option value="gold">Gold</option>
+          <option value="platinum">Platinum</option>
+        </select>
+        <button class="btn btn-accent" onclick="importFromInvoices()">&#128229; Import factures</button>
+        <button class="btn btn-ghost" onclick="openAddSupplier()">+ Ajouter</button>
+      </div>
+      <table>
+        <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Tier</th><th>Slots</th><th>Taux acc.</th><th>Note</th><th>Actions</th></tr></thead>
+        <tbody id="suppliers-body"><tr><td colspan="8" class="empty"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- TAB 3: Target Prices -->
+    <div class="tab-content" id="tab-target-prices">
+      <div class="toolbar">
+        <input type="text" id="search-prices" placeholder="Rechercher produit..." oninput="debounceLoadPrices()">
+        <button class="btn btn-accent" onclick="computeTargetPrices()">&#9889; Recalculer automatiquement</button>
+      </div>
+      <table>
+        <thead><tr><th>Produit</th><th>Cat&eacute;gorie</th><th>Prix march&eacute;</th><th>Prix min</th><th>Tarif cible</th><th>&Eacute;chantillon</th><th>Override</th></tr></thead>
+        <tbody id="prices-body"><tr><td colspan="7" class="empty">Chargement...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- TAB 4: Requests -->
+    <div class="tab-content" id="tab-requests">
+      <div class="toolbar">
+        <select id="filter-req-status" onchange="loadRequests()">
+          <option value="">Tous statuts</option>
+          <option value="searching">En recherche</option>
+          <option value="matched">Match&eacute;</option>
+          <option value="accepted">Accept&eacute;</option>
+          <option value="fulfilled">Trait&eacute;</option>
+          <option value="failed">&Eacute;chou&eacute;</option>
+          <option value="cancelled">Annul&eacute;</option>
+        </select>
+      </div>
+      <div id="all-requests" class="requests-list"><div class="empty"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+<script>
+const sess = JSON.parse(localStorage.getItem('jadomi_session') || '{}');
+const headers = { 'Content-Type': 'application/json' };
+if (sess.access_token) headers['Authorization'] = 'Bearer ' + sess.access_token;
+if (sess.societe_id) headers['X-Societe-Id'] = sess.societe_id;
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', t.textContent.toLowerCase().includes(name.substring(0, 4))));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'suppliers') loadSuppliers();
+  if (name === 'target-prices') loadTargetPrices();
+  if (name === 'requests') loadRequests();
+}
+
+// Dashboard
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/gpo/suppliers/stats', { headers });
+    if (!res.ok) return;
+    const s = await res.json();
+    document.getElementById('kpi-suppliers').textContent = s.active_suppliers || 0;
+    document.getElementById('kpi-extracted').textContent = s.extracted_suppliers || 0;
+    document.getElementById('kpi-requests').textContent = s.total_requests || 0;
+    document.getElementById('kpi-pending').textContent = s.pending_requests || 0;
+    document.getElementById('kpi-accepted').textContent = s.accepted_requests || 0;
+    document.getElementById('kpi-savings').textContent = (s.total_savings_eur || 0).toFixed(0);
+  } catch (e) {}
+
+  try {
+    const res = await fetch('/api/gpo/requests?limit=10' + (sess.societe_id ? '&societe_id=' + sess.societe_id : ''), { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    const el = document.getElementById('recent-requests');
+    if (!data.requests || data.requests.length === 0) { el.innerHTML = '<div class="empty">Aucune demande GPO</div>'; return; }
+    el.innerHTML = data.requests.map(r => renderRequestCard(r)).join('');
+  } catch (e) {}
+}
+
+function renderRequestCard(r) {
+  const items = (r.items || []).map(i => (i.quantity || 1) + '\u00d7 ' + (i.name || '?')).join(', ');
+  const date = new Date(r.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+  return '<div class="req-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span class="status status-' + r.status + '">' + r.status.toUpperCase() + '</span><span style="font-size:11px;color:var(--muted);">' + date + '</span></div><div style="font-size:12px;color:var(--text);">' + esc(items.substring(0, 120)) + '</div>' + (r.total_target_eur ? '<div style="font-size:13px;color:var(--accent);font-weight:600;margin-top:4px;">' + Number(r.total_target_eur).toFixed(2) + '\u20ac cible</div>' : '') + '</div>';
+}
+
+// Suppliers
+let debounceTimer = null;
+function debounceLoadSuppliers() { clearTimeout(debounceTimer); debounceTimer = setTimeout(loadSuppliers, 300); }
+
+async function loadSuppliers() {
+  const search = document.getElementById('search-suppliers').value.trim();
+  const status = document.getElementById('filter-status').value;
+  const tier = document.getElementById('filter-tier').value;
+  let url = '/api/gpo/suppliers?limit=100';
+  if (search) url += '&search=' + encodeURIComponent(search);
+  if (status) url += '&status=' + status;
+  if (tier) url += '&tier=' + tier;
+
+  try {
+    const res = await fetch(url, { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.getElementById('suppliers-body');
+    if (!data.suppliers || data.suppliers.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun fournisseur</td></tr>'; return; }
+    tbody.innerHTML = data.suppliers.map(s => {
+      const accRate = s.orders_received > 0 ? Math.round(s.orders_accepted / s.orders_received * 100) + '%' : '-';
+      const rating = s.avg_rating > 0 ? '<span class="stars">' + '\u2605'.repeat(Math.round(s.avg_rating)) + '</span> ' + s.avg_rating.toFixed(1) : '-';
+      return '<tr><td><strong>' + esc(s.name) + '</strong>' + (s.city ? '<br><span style="color:var(--muted);font-size:11px;">' + esc(s.city) + '</span>' : '') + '</td><td style="font-size:12px;">' + esc(s.email || '-') + '</td><td><span class="badge badge-' + s.status + '">' + s.status + '</span></td><td><span class="badge badge-' + s.subscription_tier + '">' + s.subscription_tier + '</span></td><td>' + s.slots_count + '</td><td>' + accRate + '</td><td>' + rating + '</td><td class="actions-cell">' + (s.status === 'extracted' ? '<button class="btn btn-accent" onclick="inviteSupplier(\'' + s.id + '\')">Inviter</button>' : '') + '<button class="btn btn-ghost" onclick="editSupplier(\'' + s.id + '\')">Modifier</button></td></tr>';
+    }).join('');
+  } catch (e) {}
+}
+
+async function inviteSupplier(id) {
+  if (!confirm('Envoyer un email d\'invitation ?')) return;
+  await fetch('/api/gpo/suppliers/' + id + '/invite', { method: 'POST', headers });
+  loadSuppliers();
+}
+
+async function editSupplier(id) {
+  const res = await fetch('/api/gpo/suppliers?limit=200', { headers });
+  const data = await res.json();
+  const s = (data.suppliers || []).find(x => x.id === id);
+  if (!s) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div class="modal"><h3>Modifier ' + esc(s.name) + '</h3><label>Nom</label><input id="ed-name" value="' + esc(s.name) + '"><label>Email</label><input id="ed-email" value="' + esc(s.email || '') + '"><label>T\u00e9l</label><input id="ed-phone" value="' + esc(s.phone || '') + '"><label>Ville</label><input id="ed-city" value="' + esc(s.city || '') + '"><label>Statut</label><select id="ed-status"><option ' + (s.status === 'extracted' ? 'selected' : '') + '>extracted</option><option ' + (s.status === 'invited' ? 'selected' : '') + '>invited</option><option ' + (s.status === 'active' ? 'selected' : '') + '>active</option><option ' + (s.status === 'suspended' ? 'selected' : '') + '>suspended</option></select><label>Tier</label><select id="ed-tier"><option ' + (s.subscription_tier === 'bronze' ? 'selected' : '') + '>bronze</option><option ' + (s.subscription_tier === 'silver' ? 'selected' : '') + '>silver</option><option ' + (s.subscription_tier === 'gold' ? 'selected' : '') + '>gold</option><option ' + (s.subscription_tier === 'platinum' ? 'selected' : '') + '>platinum</option></select><div style="margin-top:16px;display:flex;gap:8px;"><button class="btn btn-accent" onclick="saveSupplier(\'' + id + '\')">Sauvegarder</button><button class="btn btn-ghost" onclick="this.closest(\'.modal-overlay\').remove()">Annuler</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+async function saveSupplier(id) {
+  const body = {
+    name: document.getElementById('ed-name').value,
+    email: document.getElementById('ed-email').value,
+    phone: document.getElementById('ed-phone').value,
+    city: document.getElementById('ed-city').value,
+    status: document.getElementById('ed-status').value,
+    subscription_tier: document.getElementById('ed-tier').value
+  };
+  await fetch('/api/gpo/suppliers/' + id, { method: 'PATCH', headers, body: JSON.stringify(body) });
+  document.querySelector('.modal-overlay')?.remove();
+  loadSuppliers();
+}
+
+async function importFromInvoices() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Import...';
+  try {
+    const res = await fetch('/api/gpo/suppliers/import-from-invoices', { method: 'POST', headers });
+    const data = await res.json();
+    alert('Import termin\u00e9 : ' + (data.identified || 0) + ' identifi\u00e9s, ' + (data.inserted || 0) + ' ins\u00e9r\u00e9s');
+    loadSuppliers();
+  } catch (e) { alert('Erreur : ' + e.message); }
+  btn.disabled = false; btn.textContent = '\ud83d\udce5 Import factures';
+}
+
+function openAddSupplier() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div class="modal"><h3>Ajouter un fournisseur</h3><label>Nom *</label><input id="add-name"><label>Email</label><input id="add-email"><label>T\u00e9l</label><input id="add-phone"><label>Ville</label><input id="add-city"><label>Sp\u00e9cialit\u00e9s (s\u00e9par\u00e9es par virgule)</label><input id="add-specs"><label>Tier</label><select id="add-tier"><option>bronze</option><option>silver</option><option>gold</option><option>platinum</option></select><div style="margin-top:16px;"><button class="btn btn-accent" onclick="doAddSupplier()">Cr\u00e9er</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+async function doAddSupplier() {
+  const name = document.getElementById('add-name').value.trim();
+  if (!name) { alert('Nom requis'); return; }
+  const body = {
+    name,
+    email: document.getElementById('add-email').value.trim() || undefined,
+    phone: document.getElementById('add-phone').value.trim() || undefined,
+    city: document.getElementById('add-city').value.trim() || undefined,
+    specialties: document.getElementById('add-specs').value.split(',').map(s => s.trim()).filter(Boolean),
+    subscription_tier: document.getElementById('add-tier').value
+  };
+  await fetch('/api/gpo/suppliers', { method: 'POST', headers, body: JSON.stringify(body) });
+  document.querySelector('.modal-overlay')?.remove();
+  loadSuppliers();
+}
+
+// Target prices
+let priceTimer = null;
+function debounceLoadPrices() { clearTimeout(priceTimer); priceTimer = setTimeout(loadTargetPrices, 300); }
+
+async function loadTargetPrices() {
+  const search = (document.getElementById('search-prices')?.value || '').trim();
+  let url = '/api/gpo/target-prices?limit=100';
+  if (search) url += '&search=' + encodeURIComponent(search);
+
+  try {
+    const res = await fetch(url, { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.getElementById('prices-body');
+    if (!data.target_prices || data.target_prices.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucun tarif cible</td></tr>'; return; }
+    tbody.innerHTML = data.target_prices.map(p => '<tr><td>' + esc(p.product_name_display) + '</td><td style="font-size:12px;">' + esc(p.category || '-') + '</td><td>' + (p.avg_market_price_eur ? p.avg_market_price_eur.toFixed(2) + '\u20ac' : '-') + '</td><td>' + (p.min_observed_price_eur ? p.min_observed_price_eur.toFixed(2) + '\u20ac' : '-') + '</td><td style="color:var(--accent);font-weight:600;">' + p.target_price_eur.toFixed(2) + '\u20ac</td><td>' + (p.sample_size || 0) + '</td><td>' + (p.manual_override ? '\u2705' : '-') + '</td></tr>').join('');
+  } catch (e) {}
+}
+
+async function computeTargetPrices() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Calcul...';
+  try {
+    const res = await fetch('/api/gpo/target-prices/compute', { method: 'POST', headers });
+    const data = await res.json();
+    alert('Recalcul termin\u00e9 : ' + (data.computed || 0) + ' tarifs mis \u00e0 jour');
+    loadTargetPrices();
+  } catch (e) { alert('Erreur : ' + e.message); }
+  btn.disabled = false; btn.textContent = '\u26a1 Recalculer automatiquement';
+}
+
+// Requests
+async function loadRequests() {
+  const status = document.getElementById('filter-req-status')?.value || '';
+  let url = '/api/gpo/requests?limit=50';
+  if (sess.societe_id) url += '&societe_id=' + sess.societe_id;
+  if (status) url += '&status=' + status;
+
+  try {
+    const res = await fetch(url, { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    const el = document.getElementById('all-requests');
+    if (!data.requests || data.requests.length === 0) { el.innerHTML = '<div class="empty">Aucune demande</div>'; return; }
+    el.innerHTML = data.requests.map(r => renderRequestCard(r)).join('');
+  } catch (e) {}
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>

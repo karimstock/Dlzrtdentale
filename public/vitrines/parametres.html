@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JADOMI — Parametres du site</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/jadomi-theme.css">
+  <link rel="stylesheet" href="/public/vitrines/vitrines.css?v=3">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/public/vitrines/labels.js"></script>
+</head>
+<body>
+  <div class="vitrines-edit-container">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem">
+      <h1 style="font-family:'Syne',sans-serif;font-size:1.5rem;margin:0" id="settings-title"></h1>
+      <button class="btn-vitrines-secondary" onclick="window.location.href='/public/vitrines/dashboard.html'">Retour</button>
+    </div>
+
+    <div class="vitrines-settings-grid">
+      <!-- Domaine -->
+      <div class="vitrines-settings-card">
+        <h3 id="lbl-domain"></h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem" id="current-domain"></p>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+          <input type="text" id="domain-input" placeholder="mon-cabinet.fr" style="flex:1;background:var(--surface-elevated);border:1px solid var(--border);border-radius:8px;padding:0.5rem;color:var(--text-primary);font-size:0.85rem">
+          <button class="btn-vitrines-secondary" onclick="checkDomain()">Verifier</button>
+        </div>
+        <div id="domain-result" style="font-size:0.85rem;margin-bottom:1rem"></div>
+        <button class="btn-vitrines-primary" onclick="setDomain()" style="display:none" id="btn-set-domain">Utiliser ce domaine</button>
+        <hr style="border-color:var(--border);margin:1.5rem 0">
+        <h4 style="font-size:0.9rem;margin-bottom:0.75rem">Suggestions</h4>
+        <div id="domain-suggestions" style="font-size:0.85rem"></div>
+        <button class="btn-vitrines-secondary" style="margin-top:0.75rem;font-size:0.8rem" onclick="loadSuggestions()">Generer des suggestions</button>
+      </div>
+
+      <!-- Quotas -->
+      <div class="vitrines-settings-card">
+        <h3 id="lbl-quotas"></h3>
+        <div id="quotas-detail"></div>
+        <hr style="border-color:var(--border);margin:1.5rem 0">
+        <h4 style="font-size:0.9rem;margin-bottom:0.75rem" id="lbl-buy-credits"></h4>
+        <div style="display:flex;flex-direction:column;gap:0.5rem">
+          <button class="btn-vitrines-secondary" onclick="buyCredits('regen_20')">20 regenerations IA — 9,90 EUR</button>
+          <button class="btn-vitrines-secondary" onclick="buyCredits('seo_5')">5 pages SEO — 14,90 EUR</button>
+          <button class="btn-vitrines-secondary" onclick="buyCredits('refresh_1')">1 refonte complete — 29,90 EUR</button>
+        </div>
+      </div>
+
+      <!-- Versions -->
+      <div class="vitrines-settings-card">
+        <h3 id="lbl-versions"></h3>
+        <div id="versions-list"></div>
+      </div>
+
+      <!-- Concurrents -->
+      <div class="vitrines-settings-card">
+        <h3>Analyse concurrentielle</h3>
+        <div id="competitors-list"></div>
+        <button class="btn-vitrines-secondary" style="margin-top:0.75rem" onclick="analyzeCompetitors()">Lancer l'analyse</button>
+      </div>
+
+      <!-- Video -->
+      <div class="vitrines-settings-card">
+        <h3>Video promotionnelle</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem">Generez les parametres pour une video Reels de votre site.</p>
+        <button class="btn-vitrines-primary" onclick="generateVideo()">Generer les parametres video</button>
+        <pre id="video-params" style="font-size:0.75rem;max-height:300px;overflow:auto;margin-top:1rem;display:none;background:var(--surface-elevated);padding:1rem;border-radius:8px"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+    const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const L = window.VITRINE_LABELS;
+
+    document.getElementById('settings-title').textContent = L.settings_title;
+    document.getElementById('lbl-domain').textContent = L.settings_domain;
+    document.getElementById('lbl-quotas').textContent = L.quotas_title;
+    document.getElementById('lbl-buy-credits').textContent = L.quotas_buy;
+    document.getElementById('lbl-versions').textContent = L.versions_title;
+
+    const siteId = new URLSearchParams(window.location.search).get('siteId');
+
+    async function api(path, opts = {}) {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return; }
+      let token = session.access_token;
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'X-Societe-Id': localStorage.getItem('societe_active_id'),
+        ...(opts.headers || {})
+      };
+      let res = await fetch('/api/vitrines' + path, { ...opts, headers });
+      if (res.status === 401) {
+        const { data } = await db.auth.refreshSession();
+        if (data?.session) {
+          headers['Authorization'] = 'Bearer ' + data.session.access_token;
+          res = await fetch('/api/vitrines' + path, { ...opts, headers });
+        } else { window.location.href = '/login.html'; return; }
+      }
+      return res.json();
+    }
+
+    // ---- Domain ----
+    async function checkDomain() {
+      const domain = document.getElementById('domain-input').value.trim();
+      if (!domain) return;
+      const result = await api('/domains/check', {
+        method: 'POST', body: JSON.stringify({ domain })
+      });
+      const el = document.getElementById('domain-result');
+      if (result && result.success) {
+        el.innerHTML = result.available
+          ? '<span style="color:#22c55e">Domaine disponible</span>'
+          : '<span style="color:#ef4444">Domaine deja pris</span>';
+        document.getElementById('btn-set-domain').style.display = result.available ? 'inline-block' : 'none';
+      }
+    }
+
+    async function setDomain() {
+      const domain = document.getElementById('domain-input').value.trim();
+      const result = await api('/domains/set', {
+        method: 'PATCH', body: JSON.stringify({ siteId, domain })
+      });
+      if (result && result.success) {
+        document.getElementById('current-domain').textContent = 'Domaine : ' + domain;
+        alert('Domaine configure.');
+      }
+    }
+
+    async function loadSuggestions() {
+      const result = await api('/domains/suggest', {
+        method: 'POST', body: JSON.stringify({ siteId })
+      });
+      if (!result || !result.success) return;
+      const el = document.getElementById('domain-suggestions');
+      el.innerHTML = result.suggestions.map(s =>
+        '<div style="display:flex;justify-content:space-between;padding:4px 0">' +
+        '<span>' + s.domain + '</span>' +
+        '<span style="color:' + (s.available ? '#22c55e' : '#ef4444') + '">' +
+        (s.available ? 'Disponible' : 'Pris') + '</span></div>'
+      ).join('');
+    }
+
+    // ---- Quotas ----
+    async function loadQuotas() {
+      if (!siteId) return;
+      const result = await api('/quotas/' + siteId);
+      if (!result || !result.success) return;
+      const q = result.quotas;
+      document.getElementById('quotas-detail').innerHTML = `
+        <div style="margin-bottom:0.5rem;font-size:0.85rem">
+          ${L.quotas_regenerations} : ${q.ai_regenerations.used} / ${q.ai_regenerations.limit}
+        </div>
+        <div style="margin-bottom:0.5rem;font-size:0.85rem">
+          ${L.quotas_refreshes} : ${q.complete_refreshes.used} / ${q.complete_refreshes.limit}
+        </div>
+        <div style="margin-bottom:0.5rem;font-size:0.85rem">
+          ${L.quotas_palette_changes} : ${q.palette_changes.used} / ${q.palette_changes.limit}
+        </div>
+        <div style="font-size:0.85rem">
+          ${L.quotas_seo_pages} : ${q.additional_seo_pages.used} / ${q.additional_seo_pages.limit}
+        </div>
+      `;
+    }
+
+    async function buyCredits(pack) {
+      const result = await api('/quotas/buy-credits', {
+        method: 'POST', body: JSON.stringify({ siteId, pack })
+      });
+      if (result && result.success && result.checkout_url) {
+        window.location.href = result.checkout_url;
+      } else {
+        alert(result ? result.error : L.error_generic);
+      }
+    }
+
+    // ---- Versions ----
+    async function loadVersions() {
+      if (!siteId) return;
+      const result = await api('/versions/' + siteId);
+      if (!result || !result.success) return;
+      const el = document.getElementById('versions-list');
+      if (!result.versions || result.versions.length === 0) {
+        el.innerHTML = '<p style="font-size:0.85rem;color:var(--text-secondary)">Aucune version publiee</p>';
+        return;
+      }
+      el.innerHTML = result.versions.map(v => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <strong style="font-size:0.85rem">v${v.version_number}</strong>
+            ${v.id === result.current_version_id ? '<span style="color:#22c55e;font-size:0.75rem;margin-left:8px">actuelle</span>' : ''}
+            <div style="font-size:0.75rem;color:var(--text-secondary)">${new Date(v.created_at).toLocaleString('fr-FR')}</div>
+          </div>
+          ${v.id !== result.current_version_id ? '<button class="btn-vitrines-secondary" style="padding:0.25rem 0.6rem;font-size:0.75rem" onclick="rollback(\'' + v.id + '\')">Restaurer</button>' : ''}
+        </div>
+      `).join('');
+    }
+
+    async function rollback(versionId) {
+      if (!confirm(L.versions_restore_confirm)) return;
+      const result = await api('/versions/rollback', {
+        method: 'POST', body: JSON.stringify({ siteId, versionId })
+      });
+      if (result && result.success) {
+        alert('Version v' + result.restored_version + ' restauree.');
+        loadVersions();
+      } else {
+        alert(result ? result.error : L.error_generic);
+      }
+    }
+
+    // ---- Competitors ----
+    async function analyzeCompetitors() {
+      const el = document.getElementById('competitors-list');
+      el.innerHTML = '<p style="font-size:0.85rem;color:var(--text-secondary)">Analyse en cours...</p>';
+      const result = await api('/competitors/analyze', {
+        method: 'POST', body: JSON.stringify({ siteId })
+      });
+      if (result && result.success) {
+        el.innerHTML = (result.competitors || []).map(c =>
+          '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem">' +
+          '<strong>' + c.name + '</strong>' +
+          (c.rating ? ' — ' + c.rating + ' etoiles' : '') +
+          '<br><span style="font-size:0.75rem;color:var(--text-secondary)">' + (c.address || '') + '</span></div>'
+        ).join('') || '<p style="font-size:0.85rem;color:var(--text-secondary)">Aucun concurrent trouve.</p>';
+      } else {
+        el.innerHTML = '<p style="font-size:0.85rem;color:#ef4444">' + (result ? result.error : L.error_generic) + '</p>';
+      }
+    }
+
+    // ---- Video ----
+    async function generateVideo() {
+      const result = await api('/video/params', {
+        method: 'POST', body: JSON.stringify({ siteId })
+      });
+      const el = document.getElementById('video-params');
+      if (result && result.success) {
+        el.textContent = JSON.stringify(result.video_params, null, 2);
+        el.style.display = 'block';
+      } else {
+        alert(result ? result.error : L.error_generic);
+      }
+    }
+
+    // ---- Init ----
+    async function init() {
+      if (!siteId) { window.location.href = '/public/vitrines/dashboard.html'; return; }
+      const { data } = await db.from('vitrines_sites').select('custom_domain').eq('id', siteId).maybeSingle();
+      if (data) {
+        document.getElementById('current-domain').textContent = data.custom_domain
+          ? 'Domaine actuel : ' + data.custom_domain
+          : 'Aucun domaine personnalise';
+      }
+      loadQuotas();
+      loadVersions();
+
+      // Charger les concurrents existants
+      const compResult = await api('/competitors/' + siteId);
+      if (compResult && compResult.success && compResult.competitors.length > 0) {
+        document.getElementById('competitors-list').innerHTML = compResult.competitors.map(c =>
+          '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem">' +
+          '<strong>' + (c.competitor_name || '') + '</strong>' +
+          '<br><span style="font-size:0.75rem;color:var(--text-secondary)">' + (c.competitor_url || '') + '</span></div>'
+        ).join('');
+      }
+
+      // Payment success/cancel
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment') === 'success') {
+        alert('Paiement recu ! Vos credits seront ajoutes sous peu.');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

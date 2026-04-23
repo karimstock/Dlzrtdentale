@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI — Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--border:rgba(99,102,241,0.25);--text:#f1f5f9;--muted:#94a3b8;--accent:#6366f1;--red:#ef4444;--font:'DM Sans',sans-serif;--display:'Syne',sans-serif;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 32px;width:100%;max-width:400px;text-align:center;}
+.logo{font-family:var(--display);font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-1px;margin-bottom:8px;}
+.subtitle{font-size:14px;color:var(--muted);margin-bottom:28px;}
+.field{margin-bottom:14px;text-align:left;}
+.field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px;}
+.field input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color 0.2s;}
+.field input:focus{border-color:var(--accent);}
+.btn{width:100%;padding:14px;background:var(--accent);color:#0f0e0d;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all 0.2s;margin-top:8px;}
+.btn:hover{background:#818cf8;}
+.btn-bio{width:100%;padding:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;font-family:var(--font);margin-top:10px;}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:12px;color:var(--muted);}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.link{font-size:13px;color:var(--muted);margin-top:20px;}
+.link a{color:var(--accent);font-weight:500;}
+.error{background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.3);border-radius:8px;padding:10px;font-size:12px;color:#f09090;margin-bottom:12px;display:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">JADOMI</div>
+  <div class="subtitle">Bienvenue sur JADOMI</div>
+  <div class="error" id="error"></div>
+  <div class="field">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="dr.martin@cabinet.fr" autofocus>
+  </div>
+  <div class="field">
+    <label>Mot de passe</label>
+    <input type="password" id="password" placeholder="Votre mot de passe" onkeypress="if(event.key==='Enter')login()">
+  </div>
+  <button class="btn" onclick="login()">Se connecter</button>
+  <div class="divider">ou</div>
+  <button class="btn-bio" onclick="loginBiometrique()">👆 Connexion biometrique</button>
+  <div class="link">Pas encore de compte ? <a href="register.html">S'inscrire</a></div>
+  <div style="margin-top:12px;"><a href="landing.html" style="font-size:12px;color:var(--muted);">Retour a l'accueil</a></div>
+</div>
+
+<script>
+const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+let db;
+try{const{createClient}=supabase;db=createClient(SUPABASE_URL,SUPABASE_KEY);}catch(e){}
+
+// Destinations fonction du profil et des sociétés de l'user
+const DENTAL_PROFS = ['chirurgien_dentiste','orthodontiste','veterinaire'];
+function getNextParam(){
+  const p = new URLSearchParams(location.search).get('next');
+  // whitelist : chemins relatifs locaux (avec ou sans /)
+  if(p && /^[a-z0-9_/.-]+\.html(\?[^#]*)?$/i.test(p) && !p.includes('//')) return p;
+  return null;
+}
+async function destinationPour(user, accessToken){
+  const next = getNextParam();
+  if(next) return next;
+  const prof = user?.user_metadata?.profession || user?.profession || '';
+
+  // Bootstrap silencieux cabinet pour dentistes sans societe
+  if(DENTAL_PROFS.includes(prof)){
+    try{
+      await fetch('/api/societes/bootstrap-cabinet',{
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+accessToken },
+        body: JSON.stringify({ nom: user.user_metadata?.cabinet || 'Mon cabinet' })
+      });
+    }catch(e){}
+  }
+  // Hub principal : organisation.html — toujours
+  return 'organisation.html';
+}
+(async()=>{
+  try{
+    const{data:{session}}=await db.auth.getSession();
+    if(session){
+      const dest = await destinationPour(session.user, session.access_token);
+      window.location.href = dest;
+    }
+  }catch(e){}
+})();
+
+function showError(msg){const el=document.getElementById('error');el.textContent=msg;el.style.display='block';}
+
+async function login(){
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('password').value;
+  if(!email||!pass){showError('Remplissez tous les champs');return;}
+  document.getElementById('error').style.display='none';
+  try{
+    const{data,error}=await db.auth.signInWithPassword({email,password:pass});
+    if(error) throw error;
+    const dest = await destinationPour(data.user, data.session?.access_token);
+    window.location.href = dest;
+  }catch(e){
+    // Fallback localStorage pour demo (sans token → route basique)
+    const users=JSON.parse(localStorage.getItem('jadomi_users')||'[]');
+    const user=users.find(u=>u.email===email&&u.password===pass);
+    if(user){
+      localStorage.setItem('jadomi_session',JSON.stringify(user));
+      window.location.href = 'organisation.html';
+    }
+    else showError(e.message||'Email ou mot de passe incorrect');
+  }
+}
+
+async function loginBiometrique(){
+  if(!window.PublicKeyCredential){showError('Biometrie non supportee sur ce navigateur');return;}
+  try{
+    const cred=await navigator.credentials.get({publicKey:{
+      challenge:crypto.getRandomValues(new Uint8Array(32)),
+      timeout:60000,
+      userVerification:'preferred',
+      rpId:location.hostname
+    }});
+    // Si biometrie OK, chercher session sauvee
+    const session=localStorage.getItem('jadomi_session');
+    if(session){window.location.href='organisation.html';}
+    else showError('Connectez-vous d\'abord avec email/mot de passe');
+  }catch(e){showError('Biometrie annulee ou non disponible');}
+}
+</script>
+</body>
+</html>

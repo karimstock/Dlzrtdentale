@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Classer mes photos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2rem;border-bottom:1px solid rgba(201,169,97,.1);background:rgba(0,0,0,.3)}
+header h1{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:500}
+.prog{font-size:.9rem;color:#c9a961;font-weight:500}
+.prog-bar{width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin-top:.4rem}
+.prog-fill{height:100%;background:#c9a961;transition:width .4s}
+.back{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-size:.85rem;font-family:inherit;text-decoration:none}
+.main{max-width:900px;margin:2rem auto;padding:0 2rem 4rem;display:flex;flex-direction:column;align-items:center;gap:1.5rem;transition:opacity .25s}
+.main.fading{opacity:0}
+
+/* Analyze screen */
+.analyze{max-width:680px;margin:3rem auto;padding:3rem 2rem;text-align:center}
+.analyze-icon{font-size:3rem;animation:iconSpin 3s ease-in-out infinite;margin-bottom:1rem}
+@keyframes iconSpin{0%,100%{transform:rotate(-10deg) scale(1)}50%{transform:rotate(10deg) scale(1.1)}}
+.analyze h2{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:400;margin-bottom:.5rem}
+.analyze-sub{color:rgba(255,255,255,.6);font-size:1rem;margin-bottom:3rem}
+.p-track{height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;position:relative}
+.p-fill{height:100%;background:linear-gradient(90deg,#c9a961,#e8c988,#c9a961);background-size:200% 100%;border-radius:4px;transition:width .6s cubic-bezier(.16,1,.3,1);animation:shimmer 2s linear infinite;box-shadow:0 0 20px rgba(201,169,97,.4)}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.p-info{display:flex;justify-content:space-between;margin-top:.75rem;font-size:.9rem}
+.p-pct{color:#c9a961;font-weight:600;font-family:'Syne',sans-serif}
+.p-cnt{color:rgba(255,255,255,.5)}
+.ff{background:linear-gradient(135deg,rgba(201,169,97,.1),rgba(201,169,97,.03));border:1px solid rgba(201,169,97,.2);border-radius:16px;padding:2rem 1.5rem;margin:2rem 0;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+.ff.fading{opacity:0}
+.ff-badge{font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:#c9a961;font-weight:600;margin-bottom:.75rem;font-family:'Syne',sans-serif}
+.ff-text{font-size:1.1rem;line-height:1.6;color:rgba(255,255,255,.9);font-weight:300;max-width:500px}
+.feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:2rem}
+.feat-item{background:rgba(255,255,255,.03);border:1px solid rgba(201,169,97,.1);border-radius:12px;padding:1.25rem .5rem;transition:all .3s}
+.feat-item:hover{background:rgba(201,169,97,.08);border-color:rgba(201,169,97,.3);transform:translateY(-2px)}
+.feat-icon{font-size:1.75rem;margin-bottom:.5rem}.feat-lbl{font-size:.8rem;color:rgba(255,255,255,.7)}
+
+/* Tinder cards */
+.stage{width:100%;max-width:600px;aspect-ratio:4/3;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#000}
+.stage img{width:100%;height:100%;object-fit:cover}
+.ai-obs{max-width:600px;width:100%;display:flex;align-items:flex-start;gap:.75rem;padding:1rem 1.25rem;background:linear-gradient(135deg,rgba(201,169,97,.08),rgba(201,169,97,.02));border-left:2px solid #c9a961;border-radius:0 8px 8px 0;font-size:.9rem;line-height:1.5;color:rgba(255,255,255,.85)}
+.ai-badge{background:#c9a961;color:#0f172a;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;letter-spacing:.1em;flex-shrink:0;font-family:'Syne',sans-serif}
+.question{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:300;margin:.5rem 0}
+.decisions{display:flex;flex-direction:column;gap:.75rem;width:100%;max-width:600px}
+.btn-prop{display:flex;align-items:center;gap:1.25rem;width:100%;padding:1.25rem 1.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(201,169,97,.2);border-radius:12px;color:#fff;text-align:left;cursor:pointer;transition:all .2s cubic-bezier(.16,1,.3,1);font-family:inherit;font-size:1rem}
+.btn-prop:hover,.btn-prop:focus-visible{background:rgba(201,169,97,.1);border-color:#c9a961;transform:translateX(6px);outline:none}
+.btn-num{width:36px;height:36px;border-radius:50%;background:rgba(201,169,97,.15);color:#c9a961;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0;font-family:'Syne',sans-serif}
+.btn-prop:hover .btn-num{background:#c9a961;color:#0f172a}
+.btn-lbl{font-size:1.05rem;font-weight:500}.btn-rsn{font-size:.8rem;color:rgba(255,255,255,.5);font-style:italic}
+.secondary{display:flex;gap:1rem;margin-top:.5rem}
+.btn-other,.btn-del{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);padding:.6rem 1rem;border-radius:6px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:all .2s}
+.btn-other:hover{color:#c9a961;border-color:rgba(201,169,97,.5)}
+.btn-del{border-color:rgba(239,68,68,.3);color:rgba(239,68,68,.8)}.btn-del:hover{background:rgba(239,68,68,.1);color:#ef4444}
+.kbd{font-size:.8rem;color:rgba(255,255,255,.35);margin-top:1rem;text-align:center}
+kbd{background:rgba(255,255,255,.1);padding:2px 6px;border-radius:3px;font-size:.75rem}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:9999;padding:2rem}
+.modal.open{display:flex}
+.modal-c{background:#1e293b;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:80vh;overflow-y:auto}
+.modal-c h3{font-family:'Syne',sans-serif;margin-bottom:1rem}
+.cat-btn{display:block;width:100%;padding:.75rem 1rem;background:rgba(255,255,255,.05);border:1px solid rgba(201,169,97,.1);color:#fff;border-radius:8px;margin-bottom:.5rem;cursor:pointer;text-align:left;font-family:inherit;transition:all .2s}
+.cat-btn:hover{background:rgba(201,169,97,.15);border-color:#c9a961}
+.toast{position:fixed;bottom:2rem;left:50%;transform:translate(-50%,100px);background:#c9a961;color:#0f172a;padding:1rem 1.5rem;border-radius:12px;font-weight:600;box-shadow:0 10px 30px rgba(201,169,97,.4);transition:transform .4s cubic-bezier(.16,1,.3,1);z-index:10000}
+.toast.show{transform:translate(-50%,0)}
+.done{text-align:center;padding:4rem 2rem}
+.done-emoji{font-size:5rem;margin-bottom:1rem;animation:bounce 1s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+.done h2{font-family:'Syne',sans-serif;font-size:2rem;font-weight:300;margin-bottom:1rem}
+.done p{color:rgba(255,255,255,.6);margin-bottom:2rem}
+.done .btn-p{display:inline-block;background:#c9a961;color:#0f172a;padding:1rem 2rem;border-radius:12px;text-decoration:none;font-weight:600}
+@media(max-width:768px){
+  .stage{max-width:100%;aspect-ratio:1/1}
+  .feat-grid{grid-template-columns:repeat(2,1fr)}
+  .main{padding:1rem;gap:1rem}
+  .question{font-size:1.2rem}
+  .btn-prop{padding:1rem;gap:.75rem}
+  .btn-num{width:32px;height:32px;font-size:.9rem}
+  .btn-lbl{font-size:.95rem}
+  .btn-rsn{font-size:.72rem}
+  .kbd{display:none}
+  .secondary{flex-direction:column;width:100%}
+  .btn-other,.btn-del{width:100%;text-align:center}
+  .ai-obs{font-size:.85rem}
+  header{padding:1rem}
+  header h1{font-size:1.1rem}
+  .prog-bar{width:120px}
+  .analyze h2{font-size:1.3rem}
+  .ff{padding:1.25rem 1rem;min-height:100px}
+  .ff-text{font-size:.95rem}
+}
+@media(max-width:480px){.feat-grid{grid-template-columns:1fr}}
+@media(max-width:500px){.feat-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Classer mes photos</h1>
+  <div><div class="prog" id="prog-txt">Chargement...</div><div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div>
+  <a class="back" id="back-link" href="#">Retour</a>
+</header>
+
+<!-- Analyze screen (shown during IA processing) -->
+<div class="analyze" id="analyze-screen" style="display:none">
+  <div class="analyze-icon">&#10024;</div>
+  <h2>Claude Vision analyse vos photos</h2>
+  <p class="analyze-sub">Quelques secondes pour un resultat parfait.</p>
+  <div style="margin-bottom:3rem"><div class="p-track"><div class="p-fill" id="a-fill" style="width:0%"></div></div><div class="p-info"><span class="p-pct" id="a-pct">0%</span><span class="p-cnt" id="a-cnt">0 / 0 photos</span></div></div>
+  <div class="ff" id="ff"><div class="ff-badge">Saviez-vous ?</div><div class="ff-text" id="ff-text"></div></div>
+  <div class="feat-grid"><div class="feat-item"><div class="feat-icon">&#129302;</div><div class="feat-lbl">Chatbot 24/7</div></div><div class="feat-item"><div class="feat-icon">&#128222;</div><div class="feat-lbl">Standard vocal IA</div></div><div class="feat-item"><div class="feat-icon">&#127909;</div><div class="feat-lbl">Video IA cinema</div></div><div class="feat-item"><div class="feat-icon">&#128302;</div><div class="feat-lbl">Simulateur sourire</div></div></div>
+</div>
+
+<!-- Tinder main -->
+<div class="main" id="main" style="display:none"></div>
+
+<div class="modal" id="modal"><div class="modal-c"><h3>Autre categorie</h3><div id="modal-list"></div><button class="back" style="margin-top:1rem" onclick="closeModal()">Annuler</button></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+var SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+var db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var params=new URLSearchParams(location.search);
+var siteId=params.get('siteId');
+var societeId=localStorage.getItem('societe_active_id');
+var photos=[],allCats=[],idx=0;
+
+document.getElementById('back-link').href='/public/vitrines/edit.html?siteId='+siteId;
+
+var FACTS=[
+  "Claude Vision analyse chaque photo avec le meme oeil qu'un directeur artistique, mais en 3 secondes.",
+  "JADOMI connait le vocabulaire metier de 20 professions : de l'implantologie a la maroquinerie.",
+  "Votre site est multi-pages, optimise SEO, et conforme RGPD des sa creation.",
+  "Un chatbot IA patient 24/7 genere en moyenne 88 nouveaux rendez-vous par mois.",
+  "JADOMI respecte strictement la deontologie : RIN pour les avocats, Code de sante publique pour les soignants.",
+  "La fabrication francaise de vos protheses est un argument commercial majeur — JADOMI le met en avant.",
+  "Le bon SEO local vous fait apparaitre avant vos concurrents sur 'dentiste + votre ville'.",
+  "Un texte emotionnel convertit 3x mieux qu'une description technique.",
+  "Chaque page de traitement vous positionne sur un mot-cle Google specifique.",
+  "La video IA generative transforme une photo statique en sequence cinema en moins d'une minute.",
+  "Un site pro inspire 4x plus confiance — et donc 4x plus de demandes de rendez-vous."
+];
+var ffIdx=0,ffTimer=null;
+function rotateFact(){var el=document.getElementById('ff-text'),c=document.getElementById('ff');if(!el)return;c.classList.add('fading');setTimeout(function(){el.textContent=FACTS[ffIdx];c.classList.remove('fading');ffIdx=(ffIdx+1)%FACTS.length},400)}
+
+async function getToken(){var s=await db.auth.getSession();if(!s.data.session){location.href='/login.html';return null}return s.data.session.access_token}
+async function api(path,opts){opts=opts||{};var token=await getToken();if(!token)return null;var h={'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':societeId};var r=await fetch('/api/vitrines'+path,Object.assign({},opts,{headers:h}));return r.json()}
+
+async function init(){
+  if(!siteId){document.getElementById('main').innerHTML='<p style="color:#ef4444">siteId manquant.</p>';document.getElementById('main').style.display='flex';return}
+
+  // Load categories
+  try{var catRes=await api('/professions/categories-for-site/'+siteId);if(catRes&&catRes.success)allCats=catRes.categories||[]}catch(e){}
+
+  // Load unconfirmed photos
+  var pRes=await api('/photos/site/'+siteId+'?unconfirmed_only=true');
+  if(pRes&&pRes.success)photos=pRes.photos||[];
+
+  // If photos need AI analysis, launch with progress screen
+  var needsAI=photos.filter(function(p){return!p.ai_propositions||!p.ai_propositions.length});
+  if(needsAI.length>0){
+    await runAnalyzeWithProgress();
+    // Reload after analysis
+    var pRes2=await api('/photos/site/'+siteId+'?unconfirmed_only=true');
+    if(pRes2&&pRes2.success)photos=pRes2.photos||[];
+  }
+
+  document.getElementById('analyze-screen').style.display='none';
+  document.getElementById('main').style.display='flex';
+
+  if(!photos.length)return showDone();
+  render();
+}
+
+async function runAnalyzeWithProgress(){
+  document.getElementById('analyze-screen').style.display='block';
+  rotateFact();ffTimer=setInterval(rotateFact,4000);
+
+  var launchRes=await api('/photos/reanalyze/'+siteId,{method:'POST'});
+  if(!launchRes||!launchRes.success||!launchRes.job_id){
+    clearInterval(ffTimer);
+    return; // no job needed or error
+  }
+  var jobId=launchRes.job_id;
+  document.getElementById('a-cnt').textContent='0 / '+launchRes.total+' photos';
+
+  return new Promise(function(resolve){
+    var poll=setInterval(async function(){
+      try{
+        var st=await api('/photos/reanalyze/status/'+jobId);
+        if(!st||!st.success){clearInterval(poll);clearInterval(ffTimer);resolve();return}
+        var pct=st.progress_pct||0;
+        document.getElementById('a-fill').style.width=pct+'%';
+        document.getElementById('a-pct').textContent=pct+'%';
+        document.getElementById('a-cnt').textContent=st.completed+' / '+st.total+' photos';
+        if(st.status==='done'||st.status==='error'){
+          clearInterval(poll);clearInterval(ffTimer);
+          document.getElementById('a-fill').style.width='100%';
+          document.getElementById('a-pct').textContent='100%';
+          setTimeout(resolve,600);
+        }
+      }catch(e){console.error(e)}
+    },1500);
+  });
+}
+
+function render(){
+  if(idx>=photos.length)return showDone();
+  var p=photos[idx],props=p.ai_propositions||[];
+  document.getElementById('prog-txt').textContent='Photo '+(idx+1)+' / '+photos.length;
+  document.getElementById('prog-fill').style.width=((idx/photos.length)*100)+'%';
+  var m=document.getElementById('main');
+  var mediaTag=p.media_type==='video'?'<video src="'+(p.url||'')+'" controls autoplay muted loop style="width:100%;height:100%;object-fit:cover"></video>':'<img src="'+(p.url||'')+'" alt="">';
+  m.innerHTML='<div class="stage">'+mediaTag+'</div>'
+    +'<div class="ai-obs"><span class="ai-badge">IA</span><p>'+esc(p.observation||'Choisissez la categorie.')+'</p></div>'
+    +'<h2 class="question">Dans quelle categorie ?</h2>'
+    +'<div class="decisions" id="btns"></div>'
+    +'<div class="secondary"><button class="btn-other" onclick="openModal()">Autre</button><button class="btn-del" onclick="delCurrent()">Supprimer</button></div>'
+    +'<p class="kbd">Appuyez <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>';
+  var btns=document.getElementById('btns');
+  props.forEach(function(pr,i){
+    var b=document.createElement('button');b.className='btn-prop';
+    b.innerHTML='<span class="btn-num">'+(i+1)+'</span><span><span class="btn-lbl">'+esc(pr.label)+'</span><br><span class="btn-rsn">'+esc(pr.reason||'')+'</span></span>';
+    b.onclick=function(){choose(pr.category,pr.label)};btns.appendChild(b);
+  });
+}
+
+async function choose(cat,label){
+  try{await api('/photos/'+photos[idx].id,{method:'PATCH',body:JSON.stringify({category:cat,user_confirmed:true})});toast('Classee : '+label);advance()}catch(e){alert('Erreur: '+e.message)}
+}
+async function delCurrent(){
+  if(!confirm('Supprimer ?'))return;
+  try{await api('/photos/bulk-update',{method:'PATCH',body:JSON.stringify({siteId:siteId,changes:[{photo_id:photos[idx].id,delete:true}]})});toast('Supprimee','#ef4444');advance()}catch(e){alert('Erreur: '+e.message)}
+}
+function advance(){document.getElementById('main').classList.add('fading');setTimeout(function(){idx++;render();document.getElementById('main').classList.remove('fading')},250)}
+
+function openModal(){
+  var list=document.getElementById('modal-list');list.innerHTML='';
+  (allCats.length?allCats:[{key:'accueil',label:'Accueil'},{key:'salle_soin',label:'Salle de soin'},{key:'plateau_technique',label:'Plateau technique'},{key:'cas_clinique',label:'Cas clinique'},{key:'equipe',label:'Equipe'},{key:'portrait_praticien',label:'Portrait'}]).forEach(function(c){
+    var b=document.createElement('button');b.className='cat-btn';b.textContent=c.label;b.onclick=function(){closeModal();choose(c.key,c.label)};list.appendChild(b);
+  });document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+function toast(msg,color){var t=document.getElementById('toast');t.textContent=msg;t.style.background=color||'#c9a961';t.style.color=(color==='#ef4444')?'#fff':'#0f172a';t.classList.add('show');setTimeout(function(){t.classList.remove('show')},1500)}
+function showDone(){
+  document.getElementById('prog-fill').style.width='100%';document.getElementById('prog-txt').textContent='Termine';
+  document.getElementById('main').innerHTML='<div class="done"><div class="done-emoji">&#127881;</div><h2>Toutes vos photos sont classees</h2><p>Votre site affiche les bonnes photos aux bons endroits.</p><a href="/public/vitrines/preview.html?siteId='+siteId+'" class="btn-p">Voir mon site en reel</a></div>';
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+document.addEventListener('keydown',function(e){if(['1','2','3'].includes(e.key)){var b=document.querySelectorAll('.btn-prop')[parseInt(e.key)-1];if(b)b.click()}else if(e.key==='Delete'){delCurrent()}else if(e.key==='Escape'){closeModal()}});
+// Swipe gestures for mobile
+var tx=0,ty=0;
+document.addEventListener('touchstart',function(e){var t=e.touches[0];tx=t.clientX;ty=t.clientY},{passive:true});
+document.addEventListener('touchend',function(e){
+  if(!e.target.closest('.stage')&&!e.target.closest('.main'))return;
+  var ct=e.changedTouches[0],dx=ct.clientX-tx,dy=ct.clientY-ty,ax=Math.abs(dx),ay=Math.abs(dy);
+  if(ax<50&&ay<50)return;
+  var btns=document.querySelectorAll('.btn-prop');
+  if(ax>ay){if(dx<0&&btns[0])btns[0].click();else if(dx>0&&btns[1])btns[1].click()}
+  else{if(dy<0&&btns[2])btns[2].click();else if(dy>0)delCurrent()}
+},{passive:true});
+
+init();
+</script>
+</body>
+</html>

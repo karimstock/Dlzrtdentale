@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/public/js/jadomi-legal-widget.js" defer></script>
+<script src="/public/js/jadomi-network-widget.js" defer></script>
+<script src="/public/js/jadomi-conformite-badge.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.15);--border2:rgba(99,102,241,0.08);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --glow:0 0 20px rgba(99,102,241,0.3);--glow2:0 0 30px rgba(99,102,241,0.15);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --radius:14px;--rs:10px;
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 15% 15%,rgba(99,102,241,0.07) 0%,transparent 50%),
+             radial-gradient(circle at 85% 80%,rgba(139,92,246,0.05) 0%,transparent 50%),
+             radial-gradient(circle at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 40%);}
+a{color:var(--accent3);text-decoration:none;}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.2);border-radius:3px;}
+.hide{display:none!important;}
+
+/* SIDEBAR */
+.sidebar{width:260px;height:100vh;background:linear-gradient(180deg,var(--bg2) 0%,#110a28 100%);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:10;overflow-y:auto;}
+.sidebar::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;
+  background:linear-gradient(180deg,var(--accent),var(--accent2),var(--accent3),transparent);}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.sb-logo h1{font-size:22px;font-weight:900;letter-spacing:-1px;
+  background:linear-gradient(135deg,var(--accent),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo p{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:1px;text-transform:uppercase;}
+.sb-nav{padding:10px 8px;flex:1;}
+.sb-section{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:14px 12px 4px;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--rs);
+  font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .2s;border-left:2px solid transparent;margin:1px 0;}
+.sb-item:hover{background:rgba(99,102,241,0.06);color:var(--text);}
+.sb-item.active{background:rgba(99,102,241,0.1);color:var(--accent);border-left-color:var(--accent);font-weight:600;}
+.sb-item .ico{font-size:15px;width:18px;text-align:center;}
+.sb-soc{padding:4px 8px;}
+.sb-soc-item{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:7px;font-size:12px;color:var(--text2);cursor:pointer;transition:all .15s;}
+.sb-soc-item:hover{background:rgba(99,102,241,0.06);color:var(--text);}
+.sb-soc-item .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sb-user{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sb-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0;}
+.sb-uinfo{flex:1;min-width:0;}
+.sb-uname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-uemail{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-out{padding:5px 9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#f87171;font-size:10px;font-weight:600;}
+.sb-out:hover{background:rgba(239,68,68,0.2);}
+
+/* MAIN */
+.main{flex:1;height:100vh;overflow-y:auto;position:relative;z-index:1;}
+.mi{max-width:1180px;margin:0 auto;padding:24px 28px 80px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.topbar h2{font-size:22px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.nav-right{}
+
+/* STATS */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.sc{padding:20px;border-radius:var(--radius);position:relative;overflow:hidden;transition:all .3s;cursor:default;}
+.sc:hover{transform:translateY(-2px);box-shadow:var(--glow);}
+.sc.i{background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.08));border:1px solid rgba(99,102,241,.2);}
+.sc.c{background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(59,130,246,.08));border:1px solid rgba(6,182,212,.2);}
+.sc.e{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(20,184,166,.08));border:1px solid rgba(16,185,129,.2);}
+.sc.r{background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(244,63,94,.08));border:1px solid rgba(239,68,68,.2);}
+.sc-ico{font-size:26px;margin-bottom:8px;}
+.sc-val{font-size:30px;font-weight:800;letter-spacing:-1px;}
+.sc-lbl{font-size:11px;color:var(--text2);margin-top:3px;}
+.sc-delta{font-size:10px;font-weight:600;margin-top:5px;padding:2px 7px;border-radius:20px;display:inline-block;background:rgba(16,185,129,.15);color:#34d399;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .3s;}
+.card:hover{border-color:rgba(99,102,241,.3);}
+.ct{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+
+/* TABS */
+.tp{display:none;}.tp.a{display:block;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{text-align:left;padding:9px 12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border2);}
+.tbl tr:hover td{background:rgba(99,102,241,.03);}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.pi{background:rgba(99,102,241,.15);color:#a5b4fc;}
+.pc{background:rgba(6,182,212,.15);color:#67e8f9;}
+.pe{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.po{background:rgba(245,158,11,.15);color:#fcd34d;}
+.pr{background:rgba(239,68,68,.15);color:#fca5a5;}
+.pg{background:rgba(148,163,184,.15);color:#cbd5e1;}
+
+/* CHART */
+.cw{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:18px;}
+.cw h3{font-size:13px;font-weight:700;margin-bottom:14px;}
+
+/* SOC CARDS */
+.soc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:14px;}
+.soc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;}
+.soc-card:hover{transform:translateY(-3px);box-shadow:var(--glow);}
+.soc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.soc-card.tc::before{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.soc-card.ts::before{background:linear-gradient(90deg,var(--accent3),var(--success));}
+.soc-card.to::before{background:linear-gradient(90deg,var(--warning),#f97316);}
+.soc-card.tl::before{background:linear-gradient(90deg,var(--accent2),#c084fc);}
+.soc-card.ta{border-style:dashed;border-color:var(--text3);}
+.soc-card.ta:hover{border-color:var(--accent);}
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.sh .sico{font-size:26px;}
+.sh .sn{font-size:14px;font-weight:700;}
+.sh .st{font-size:10px;color:var(--text3);}
+.sbtn{display:inline-flex;padding:7px 16px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:7px;color:var(--accent);font-size:11px;font-weight:600;transition:all .2s;}
+.sbtn:hover{background:var(--accent);color:#fff;}
+
+/* PLANS */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.plan{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;text-align:center;transition:all .3s;}
+.plan.ft{border-color:var(--accent);box-shadow:var(--glow);}
+.plan-p{font-size:34px;font-weight:900;letter-spacing:-2px;margin:10px 0 2px;}
+.plan-n{font-size:15px;font-weight:700;}
+.plan-d{font-size:11px;color:var(--text3);}
+
+/* INTEGRATIONS */
+.ig{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.ic{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px;display:flex;align-items:center;gap:10px;}
+.id{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.id.on{background:var(--success);box-shadow:0 0 8px rgba(16,185,129,.5);}
+.id.off{background:var(--danger);box-shadow:0 0 8px rgba(239,68,68,.5);}
+
+/* MSG */
+.mi2{padding:12px 16px;border-bottom:1px solid var(--border2);cursor:pointer;transition:background .15s;}
+.mi2:hover{background:rgba(99,102,241,.04);}
+.mi2.unread{border-left:3px solid var(--accent);}
+
+/* TOKEN */
+.tkb{display:flex;gap:8px;margin-bottom:18px;padding:12px;background:var(--surface2);border:1px solid rgba(245,158,11,.2);border-radius:var(--rs);}
+.fin{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;}
+.fin:focus{border-color:var(--accent);}
+.fl{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;}
+
+/* BUTTONS */
+.btn{padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;transition:all .2s;}
+.bp{background:var(--accent);color:#fff;}.bp:hover{box-shadow:var(--glow);transform:translateY(-1px);}
+.bp:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.bg{background:transparent;color:var(--text3);border:1px solid var(--border);}.bg:hover{color:var(--text);border-color:var(--text3);}
+.bs{padding:6px 12px;font-size:11px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:12px;box-shadow:var(--shadow);opacity:0;z-index:200;transition:all .3s;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ONBOARD */
+.ob-ov{position:fixed;inset:0;background:rgba(10,15,30,.92);backdrop-filter:blur(20px);z-index:90;display:flex;align-items:center;justify-content:center;}
+.ob-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:36px;max-width:560px;width:90%;box-shadow:var(--shadow);}
+.ob-box h2{font-size:20px;font-weight:800;margin-bottom:6px;}
+.ob-box p{color:var(--text2);font-size:13px;margin-bottom:20px;}
+.ob-g{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:20px;}
+.ob-c{padding:12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:all .2s;text-align:center;}
+.ob-c:hover{border-color:var(--accent);}
+.ob-c.sel{border-color:var(--accent);background:rgba(99,102,241,.1);box-shadow:var(--glow);}
+.ob-c .oi{font-size:26px;margin-bottom:4px;}
+.ob-c .ol{font-size:12px;font-weight:600;}
+.ob-a{display:flex;justify-content:space-between;align-items:center;}
+
+/* SUBTABS */
+.stabs{display:flex;gap:4px;margin-bottom:16px;}
+.stab{padding:7px 14px;border-radius:7px;font-size:11px;font-weight:600;color:var(--text2);background:transparent;transition:all .2s;}
+.stab:hover{color:var(--text);background:rgba(99,102,241,.06);}
+.stab.a{background:var(--accent);color:#fff;}
+
+@media(max-width:768px){
+  body{flex-direction:column;overflow:auto;}
+  .sidebar{width:100%;height:auto;max-height:50px;overflow:hidden;}
+  .sb-nav,.sb-soc,.sb-user,.sb-logo p,.sb-section{display:none;}
+  .main{height:auto;overflow:visible;}
+  .mi{padding:14px;}
+  .sg{grid-template-columns:1fr 1fr;}
+  .two,.plans,.ig{grid-template-columns:1fr;}
+  .soc-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="loader-screen" id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;">
+  <div style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;"></div>
+  <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+</div>
+
+<div class="ob-ov hide" id="onboard">
+<div class="ob-box">
+  <div id="os1"><h2>Bienvenue sur JADOMI</h2><p>Quelle est votre activite principale ?</p><div class="ob-g" id="obm"></div><div class="ob-a"><div></div><button class="btn bp" id="ob1" disabled onclick="obN(1)">Continuer</button></div></div>
+  <div id="os2" class="hide"><h2>Votre premiere societe</h2><p>Quel type de structure ?</p><div class="ob-g" id="obt"></div><div class="ob-a"><button class="btn bg" onclick="obB(2)">Retour</button><button class="btn bp" id="ob2" disabled onclick="obN(2)">Continuer</button></div></div>
+  <div id="os3" class="hide"><h2>Nommez votre societe</h2><p>Vous pourrez completer les details plus tard.</p><label class="fl">Nom</label><input class="fin" id="obn" placeholder="Ex: Precision Dentaire..."><div style="margin-top:16px;" class="ob-a"><button class="btn bg" onclick="obB(3)">Retour</button><button class="btn bp" onclick="obF()">Creer</button></div><button class="btn bg bs" style="margin-top:8px;width:100%;" onclick="obS()">Passer</button></div>
+</div>
+</div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo"><h1>JADOMI</h1><p>Plateforme SaaS</p></div>
+  <div class="sb-nav" id="aN">
+    <div class="sb-section">Administration</div>
+    <div class="sb-item active" onclick="sT('overview',this)"><span class="ico">📊</span>Vue d'ensemble</div>
+    <div class="sb-item" onclick="sT('compta',this)"><span class="ico">💰</span>Comptabilite</div>
+    <div class="sb-item" onclick="sT('users',this)"><span class="ico">👥</span>Clients & Users</div>
+    <div class="sb-item" onclick="sT('messages',this)"><span class="ico">📧</span>Messages</div>
+    <div class="sb-item" onclick="sT('analytics',this)"><span class="ico">📈</span>Analytics</div>
+    <div class="sb-item" onclick="sT('sectors',this)"><span class="ico">🏢</span>Secteurs</div>
+    <div class="sb-item" onclick="sT('plans',this)"><span class="ico">💳</span>Abonnements</div>
+    <div class="sb-item" onclick="sT('settings',this)"><span class="ico">⚙️</span>Parametres</div>
+    <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Acces rapide</div>
+  </div>
+  <div class="sb-nav"><div class="sb-section">Mes societes</div><div class="sb-soc" id="sbS"></div></div>
+  <div class="sb-nav" id="sbModules" style="display:none;"><div class="sb-section">Modules</div><div class="sb-soc" id="sbModuleLinks"></div></div>
+  <div class="sb-user"><div class="sb-av" id="sbA">?</div><div class="sb-uinfo"><div class="sb-uname" id="sbN">...</div><div class="sb-uemail" id="sbE">...</div></div><button class="sb-out" onclick="lo()">Quitter</button></div>
+</aside>
+
+<div class="main"><div class="mi">
+<div class="topbar"><h2 id="pT">Vue d'ensemble</h2><div class="topbar-right"><div class="nav-right"></div></div></div>
+<div class="tkb hide" id="tB"><input class="fin" id="tI" type="password" placeholder="Token admin requis..."><button class="btn bp bs" onclick="sK()">Valider</button></div>
+
+<!-- OVERVIEW -->
+<div class="tp a" id="t-overview">
+  <div class="sg">
+    <div class="sc i"><div class="sc-ico">👥</div><div class="sc-val" id="xU">0</div><div class="sc-lbl">Utilisateurs</div><div class="sc-delta">—</div></div>
+    <div class="sc c"><div class="sc-ico">🏢</div><div class="sc-val" id="xS">0</div><div class="sc-lbl">Societes</div><div class="sc-delta">—</div></div>
+    <div class="sc e"><div class="sc-ico">💰</div><div class="sc-val" id="xM">0 €</div><div class="sc-lbl">Chiffre d'affaires / mois</div><div class="sc-delta">+0%</div></div>
+    <div class="sc r"><div class="sc-ico">⚠️</div><div class="sc-val" id="xI">0</div><div class="sc-lbl">Impayes</div><div class="sc-delta" style="background:rgba(239,68,68,.15);color:#f87171;">0</div></div>
+  </div>
+  <div class="cw"><h3>Revenus JADOMI — 12 mois</h3><canvas id="chR" height="80"></canvas></div>
+  <div class="two">
+    <div class="card"><div class="ct">⚡ Activite recente</div><div id="rA" style="font-size:12px;color:var(--text2);">Aucune activite</div></div>
+    <div class="card"><div class="ct">🔔 Alertes</div><div id="rL" style="font-size:12px;color:var(--text2);">Aucune alerte</div></div>
+  </div>
+</div>
+
+<!-- COMPTA -->
+<div class="tp" id="t-compta">
+  <div class="sg" style="grid-template-columns:repeat(3,1fr);">
+    <div class="sc i"><div class="sc-ico">💳</div><div class="sc-val">0 €</div><div class="sc-lbl">Abonnements</div></div>
+    <div class="sc c"><div class="sc-ico">⚡</div><div class="sc-val">0 €</div><div class="sc-lbl">Commission Rush</div></div>
+    <div class="sc e"><div class="sc-ico">📊</div><div class="sc-val">0 €</div><div class="sc-lbl">Total revenus</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;"><div class="ct">📉 Charges mensuelles</div>
+    <table class="tbl"><thead><tr><th>Poste</th><th>Montant</th></tr></thead><tbody>
+      <tr><td>VPS OVH</td><td>20,00 €</td></tr><tr><td>Supabase</td><td>25,00 €</td></tr><tr><td>Cloudflare R2</td><td>0,00 €</td></tr>
+      <tr><td>JADOMI IA (API)</td><td>~5,00 €</td></tr><tr><td>Stripe fees</td><td>~0,00 €</td></tr><tr><td>Domaine</td><td>~0,80 €</td></tr>
+      <tr><td style="font-weight:700;">TOTAL</td><td style="font-weight:700;">~50,80 €</td></tr>
+    </tbody></table></div>
+</div>
+
+<!-- USERS -->
+<div class="tp" id="t-users">
+  <div class="sg" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px;">
+    <div class="sc i"><div class="sc-val" id="uT">0</div><div class="sc-lbl">Total users</div></div>
+    <div class="sc c"><div class="sc-val" id="uA">0</div><div class="sc-lbl">Actifs</div></div>
+    <div class="sc e"><div class="sc-val" id="uR">0%</div><div class="sc-lbl">Activation</div></div>
+    <div class="sc r"><div class="sc-val">0%</div><div class="sc-lbl">Résiliations</div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;"><div class="ct">👥 Segments par profession</div><div id="segT"></div></div>
+  <div class="card"><div class="ct">📋 Utilisateurs</div>
+    <div style="margin-bottom:10px;"><input class="fin" id="uSrch" placeholder="Rechercher..." style="max-width:280px;" oninput="fU()"></div>
+    <div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>Email</th><th>Profession</th><th>Actions</th></tr></thead><tbody id="uBod"></tbody></table></div>
+  </div>
+</div>
+
+<!-- MESSAGES -->
+<div class="tp" id="t-messages">
+  <div class="stabs">
+    <button class="stab a" onclick="sMT('inbox',this)">📬 Inbox</button>
+    <button class="stab" onclick="sMT('sug',this)">💡 Suggestions</button>
+    <button class="stab" onclick="sMT('camp',this)">📣 Campagnes</button>
+  </div>
+  <div id="mInbox" class="card"><div id="inL" style="font-size:12px;color:var(--text2);">Chargement...</div></div>
+  <div id="mSug" class="card hide"><div id="sgL" style="font-size:12px;color:var(--text2);">Chargement...</div></div>
+  <div id="mCamp" class="card hide"><a href="/public/admin-email.html" class="btn bp bs" style="margin-bottom:14px;display:inline-flex;">📧 Editeur campagnes</a><div id="cpL" style="font-size:12px;color:var(--text2);">Aucune</div></div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="tp" id="t-analytics">
+  <div class="two"><div class="cw"><h3>Users par profession</h3><canvas id="chP" height="200"></canvas></div><div class="cw"><h3>Societes par type</h3><canvas id="chS" height="200"></canvas></div></div>
+  <div class="sg" style="grid-template-columns:repeat(3,1fr);">
+    <div class="sc i"><div class="sc-ico">⚡</div><div class="sc-val">0</div><div class="sc-lbl">Rush/mois</div></div>
+    <div class="sc c"><div class="sc-ico">📋</div><div class="sc-val">0</div><div class="sc-lbl">LABO BL/mois</div></div>
+    <div class="sc e"><div class="sc-ico">📦</div><div class="sc-val">0</div><div class="sc-lbl">Scans/mois</div></div>
+  </div>
+</div>
+
+<!-- SECTORS -->
+<div class="tp" id="t-sectors">
+  <div class="sg" style="grid-template-columns:repeat(3,1fr);">
+    <div class="sc i" style="text-align:center;"><div class="sc-ico">🏥</div><div class="sc-val" id="seSa">0</div><div class="sc-lbl">Sante</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">Dentistes+Protho+Ortho+Veto</div></div>
+    <div class="sc c" style="text-align:center;"><div class="sc-ico">🏠</div><div class="sc-val" id="seIm">0</div><div class="sc-lbl">Immobilier</div></div>
+    <div class="sc e" style="text-align:center;"><div class="sc-ico">🏢</div><div class="sc-val" id="seCo">0</div><div class="sc-lbl">Commerce</div></div>
+  </div>
+</div>
+
+<!-- PLANS -->
+<div class="tp" id="t-plans">
+  <div class="plans">
+    <div class="plan"><div class="plan-n">Decouverte</div><div class="plan-p">0 €</div><div class="plan-d">Gratuit · 1 societe</div><div style="margin-top:14px;font-size:12px;color:var(--text2);">0 abonnes</div></div>
+    <div class="plan"><div class="plan-n">Solo</div><div class="plan-p">29 €</div><div class="plan-d">/mois · 1 societe</div><div style="margin-top:14px;font-size:12px;color:var(--text2);">0 abonnes</div></div>
+    <div class="plan ft"><div class="plan-n">Pro</div><div class="plan-p">99 €</div><div class="plan-d">/mois · Illimite</div><div style="margin-top:14px;font-size:12px;color:var(--text2);">0 abonnes</div></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="tp" id="t-settings">
+
+  <!-- COMMISSIONS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="ct">💰 Commissions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div><label class="fl">Commission Rush (%)</label><input class="fin" id="cfg-commission_rush" type="number" value="10" style="max-width:100px;"></div>
+      <div><label class="fl">Commission Services (%)</label><input class="fin" id="cfg-commission_services" type="number" value="8" style="max-width:100px;"></div>
+      <div><label class="fl">Commission Showroom (%)</label><input class="fin" id="cfg-commission_showroom" type="number" value="5" style="max-width:100px;"></div>
+      <div><label class="fl">Commission Juridique (%)</label><input class="fin" id="cfg-commission_juridique" type="number" value="5" style="max-width:100px;"></div>
+      <div><label class="fl">Commission BTP (%)</label><input class="fin" id="cfg-commission_btp" type="number" value="5" style="max-width:100px;"></div>
+    </div>
+    <button class="btn bp bs" style="margin-top:14px;" onclick="saveSettings('commissions')">Enregistrer les commissions</button>
+  </div>
+
+  <!-- ABONNEMENTS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="ct">📋 Abonnements</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div><label class="fl">Prix Solo (€/mois)</label><input class="fin" id="cfg-prix_solo" type="number" value="29" style="max-width:100px;"></div>
+      <div><label class="fl">Prix Pro (€/mois)</label><input class="fin" id="cfg-prix_pro" type="number" value="79" style="max-width:100px;"></div>
+      <div><label class="fl">Prix Business (€/mois)</label><input class="fin" id="cfg-prix_business" type="number" value="149" style="max-width:100px;"></div>
+      <div><label class="fl">Prix Entreprise (€/mois)</label><input class="fin" id="cfg-prix_entreprise" type="number" value="299" style="max-width:100px;"></div>
+    </div>
+    <button class="btn bp bs" style="margin-top:14px;" onclick="saveSettings('abonnements')">Enregistrer les prix</button>
+  </div>
+
+  <!-- INTEGRATIONS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="ct">🔌 Integrations</div>
+    <div class="ig">
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">Supabase</div><div style="font-size:10px;color:var(--text3);">Connecte</div></div></div>
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">OVH Email</div><div style="font-size:10px;color:var(--text3);">SMTP configure</div></div></div>
+      <div class="ic"><div class="id on" id="dR2"></div><div><div style="font-size:12px;font-weight:600;">Cloudflare R2</div><div style="font-size:10px;color:var(--text3);" id="sR2">...</div></div></div>
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">JADOMI IA</div><div style="font-size:10px;color:var(--text3);">Actif</div></div></div>
+      <div class="ic"><div class="id off" id="dSt"></div><div><div style="font-size:12px;font-weight:600;">Stripe</div><div style="font-size:10px;color:var(--text3);" id="sSt">Non configure</div></div></div>
+      <div class="ic"><div class="id on"></div><div><div style="font-size:12px;font-weight:600;">Nginx</div><div style="font-size:10px;color:var(--text3);">jadomi.fr</div></div></div>
+    </div>
+  </div>
+
+  <!-- MAINTENANCE -->
+  <div class="card">
+    <div class="ct">🔧 Maintenance</div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <label class="fl" style="margin:0;">Mode maintenance</label>
+      <button class="btn bg bs" id="cfg-maintenance-btn" onclick="toggleMaintenance()" style="min-width:100px;">Desactive</button>
+    </div>
+    <div><label class="fl">Message de maintenance</label><input class="fin" id="cfg-maintenance_message" value="JADOMI est en maintenance" style="width:100%;"></div>
+    <button class="btn bp bs" style="margin-top:14px;" onclick="saveSettings('maintenance')">Enregistrer</button>
+  </div>
+</div>
+
+<!-- ACCÈS RAPIDE -->
+<div class="tp" id="t-rapide">
+  <style>
+    .ar-section{margin-bottom:24px;}
+    .ar-section-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;padding-left:4px;}
+    .ar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+    .ar-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all 0.3s;text-decoration:none;display:block;position:relative;overflow:hidden;}
+    .ar-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:opacity 0.3s;}
+    .ar-card:hover{transform:translateY(-3px);border-color:rgba(99,102,241,0.4);box-shadow:0 0 24px rgba(99,102,241,0.2);}
+    .ar-card:hover::before{opacity:1;}
+    .ar-ico{font-size:24px;margin-bottom:8px;}
+    .ar-name{font-size:13px;font-weight:700;color:var(--text);}
+    .ar-desc{font-size:11px;color:var(--text3);margin-top:3px;}
+  </style>
+
+  <!-- Recherche -->
+  <div style="margin-bottom:20px;">
+    <input class="fin" id="arSearch" type="text" placeholder="🔍 Rechercher un module..." oninput="filterAR()" style="width:100%;max-width:400px;">
+  </div>
+
+  <!-- Filtres catégories -->
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;" id="arFilters">
+    <button class="btn bg bs ar-filter active" onclick="filterARCat('',this)" style="font-size:11px;padding:6px 12px;">Tous</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('sante',this)" style="font-size:11px;padding:6px 12px;">🦷 Sante</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('btp',this)" style="font-size:11px;padding:6px 12px;">🔧 BTP</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('services',this)" style="font-size:11px;padding:6px 12px;">🛍️ Services</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('juridique',this)" style="font-size:11px;padding:6px 12px;">⚖️ Juridique</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('createurs',this)" style="font-size:11px;padding:6px 12px;">✨ Createurs</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('immobilier',this)" style="font-size:11px;padding:6px 12px;">🏠 Immobilier</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('commerce',this)" style="font-size:11px;padding:6px 12px;">🏢 Commerce</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('outils',this)" style="font-size:11px;padding:6px 12px;">⚡ Outils</button>
+  </div>
+
+  <div id="arSections">
+  <div class="ar-section" data-cat="sante">
+    <div class="ar-section-title">🦷 Sante</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="index.html" data-kw="cabinet dentaire stock commandes sos"><div class="ar-ico">🦷</div><div class="ar-name">Cabinet dentaire</div><div class="ar-desc">Dashboard principal</div></a>
+      <a class="ar-card" href="/public/labo/dashboard.html" data-kw="labo prothesiste bons livraison"><div class="ar-ico">🔬</div><div class="ar-name">Labo prothesiste</div><div class="ar-desc">Dashboard labo</div></a>
+      <a class="ar-card" href="/public/labo/facturation.html" data-kw="facture facturation labo"><div class="ar-ico">💰</div><div class="ar-name">Facturation Labo</div><div class="ar-desc">Factures labo</div></a>
+      <a class="ar-card" href="/public/labo/stock.html" data-kw="stock materiaux scanner labo"><div class="ar-ico">📦</div><div class="ar-name">Stock Labo</div><div class="ar-desc">Materiaux &amp; fournitures</div></a>
+      <a class="ar-card" href="/public/labo/dentistes.html" data-kw="dentistes clients labo"><div class="ar-ico">👥</div><div class="ar-name">Mes dentistes</div><div class="ar-desc">Clients du labo</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="btp">
+    <div class="ar-section-title">🔧 BTP &amp; Artisans</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/btp/dashboard.html" data-kw="btp artisan chantier"><div class="ar-ico">🔧</div><div class="ar-name">Artisan BTP</div><div class="ar-desc">Dashboard BTP</div></a>
+      <a class="ar-card" href="/public/btp/stock.html" data-kw="stock materiaux btp scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock BTP</div><div class="ar-desc">Materiaux chantier</div></a>
+      <a class="ar-card" href="/public/btp/factures.html" data-kw="facture btp artisan"><div class="ar-ico">📄</div><div class="ar-name">Factures BTP</div><div class="ar-desc">Facturation artisan</div></a>
+      <a class="ar-card" href="/public/btp/chantiers.html" data-kw="chantier btp"><div class="ar-ico">🏗️</div><div class="ar-name">Chantiers</div><div class="ar-desc">Gestion chantiers</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="services">
+    <div class="ar-section-title">🛍️ Services &amp; Bien-etre</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/services/dashboard.html" data-kw="services coiffeur esthetique"><div class="ar-ico">🛍️</div><div class="ar-name">Services</div><div class="ar-desc">Dashboard services</div></a>
+      <a class="ar-card" href="/public/services/stock.html" data-kw="stock produits capillaires services scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock Services</div><div class="ar-desc">Produits &amp; consommables</div></a>
+      <a class="ar-card" href="/public/services/prestations.html" data-kw="prestations services"><div class="ar-ico">🛒</div><div class="ar-name">Prestations</div><div class="ar-desc">Catalogue prestations</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="juridique">
+    <div class="ar-section-title">⚖️ Juridique</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/juridique/dashboard.html" data-kw="juridique avocat droit"><div class="ar-ico">⚖️</div><div class="ar-name">Juridique</div><div class="ar-desc">Dashboard juridique</div></a>
+      <a class="ar-card" href="/public/juridique/clients.html" data-kw="clients juridique"><div class="ar-ico">👥</div><div class="ar-name">Clients Juridique</div><div class="ar-desc">Gestion clients</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="createurs">
+    <div class="ar-section-title">✨ Createurs</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/showroom/dashboard.html" data-kw="showroom createur vitrine"><div class="ar-ico">✨</div><div class="ar-name">Showroom</div><div class="ar-desc">Dashboard createur</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="immobilier">
+    <div class="ar-section-title">🏠 Immobilier</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="sci.html" data-kw="sci immobilier biens locataires quittances"><div class="ar-ico">🏠</div><div class="ar-name">SCI</div><div class="ar-desc">Dashboard immobilier</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="commerce">
+    <div class="ar-section-title">🏢 Commerce</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="commerce.html" data-kw="commerce stock facture devis"><div class="ar-ico">🏢</div><div class="ar-name">Commerce</div><div class="ar-desc">Dashboard commerce</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="outils">
+    <div class="ar-section-title">⚡ Outils JADOMI</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/public/rush/nouvelle-demande.html" data-kw="rush urgence sous-traitance"><div class="ar-ico">⚡</div><div class="ar-name">Rush</div><div class="ar-desc">Demande urgente</div></a>
+      <a class="ar-card" href="/public/admin-email.html" data-kw="admin email campagne"><div class="ar-ico">📧</div><div class="ar-name">Admin Email</div><div class="ar-desc">Gestion emails</div></a>
+      <a class="ar-card" href="/public/annuaire/index.html" data-kw="annuaire professionnels recherche"><div class="ar-ico">🌐</div><div class="ar-name">Annuaire</div><div class="ar-desc">Annuaire pros</div></a>
+      <a class="ar-card" href="/public/deals/index.html" data-kw="deals promotions offres"><div class="ar-ico">🤝</div><div class="ar-name">Deals</div><div class="ar-desc">Offres exclusives</div></a>
+      <a class="ar-card" href="membres-societe.html" data-kw="membres equipe roles"><div class="ar-ico">👥</div><div class="ar-name">Membres</div><div class="ar-desc">Equipe &amp; roles</div></a>
+      <a class="ar-card" href="settings-societe.html" data-kw="parametres configuration societe"><div class="ar-ico">⚙️</div><div class="ar-name">Parametres</div><div class="ar-desc">Configuration societe</div></a>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- SOC SECTION -->
+<div style="margin-top:36px;" id="socS">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><h2 style="font-size:17px;font-weight:800;">Mes societes</h2><span class="pill pi" id="sC">0</span></div>
+  <div class="soc-grid" id="sG"></div>
+</div>
+
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co',SK='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF',AE='karim_bahmed@yahoo.fr';
+const MR={cabinet_dentaire:'index.html',veterinaire:'index.html',prothesiste:'/public/labo/dashboard.html',orthodontiste:'/public/labo/dashboard.html',sci:'sci.html',juridique:'/public/juridique/dashboard.html',services:'/public/services/dashboard.html',artisan_btp:'/public/btp/dashboard.html',createur:'/public/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
+const TM={cabinet_dentaire:{i:'🦷',l:'Cabinet dentaire'},prothesiste:{i:'🔬',l:'Labo prothese'},orthodontiste:{i:'🦴',l:'Orthodontie'},veterinaire:{i:'🐾',l:'Veterinaire'},sci:{i:'🏠',l:'SCI'},societe_commerciale:{i:'🏢',l:'Societe commerciale'},sas:{i:'🏢',l:'SAS'},sarl:{i:'🏢',l:'SARL'},eurl:{i:'🏢',l:'EURL'},ei:{i:'👤',l:'EI'},auto_entrepreneur:{i:'📊',l:'Auto-entrepreneur'},autre:{i:'🏷️',l:'Autre'}};
+const CT=['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
+const ME=[{k:'chirurgien_dentiste',i:'🦷',l:'Dentiste'},{k:'orthodontiste',i:'🦴',l:'Orthodontiste'},{k:'prothesiste',i:'🔬',l:'Prothesiste'},{k:'veterinaire',i:'🐾',l:'Veterinaire'},{k:'dirigeant',i:'🏢',l:'Dirigeant'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
+const ST=[{k:'cabinet_dentaire',i:'🦷',l:'Cabinet dentaire'},{k:'sci',i:'🏠',l:'SCI'},{k:'sas',i:'🏢',l:'SAS/SARL'},{k:'profession_liberale',i:'👔',l:'Prof. liberale'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
+let db,tk,ss,socs=[],pf=null,isA=false,aU=[],at='';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function toast(m){const t=$('toast');t.textContent=m;t.className='toast show';setTimeout(()=>t.className='toast',3000);}
+function lo(){db?.auth.signOut();localStorage.clear();location.href='login.html';}
+try{db=supabase.createClient(SU,SK);}catch(e){}
+
+async function api(u,o={}){const h={'Content-Type':'application/json'};if(tk)h.Authorization='Bearer '+tk;return fetch(u,{...o,headers:{...h,...(o.headers||{})}}).then(r=>r.json()).catch(()=>({}));}
+async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'application/json','X-Admin-Token':at,...(o.headers||{})}}).then(r=>r.json()).catch(()=>({}));}
+
+function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilite',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Parametres',rapide:'Acces rapide'};
+  $('pT').textContent=tt[t]||t;}
+function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
+  el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
+function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
+
+(async function(){
+  const{data}=await db.auth.getSession();ss=data?.session;
+  if(!ss){const raw=localStorage.getItem('jadomi_session');if(raw)try{ss=JSON.parse(raw);}catch(e){} if(!ss)return location.href='login.html';}
+  tk=ss.access_token||ss.token;isA=(ss.user?.email||ss.email)===AE;
+  const[pr,sr]=await Promise.all([api('/api/profil'),api('/api/societes')]);
+  pf=pr?.profil||null;socs=sr?.societes||[];
+  if(!isA)$('aN').classList.add('hide');
+  const obD=pf?.onboarding_termine||localStorage.getItem('jadomi_onboard_skipped')==='1';
+  $('loader').style.display='none';
+  if(!obD&&socs.length===0){showOB();return;}
+  render();
+})().catch(e=>{$('loader').innerHTML='Erreur: '+e.message;});
+
+function render(){
+  const m=ss.user?.user_metadata||ss;const nm=((m.prenom||'')+' '+(m.nom||m.name||'')).trim()||ss.user?.email||'';
+  const em=ss.user?.email||ss.email||'';const ini=nm?nm.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase():em[0]?.toUpperCase();
+  $('sbA').textContent=ini;$('sbN').textContent=nm||em;$('sbE').textContent=em;
+  rSB();rSG();$('sC').textContent=socs.length;
+  if(isA){at=localStorage.getItem('jadomi_admin_token')||'';if(!at)$('tB').classList.remove('hide');else loadAdmin();}
+}
+function rSB(){const c=$('sbS');c.innerHTML='';const cl={cabinet_dentaire:'#6366f1',sci:'#06b6d4',veterinaire:'#10b981',prothesiste:'#8b5cf6',orthodontiste:'#8b5cf6'};
+  socs.forEach(s=>{const co=cl[s.type]||'#f59e0b';c.innerHTML+=`<div class="sb-soc-item" onclick="oS('${s.id}','${s.type}')"><span class="dot" style="background:${co};"></span>${esc(s.nom)}</div>`;});
+  c.innerHTML+=`<div class="sb-soc-item" style="color:var(--accent);font-weight:600;" onclick="location.href='wizard-societe.html'"><span class="dot" style="background:var(--accent);"></span>➕ Ajouter</div>`;
+  // Mon site internet : afficher si une societe eligible existe
+  const VT=['cabinet_dentaire','prothesiste','cabinet_medical','medecin','kinesitherapeute','kine','osteopathe','orthoptiste','sage_femme','cabinet_avocat','avocat','notaire','expert_comptable','architecte','salon_coiffure','coiffeur','barbier','institut_beaute','estheticienne','spa','boutique_mode','pret_a_porter','bijouterie','bijoutier','joaillerie','fleuriste','restaurant','bistrot','brasserie','traiteur','maroquinier','plombier','chauffagiste'];
+  // TODO: remettre s.plan==='illimite' quand la facturation est en place
+  const vitrineSoc=socs.find(s=>VT.includes(s.type));
+  const sbMod=$('sbModules');const sbML=$('sbModuleLinks');
+  if(vitrineSoc&&sbMod&&sbML){sbMod.style.display='block';sbML.innerHTML=`<div class="sb-soc-item" onclick="localStorage.setItem('societe_active_id','${vitrineSoc.id}');location.href='/public/vitrines/dashboard.html'"><span class="dot" style="background:#6366f1;"></span>🌐 Mon site internet</div>`;}}
+function rSG(){const g=$('sG');g.innerHTML='';
+  socs.forEach(s=>{const m=TM[s.type]||TM.autre;const tc=s.type==='cabinet_dentaire'||s.type==='veterinaire'?'tc':s.type==='sci'?'ts':s.type==='prothesiste'||s.type==='orthodontiste'?'tl':'to';
+    g.innerHTML+=`<div class="soc-card ${tc}" onclick="oS('${s.id}','${s.type}')"><div class="sh"><div class="sico">${m.i}</div><div><div class="sn">${esc(s.nom)}</div><div class="st">${m.l}</div></div></div><div style="margin-bottom:12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">${(s.role||'membre')}</div><div class="sbtn">Acceder →</div></div>`;});
+  g.innerHTML+=`<div class="soc-card ta" onclick="location.href='wizard-societe.html'" style="display:flex;align-items:center;justify-content:center;min-height:150px;"><div style="text-align:center;"><div style="font-size:30px;margin-bottom:6px;">➕</div><div style="font-size:13px;font-weight:600;color:var(--text3);">Ajouter une societe</div></div></div>`;}
+function oS(id,t){localStorage.setItem('societe_active_id',id);localStorage.setItem('selectedSocieteId',id);location.href=MR[t]||'organisation.html';}
+
+async function loadAdmin(){
+  const[seg,camp]=await Promise.all([aApi('/api/admin/email/segments'),aApi('/api/admin/email/campagnes')]);
+  const segs=seg?.segments||[];const tu=seg?.total_users||0;aU=[];
+  segs.forEach(s=>{(s.emails||[]).forEach(e=>aU.push({email:e,prof:s.segment,lbl:s.label,ico:s.icon}));});
+  $('xU').textContent=tu;$('xS').textContent=socs.length;$('uT').textContent=tu;$('uA').textContent=tu;$('uR').textContent=tu>0?'100%':'0%';
+  let sh='<table class="tbl"><thead><tr><th></th><th>Profession</th><th>Users</th><th>Actions</th></tr></thead><tbody>';
+  segs.forEach(s=>{sh+=`<tr><td>${s.icon}</td><td>${esc(s.label)}</td><td><strong>${s.count}</strong></td><td><a href="/public/admin-email.html" class="btn bg bs" style="margin-right:4px;">📧</a><a href="/api/admin/email/export/${s.segment}" class="btn bg bs" target="_blank">📥 CSV</a></td></tr>`;});
+  sh+=`<tr style="font-weight:700;"><td>👥</td><td>TOTAL</td><td>${tu}</td><td></td></tr></tbody></table>`;$('segT').innerHTML=sh;
+  rUT();lIn();
+  const camps=camp?.campagnes||[];if(camps.length){let ch='<table class="tbl"><thead><tr><th>Date</th><th>Sujet</th><th>Envoyes</th></tr></thead><tbody>';
+    camps.forEach(c=>{ch+=`<tr><td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td><td>${esc(c.sujet)}</td><td>${c.nb_envoyes||c.nb_destinataires||0}</td></tr>`;});
+    ch+='</tbody></table>';$('cpL').innerHTML=ch;}
+  rCh(segs);
+  const sa=segs.filter(s=>['chirurgien_dentiste','orthodontiste','prothesiste','veterinaire'].includes(s.segment)).reduce((a,s)=>a+s.count,0);
+  $('seSa').textContent=sa;$('seIm').textContent=socs.filter(s=>s.type==='sci').length;$('seCo').textContent=socs.filter(s=>CT.includes(s.type)).length;
+  try{const r2=await fetch('/api/rush/fichiers/status/r2').then(r=>r.json());$('sR2').textContent=r2.r2_available?'Actif':'Non config';
+    if(!r2.r2_available){$('dR2').classList.remove('on');$('dR2').classList.add('off');}}catch(e){}
+  try{const sg=await aApi('/api/suggestions/admin');const ls=sg?.suggestions||[];
+    if(ls.length){let h='';ls.slice(0,8).forEach(s=>{h+=`<div class="mi2"><div style="font-size:12px;font-weight:600;">${esc(s.titre||'Suggestion')}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;">${esc((s.description||'').slice(0,80))}</div></div>`;});$('sgL').innerHTML=h;}
+    else $('sgL').innerHTML='Aucune suggestion';}catch(e){$('sgL').innerHTML='Aucune suggestion';}
+}
+function rUT(){const q=($('uSrch')?.value||'').toLowerCase();const f=aU.filter(u=>!q||u.email.toLowerCase().includes(q)||(u.lbl||'').toLowerCase().includes(q));
+  const pc={chirurgien_dentiste:'pi',orthodontiste:'pc',prothesiste:'pi',veterinaire:'pe',dirigeant:'po',auto_entrepreneur:'po',autre:'pg'};
+  let h='';f.slice(0,50).forEach(u=>{h+=`<tr><td>${esc(u.email)}</td><td><span class="pill ${pc[u.prof]||'pg'}">${u.ico||''} ${esc(u.lbl||u.prof)}</span></td><td><a href="/public/admin-email.html" class="btn bg bs">📧</a></td></tr>`;});
+  $('uBod').innerHTML=h||'<tr><td colspan="3" style="color:var(--text3);text-align:center;">Aucun</td></tr>';}
+function fU(){rUT();}
+async function lIn(){try{const r=await aApi('/api/admin/email/inbox?limit=15');const ms=r?.messages||[];
+    if(!ms.length){$('inL').innerHTML='Aucun message';return;}
+    let h='';ms.forEach(m=>{h+=`<div class="mi2${m.seen?'':' unread'}"><div style="font-size:12px;font-weight:600;">${esc(m.from||m.from_address||'')}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;">${esc(m.subject)}</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">${m.date?new Date(m.date).toLocaleDateString('fr-FR'):''}</div></div>`;});
+    $('inL').innerHTML=h;}catch(e){$('inL').innerHTML='Erreur inbox';}}
+
+function rCh(segs){
+  const c1=$('chR')?.getContext('2d');if(c1){const gr=c1.createLinearGradient(0,0,0,200);gr.addColorStop(0,'rgba(99,102,241,0.3)');gr.addColorStop(1,'rgba(99,102,241,0)');
+    new Chart(c1,{type:'line',data:{labels:['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'],datasets:[{label:'€',data:[0,0,0,0,0,0,0,0,0,0,0,0],borderColor:'#6366f1',backgroundColor:gr,fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#6366f1'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#64748b'}},y:{grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#64748b'}}}}});}
+  const c2=$('chP')?.getContext('2d');if(c2){new Chart(c2,{type:'bar',data:{labels:segs.map(s=>s.label),datasets:[{data:segs.map(s=>s.count),backgroundColor:['#6366f1','#06b6d4','#8b5cf6','#10b981','#f59e0b','#ef4444','#64748b'],borderRadius:6}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(99,102,241,0.06)'},ticks:{color:'#64748b'}},y:{grid:{display:false},ticks:{color:'#94a3b8'}}}}});}
+  const c3=$('chS')?.getContext('2d');if(c3){const tc={};socs.forEach(s=>{const t=(TM[s.type]||TM.autre).l;tc[t]=(tc[t]||0)+1;});
+    new Chart(c3,{type:'doughnut',data:{labels:Object.keys(tc),datasets:[{data:Object.values(tc),backgroundColor:['#6366f1','#06b6d4','#f59e0b','#8b5cf6','#10b981'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#94a3b8'}}}}});}
+}
+
+// ONBOARDING
+let obM='',obT='';
+function showOB(){$('onboard').classList.remove('hide');const mg=$('obm');mg.innerHTML='';ME.forEach(m=>{mg.innerHTML+=`<div class="ob-c" onclick="obSM(this,'${m.k}')"><div class="oi">${m.i}</div><div class="ol">${m.l}</div></div>`;});
+  const tg=$('obt');tg.innerHTML='';ST.forEach(s=>{tg.innerHTML+=`<div class="ob-c" onclick="obST(this,'${s.k}')"><div class="oi">${s.i}</div><div class="ol">${s.l}</div></div>`;});}
+function obSM(el,k){obM=k;el.parentElement.querySelectorAll('.ob-c').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');$('ob1').disabled=false;}
+function obST(el,k){obT=k;el.parentElement.querySelectorAll('.ob-c').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');$('ob2').disabled=false;}
+function obN(s){if(s===1){$('os1').classList.add('hide');$('os2').classList.remove('hide');api('/api/profil',{method:'POST',body:JSON.stringify({metier:obM})});}
+  if(s===2){$('os2').classList.add('hide');$('os3').classList.remove('hide');}}
+function obB(s){if(s===2){$('os2').classList.add('hide');$('os1').classList.remove('hide');}if(s===3){$('os3').classList.add('hide');$('os2').classList.remove('hide');}}
+async function obF(){const n=$('obn').value.trim();if(!n){toast('Entrez un nom');return;}
+  const r=await api('/api/societes',{method:'POST',body:JSON.stringify({type:obT,nom:n,secteur:'autre'})});
+  if(r.success||r.societe){await api('/api/profil',{method:'POST',body:JSON.stringify({onboarding_termine:true})});
+    const s=r.societe||{};localStorage.setItem('societe_active_id',s.id);localStorage.setItem('selectedSocieteId',s.id);$('onboard').classList.add('hide');location.href=MR[obT]||'organisation.html';
+  }else toast(r.error||'Erreur');}
+async function obS(){localStorage.setItem('jadomi_onboard_skipped','1');await api('/api/profil',{method:'POST',body:JSON.stringify({onboarding_termine:true})}).catch(()=>{});$('onboard').classList.add('hide');socs=[];render();}
+
+// ============ PARAMETRES PLATEFORME ============
+const CFG_KEYS = {
+  commissions: ['commission_rush','commission_services','commission_showroom','commission_juridique','commission_btp'],
+  abonnements: ['prix_solo','prix_pro','prix_business','prix_entreprise'],
+  maintenance: ['maintenance_mode','maintenance_message']
+};
+
+async function loadSettings() {
+  try {
+    const r = await aApi('/api/admin/parametres');
+    const params = r.parametres || r.data || [];
+    params.forEach(p => {
+      const el = $('cfg-'+p.cle);
+      if (el) el.value = p.valeur;
+      if (p.cle === 'maintenance_mode') {
+        const btn = $('cfg-maintenance-btn');
+        if (btn) { btn.textContent = p.valeur === 'true' ? 'Active' : 'Desactive'; btn.style.color = p.valeur === 'true' ? '#f05050' : ''; }
+      }
+    });
+  } catch(e) {}
+}
+
+async function saveSettings(group) {
+  const keys = CFG_KEYS[group] || [];
+  const updates = [];
+  for (const k of keys) {
+    const el = $('cfg-'+k);
+    if (el) updates.push({ cle: k, valeur: String(el.value) });
+  }
+  try {
+    const r = await aApi('/api/admin/parametres', { method:'POST', body:JSON.stringify({ parametres: updates }) });
+    if (r.ok || r.success) toast('Parametres enregistres');
+    else toast(r.error || 'Erreur');
+  } catch(e) { toast('Erreur reseau'); }
+}
+
+function toggleMaintenance() {
+  const btn = $('cfg-maintenance-btn');
+  const isOn = btn.textContent === 'Active';
+  btn.textContent = isOn ? 'Desactive' : 'Active';
+  btn.style.color = isOn ? '' : '#f05050';
+  // Save immediately
+  aApi('/api/admin/parametres', { method:'POST', body:JSON.stringify({ parametres: [{ cle:'maintenance_mode', valeur: isOn ? 'false' : 'true' }] }) })
+    .then(() => toast(isOn ? 'Maintenance desactivee' : 'Maintenance activee'));
+}
+
+// Load settings when admin section is shown
+const origST = sT;
+sT = function(t, el) {
+  origST(t, el);
+  if (t === 'settings') loadSettings();
+};
+
+// ============ ACCÈS RAPIDE SEARCH & FILTER ============
+let arActiveCat = '';
+function filterAR() {
+  const q = ($('arSearch')?.value || '').toLowerCase().trim();
+  document.querySelectorAll('#arSections .ar-section').forEach(s => {
+    if (arActiveCat && s.dataset.cat !== arActiveCat) { s.style.display = 'none'; return; }
+    let hasVisible = false;
+    s.querySelectorAll('.ar-card').forEach(c => {
+      const text = (c.textContent + ' ' + (c.dataset.kw || '')).toLowerCase();
+      const show = !q || text.includes(q);
+      c.style.display = show ? '' : 'none';
+      if (show) hasVisible = true;
+    });
+    s.style.display = hasVisible ? '' : 'none';
+  });
+}
+function filterARCat(cat, btn) {
+  arActiveCat = cat;
+  document.querySelectorAll('.ar-filter').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  filterAR();
+}
+</script>
+</body>
+</html>

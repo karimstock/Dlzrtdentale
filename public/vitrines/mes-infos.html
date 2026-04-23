@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Mes informations</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:'DM Sans',sans-serif;background:#0a0f1e;color:#f8fafc;margin:0}
+.page-header{padding:1.5rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+.page-header h1{font-family:'Syne',sans-serif;font-size:1.4rem;margin:0}
+.back{color:#94a3b8;text-decoration:none;font-size:.9rem}.back:hover{color:#c9a961}
+.info-banner{max-width:900px;margin:2rem auto 0;padding:1rem 1.5rem;background:linear-gradient(135deg,rgba(201,169,97,.1),rgba(201,169,97,.03));border:1px solid rgba(201,169,97,.2);border-radius:12px;font-size:.9rem;color:rgba(255,255,255,.8);line-height:1.5}
+.completion-bar{max-width:900px;margin:1.5rem auto;display:flex;align-items:center;gap:1rem;padding:0 1rem}
+.completion-track{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.completion-fill{height:100%;background:#c9a961;border-radius:3px;transition:width .5s}
+.completion-pct{color:#c9a961;font-weight:600;font-family:'Syne',sans-serif;font-size:1.1rem;min-width:50px}
+.completion-txt{font-size:.85rem;color:rgba(255,255,255,.5)}
+.sections{max-width:900px;margin:2rem auto;padding:0 1rem 4rem}
+.section-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:2rem;margin-bottom:1.5rem}
+.section-card h2{font-family:'Syne',sans-serif;font-size:1.15rem;margin:0 0 1.5rem;color:#c9a961}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+.field{display:flex;flex-direction:column}
+.field label{font-size:.82rem;color:rgba(255,255,255,.5);margin-bottom:.4rem;font-weight:500}
+.field input,.field select,.field textarea{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:.7rem 1rem;color:#f8fafc;font-family:inherit;font-size:.95rem;transition:border-color .3s}
+.field input:focus,.field textarea:focus{outline:none;border-color:#c9a961}
+.field textarea{min-height:80px;resize:vertical}
+.field .saved{font-size:.7rem;color:#22c55e;margin-top:.3rem;opacity:0;transition:opacity .3s}
+.field .saved.show{opacity:1}
+.field.missing input,.field.missing select{border-color:rgba(251,191,36,.4)}
+.field.missing label::after{content:' (obligatoire)';color:#fbbf24;font-size:.7rem}
+.toast{position:fixed;bottom:2rem;left:50%;transform:translate(-50%,100px);background:#c9a961;color:#0f172a;padding:.75rem 1.5rem;border-radius:8px;font-weight:600;z-index:10000;transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.toast.show{transform:translate(-50%,0)}
+@media(max-width:700px){.field-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div><a href="javascript:history.back()" class="back">&larr; Retour</a><h1>Mes informations</h1></div>
+</div>
+<div class="info-banner">Ces informations sont utilisees par TOUS les modules JADOMI : votre site internet, vos factures, votre fiche patient. Modifiez ici, tout est mis a jour partout automatiquement.</div>
+<div class="completion-bar"><span class="completion-pct" id="comp-pct">0%</span><div class="completion-track"><div class="completion-fill" id="comp-fill" style="width:0%"></div></div><span class="completion-txt" id="comp-txt"></span></div>
+<div class="sections" id="sections"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+var SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+var db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var societeId=localStorage.getItem('societe_active_id');
+var societeData={};
+var missingRequired=[];
+
+async function getToken(){var s=await db.auth.getSession();if(!s.data.session){location.href='/login.html';return null}return s.data.session.access_token}
+async function api(path,opts){opts=opts||{};var token=await getToken();if(!token)return null;var h={'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':societeId};var r=await fetch('/api/vitrines'+path,Object.assign({},opts,{headers:h}));return r.json()}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+var LABELS={nom:'Nom de l\'etablissement',adresse:'Adresse',adresse_complement:'Complement',code_postal:'Code postal',ville:'Ville',pays:'Pays',telephone:'Telephone',email:'Email',horaires:'Horaires d\'ouverture',siret:'SIRET',tva_intracom:'TVA intracommunautaire',rpps:'N° RPPS',ordre_numero:'N° Ordre',departement_exercice:'Departement d\'exercice',secteur_conventionnel:'Secteur conventionnel',diplome_universite:'Diplome / Universite',diplome_annee:'Annee du diplome',barreau:'Barreau',numero_toque:'N° de toque',assurance_rc:'Assurance RC Pro',assurance_rc_numero:'N° police RC',carpa:'CARPA',social_instagram:'Instagram',social_facebook:'Facebook',social_linkedin:'LinkedIn',footer_pitch:'Phrase de presentation (pied de page)'};
+
+async function load(){
+  var data=await api('/infos/complete');
+  if(!data||!data.success)return;
+  societeData=data.societe;
+  missingRequired=data.completion.missing_required||[];
+  var cat=data.category;
+
+  document.getElementById('comp-pct').textContent=data.completion.pct+'%';
+  document.getElementById('comp-fill').style.width=data.completion.pct+'%';
+  var missTxt=missingRequired.length?'Il vous manque : '+missingRequired.map(function(f){return LABELS[f]||f}).join(', '):'Fiche complete';
+  document.getElementById('comp-txt').textContent=missTxt;
+
+  var html='';
+
+  // Contact
+  html+='<div class="section-card"><h2>Informations de contact</h2>';
+  html+=fieldRow(['nom','telephone']);
+  html+=fieldRow(['email','adresse']);
+  html+=fieldRow(['code_postal','ville']);
+  html+=field('horaires','textarea');
+  html+='</div>';
+
+  // Legal
+  html+='<div class="section-card"><h2>Informations legales</h2>';
+  html+=fieldRow(['siret','tva_intracom']);
+  if(cat==='sante'){
+    html+=fieldRow(['rpps','ordre_numero']);
+    html+=fieldRow(['secteur_conventionnel','departement_exercice']);
+    html+=fieldRow(['diplome_universite','diplome_annee']);
+  }
+  if(cat==='liberale'){
+    html+=fieldRow(['barreau','numero_toque']);
+    html+=fieldRow(['assurance_rc','carpa']);
+  }
+  if(cat==='artisan'){
+    html+=field('assurance_rc');
+  }
+  html+='</div>';
+
+  // Marketing
+  html+='<div class="section-card"><h2>Reseaux sociaux & marketing</h2>';
+  html+=fieldRow(['social_instagram','social_facebook']);
+  html+=field('social_linkedin');
+  html+=field('footer_pitch','textarea');
+  html+='</div>';
+
+  document.getElementById('sections').innerHTML=html;
+
+  // Attach blur handlers
+  document.querySelectorAll('.info-input').forEach(function(input){
+    input.addEventListener('blur',function(){saveField(input.dataset.field,input.value)});
+    input.addEventListener('keydown',function(e){if(e.key==='Enter'&&input.tagName!=='TEXTAREA'){e.preventDefault();saveField(input.dataset.field,input.value);input.blur()}});
+  });
+}
+
+function fieldRow(fields){return'<div class="field-row">'+fields.map(function(f){return field(f)}).join('')+'</div>'}
+function field(f,type){
+  var isMissing=missingRequired.indexOf(f)>=0;
+  var val=societeData[f]||'';
+  var label=LABELS[f]||f;
+  var tag=type==='textarea'?'textarea':'input';
+  var typeAttr=f==='email'?'type="email"':f==='telephone'?'type="tel"':f==='diplome_annee'?'type="number"':'type="text"';
+  return'<div class="field'+(isMissing&&!val?' missing':'')+'"><label>'+esc(label)+'</label><'+tag+' class="info-input" data-field="'+f+'" '+(tag==='input'?typeAttr:'')+' value="'+esc(val)+'"'+(tag==='textarea'?'>'+esc(val)+'</textarea>':'>') +'<span class="saved" id="saved-'+f+'">Enregistre</span></div>';
+}
+
+async function saveField(f,val){
+  if(societeData[f]===val)return;
+  var body={};body[f]=val;
+  var r=await api('/infos/update',{method:'PATCH',body:JSON.stringify(body)});
+  if(r&&r.success){
+    societeData[f]=val;
+    var el=document.getElementById('saved-'+f);
+    if(el){el.classList.add('show');setTimeout(function(){el.classList.remove('show')},2000)}
+    // Update completion
+    if(r.completion_pct!==undefined){
+      document.getElementById('comp-pct').textContent=r.completion_pct+'%';
+      document.getElementById('comp-fill').style.width=r.completion_pct+'%';
+    }
+    toast('Enregistre');
+  }
+}
+
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},1500)}
+
+load();
+</script>
+</body>
+</html>

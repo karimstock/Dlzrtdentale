@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JADOMI — Creation de votre site internet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/jadomi-theme.css">
+  <link rel="stylesheet" href="/public/vitrines/vitrines.css?v=3">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/public/vitrines/labels.js"></script>
+</head>
+<body>
+  <!-- Banner onboarding v2 -->
+  <div style="background:linear-gradient(135deg,#c9a961,#a8893f);padding:0.6rem 1rem;text-align:center;font-family:'Syne',sans-serif;font-size:0.85rem;color:#1a1a1a;cursor:pointer;font-weight:600;letter-spacing:0.02em" onclick="window.location.href='/public/vitrines/onboarding-v2.html'+(window.location.search||'')">
+    Nouvelle experience disponible &#8594; Essayer l'onboarding immersif
+  </div>
+
+  <!-- Drag overlay -->
+  <div class="drag-overlay"></div>
+
+  <div class="vitrines-chat-container">
+    <!-- Panel Chat -->
+    <div class="vitrines-chat-panel">
+      <div style="padding:0.75rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <h2 style="font-family:'Syne',sans-serif;font-size:1.1rem;margin:0" id="chat-title"></h2>
+        <button class="btn-vitrines-secondary" style="padding:0.4rem 0.8rem;font-size:0.8rem" onclick="window.location.href='/public/vitrines/dashboard.html'">Retour</button>
+      </div>
+      <div class="vitrines-chat-messages" id="messages"></div>
+      <div class="vitrines-chat-input">
+        <textarea id="user-input" rows="1" placeholder="" onkeydown="handleKey(event)"></textarea>
+        <button class="btn-vitrines-primary" id="send-btn" onclick="sendMessage()">Envoyer</button>
+      </div>
+    </div>
+
+    <!-- Panel Preview -->
+    <div class="vitrines-preview-panel" style="position:relative">
+      <div class="vitrines-preview-header">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+        <span style="margin-left:8px;font-size:0.8rem;color:var(--text-secondary)" id="preview-url">Apercu du site</span>
+      </div>
+      <iframe id="preview-frame" class="vitrines-preview-iframe" src="about:blank"></iframe>
+      <div class="preview-updating" id="preview-updating" style="display:none">Mise a jour...</div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = window.__SUPABASE_URL__ || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+    const SUPABASE_KEY = window.__SUPABASE_KEY__ || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const L = window.VITRINE_LABELS;
+
+    document.getElementById('chat-title').textContent = L.chat_title;
+    document.getElementById('user-input').placeholder = L.chat_placeholder;
+
+    let currentSiteId = new URLSearchParams(window.location.search).get('siteId');
+    let isStreaming = false;
+    let professionConfig = null;
+    let totalUploads = 0;
+
+    // ================================================================
+    // API helpers
+    // ================================================================
+    async function getToken() {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { window.location.href = '/login.html'; return null; }
+      return session.access_token;
+    }
+
+    function getSocieteId() {
+      return localStorage.getItem('societe_active_id');
+    }
+
+    async function apiJson(path, opts = {}) {
+      let token = await getToken();
+      if (!token) return;
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'X-Societe-Id': getSocieteId(),
+        ...(opts.headers || {})
+      };
+      let res = await fetch('/api/vitrines' + path, { ...opts, headers });
+      if (res.status === 401) {
+        const { data } = await db.auth.refreshSession();
+        if (data?.session) {
+          headers['Authorization'] = 'Bearer ' + data.session.access_token;
+          res = await fetch('/api/vitrines' + path, { ...opts, headers });
+        } else { window.location.href = '/login.html'; return; }
+      }
+      return res.json();
+    }
+
+    // ================================================================
+    // Toast
+    // ================================================================
+    function showToast(text) {
+      const el = document.createElement('div');
+      el.className = 'jadomi-toast';
+      el.textContent = text;
+      document.body.appendChild(el);
+      setTimeout(() => { el.classList.add('fade-out'); }, 3000);
+      setTimeout(() => { el.remove(); }, 3400);
+    }
+
+    // ================================================================
+    // Chat bubbles
+    // ================================================================
+    function addBubble(role, text, hidden) {
+      if (hidden) return null; // silent messages
+      const div = document.createElement('div');
+      div.className = 'vitrines-chat-bubble ' + role;
+      div.textContent = text;
+      document.getElementById('messages').appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function scrollToBottom() {
+      const el = document.getElementById('messages');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function showTyping() {
+      let el = document.getElementById('typing-indicator');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'typing-indicator';
+        el.className = 'vitrines-chat-typing';
+        el.textContent = L.chat_typing;
+        document.getElementById('messages').appendChild(el);
+      }
+      el.style.display = 'block';
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.style.display = 'none';
+    }
+
+    // ================================================================
+    // Strip upload tags from visible text
+    // ================================================================
+    function stripTags(text) {
+      return text.replace(/<REQUEST_UPLOAD\s[^>]*\/>/g, '').replace(/<EXTRACTED_DATA>[\s\S]*<\/EXTRACTED_DATA>/g, '').trim();
+    }
+
+    // ================================================================
+    // Inline upload card creation (WAOUH #1 + #2)
+    // ================================================================
+    function createUploadCard(upload) {
+      const card = document.createElement('div');
+      card.className = 'inline-upload';
+      card.dataset.category = upload.category;
+      card.dataset.type = upload.type || 'photo';
+
+      const isVideo = upload.type === 'video';
+      const icon = isVideo ? '🎬' : '📷';
+      const acceptTypes = isVideo
+        ? 'video/mp4,video/webm,video/quicktime'
+        : 'image/jpeg,image/png,image/webp,image/heic';
+      const label = upload.poetic_label || upload.label || upload.category;
+
+      card.innerHTML = `
+        <div class="upload-icon">${icon}</div>
+        <div class="upload-label">${escHtml(label)}</div>
+        <div class="upload-sublabel">${isVideo ? 'Video (MP4, max 100 Mo, 30 secondes idealement)' : 'Photo (JPG, PNG, max 10 Mo)'}</div>
+        <div class="upload-zone" data-accept="${acceptTypes}" data-multiple="${upload.multiple || false}">
+          Glissez ici ou cliquez pour ${isVideo ? 'ajouter votre video' : 'ajouter votre photo'}
+        </div>
+        <div class="upload-preview"></div>
+      `;
+
+      // Click handler
+      const zone = card.querySelector('.upload-zone');
+      zone.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = acceptTypes;
+        input.multiple = upload.multiple || false;
+        input.onchange = () => handleInlineUpload(card, input.files);
+        input.click();
+      });
+
+      // Drag handlers on card
+      card.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); card.classList.add('dragover'); });
+      card.addEventListener('dragleave', () => { card.classList.remove('dragover'); });
+      card.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // CRITICAL: prevent window handler from also uploading
+        card.classList.remove('dragover');
+        document.body.classList.remove('is-dragging');
+        dragCounter = 0;
+        document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
+        handleInlineUpload(card, e.dataTransfer.files);
+      });
+
+      document.getElementById('messages').appendChild(card);
+      scrollToBottom();
+      return card;
+    }
+
+    // ================================================================
+    // Handle upload from inline card
+    // ================================================================
+    async function handleInlineUpload(card, files) {
+      if (!currentSiteId || !files || files.length === 0) return;
+      const token = await getToken();
+      if (!token) return;
+
+      const category = card.dataset.category;
+      const previewGrid = card.querySelector('.upload-preview');
+      const zone = card.querySelector('.upload-zone');
+      let uploadCount = 0;
+
+      for (const file of files) {
+        // Show thumbnail with spinner
+        const item = document.createElement('div');
+        item.className = 'upload-preview-item';
+        const isVideo = file.type.startsWith('video/');
+
+        if (isVideo) {
+          const vid = document.createElement('video');
+          vid.src = URL.createObjectURL(file);
+          vid.muted = true;
+          item.appendChild(vid);
+          const overlay = document.createElement('div');
+          overlay.className = 'upload-video-overlay';
+          item.appendChild(overlay);
+        } else {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          item.appendChild(img);
+        }
+
+        const spinner = document.createElement('div');
+        spinner.className = 'upload-spinner';
+        spinner.textContent = 'Envoi...';
+        item.appendChild(spinner);
+        previewGrid.appendChild(item);
+        scrollToBottom();
+
+        // Upload
+        const formData = new FormData();
+        formData.append('photo', file);
+        formData.append('siteId', currentSiteId);
+        formData.append('category', category);
+
+        try {
+          const res = await fetch('/api/vitrines/photos/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'X-Societe-Id': getSocieteId()
+            },
+            body: formData
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            // Replace spinner with checkmark
+            spinner.remove();
+            const check = document.createElement('div');
+            check.className = 'upload-check';
+            check.textContent = '\u2713';
+            item.appendChild(check);
+            uploadCount++;
+            totalUploads++;
+
+            // Auto-analyze photo (background, non-blocking)
+            if (!isVideo && data.media && data.media.id) {
+              analyzePhotoBackground(data.media.id, card);
+            }
+          } else {
+            spinner.textContent = 'Erreur';
+            spinner.style.color = '#ef4444';
+          }
+        } catch (e) {
+          spinner.textContent = 'Erreur';
+          spinner.style.color = '#ef4444';
+          console.error('[upload]', e);
+        }
+      }
+
+      if (uploadCount > 0) {
+        // Mark card as uploaded
+        card.classList.add('uploaded');
+        zone.style.display = 'none';
+
+        // Milestone toasts (WAOUH #5)
+        if (totalUploads === 3) showToast('Votre site commence a prendre forme');
+        if (totalUploads === 5) showToast('Belle collection. Votre site devient coherent.');
+
+        // Refresh preview (WAOUH #4)
+        updatePreview();
+
+        // Send silent [UPLOAD_COMPLETE] to chatbot
+        sendSilentUploadComplete(category, uploadCount);
+      }
+    }
+
+    // ================================================================
+    // Analyze photo in background (WAOUH #3)
+    // ================================================================
+    async function analyzePhotoBackground(mediaId, card) {
+      try {
+        const result = await apiJson('/photos/' + mediaId + '/analyze', { method: 'POST' });
+        if (result && result.success && result.comment) {
+          // Insert the artistic comment as a new assistant bubble
+          const commentBubble = document.createElement('div');
+          commentBubble.className = 'vitrines-chat-bubble assistant';
+          commentBubble.style.opacity = '0';
+          commentBubble.style.transition = 'opacity 0.5s';
+          commentBubble.textContent = result.comment;
+          // Insert after the upload card
+          card.parentNode.insertBefore(commentBubble, card.nextSibling);
+          requestAnimationFrame(() => { commentBubble.style.opacity = '1'; });
+          scrollToBottom();
+        }
+      } catch (e) {
+        console.error('[analyze]', e);
+      }
+    }
+
+    // ================================================================
+    // Send silent [UPLOAD_COMPLETE] to chatbot
+    // ================================================================
+    async function sendSilentUploadComplete(category, count) {
+      const message = '[UPLOAD_COMPLETE] category=' + category + ' count=' + count;
+
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const body = { message, siteId: currentSiteId };
+
+        showTyping();
+        isStreaming = true;
+
+        const res = await fetch('/api/vitrines/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token,
+            'X-Societe-Id': getSocieteId()
+          },
+          body: JSON.stringify(body)
+        });
+
+        hideTyping();
+        const bubble = addBubble('assistant', '');
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'text') {
+                fullText += data.content;
+                bubble.textContent = stripTags(fullText);
+                scrollToBottom();
+              } else if (data.type === 'done') {
+                if (data.siteId) currentSiteId = data.siteId;
+                if (data.extracted) {
+                  updatePreview();
+                  showToast('Votre site est pret a etre previsualise.');
+                }
+                if (data.uploads && data.uploads.length > 0) {
+                  data.uploads.forEach(u => createUploadCard(u));
+                }
+              }
+            } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (err) {
+        hideTyping();
+        console.error('[silent upload]', err);
+      } finally {
+        isStreaming = false;
+      }
+    }
+
+    // ================================================================
+    // Send user message
+    // ================================================================
+    async function sendMessage() {
+      if (isStreaming) return;
+      const input = document.getElementById('user-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+      addBubble('user', message);
+      showTyping();
+      isStreaming = true;
+      document.getElementById('send-btn').disabled = true;
+
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const body = { message };
+        if (currentSiteId) body.siteId = currentSiteId;
+
+        const res = await fetch('/api/vitrines/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token,
+            'X-Societe-Id': getSocieteId()
+          },
+          body: JSON.stringify(body)
+        });
+
+        const headerSiteId = res.headers.get('X-Site-Id');
+        if (headerSiteId) currentSiteId = headerSiteId;
+
+        hideTyping();
+        const bubble = addBubble('assistant', '');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'text') {
+                fullText += data.content;
+                // Show text without tags
+                bubble.textContent = stripTags(fullText);
+                scrollToBottom();
+              } else if (data.type === 'done') {
+                if (data.siteId) currentSiteId = data.siteId;
+                // Create inline upload cards (WAOUH #1)
+                if (data.uploads && data.uploads.length > 0) {
+                  data.uploads.forEach(u => createUploadCard(u));
+                }
+                if (data.extracted) {
+                  updatePreview();
+                  showToast('Votre site est pret a etre previsualise.');
+                }
+              } else if (data.type === 'error') {
+                bubble.textContent += '\n\n[Erreur : ' + data.error + ']';
+              }
+            } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (err) {
+        hideTyping();
+        addBubble('assistant', L.error_generic);
+        console.error('[onboarding]', err);
+      } finally {
+        isStreaming = false;
+        document.getElementById('send-btn').disabled = false;
+      }
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+      const el = e.target;
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    // ================================================================
+    // Preview live (WAOUH #4)
+    // ================================================================
+    function updatePreview() {
+      if (!currentSiteId) return;
+      const frame = document.getElementById('preview-frame');
+      const indicator = document.getElementById('preview-updating');
+
+      indicator.style.display = 'block';
+      document.getElementById('preview-url').textContent = 'Apercu en direct';
+
+      // Build preview URL with auth token
+      const previewSlug = 'preview-' + currentSiteId;
+      frame.src = '/site/' + previewSlug;
+
+      frame.onload = () => {
+        // Inject auth token into iframe for API calls
+        try {
+          getToken().then(token => {
+            if (token && frame.contentWindow) {
+              frame.contentWindow.postMessage({
+                type: 'jadomi-auth',
+                token: token,
+                societeId: getSocieteId()
+              }, '*');
+            }
+          });
+        } catch (e) { /* cross-origin */ }
+
+        setTimeout(() => { indicator.style.display = 'none'; }, 1000);
+      };
+    }
+
+    // ================================================================
+    // Global drag & drop (WAOUH #6)
+    // ================================================================
+    let dragCounter = 0;
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      document.body.classList.add('is-dragging');
+      // Highlight last upload card as target
+      const cards = document.querySelectorAll('.inline-upload:not(.uploaded)');
+      cards.forEach(c => c.classList.remove('drag-target'));
+      if (cards.length > 0) cards[cards.length - 1].classList.add('drag-target');
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        document.body.classList.remove('is-dragging');
+        document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      document.body.classList.remove('is-dragging');
+      document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
+      // ONLY handle if drop was NOT on a card (card handles its own via stopPropagation)
+      // This is a fallback for drops on empty space
+      if (e.target.closest && e.target.closest('.inline-upload')) return; // card already handled it
+      const cards = document.querySelectorAll('.inline-upload:not(.uploaded)');
+      if (cards.length > 0 && e.dataTransfer.files.length > 0) {
+        handleInlineUpload(cards[cards.length - 1], e.dataTransfer.files);
+      }
+    });
+
+    window.addEventListener('dragover', (e) => { e.preventDefault(); });
+
+    // ================================================================
+    // Init
+    // ================================================================
+    async function init() {
+      const token = await getToken();
+      if (!token) return;
+
+      const initData = await apiJson('/chat/init');
+      if (initData && initData.success) {
+        professionConfig = initData.profession;
+      }
+
+      // Load existing conversation
+      if (currentSiteId) {
+        const convData = await apiJson('/chat/' + currentSiteId);
+        if (convData && convData.success && convData.conversation) {
+          const messages = Array.isArray(convData.conversation.messages)
+            ? convData.conversation.messages
+            : JSON.parse(convData.conversation.messages || '[]');
+          messages.forEach(m => {
+            // Skip [UPLOAD_COMPLETE] messages
+            if (m.role === 'user' && m.content.startsWith('[UPLOAD_COMPLETE]')) return;
+            addBubble(m.role, stripTags(m.content));
+          });
+          if (convData.conversation.is_complete) {
+            updatePreview();
+          }
+          return;
+        }
+      }
+
+      // New conversation: show greeting
+      if (initData && initData.success) {
+        addBubble('assistant', initData.greeting);
+      }
+    }
+
+    function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    init();
+  </script>
+</body>
+</html>
