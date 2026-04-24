@@ -799,6 +799,28 @@ Skills utilises : ui-ux-pro-max (guidelines), brand, design-system.
 TODO : validation Karim, choix video hero, remplacement temoignages,
 mockups screenshots formules, mise en prod (switch route /).
 
+## Passe 37 (24 avril 2026) -- Nouveaux prix + sites demo + acces sites existants
+Nouveau modele tarifaire hybride creation + abonnement :
+- Classic 199EUR creation + 29EUR/mois (0 modif incluse, 49EUR/unite)
+- Pro 499EUR creation + 49EUR/mois (CMS illimite) LE PLUS CHOISI
+- Expert 899EUR creation + 79EUR/mois (CMS avance + Hollywood)
+Module acces sites existants (FTP/SSH/WordPress) :
+- 7 endpoints /api/studio/sites-existants/*
+- Chiffrement AES-256-GCM pour credentials (cle SITE_CREDENTIALS_KEY)
+- Instructions par hebergeur (Hostinger, OVH, Infomaniak, WordPress, Shopify)
+- Test connexion live (WordPress REST API)
+- Dashboard /studio/sites-existants/ avec grid cards
+Sites demo 3 formules en ligne :
+- /demo/classic (site minimal), /demo/pro (moderne), /demo/expert (premium dark+gold)
+- Donnees fictives (Dr Exemple), badge demo + lien onboarding
+Cards formules avec iframes sandbox des demos + double prix visible.
+Wizard onboarding enrichi : pre-selection forfait, etape acces hebergeur,
+test connexion, recap paiement creation + mensuel.
+Page Classic renouvelee : 0 modif gratuite, option 49EUR/unite ou upgrade Pro.
+SQL 40 : 5 nouvelles tables (paiements_creation, modifications_ponctuelles,
+sites_existants, sites_existants_credentials, sites_existants_interventions).
+TODO : executer SQL 40 dans Supabase Dashboard, integrer Stripe, moteur IA.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
