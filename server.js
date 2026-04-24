@@ -169,6 +169,9 @@ app.get('/demo/expert', (req, res) => res.sendFile(path.join(__dirname, 'public/
 // Homepage v2 preview (Passe 36)
 app.get('/index-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
 app.get('/index-v2.html', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
+// Homepage v3 Awwwards (Passe 38b)
+app.get('/index-v3', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v3.html')));
+app.get('/index-v3.html', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v3.html')));
 // 301 redirects for old URLs
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
