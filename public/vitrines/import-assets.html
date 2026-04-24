@@ -188,23 +188,45 @@ function renderReport(){
       </div>
     </div>
 
-    <!-- IMAGES -->
-    ${r.images?.length?'<div class="images-section"><h3>'+r.images.length+' medias detectes</h3><div class="images-grid">'+r.images.slice(0,50).map(img=>'<img class="img-thumb" src="'+img.url+'" alt="'+(img.alt||'')+'" loading="lazy" onerror="this.style.display=\'none\'">').join('')+'</div></div>':''}
+    <!-- MEDIAS (images + videos + PDFs) -->
+    <div class="images-section">
+      <h3>${(r.images?.length||0)+(r.videos?.length||0)+(r.documents?.length||0)} medias detectes</h3>
+      ${r.videos?.length?'<div style="margin-bottom:12px;"><strong style="font-size:13px;">'+r.videos.length+' video(s)</strong><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">'+r.videos.map(v=>'<div style="width:120px;height:68px;border-radius:6px;background:#1a1814;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid var(--line);">'+(v.thumbnail?'<img src="'+v.thumbnail+'" style="width:100%;height:100%;object-fit:cover;opacity:.7;">':'')+'<span style="position:absolute;font-size:20px;">&#9654;</span><span style="position:absolute;bottom:2px;right:4px;font-size:9px;color:#fff;background:rgba(0,0,0,.6);padding:1px 4px;border-radius:2px;">'+v.type+'</span></div>').join('')+'</div></div>':''}
+      ${r.images?.length?'<div style="margin-bottom:12px;"><strong style="font-size:13px;">'+r.images.length+' image(s)</strong><div class="images-grid" style="margin-top:6px;">'+r.images.slice(0,40).map(img=>'<img class="img-thumb" src="'+img.url+'" alt="'+(img.alt||'')+'" loading="lazy" onerror="this.style.display=\'none\'">').join('')+'</div></div>':''}
+      ${r.documents?.length?'<div><strong style="font-size:13px;">'+r.documents.length+' document(s) PDF</strong><div style="margin-top:6px;">'+r.documents.map(d=>'<a href="'+d.url+'" target="_blank" style="display:inline-block;padding:6px 12px;background:var(--or-dim);border-radius:6px;font-size:12px;margin:3px;">&#128196; '+d.title+'</a>').join('')+'</div></div>':''}
+    </div>
 
-    <!-- DUAL CTA -->
-    <div class="dual-cta">
-      <div class="cta-card" onclick="showWizard()">
-        <h3>Ameliorer ce site</h3>
-        <p>JADOMI IA modifie votre site existant. Gardez votre SEO, vos produits, votre structure. On ameliore design, vitesse, contenu.</p>
-        <div class="price">Des 49&euro; / modification</div>
-        <button class="btn btn-primary">Ameliorer &rarr;</button>
+    <!-- 3 MODES + NOUVEAU SITE -->
+    <h2 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin:40px 0 20px;text-align:center;">Comment souhaitez-vous ameliorer votre site ?</h2>
+
+    <div style="display:grid;gap:16px;margin-bottom:20px;">
+      <!-- MODE STAGING -->
+      <div class="cta-card" onclick="startStaging()" style="text-align:left;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;">
+        <div style="font-size:32px;">&#128640;</div>
+        <div>
+          <h3 style="font-size:18px;margin-bottom:4px;">Mode Staging</h3>
+          <p style="margin-bottom:4px;">Je clone votre site, je l'ameliore, vous validez avant tout deploiement. Aucun mot de passe requis.</p>
+          <div style="font-size:11px;color:var(--success);">&#10003; Zero risque &middot; &#10003; Preview complete &middot; &#10003; Tous hebergeurs</div>
+        </div>
+        <div><div class="price" style="margin:0;">Des 49&euro;</div><button class="btn btn-primary" style="margin-top:8px;">Commencer &rarr;</button></div>
       </div>
-      <div class="cta-card" onclick="window.location.href='/public/vitrines/onboarding-v3.html'">
-        <h3>Creer un nouveau site</h3>
-        <p>Repartez de zero avec un site JADOMI premium. 60 themes, chatbot IA, dashboard CMS autonome.</p>
-        <div class="price">Des 199&euro; + 29&euro;/mois</div>
-        <button class="btn btn-secondary">Creer nouveau &rarr;</button>
+
+      <!-- MODE AUTOMATIQUE -->
+      <div class="cta-card" onclick="showWizard()" style="text-align:left;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;">
+        <div style="font-size:32px;">&#9889;</div>
+        <div>
+          <h3 style="font-size:18px;margin-bottom:4px;">Mode Automatique</h3>
+          <p style="margin-bottom:4px;">Donnez un acces securise, JADOMI modifie directement. Backup auto + rollback en 1 clic.</p>
+          <div style="font-size:11px;color:var(--ink-dim);">Necessite identifiants WordPress ou FTP</div>
+        </div>
+        <div><div class="price" style="margin:0;">Pro 49&euro;/mois</div><button class="btn btn-secondary" style="margin-top:8px;">Configurer &rarr;</button></div>
       </div>
+    </div>
+
+    <!-- CTA NOUVEAU SITE -->
+    <div style="text-align:center;padding:20px;border-top:1px solid var(--line);margin-top:16px;">
+      <p style="font-size:13px;color:var(--ink-dim);margin-bottom:8px;">Ou repartez de zero avec un nouveau site JADOMI</p>
+      <a href="/public/vitrines/onboarding-v3.html" class="btn btn-secondary" style="display:inline-block;text-decoration:none;">Creer un nouveau site (60 themes) &rarr;</a>
     </div>
 
     <!-- WIZARD CREDENTIALS -->
@@ -270,6 +292,32 @@ function renderReport(){
       </div>
     </div>
   `;
+}
+
+// === Staging ===
+async function startStaging(){
+  if(!confirm('Creer une copie staging de ce site ? (2-5 minutes)'))return;
+  const url=scanResult?.url_analysee||sessionStorage.getItem('jadomi_scan_url')||'';
+  if(!url){alert('URL manquante');return;}
+  try{
+    const r=await api('POST','/api/vitrines/staging/create',{url,analysis_id:scanResult?.id||null,societe_id:localStorage.getItem('societe_active_id')});
+    if(!r.staging_id){throw new Error(r.error||'Erreur creation staging');}
+    // Poll status
+    const poll=setInterval(async()=>{
+      const s=await api('GET','/api/vitrines/staging/status/'+r.staging_id);
+      if(s.statut==='pret'){
+        clearInterval(poll);
+        alert('Staging pret ! Redirection...');
+        window.location.href=r.url_staging;
+      }else if(s.statut==='archive'){
+        clearInterval(poll);
+        alert('Erreur creation staging. Reessayez.');
+      }
+    },3000);
+    // Timeout 5 min
+    setTimeout(()=>clearInterval(poll),300000);
+    alert('Staging en cours de creation (2-5 min). Vous serez redirige automatiquement.');
+  }catch(e){alert('Erreur : '+(e.error||e.message));}
 }
 
 let selectedHeb='',selectedMethod='wordpress_admin';

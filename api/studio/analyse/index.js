@@ -221,6 +221,38 @@ module.exports = function mountAnalyse(app, supabase) {
         });
       } catch { /* skip image extraction */ }
 
+      // 3d. Detection videos (direct + iframes YouTube/Vimeo)
+      rapport.videos = [];
+      try {
+        $('video').each((i, el) => {
+          const src = $(el).attr('src') || $(el).find('source').attr('src') || '';
+          if (src) {
+            try { rapport.videos.push({ url: new URL(src, targetUrl).href, type: 'direct', poster: $(el).attr('poster') || '' }); } catch {}
+          }
+        });
+        $('iframe').each((i, el) => {
+          const src = $(el).attr('src') || '';
+          if (src.includes('youtube.com/embed/') || src.includes('youtu.be/')) {
+            const vid = src.match(/(?:embed\/|youtu\.be\/)([^?&]+)/)?.[1];
+            rapport.videos.push({ url: src, type: 'youtube', embed: true, video_id: vid, thumbnail: vid ? 'https://img.youtube.com/vi/' + vid + '/maxresdefault.jpg' : null });
+          } else if (src.includes('vimeo.com')) {
+            const vid = src.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
+            rapport.videos.push({ url: src, type: 'vimeo', embed: true, video_id: vid });
+          }
+        });
+      } catch { /* skip video extraction */ }
+
+      // 3e. Detection PDFs
+      rapport.documents = [];
+      try {
+        $('a[href]').each((i, el) => {
+          const href = $(el).attr('href') || '';
+          if (href.match(/\.pdf(\?|$)/i)) {
+            try { rapport.documents.push({ url: new URL(href, targetUrl).href, title: $(el).text().trim() || 'Document PDF' }); } catch {}
+          }
+        });
+      } catch { /* skip PDF extraction */ }
+
       // 4. Analyse SEO basique
       let seoScore = 50;
       const title = $('title').text().trim();
