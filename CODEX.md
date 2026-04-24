@@ -898,5 +898,58 @@ Utiliser 1Password ou Bitwarden pour :
 - Supabase, Cloudflare R2, Anthropic, OpenAI, Stripe, DNS, Email admin
 
 ===============================================================
+# 12. SESSIONS DE CADRAGE STRATEGIQUE
+===============================================================
+
+## Session 24 avril 2026 (matinée) - Cadrage JADOMI Studio
+
+### Décisions stratégiques prises avec Karim :
+
+**1. Positionnement JADOMI Studio**
+- JADOMI Studio = UN ONGLET dans le dashboard JADOMI (pas plateforme séparée)
+- COMPLÉMENT des logiciels métier (Julie, Secib, Logos_w) - PAS un remplaçant
+- Cerveau IA qui orchestre les APIs (GPT-5, Claude, DALL-E, ElevenLabs, Pexels...)
+- Le client guide avec 3-5 choix simples, le Studio route, les APIs exécutent
+
+**2. Cibles prioritaires (4 métiers)**
+- Chirurgien-dentiste
+- Prothésiste dentaire
+- Orthodontiste
+- Avocat
+
+**3. Les 3 portes du Studio**
+- Porte 1 : SITE (créer/améliorer son site + upgrades)
+- Porte 2 : PUB / EMAILING (PDF, bannières, campagnes)
+- Porte 3 : VIDÉO (améliorer vidéos importées, PAS créer from scratch)
+
+**4. Modèle économique**
+- 3 forfaits mensuels style ChatGPT/Claude :
+  * STARTER 29€/mois (quotas bas)
+  * PRO 79€/mois (le plus choisi)
+  * EXPERT 199€/mois (quasi illimité)
+- Règle dépassement : BLOCAGE + proposition d'upgrader (style Spotify Free)
+- PAS de tokens/crédits à la carte visibles au client
+
+**5. Transparence IA / Protection du savoir-faire**
+- Mention "Propulsé par JADOMI IA" OBLIGATOIRE partout (conformité AI Act)
+- JAMAIS nommer les modèles (GPT-5, Claude, etc.) - protection concurrence
+- Niveaux = "JADOMI IA Classic / Pro / Expert" (pas les technos)
+- Compteurs visibles d'usage mensuel (quotas restants)
+
+**6. Décisions écartées**
+- ❌ Tokens/crédits à la carte (usine à gaz)
+- ❌ Remplacement des logiciels métier (impossible)
+- ❌ Avatars Synthesia/HeyGen (pas maintenant)
+- ❌ Sora 2 API (pas disponible publiquement)
+- ❌ Images DALL-E pour marketing (trop "IA reconnaissable")
+- ❌ Benchmark cabinet vs concurrents (data non accessible)
+
+### Prochaines actions :
+- Installer les skills design (UI/UX Pro Max, Remotion, Vercel)
+- Différencier visuellement les 3 formules (site-classic/pro/expert)
+- Construire l'onglet Studio dans le dashboard
+- Intégration Stripe pour les 3 forfaits
+
+===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
 ===============================================================
