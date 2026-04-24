@@ -715,7 +715,94 @@ async function init(){
       return;
     }
   }
-  if(initData?.success){addBubble('assistant',initData.greeting);setTimeout(()=>showFormuleSelector(),800);}
+  if(initData?.success){
+    // Detecter si on vient de recreer-mon-site.html
+    const urlParams=new URLSearchParams(location.search);
+    const fromRecreer=urlParams.get('from')==='recreer';
+    const fromExisting=urlParams.get('from')==='existing';
+
+    if(fromRecreer||fromExisting){
+      const raw=sessionStorage.getItem('jadomi_recreer_data');
+      if(raw){
+        try{
+          const pre=JSON.parse(raw);
+          // Envoyer un message contextuel au chatbot avec toutes les donnees
+          addBubble('assistant','Je vois que vous souhaitez refaire votre site a partir de '+
+            (pre.url_originale||'votre site actuel')+'. J\'ai recupere vos photos, videos et textes. '+
+            'Construisons ensemble votre nouveau site premium !');
+
+          // Construire le message de contexte pour Claude
+          const contextParts=[];
+          if(pre.titre)contextParts.push('Nom/titre du cabinet : '+pre.titre);
+          if(pre.sous_titre)contextParts.push('Slogan : '+pre.sous_titre);
+          if(pre.description)contextParts.push('Description : '+pre.description);
+          if(pre.telephone)contextParts.push('Telephone : '+pre.telephone);
+          if(pre.email)contextParts.push('Email : '+pre.email);
+          if(pre.adresse)contextParts.push('Adresse : '+pre.adresse);
+          if(pre.horaires)contextParts.push('Horaires : '+pre.horaires);
+          if(pre.theme)contextParts.push('Theme choisi : '+pre.theme);
+          if(pre.images?.length)contextParts.push('Photos gardees : '+pre.images.length);
+          if(pre.videos?.length)contextParts.push('Videos gardees : '+pre.videos.length);
+          if(pre.sections_detectees?.length)contextParts.push('Sections existantes : '+pre.sections_detectees.join(', '));
+
+          // Afficher un resume visuel
+          const resumeHtml=document.createElement('div');
+          resumeHtml.className='msg msg-ai';
+          resumeHtml.innerHTML=`<div class="msg-header"><div class="msg-avatar msg-avatar-ai">J</div><div class="msg-name">JADOMI IA</div></div>
+            <div style="background:var(--blanc);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:8px;">
+              <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Donnees recuperees de votre site :</div>
+              ${pre.titre?'<div style="font-size:12px;color:var(--ink-s);padding:3px 0;">&#10003; Titre : <strong>'+pre.titre+'</strong></div>':''}
+              ${pre.telephone?'<div style="font-size:12px;color:var(--ink-s);padding:3px 0;">&#10003; Tel : '+pre.telephone+'</div>':''}
+              ${pre.email?'<div style="font-size:12px;color:var(--ink-s);padding:3px 0;">&#10003; Email : '+pre.email+'</div>':''}
+              ${pre.adresse?'<div style="font-size:12px;color:var(--ink-s);padding:3px 0;">&#10003; Adresse : '+pre.adresse+'</div>':''}
+              ${pre.images?.length?'<div style="font-size:12px;color:var(--ink-s);padding:3px 0;">&#10003; '+pre.images.length+' photos selectionnees</div>':''}
+              ${pre.videos?.length?'<div style="font-size:12px;color:var(--ink-s);padding:3px 0;">&#10003; '+pre.videos.length+' videos</div>':''}
+              ${pre.theme?'<div style="font-size:12px;color:var(--or);padding:3px 0;font-weight:600;">&#127912; Theme : '+pre.theme+'</div>':''}
+            </div>`;
+          document.getElementById('messages').appendChild(resumeHtml);
+          scrollToBottom();
+
+          // Envoyer le contexte au chatbot en silent (comme premier message)
+          setTimeout(async()=>{
+            const contextMsg='[RECREER_SITE] Je refais le site '+pre.url_originale+'. Voici les infos recuperees :\n'+contextParts.join('\n')+
+              '\n\nLe client a deja choisi ses photos ('+((pre.images||[]).length)+') et son theme ('+pre.theme+').'+
+              '\nDemande-lui de confirmer ou ajuster les textes, puis cree le site avec ces donnees.';
+
+            const body={message:contextMsg};
+            if(currentSiteId)body.siteId=currentSiteId;
+
+            try{
+              const res=await fetch('/api/vitrines/chat',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':getSocieteId()},
+                body:JSON.stringify(body)
+              });
+              const headerSiteId=res.headers.get('X-Site-Id');
+              if(headerSiteId)currentSiteId=headerSiteId;
+              const bubble=addBubble('assistant','');
+              await readStream(res,bubble);
+            }catch(e){
+              addBubble('assistant','Je suis pret a reconstruire votre site. Dites-moi si les informations recuperees sont correctes ou si vous souhaitez modifier quelque chose.');
+            }
+          },1500);
+
+          // Nettoyer sessionStorage
+          sessionStorage.removeItem('jadomi_recreer_data');
+
+        }catch(e){
+          console.error('[recreer] Parse error:',e);
+          addBubble('assistant',initData.greeting);
+          setTimeout(()=>showFormuleSelector(),800);
+        }
+      }else{
+        addBubble('assistant',initData.greeting);
+        setTimeout(()=>showFormuleSelector(),800);
+      }
+    }else{
+      addBubble('assistant',initData.greeting);
+      setTimeout(()=>showFormuleSelector(),800);
+    }
+  }
 }
 init();
 </script>
