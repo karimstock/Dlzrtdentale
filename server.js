@@ -413,6 +413,15 @@ try {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
 }
 
+// === JADOMI Studio Enhance Media — Remotion Expert (Passe 41B) ===
+try {
+  app.use('/api/studio/enhance', require('./api/studio/enhance-media'));
+  app.locals.supabaseAdmin = supabaseAdmin;
+  console.log('[JADOMI] Module Studio Enhance Media (Remotion) monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Enhance Media non charge:', e.message);
+}
+
 // === JADOMI Studio Sites Jadomi — Creation sites + IA assistant (Passe 38) ===
 try {
   const mountSitesJadomi = require('./api/studio/sites-jadomi');
