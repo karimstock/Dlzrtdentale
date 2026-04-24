@@ -152,6 +152,8 @@ app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'p
 app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
+// JADOMI Avocat Expert - Coffre-fort (Passe 44C)
+app.get('/avocat/coffre', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/coffre.html')));
 // Sites staging JADOMI — copies pour modification (Passe 43)
 app.use('/sites-staging/:slug', (req, res, next) => {
   const slug = req.params.slug;
@@ -421,6 +423,14 @@ try {
   console.log('[JADOMI] Module Studio Analyse (scanner URL) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
+}
+
+// === JADOMI AVOCAT EXPERT — Coffre-fort securise (Passe 44C) ===
+try {
+  app.use('/api/avocat', require('./api/avocat/coffre'));
+  console.log('[JADOMI] Module Avocat Expert (coffre-fort) monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Avocat Expert non charge:', e.message);
 }
 
 // === JADOMI Studio Enhance Media — Remotion Expert (Passe 41B) ===

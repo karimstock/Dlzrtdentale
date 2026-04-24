@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Avocat — Coffre-fort securise</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--creme:#FAF5EB;--or:#C9A961;--or-dim:rgba(201,169,97,.12);--nuit:#0A1628;--blanc:#FFFFFF;--ink:#1a1814;--ink-s:#5C5C70;--ink-d:#8E8E9E;--line:rgba(26,24,20,.08);--success:#16A34A;--danger:#EF4444;--r:12px;}
+body{font-family:'Inter',sans-serif;background:var(--creme);color:var(--ink);min-height:100vh;}
+.container{max-width:960px;margin:0 auto;padding:32px 28px 80px;}
+h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margin-bottom:16px;}
+.back{font-size:13px;color:var(--ink-s);display:block;margin-bottom:16px;}
+.card{background:var(--blanc);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px;}
+.card h3{font-size:15px;font-weight:700;margin-bottom:12px;}
+.btn{padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s;}
+.btn-gold{background:var(--or);color:var(--blanc);}.btn-gold:hover{box-shadow:0 4px 12px var(--or-dim);}
+.btn-s{background:transparent;border:1px solid var(--line);color:var(--ink-s);}
+.btn-danger{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--ink-d);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field select{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;}
+.field input:focus{outline:none;border-color:var(--or);}
+
+/* Lock screen */
+.lock{text-align:center;padding:80px 20px;}
+.lock-icon{font-size:48px;margin-bottom:16px;}
+.lock input{max-width:300px;margin:0 auto 12px;display:block;text-align:center;font-size:16px;padding:14px;}
+
+/* Client cards */
+.client-card{border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:14px;}
+.client-card:hover{border-color:var(--or);transform:translateY(-2px);box-shadow:0 4px 12px var(--or-dim);}
+.client-avatar{width:44px;height:44px;border-radius:50%;background:var(--nuit);color:var(--blanc);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
+.client-info{flex:1;}.client-name{font-weight:600;font-size:14px;}.client-email{font-size:12px;color:var(--ink-d);}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;}
+.badge-new{background:rgba(239,68,68,.1);color:var(--danger);}
+.badge-ok{background:rgba(22,163,74,.1);color:var(--success);}
+
+/* Document list */
+.doc-item{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:8px;}
+.doc-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.doc-icon{font-size:20px;}
+.doc-name{font-size:13px;font-weight:600;flex:1;}
+.doc-meta{font-size:11px;color:var(--ink-d);}
+.doc-note{font-size:12px;color:var(--ink-s);background:var(--creme);padding:8px 12px;border-radius:6px;margin:8px 0;}
+.doc-actions{display:flex;gap:6px;margin-top:8px;}
+.doc-actions button{font-size:11px;padding:4px 10px;}
+.comment{padding:8px 12px;border-left:3px solid var(--or);margin:6px 0;font-size:12px;color:var(--ink-s);}
+.comment.avocat{border-color:var(--nuit);}
+
+/* Upload */
+.upload-zone{border:2px dashed var(--or);border-radius:var(--r);padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin:16px 0;}
+.upload-zone:hover{background:var(--or-dim);}
+
+.view{display:none;}.view.active{display:block;}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--nuit);color:var(--blanc);padding:12px 20px;border-radius:8px;font-size:13px;z-index:100;opacity:0;transition:opacity .3s;}
+.toast.show{opacity:1;}
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--ink-d);}
+.security-note{font-size:10px;color:var(--ink-d);display:flex;align-items:center;gap:6px;margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/organisation.html" class="back">&larr; Retour au dashboard</a>
+  <h1>&#128274; Coffre-fort securise</h1>
+
+  <!-- LOCK SCREEN -->
+  <div class="view active" id="v-lock">
+    <div class="lock">
+      <div class="lock-icon">&#128274;</div>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:24px;margin-bottom:8px;">Acces au coffre-fort</h2>
+      <p style="font-size:13px;color:var(--ink-s);margin-bottom:20px;">Entrez votre mot de passe coffre pour acceder aux documents confidentiels.</p>
+      <input type="password" id="coffre-pwd" placeholder="Mot de passe coffre" onkeydown="if(event.key==='Enter')unlockCoffre()">
+      <button class="btn btn-gold" onclick="unlockCoffre()">Deverrouiller</button>
+      <div id="lock-error" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+      <div class="security-note" style="justify-content:center;margin-top:20px;">&#128274; Chiffrement AES-256 &middot; Hebergement France &middot; Conforme RGPD &middot; Article 66-5</div>
+      <div style="margin-top:20px;"><a href="javascript:void(0)" onclick="showSetup()" style="font-size:12px;color:var(--or);">Premiere fois ? Configurer le coffre</a></div>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="view" id="v-setup">
+    <div class="card" style="max-width:400px;margin:40px auto;text-align:center;">
+      <h3>Configurer votre coffre-fort</h3>
+      <p style="font-size:13px;color:var(--ink-s);margin-bottom:16px;">Creez un mot de passe unique pour votre coffre (different de votre login JADOMI).</p>
+      <div class="field"><input type="password" id="setup-pwd" placeholder="Nouveau mot de passe coffre (8+ caracteres)"></div>
+      <div class="field"><input type="password" id="setup-pwd2" placeholder="Confirmer le mot de passe"></div>
+      <button class="btn btn-gold" onclick="setupCoffre()">Creer le coffre</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="view" id="v-main">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:12px;color:var(--success);">&#128994; Coffre deverrouille (session 15 min)</div>
+      <button class="btn btn-gold" onclick="showNewClient()">+ Nouveau client</button>
+    </div>
+
+    <div id="clients-list"><div style="text-align:center;padding:40px;color:var(--ink-d);">Chargement...</div></div>
+  </div>
+
+  <!-- NEW CLIENT -->
+  <div class="view" id="v-new-client">
+    <div class="card" style="max-width:500px;">
+      <h3>Creer un client</h3>
+      <div class="field"><label>Nom</label><input id="nc-nom" placeholder="Dupont"></div>
+      <div class="field"><label>Prenom</label><input id="nc-prenom" placeholder="Marie"></div>
+      <div class="field"><label>Email</label><input id="nc-email" type="email" placeholder="client@email.fr"></div>
+      <div class="field"><label>Telephone</label><input id="nc-tel" placeholder="06 12 34 56 78"></div>
+      <div class="field"><label>Titre du dossier</label><input id="nc-dossier" placeholder="Divorce Dupont, Contrat SCI..."></div>
+      <div class="field"><label>Type</label><select id="nc-type"><option>Droit de la famille</option><option>Droit des affaires</option><option>Droit du travail</option><option>Droit immobilier</option><option>Droit penal</option><option>Autre</option></select></div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn btn-s" onclick="showView('v-main');loadClients();">Annuler</button>
+        <button class="btn btn-gold" onclick="createClient()">Creer et envoyer invitation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOSSIER DETAIL -->
+  <div class="view" id="v-dossier">
+    <button class="btn btn-s" onclick="showView('v-main');loadClients();" style="margin-bottom:16px;">&larr; Retour</button>
+    <div id="dossier-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="footer">Propulse par JADOMI IA &middot; Coffre-fort conforme RGPD + Article 66-5</div>
+
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
+let db,token,societeId;
+
+(async function(){
+  db=supabase.createClient(SU,SK);
+  const{data}=await db.auth.getSession();
+  if(!data?.session){location.href='/login.html';return;}
+  token=data.session.access_token;
+  societeId=localStorage.getItem('societe_active_id')||'';
+})();
+
+function api(method,path,body){
+  const opts={method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','X-Societe-Id':societeId}};
+  if(body&&method!=='GET')opts.body=JSON.stringify(body);
+  return fetch('/api/avocat'+path,opts).then(r=>r.json());
+}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function showSetup(){showView('v-setup');}
+function showNewClient(){showView('v-new-client');}
+
+async function setupCoffre(){
+  const p1=document.getElementById('setup-pwd').value;
+  const p2=document.getElementById('setup-pwd2').value;
+  if(p1.length<8){alert('8 caracteres minimum');return;}
+  if(p1!==p2){alert('Les mots de passe ne correspondent pas');return;}
+  const r=await api('POST','/coffre/setup',{password:p1});
+  if(r.success){showToast('Coffre configure !');showView('v-lock');}
+  else alert(r.error||'Erreur');
+}
+
+async function unlockCoffre(){
+  const pwd=document.getElementById('coffre-pwd').value;
+  if(!pwd)return;
+  const errEl=document.getElementById('lock-error');
+  const r=await api('POST','/coffre/unlock',{password:pwd});
+  if(r.success){errEl.style.display='none';showView('v-main');loadClients();}
+  else{errEl.textContent=r.error||'Mot de passe incorrect';errEl.style.display='block';}
+}
+
+async function loadClients(){
+  const clients=await api('GET','/coffre/clients');
+  const el=document.getElementById('clients-list');
+  if(!clients.length){el.innerHTML='<div class="card" style="text-align:center;padding:32px;"><p style="color:var(--ink-d);">Aucun client. Creez votre premier client pour commencer.</p></div>';return;}
+  el.innerHTML=clients.map(c=>`
+    <div class="client-card" onclick="openClient('${c.id}')">
+      <div class="client-avatar">${(c.prenom||'?')[0]}${(c.nom||'?')[0]}</div>
+      <div class="client-info"><div class="client-name">${c.prenom||''} ${c.nom}</div><div class="client-email">${c.email}</div></div>
+      <span class="badge ${c.statut==='actif'?'badge-ok':'badge-new'}">${c.statut}</span>
+    </div>
+  `).join('');
+}
+
+async function createClient(){
+  const r=await api('POST','/coffre/clients',{
+    nom:document.getElementById('nc-nom').value,
+    prenom:document.getElementById('nc-prenom').value,
+    email:document.getElementById('nc-email').value,
+    telephone:document.getElementById('nc-tel').value,
+    dossier_titre:document.getElementById('nc-dossier').value,
+    dossier_type:document.getElementById('nc-type').value
+  });
+  if(r.client){
+    showToast('Client cree ! Mot de passe temporaire : '+r.invitation.temp_password);
+    alert('IMPORTANT — Communiquez ce mot de passe temporaire au client :\n\nEmail : '+r.client.email+'\nMot de passe : '+r.invitation.temp_password+'\n\n(Un email sera envoye automatiquement prochainement)');
+    showView('v-main');loadClients();
+  }else{alert(r.error||'Erreur creation client');}
+}
+
+async function openClient(clientId){
+  const dossiers=await api('GET','/coffre/dossiers');
+  const clientDossiers=dossiers.filter(d=>d.client_id===clientId);
+  if(!clientDossiers.length){showToast('Aucun dossier pour ce client.');return;}
+  openDossier(clientDossiers[0].id);
+}
+
+async function openDossier(dossierId){
+  showView('v-dossier');
+  const r=await api('GET','/coffre/dossiers/'+dossierId);
+  const d=r.dossier;
+  const docs=r.documents||[];
+  const comments=r.commentaires||[];
+
+  document.getElementById('dossier-content').innerHTML=`
+    <div class="card">
+      <h3>&#128193; ${d.titre||d.reference}</h3>
+      <div style="font-size:12px;color:var(--ink-d);">Ref : ${d.reference||'—'} &middot; Type : ${d.type||'—'} &middot; Client : ${d.avocat_clients?.prenom||''} ${d.avocat_clients?.nom||''}</div>
+    </div>
+
+    <div class="card">
+      <h3>&#128206; Documents (${docs.length})</h3>
+      <div class="upload-zone" onclick="document.getElementById('doc-upload').click()">
+        <div style="font-size:24px;opacity:.5;">+</div>
+        <div style="font-size:12px;color:var(--ink-s);">Ajouter un document chiffre (PDF, image, audio, video &middot; max 100 Mo)</div>
+      </div>
+      <input type="file" id="doc-upload" style="display:none" onchange="uploadDoc('${dossierId}',this.files[0])">
+      ${docs.map(doc=>{
+        const docComments=comments.filter(c=>c.document_id===doc.id);
+        return `<div class="doc-item">
+          <div class="doc-header">
+            <span class="doc-icon">${doc.mime_type?.includes('pdf')?'&#128196;':doc.mime_type?.includes('image')?'&#128248;':doc.mime_type?.includes('audio')?'&#127925;':'&#128196;'}</span>
+            <span class="doc-name">${doc.filename}</span>
+            <span class="badge ${doc.statut_validation==='valide'?'badge-ok':doc.statut_validation==='refuse'?'badge-new':''}">
+              ${doc.statut_validation==='valide'?'Valide':doc.statut_validation==='refuse'?'Refuse':doc.statut_validation==='a_modifier'?'A modifier':'En attente'}
+            </span>
+          </div>
+          <div class="doc-meta">${doc.file_size_kb} KB &middot; ${doc.uploaded_by_role} &middot; ${new Date(doc.created_at).toLocaleString('fr-FR')}</div>
+          ${doc.note_client?'<div class="doc-note">Note : '+doc.note_client+'</div>':''}
+          ${docComments.map(c=>'<div class="comment '+(c.author_role==='avocat'?'avocat':'')+'"><strong>'+(c.author_role==='avocat'?'Vous':'Client')+'</strong> : '+c.content+'</div>').join('')}
+          <div class="doc-actions">
+            <button class="btn btn-s" onclick="downloadDoc('${doc.id}')">Telecharger</button>
+            <button class="btn btn-s" style="color:var(--success);" onclick="validateDoc('${doc.id}','valide')">&#10003; Valider</button>
+            <button class="btn btn-s" style="color:var(--danger);" onclick="validateDoc('${doc.id}','refuse')">&#10007; Refuser</button>
+            <button class="btn btn-s" onclick="commentDoc('${doc.id}')">&#128172; Commenter</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function uploadDoc(dossierId,file){
+  if(!file)return;
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('dossier_id',dossierId);
+  const res=await fetch('/api/avocat/coffre/documents/upload',{method:'POST',headers:{'Authorization':'Bearer '+token,'X-Societe-Id':societeId},body:fd});
+  const r=await res.json();
+  if(r.document){showToast('Document chiffre et stocke.');openDossier(dossierId);}
+  else alert(r.error||'Erreur upload');
+}
+
+function downloadDoc(docId){window.open('/api/avocat/coffre/documents/'+docId+'/download?token='+token,'_blank');}
+
+async function validateDoc(docId,statut){
+  await api('PATCH','/coffre/documents/'+docId+'/validate',{statut});
+  showToast('Document '+(statut==='valide'?'valide':'refuse'));
+  // Refresh (simple reload de la vue courante)
+  const btn=document.querySelector('.view.active button[onclick*="openDossier"]');
+  if(btn)btn.click();
+}
+
+async function commentDoc(docId){
+  const content=prompt('Votre commentaire :');
+  if(!content)return;
+  await api('POST','/coffre/documents/'+docId+'/comment',{content});
+  showToast('Commentaire ajoute');
+}
+</script>
+</body>
+</html>
