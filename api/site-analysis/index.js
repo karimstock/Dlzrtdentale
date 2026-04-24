@@ -31,16 +31,17 @@ router.post('/start', authMiddleware, async (req, res) => {
     req.body.societe_id ||
     (await getActiveSociete(req.user.id));
 
-  if (!url || !url.match(/^https?:\/\//)) {
-    return res.status(400).json({ error: 'URL invalide. Format attendu : https://...' });
-  }
+  let normalizedUrl = (url || '').trim().replace(/\s+/g, '');
+  if (!normalizedUrl) return res.status(400).json({ error: 'URL requise' });
+  if (!/^https?:\/\//i.test(normalizedUrl)) normalizedUrl = 'https://' + normalizedUrl;
+  try { new URL(normalizedUrl); } catch { return res.status(400).json({ error: 'URL invalide' }); }
 
   try {
     const { data: analysis, error } = await supabase
       .from('site_analyses')
       .insert({
         societe_id,
-        url_analysee: url,
+        url_analysee: normalizedUrl,
         type_site: 'crawling',
         recommandation: null
       })
@@ -50,12 +51,12 @@ router.post('/start', authMiddleware, async (req, res) => {
     if (error) throw error;
 
     // Launch analysis in background
-    runAnalysis(analysis.id, url, societe_id).catch(err => {
-      console.error('Analysis error:', err);
+    runAnalysis(analysis.id, normalizedUrl, societe_id).catch(err => {
+      console.error('[site-analysis] Error:', err.message);
       supabase.from('site_analyses').update({
-        status: 'error',
-        error_message: err.message
-      }).eq('id', analysis.id);
+        type_site: 'error',
+        recommandation: 'erreur: ' + (err.message || 'inconnu').substring(0, 200)
+      }).eq('id', analysis.id).then(() => {}).catch(() => {});
     });
 
     res.json({
@@ -197,22 +198,25 @@ async function runAnalysis(analysisId, url, societeId) {
       auditSEO(url, scraped)
     ]);
 
-    // Step 4: Save results
+    // Step 4: Save results — utilise type_site (seule colonne existante en prod)
     await supabase.from('site_analyses').update({
-      status: 'done',
-      design_audit: designAudit,
-      security_audit: securityAudit,
-      seo_audit: seoAudit,
-      performance_audit: { score: null, error: 'PageSpeed API non configurée' },
-      completed_at: new Date().toISOString()
+      type_site: 'done',
+      rapport_complet: {
+        design: designAudit,
+        security: securityAudit,
+        seo: seoAudit,
+        performance: { score: null, note: 'PageSpeed API non configuree' },
+        completed_at: new Date().toISOString()
+      }
     }).eq('id', analysisId);
 
   } catch (err) {
-    console.error('Analysis pipeline error:', err);
+    console.error('[site-analysis] Pipeline error:', err.message);
+    // Marquer comme echoue — utilise type_site (pas status qui n'existe pas)
     await supabase.from('site_analyses').update({
-      status: 'error',
-      error_message: err.message
-    }).eq('id', analysisId);
+      type_site: 'error',
+      recommandation: 'erreur: ' + (err.message || 'Analyse echouee').substring(0, 200)
+    }).eq('id', analysisId).then(() => {}).catch(() => {});
   }
 }
 
