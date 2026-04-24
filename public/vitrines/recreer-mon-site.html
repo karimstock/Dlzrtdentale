@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Refaire votre site</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=Inter:wght@400;500;600;700&family=Syne:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--creme:#FAF5EB;--or:#C9A961;--or-dim:rgba(201,169,97,.12);--nuit:#0A1628;--blanc:#FFFFFF;--ink:#1a1814;--ink-soft:#5C5C70;--ink-dim:#8E8E9E;--line:rgba(26,24,20,.08);--success:#16A34A;--danger:#EF4444;--radius:12px;--ease:cubic-bezier(.16,1,.3,1);}
+body{font-family:'Inter',sans-serif;background:var(--creme);color:var(--ink);min-height:100vh;}
+.container{max-width:960px;margin:0 auto;padding:32px 28px 80px;}
+h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:32px;text-align:center;margin-bottom:8px;}
+.sub{text-align:center;font-size:14px;color:var(--ink-soft);margin-bottom:32px;}
+.back{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:16px;}
+.card{background:var(--blanc);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+.card h3{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.btn{padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s var(--ease);}
+.btn-gold{background:var(--or);color:var(--blanc);}.btn-gold:hover{box-shadow:0 4px 16px var(--or-dim);transform:translateY(-1px);}
+.btn-s{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}.btn-s:hover{border-color:var(--or);}
+
+/* Input URL */
+.url-bar{display:flex;gap:10px;margin-bottom:32px;}
+.url-bar input{flex:1;padding:14px 18px;border:1px solid var(--line);border-radius:var(--radius);font-size:15px;font-family:'Inter',sans-serif;}
+.url-bar input:focus{outline:none;border-color:var(--or);}
+
+/* Scan progress */
+.scan-progress{text-align:center;padding:40px;display:none;}
+.scan-spinner{width:40px;height:40px;border:3px solid var(--line);border-top-color:var(--or);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.scan-step{font-size:13px;color:var(--ink-soft);margin:4px 0;}
+.scan-step.done{color:var(--success);}
+.scan-step.active{color:var(--or);font-weight:600;}
+
+/* Alert compromis */
+.alert-critical{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:var(--radius);padding:20px;margin-bottom:20px;}
+.alert-critical h3{color:var(--danger);font-size:16px;margin-bottom:8px;}
+.alert-critical p{font-size:13px;color:var(--ink-soft);line-height:1.6;}
+
+/* Media grid */
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;max-height:260px;overflow-y:auto;}
+.media-thumb{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .2s;}
+.media-thumb.selected{border-color:var(--or);}
+.media-thumb img{width:100%;height:100%;object-fit:cover;}
+.media-thumb .check{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:var(--or);color:var(--blanc);font-size:10px;display:none;align-items:center;justify-content:center;font-weight:700;}
+.media-thumb.selected .check{display:flex;}
+.media-count{font-size:12px;color:var(--ink-dim);margin-top:8px;}
+
+/* Info fields */
+.info-row{display:flex;gap:12px;margin-bottom:10px;align-items:center;}
+.info-row label{font-size:11px;font-weight:600;color:var(--ink-dim);width:80px;flex-shrink:0;text-transform:uppercase;letter-spacing:.5px;}
+.info-row input{flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;}
+.info-row input:focus{outline:none;border-color:var(--or);}
+
+/* Textes editables */
+.text-field{margin-bottom:12px;}
+.text-field label{display:block;font-size:11px;font-weight:600;color:var(--ink-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.text-field textarea{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;min-height:60px;}
+.text-field textarea:focus{outline:none;border-color:var(--or);}
+
+/* Themes gallery mini */
+.themes-mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;max-height:300px;overflow-y:auto;}
+.theme-mini{border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:all .2s var(--ease);}
+.theme-mini:hover{border-color:var(--or);transform:translateY(-2px);}
+.theme-mini.selected{border-color:var(--or);box-shadow:0 0 0 2px var(--or);}
+.theme-mini .tm-color{height:50px;display:flex;}
+.theme-mini .tm-color div{flex:1;}
+.theme-mini .tm-info{padding:8px;font-size:11px;font-weight:600;}
+
+.results{display:none;}
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--ink-dim);}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/public/vitrines/import-site.html" class="back">&larr; Retour</a>
+  <h1>Refaisons votre site en 30 minutes</h1>
+  <p class="sub">Entrez l'URL de votre site actuel. JADOMI recupere tout et reconstruit en mieux.</p>
+
+  <!-- URL Input -->
+  <div class="url-bar" id="url-bar">
+    <input type="text" id="url-input" placeholder="monsite.fr ou www.monsite.fr" autofocus>
+    <button class="btn btn-gold" onclick="startCrawl()">Analyser et recuperer</button>
+  </div>
+
+  <!-- Scan progress -->
+  <div class="scan-progress" id="scan-progress">
+    <div class="scan-spinner"></div>
+    <div class="scan-step active" id="ss-1">Connexion au site...</div>
+    <div class="scan-step" id="ss-2">Exploration des pages...</div>
+    <div class="scan-step" id="ss-3">Recuperation des medias...</div>
+    <div class="scan-step" id="ss-4">Extraction des textes et infos...</div>
+    <div class="scan-step" id="ss-5">Verification de securite...</div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results"></div>
+</div>
+
+<div class="footer">Propulse par JADOMI IA &middot; &copy; 2026</div>
+
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
+let db,token,crawlData=null,selectedImages=new Set(),selectedTheme='';
+
+(async function(){
+  db=supabase.createClient(SU,SK);
+  const{data}=await db.auth.getSession();
+  if(!data?.session){location.href='/login.html';return;}
+  token=data.session.access_token;
+})();
+
+async function startCrawl(){
+  let url=document.getElementById('url-input').value.trim();
+  if(!url)return;
+  if(!/^https?:\/\//i.test(url))url='https://'+url;
+
+  document.getElementById('url-bar').style.display='none';
+  document.getElementById('scan-progress').style.display='block';
+
+  // Animate steps
+  const steps=['ss-1','ss-2','ss-3','ss-4','ss-5'];
+  let si=0;
+  const stepTimer=setInterval(()=>{if(si>0)document.getElementById(steps[si-1]).classList.replace('active','done');if(si<steps.length){document.getElementById(steps[si]).classList.add('active');si++;}},2000);
+
+  try{
+    const res=await fetch('/api/vitrines/crawl',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':localStorage.getItem('societe_active_id')||''},
+      body:JSON.stringify({url,max_pages:15})
+    });
+    crawlData=await res.json();
+    clearInterval(stepTimer);
+    steps.forEach(s=>document.getElementById(s).classList.add('done'));
+
+    setTimeout(()=>{
+      document.getElementById('scan-progress').style.display='none';
+      renderResults();
+    },800);
+  }catch(e){
+    clearInterval(stepTimer);
+    alert('Erreur : '+e.message);
+    document.getElementById('url-bar').style.display='flex';
+    document.getElementById('scan-progress').style.display='none';
+  }
+}
+
+function renderResults(){
+  const r=crawlData;
+  const el=document.getElementById('results');
+  el.style.display='block';
+
+  // Select all images by default
+  r.medias.images.forEach((_,i)=>selectedImages.add(i));
+
+  el.innerHTML=`
+    ${r.securite?.compromis?`
+      <div class="alert-critical">
+        <h3>&#9888; Alerte securite</h3>
+        ${r.securite.alerts.map(a=>'<p><strong>'+a.type+'</strong> : '+a.message+'</p>').join('')}
+        <p style="margin-top:12px;">Nous recommandons un nettoyage avant la refonte. <a href="mailto:contact@jadomi.fr" style="color:var(--danger);font-weight:600;">Contacter le support</a></p>
+      </div>
+    `:''}
+
+    <div class="card">
+      <h3>&#128200; Resultats du crawl</h3>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);">
+        <span><strong>${r.stats?.pages_crawled||0}</strong> pages analysees</span>
+        <span><strong>${r.stats?.total_images||0}</strong> images</span>
+        <span><strong>${r.stats?.total_videos||0}</strong> videos</span>
+        <span><strong>${r.stats?.total_pdfs||0}</strong> PDFs</span>
+      </div>
+    </div>
+
+    ${r.medias.images.length?`
+    <div class="card">
+      <h3>&#128247; Vos photos (${r.medias.images.length})</h3>
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-s" style="font-size:11px;padding:4px 12px;" onclick="toggleAllImages(true)">Tout cocher</button>
+        <button class="btn btn-s" style="font-size:11px;padding:4px 12px;margin-left:4px;" onclick="toggleAllImages(false)">Tout decocher</button>
+      </div>
+      <div class="media-grid" id="images-grid">
+        ${r.medias.images.map((img,i)=>`
+          <div class="media-thumb selected" data-idx="${i}" onclick="toggleImage(${i},this)">
+            <img src="${img.url}" alt="${img.alt||''}" loading="lazy" onerror="this.parentElement.style.display='none'">
+            <div class="check">&#10003;</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="media-count"><span id="img-count">${r.medias.images.length}</span> / ${r.medias.images.length} selectionnees</div>
+    </div>
+    `:''}
+
+    ${r.medias.videos.length?`
+    <div class="card">
+      <h3>&#127909; Vos videos (${r.medias.videos.length})</h3>
+      ${r.medias.videos.map(v=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);">
+          ${v.thumbnail?'<img src="'+v.thumbnail+'" style="width:80px;height:45px;object-fit:cover;border-radius:4px;">':'<div style="width:80px;height:45px;background:var(--nuit);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--blanc);font-size:18px;">&#9654;</div>'}
+          <div><div style="font-size:13px;font-weight:500;">${v.type} ${v.video_id||''}</div><div style="font-size:11px;color:var(--ink-dim);">${v.url.substring(0,60)}...</div></div>
+        </div>
+      `).join('')}
+    </div>
+    `:''}
+
+    <div class="card">
+      <h3>&#128221; Vos textes</h3>
+      <div class="text-field"><label>Titre principal</label><textarea id="txt-hero">${r.textes_principaux?.hero||''}</textarea></div>
+      <div class="text-field"><label>Sous-titre</label><textarea id="txt-sub">${r.textes_principaux?.sous_titre||''}</textarea></div>
+      ${(r.textes_principaux?.paragraphs||[]).slice(0,3).map((p,i)=>`<div class="text-field"><label>Paragraphe ${i+1}</label><textarea id="txt-p${i}">${p}</textarea></div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3>&#128222; Vos informations</h3>
+      <div class="info-row"><label>Telephone</label><input id="info-tel" value="${(r.infos?.telephones||[])[0]||''}"></div>
+      <div class="info-row"><label>Email</label><input id="info-email" value="${(r.infos?.emails||[])[0]||''}"></div>
+      <div class="info-row"><label>Adresse</label><input id="info-adresse" value="${r.infos?.adresse||''}"></div>
+    </div>
+
+    <div class="card">
+      <h3>&#127912; Choisissez votre nouveau design</h3>
+      <div class="themes-mini" id="themes-grid">Chargement des themes...</div>
+    </div>
+
+    <div style="text-align:center;margin-top:24px;">
+      <button class="btn btn-gold" style="font-size:16px;padding:16px 40px;" onclick="buildNewSite()">Construire mon nouveau site &rarr;</button>
+      <div style="font-size:11px;color:var(--ink-dim);margin-top:8px;">Vous serez redirige vers le chatbot IA avec toutes vos donnees pre-remplies.</div>
+    </div>
+  `;
+
+  loadThemes();
+}
+
+function toggleImage(idx,el){
+  if(selectedImages.has(idx)){selectedImages.delete(idx);el.classList.remove('selected');}
+  else{selectedImages.add(idx);el.classList.add('selected');}
+  document.getElementById('img-count').textContent=selectedImages.size;
+}
+
+function toggleAllImages(select){
+  crawlData.medias.images.forEach((_,i)=>{if(select)selectedImages.add(i);else selectedImages.delete(i);});
+  document.querySelectorAll('.media-thumb').forEach(el=>{if(select)el.classList.add('selected');else el.classList.remove('selected');});
+  document.getElementById('img-count').textContent=selectedImages.size;
+}
+
+async function loadThemes(){
+  try{
+    const res=await fetch('/api/studio/sites-jadomi/themes',{headers:{'Authorization':'Bearer '+token}});
+    const themes=await res.json();
+    const grid=document.getElementById('themes-grid');
+    grid.innerHTML=(themes||[]).slice(0,20).map(t=>`
+      <div class="theme-mini" onclick="selectTheme('${t.code}',this)">
+        <div class="tm-color"><div style="background:${t.couleur_primaire||'#333'}"></div><div style="background:${t.couleur_accent||'#ccc'}"></div></div>
+        <div class="tm-info">${t.nom}</div>
+      </div>
+    `).join('');
+  }catch{document.getElementById('themes-grid').textContent='Themes non disponibles.';}
+}
+
+function selectTheme(code,el){
+  selectedTheme=code;
+  document.querySelectorAll('.theme-mini').forEach(t=>t.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function buildNewSite(){
+  if(!selectedTheme){alert('Selectionnez un theme d\'abord.');return;}
+  // Stocker les donnees pour le chatbot
+  const preData={
+    from:'existing',
+    theme:selectedTheme,
+    images:crawlData.medias.images.filter((_,i)=>selectedImages.has(i)).map(img=>img.url),
+    videos:crawlData.medias.videos,
+    hero:document.getElementById('txt-hero')?.value||'',
+    sous_titre:document.getElementById('txt-sub')?.value||'',
+    telephone:document.getElementById('info-tel')?.value||'',
+    email:document.getElementById('info-email')?.value||'',
+    adresse:document.getElementById('info-adresse')?.value||'',
+    url_originale:crawlData.url
+  };
+  sessionStorage.setItem('jadomi_recreer_data',JSON.stringify(preData));
+  window.location.href='/public/vitrines/onboarding-v3.html?from=existing';
+}
+</script>
+</body>
+</html>
