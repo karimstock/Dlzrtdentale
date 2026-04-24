@@ -324,21 +324,45 @@ function hideTyping(){const el=document.getElementById('typing');if(el)el.style.
 function stripTags(text){return text.replace(/<REQUEST_UPLOAD\s[^>]*\/>/g,'').replace(/<EXTRACTED_DATA>[\s\S]*<\/EXTRACTED_DATA>/g,'').trim();}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-// === Upload cards ===
+// === Upload cards (v2 — multi-upload sequentiel) ===
+const MAX_PHOTOS_PER_CARD=10;
+
 function createUploadCard(upload){
   const card=document.createElement('div');
   card.className='upload-card';
   card.dataset.category=upload.category;
   card.dataset.type=upload.type||'photo';
+  card.dataset.count='0';
   const isVideo=upload.type==='video';
   const accept=isVideo?'video/mp4,video/webm':'image/jpeg,image/png,image/webp';
+  const maxFiles=isVideo?1:MAX_PHOTOS_PER_CARD;
   const label=upload.poetic_label||upload.label||upload.category;
-  card.innerHTML=`<div class="upload-icon">${isVideo?'&#127916;':'&#128247;'}</div><div class="upload-label">${escHtml(label)}</div><div class="upload-sublabel">${isVideo?'Video MP4, max 100 Mo':'Photo JPG/PNG/WebP, max 10 Mo'}</div><div class="upload-zone">Glissez ici ou cliquez</div><div class="upload-preview"></div>`;
+
+  card.innerHTML=`
+    <div class="upload-icon">${isVideo?'&#127916;':'&#128247;'}</div>
+    <div class="upload-label">${escHtml(label)}</div>
+    <div class="upload-sublabel">${isVideo?'Video MP4, max 50 Mo':'Jusqu\'a '+maxFiles+' photos &middot; JPG/PNG/WebP &middot; Max 10 Mo'}</div>
+    <div class="upload-preview"></div>
+    <div class="upload-zone" data-accept="${accept}" data-max="${maxFiles}">
+      <span style="font-size:20px;display:block;margin-bottom:4px;">+</span>
+      Glissez ici ou cliquez pour ajouter
+    </div>
+    <div class="upload-counter" style="font-size:11px;color:var(--ink-dim);margin-top:8px;text-align:center;display:none;">0 / ${maxFiles}</div>
+  `;
+
   const zone=card.querySelector('.upload-zone');
-  zone.addEventListener('click',()=>{const inp=document.createElement('input');inp.type='file';inp.accept=accept;inp.multiple=upload.multiple||false;inp.onchange=()=>handleInlineUpload(card,inp.files);inp.click();});
+  zone.addEventListener('click',()=>{
+    const count=parseInt(card.dataset.count)||0;
+    if(count>=maxFiles){showToast('Limite de '+maxFiles+' atteinte');return;}
+    const inp=document.createElement('input');inp.type='file';inp.accept=accept;inp.multiple=!isVideo;
+    inp.onchange=()=>{handleInlineUpload(card,inp.files);inp.value='';};
+    inp.click();
+  });
+
   card.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();card.classList.add('dragover');});
   card.addEventListener('dragleave',()=>card.classList.remove('dragover'));
   card.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();card.classList.remove('dragover');handleInlineUpload(card,e.dataTransfer.files);});
+
   document.getElementById('messages').appendChild(card);
   scrollToBottom();
   return card;
@@ -348,29 +372,71 @@ async function handleInlineUpload(card,files){
   if(!currentSiteId||!files||!files.length)return;
   const token=await getToken();if(!token)return;
   const category=card.dataset.category;
+  const isVideoCard=card.dataset.type==='video';
+  const maxFiles=isVideoCard?1:MAX_PHOTOS_PER_CARD;
+  let currentCount=parseInt(card.dataset.count)||0;
   const previewGrid=card.querySelector('.upload-preview');
   const zone=card.querySelector('.upload-zone');
+  const counter=card.querySelector('.upload-counter');
   let uploadCount=0;
-  for(const file of files){
+
+  // Limit files
+  const filesToUpload=Array.from(files).slice(0,maxFiles-currentCount);
+  if(filesToUpload.length===0){showToast('Limite de '+maxFiles+' photos atteinte');return;}
+  if(filesToUpload.length<files.length){showToast('Seulement '+filesToUpload.length+' photo(s) ajoutee(s) (limite '+maxFiles+')');}
+
+  for(const file of filesToUpload){
+    // Add preview thumb
     const item=document.createElement('div');item.className='upload-preview-item';
     const isVideo=file.type.startsWith('video/');
     if(isVideo){const v=document.createElement('video');v.src=URL.createObjectURL(file);v.muted=true;item.appendChild(v);}
     else{const img=document.createElement('img');img.src=URL.createObjectURL(file);item.appendChild(img);}
     const spinner=document.createElement('div');spinner.className='upload-spinner';spinner.textContent='...';item.appendChild(spinner);
+
+    // Add remove button
+    const removeBtn=document.createElement('button');
+    removeBtn.style.cssText='position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:10px;display:none;z-index:2;';
+    removeBtn.textContent='\u00d7';
+    removeBtn.onclick=(e)=>{e.stopPropagation();item.remove();currentCount--;card.dataset.count=String(currentCount);updateCounter();};
+    item.appendChild(removeBtn);
+    item.style.position='relative';
+    item.addEventListener('mouseenter',()=>removeBtn.style.display='block');
+    item.addEventListener('mouseleave',()=>removeBtn.style.display='none');
+
     previewGrid.appendChild(item);scrollToBottom();
+
+    // Upload
     const fd=new FormData();fd.append('photo',file);fd.append('siteId',currentSiteId);fd.append('category',category);
     try{
       const res=await fetch('/api/vitrines/photos/upload',{method:'POST',headers:{'Authorization':'Bearer '+token,'X-Societe-Id':getSocieteId()},body:fd});
       const data=await res.json();
-      if(data.success){spinner.remove();const chk=document.createElement('div');chk.className='upload-check';chk.textContent='\u2713';item.appendChild(chk);uploadCount++;totalUploads++;
+      if(data.success){spinner.remove();const chk=document.createElement('div');chk.className='upload-check';chk.textContent='\u2713';item.appendChild(chk);
+        uploadCount++;totalUploads++;currentCount++;
         if(!isVideo&&data.media?.id)analyzePhotoBackground(data.media.id,card);
       }else{spinner.textContent='!';spinner.style.color='#ef4444';}
     }catch{spinner.textContent='!';spinner.style.color='#ef4444';}
   }
-  if(uploadCount>0){card.classList.add('uploaded');zone.style.display='none';
+
+  card.dataset.count=String(currentCount);
+
+  function updateCounter(){
+    if(counter){counter.style.display='block';counter.textContent=currentCount+' / '+maxFiles;}
+    if(currentCount>=maxFiles){zone.style.display='none';}else{zone.style.display='block';}
+  }
+  updateCounter();
+
+  if(uploadCount>0){
     if(totalUploads===3)showToast('Votre site commence a prendre forme');
     if(totalUploads===5)showToast('Belle collection de photos.');
-    updatePreview();sendSilentUploadComplete(category,uploadCount);}
+    updatePreview();
+    // Only send silent complete when user is "done" (debounced) or on maxFiles
+    if(currentCount>=maxFiles){sendSilentUploadComplete(category,currentCount);}
+    else{
+      // Debounce : envoie apres 5s sans nouvelle photo
+      clearTimeout(card._uploadTimeout);
+      card._uploadTimeout=setTimeout(()=>sendSilentUploadComplete(category,currentCount),5000);
+    }
+  }
 }
 
 async function analyzePhotoBackground(mediaId,card){
