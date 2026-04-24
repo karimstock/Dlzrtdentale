@@ -146,7 +146,13 @@ function api(path,opts={}){
 
 async function startAnalysis(){
   const url=document.getElementById('url-input').value.trim();
-  if(!url||!url.match(/^https?:\/\//)){alert('Entrez une URL valide (https://...)');return;}
+  if(!url){alert('Entrez une URL');return;}
+  // Normaliser : ajouter https:// si absent
+  const urlInput=document.getElementById('url-input');
+  let normalizedUrl=url.replace(/\s+/g,'');
+  if(!/^https?:\/\//i.test(normalizedUrl))normalizedUrl='https://'+normalizedUrl;
+  try{new URL(normalizedUrl);}catch{alert('URL invalide');return;}
+  urlInput.value=normalizedUrl;
 
   document.getElementById('url-btn').disabled=true;
   document.getElementById('url-btn').textContent='Lancement...';
@@ -173,31 +179,59 @@ async function pollStatus(){
     done:{step:'done',progress:100}
   };
 
+  let attempts=0;
+  const MAX_ATTEMPTS=60; // 60 * 3s = 3 minutes max
+
   const interval=setInterval(async()=>{
+    attempts++;
+    if(attempts>MAX_ATTEMPTS){
+      clearInterval(interval);
+      alert('Analyse trop longue. Veuillez reessayer.');
+      document.getElementById('url-btn').disabled=false;
+      document.getElementById('url-btn').textContent='Analyser mon site';
+      return;
+    }
+
     try{
       const r=await api('/api/site-analysis/'+analysisId);
-      const mapping=statusMap[r.status]||{step:'crawl',progress:10};
+
+      // Compatibilite : status OU type_site (selon schema BDD)
+      const currentStatus=r.status||r.type_site||'crawling';
+      const mapping=statusMap[currentStatus]||{step:'crawl',progress:10};
 
       // Update progress steps
       const steps=['crawl','download','vision','audit','done'];
       const currentIdx=steps.indexOf(mapping.step);
       steps.forEach((s,i)=>{
         const el=document.querySelector(`[data-step="${s}"]`);
+        if(!el)return;
         if(i<currentIdx){el.className='progress-step done';el.querySelector('.progress-icon').textContent='✅';}
         else if(i===currentIdx){el.className='progress-step active';el.querySelector('.progress-icon').textContent='🔄';}
         else{el.className='progress-step pending';}
       });
-      document.getElementById('progress-fill').style.width=mapping.progress+'%';
+      const fillEl=document.getElementById('progress-fill');
+      if(fillEl)fillEl.style.width=mapping.progress+'%';
 
-      if(r.status==='done'){
+      if(currentStatus==='done'||r.rapport_complet){
         clearInterval(interval);
         showResults(r);
-      }else if(r.status==='error'){
+      }else if(currentStatus==='error'||currentStatus==='echouee'){
         clearInterval(interval);
-        alert('Erreur d\'analyse : '+(r.error_message||'Erreur inconnue'));
+        alert('Erreur d\'analyse : '+(r.error_message||r.recommandation||'Erreur inconnue'));
+        document.getElementById('url-btn').disabled=false;
+        document.getElementById('url-btn').textContent='Analyser mon site';
       }
-    }catch(e){console.warn('Poll error:',e);}
+    }catch(e){
+      console.warn('Poll error:',e);
+      clearInterval(interval);
+      alert('Erreur de connexion. Veuillez reessayer.');
+      document.getElementById('url-btn').disabled=false;
+      document.getElementById('url-btn').textContent='Analyser mon site';
+    }
   },3000);
+
+  // Cleanup au depart de la page
+  window.addEventListener('beforeunload',()=>clearInterval(interval));
 }
 
 function scoreToGrade(score){
