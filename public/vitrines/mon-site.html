@@ -128,6 +128,13 @@ code{background:rgba(201,169,97,.1);padding:.2rem .5rem;border-radius:4px;font-s
   .mg{grid-template-columns:repeat(2,1fr)}
   .dh h1{font-size:.95rem}
 }
+/* IA Assistant */
+.ia-quick{background:rgba(201,169,97,.08);border:1px solid rgba(201,169,97,.15);color:#c9a961;padding:6px 14px;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .2s;}
+.ia-quick:hover{background:rgba(201,169,97,.15);border-color:#c9a961;}
+.ia-msg{padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.6;max-width:85%;animation:iaFade .3s ease;}
+@keyframes iaFade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.ia-msg-ai{background:rgba(201,169,97,.08);border:1px solid rgba(201,169,97,.1);align-self:flex-start;color:rgba(255,255,255,.85);}
+.ia-msg-user{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);align-self:flex-end;}
 </style>
 </head>
 <body>
@@ -146,6 +153,7 @@ code{background:rgba(201,169,97,.1);padding:.2rem .5rem;border-radius:4px;font-s
   <button class="tab" data-t="medias" onclick="st('medias')">Medias</button>
   <button class="tab" data-t="contenu" onclick="st('contenu')">Contenu</button>
   <button class="tab" data-t="parametres" onclick="st('parametres')">Paramètres</button>
+  <button class="tab" data-t="ia" onclick="st('ia')">&#10024; IA Assistant</button>
 </nav>
 
 <!-- APERCU -->
@@ -200,6 +208,34 @@ code{background:rgba(201,169,97,.1);padding:.2rem .5rem;border-radius:4px;font-s
 <!-- PARAMETRES -->
 <div class="tc" id="tc-parametres">
   <div class="pl" id="params-form"></div>
+</div>
+
+<!-- IA ASSISTANT -->
+<div class="tc" id="tc-ia">
+  <div style="max-width:600px;margin:0 auto;">
+    <div style="background:rgba(201,169,97,.06);border:1px solid rgba(201,169,97,.15);border-radius:12px;padding:20px;margin-bottom:20px;">
+      <h3 style="font-family:'Syne',sans-serif;font-size:15px;margin-bottom:8px;">&#10024; JADOMI IA Assistant</h3>
+      <p style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.6;">Demandez des modifications en langage naturel. L'IA comprend votre metier et genere du contenu expert.</p>
+    </div>
+    <div id="ia-msgs" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;max-height:400px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:10px;">
+      <textarea id="ia-input" rows="2" placeholder="Ex: Ajoute une section Urgences dentaires, Modernise le texte du hero, Change les couleurs..." style="flex:1;padding:10px 14px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.04);color:#f0ede6;font-size:13px;font-family:inherit;resize:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendIA();}"></textarea>
+      <button class="bp" onclick="sendIA()" style="align-self:flex-end;">Envoyer</button>
+    </div>
+    <div style="margin-top:20px;">
+      <h4 style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">Actions rapides</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        <button class="ia-quick" onclick="quickIA('Ajoute une section Urgences avec numero de telephone')">+ Urgences</button>
+        <button class="ia-quick" onclick="quickIA('Ajoute une FAQ de 6 questions pour mon metier')">+ FAQ</button>
+        <button class="ia-quick" onclick="quickIA('Ajoute une section Temoignages patients')">+ Temoignages</button>
+        <button class="ia-quick" onclick="quickIA('Ajoute une section Tarifs et honoraires')">+ Tarifs</button>
+        <button class="ia-quick" onclick="quickIA('Ameliore le texte du hero pour etre plus impactant')">&#10024; Hero</button>
+        <button class="ia-quick" onclick="quickIA('Genere des textes SEO pour toutes les sections')">&#10024; SEO</button>
+        <button class="ia-quick" onclick="quickIA('Ajoute une section Equipe avec presentation')">+ Equipe</button>
+        <button class="ia-quick" onclick="quickIA('Ajoute une section Blog avec 3 articles')">+ Blog</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal -->
@@ -455,6 +491,70 @@ async function publishSite(){
 }
 
 init();
+
+// === IA ASSISTANT ===
+function addIAMsg(role,text){
+  const d=document.createElement('div');
+  d.className='ia-msg ia-msg-'+(role==='ai'?'ai':'user');
+  d.textContent=text;
+  document.getElementById('ia-msgs').appendChild(d);
+  document.getElementById('ia-msgs').scrollTop=99999;
+}
+
+function quickIA(text){
+  document.getElementById('ia-input').value=text;
+  sendIA();
+}
+
+async function sendIA(){
+  const input=document.getElementById('ia-input');
+  const text=input.value.trim();
+  if(!text||!siteId)return;
+  input.value='';
+  addIAMsg('user',text);
+  addIAMsg('ai','JADOMI IA reflechit...');
+
+  try{
+    const body={message:text,siteId:siteId};
+    const res=await fetch('/api/vitrines/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':socId},
+      body:JSON.stringify(body)
+    });
+
+    // Lire le stream SSE
+    const reader=res.body.getReader();
+    const decoder=new TextDecoder();
+    let buffer='',fullText='';
+    const lastMsg=document.getElementById('ia-msgs').lastElementChild;
+
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      buffer+=decoder.decode(value,{stream:true});
+      const lines=buffer.split('\n\n');
+      buffer=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        try{
+          const data=JSON.parse(line.slice(6));
+          if(data.type==='text'){
+            fullText+=data.content;
+            lastMsg.textContent=fullText.replace(/<[^>]+>/g,'');
+          }else if(data.type==='done'){
+            if(data.extracted){
+              // Rafraichir la preview
+              document.getElementById('prev-ifr').src=document.getElementById('prev-ifr').src;
+              showToast('Site mis a jour !');
+            }
+          }
+        }catch{}
+      }
+    }
+  }catch(e){
+    addIAMsg('ai','Erreur : '+e.message);
+  }
+}
 </script>
 </body>
 </html>
