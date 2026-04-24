@@ -63,6 +63,33 @@ function buildSystemPrompt(professionConfig, societeData, mode, userData) {
 - Ville : ${ville}
 - Metier : ${metier}`;
 
+  // Injection base de connaissances metier (Passe 41B)
+  try {
+    const metierCode = professionConfig.id || 'dentiste';
+    const metierData = require('../../../data/metiers/' + metierCode + '.json');
+    if (metierData) {
+      prompt += '\n\nBASE DE CONNAISSANCES METIER JADOMI :';
+      if (metierData.vocabulaire_expert) prompt += '\nVOCABULAIRE EXPERT : ' + metierData.vocabulaire_expert.slice(0, 15).join(', ') + '. Utilise ces termes naturellement.';
+      if (metierData.actes_cles) prompt += '\nACTES CLES : ' + metierData.actes_cles.join(', ') + '.';
+      if (metierData.exemples_contenus) {
+        const exemples = Object.entries(metierData.exemples_contenus).slice(0, 2);
+        prompt += '\nEXEMPLES DE CONTENU EXPERT (inspire-toi du niveau) :';
+        for (const [key, val] of exemples) prompt += '\n- ' + key + ' : "' + val.substring(0, 200) + '..."';
+      }
+      if (metierData.points_deontologiques) prompt += '\nPOINTS DEONTOLOGIQUES : ' + metierData.points_deontologiques.join('. ') + '.';
+      if (metierData.ton_options) {
+        const tons = Object.entries(metierData.ton_options).map(([k, v]) => k + ' (' + v.desc + ')').join(', ');
+        prompt += '\nTONS DISPONIBLES : ' + tons + '. Adapte selon le choix du pro.';
+      }
+      // Honoraires avocat
+      if (metierData.honoraires_options) {
+        prompt += '\n\nOPTIONS HONORAIRES (demande au pro) :';
+        for (const opt of metierData.honoraires_options) prompt += '\n- ' + opt.label + ' : ' + opt.desc;
+        prompt += '\nDemande au pro quelle option il prefere pour afficher les honoraires sur son site.';
+      }
+    }
+  } catch (e) { /* metier data not found, skip */ }
+
   if (mode === 'edition') {
     prompt += `\n\nMODE EDITION :
 Tu interviens sur un site déjà créé. Le professionnel souhaite modifier des elements.
