@@ -148,6 +148,10 @@ app.get('/studio/sites-existants/', (req, res) => res.sendFile(path.join(__dirna
 // Dashboard mes-sites enrichi (Passe 38)
 app.get('/studio/mes-sites', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
 app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
+// Dashboard mon-site cockpit + wizard creation (Passe 38)
+app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
+app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
+app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
 // Sites clients JADOMI — routage dynamique /sites/:slug (Passe 38)
 app.use('/sites/:slug', (req, res, next) => {
   const slug = req.params.slug;
