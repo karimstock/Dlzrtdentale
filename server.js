@@ -154,6 +154,8 @@ app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'pu
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
 // JADOMI Avocat Expert - Coffre-fort (Passe 44C)
 app.get('/avocat/coffre', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/coffre.html')));
+app.get('/espace-client', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
+app.get('/espace-client/', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
 // Sites staging JADOMI — copies pour modification (Passe 43)
 app.use('/sites-staging/:slug', (req, res, next) => {
   const slug = req.params.slug;
@@ -428,7 +430,8 @@ try {
 // === JADOMI AVOCAT EXPERT — Coffre-fort securise (Passe 44C) ===
 try {
   app.use('/api/avocat', require('./api/avocat/coffre'));
-  console.log('[JADOMI] Module Avocat Expert (coffre-fort) monte');
+  app.use('/api/avocat/espace-client', require('./api/avocat/espace-client'));
+  console.log('[JADOMI] Module Avocat Expert (coffre-fort + espace client) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Avocat Expert non charge:', e.message);
 }

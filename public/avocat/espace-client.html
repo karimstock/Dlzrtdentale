@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Espace Client Securise</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--creme:#FAF5EB;--or:#C9A961;--or-dim:rgba(201,169,97,.12);--nuit:#0A1628;--blanc:#FFFFFF;--ink:#1a1814;--ink-s:#5C5C70;--ink-d:#8E8E9E;--line:rgba(26,24,20,.08);--success:#16A34A;--danger:#EF4444;--r:12px;--ease:cubic-bezier(.16,1,.3,1);}
+body{font-family:'Inter',sans-serif;background:var(--creme);color:var(--ink);min-height:100vh;}
+.container{max-width:800px;margin:0 auto;padding:32px 24px 80px;}
+h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margin-bottom:8px;}
+.card{background:var(--blanc);border:1px solid var(--line);border-radius:var(--r);padding:24px;margin-bottom:16px;}
+.btn{padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s var(--ease);font-family:'Inter',sans-serif;}
+.btn-gold{background:var(--or);color:var(--blanc);}.btn-gold:hover{box-shadow:0 4px 12px var(--or-dim);}
+.btn-s{background:transparent;border:1px solid var(--line);color:var(--ink-s);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--ink-d);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field textarea{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:'Inter',sans-serif;}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--or);}
+
+/* Login */
+.login-box{max-width:400px;margin:60px auto;text-align:center;}
+.login-box .lock{font-size:48px;margin-bottom:16px;}
+.login-box h2{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:24px;margin-bottom:8px;}
+.login-box p{font-size:13px;color:var(--ink-s);margin-bottom:24px;line-height:1.6;}
+.login-box input{text-align:center;font-size:15px;padding:14px;}
+.login-error{color:var(--danger);font-size:12px;margin-top:8px;display:none;}
+
+/* Dossier list */
+.dossier-card{border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:10px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:14px;}
+.dossier-card:hover{border-color:var(--or);transform:translateY(-2px);box-shadow:0 4px 12px var(--or-dim);}
+.dossier-icon{width:44px;height:44px;border-radius:10px;background:var(--nuit);color:var(--or);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.dossier-info{flex:1;}.dossier-title{font-weight:600;font-size:14px;}.dossier-meta{font-size:11px;color:var(--ink-d);margin-top:2px;}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;}
+.badge-new{background:rgba(239,68,68,.1);color:var(--danger);}
+.badge-ok{background:rgba(22,163,74,.1);color:var(--success);}
+
+/* Documents */
+.doc{border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:10px;transition:border-color .2s;}
+.doc:hover{border-color:rgba(201,169,97,.3);}
+.doc-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.doc-icon{font-size:20px;}
+.doc-name{font-size:13px;font-weight:600;flex:1;}
+.doc-date{font-size:10px;color:var(--ink-d);}
+.doc-note{background:var(--creme);padding:8px 12px;border-radius:6px;font-size:12px;color:var(--ink-s);margin:8px 0;}
+.doc-status{font-size:11px;font-weight:600;margin-bottom:6px;}
+.comment{padding:8px 12px;border-left:3px solid var(--or);margin:6px 0;font-size:12px;color:var(--ink-s);}
+.comment.avocat{border-color:var(--nuit);}
+.doc-actions{display:flex;gap:6px;margin-top:8px;}
+.doc-actions button{font-size:11px;padding:4px 12px;}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--or);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin:16px 0;}
+.upload-zone:hover{background:var(--or-dim);}
+.upload-zone.dragover{background:var(--or-dim);border-color:var(--or);}
+
+/* RGPD consent */
+.rgpd-box{max-width:500px;margin:40px auto;}
+.rgpd-box h2{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:12px;}
+.rgpd-text{font-size:12px;color:var(--ink-s);line-height:1.7;margin-bottom:16px;max-height:200px;overflow-y:auto;padding:12px;background:var(--blanc);border:1px solid var(--line);border-radius:8px;}
+.rgpd-check{display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:16px;}
+.rgpd-check input{margin-top:3px;}
+
+.view{display:none;}.view.active{display:block;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--nuit);color:var(--blanc);padding:12px 24px;border-radius:8px;font-size:13px;z-index:100;opacity:0;transition:opacity .3s;}
+.toast.show{opacity:1;}
+.security{text-align:center;font-size:10px;color:var(--ink-d);margin-top:16px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--ink-d);}
+@media(max-width:500px){.login-box{margin:30px auto;}.container{padding:16px 14px 60px;}}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- LOGIN -->
+  <div class="view active" id="v-login">
+    <div class="login-box">
+      <div class="lock">&#128274;</div>
+      <h2>Espace Client Securise</h2>
+      <p>Connectez-vous pour acceder a vos dossiers et documents confidentiels.</p>
+      <div class="card">
+        <div class="field"><input id="login-email" type="email" placeholder="Votre email"></div>
+        <div class="field"><input id="login-pwd" type="password" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <button class="btn btn-gold" style="width:100%;" onclick="doLogin()">Se connecter</button>
+        <div class="login-error" id="login-error"></div>
+      </div>
+      <div class="security">&#128274; Connexion chiffree &middot; Donnees hebergees en France</div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD -->
+  <div class="view" id="v-changepwd">
+    <div class="login-box">
+      <h2>Changez votre mot de passe</h2>
+      <p>Pour votre securite, creez un mot de passe personnel (8 caracteres minimum).</p>
+      <div class="card">
+        <div class="field"><input id="new-pwd" type="password" placeholder="Nouveau mot de passe (8+ caracteres)"></div>
+        <div class="field"><input id="new-pwd2" type="password" placeholder="Confirmez le mot de passe" onkeydown="if(event.key==='Enter')doChangePwd()"></div>
+        <button class="btn btn-gold" style="width:100%;" onclick="doChangePwd()">Valider</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RGPD CONSENT -->
+  <div class="view" id="v-rgpd">
+    <div class="rgpd-box">
+      <h2>Protection de vos donnees</h2>
+      <div class="rgpd-text">
+        <p><strong>Conditions d'utilisation de l'Espace Client Securise</strong></p>
+        <p>Vos donnees sont traitees dans le cadre strict de la relation avocat-client, conformement a l'article 66-5 de la loi n°71-1130 du 31 decembre 1971 modifiee.</p>
+        <p>Les documents echanges via cet espace sont couverts par le secret professionnel de l'avocat (article 2 du Reglement Interieur National).</p>
+        <p><strong>Hebergement :</strong> Vos donnees sont hebergees en France, chiffrees AES-256, et accessibles uniquement par vous et votre avocat.</p>
+        <p><strong>Conservation :</strong> Les documents sont conserves pour la duree du dossier + 10 ans minimum (obligation legale).</p>
+        <p><strong>Vos droits RGPD :</strong> Acces, rectification, effacement (sous reserve obligations legales), portabilite. Contact : votre avocat ou dpo@jadomi.fr</p>
+      </div>
+      <div class="rgpd-check">
+        <input type="checkbox" id="rgpd-accept">
+        <label for="rgpd-accept">J'ai lu et j'accepte les conditions d'utilisation de l'espace client securise et le traitement de mes donnees dans le cadre de mon dossier juridique.</label>
+      </div>
+      <button class="btn btn-gold" style="width:100%;" onclick="doRgpdConsent()">Accepter et continuer</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="view" id="v-dashboard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div>
+        <h1 id="welcome-name">Bienvenue</h1>
+        <p style="font-size:13px;color:var(--ink-s);">Vos dossiers et documents confidentiels</p>
+      </div>
+      <button class="btn btn-s" onclick="logout()">Deconnexion</button>
+    </div>
+    <div id="dossiers-list"></div>
+  </div>
+
+  <!-- DOSSIER DETAIL -->
+  <div class="view" id="v-dossier">
+    <button class="btn btn-s" onclick="showView('v-dashboard');loadDossiers();" style="margin-bottom:16px;">&larr; Mes dossiers</button>
+    <div id="dossier-detail"></div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+<div class="footer">Espace securise &middot; Chiffrement AES-256 &middot; Heberge en France &middot; Conforme RGPD</div>
+
+<script>
+let clientToken=null,clientData=null;
+const API='/api/avocat/espace-client';
+
+function api(method,path,body){
+  const opts={method,headers:{'Content-Type':'application/json'}};
+  if(clientToken)opts.headers.Authorization='Bearer '+clientToken;
+  if(body&&method!=='GET')opts.body=JSON.stringify(body);
+  return fetch(API+path,opts).then(r=>r.json());
+}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+
+// Check invitation token in URL
+(function(){
+  const params=new URLSearchParams(location.search);
+  const invToken=params.get('invitation');
+  if(invToken){
+    // Pre-fill from invitation
+    fetch(API+'/invitation/'+invToken).then(r=>r.json()).then(data=>{
+      if(data.valid&&data.client_email){
+        document.getElementById('login-email').value=data.client_email;
+        if(data.used){showToast('Invitation deja utilisee. Connectez-vous.');}
+        else{showToast('Bienvenue '+data.client_prenom+' ! Connectez-vous avec le mot de passe envoye par email.');}
+      }
+    }).catch(()=>{});
+  }
+  // Check existing session
+  const saved=sessionStorage.getItem('jadomi_client_token');
+  if(saved){clientToken=saved;checkSession();}
+})();
+
+async function checkSession(){
+  try{
+    const r=await api('GET','/mes-dossiers');
+    if(Array.isArray(r)){showView('v-dashboard');loadDossiers();}
+    else{clientToken=null;sessionStorage.removeItem('jadomi_client_token');}
+  }catch{clientToken=null;}
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pwd=document.getElementById('login-pwd').value;
+  const errEl=document.getElementById('login-error');
+  if(!email||!pwd){errEl.textContent='Email et mot de passe requis';errEl.style.display='block';return;}
+
+  const params=new URLSearchParams(location.search);
+  const r=await api('POST','/login',{email,password:pwd,invitation_token:params.get('invitation')||null});
+
+  if(r.success){
+    clientToken=r.token;
+    clientData=r.client;
+    sessionStorage.setItem('jadomi_client_token',clientToken);
+    errEl.style.display='none';
+
+    if(r.requires_password_change){showView('v-changepwd');return;}
+    if(r.requires_rgpd_consent){showView('v-rgpd');return;}
+
+    document.getElementById('welcome-name').textContent='Bonjour '+(clientData.prenom||clientData.nom);
+    showView('v-dashboard');
+    loadDossiers();
+  }else{
+    errEl.textContent=r.error||'Erreur de connexion';
+    errEl.style.display='block';
+  }
+}
+
+async function doChangePwd(){
+  const p1=document.getElementById('new-pwd').value;
+  const p2=document.getElementById('new-pwd2').value;
+  if(p1.length<8){alert('8 caracteres minimum');return;}
+  if(p1!==p2){alert('Les mots de passe ne correspondent pas');return;}
+  const r=await api('POST','/change-password',{new_password:p1});
+  if(r.success){showToast('Mot de passe modifie !');showView('v-rgpd');}
+  else alert(r.error||'Erreur');
+}
+
+async function doRgpdConsent(){
+  if(!document.getElementById('rgpd-accept').checked){alert('Veuillez accepter les conditions.');return;}
+  const r=await api('POST','/rgpd-consent');
+  if(r.success){
+    showToast('Conditions acceptees.');
+    document.getElementById('welcome-name').textContent='Bonjour '+(clientData?.prenom||'');
+    showView('v-dashboard');
+    loadDossiers();
+  }
+}
+
+function logout(){clientToken=null;sessionStorage.removeItem('jadomi_client_token');showView('v-login');}
+
+// === DOSSIERS ===
+async function loadDossiers(){
+  const dossiers=await api('GET','/mes-dossiers');
+  const el=document.getElementById('dossiers-list');
+  if(!dossiers.length){el.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--ink-d);">Aucun dossier pour le moment.</div>';return;}
+  el.innerHTML=dossiers.map(d=>`
+    <div class="dossier-card" onclick="openDossier('${d.id}')">
+      <div class="dossier-icon">&#128193;</div>
+      <div class="dossier-info">
+        <div class="dossier-title">${d.titre||d.reference||'Dossier'}</div>
+        <div class="dossier-meta">${d.type||''} &middot; ${d.reference||''} &middot; ${d.nb_documents} document(s)</div>
+      </div>
+      ${d.nb_non_lus?'<span class="badge badge-new">'+d.nb_non_lus+' nouveau(x)</span>':'<span class="badge badge-ok">A jour</span>'}
+    </div>
+  `).join('');
+}
+
+async function openDossier(id){
+  showView('v-dossier');
+  const r=await api('GET','/dossier/'+id);
+  const d=r.dossier;
+  const docs=r.documents||[];
+  const comments=r.commentaires||[];
+
+  document.getElementById('dossier-detail').innerHTML=`
+    <div class="card">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:6px;">${d.titre||d.reference}</h2>
+      <div style="font-size:12px;color:var(--ink-d);">Ref : ${d.reference||'—'} &middot; Type : ${d.type||'—'} &middot; Statut : ${d.statut}</div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">Ajouter un document</h3>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('doc-input').click()">
+        <div style="font-size:24px;opacity:.5;">&#128206;</div>
+        <div style="font-size:13px;color:var(--ink-s);margin-top:4px;">Glissez votre fichier ici ou cliquez pour parcourir</div>
+        <div style="font-size:11px;color:var(--ink-d);margin-top:4px;">PDF, images, audio, video &middot; max 100 Mo &middot; Chiffre AES-256</div>
+      </div>
+      <input type="file" id="doc-input" style="display:none" onchange="uploadDocument('${id}',this.files[0])">
+      <div class="field" style="margin-top:8px;">
+        <label>Note pour votre avocat (optionnel)</label>
+        <textarea id="upload-note" rows="2" placeholder="Ex: Certificat de mariage original, recu le 15 mars"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">Documents (${docs.length})</h3>
+      ${docs.length?docs.map(doc=>{
+        const docComments=comments.filter(c=>c.document_id===doc.id);
+        const statusLabel={'en_attente':'En attente','valide':'Valide','refuse':'Refuse','a_modifier':'A modifier'};
+        const statusColor={'valide':'var(--success)','refuse':'var(--danger)','a_modifier':'var(--or)'};
+        return `<div class="doc">
+          <div class="doc-head">
+            <span class="doc-icon">${doc.mime_type?.includes('pdf')?'&#128196;':doc.mime_type?.includes('image')?'&#128248;':doc.mime_type?.includes('audio')?'&#127925;':'&#128196;'}</span>
+            <span class="doc-name">${doc.filename}</span>
+            <span class="doc-date">${new Date(doc.created_at).toLocaleDateString('fr-FR')}</span>
+          </div>
+          <div class="doc-status" style="color:${statusColor[doc.statut_validation]||'var(--ink-d)'};">${doc.uploaded_by_role==='client'?'Envoye par vous':'Envoye par votre avocat'} &middot; ${statusLabel[doc.statut_validation]||doc.statut_validation}</div>
+          ${doc.note_client?'<div class="doc-note">&#9998; '+doc.note_client+'</div>':''}
+          ${docComments.map(c=>'<div class="comment '+(c.author_role==='avocat'?'avocat':'')+'"><strong>'+(c.author_role==='avocat'?'Votre avocat':'Vous')+'</strong> : '+c.content+'</div>').join('')}
+          <div class="doc-actions">
+            <button class="btn btn-s" onclick="downloadDoc('${doc.id}')">&#128229; Telecharger</button>
+            <button class="btn btn-s" onclick="commentDoc('${doc.id}','${id}')">&#128172; Repondre</button>
+          </div>
+        </div>`;
+      }).join(''):'<div style="text-align:center;padding:20px;color:var(--ink-d);">Aucun document. Ajoutez-en un ci-dessus.</div>'}
+    </div>
+  `;
+
+  // Drag drop
+  const zone=document.getElementById('upload-zone');
+  if(zone){
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+    zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');if(e.dataTransfer.files[0])uploadDocument(id,e.dataTransfer.files[0]);});
+  }
+}
+
+async function uploadDocument(dossierId,file){
+  if(!file)return;
+  const note=document.getElementById('upload-note')?.value||'';
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('dossier_id',dossierId);
+  fd.append('note',note);
+  showToast('Chiffrement et envoi en cours...');
+  try{
+    const res=await fetch(API+'/documents/upload',{method:'POST',headers:{'Authorization':'Bearer '+clientToken},body:fd});
+    const r=await res.json();
+    if(r.document){showToast('Document envoye et chiffre.');openDossier(dossierId);}
+    else showToast('Erreur : '+(r.error||'upload echoue'));
+  }catch(e){showToast('Erreur : '+e.message);}
+}
+
+function downloadDoc(docId){
+  window.open(API+'/documents/'+docId+'/download?token='+clientToken,'_blank');
+}
+
+async function commentDoc(docId,dossierId){
+  const content=prompt('Votre message pour votre avocat :');
+  if(!content)return;
+  await api('POST','/documents/'+docId+'/comment',{content});
+  showToast('Message envoye.');
+  openDossier(dossierId);
+}
+</script>
+</body>
+</html>
