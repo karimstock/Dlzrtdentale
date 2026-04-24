@@ -40,9 +40,9 @@ router.post('/start', authMiddleware, async (req, res) => {
       .from('site_analyses')
       .insert({
         societe_id,
-        source_url: url,
-        status: 'crawling',
-        status_message: 'Exploration du site en cours...'
+        url_analysee: url,
+        type_site: 'crawling',
+        recommandation: null
       })
       .select()
       .single();
@@ -217,9 +217,10 @@ async function runAnalysis(analysisId, url, societeId) {
 }
 
 async function updateStatus(analysisId, status, message) {
+  // Colonnes status/status_message absentes de la table prod (Passe 36 schema)
+  // On utilise type_site comme indicateur de progression
   await supabase.from('site_analyses').update({
-    status,
-    status_message: message
+    type_site: status
   }).eq('id', analysisId);
 }
 

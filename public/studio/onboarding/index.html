@@ -140,7 +140,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
 
       <div id="url-field" style="display:none;">
-        <input type="url" class="url-input" id="site-url" placeholder="https://www.votre-site.fr" autocomplete="url">
+        <input type="text" class="url-input" id="site-url" placeholder="exemple : monsite.fr ou www.monsite.fr" autocomplete="url">
       </div>
     </div>
 
@@ -332,13 +332,30 @@ function selectOption(opt, el) {
   if (opt === 'yes') document.getElementById('site-url').focus();
 }
 
+function normaliserUrl(input) {
+  let url = (input || '').trim().replace(/\s+/g, '');
+  if (!url) return { valid: false, error: 'URL requise' };
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes('.')) return { valid: false, error: 'Nom de domaine invalide' };
+    return { valid: true, url: u.toString() };
+  } catch { return { valid: false, error: 'URL invalide' }; }
+}
+
 function nextStep() {
   if (selectedOption === 'no') {
     goToStep('step-formules');
   } else if (selectedOption === 'yes') {
-    const url = document.getElementById('site-url').value.trim();
-    if (!url) { document.getElementById('site-url').style.borderColor = 'var(--danger)'; return; }
-    startScan(url);
+    const raw = document.getElementById('site-url').value;
+    const result = normaliserUrl(raw);
+    if (!result.valid) {
+      document.getElementById('site-url').style.borderColor = 'var(--danger)';
+      alert(result.error);
+      return;
+    }
+    document.getElementById('site-url').value = result.url;
+    startScan(result.url);
   }
 }
 
