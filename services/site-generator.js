@@ -116,21 +116,33 @@ async function genererSite(siteId, supabase) {
     .eq('code', site.theme_code)
     .single();
 
-  // 2. Charger le template
+  // 2. Charger le template (specifique OU base + CSS theme)
   const themeDir = path.join(TEMPLATES_DIR, site.theme_code);
-  const templatePath = path.join(themeDir, 'template.html');
+  const baseDir = path.join(TEMPLATES_DIR, '_base');
+  let templateHtml = '';
+  let styleCss = '';
 
-  if (!fs.existsSync(templatePath)) {
-    throw new Error('Template non trouve: ' + site.theme_code);
+  // Priorite 1 : template specifique au theme
+  const specificTemplate = path.join(themeDir, 'template.html');
+  if (fs.existsSync(specificTemplate)) {
+    templateHtml = fs.readFileSync(specificTemplate, 'utf8');
+  }
+  // Priorite 2 : template de base + CSS theme
+  else if (fs.existsSync(path.join(baseDir, 'template.html'))) {
+    templateHtml = fs.readFileSync(path.join(baseDir, 'template.html'), 'utf8');
+  }
+  else {
+    throw new Error('Aucun template trouve pour: ' + site.theme_code);
   }
 
-  const templateHtml = fs.readFileSync(templatePath, 'utf8');
-  let styleCss = '';
+  // Charger CSS specifique au theme
   const stylePath = path.join(themeDir, 'style.css');
   if (fs.existsSync(stylePath)) styleCss = fs.readFileSync(stylePath, 'utf8');
 
   // 3. Rendre le template
   const renderData = buildRenderData(site, sections || [], theme);
+  renderData.theme_code = site.theme_code;
+  renderData.theme_css = styleCss;
   let html = renderTemplate(templateHtml, renderData);
 
   // Injecter le CSS si externe
