@@ -109,12 +109,103 @@ CREATE POLICY modif_ponc_insert ON public.site_modifications_ponctuelles
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- 6. Verification
+-- 6. Module acces sites existants
+
+-- Sites existants a gerer
+CREATE TABLE IF NOT EXISTS public.sites_existants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  societe_id UUID NOT NULL,
+  url TEXT NOT NULL,
+  hebergeur VARCHAR(50),
+  plateforme VARCHAR(50),
+  score_complexite INT,
+  recommandation VARCHAR(50),
+  statut VARCHAR(30) DEFAULT 'en_attente_acces'
+    CHECK (statut IN ('en_attente_acces', 'connecte', 'audite', 'en_intervention', 'archive')),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sites_existants_societe
+  ON public.sites_existants(societe_id);
+
+-- Credentials chiffres (AES-256-GCM)
+CREATE TABLE IF NOT EXISTS public.sites_existants_credentials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id UUID NOT NULL REFERENCES public.sites_existants(id) ON DELETE CASCADE,
+  societe_id UUID NOT NULL,
+  type_acces VARCHAR(20) NOT NULL
+    CHECK (type_acces IN ('ftp', 'sftp', 'ssh', 'wordpress_admin', 'api', 'cpanel')),
+  donnees_chiffrees TEXT NOT NULL,
+  iv TEXT NOT NULL,
+  tag TEXT,
+  teste_le TIMESTAMP,
+  dernier_test_ok BOOLEAN,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_credentials_site
+  ON public.sites_existants_credentials(site_id);
+
+-- Log des interventions sur sites existants
+CREATE TABLE IF NOT EXISTS public.sites_existants_interventions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id UUID NOT NULL REFERENCES public.sites_existants(id),
+  societe_id UUID NOT NULL,
+  type_intervention VARCHAR(50),
+  description TEXT,
+  backup_url TEXT,
+  statut VARCHAR(20) DEFAULT 'en_cours'
+    CHECK (statut IN ('en_cours', 'terminee', 'echouee', 'annulee')),
+  fichiers_modifies JSONB,
+  executee_par UUID,
+  executee_le TIMESTAMP DEFAULT NOW(),
+  rollback_possible BOOLEAN DEFAULT true
+);
+CREATE INDEX IF NOT EXISTS idx_interventions_site
+  ON public.sites_existants_interventions(site_id);
+
+-- RLS sites existants
+ALTER TABLE public.sites_existants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sites_existants_credentials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sites_existants_interventions ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+CREATE POLICY sites_ex_select ON public.sites_existants
+  FOR SELECT USING (
+    societe_id IN (SELECT societe_id FROM public.user_societe_roles WHERE user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+CREATE POLICY sites_ex_insert ON public.sites_existants
+  FOR INSERT WITH CHECK (
+    societe_id IN (SELECT societe_id FROM public.user_societe_roles WHERE user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+CREATE POLICY creds_select ON public.sites_existants_credentials
+  FOR SELECT USING (
+    societe_id IN (SELECT societe_id FROM public.user_societe_roles WHERE user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+CREATE POLICY interv_select ON public.sites_existants_interventions
+  FOR SELECT USING (
+    societe_id IN (SELECT societe_id FROM public.user_societe_roles WHERE user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 7. Verification
 SELECT code, nom, prix_creation_eur, prix_mensuel_eur, quotas
 FROM public.studio_forfaits
 ORDER BY ordre;
 
 -- =============================================
--- FIN migration 40 — Passe 37 nouveaux prix Studio
--- 2 nouvelles tables, 3 forfaits mis a jour
+-- FIN migration 40 — Passe 37
+-- 5 nouvelles tables, 3 forfaits mis a jour
 -- =============================================
