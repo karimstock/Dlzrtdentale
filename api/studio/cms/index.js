@@ -63,7 +63,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data: abo, error } = await supabase
         .from('studio_abonnements')
         .select('*, studio_forfaits(*)')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .eq('statut', 'actif')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -116,7 +116,7 @@ module.exports = function mountCMS(app, supabase) {
           const { count } = await supabase
             .from('site_photos')
             .select('*', { count: 'exact', head: true })
-            .eq('organisation_id', req.societeId)
+            .eq('societe_id', req.societeId)
             .eq('actif', true);
           currentCount = count || 0;
 
@@ -124,7 +124,7 @@ module.exports = function mountCMS(app, supabase) {
           const { count } = await supabase
             .from('site_contenus')
             .select('*', { count: 'exact', head: true })
-            .eq('organisation_id', req.societeId);
+            .eq('societe_id', req.societeId);
           // On compte les sections distinctes comme "pages"
           currentCount = count || 0;
 
@@ -135,7 +135,7 @@ module.exports = function mountCMS(app, supabase) {
           const { count } = await supabase
             .from('site_demandes_modif')
             .select('*', { count: 'exact', head: true })
-            .eq('organisation_id', req.societeId)
+            .eq('societe_id', req.societeId)
             .gte('demandee_le', startOfMonth.toISOString());
           currentCount = count || 0;
         }
@@ -174,11 +174,11 @@ module.exports = function mountCMS(app, supabase) {
       // Calculer l'utilisation actuelle
       const [photosRes, contenusRes, demandesRes] = await Promise.all([
         supabase.from('site_photos').select('*', { count: 'exact', head: true })
-          .eq('organisation_id', req.societeId).eq('actif', true),
+          .eq('societe_id', req.societeId).eq('actif', true),
         supabase.from('site_contenus').select('*', { count: 'exact', head: true })
-          .eq('organisation_id', req.societeId),
+          .eq('societe_id', req.societeId),
         supabase.from('site_demandes_modif').select('*', { count: 'exact', head: true })
-          .eq('organisation_id', req.societeId)
+          .eq('societe_id', req.societeId)
           .gte('demandee_le', new Date(new Date().setDate(1)).toISOString())
       ]);
 
@@ -216,7 +216,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_contenus')
         .select('*')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .order('section')
         .order('cle');
 
@@ -241,7 +241,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_contenus')
         .select('*')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .eq('section', req.params.section)
         .order('cle');
 
@@ -261,7 +261,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_contenus')
         .insert({
-          organisation_id: req.societeId,
+          societe_id: req.societeId,
           section,
           cle,
           valeur: valeur || '',
@@ -288,7 +288,7 @@ module.exports = function mountCMS(app, supabase) {
         .from('site_contenus')
         .select('*')
         .eq('id', req.params.id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .single();
 
       if (readErr || !current) return res.status(404).json({ error: 'Contenu non trouve' });
@@ -296,7 +296,7 @@ module.exports = function mountCMS(app, supabase) {
       // Sauvegarder dans l'historique
       await supabase.from('site_contenus_historique').insert({
         contenu_id: current.id,
-        organisation_id: req.societeId,
+        societe_id: req.societeId,
         valeur_avant: current.valeur,
         valeur_apres: valeur,
         modifie_par: req.userId
@@ -311,7 +311,7 @@ module.exports = function mountCMS(app, supabase) {
           updated_at: new Date().toISOString()
         })
         .eq('id', req.params.id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .select()
         .single();
 
@@ -329,7 +329,7 @@ module.exports = function mountCMS(app, supabase) {
         .from('site_contenus_historique')
         .select('*')
         .eq('contenu_id', req.params.contenu_id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .order('modifie_le', { ascending: false })
         .limit(50);
 
@@ -350,7 +350,7 @@ module.exports = function mountCMS(app, supabase) {
         .from('site_contenus')
         .select('*')
         .eq('id', req.params.contenu_id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .single();
 
       if (readErr || !current) return res.status(404).json({ error: 'Contenu non trouve' });
@@ -360,7 +360,7 @@ module.exports = function mountCMS(app, supabase) {
         .from('site_contenus_historique')
         .select('*')
         .eq('contenu_id', req.params.contenu_id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .order('modifie_le', { ascending: false });
 
       if (!historyEntries || historyEntries.length === 0) {
@@ -375,7 +375,7 @@ module.exports = function mountCMS(app, supabase) {
       // Enregistrer le rollback dans l'historique
       await supabase.from('site_contenus_historique').insert({
         contenu_id: current.id,
-        organisation_id: req.societeId,
+        societe_id: req.societeId,
         valeur_avant: current.valeur,
         valeur_apres: restoredValue,
         modifie_par: req.userId
@@ -390,7 +390,7 @@ module.exports = function mountCMS(app, supabase) {
           updated_at: new Date().toISOString()
         })
         .eq('id', req.params.contenu_id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .select()
         .single();
 
@@ -436,7 +436,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_photos')
         .select('*')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .eq('actif', true)
         .order('section')
         .order('ordre');
@@ -454,7 +454,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_photos')
         .select('*')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .eq('section', req.params.section)
         .eq('actif', true)
         .order('ordre');
@@ -479,7 +479,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_photos')
         .insert({
-          organisation_id: req.societeId,
+          societe_id: req.societeId,
           url: fileUrl,
           titre: titre || req.file.originalname,
           description: description || '',
@@ -515,7 +515,7 @@ module.exports = function mountCMS(app, supabase) {
         .from('site_photos')
         .update(updates)
         .eq('id', req.params.id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .select()
         .single();
 
@@ -533,7 +533,7 @@ module.exports = function mountCMS(app, supabase) {
         .from('site_photos')
         .update({ actif: false })
         .eq('id', req.params.id)
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .select()
         .single();
 
@@ -559,7 +559,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_demandes_modif')
         .insert({
-          organisation_id: req.societeId,
+          societe_id: req.societeId,
           description: description.trim()
         })
         .select()
@@ -584,7 +584,7 @@ module.exports = function mountCMS(app, supabase) {
       const { data, error } = await supabase
         .from('site_demandes_modif')
         .select('*')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .order('demandee_le', { ascending: false })
         .limit(50);
 

@@ -292,7 +292,7 @@ module.exports = function mountAnalyse(app, supabase) {
         const { error: insertErr } = await supabase
           .from('site_analyses')
           .insert({
-            organisation_id: req.societeId || null,
+            societe_id: req.societeId || null,
             url_analysee: targetUrl,
             type_site: rapport.type_site,
             plateforme_detectee: rapport.plateforme_detectee,
@@ -350,7 +350,7 @@ module.exports = function mountAnalyse(app, supabase) {
       const { data, error } = await supabase
         .from('site_analyses')
         .select('id, url_analysee, plateforme_detectee, score_complexite, recommandation, analysee_le')
-        .eq('organisation_id', req.societeId)
+        .eq('societe_id', req.societeId)
         .order('analysee_le', { ascending: false })
         .limit(20);
 

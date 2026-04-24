@@ -39,7 +39,7 @@ ON CONFLICT (code) DO NOTHING;
 -- 2. Abonnement d'une organisation a un forfait Studio
 CREATE TABLE IF NOT EXISTS public.studio_abonnements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organisation_id UUID NOT NULL,
+  societe_id UUID NOT NULL,
   forfait_id INT NOT NULL REFERENCES public.studio_forfaits(id),
   stripe_subscription_id VARCHAR(100),
   statut VARCHAR(20) DEFAULT 'actif'
@@ -51,14 +51,14 @@ CREATE TABLE IF NOT EXISTS public.studio_abonnements (
 );
 
 CREATE INDEX IF NOT EXISTS idx_studio_abo_org
-  ON public.studio_abonnements(organisation_id);
+  ON public.studio_abonnements(societe_id);
 CREATE INDEX IF NOT EXISTS idx_studio_abo_statut
   ON public.studio_abonnements(statut);
 
 -- 3. Contenus editables du site (CMS pour Pro/Expert)
 CREATE TABLE IF NOT EXISTS public.site_contenus (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organisation_id UUID NOT NULL,
+  societe_id UUID NOT NULL,
   section VARCHAR(50) NOT NULL,
   cle VARCHAR(100) NOT NULL,
   valeur TEXT,
@@ -68,17 +68,17 @@ CREATE TABLE IF NOT EXISTS public.site_contenus (
   publie BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(organisation_id, section, cle)
+  UNIQUE(societe_id, section, cle)
 );
 
 CREATE INDEX IF NOT EXISTS idx_site_contenus_org
-  ON public.site_contenus(organisation_id);
+  ON public.site_contenus(societe_id);
 
 -- 4. Historique modifications (rollback Pro/Expert)
 CREATE TABLE IF NOT EXISTS public.site_contenus_historique (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contenu_id UUID NOT NULL REFERENCES public.site_contenus(id) ON DELETE CASCADE,
-  organisation_id UUID NOT NULL,
+  societe_id UUID NOT NULL,
   valeur_avant TEXT,
   valeur_apres TEXT,
   modifie_par UUID,
@@ -88,12 +88,12 @@ CREATE TABLE IF NOT EXISTS public.site_contenus_historique (
 CREATE INDEX IF NOT EXISTS idx_site_hist_contenu
   ON public.site_contenus_historique(contenu_id);
 CREATE INDEX IF NOT EXISTS idx_site_hist_org
-  ON public.site_contenus_historique(organisation_id);
+  ON public.site_contenus_historique(societe_id);
 
 -- 5. Photos cabinet
 CREATE TABLE IF NOT EXISTS public.site_photos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organisation_id UUID NOT NULL,
+  societe_id UUID NOT NULL,
   url TEXT NOT NULL,
   titre VARCHAR(200),
   description TEXT,
@@ -104,12 +104,12 @@ CREATE TABLE IF NOT EXISTS public.site_photos (
 );
 
 CREATE INDEX IF NOT EXISTS idx_site_photos_org
-  ON public.site_photos(organisation_id);
+  ON public.site_photos(societe_id);
 
 -- 6. Demandes de modification pour formule Classic
 CREATE TABLE IF NOT EXISTS public.site_demandes_modif (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organisation_id UUID NOT NULL,
+  societe_id UUID NOT NULL,
   description TEXT NOT NULL,
   statut VARCHAR(20) DEFAULT 'en_attente'
     CHECK (statut IN ('en_attente', 'en_cours', 'terminee', 'refusee')),
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS public.site_demandes_modif (
 );
 
 CREATE INDEX IF NOT EXISTS idx_site_demandes_org
-  ON public.site_demandes_modif(organisation_id);
+  ON public.site_demandes_modif(societe_id);
 
 -- 7. RLS policies — chaque orga ne voit que son contenu
 ALTER TABLE public.studio_abonnements ENABLE ROW LEVEL SECURITY;
@@ -137,7 +137,7 @@ ALTER TABLE public.site_demandes_modif ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
 CREATE POLICY studio_abo_select ON public.studio_abonnements
   FOR SELECT USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -149,7 +149,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_contenus_select ON public.site_contenus
   FOR SELECT USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -160,7 +160,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_contenus_insert ON public.site_contenus
   FOR INSERT WITH CHECK (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -171,7 +171,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_contenus_update ON public.site_contenus
   FOR UPDATE USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -183,7 +183,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_photos_select ON public.site_photos
   FOR SELECT USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -194,7 +194,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_photos_all ON public.site_photos
   FOR ALL USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -206,7 +206,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_hist_select ON public.site_contenus_historique
   FOR SELECT USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -218,7 +218,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_demandes_select ON public.site_demandes_modif
   FOR SELECT USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -229,7 +229,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_demandes_insert ON public.site_demandes_modif
   FOR INSERT WITH CHECK (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -248,7 +248,7 @@ END $$;
 -- 8. Analyses de sites existants (scanner URL)
 CREATE TABLE IF NOT EXISTS public.site_analyses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organisation_id UUID,
+  societe_id UUID,
   url_analysee TEXT NOT NULL,
   type_site VARCHAR(50),
   plateforme_detectee VARCHAR(50),
@@ -268,7 +268,7 @@ CREATE TABLE IF NOT EXISTS public.site_analyses (
 );
 
 CREATE INDEX IF NOT EXISTS idx_site_analyses_org
-  ON public.site_analyses(organisation_id);
+  ON public.site_analyses(societe_id);
 CREATE INDEX IF NOT EXISTS idx_site_analyses_url
   ON public.site_analyses(url_analysee);
 
@@ -277,7 +277,7 @@ ALTER TABLE public.site_analyses ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
 CREATE POLICY site_analyses_select ON public.site_analyses
   FOR SELECT USING (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
@@ -288,7 +288,7 @@ END $$;
 DO $$ BEGIN
 CREATE POLICY site_analyses_insert ON public.site_analyses
   FOR INSERT WITH CHECK (
-    organisation_id IN (
+    societe_id IN (
       SELECT societe_id FROM public.user_societe_roles
       WHERE user_id = auth.uid()
     )
