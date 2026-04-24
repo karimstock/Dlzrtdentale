@@ -92,6 +92,9 @@ module.exports = function mountVitrines(app) {
   try { require('./generate-section')(router); } catch (e) {
     console.warn('[vitrines] generate-section non charge:', e.message);
   }
+  try { require('./staging')(router); } catch (e) {
+    console.warn('[vitrines] staging non charge:', e.message);
+  }
 
   app.use('/api/vitrines', router);
 

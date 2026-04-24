@@ -152,6 +152,16 @@ app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'p
 app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
+// Sites staging JADOMI — copies pour modification (Passe 43)
+app.use('/sites-staging/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  const stagingPath = path.join(__dirname, 'uploads', 'staging', slug);
+  if (require('fs').existsSync(stagingPath)) {
+    express.static(stagingPath)(req, res, next);
+  } else {
+    res.status(404).send('Staging non trouve');
+  }
+});
 // Sites clients JADOMI — routage dynamique /sites/:slug (Passe 38)
 app.use('/sites/:slug', (req, res, next) => {
   const slug = req.params.slug;
