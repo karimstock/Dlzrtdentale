@@ -89,6 +89,9 @@ module.exports = function mountVitrines(app) {
   try { require('./ai-assistants')(router); } catch (e) {
     console.warn('[vitrines] ai-assistants non charge:', e.message);
   }
+  try { require('./generate-section')(router); } catch (e) {
+    console.warn('[vitrines] generate-section non charge:', e.message);
+  }
 
   app.use('/api/vitrines', router);
 

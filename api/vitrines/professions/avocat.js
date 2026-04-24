@@ -249,5 +249,27 @@ PUIS genere le bloc EXTRACTED_DATA.
   "palette_choisie": "",
   "suggestions_domaine": []
 }
-</EXTRACTED_DATA>`
+</EXTRACTED_DATA>`,
+
+  // Catalogues pour generation de contenu IA (Passe 41B)
+  specialites_disponibles: [
+    { id: 'droit_famille', label: 'Droit de la famille',
+      page_proposee: { titre: 'Droit de la Famille', sous_titre: 'Accompagnement humain dans les moments cles',
+        sections_internes: ['Divorce amiable et contentieux', 'Garde d\'enfants', 'Pensions alimentaires', 'Successions', 'Adoption'] }},
+    { id: 'droit_affaires', label: 'Droit des affaires',
+      page_proposee: { titre: 'Droit des Affaires', sous_titre: 'Securiser votre activite professionnelle',
+        sections_internes: ['Creation d\'entreprise', 'Contrats commerciaux', 'Contentieux commercial', 'Droit des societes'] }},
+    { id: 'droit_travail', label: 'Droit du travail',
+      page_proposee: { titre: 'Droit du Travail', sous_titre: 'Proteger vos droits de salarie ou d\'employeur',
+        sections_internes: ['Licenciement', 'Harcelement', 'Rupture conventionnelle', 'Prud\'hommes'] }},
+    { id: 'droit_immobilier', label: 'Droit immobilier',
+      page_proposee: { titre: 'Droit Immobilier', sous_titre: 'Securiser vos transactions et votre patrimoine',
+        sections_internes: ['Achat/vente', 'Baux', 'Copropriete', 'Construction', 'Litiges locatifs'] }},
+    { id: 'droit_penal', label: 'Droit penal',
+      page_proposee: { titre: 'Droit Penal', sous_titre: 'Votre defense avec rigueur et determination',
+        sections_internes: ['Garde a vue', 'Comparution immediate', 'Instruction', 'Appel'] }},
+    { id: 'droit_fiscal', label: 'Droit fiscal',
+      page_proposee: { titre: 'Droit Fiscal', sous_titre: 'Optimisation et conformite fiscale',
+        sections_internes: ['Controle fiscal', 'Optimisation', 'TVA', 'Impot sur les societes'] }}
+  ]
 };

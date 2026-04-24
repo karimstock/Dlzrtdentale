@@ -274,5 +274,55 @@ PUIS tu generes le bloc EXTRACTED_DATA ci-dessous. Le recap est POUR L'UTILISATE
   "palette_choisie": "",
   "suggestions_domaine": []
 }
-</EXTRACTED_DATA>`
+</EXTRACTED_DATA>`,
+
+  // Catalogues pour generation de contenu IA (Passe 41B)
+  equipements_disponibles: [
+    { id: 'cone_beam', label: 'Cone beam 3D', icone: '🔬',
+      section_proposee: { titre: 'Imagerie 3D Cone Beam', description_courte: 'Scanner tridimensionnel haute precision',
+        avantages_patient: ['Precision diagnostique maximale', 'Radiation reduite vs scanner medical', 'Planification chirurgicale optimale'],
+        applications: ['Implantologie', 'Orthodontie', 'Endodontie complexe', 'Chirurgie maxillo-faciale'] }},
+    { id: 'laser', label: 'Laser dentaire', icone: '✨',
+      section_proposee: { titre: 'Traitement au Laser', description_courte: 'Soins indolores de nouvelle generation',
+        avantages_patient: ['Soins quasi-indolores', 'Cicatrisation acceleree', 'Precision extreme'],
+        applications: ['Parodontologie', 'Chirurgie des gencives', 'Blanchiment', 'Desinfection'] }},
+    { id: 'camera_intraorale', label: 'Camera intra-orale', icone: '📸',
+      section_proposee: { titre: 'Camera Intra-Orale', description_courte: 'Visualisez vos dents en haute definition',
+        avantages_patient: ['Voir ce que le dentiste voit', 'Comprendre votre traitement', 'Suivi visuel des soins'],
+        applications: ['Diagnostic visuel', 'Communication patient', 'Suivi traitement'] }},
+    { id: 'cfao', label: 'CFAO / CAD-CAM', icone: '⚙️',
+      section_proposee: { titre: 'Protheses sur Mesure CFAO', description_courte: 'Couronnes et inlays en une seance',
+        avantages_patient: ['Prothese en 1 seance', 'Precision numerique', 'Materiaux haut de gamme'],
+        applications: ['Couronnes', 'Inlays/Onlays', 'Facettes', 'Bridges'] }},
+    { id: 'scanner_intraoral', label: 'Scanner intra-oral', icone: '📱',
+      section_proposee: { titre: 'Empreintes Numeriques', description_courte: 'Fini la pate a empreinte',
+        avantages_patient: ['Plus de pate desagreable', 'Precision superieure', 'Confort patient'],
+        applications: ['Orthodontie invisible', 'Protheses', 'Goutttieres'] }},
+    { id: 'microscope', label: 'Microscope operatoire', icone: '🔬',
+      section_proposee: { titre: 'Micro-Dentisterie', description_courte: 'Precision au micrometre',
+        avantages_patient: ['Conservation maximale des tissus', 'Traitements ultra-precis', 'Endodontie d\'excellence'],
+        applications: ['Endodontie', 'Chirurgie apicale', 'Soins de haute precision'] }},
+    { id: 'imprimante_3d', label: 'Imprimante 3D', icone: '🖨️',
+      section_proposee: { titre: 'Impression 3D Dentaire', description_courte: 'Fabrication numerique sur place',
+        avantages_patient: ['Guides chirurgicaux sur mesure', 'Modeles d\'etude precis', 'Gouttieres personnalisees'],
+        applications: ['Guides implantaires', 'Gouttieres', 'Modeles etude'] }}
+  ],
+
+  specialites_disponibles: [
+    { id: 'implantologie', label: 'Implantologie',
+      page_proposee: { titre: 'Implants Dentaires', sous_titre: 'Retrouvez le sourire en toute serenite',
+        sections_internes: ['Qu\'est-ce qu\'un implant ?', 'Pour qui ?', 'Deroulement', 'Couts et prise en charge', 'Garanties'] }},
+    { id: 'esthetique', label: 'Dentisterie esthetique',
+      page_proposee: { titre: 'Esthetique Dentaire', sous_titre: 'Un sourire qui vous ressemble',
+        sections_internes: ['Facettes', 'Blanchiment', 'Alignement', 'Composites esthetiques'] }},
+    { id: 'parodontologie', label: 'Parodontologie',
+      page_proposee: { titre: 'Sante des Gencives', sous_titre: 'Proteger les fondations de votre sourire',
+        sections_internes: ['Maladie parodontale', 'Diagnostic', 'Traitements', 'Prevention'] }},
+    { id: 'orthodontie', label: 'Orthodontie invisible',
+      page_proposee: { titre: 'Orthodontie Invisible', sous_titre: 'Alignez vos dents en toute discretion',
+        sections_internes: ['Gouttieres invisibles', 'Pour qui ?', 'Duree', 'Tarifs'] }},
+    { id: 'pedodontie', label: 'Dentisterie pediatrique',
+      page_proposee: { titre: 'Soins Dentaires Enfants', sous_titre: 'Des soins adaptes aux plus jeunes',
+        sections_internes: ['Premiere visite', 'Prevention caries', 'Soins adaptes', 'Urgences enfants'] }}
+  ]
 };
