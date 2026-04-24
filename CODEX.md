@@ -819,7 +819,26 @@ test connexion, recap paiement creation + mensuel.
 Page Classic renouvelee : 0 modif gratuite, option 49EUR/unite ou upgrade Pro.
 SQL 40 : 5 nouvelles tables (paiements_creation, modifications_ponctuelles,
 sites_existants, sites_existants_credentials, sites_existants_interventions).
-TODO : executer SQL 40 dans Supabase Dashboard, integrer Stripe, moteur IA.
+SQL 40 execute en prod par Karim.
+
+## Passe 38 (24 avril 2026) -- Interventions IA automatiques sur sites existants
+Moteur d'intervention IA qui modifie les sites des pros automatiquement.
+Pipeline 8 etapes : charger credentials → connecter FTP/WordPress →
+analyser demande via Claude Sonnet (JSON strict) → refuser si complexe →
+backup SHA-256 (90j) → appliquer diffs chirurgicaux → verifier site 200 →
+log duree + cout IA.
+Securites : blacklist fichiers sensibles (wp-config, .env, .htaccess,
+checkout), rollback auto si erreur, max 5/site/jour et 10/pro/jour.
+API /api/studio/interventions/* (6 endpoints) : demande-libre, action-rapide,
+status polling, historique, rollback, actions-rapides.
+10 actions rapides predefinies : telephone, horaires, adresse, email,
+couleur, photo, texte, optimiser images, avis Google, SEO.
+Dashboard /studio/mes-sites/ : layout 2 colonnes avec preview iframe,
+grid 10 actions rapides, demande libre, status temps reel, historique
+avec rollback 1 clic.
+SQL 41 : ALTER interventions (11 colonnes), CREATE backups + actions_predefinies.
+Dependance : basic-ftp. Cout IA estime : ~5 centimes/intervention.
+TODO : executer SQL 41 dans Supabase Dashboard, integrer Stripe.
 
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
