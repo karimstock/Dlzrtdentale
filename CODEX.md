@@ -779,9 +779,25 @@ Fichiers modifies :
 Middleware forfait : Classic bloque du CMS avec CTA upgrade.
 Middleware quotas : photos/pages/modifications verifie cote API.
 Differenciation Expert : theme gold, sections avancees (A/B, multi-langue).
-TODO : executer SQL 39 dans Supabase Dashboard, integrer Stripe.
-Performance : prefers-reduced-motion, Three.js desktop-only,
-IntersectionObserver lazy, defer loading, code splitting par page.
+SQL 39 execute en prod (societe_id corrige manuellement par Karim).
+TODO : integrer Stripe pour les 3 forfaits.
+
+## Passe 36.2 (24 avril 2026) -- Homepage v2 Editorial Minimalism
+Refonte homepage jadomi.fr (fichier separe index-v2.html, pas en prod).
+Design system : Editorial Minimalism (Stripe/Linear/Apple inspiration).
+Palette : creme chaud #FAFAF8 + bleu profond #2D3A8C + or #8A7239.
+Typography : Fraunces italic display + Inter body + Syne prix.
+10 sections : header sticky blur, hero video Pexels ambiance, 3 piliers,
+4 metiers premium (photos Pexels), 8 autres metiers grid, 3 formules
+(Classic 29EUR/Pro 79EUR/Expert 199EUR), temoignages, 3 etapes, FAQ 6
+questions, CTA final dark, footer 4 colonnes.
+Animations : IntersectionObserver reveal + stagger 80ms + compteurs.
+Responsive 375/768/1024/1440 + prefers-reduced-motion.
+3 videos hero Pexels (Pavel Danilyuk + Kampus Production).
+4 photos metiers Pexels (Arda Kaykisiz, cottonbro, Numan Gilgil, kaboompics).
+Skills utilises : ui-ux-pro-max (guidelines), brand, design-system.
+TODO : validation Karim, choix video hero, remplacement temoignages,
+mockups screenshots formules, mise en prod (switch route /).
 
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
