@@ -57,6 +57,8 @@ module.exports = function mountAnalyse(app, supabase) {
         score_seo: 0,
         score_complexite: 0,
         recommandation: null,
+        hebergeur_detecte: null,
+        images: [],
         details: {}
       };
 
@@ -79,6 +81,7 @@ module.exports = function mountAnalyse(app, supabase) {
         rapport.details.load_time_ms = Date.now() - startTime;
         rapport.details.status_code = response.status;
         rapport.details.page_size_kb = Math.round(html.length / 1024);
+        rapport.details.server_header = response.headers.get('server') || response.headers.get('x-served-by') || '';
       } catch (fetchErr) {
         return res.status(400).json({
           error: 'site_inaccessible',
@@ -175,6 +178,48 @@ module.exports = function mountAnalyse(app, supabase) {
       if (htmlLower.includes('paypal')) {
         rapport.details.has_paypal = true;
       }
+
+      // 3b. Detection hebergeur (DNS/headers)
+      try {
+        const serverHeader = (rapport.details.server_header || '').toLowerCase();
+        const htmlCheck = htmlLower;
+        if (htmlCheck.includes('hostinger') || serverHeader.includes('hostinger')) rapport.hebergeur_detecte = 'hostinger';
+        else if (htmlCheck.includes('.ovh.') || serverHeader.includes('ovh')) rapport.hebergeur_detecte = 'ovh';
+        else if (htmlCheck.includes('infomaniak') || serverHeader.includes('infomaniak')) rapport.hebergeur_detecte = 'infomaniak';
+        else if (htmlCheck.includes('o2switch') || serverHeader.includes('o2switch')) rapport.hebergeur_detecte = 'o2switch';
+        else if (htmlCheck.includes('ionos') || serverHeader.includes('ionos')) rapport.hebergeur_detecte = 'ionos';
+        // DNS detection via URL patterns
+        else {
+          try {
+            const dns = require('dns');
+            const hostname = new URL(targetUrl).hostname;
+            const ns = await new Promise((resolve) => dns.resolveNs(hostname, (err, addrs) => resolve(err ? [] : addrs)));
+            const nsStr = (ns || []).join(' ').toLowerCase();
+            if (nsStr.includes('hostinger')) rapport.hebergeur_detecte = 'hostinger';
+            else if (nsStr.includes('ovh')) rapport.hebergeur_detecte = 'ovh';
+            else if (nsStr.includes('infomaniak')) rapport.hebergeur_detecte = 'infomaniak';
+          } catch { /* skip DNS */ }
+        }
+      } catch { /* skip hebergeur detection */ }
+
+      // 3c. Extraction images du site
+      try {
+        const imgEls = $('img');
+        imgEls.each((i, el) => {
+          if (i >= 60) return false; // max 60 images
+          const src = $(el).attr('src') || $(el).attr('data-src') || '';
+          if (!src || src.startsWith('data:')) return;
+          try {
+            const fullUrl = new URL(src, targetUrl).href;
+            rapport.images.push({
+              url: fullUrl,
+              alt: $(el).attr('alt') || '',
+              width: $(el).attr('width') || '',
+              height: $(el).attr('height') || ''
+            });
+          } catch { /* skip invalid URL */ }
+        });
+      } catch { /* skip image extraction */ }
 
       // 4. Analyse SEO basique
       let seoScore = 50;
