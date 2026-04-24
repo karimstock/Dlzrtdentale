@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Studio — Mon site</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Passe 38 — Dashboard mon-site cockpit */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--surface2:#243870;--border:rgba(99,102,241,0.15);--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--gold:#d4a853;--radius:14px;--rs:10px;--ease:cubic-bezier(.16,1,.3,1);}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 15% 15%,rgba(99,102,241,0.07) 0%,transparent 50%);}
+.container{max-width:1200px;margin:0 auto;padding:24px 28px 80px;position:relative;z-index:1;}
+a{color:var(--accent3);text-decoration:none;}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:22px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.back{font-size:13px;color:var(--text2);}
+.btn{padding:10px 20px;border-radius:var(--rs);font-size:13px;font-weight:600;transition:all .2s var(--ease);}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#818cf8;transform:translateY(-1px);}
+.btn-s{background:transparent;color:var(--text2);border:1px solid var(--border);}.btn-s:hover{border-color:var(--accent);color:var(--accent);}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#b8942d);color:#1a1a2e;font-weight:700;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .3s;}
+.card:hover{border-color:rgba(99,102,241,.3);}
+.ct{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+.field-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.field-input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;}
+.field-input:focus{outline:none;border-color:var(--accent);}
+textarea.field-input{min-height:80px;resize:vertical;}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+.preview-frame{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);height:260px;position:relative;}
+.preview-frame iframe{width:200%;height:520px;border:0;pointer-events:none;transform:scale(0.5);transform-origin:top left;}
+.preview-overlay{position:absolute;bottom:0;left:0;right:0;padding:8px;background:linear-gradient(transparent,rgba(0,0,0,.6));display:flex;gap:8px;justify-content:flex-end;}
+.preview-overlay a{font-size:10px;background:rgba(255,255,255,.15);color:#fff;padding:4px 10px;border-radius:6px;backdrop-filter:blur(4px);}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:16px;}
+.tab{padding:8px 16px;border-radius:var(--rs);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .2s;}
+.tab:hover{background:rgba(99,102,241,.06);}
+.tab.active{background:rgba(99,102,241,.1);color:var(--accent);font-weight:600;}
+.tab-pane{display:none;}.tab-pane.active{display:block;}
+
+/* Sections list */
+.section-item{padding:14px 16px;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .2s;}
+.section-item:hover{border-color:var(--accent);background:rgba(99,102,241,.03);}
+.section-name{font-size:13px;font-weight:600;}
+.section-preview{font-size:11px;color:var(--text3);margin-top:2px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Themes grid */
+.themes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.theme-card{border-radius:var(--rs);overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:all .2s var(--ease);}
+.theme-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 4px 16px rgba(99,102,241,.15);}
+.theme-card.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent);}
+.theme-preview{height:130px;overflow:hidden;}
+.theme-preview div{width:100%;height:100%;}
+.theme-info{padding:12px;}
+.theme-name{font-size:13px;font-weight:700;}
+.theme-desc{font-size:11px;color:var(--text3);margin-top:3px;}
+
+/* Suggest btn */
+.suggest-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.15);color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.suggest-btn:hover{background:rgba(99,102,241,.15);}
+.suggestion-card{padding:10px 14px;border:1px solid var(--border);border-radius:var(--rs);margin:6px 0;cursor:pointer;font-size:12px;color:var(--text2);transition:all .15s;}
+.suggestion-card:hover{border-color:var(--accent);color:var(--text);background:rgba(99,102,241,.03);}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:16px;}
+
+/* Wizard steps */
+.wizard-step{display:none;}.wizard-step.active{display:block;}
+.step-indicator{display:flex;gap:8px;margin-bottom:24px;justify-content:center;}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:all .2s;}
+.step-dot.active{background:var(--accent);width:24px;border-radius:4px;}
+.step-dot.done{background:var(--success);}
+
+.empty{text-align:center;padding:48px;color:var(--text3);}
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--text3);}
+@media(max-width:768px){.layout{grid-template-columns:1fr;}.themes-grid{grid-template-columns:1fr 1fr;}.container{padding:16px 14px 60px;}}
+@media(max-width:480px){.themes-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="container" id="app"><div class="empty">Chargement...</div></div>
+
+<!-- Modal edition section -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal" id="modal-edit-content"></div>
+</div>
+
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
+let db,token,societeId,siteData=null,themes=[];
+
+(async function(){
+  db=supabase.createClient(SU,SK);
+  const{data}=await db.auth.getSession();
+  let s=data?.session;
+  if(!s){const r=localStorage.getItem('jadomi_session');if(r)try{s=JSON.parse(r)?.session||JSON.parse(r);}catch{}}
+  if(!s){window.location.href='/login.html?redirect=/studio/mon-site/';return;}
+  token=s.access_token||s.token;
+  societeId=localStorage.getItem('jadomi_selected_societe')||null;
+  loadSite();
+})();
+
+function api(method,path,body){
+  const opts={method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','X-Societe-Id':societeId||''}};
+  if(body&&method!=='GET')opts.body=JSON.stringify(body);
+  return fetch(path,opts).then(async r=>{const d=await r.json();if(!r.ok)throw d;return d;});
+}
+
+async function loadSite(){
+  try{
+    const data=await api('GET','/api/studio/sites-jadomi/mon-site');
+    if(!data.site){renderNoSite();return;}
+    siteData=data;
+    renderDashboard();
+  }catch(e){renderNoSite();}
+}
+
+// ============ NO SITE — redirect to wizard ============
+function renderNoSite(){
+  document.getElementById('app').innerHTML=`
+    <div class="header"><div><a href="/organisation.html" class="back">&larr; Retour</a><h1>JADOMI Studio — Mon site</h1></div></div>
+    <div class="empty" style="padding:80px 20px;">
+      <div style="font-size:36px;margin-bottom:16px;">&#127912;</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px;">Vous n'avez pas encore de site</div>
+      <div style="font-size:14px;color:var(--text2);margin-bottom:24px;max-width:400px;margin-left:auto;margin-right:auto;">Creez votre site professionnel en quelques minutes avec JADOMI Studio. Choisissez parmi 10 themes premium.</div>
+      <a href="/studio/mon-site/creer" class="btn btn-p" style="text-decoration:none;display:inline-block;">Creer mon site</a>
+    </div>
+    <div class="footer">Propulse par JADOMI IA</div>`;
+}
+
+// ============ DASHBOARD ============
+function renderDashboard(){
+  const site=siteData.site;
+  const sections=siteData.sections||[];
+  document.getElementById('app').innerHTML=`
+    <div class="header">
+      <div><a href="/organisation.html" class="back">&larr; Retour</a><h1>${site.nom_affiche}</h1></div>
+      <div style="display:flex;gap:8px;">
+        <a href="${site.url_jadomi||'/sites/'+site.slug+'/'}" target="_blank" class="btn btn-s" style="text-decoration:none;">Voir le site</a>
+        <button class="btn btn-p" onclick="publier()">Publier</button>
+      </div>
+    </div>
+    <div class="layout">
+      <!-- GAUCHE -->
+      <div>
+        <div class="preview-frame">
+          <iframe src="${site.url_jadomi||'/sites/'+site.slug+'/'}" id="site-preview"></iframe>
+          <div class="preview-overlay">
+            <a href="${site.url_jadomi||'#'}" target="_blank">Ouvrir</a>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="ct">Informations</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8;">
+            <div><strong>URL :</strong> ${site.url_jadomi||'en cours...'}</div>
+            <div><strong>Theme :</strong> ${site.theme_code}</div>
+            <div><strong>Statut :</strong> <span style="color:${site.statut==='en_ligne'?'var(--success)':'var(--warning)'};">${site.statut}</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- DROITE -->
+      <div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('contenu',this)">Contenu</div>
+          <div class="tab" onclick="switchTab('design',this)">Design</div>
+          <div class="tab" onclick="switchTab('settings',this)">Settings</div>
+          <div class="tab" onclick="switchTab('historique',this)">Historique</div>
+        </div>
+
+        <div class="tab-pane active" id="pane-contenu">
+          ${sections.map(s=>`
+            <div class="section-item" onclick="editSection('${s.id}','${s.cle}')">
+              <div>
+                <div class="section-name">${sectionLabel(s.cle)}</div>
+                <div class="section-preview">${sectionPreview(s)}</div>
+              </div>
+              <span style="font-size:11px;color:var(--accent);">Modifier &rarr;</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="tab-pane" id="pane-design">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="ct">Theme actuel : ${site.theme_code}</div>
+            <button class="btn btn-s" onclick="showThemes()" style="font-size:11px;">Changer de theme</button>
+          </div>
+          <div class="card">
+            <div class="ct">Palette</div>
+            <button class="suggest-btn" onclick="suggestPalette()">Propositions JADOMI IA</button>
+            <div id="palette-suggestions" style="margin-top:10px;"></div>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="pane-settings">
+          <div class="card" style="margin-bottom:14px;">
+            <div class="ct">URL du site</div>
+            <div style="font-size:13px;color:var(--text2);">${site.url_jadomi||'en cours...'}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:6px;">Migration vers votre propre domaine disponible prochainement.</div>
+          </div>
+          <div class="card">
+            <div class="ct">Actions</div>
+            <button class="btn btn-s" style="margin-right:8px;" onclick="verifier()">Verifier avant publication</button>
+            <div id="verif-result" style="margin-top:10px;"></div>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="pane-historique">
+          <div id="versions-list">Chargement...</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Propulse par JADOMI IA</div>`;
+
+  loadVersions();
+}
+
+function sectionLabel(cle){
+  const map={hero:'Hero / Accueil',about:'A propos',services:'Services',equipe:'Equipe',horaires:'Horaires',contact:'Contact',logo:'Logo'};
+  return map[cle]||cle;
+}
+function sectionPreview(s){
+  const v=s.valeur||{};
+  if(s.cle==='hero')return v.slogan||'(vide)';
+  if(s.cle==='contact')return[v.telephone,v.email].filter(Boolean).join(' · ')||'(vide)';
+  if(s.cle==='services')return(v.liste||[]).map(x=>x.nom).join(', ')||'(vide)';
+  if(s.cle==='about')return(v.texte||'').substring(0,60)||'(vide)';
+  return JSON.stringify(v).substring(0,50);
+}
+
+function switchTab(tab,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pane-'+tab).classList.add('active');
+}
+
+// ============ EDIT SECTION ============
+function editSection(sectionId,cle){
+  const section=siteData.sections.find(s=>s.id===sectionId);
+  if(!section)return;
+  const modal=document.getElementById('modal-edit');
+  const content=document.getElementById('modal-edit-content');
+
+  const val=section.valeur||{};
+  let fields='';
+  if(cle==='hero'){
+    fields=`<div class="field-label">Slogan</div><input class="field-input" id="edit-slogan" value="${val.slogan||''}">
+      <div style="margin:8px 0;"><button class="suggest-btn" onclick="suggestField('hero_titre','edit-slogan')">Suggestions JADOMI IA</button></div><div id="suggestions-edit-slogan"></div>
+      <div class="field-label" style="margin-top:12px;">Description</div><textarea class="field-input" id="edit-desc">${val.description||''}</textarea>`;
+  }else if(cle==='contact'){
+    fields=`<div class="field-label">Adresse</div><input class="field-input" id="edit-adresse" value="${val.adresse||''}">
+      <div class="field-label" style="margin-top:10px;">Telephone</div><input class="field-input" id="edit-tel" value="${val.telephone||''}">
+      <div class="field-label" style="margin-top:10px;">Email</div><input class="field-input" id="edit-email" value="${val.email||''}">`;
+  }else if(cle==='about'){
+    fields=`<div class="field-label">Texte de presentation</div><textarea class="field-input" id="edit-about" rows="5">${val.texte||''}</textarea>
+      <div style="margin:8px 0;"><button class="suggest-btn" onclick="suggestField('about','edit-about')">Suggestions JADOMI IA</button></div><div id="suggestions-edit-about"></div>`;
+  }else{
+    fields=`<div class="field-label">Contenu (JSON)</div><textarea class="field-input" id="edit-json" rows="8">${JSON.stringify(val,null,2)}</textarea>`;
+  }
+
+  content.innerHTML=`<h3>Modifier : ${sectionLabel(cle)}</h3>${fields}
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-s" onclick="closeEditModal()">Annuler</button>
+      <button class="btn btn-p" onclick="saveSection('${sectionId}','${cle}')">Sauvegarder</button>
+    </div>`;
+  modal.classList.add('show');
+}
+
+async function saveSection(sectionId,cle){
+  let valeur;
+  const section=siteData.sections.find(s=>s.id===sectionId);
+  const old=section?.valeur||{};
+
+  if(cle==='hero') valeur={...old,slogan:document.getElementById('edit-slogan')?.value||'',description:document.getElementById('edit-desc')?.value||''};
+  else if(cle==='contact') valeur={...old,adresse:document.getElementById('edit-adresse')?.value||'',telephone:document.getElementById('edit-tel')?.value||'',email:document.getElementById('edit-email')?.value||''};
+  else if(cle==='about') valeur={...old,texte:document.getElementById('edit-about')?.value||''};
+  else{try{valeur=JSON.parse(document.getElementById('edit-json')?.value||'{}');}catch{alert('JSON invalide');return;}}
+
+  try{
+    await api('PUT','/api/studio/sites-jadomi/'+siteData.site.id+'/section/'+sectionId,{valeur});
+    closeEditModal();
+    loadSite();
+  }catch(e){alert('Erreur: '+(e.error||e.message));}
+}
+
+function closeEditModal(){document.getElementById('modal-edit').classList.remove('show');}
+
+// ============ IA SUGGESTIONS ============
+async function suggestField(type,inputId){
+  const container=document.getElementById('suggestions-'+inputId);
+  if(!container)return;
+  container.innerHTML='<div style="font-size:11px;color:var(--accent);">JADOMI IA reflechit...</div>';
+  try{
+    const result=await api('POST','/api/studio/sites-jadomi/'+siteData.site.id+'/suggest-text',{
+      type,texte_actuel:document.getElementById(inputId)?.value||'',contexte_cabinet:siteData.site.nom_affiche
+    });
+    container.innerHTML=(result.propositions||[]).map(p=>
+      `<div class="suggestion-card" onclick="document.getElementById('${inputId}').value=this.textContent.trim();this.parentElement.innerHTML='';">${p}</div>`
+    ).join('');
+  }catch(e){container.innerHTML='<div style="color:var(--danger);font-size:11px;">Erreur IA</div>';}
+}
+
+async function suggestPalette(){
+  const el=document.getElementById('palette-suggestions');
+  el.innerHTML='<div style="font-size:11px;color:var(--accent);">Chargement...</div>';
+  try{
+    const r=await api('POST','/api/studio/sites-jadomi/'+siteData.site.id+'/suggest-palette',{ambiance:'premium'});
+    el.innerHTML=(r.palettes||[]).map((p,i)=>`
+      <div style="display:flex;gap:6px;align-items:center;padding:8px 0;cursor:pointer;" onclick="alert('Changement palette a venir')">
+        <div style="width:24px;height:24px;border-radius:4px;background:${p.primaire};"></div>
+        <div style="width:24px;height:24px;border-radius:4px;background:${p.accent};"></div>
+        <div style="width:24px;height:24px;border-radius:4px;background:${p.fond};border:1px solid var(--border);"></div>
+        <span style="font-size:11px;color:var(--text2);margin-left:6px;">Palette ${i+1}</span>
+      </div>
+    `).join('');
+  }catch{el.innerHTML='';}
+}
+
+async function verifier(){
+  const el=document.getElementById('verif-result');
+  el.innerHTML='<div style="font-size:11px;color:var(--accent);">Verification...</div>';
+  try{
+    const r=await api('POST','/api/studio/sites-jadomi/'+siteData.site.id+'/verifier');
+    el.innerHTML=(r.issues||[]).map(i=>`
+      <div style="padding:6px 0;font-size:12px;color:${i.type==='error'?'var(--danger)':i.type==='warning'?'var(--warning)':'var(--success)'};">${i.type==='success'?'&#10003;':'&#9888;'} ${i.message}</div>
+    `).join('');
+  }catch{el.innerHTML='';}
+}
+
+async function publier(){
+  if(!confirm('Publier votre site ? Il sera accessible publiquement.'))return;
+  try{
+    const r=await api('POST','/api/studio/sites-jadomi/'+siteData.site.id+'/publier');
+    alert(r.success?'Site publie ! '+r.url:'Erreur publication');
+    loadSite();
+  }catch(e){alert('Erreur: '+(e.error||e.message));}
+}
+
+async function loadVersions(){
+  const el=document.getElementById('versions-list');
+  if(!el||!siteData?.site)return;
+  try{
+    const data=await api('GET','/api/studio/sites-jadomi/'+siteData.site.id+'/versions');
+    if(!data.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);">Aucune version</div>';return;}
+    el.innerHTML=data.map(v=>`
+      <div class="section-item">
+        <div><div class="section-name">${new Date(v.created_at).toLocaleString('fr-FR')}</div><div class="section-preview">${v.commentaire||''}</div></div>
+        <button class="btn btn-s" style="font-size:10px;padding:4px 10px;" onclick="rollback('${v.id}')">Restaurer</button>
+      </div>
+    `).join('');
+  }catch{el.innerHTML='';}
+}
+
+async function rollback(versionId){
+  if(!confirm('Restaurer cette version ? Le site sera regenere.'))return;
+  try{
+    await api('POST','/api/studio/sites-jadomi/'+siteData.site.id+'/rollback/'+versionId);
+    alert('Version restauree');loadSite();
+  }catch(e){alert('Erreur: '+(e.error||e.message));}
+}
+
+function showThemes(){alert('Changement de theme disponible prochainement.');}
+</script>
+</body>
+</html>
