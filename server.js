@@ -138,6 +138,11 @@ app.get('/jadomi-ads', (req, res) => res.sendFile(path.join(__dirname, 'public/j
 app.get('/dashboard-annonceur', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard-annonceur.html')));
 // JADOMI Studio (Passe 34.2)
 app.get('/jadomi-studio', (req, res) => res.sendFile(path.join(__dirname, 'public/jadomi-studio.html')));
+// JADOMI Studio CMS + Onboarding (Passe 36)
+app.get('/studio/cms', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/cms/index.html')));
+app.get('/studio/cms/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/cms/index.html')));
+app.get('/studio/onboarding', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
+app.get('/studio/onboarding/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
 // 301 redirects for old URLs
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
@@ -359,6 +364,24 @@ try {
   console.log('[JADOMI] Module Remotion (video generation + premium ads) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Remotion non charge:', e.message);
+}
+
+// === JADOMI Studio CMS — Dashboard 3 formules (Passe 36) ===
+try {
+  const mountCMS = require('./api/studio/cms');
+  mountCMS(app, supabase);
+  console.log('[JADOMI] Module Studio CMS (3 formules) monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio CMS non charge:', e.message);
+}
+
+// === JADOMI Studio Analyse — Scanner sites existants (Passe 36) ===
+try {
+  const mountAnalyse = require('./api/studio/analyse');
+  mountAnalyse(app, supabase);
+  console.log('[JADOMI] Module Studio Analyse (scanner URL) monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
 }
 
 // === JADOMI Coach (onboarding personnalisé + tooltips) ===
