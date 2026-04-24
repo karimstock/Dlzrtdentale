@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Studio — Mes sites existants</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Passe 37 — 24 avril 2026 — Dashboard sites existants */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--border:rgba(99,102,241,0.15);--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--gold:#d4a853;--radius:14px;--rs:10px;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
+.container{max-width:1100px;margin:0 auto;padding:24px 28px 80px;}
+a{color:var(--accent3);text-decoration:none;}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:22px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.back{font-size:13px;color:var(--text2);}
+.btn{padding:10px 20px;border-radius:var(--rs);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s;}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#818cf8;}
+.btn-s{background:transparent;color:var(--text2);border:1px solid var(--border);}.btn-s:hover{border-color:var(--accent);color:var(--accent);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .3s;}
+.card:hover{border-color:rgba(99,102,241,.3);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px;}
+.site-card{cursor:pointer;}
+.site-url{font-size:14px;font-weight:700;margin-bottom:6px;word-break:break-all;}
+.site-meta{font-size:11px;color:var(--text3);display:flex;gap:12px;margin-bottom:10px;}
+.pill{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.pill-ok{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.pill-wait{background:rgba(245,158,11,.15);color:#fcd34d;}
+.pill-off{background:rgba(239,68,68,.15);color:#fca5a5;}
+.empty{text-align:center;padding:48px;color:var(--text3);font-size:14px;}
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--text3);}
+@media(max-width:640px){.grid{grid-template-columns:1fr;}.container{padding:16px 14px 60px;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <a href="/organisation.html" class="back">&larr; Retour</a>
+      <h1>Mes sites existants</h1>
+    </div>
+    <a href="/studio/onboarding/" class="btn btn-p" style="text-decoration:none;">Ajouter un site</a>
+  </div>
+  <div class="grid" id="sites-grid">
+    <div class="empty">Chargement...</div>
+  </div>
+  <div class="footer">Propulse par JADOMI IA &middot; &copy; 2026 JADOMI</div>
+</div>
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
+let db,token;
+(async function(){
+  db=supabase.createClient(SU,SK);
+  const{data}=await db.auth.getSession();
+  let s=data?.session;
+  if(!s){const r=localStorage.getItem('jadomi_session');if(r)try{s=JSON.parse(r)?.session||JSON.parse(r);}catch{}}
+  if(!s){window.location.href='/login.html?redirect=/studio/sites-existants/';return;}
+  token=s.access_token||s.token;
+  loadSites();
+})();
+
+async function loadSites(){
+  const grid=document.getElementById('sites-grid');
+  try{
+    const res=await fetch('/api/studio/sites-existants/mes-sites',{headers:{'Authorization':'Bearer '+token}});
+    const sites=await res.json();
+    if(!sites||!sites.length){grid.innerHTML='<div class="empty">Aucun site existant connecte.<br><br><a href="/studio/onboarding/" class="btn btn-p" style="text-decoration:none;">Analyser un site</a></div>';return;}
+    grid.innerHTML=sites.map(s=>{
+      const statusPill=s.statut==='connecte'?'<span class="pill pill-ok">Connecte</span>':s.statut==='en_attente_acces'?'<span class="pill pill-wait">En attente</span>':'<span class="pill pill-off">'+s.statut+'</span>';
+      return `<div class="card site-card" onclick="window.location.href='/studio/sites-existants/?id=${s.id}'">
+        <div class="site-url">${s.url.replace('https://','').replace('http://','')}</div>
+        <div class="site-meta"><span>${s.hebergeur||'—'}</span><span>${s.plateforme||'—'}</span>${statusPill}</div>
+        <div style="font-size:11px;color:var(--text3);">Ajoute le ${new Date(s.created_at).toLocaleDateString('fr-FR')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){grid.innerHTML='<div class="empty" style="color:var(--danger);">Erreur chargement</div>';}
+}
+</script>
+</body>
+</html>

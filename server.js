@@ -143,6 +143,12 @@ app.get('/studio/cms', (req, res) => res.sendFile(path.join(__dirname, 'public/s
 app.get('/studio/cms/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/cms/index.html')));
 app.get('/studio/onboarding', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
 app.get('/studio/onboarding/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
+app.get('/studio/sites-existants', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/sites-existants/index.html')));
+app.get('/studio/sites-existants/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/sites-existants/index.html')));
+// Sites demo Studio (Passe 37)
+app.get('/demo/classic', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/classic/index.html')));
+app.get('/demo/pro', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/pro/index.html')));
+app.get('/demo/expert', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert/index.html')));
 // Homepage v2 preview (Passe 36)
 app.get('/index-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
 app.get('/index-v2.html', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
@@ -385,6 +391,15 @@ try {
   console.log('[JADOMI] Module Studio Analyse (scanner URL) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
+}
+
+// === JADOMI Studio Sites Existants — Acces FTP/SSH/WordPress (Passe 37) ===
+try {
+  const mountSitesExistants = require('./api/studio/sites-existants');
+  mountSitesExistants(app, supabaseAdmin || supabase);
+  console.log('[JADOMI] Module Studio Sites Existants monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Sites Existants non charge:', e.message);
 }
 
 // === JADOMI Coach (onboarding personnalisé + tooltips) ===
