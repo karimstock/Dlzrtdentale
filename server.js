@@ -369,7 +369,7 @@ try {
 // === JADOMI Studio CMS — Dashboard 3 formules (Passe 36) ===
 try {
   const mountCMS = require('./api/studio/cms');
-  mountCMS(app, supabase);
+  mountCMS(app, supabaseAdmin || supabase);
   console.log('[JADOMI] Module Studio CMS (3 formules) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Studio CMS non charge:', e.message);
@@ -378,7 +378,7 @@ try {
 // === JADOMI Studio Analyse — Scanner sites existants (Passe 36) ===
 try {
   const mountAnalyse = require('./api/studio/analyse');
-  mountAnalyse(app, supabase);
+  mountAnalyse(app, supabaseAdmin || supabase);
   console.log('[JADOMI] Module Studio Analyse (scanner URL) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
