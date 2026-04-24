@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Export guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--creme:#FAF5EB;--or:#C9A961;--or-dim:rgba(201,169,97,.12);--blanc:#FFFFFF;--ink:#1a1814;--ink-soft:#5C5C70;--ink-dim:#8E8E9E;--line:rgba(26,24,20,.08);--success:#16A34A;--radius:12px;--ease:cubic-bezier(.16,1,.3,1);}
+body{font-family:'Inter',sans-serif;background:var(--creme);color:var(--ink);min-height:100vh;}
+.container{max-width:640px;margin:0 auto;padding:40px 28px 80px;}
+h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;text-align:center;margin-bottom:8px;}
+.sub{text-align:center;font-size:14px;color:var(--ink-soft);margin-bottom:32px;}
+.back{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:16px;}
+.card{background:var(--blanc);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
+.step-num{width:32px;height:32px;border-radius:50%;background:var(--or);color:var(--blanc);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-bottom:12px;}
+.step-title{font-size:15px;font-weight:600;margin-bottom:6px;}
+.step-desc{font-size:13px;color:var(--ink-soft);line-height:1.6;}
+.progress{display:flex;gap:6px;justify-content:center;margin:20px 0;}
+.progress span{width:8px;height:8px;border-radius:50%;background:var(--line);transition:background .3s;}
+.progress span.active{background:var(--or);width:20px;border-radius:4px;}
+.progress span.done{background:var(--success);}
+.step-view{display:none;}.step-view.active{display:block;}
+.btns{display:flex;gap:10px;justify-content:center;margin-top:20px;}
+.btn{padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s;}
+.btn-gold{background:var(--or);color:var(--blanc);}.btn-s{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--or);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .2s;margin-top:16px;}
+.upload-zone:hover{background:var(--or-dim);}
+.upload-zone.dragover{background:var(--or-dim);border-color:var(--or);}
+.upload-icon{font-size:32px;margin-bottom:8px;opacity:.5;}
+.upload-text{font-size:13px;color:var(--ink-soft);}
+.upload-result{margin-top:12px;padding:12px;border-radius:8px;font-size:13px;display:none;}
+.upload-result.success{display:block;background:rgba(22,163,74,.08);color:var(--success);}
+.upload-result.error{display:block;background:rgba(239,68,68,.08);color:#ef4444;}
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--ink-dim);}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="javascript:history.back()" class="back">&larr; Retour</a>
+  <h1>Export guide</h1>
+  <p class="sub" id="guide-sub">Suivez les etapes pour exporter vos donnees.</p>
+  <div class="progress" id="progress"></div>
+  <div id="steps-container"></div>
+  <div id="upload-section" style="display:none;">
+    <div class="card">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Deposez votre fichier ici</h3>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">&#128228;</div>
+        <div class="upload-text">Glissez votre fichier CSV, XML ou ZIP ici<br>ou <strong>cliquez pour parcourir</strong></div>
+      </div>
+      <input type="file" id="file-input" accept=".csv,.xml,.zip,.json" style="display:none" onchange="uploadFile(this.files[0])">
+      <div class="upload-result" id="upload-result"></div>
+    </div>
+  </div>
+</div>
+<div class="footer">Propulse par JADOMI IA</div>
+
+<script>
+const params=new URLSearchParams(location.search);
+const plateforme=params.get('plateforme')||'wordpress-woocommerce';
+const exportType=params.get('type')||'produits';
+const stagingId=params.get('staging_id')||'';
+let guideData=null,currentStep=0,totalSteps=0;
+
+(async function(){
+  try{
+    const res=await fetch('/data/export-guides/'+plateforme+'.json');
+    const data=await res.json();
+    const exp=data.exports.find(e=>e.type===exportType)||data.exports[0];
+    if(!exp)return;
+    guideData=exp;
+    totalSteps=exp.etapes.length;
+    document.getElementById('guide-sub').textContent=exp.titre+' ('+exp.duree_minutes+' min)';
+    renderProgress();
+    renderStep(0);
+  }catch{document.getElementById('steps-container').innerHTML='<div class="card" style="text-align:center;color:var(--ink-dim);">Guide non disponible pour cette plateforme.</div>';}
+})();
+
+function renderProgress(){
+  document.getElementById('progress').innerHTML=guideData.etapes.map((_,i)=>
+    '<span class="'+(i<currentStep?'done':i===currentStep?'active':'')+'"></span>'
+  ).join('');
+}
+
+function renderStep(idx){
+  currentStep=idx;renderProgress();
+  const step=guideData.etapes[idx];
+  if(!step){
+    // Derniere etape = upload
+    document.getElementById('steps-container').innerHTML='';
+    document.getElementById('upload-section').style.display='block';
+    return;
+  }
+  document.getElementById('upload-section').style.display='none';
+  document.getElementById('steps-container').innerHTML=`
+    <div class="card step-view active">
+      <div class="step-num">${step.ordre}</div>
+      <div class="step-title">${step.titre}</div>
+      <div class="step-desc">${step.description}</div>
+    </div>
+    <div class="btns">
+      ${idx>0?'<button class="btn btn-s" onclick="renderStep('+(idx-1)+')">Precedent</button>':''}
+      <button class="btn btn-gold" onclick="renderStep('+(idx+1)+')">${idx<totalSteps-1?'Suivant':'Passer a l\'upload'}</button>
+    </div>
+    <div style="text-align:center;margin-top:12px;"><a href="javascript:renderStep(${totalSteps})" style="font-size:11px;color:var(--ink-dim);">Je sais faire, montrer l'upload</a></div>
+  `;
+}
+
+async function uploadFile(file){
+  if(!file)return;
+  const resultEl=document.getElementById('upload-result');
+  resultEl.className='upload-result';resultEl.style.display='block';resultEl.textContent='Upload en cours...';
+
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('staging_id',stagingId);
+  fd.append('type',exportType);
+
+  try{
+    const db=supabase.createClient('https://vsbomwjzehnfinfjvhqp.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk');
+    const{data:session}=await db.auth.getSession();
+    const token=session?.session?.access_token;
+
+    const res=await fetch('/api/media/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const data=await res.json();
+    if(data.success||data.url){
+      resultEl.className='upload-result success';
+      resultEl.textContent='Fichier recu ! '+file.name+' ('+Math.round(file.size/1024)+' KB). Retournez a votre staging pour continuer.';
+    }else{
+      resultEl.className='upload-result error';
+      resultEl.textContent='Erreur : '+(data.error||'Upload echoue');
+    }
+  }catch(e){
+    resultEl.className='upload-result error';
+    resultEl.textContent='Erreur : '+e.message;
+  }
+}
+
+// Drag drop
+const zone=document.getElementById('upload-zone');
+if(zone){
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');if(e.dataTransfer.files[0])uploadFile(e.dataTransfer.files[0]);});
+}
+</script>
+</body>
+</html>

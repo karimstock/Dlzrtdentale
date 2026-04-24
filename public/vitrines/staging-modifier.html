@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Modifier votre staging</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--creme:#FAF5EB;--or:#C9A961;--or-dim:rgba(201,169,97,.12);--nuit:#0A1628;--blanc:#FFFFFF;--ink:#1a1814;--ink-soft:#5C5C70;--ink-dim:#8E8E9E;--line:rgba(26,24,20,.08);--success:#16A34A;--radius:12px;--ease:cubic-bezier(.16,1,.3,1);}
+body{font-family:'Inter',sans-serif;background:var(--creme);color:var(--ink);height:100vh;overflow:hidden;}
+.app{display:grid;grid-template-columns:400px 1fr;grid-template-rows:48px 1fr;height:100vh;}
+.topbar{grid-column:1/-1;background:var(--blanc);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;}
+.topbar a{color:var(--ink-soft);text-decoration:none;}.topbar a:hover{color:var(--or);}
+.topbar-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;}
+.btn{padding:8px 18px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .2s;}
+.btn-gold{background:var(--or);color:var(--blanc);}.btn-gold:hover{box-shadow:0 4px 12px var(--or-dim);}
+.btn-s{background:transparent;border:1px solid var(--line);color:var(--ink-soft);}.btn-s:hover{border-color:var(--or);}
+
+/* Chat panel */
+.chat{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--creme);}
+.chat-msgs{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;}
+.msg{max-width:90%;animation:fadeIn .3s var(--ease);}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.msg-ai{align-self:flex-start;}
+.msg-user{align-self:flex-end;}
+.msg-ai .bubble{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;line-height:1.4;color:var(--ink);}
+.msg-user .bubble{background:var(--blanc);border:1px solid var(--line);border-radius:10px 10px 2px 10px;padding:12px 16px;font-size:14px;}
+.msg-label{font-size:10px;color:var(--ink-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.typing{display:flex;gap:4px;padding:8px 0;}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--or);animation:pulse 1s infinite;}
+.typing span:nth-child(2){animation-delay:.2s;}.typing span:nth-child(3){animation-delay:.4s;}
+@keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+.chat-input{padding:12px 20px;border-top:1px solid var(--line);background:var(--blanc);display:flex;gap:10px;}
+.chat-input textarea{flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:13px;font-family:'Inter',sans-serif;resize:none;max-height:80px;}
+.chat-input textarea:focus{outline:none;border-color:var(--or);}
+.send{width:38px;height:38px;border-radius:50%;background:var(--or);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.send svg{width:16px;height:16px;stroke:var(--nuit);stroke-width:2;fill:none;}
+
+/* Preview panel */
+.preview{background:var(--blanc);display:flex;flex-direction:column;}
+.preview-bar{height:36px;background:var(--creme);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:8px;}
+.preview-bar .dots{display:flex;gap:4px;}.preview-bar .dots span{width:8px;height:8px;border-radius:50%;border:1px solid var(--line);}
+.preview-bar .dots span:nth-child(1){background:#ef4444;border-color:#ef4444;}.preview-bar .dots span:nth-child(2){background:#f59e0b;border-color:#f59e0b;}.preview-bar .dots span:nth-child(3){background:#10b981;border-color:#10b981;}
+.preview-url{flex:1;text-align:center;font-size:10px;color:var(--ink-dim);}
+.preview iframe{flex:1;border:0;width:100%;height:100%;}
+
+.footer{font-size:10px;color:var(--ink-dim);text-align:center;padding:6px;}
+@media(max-width:768px){.app{grid-template-columns:1fr;}.preview{display:none;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <a href="/public/vitrines/import-assets.html">&larr; Retour</a>
+    <span class="topbar-title">Modifier votre staging</span>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-s" onclick="window.open(stagingUrl,'_blank')">Ouvrir en grand</button>
+      <button class="btn btn-gold" onclick="validateStaging()">Valider et deployer</button>
+    </div>
+  </div>
+  <div class="chat">
+    <div class="chat-msgs" id="msgs"></div>
+    <div class="footer">Propulse par JADOMI IA</div>
+    <div class="chat-input">
+      <textarea id="input" rows="1" placeholder="Decrivez la modification souhaitee..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"></textarea>
+      <button class="send" onclick="send()"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+    </div>
+  </div>
+  <div class="preview">
+    <div class="preview-bar"><div class="dots"><span></span><span></span><span></span></div><div class="preview-url" id="preview-url">Chargement...</div></div>
+    <iframe id="preview-frame" src="about:blank"></iframe>
+  </div>
+</div>
+<script>
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
+let db,token,stagingUrl='';
+const slug=new URLSearchParams(location.search).get('slug')||'';
+
+(async function(){
+  db=supabase.createClient(SU,SK);
+  const{data}=await db.auth.getSession();
+  if(!data?.session){location.href='/login.html';return;}
+  token=data.session.access_token;
+  stagingUrl='/sites-staging/'+slug+'/';
+  document.getElementById('preview-url').textContent=stagingUrl;
+  document.getElementById('preview-frame').src=stagingUrl;
+  addMsg('ai','Bienvenue ! Votre copie staging est prete. Dites-moi ce que vous souhaitez modifier.\n\nExemples :\n- "Change la couleur principale en bleu nuit"\n- "Ajoute une section Urgences dentaires"\n- "Modernise le design du hero"\n- "Remplace le telephone par 01 99 88 77 66"');
+})();
+
+function addMsg(role,text){
+  const d=document.createElement('div');d.className='msg msg-'+(role==='ai'?'ai':'user');
+  d.innerHTML='<div class="msg-label">'+(role==='ai'?'JADOMI IA':'Vous')+'</div><div class="bubble">'+text.replace(/\n/g,'<br>')+'</div>';
+  document.getElementById('msgs').appendChild(d);
+  document.getElementById('msgs').scrollTop=99999;
+  return d.querySelector('.bubble');
+}
+
+function showTyping(){let t=document.getElementById('typing');if(!t){t=document.createElement('div');t.id='typing';t.className='msg msg-ai';t.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';document.getElementById('msgs').appendChild(t);}t.style.display='block';document.getElementById('msgs').scrollTop=99999;}
+function hideTyping(){const t=document.getElementById('typing');if(t)t.style.display='none';}
+
+async function send(){
+  const input=document.getElementById('input');
+  const text=input.value.trim();if(!text)return;
+  input.value='';
+  addMsg('user',text);
+  showTyping();
+  try{
+    // Appeler le moteur d'intervention IA sur le staging
+    const res=await fetch('/api/studio/interventions/demande-libre',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':localStorage.getItem('societe_active_id')||''},
+      body:JSON.stringify({site_id:slug,demande:text})
+    });
+    const data=await res.json();
+    hideTyping();
+    if(data.intervention_id){
+      addMsg('ai','Modification en cours... Je vais analyser votre site et appliquer les changements.');
+      // Poll le status
+      const poll=setInterval(async()=>{
+        const s=await fetch('/api/studio/interventions/'+data.intervention_id+'/status',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json());
+        if(s.statut==='terminee'){
+          clearInterval(poll);
+          addMsg('ai','Modification appliquee ! Rafraichissez l\'apercu pour voir le resultat.\n\nResume : '+(s.analyse_ia?.resume_pour_client||'Modification effectuee.'));
+          document.getElementById('preview-frame').src=stagingUrl+'?t='+Date.now();
+        }else if(s.statut==='echouee'){
+          clearInterval(poll);
+          addMsg('ai','Desole, cette modification n\'a pas pu etre appliquee automatiquement. '+(s.analyse_ia?.raison_si_non||'Demandez une modification plus simple.'));
+        }
+      },3000);
+      setTimeout(()=>clearInterval(poll),180000);
+    }else{
+      addMsg('ai','Je n\'ai pas pu traiter cette demande : '+(data.error||'erreur inconnue'));
+    }
+  }catch(e){hideTyping();addMsg('ai','Erreur : '+e.message);}
+}
+
+function validateStaging(){
+  if(confirm('Valider ce staging et voir les options de deploiement ?')){
+    window.location.href='/public/vitrines/deploy-options.html?slug='+slug;
+  }
+}
+</script>
+</body>
+</html>
