@@ -275,6 +275,20 @@ Marketplace d'IA verticalisee dentaire. Orchestrateur d'APIs.
 - SQL 35 : ai_generations_log, studio_library, studio_rate_limits
   + seed features_pricing pour Studio
 
+## 2.23 CMS 3 formules Studio (Passe 36)
+Dashboard CMS pour sites vitrines avec 3 niveaux de service :
+- Classic 29EUR/mois : site gere par equipe JADOMI, 2 modifs/mois max
+- Pro 79EUR/mois : CMS complet (editeur visuel, photos, historique, blog)
+- Expert 199EUR/mois : CMS avance + A/B testing + multi-langue + effet Hollywood
+Scanner URL integre pour analyser sites existants (WordPress, Shopify, Wix...)
+et recommander l'approche (reconstruire, ameliorer, refuser).
+- Middleware forfait : bloque Classic du CMS, propose upgrade
+- Middleware quotas : photos, pages, modifications verifie cote serveur
+- 7 tables SQL (39_cms_formules.sql) + RLS policies
+- 17 endpoints API /api/studio/cms/* et /api/studio/analyse/*
+- Dashboard frontend : Pro/Expert/Classic avec differenciation visuelle
+- Onglet JADOMI Studio dans sidebar dashboard principal
+
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
 Conforme facture, Mes documents, Fournisseurs, Mailing & campagnes
@@ -739,6 +753,33 @@ Fichiers modifies :
 - dashboard-annonceur.html (carte Remotion + modal templates)
 - server.js (routes Remotion + premium-ad)
 Libs : gsap, three, lottie-web, lenis. CDN : GSAP 3.12, Three r128.
+
+## Passe 36 (24 avril 2026) -- CMS 3 formules Studio (Classic/Pro/Expert)
+Dashboard CMS complet pour les sites vitrines avec 3 formules tarifaires.
+Scanner de sites existants pour analyse automatique avant onboarding.
+Fichiers crees (8 fichiers, ~2600 lignes) :
+- sql/vitrines/39_cms_formules.sql (7 tables : studio_forfaits,
+  studio_abonnements, site_contenus, site_contenus_historique,
+  site_photos, site_demandes_modif, site_analyses + RLS + seeds)
+- api/studio/cms/index.js (17 endpoints CMS : CRUD contenus/photos/
+  demandes, middleware forfait/quotas, rollback, mon-forfait, forfaits)
+- api/studio/analyse/index.js (scanner URL : detection plateforme
+  WordPress/Shopify/Wix/Squarespace/Webflow, scores perf/SEO/complexite,
+  recommandation auto reconstruire/ameliorer/refuser)
+- public/studio/cms/index.html (dashboard CMS : Pro/Expert editor +
+  Classic demande + cards forfaits + historique + photos drag&drop)
+- public/studio/onboarding/index.html (wizard : choix site existant,
+  scanner URL avec animation, rapport recommandation, selection forfait)
+- AUDIT_SITES_CMS.md (audit technique complet avant construction)
+Fichiers modifies :
+- server.js (montage modules CMS + Analyse + routes /studio/*)
+- public/organisation.html (onglet JADOMI Studio dans sidebar :
+  Vue d'ensemble, Mon site, Creer/analyser, Mes pubs, Abonnement)
+- CODEX.md (nettoyage TODO SQL, note audit, mise a jour passe)
+Middleware forfait : Classic bloque du CMS avec CTA upgrade.
+Middleware quotas : photos/pages/modifications verifie cote API.
+Differenciation Expert : theme gold, sections avancees (A/B, multi-langue).
+TODO : executer SQL 39 dans Supabase Dashboard, integrer Stripe.
 Performance : prefers-reduced-motion, Three.js desktop-only,
 IntersectionObserver lazy, defer loading, code splitting par page.
 
@@ -804,6 +845,7 @@ IntersectionObserver lazy, defer loading, code splitting par page.
 - [x] JADOMI Studio : hub IA creation publicitaire dentaire (Passe 34.2)
 - [x] Demos Studio : 6 images DALL-E 3 HD + galerie landing (Passe 34.3)
 - [x] Refonte visuelle premium Awwwards (GSAP + Three.js + Remotion) (Passe 35)
+- [x] CMS 3 formules Studio + scanner sites existants (Passe 36)
 - [ ] Generer videos Sora 2 : node scripts/generate-passe35-videos.js
 - [ ] Generer images DALL-E 3 : node scripts/generate-passe35-images.js
 - [x] Executer migration SQL 34 dans Supabase [FAIT ✅ 24/04/2026 - audit confirme]
