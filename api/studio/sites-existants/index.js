@@ -201,17 +201,43 @@ module.exports = function mountSitesExistants(app, supabase) {
         }
       } else if (type_acces === 'wordpress_admin') {
         try {
-          const wpUrl = (admin_url || site.url) + '/wp-json/wp/v2/pages?per_page=1';
+          // Nettoyer l'URL : retirer /wp-admin, /wp-login.php, trailing slash
+          let baseUrl = (admin_url || site.url || '').replace(/\/wp-admin\/?.*$/i, '').replace(/\/wp-login\.php.*$/i, '').replace(/\/+$/, '');
+          if (!baseUrl) baseUrl = site.url.replace(/\/+$/, '');
+
+          // Tester d'abord si l'API REST WP est accessible
+          const wpUrl = baseUrl + '/wp-json/wp/v2/users/me';
           const wpRes = await fetch(wpUrl, {
             headers: {
               'Authorization': 'Basic ' + Buffer.from(admin_user + ':' + admin_password).toString('base64'),
               'User-Agent': 'JADOMI-SitesExistants/1.0'
             },
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(10000)
           });
-          testOk = wpRes.ok || wpRes.status === 401;
-          testMessage = wpRes.ok ? 'Connexion WordPress OK' : 'WordPress repond mais credentials invalides (HTTP ' + wpRes.status + ')';
-          if (wpRes.ok) testOk = true;
+
+          if (wpRes.ok) {
+            const userData = await wpRes.json();
+            testOk = true;
+            testMessage = 'Connexion WordPress OK — connecte en tant que ' + (userData.name || admin_user);
+          } else if (wpRes.status === 401 || wpRes.status === 403) {
+            // 401/403 = API accessible mais credentials invalides
+            testOk = false;
+            testMessage = 'Identifiants invalides. Verifiez votre email/username et mot de passe WordPress. Si vous avez la 2FA activee, utilisez un Application Password (Parametres > Securite dans WordPress).';
+          } else {
+            // Autre erreur — essayer /wp-json/ tout court pour verifier que WP REST est actif
+            const checkRes = await fetch(baseUrl + '/wp-json/', {
+              headers: { 'User-Agent': 'JADOMI-SitesExistants/1.0' },
+              signal: AbortSignal.timeout(5000)
+            }).catch(() => null);
+
+            if (checkRes && checkRes.ok) {
+              testOk = false;
+              testMessage = 'WordPress detecte mais authentification echouee (HTTP ' + wpRes.status + '). Utilisez un Application Password : WordPress > Utilisateurs > Votre profil > Application Passwords.';
+            } else {
+              testOk = false;
+              testMessage = 'API REST WordPress non accessible (HTTP ' + wpRes.status + '). Verifiez que votre site WordPress est bien en ligne et que l\'API REST n\'est pas desactivee.';
+            }
+          }
         } catch (wpErr) {
           testMessage = 'WordPress inaccessible : ' + wpErr.message;
         }
@@ -294,15 +320,16 @@ module.exports = function mountSitesExistants(app, supabase) {
 
       if (creds.type_acces === 'wordpress_admin') {
         try {
-          const wpUrl = (credData.admin_url || '') + '/wp-json/wp/v2/pages?per_page=1';
+          let baseUrl = (credData.admin_url || '').replace(/\/wp-admin\/?.*$/i, '').replace(/\/+$/, '');
+          const wpUrl = baseUrl + '/wp-json/wp/v2/users/me';
           const wpRes = await fetch(wpUrl, {
             headers: {
               'Authorization': 'Basic ' + Buffer.from(credData.admin_user + ':' + credData.admin_password).toString('base64')
             },
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(10000)
           });
           testOk = wpRes.ok;
-          testMessage = wpRes.ok ? 'Connexion WordPress OK' : 'Echec (HTTP ' + wpRes.status + ')';
+          testMessage = wpRes.ok ? 'Connexion WordPress OK' : 'Identifiants invalides ou API REST desactivee (HTTP ' + wpRes.status + ')';
         } catch (e) {
           testMessage = 'WordPress inaccessible : ' + e.message;
         }
