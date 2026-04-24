@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 23 avril 2026
-**Derniere passe** : Passe 35 — Refonte visuelle premium Awwwards (GSAP + Three.js + Remotion)
+**Derniere mise a jour** : 24 avril 2026
+**Derniere passe** : Passe 36 — CMS 3 formules Studio (Classic/Pro/Expert)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -429,8 +429,8 @@ Fichiers crees (17 fichiers) :
 - server.js modifie (mount GPO + routes /supplier/offer/:token + /admin/gpo)
 - index.html modifie (bouton "Commander via JADOMI GPO" dans Panier
   intelligent + modal tracking live avec polling 5s)
-TODO post-deploy : executer migration SQL 22 dans Supabase, puis
-node scripts/seed-suppliers-dental.js
+[FAIT ✅ 24/04/2026] migration SQL 22 executee en prod Supabase.
+TODO post-deploy : node scripts/seed-suppliers-dental.js
 
 ## Passe 21 (22 avril) -- Fix notifications dentiste + auth GPO + UI commandes
 Bugs corriges :
@@ -452,7 +452,7 @@ Fichiers modifies :
 - api/gpo/requests.js (fallback prix estimes)
 - index.html (getGpoAuth(), chargerAppelsOffres(), voirDetailGpo(),
   updateGpoTracking enrichi, page-devis avec liste GPO)
-TODO post-deploy : executer migration SQL 23 dans Supabase
+[FAIT ✅ 24/04/2026] migration SQL 23 executee en prod Supabase.
 
 ## Passe 22 (22 avril) -- UX 3 modes + Groupon dentaire + Logistique
 - Migration SQL 24 : supplier_warehouses, transport_rates,
@@ -466,7 +466,8 @@ TODO post-deploy : executer migration SQL 23 dans Supabase
 - Demande adresse entrepot via token public
 - Seed 18 tarifs transport Chronopost/TNT/GLS/DPD/Colissimo
 - Sidebar : fusion "Appels d'offres" + "Paniers groupes" -> "Commandes"
-TODO post-deploy : executer migration SQL 24, node scripts/seed-transport-rates.js
+[FAIT ✅ 24/04/2026] migration SQL 24 executee en prod Supabase.
+TODO post-deploy : node scripts/seed-transport-rates.js
 
 ## Passe 23 (22 avril) -- Polish UX + Onglet Paniers Groupes + Cleanup
 - Nouvel onglet sidebar "Paniers groupes" avec badge count live
@@ -501,7 +502,7 @@ Fichiers modifies :
 - server.js (mount /api/client-portal + /api/appointments)
 - package.json (+@ovhcloud/node-ovh)
 Focus : experience bluff pour epouse avocate de Karim, qualite >= archers.fr
-TODO post-deploy : executer SQL 26 + 27 + 28 dans Supabase
+[FAIT ✅ 24/04/2026] SQL 26 + 27 + 28 executees en prod Supabase.
 
 ## Passe 25 (22 avril nuit) -- Coach JADOMI (Welcome + Tooltips)
 Fichiers crees :
@@ -516,7 +517,7 @@ Fichiers modifies :
 - server.js (mount /api/coach)
 - index.html (include coach scripts + data-coach-tip-id sur sidebar items)
 - organisation.html (include coach scripts)
-TODO post-deploy : executer SQL 29 dans Supabase
+[FAIT ✅ 24/04/2026] SQL 29 executee en prod Supabase.
 
 ## Passe 26 (22 avril nuit) -- Landing Page Cinematic jadomi.fr
 Fichiers crees :
@@ -585,7 +586,7 @@ Fichiers modifies :
 - server.js (mount /api/timeline)
 - public/avocats.html (hotfix : Amrane → Dubois, noms fictifs)
 Feature killer : aucun SaaS dentaire francais ne propose ca.
-TODO post-deploy : executer SQL 30 dans Supabase.
+[FAIT ✅ 24/04/2026] SQL 30 executee en prod Supabase.
 
 ## Passe 31 (23 avril 2026) -- Tour Guide Interactif Intercom-style
 Fichiers crees :
@@ -598,7 +599,7 @@ Fichiers modifies :
 - index.html (auto-declenchement tour au 1er login)
 - organisation.html (inclusion scripts tour)
 Inspiration : Intercom Product Tours, Shepherd.js, intro.js.
-TODO post-deploy : executer SQL 32 dans Supabase.
+[FAIT ✅ 24/04/2026] SQL 32 executee en prod Supabase.
 
 ## Passe 33 (23 avril 2026 soir) -- Refonte UX + Import Site + Site Builder
 Feedback terrain epouse avocate (8 bugs). Refonte complete :
@@ -616,7 +617,8 @@ Fichiers modifies :
 - server.js (mount /api/site-analysis + /api/media)
 Decisions : wizard simplifie 2 min, site = module dashboard payant,
 3 options (creer/analyser/uploader), asset picker granulaire.
-TODO : executer SQL 33, installer puppeteer/axios, configurer Stripe.
+[FAIT ✅ 24/04/2026] SQL 33 executee en prod Supabase.
+TODO : installer puppeteer/axios, configurer Stripe.
 
 ## Passe 34 (23 avril 2026 nuit) -- JADOMI Ads (regie publicitaire verticale)
 Regie pub self-serve type Meta/TikTok/LinkedIn, 100% dentaire verifie.
@@ -638,7 +640,8 @@ Fichiers modifies :
   question formateur DPC avec toggle auto is_formation_provider)
 Nouveaux clients cibles : societes dentaires, centres formation, formateurs.
 Double revenu : abonnement 49-999EUR/mois + consommation CPC/CPM/CPA.
-TODO : executer SQL 34, configurer STRIPE_SECRET_KEY.
+[FAIT ✅ 24/04/2026] SQL 34 executee en prod Supabase.
+TODO : configurer STRIPE_SECRET_KEY.
 
 ## Passe 34.2 (23 avril 2026 nuit) -- JADOMI Studio (Hub IA creation publicitaire)
 Marketplace d'IA verticalisee dentaire, orchestrateur d'APIs best-in-class.
@@ -668,7 +671,8 @@ APIs integrees : OpenAI (DALL-E 3, Sora 2, TTS), ElevenLabs, HeyGen,
 Unsplash, Pexels. Cles env : ELEVENLABS_API_KEY, HEYGEN_API_KEY,
 UNSPLASH_ACCESS_KEY, PEXELS_API_KEY (a ajouter par Karim).
 Fallback gracieux : providers sans cle grises dans l'UI.
-TODO : executer SQL 35, ajouter cles API dans .env, tester DALL-E 3.
+[FAIT ✅ 24/04/2026] SQL 35 executee en prod Supabase.
+TODO : ajouter cles API dans .env, tester DALL-E 3.
 
 ## Passe 34.3 (23 avril 2026 nuit) -- Demos JADOMI Studio (galerie visuelles)
 Generation de demos visuelles pour la landing /jadomi-studio.
@@ -789,12 +793,12 @@ IntersectionObserver lazy, defer loading, code splitting par page.
 - [x] Refacto 5 groupes metier + paramedical + terminologie (Passe 29)
 - [x] JADOMI Timeline : suivi visuel patient avant/apres (Passe 30)
 - [x] Tour Guide Interactif Intercom-style (Passe 31)
-- [ ] Executer migration SQL 22-32 dans Supabase
+- [x] Executer migration SQL 22-32 dans Supabase [FAIT ✅ 24/04/2026 - audit confirme]
 - [ ] Configurer OVH_APPLICATION_KEY + SECRET + CONSUMER_KEY dans .env
 - [ ] Lancer seed fournisseurs : node scripts/seed-suppliers-dental.js
 - [ ] Test live avec l'epouse de Karim ce soir
 - [x] Refonte UX wizard + dashboard + module site internet (Passe 33)
-- [ ] Executer migration SQL 33 dans Supabase
+- [x] Executer migration SQL 33 dans Supabase [FAIT ✅ 24/04/2026 - audit confirme]
 - [ ] Installer puppeteer + axios sur VPS (npm install)
 - [x] JADOMI Ads : regie publicitaire verticale dentaire (Passe 34)
 - [x] JADOMI Studio : hub IA creation publicitaire dentaire (Passe 34.2)
@@ -802,8 +806,8 @@ IntersectionObserver lazy, defer loading, code splitting par page.
 - [x] Refonte visuelle premium Awwwards (GSAP + Three.js + Remotion) (Passe 35)
 - [ ] Generer videos Sora 2 : node scripts/generate-passe35-videos.js
 - [ ] Generer images DALL-E 3 : node scripts/generate-passe35-images.js
-- [ ] Executer migration SQL 34 dans Supabase
-- [ ] Executer migration SQL 35 (Studio) dans Supabase
+- [x] Executer migration SQL 34 dans Supabase [FAIT ✅ 24/04/2026 - audit confirme]
+- [x] Executer migration SQL 35 (Studio) dans Supabase [FAIT ✅ 24/04/2026 - audit confirme]
 - [ ] Ajouter ELEVENLABS_API_KEY, HEYGEN_API_KEY, UNSPLASH_ACCESS_KEY, PEXELS_API_KEY dans .env
 - [ ] Configurer STRIPE_SECRET_KEY dans .env
 - [ ] Configurer OPENAI_API_KEY pour DALL-E generation creatives
@@ -855,7 +859,7 @@ IntersectionObserver lazy, defer loading, code splitting par page.
 ## Bugs a corriger
 - 5 sites dupliques en BDD (garder a8ac57cc-90d2-4ca2-a16b-b288cc437620)
 - Doublons produits dans Panier intelligent
-- Migrations SQL 22-29 pas encore executees dans Supabase
+- ~~Migrations SQL 22-29 pas encore executees dans Supabase~~ [RESOLU ✅ 24/04/2026 - toutes migrations 22-38 en prod]
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
@@ -876,8 +880,8 @@ IntersectionObserver lazy, defer loading, code splitting par page.
 - SQL 25 pret pour nettoyage donnees test
 
 ## TODO produit
-- Executer SQL 22-29 dans Supabase (priorite critique)
-- Lancer node scripts/seed-suppliers-dental.js apres SQL 22
+- ~~Executer SQL 22-29 dans Supabase~~ [FAIT ✅ 24/04/2026 - toutes migrations 22-38 en prod]
+- Lancer node scripts/seed-suppliers-dental.js (SQL 22 deja en prod)
 - Lancer node scripts/seed-transport-rates.js apres SQL 24
 - Tests beta avec 5 cabinets reels
 - Restaurer vrais emails fournisseurs
@@ -949,6 +953,11 @@ Utiliser 1Password ou Bitwarden pour :
 - Différencier visuellement les 3 formules (site-classic/pro/expert)
 - Construire l'onglet Studio dans le dashboard
 - Intégration Stripe pour les 3 forfaits
+
+### Note audit 24 avril 2026
+24 avril 2026 : audit SQL confirme, toutes migrations 22-38 appliquees en prod Supabase.
+Tables chatbot : utilisent deja le prefixe vitrine_chatbot_* (correct).
+Tables coins (Passe 38) : sql/vitrines/38_coins_wallet_structure.sql cree (user_coins_wallet).
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
