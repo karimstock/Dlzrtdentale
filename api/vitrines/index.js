@@ -96,6 +96,21 @@ module.exports = function mountVitrines(app) {
     console.warn('[vitrines] staging non charge:', e.message);
   }
 
+  // Crawl multi-pages (Passe 44A)
+  const { crawlSite } = require('../../services/site-crawler');
+  router.post('/crawl', async (req, res) => {
+    try {
+      const { url, max_pages } = req.body || {};
+      if (!url) return res.status(400).json({ error: 'URL requise' });
+      let targetUrl = url.trim();
+      if (!/^https?:\/\//i.test(targetUrl)) targetUrl = 'https://' + targetUrl;
+      const results = await crawlSite(targetUrl, Math.min(max_pages || 20, 30));
+      return res.json(results);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.use('/api/vitrines', router);
 
   // --- Pages HTML publiques (SPA multi-pages) ---
