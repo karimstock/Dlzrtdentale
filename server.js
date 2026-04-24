@@ -145,6 +145,9 @@ app.get('/studio/onboarding', (req, res) => res.sendFile(path.join(__dirname, 'p
 app.get('/studio/onboarding/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
 app.get('/studio/sites-existants', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/sites-existants/index.html')));
 app.get('/studio/sites-existants/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/sites-existants/index.html')));
+// Dashboard mes-sites enrichi (Passe 38)
+app.get('/studio/mes-sites', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
+app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
 // Sites demo Studio (Passe 37)
 app.get('/demo/classic', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/classic/index.html')));
 app.get('/demo/pro', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/pro/index.html')));
@@ -391,6 +394,15 @@ try {
   console.log('[JADOMI] Module Studio Analyse (scanner URL) monte');
 } catch (e) {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
+}
+
+// === JADOMI Studio Interventions IA — Modifs auto sites existants (Passe 38) ===
+try {
+  const mountInterventions = require('./api/studio/interventions');
+  mountInterventions(app, supabaseAdmin || supabase);
+  console.log('[JADOMI] Module Studio Interventions IA monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Interventions IA non charge:', e.message);
 }
 
 // === JADOMI Studio Sites Existants — Acces FTP/SSH/WordPress (Passe 37) ===
