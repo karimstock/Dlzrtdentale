@@ -143,6 +143,9 @@ app.get('/studio/cms', (req, res) => res.sendFile(path.join(__dirname, 'public/s
 app.get('/studio/cms/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/cms/index.html')));
 app.get('/studio/onboarding', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
 app.get('/studio/onboarding/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/onboarding/index.html')));
+// Homepage v2 preview (Passe 36)
+app.get('/index-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
+app.get('/index-v2.html', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
 // 301 redirects for old URLs
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
