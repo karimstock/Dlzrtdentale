@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Studio — Bienvenue</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* =============================================
+   JADOMI Studio Onboarding — Scanner site existant
+   Passe 36 — 24 avril 2026
+   ============================================= */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--surface2:#243870;
+  --border:rgba(99,102,241,0.15);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --gold:#d4a853;
+  --glow:0 0 20px rgba(99,102,241,0.3);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --radius:14px;--rs:10px;
+}
+html,body{height:100%;margin:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 30% 20%,rgba(99,102,241,0.08) 0%,transparent 50%),
+             radial-gradient(circle at 70% 80%,rgba(139,92,246,0.06) 0%,transparent 50%);}
+
+.wizard{max-width:640px;width:100%;margin:0 auto;padding:40px 28px;position:relative;z-index:1;}
+.wizard-header{text-align:center;margin-bottom:36px;}
+.wizard-header h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px;
+  background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.wizard-header p{font-size:14px;color:var(--text2);line-height:1.6;}
+
+/* Steps */
+.step{display:none;animation:fadeIn .4s cubic-bezier(.16,1,.3,1);}
+.step.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* Card */
+.wcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;margin-bottom:20px;}
+
+/* Radio options */
+.radio-option{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:var(--rs);border:1px solid var(--border);cursor:pointer;transition:all .2s;margin-bottom:10px;}
+.radio-option:hover{border-color:var(--accent);background:rgba(99,102,241,.04);}
+.radio-option.selected{border-color:var(--accent);background:rgba(99,102,241,.08);box-shadow:var(--glow);}
+.radio-dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:2px;}
+.radio-option.selected .radio-dot{border-color:var(--accent);background:var(--accent);}
+.radio-option.selected .radio-dot::after{content:'';width:8px;height:8px;background:#fff;border-radius:50%;}
+.radio-label{font-size:14px;font-weight:600;}
+.radio-desc{font-size:12px;color:var(--text2);margin-top:3px;}
+
+/* Input */
+.url-input{width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;margin-top:12px;transition:border-color .2s;}
+.url-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+
+/* Button */
+.btn{padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#818cf8;transform:translateY(-1px);}
+.btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-s{background:transparent;color:var(--text2);border:1px solid var(--border);}.btn-s:hover{border-color:var(--accent);color:var(--accent);}
+.btn-g{background:linear-gradient(135deg,var(--gold),#b8942d);color:#1a1a2e;font-weight:700;}.btn-g:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(212,168,83,.3);}
+.btn-row{display:flex;gap:12px;justify-content:center;margin-top:24px;}
+
+/* Scanning animation */
+.scan-anim{text-align:center;padding:40px 0;}
+.scan-spinner{width:48px;height:48px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.scan-step{font-size:13px;color:var(--text2);margin:6px 0;transition:all .3s;}
+.scan-step.done{color:var(--success);}
+.scan-step.active{color:var(--accent);font-weight:600;}
+
+/* Results */
+.result-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.result-badge{padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;}
+.badge-green{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.badge-yellow{background:rgba(245,158,11,.15);color:#fcd34d;}
+.badge-red{background:rgba(239,68,68,.15);color:#fca5a5;}
+
+.score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.score-item{text-align:center;padding:16px;background:var(--bg);border-radius:var(--rs);}
+.score-val{font-size:28px;font-weight:800;letter-spacing:-1px;}
+.score-lbl{font-size:10px;color:var(--text3);margin-top:4px;}
+
+.detail-list{margin:16px 0;}
+.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(99,102,241,.06);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-key{color:var(--text2);}
+
+/* Forfaits */
+.forfaits-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0;}
+.forfait-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;transition:all .3s;}
+.forfait-card:hover{transform:translateY(-3px);box-shadow:var(--glow);}
+.forfait-card.featured{border-color:var(--accent);box-shadow:var(--glow);}
+.forfait-card.gold{border-color:var(--gold);}
+.forfait-price{font-size:32px;font-weight:900;letter-spacing:-2px;margin:10px 0 4px;}
+.forfait-features{text-align:left;margin:14px 0;font-size:12px;}
+.forfait-features div{padding:3px 0;color:var(--text2);}
+.forfait-features .check{color:var(--success);margin-right:6px;}
+
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--text3);}
+
+@media(max-width:640px){
+  .wizard{padding:20px 14px;}
+  .forfaits-row{grid-template-columns:1fr;}
+  .score-grid{grid-template-columns:1fr 1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="wizard">
+  <div class="wizard-header">
+    <h1>Bienvenue sur JADOMI Studio</h1>
+    <p>Creez ou ameliorez votre site professionnel en quelques minutes.</p>
+  </div>
+
+  <!-- Step 1 : Site existant ? -->
+  <div class="step active" id="step-1">
+    <div class="wcard">
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px;">Avez-vous deja un site internet ?</div>
+
+      <div class="radio-option" onclick="selectOption('no', this)">
+        <div class="radio-dot"></div>
+        <div>
+          <div class="radio-label">Non, je n'en ai pas</div>
+          <div class="radio-desc">Nous creerons votre site de zero avec JADOMI Studio.</div>
+        </div>
+      </div>
+
+      <div class="radio-option" onclick="selectOption('yes', this)">
+        <div class="radio-dot"></div>
+        <div>
+          <div class="radio-label">Oui, voici son URL</div>
+          <div class="radio-desc">Nous analyserons votre site pour vous conseiller.</div>
+        </div>
+      </div>
+
+      <div id="url-field" style="display:none;">
+        <input type="url" class="url-input" id="site-url" placeholder="https://www.votre-site.fr" autocomplete="url">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <a href="/organisation.html" class="btn btn-s">Retour</a>
+      <button class="btn btn-p" id="btn-next" onclick="nextStep()" disabled>Continuer</button>
+    </div>
+  </div>
+
+  <!-- Step 2 : Scanning -->
+  <div class="step" id="step-scan">
+    <div class="wcard">
+      <div class="scan-anim">
+        <div class="scan-spinner"></div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:16px;">Analyse de votre site en cours...</div>
+        <div id="scan-steps">
+          <div class="scan-step active" id="ss-1">Connexion au site...</div>
+          <div class="scan-step" id="ss-2">Detection de la plateforme...</div>
+          <div class="scan-step" id="ss-3">Analyse des performances...</div>
+          <div class="scan-step" id="ss-4">Calcul du score de complexite...</div>
+          <div class="scan-step" id="ss-5">Generation du rapport...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 : Results -->
+  <div class="step" id="step-results">
+    <div id="results-content"></div>
+  </div>
+
+  <!-- Step 4 : Formules (pour reco = reconstruire ou nouveau site) -->
+  <div class="step" id="step-formules">
+    <div class="wcard">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">Choisissez votre formule</div>
+        <div style="font-size:13px;color:var(--text2);">Trois niveaux, aucune surprise sur le prix.</div>
+      </div>
+
+      <div class="forfaits-row">
+        <div class="forfait-card">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Starter</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;">Classic</div>
+          <div class="forfait-price">29&euro;</div>
+          <div style="font-size:11px;color:var(--text2);">par mois</div>
+          <div class="forfait-features">
+            <div><span class="check">&#10003;</span> Site professionnel</div>
+            <div><span class="check">&#10003;</span> Gestion par notre equipe</div>
+            <div><span class="check">&#10003;</span> Support email</div>
+            <div><span class="check">&#10003;</span> Sans engagement</div>
+          </div>
+          <button class="btn btn-s" style="width:100%;" onclick="choosePlan('classic')">Choisir Classic</button>
+        </div>
+
+        <div class="forfait-card featured">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;">Le plus choisi</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;">Pro</div>
+          <div class="forfait-price" style="color:var(--accent);">79&euro;</div>
+          <div style="font-size:11px;color:var(--text2);">par mois</div>
+          <div class="forfait-features">
+            <div><span class="check">&#10003;</span> Tout Classic +</div>
+            <div><span class="check">&#10003;</span> Dashboard CMS complet</div>
+            <div><span class="check">&#10003;</span> Modifications illimitees</div>
+            <div><span class="check">&#10003;</span> Prise de RDV en ligne</div>
+            <div><span class="check">&#10003;</span> Chatbot intelligent</div>
+          </div>
+          <button class="btn btn-p" style="width:100%;" onclick="choosePlan('pro')">Choisir Pro</button>
+        </div>
+
+        <div class="forfait-card gold">
+          <div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;">Premium</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;">Expert</div>
+          <div class="forfait-price" style="background:linear-gradient(135deg,var(--gold),#e8c96a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">199&euro;</div>
+          <div style="font-size:11px;color:var(--text2);">par mois</div>
+          <div class="forfait-features">
+            <div><span class="check">&#10003;</span> Tout Pro +</div>
+            <div><span class="check">&#10003;</span> Site Hollywood (animations)</div>
+            <div><span class="check">&#10003;</span> Multi-langue</div>
+            <div><span class="check">&#10003;</span> Analytics avancees</div>
+            <div><span class="check">&#10003;</span> Support dedie + formation</div>
+          </div>
+          <button class="btn btn-g" style="width:100%;" onclick="choosePlan('expert')">Choisir Expert</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <a href="/organisation.html" class="btn btn-s">Plus tard</a>
+    </div>
+  </div>
+
+  <div class="footer">Propulse par JADOMI IA &middot; &copy; 2026 JADOMI</div>
+</div>
+
+<script>
+// =============================================
+// JADOMI Studio Onboarding — Scanner
+// Passe 36 — 24 avril 2026
+// =============================================
+const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
+
+let db, token, selectedOption = null;
+
+(async function() {
+  db = supabase.createClient(SU, SK);
+  const { data } = await db.auth.getSession();
+  let session = data?.session;
+  if (!session) {
+    const raw = localStorage.getItem('jadomi_session');
+    if (raw) try { session = JSON.parse(raw)?.session || JSON.parse(raw); } catch {}
+  }
+  if (!session) { window.location.href = '/login.html?redirect=/studio/onboarding/'; return; }
+  token = session.access_token || session.token;
+})();
+
+function selectOption(opt, el) {
+  selectedOption = opt;
+  document.querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled = false;
+  document.getElementById('url-field').style.display = opt === 'yes' ? 'block' : 'none';
+  if (opt === 'yes') document.getElementById('site-url').focus();
+}
+
+function nextStep() {
+  if (selectedOption === 'no') {
+    goToStep('step-formules');
+  } else if (selectedOption === 'yes') {
+    const url = document.getElementById('site-url').value.trim();
+    if (!url) { document.getElementById('site-url').style.borderColor = 'var(--danger)'; return; }
+    startScan(url);
+  }
+}
+
+function goToStep(stepId) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+}
+
+async function startScan(url) {
+  goToStep('step-scan');
+
+  // Animate scan steps
+  const steps = ['ss-1','ss-2','ss-3','ss-4','ss-5'];
+  let currentStep = 0;
+  const stepInterval = setInterval(() => {
+    if (currentStep > 0) document.getElementById(steps[currentStep - 1]).classList.replace('active', 'done');
+    if (currentStep < steps.length) {
+      document.getElementById(steps[currentStep]).classList.add('active');
+      currentStep++;
+    }
+  }, 1500);
+
+  try {
+    const res = await fetch('/api/studio/analyse/scan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    clearInterval(stepInterval);
+    steps.forEach(s => { document.getElementById(s).classList.remove('active'); document.getElementById(s).classList.add('done'); });
+
+    if (!res.ok) throw data;
+
+    setTimeout(() => showResults(data), 800);
+  } catch (e) {
+    clearInterval(stepInterval);
+    showResults({ error: true, message: e.message || e.error || 'Erreur d\'analyse' });
+  }
+}
+
+function showResults(data) {
+  goToStep('step-results');
+  const container = document.getElementById('results-content');
+
+  if (data.error) {
+    container.innerHTML = `
+      <div class="wcard" style="text-align:center;">
+        <div style="font-size:36px;margin-bottom:12px;">&#9888;</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Erreur d'analyse</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">${data.message}</div>
+        <button class="btn btn-p" onclick="goToStep('step-1')">Reessayer</button>
+      </div>`;
+    return;
+  }
+
+  const reco = data.recommandation;
+  const recoConfig = {
+    reconstruire: {
+      badge: 'badge-green', badgeText: 'Reconstruction recommandee',
+      title: 'Nous vous recommandons de reconstruire votre site avec JADOMI Studio.',
+      reasons: [
+        'Plus moderne, plus rapide',
+        'Mieux optimise pour le SEO',
+        'Vous gardez la main sur tout via notre dashboard',
+        'Nous recuperons vos photos et textes existants'
+      ],
+      cta: 'Decouvrez nos formules',
+      action: () => goToStep('step-formules')
+    },
+    ameliorer: {
+      badge: 'badge-yellow', badgeText: 'Amelioration recommandee',
+      title: 'Nous vous recommandons d\'ameliorer votre site existant sans tout refaire.',
+      reasons: [
+        'Vous gardez vos ventes, vos produits, votre SEO',
+        'On ne touche pas au checkout',
+        'On ameliore design, vitesse, UX',
+        'Pilotage centralise dans JADOMI'
+      ],
+      cta: 'Demander un audit approfondi',
+      action: () => alert('Un conseiller vous rappelle sous 24h.')
+    },
+    refuser: {
+      badge: 'badge-red', badgeText: 'Site trop complexe',
+      title: 'Votre site est au-dessus de notre champ d\'intervention actuel.',
+      reasons: [
+        'Nous sommes specialises sur les sites vitrines professionnels',
+        'WordPress et petits e-commerces',
+        'Refontes design',
+        'Gardez votre equipe technique actuelle'
+      ],
+      cta: 'Decouvrir JADOMI Ads',
+      action: () => window.location.href = '/dashboard-annonceur.html'
+    }
+  };
+
+  const cfg = recoConfig[reco] || recoConfig.reconstruire;
+
+  container.innerHTML = `
+    <div class="wcard">
+      <div class="result-header">
+        <div style="font-size:24px;">&#10003;</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;">Analyse terminee</div>
+          <div style="font-size:12px;color:var(--text2);">${data.url_analysee}</div>
+        </div>
+        <span class="result-badge ${cfg.badge}" style="margin-left:auto;">${cfg.badgeText}</span>
+      </div>
+
+      <div class="score-grid">
+        <div class="score-item">
+          <div class="score-val" style="color:${scoreColor(data.score_performance)}">${data.score_performance}</div>
+          <div class="score-lbl">Performance</div>
+        </div>
+        <div class="score-item">
+          <div class="score-val" style="color:${scoreColor(data.score_seo)}">${data.score_seo}</div>
+          <div class="score-lbl">SEO</div>
+        </div>
+        <div class="score-item">
+          <div class="score-val" style="color:${data.score_complexite > 70 ? 'var(--danger)' : data.score_complexite > 30 ? 'var(--warning)' : 'var(--success)'}">${data.score_complexite}</div>
+          <div class="score-lbl">Complexite</div>
+        </div>
+      </div>
+
+      <div class="detail-list">
+        <div class="detail-row"><span class="detail-key">Plateforme</span><span>${data.plateforme_detectee || 'Non detectee'}</span></div>
+        ${data.theme_detecte ? `<div class="detail-row"><span class="detail-key">Theme</span><span>${data.theme_detecte}</span></div>` : ''}
+        <div class="detail-row"><span class="detail-key">Pages</span><span>${data.nb_pages || '?'}</span></div>
+        ${data.has_ecommerce ? `<div class="detail-row"><span class="detail-key">E-commerce</span><span style="color:var(--success)">Oui (${data.nb_produits || 0} produits)</span></div>` : ''}
+        ${data.plugins_detectes?.length ? `<div class="detail-row"><span class="detail-key">Plugins</span><span>${data.plugins_detectes.length} detectes</span></div>` : ''}
+      </div>
+    </div>
+
+    <div class="wcard">
+      <div style="font-size:16px;font-weight:700;margin-bottom:12px;">Notre recommandation</div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px;">${cfg.title}</div>
+      <div style="margin-bottom:20px;">
+        ${cfg.reasons.map(r => '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;color:var(--text2);"><span style="color:var(--success);font-weight:700;">&#10003;</span> ' + r + '</div>').join('')}
+      </div>
+      <div class="btn-row" style="justify-content:flex-start;">
+        <button class="btn ${reco === 'refuser' ? 'btn-s' : 'btn-p'}" id="reco-cta">${cfg.cta}</button>
+        ${reco !== 'reconstruire' ? '<button class="btn btn-s" onclick="goToStep(\'step-formules\')">Voir nos formules quand meme</button>' : ''}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('reco-cta').addEventListener('click', cfg.action);
+}
+
+function scoreColor(score) {
+  if (score >= 70) return 'var(--success)';
+  if (score >= 40) return 'var(--warning)';
+  return 'var(--danger)';
+}
+
+function choosePlan(plan) {
+  // TODO: Integration Stripe
+  alert('Integration Stripe a venir. Formule selectionnee : ' + plan.toUpperCase());
+}
+</script>
+</body>
+</html>
