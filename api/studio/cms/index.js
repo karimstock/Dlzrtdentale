@@ -187,8 +187,10 @@ module.exports = function mountCMS(app, supabase) {
           code: req.forfaitCode,
           nom: req.forfait?.nom,
           prix_mensuel_eur: req.forfait?.prix_mensuel_eur,
+          prix_creation_eur: req.forfait?.prix_creation_eur || null,
           features: req.features,
-          quotas: req.quotas
+          quotas: req.quotas,
+          modification_ponctuelle_eur: req.quotas?.modification_ponctuelle_eur || null
         },
         abonnement: {
           statut: req.abonnement?.statut,
@@ -605,6 +607,70 @@ module.exports = function mountCMS(app, supabase) {
         .select('*')
         .eq('actif', true)
         .order('ordre');
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json(data || []);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ================================================
+  // MODIFICATIONS PONCTUELLES — Pour formule Classic (49 EUR/unite)
+  // ================================================
+
+  // POST /api/studio/cms/modification-ponctuelle
+  router.post('/modification-ponctuelle', requireAuth, requireForfait, async (req, res) => {
+    try {
+      // Verifier que le pro est en Classic
+      if (req.forfaitCode !== 'classic') {
+        return res.status(400).json({
+          error: 'not_classic',
+          message: 'Les modifications ponctuelles sont reservees aux abonnes Classic. Vous avez le CMS illimite.'
+        });
+      }
+
+      const { description } = req.body || {};
+      if (!description || description.trim().length < 10) {
+        return res.status(400).json({ error: 'Description trop courte (10 caracteres minimum)' });
+      }
+
+      const montant = req.quotas?.modification_ponctuelle_eur || 49;
+
+      const { data, error } = await supabase
+        .from('site_modifications_ponctuelles')
+        .insert({
+          societe_id: req.societeId,
+          description: description.trim(),
+          montant_eur: montant,
+          statut_paiement: 'en_attente',
+          statut_execution: 'en_attente'
+        })
+        .select()
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      return res.status(201).json({
+        ...data,
+        // Placeholder Stripe — sera branche en Passe 38
+        stripe_checkout_url: null,
+        message: `Modification creee. Montant : ${montant} EUR. Paiement Stripe a venir.`
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/studio/cms/modification-ponctuelle/mes-demandes
+  router.get('/modification-ponctuelle/mes-demandes', requireAuth, requireForfait, async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('site_modifications_ponctuelles')
+        .select('*')
+        .eq('societe_id', req.societeId)
+        .order('demandee_le', { ascending: false })
+        .limit(50);
 
       if (error) return res.status(500).json({ error: error.message });
       return res.json(data || []);
