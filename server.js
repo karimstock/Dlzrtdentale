@@ -406,6 +406,15 @@ try {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
 }
 
+// === JADOMI Studio Sites Jadomi — Creation sites + IA assistant (Passe 38) ===
+try {
+  const mountSitesJadomi = require('./api/studio/sites-jadomi');
+  mountSitesJadomi(app, supabaseAdmin || supabase);
+  console.log('[JADOMI] Module Studio Sites Jadomi monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Sites Jadomi non charge:', e.message);
+}
+
 // === JADOMI Studio Interventions IA — Modifs auto sites existants (Passe 38) ===
 try {
   const mountInterventions = require('./api/studio/interventions');
