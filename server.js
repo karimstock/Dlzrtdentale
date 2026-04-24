@@ -148,6 +148,16 @@ app.get('/studio/sites-existants/', (req, res) => res.sendFile(path.join(__dirna
 // Dashboard mes-sites enrichi (Passe 38)
 app.get('/studio/mes-sites', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
 app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
+// Sites clients JADOMI — routage dynamique /sites/:slug (Passe 38)
+app.use('/sites/:slug', (req, res, next) => {
+  const slug = req.params.slug;
+  const sitePath = path.join(__dirname, 'sites-clients', slug);
+  if (require('fs').existsSync(sitePath)) {
+    express.static(sitePath)(req, res, next);
+  } else {
+    res.status(404).send('<!DOCTYPE html><html><head><title>Site introuvable</title></head><body style="font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fafaf8;"><div style="text-align:center;"><h1 style="font-size:24px;color:#1a1a2e;">Site introuvable</h1><p style="color:#5c5c70;">Ce site n\'existe pas ou n\'est pas encore en ligne.</p><a href="https://jadomi.fr" style="color:#4F5BD5;">Retour a JADOMI</a></div></body></html>');
+  }
+});
 // Sites demo Studio (Passe 37)
 app.get('/demo/classic', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/classic/index.html')));
 app.get('/demo/pro', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/pro/index.html')));
