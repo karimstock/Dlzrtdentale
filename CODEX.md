@@ -838,7 +838,28 @@ grid 10 actions rapides, demande libre, status temps reel, historique
 avec rollback 1 clic.
 SQL 41 : ALTER interventions (11 colonnes), CREATE backups + actions_predefinies.
 Dependance : basic-ftp. Cout IA estime : ~5 centimes/intervention.
-TODO : executer SQL 41 dans Supabase Dashboard, integrer Stripe.
+SQL 41 execute en prod.
+
+## Passe 38b (24 avril 2026) -- 60 themes premium + creation sites JADOMI
+60 themes CSS premium (20 par metier, partages dentiste+orthodontiste) :
+- Classic (4/metier) : Clean, Standard, Modern, Fresh/Cabinet/Light/Civic
+- Pro (6/metier) : Swiss, Nordic, Zen, Oxford, Trust, Artisan, etc.
+- Expert (10/metier) : Ocean Deep, Obsidian, Aurora, Versailles, Film Noir,
+  Horloger, Bauhaus, Cinema, Glassmorphism, Wabi-Sabi, etc.
+Architecture : template HTML de base (_base/template.html) + CSS par theme.
+Moteur generation sites (services/site-generator.js) : template → HTML final.
+IA assistant (services/ia-assistant.js) : 3 suggestions texte/palette/photos.
+API /api/studio/sites-jadomi/* (14 endpoints) : CRUD sites, upload, themes,
+  suggestions IA, versions, rollback, changement theme, stub migration OVH.
+Dashboard /studio/mon-site/ : cockpit 2 colonnes + wizard creation 5 etapes.
+Routage /sites/:slug/ pour servir les sites clients generes.
+SQL 42 : sites_jadomi, themes_sites (60 seeds), sections, versions, suggestions_ia.
+SQL 43 : ajout colonne tier + 60 themes repartis classic/pro/expert.
+Fix bug boucle infinie polling import-site.html (status undefined → poll eternel).
+Fix validation URL permissive (normalise auto https://).
+Fix colonne source_url → url_analysee (api/site-analysis).
+SQL 41, 42, 43 executes en prod.
+TODO : integrer Stripe, connecter wizard onboarding → creation site reelle.
 
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
