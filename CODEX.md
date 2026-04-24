@@ -859,7 +859,35 @@ Fix bug boucle infinie polling import-site.html (status undefined → poll etern
 Fix validation URL permissive (normalise auto https://).
 Fix colonne source_url → url_analysee (api/site-analysis).
 SQL 41, 42, 43 executes en prod.
-TODO : integrer Stripe, connecter wizard onboarding → creation site reelle.
+
+## Passe 41 (24 avril 2026) -- Chatbot Vitrines v3 premium
+Redesign premium du chatbot creation de site (/vitrines/onboarding-v3.html).
+Design editorial inspire du site Expert (Cormorant Garamond + Inter + palette creme/or/nuit).
+Layout 50/50 conversation/preview, typing dots dores, upload drag-drop, device switcher.
+Backend INCHANGE (api/vitrines/chat.js, 23 professions supportees).
+Selecteur formule (Classic/Pro/Expert) au debut.
+Galerie themes modale avec filtres + badges PRO/EXPERT (4/10/20 selon formule).
+Systeme VISUAL_CHOICES palette (cards couleurs cliquables dans le stream IA).
+CTA completion → dashboard /vitrines/mon-site.html.
+Fix upload sequentiel photos (zone + reste visible, compteur, remove button).
+Remotion compositions Expert (PhotosCinematic slideshow + VideoEnhanced intro/outro).
+Base connaissances metiers (5 JSON : dentiste, orthodontiste, implantologue, prothesiste, avocat).
+Generation contenu IA par metier (api/vitrines/generate-section, catalogues equipements/specialites).
+SQL 44, 45, 46 pour formule_choisie, categories photos, vitrines_pages.
+
+## Passe 42-43 (24 avril 2026) -- Workflow amelioration site existant
+Cablage E2E des 3 briques (scanner P36 + credentials P37 + interventions P38).
+Scanner P33 Puppeteer (casse) remplace par P36 Cheerio dans import-site.html.
+Scanner enrichi : videos MP4/YouTube/Vimeo, PDFs, detection hebergeur DNS.
+Fix test connexion WordPress (retrait /wp-admin de l'URL API REST).
+import-assets.html refait : scores visuels + plateforme + medias + 3 modes.
+3 modes amelioration : Staging (clone sans credentials) / Automatique (P37) / Nouveau site.
+Backend staging : api/vitrines/staging (create, status) + scrape HTML/CSS/images.
+staging-modifier.html : chatbot IA + iframe staging temps reel.
+deploy-options.html : 3 options deploiement (ZIP/migration JADOMI/auto).
+export-wizard.html : guide interactif WooCommerce (etapes + upload CSV/XML).
+Table staging_sites. SQL 47.
+TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify/Prestashop.
 
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
