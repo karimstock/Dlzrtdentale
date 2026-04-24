@@ -52,13 +52,30 @@ textarea.field-input{min-height:80px;resize:vertical;}
   </div>
   <div class="steps" id="step-dots"></div>
 
-  <!-- ETAPE 1 : Theme -->
+  <!-- ETAPE 1 : Metier -->
   <div class="step active" id="step-1">
+    <div class="card">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px;">Quel est votre metier ?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="metier-grid">
+        <div class="theme-card" onclick="selectMetier('dentiste',this)" style="padding:16px;text-align:center;"><div style="font-size:24px;margin-bottom:6px;">&#129463;</div><strong>Chirurgien-dentiste</strong></div>
+        <div class="theme-card" onclick="selectMetier('orthodontiste',this)" style="padding:16px;text-align:center;"><div style="font-size:24px;margin-bottom:6px;">&#128516;</div><strong>Orthodontiste</strong></div>
+        <div class="theme-card" onclick="selectMetier('prothesiste',this)" style="padding:16px;text-align:center;"><div style="font-size:24px;margin-bottom:6px;">&#128300;</div><strong>Prothesiste dentaire</strong></div>
+        <div class="theme-card" onclick="selectMetier('avocat',this)" style="padding:16px;text-align:center;"><div style="font-size:24px;margin-bottom:6px;">&#9878;</div><strong>Avocat</strong></div>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-p" id="btn-next-1" onclick="nextStep(2)" disabled>Suivant</button></div>
+  </div>
+
+  <!-- ETAPE 2 : Theme -->
+  <div class="step" id="step-2">
     <div class="card">
       <div style="font-size:16px;font-weight:700;margin-bottom:14px;">Choisissez un theme</div>
       <div class="themes-grid" id="themes-grid">Chargement...</div>
     </div>
-    <div class="btn-row"><button class="btn btn-p" id="btn-next-1" onclick="nextStep(2)" disabled>Suivant</button></div>
+    <div class="btn-row">
+      <button class="btn btn-s" onclick="prevStep(1)">Retour</button>
+      <button class="btn btn-p" id="btn-next-2" onclick="nextStep(3)" disabled>Suivant</button>
+    </div>
   </div>
 
   <!-- ETAPE 2 : Infos -->
@@ -79,13 +96,13 @@ textarea.field-input{min-height:80px;resize:vertical;}
       <input class="field-input" id="f-email" placeholder="contact@cabinet.fr">
     </div>
     <div class="btn-row">
-      <button class="btn btn-s" onclick="prevStep(1)">Retour</button>
-      <button class="btn btn-p" onclick="nextStep(3)">Suivant</button>
+      <button class="btn btn-s" onclick="prevStep(2)">Retour</button>
+      <button class="btn btn-p" onclick="nextStep(4)">Suivant</button>
     </div>
   </div>
 
-  <!-- ETAPE 3 : Services -->
-  <div class="step" id="step-3">
+  <!-- ETAPE 4 : Services -->
+  <div class="step" id="step-4">
     <div class="card">
       <div style="font-size:16px;font-weight:700;margin-bottom:14px;">Vos services</div>
       <div id="services-list"></div>
@@ -97,26 +114,26 @@ textarea.field-input{min-height:80px;resize:vertical;}
       <div id="service-suggestions"></div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-s" onclick="prevStep(2)">Retour</button>
-      <button class="btn btn-p" onclick="nextStep(4)">Suivant</button>
+      <button class="btn btn-s" onclick="prevStep(3)">Retour</button>
+      <button class="btn btn-p" onclick="nextStep(5)">Suivant</button>
     </div>
   </div>
 
-  <!-- ETAPE 4 : Preview -->
-  <div class="step" id="step-4">
+  <!-- ETAPE 5 : Preview -->
+  <div class="step" id="step-5">
     <div class="card" style="text-align:center;">
       <div style="font-size:16px;font-weight:700;margin-bottom:14px;">Votre site est pret</div>
       <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">Tout est modifiable apres publication depuis votre dashboard.</div>
       <div id="recap-info" style="text-align:left;font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;"></div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-s" onclick="prevStep(3)">Modifier</button>
+      <button class="btn btn-s" onclick="prevStep(4)">Modifier</button>
       <button class="btn btn-p" onclick="createSite()">Publier mon site</button>
     </div>
   </div>
 
   <!-- ETAPE 5 : Succes -->
-  <div class="step" id="step-5">
+  <div class="step" id="step-6">
     <div class="card" style="text-align:center;padding:40px;">
       <div style="font-size:48px;margin-bottom:12px;">&#10003;</div>
       <div style="font-size:20px;font-weight:700;margin-bottom:8px;">Votre site est en ligne !</div>
@@ -134,7 +151,7 @@ textarea.field-input{min-height:80px;resize:vertical;}
 <script>
 const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
-let db,token,societeId,selectedTheme=null,services=[],currentStep=1;
+let db,token,societeId,selectedMetier=null,selectedTheme=null,services=[],currentStep=1;
 
 (async function(){
   db=supabase.createClient(SU,SK);
@@ -155,19 +172,33 @@ function api(m,p,b){
 }
 
 function updateDots(){
-  document.getElementById('step-dots').innerHTML=[1,2,3,4,5].map(i=>
+  document.getElementById('step-dots').innerHTML=[1,2,3,4,5,6].map(i=>
     `<div class="step-dot ${i<currentStep?'done':i===currentStep?'active':''}"></div>`
   ).join('');
 }
 
-function nextStep(n){currentStep=n;document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.getElementById('step-'+n).classList.add('active');updateDots();if(n===4)buildRecap();}
+function nextStep(n){currentStep=n;document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.getElementById('step-'+n).classList.add('active');updateDots();if(n===2)loadThemes();if(n===5)buildRecap();}
 function prevStep(n){nextStep(n);}
+
+function selectMetier(metier,el){
+  selectedMetier=metier;
+  document.querySelectorAll('#metier-grid .theme-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next-1').disabled=false;
+}
 
 async function loadThemes(){
   try{
-    const data=await api('GET','/api/studio/sites-jadomi/themes');
+    const metierFilter=selectedMetier||'dentiste';
+    const data=await api('GET','/api/studio/sites-jadomi/themes?metier='+encodeURIComponent(metierFilter));
+    // Aussi charger les themes partages dentiste+orthodontiste
+    let allThemes=data||[];
+    if(metierFilter==='dentiste'||metierFilter==='orthodontiste'){
+      const shared=await api('GET','/api/studio/sites-jadomi/themes?metier=dentiste,orthodontiste');
+      allThemes=[...(shared||[]),...allThemes.filter(t=>!shared?.find(s=>s.code===t.code))];
+    }
     const grid=document.getElementById('themes-grid');
-    grid.innerHTML=data.map(t=>`
+    grid.innerHTML=allThemes.map(t=>`
       <div class="theme-card" onclick="selectTheme('${t.code}',this)" data-code="${t.code}">
         <div class="theme-color" style="background:${t.couleur_primaire};"><span style="color:${t.couleur_accent};font-family:${t.typo_display};font-size:20px;font-weight:700;">${t.nom}</span></div>
         <div class="theme-info"><strong>${t.nom}</strong><span>${t.description?.substring(0,60)||t.metier}</span></div>
@@ -178,9 +209,9 @@ async function loadThemes(){
 
 function selectTheme(code,el){
   selectedTheme=code;
-  document.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('#themes-grid .theme-card').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
-  document.getElementById('btn-next-1').disabled=false;
+  document.getElementById('btn-next-2').disabled=false;
 }
 
 function addService(){
@@ -197,22 +228,32 @@ function renderServices(){
   ).join('');
 }
 
+const SLOGANS_PAR_METIER={
+  dentiste:['Votre sourire, notre expertise','L\'excellence dentaire au quotidien','Des soins d\'exception pour toute la famille'],
+  orthodontiste:['Le sourire que vous meritez','Alignement parfait, confiance retrouvee','L\'orthodontie moderne, pour tous les ages'],
+  prothesiste:['La precision au service de votre sourire','Artisanat dentaire d\'excellence','Chaque prothese, une oeuvre unique'],
+  avocat:['Votre droit, notre engagement','L\'excellence juridique a votre service','Conseil, defense, expertise']
+};
+
+const SERVICES_PAR_METIER={
+  dentiste:['Implants dentaires','Blanchiment','Orthodontie','Soins conservateurs','Protheses','Chirurgie orale','Parodontologie','Pedodontie'],
+  orthodontiste:['Aligneurs invisibles','Appareils fixes','Orthodontie adulte','Orthodontie enfant','Contention','Bilan orthodontique'],
+  prothesiste:['Couronnes ceramique','Bridges','Protheses amovibles','Facettes','Inlays/Onlays','Implants sur mesure','Zircone','CFAO'],
+  avocat:['Droit des affaires','Droit de la famille','Droit penal','Droit immobilier','Droit du travail','Contentieux','Conseil juridique','Mediation']
+};
+
 async function suggestSlogan(){
   const el=document.getElementById('slogan-suggestions');
   el.innerHTML='<div style="font-size:11px;color:var(--accent);">JADOMI IA reflechit...</div>';
-  try{
-    // Use a simple fetch since we might not have a site_id yet
-    const r=await fetch('/api/studio/sites-jadomi/themes');// Just to have the endpoint
-    // Fallback suggestions
-    el.innerHTML=['Votre sourire, notre expertise','L\'excellence dentaire au quotidien','Des soins d\'exception pour toute la famille'].map(p=>
-      `<div style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin:4px 0;cursor:pointer;font-size:12px;color:var(--text2);" onclick="document.getElementById('f-slogan').value=this.textContent;">${p}</div>`
-    ).join('');
-  }catch{el.innerHTML='';}
+  const slogans=SLOGANS_PAR_METIER[selectedMetier]||SLOGANS_PAR_METIER.dentiste;
+  el.innerHTML=slogans.map(p=>
+    `<div style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin:4px 0;cursor:pointer;font-size:12px;color:var(--text2);" onclick="document.getElementById('f-slogan').value=this.textContent;">${p}</div>`
+  ).join('');
 }
 
 async function suggestServices(){
   const el=document.getElementById('service-suggestions');
-  const suggestions=['Implants dentaires','Blanchiment','Orthodontie','Soins conservateurs','Protheses','Chirurgie orale','Parodontologie','Pedodontie'];
+  const suggestions=SERVICES_PAR_METIER[selectedMetier]||SERVICES_PAR_METIER.dentiste;
   el.innerHTML=suggestions.map(s=>
     `<div style="display:inline-block;padding:4px 10px;border:1px solid var(--border);border-radius:20px;margin:3px;cursor:pointer;font-size:11px;color:var(--text2);" onclick="services.push('${s}');renderServices();this.remove();">${s}</div>`
   ).join('');
@@ -220,6 +261,7 @@ async function suggestServices(){
 
 function buildRecap(){
   document.getElementById('recap-info').innerHTML=`
+    <div><strong>Metier :</strong> ${selectedMetier||'—'}</div>
     <div><strong>Theme :</strong> ${selectedTheme}</div>
     <div><strong>Nom :</strong> ${document.getElementById('f-nom')?.value||'—'}</div>
     <div><strong>Slogan :</strong> ${document.getElementById('f-slogan')?.value||'—'}</div>
@@ -233,6 +275,7 @@ async function createSite(){
   try{
     const result=await api('POST','/api/studio/sites-jadomi/creer',{
       theme_code:selectedTheme,
+      metier:selectedMetier,
       nom_cabinet:document.getElementById('f-nom')?.value||'Mon cabinet',
       slogan:document.getElementById('f-slogan')?.value||'',
       adresse:document.getElementById('f-adresse')?.value||'',
@@ -242,7 +285,7 @@ async function createSite(){
     });
     document.getElementById('success-url').textContent=result.url_preview?'https://jadomi.fr'+result.url_preview:'';
     document.getElementById('success-link').href=result.url_preview||'#';
-    nextStep(5);
+    nextStep(6);
   }catch(e){alert('Erreur: '+(e.error||e.message));}
 }
 </script>
