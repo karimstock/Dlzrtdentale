@@ -159,7 +159,7 @@ async function startAnalysis(){
   document.getElementById('progress').style.display='block';
 
   try{
-    const r=await api('/api/site-analysis/start',{method:'POST',body:JSON.stringify({url})});
+    const r=await api('/api/site-analysis/start',{method:'POST',body:JSON.stringify({url:normalizedUrl})});
     if(!r.analysis_id){throw new Error(r.error||'Erreur');}
     analysisId=r.analysis_id;
     pollStatus();
@@ -170,69 +170,107 @@ async function startAnalysis(){
   }
 }
 
+// --- POLLING BLINDÉ (v3) ---
+// Garanties : max 40 appels, 3s entre chaque, arret si status stagne, cleanup page
+let _pollInterval=null;
+let _pollAttempts=0;
+let _lastStatus='';
+let _staleCount=0;
+
+function stopPolling(msg){
+  if(_pollInterval){clearInterval(_pollInterval);_pollInterval=null;}
+  if(msg){
+    alert(msg);
+    const btn=document.getElementById('url-btn');
+    if(btn){btn.disabled=false;btn.textContent='Analyser mon site';}
+  }
+}
+
 async function pollStatus(){
-  const statusMap={
-    crawling:{step:'crawl',progress:20},
-    downloading:{step:'download',progress:40},
-    analyzing_vision:{step:'vision',progress:60},
-    auditing:{step:'audit',progress:80},
-    done:{step:'done',progress:100}
-  };
+  _pollAttempts=0;
+  _lastStatus='';
+  _staleCount=0;
 
-  let attempts=0;
-  const MAX_ATTEMPTS=60; // 60 * 3s = 3 minutes max
+  // Premier appel immediat
+  await doPollOnce();
 
-  const interval=setInterval(async()=>{
-    attempts++;
-    if(attempts>MAX_ATTEMPTS){
-      clearInterval(interval);
-      alert('Analyse trop longue. Veuillez reessayer.');
-      document.getElementById('url-btn').disabled=false;
-      document.getElementById('url-btn').textContent='Analyser mon site';
+  // Puis toutes les 3 secondes
+  _pollInterval=setInterval(doPollOnce,3000);
+}
+
+async function doPollOnce(){
+  _pollAttempts++;
+
+  // Limite absolue : 40 appels = 2 minutes max
+  if(_pollAttempts>40){
+    stopPolling('Analyse trop longue (2 min). Le serveur n\'a pas termine. Veuillez reessayer.');
+    return;
+  }
+
+  let r;
+  try{
+    r=await api('/api/site-analysis/'+analysisId);
+  }catch(e){
+    stopPolling('Erreur de connexion au serveur. Veuillez reessayer.');
+    return;
+  }
+
+  // Determiner le status (compatibilite multi-schema)
+  const currentStatus=r.status||r.type_site||'unknown';
+
+  // Detection status qui ne bouge pas : si meme status 10 fois = stale
+  if(currentStatus===_lastStatus){
+    _staleCount++;
+    if(_staleCount>=10){
+      // Le status n'a pas change en 30 secondes → l'analyse est probablement plantee
+      // On affiche quand meme les donnees qu'on a
+      stopPolling(null);
+      if(r.rapport_complet||r.recommandation||r.plateforme_detectee){
+        showResults(r);
+      }else{
+        stopPolling('L\'analyse semble bloquee. Veuillez reessayer.');
+      }
       return;
     }
+  }else{
+    _staleCount=0;
+    _lastStatus=currentStatus;
+  }
 
-    try{
-      const r=await api('/api/site-analysis/'+analysisId);
+  // Progression visuelle
+  const statusMap={crawling:20,downloading:40,analyzing_vision:60,auditing:80,done:100};
+  const progress=statusMap[currentStatus]||10;
+  const fillEl=document.getElementById('progress-fill');
+  if(fillEl)fillEl.style.width=progress+'%';
 
-      // Compatibilite : status OU type_site (selon schema BDD)
-      const currentStatus=r.status||r.type_site||'crawling';
-      const mapping=statusMap[currentStatus]||{step:'crawl',progress:10};
+  const steps=['crawl','download','vision','audit','done'];
+  const stepNames={crawling:'crawl',downloading:'download',analyzing_vision:'vision',auditing:'audit',done:'done'};
+  const curStep=stepNames[currentStatus]||'crawl';
+  const curIdx=steps.indexOf(curStep);
+  steps.forEach((s,i)=>{
+    const el=document.querySelector('[data-step="'+s+'"]');
+    if(!el)return;
+    const ico=el.querySelector('.progress-icon');
+    if(i<curIdx){el.className='progress-step done';if(ico)ico.textContent='✅';}
+    else if(i===curIdx){el.className='progress-step active';if(ico)ico.textContent='🔄';}
+    else{el.className='progress-step pending';if(ico)ico.textContent='⏳';}
+  });
 
-      // Update progress steps
-      const steps=['crawl','download','vision','audit','done'];
-      const currentIdx=steps.indexOf(mapping.step);
-      steps.forEach((s,i)=>{
-        const el=document.querySelector(`[data-step="${s}"]`);
-        if(!el)return;
-        if(i<currentIdx){el.className='progress-step done';el.querySelector('.progress-icon').textContent='✅';}
-        else if(i===currentIdx){el.className='progress-step active';el.querySelector('.progress-icon').textContent='🔄';}
-        else{el.className='progress-step pending';}
-      });
-      const fillEl=document.getElementById('progress-fill');
-      if(fillEl)fillEl.style.width=mapping.progress+'%';
-
-      if(currentStatus==='done'||r.rapport_complet){
-        clearInterval(interval);
-        showResults(r);
-      }else if(currentStatus==='error'||currentStatus==='echouee'){
-        clearInterval(interval);
-        alert('Erreur d\'analyse : '+(r.error_message||r.recommandation||'Erreur inconnue'));
-        document.getElementById('url-btn').disabled=false;
-        document.getElementById('url-btn').textContent='Analyser mon site';
-      }
-    }catch(e){
-      console.warn('Poll error:',e);
-      clearInterval(interval);
-      alert('Erreur de connexion. Veuillez reessayer.');
-      document.getElementById('url-btn').disabled=false;
-      document.getElementById('url-btn').textContent='Analyser mon site';
-    }
-  },3000);
-
-  // Cleanup au depart de la page
-  window.addEventListener('beforeunload',()=>clearInterval(interval));
+  // Conditions de fin
+  if(currentStatus==='done'||r.rapport_complet){
+    stopPolling(null);
+    showResults(r);
+  }else if(currentStatus==='error'||currentStatus==='echouee'){
+    stopPolling('Erreur d\'analyse : '+(r.error_message||r.recommandation||'Erreur inconnue'));
+  }
 }
+
+// Cleanup : arreter le poll si l'user quitte la page
+window.addEventListener('beforeunload',()=>stopPolling(null));
+// Cleanup : arreter si l'user cache l'onglet
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)stopPolling(null);
+});
 
 function scoreToGrade(score){
   if(score>=90)return'A';if(score>=75)return'B';if(score>=60)return'C';if(score>=45)return'D';return'F';
