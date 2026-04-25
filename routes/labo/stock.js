@@ -216,23 +216,54 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /api/labo/stock/scan-peremption — Photo → JADOMI IA lecture date peremption
+// POST /api/labo/stock/scan-peremption — Photo → JADOMI IA lecture date peremption (Sonnet Vision)
 router.post('/scan-peremption', async (req, res) => {
   try {
-    const { image_base64 } = req.body;
-    if (!image_base64) return res.status(400).json({ error: 'image_base64 requis' });
+    let imageData = req.body.image_base64;
+    if (!imageData) return res.status(400).json({ error: 'image_base64 requis' });
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'JADOMI IA non disponible' });
+
+    // Strip data URL prefix if present (frontend sends dataUrl)
+    if (imageData.startsWith('data:')) {
+      imageData = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+    }
 
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      system: `Tu es un assistant expert specialise dans la lecture de dates de peremption sur des emballages de produits dentaires, medicaux et de laboratoire prothetique.
+
+Tu connais tous les formats utilises dans l'industrie :
+- DD/MM/YYYY (francais)
+- MM/YYYY ou MM/YY (international)
+- YYYY-MM-DD (ISO)
+- Marquages : EXP, USE BY, BBE, Best Before, Peremption
+- Pictogramme sablier
+- Numeros de lot : LOT, Batch, No., REF
+
+Tu retournes TOUJOURS un JSON strict avec confidence calibre sur la qualite reelle de ta lecture.`,
       messages: [{
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image_base64 } },
-          { type: 'text', text: 'Lis la date de peremption sur ce produit. Reponds JSON strict: {"date_peremption":"YYYY-MM-DD","numero_lot":"...","confidence":0.0}. Si pas lisible, confidence=0.' }
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageData } },
+          { type: 'text', text: `Analyse cette photo d'emballage de produit dentaire/medical/labo.
+
+Trouve et extrais :
+1. La DATE DE PEREMPTION (la plus importante)
+2. Le NUMERO DE LOT si visible
+3. La zone ou tu as lu la date
+
+Indique TOUJOURS un score de confidence honnete :
+- 0.9-1.0 : Date parfaitement lisible
+- 0.7-0.9 : Date lisible avec legere ambiguite
+- 0.5-0.7 : Date partiellement lisible
+- 0.3-0.5 : Date difficile a lire
+- <0.3 : Pas de date visible ou trop floue
+
+Format JSON strict :
+{"date_peremption":"YYYY-MM-DD ou null","numero_lot":"texte ou null","confidence":0.0,"format_detecte":"MM/YY ou DD/MM/YYYY etc","zone_image":"description ou tu as lu","observations":"notes utiles"}` }
         ]
       }]
     });
@@ -242,7 +273,7 @@ router.post('/scan-peremption', async (req, res) => {
       const json = JSON.parse(m[0]);
       return res.json({ success: true, ...json });
     }
-    res.json({ success: false, error: 'Non lisible' });
+    res.json({ success: false, confidence: 0, error: 'Non lisible' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
