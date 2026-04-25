@@ -691,6 +691,30 @@ let adjustingProductId = null;
 let cameraStream = null;
 let photoCameraStream = null;
 
+/* ── Cache local intelligent (TTL 7 jours) ─────────────────── */
+const SCAN_CACHE = {
+  TTL: 7 * 24 * 3600 * 1000,
+  get(gtin) {
+    try {
+      const raw = localStorage.getItem('scan_' + gtin);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (Date.now() - parsed.ts > this.TTL) { localStorage.removeItem('scan_' + gtin); return null; }
+      return parsed.data;
+    } catch (e) { return null; }
+  },
+  set(gtin, data) {
+    try { localStorage.setItem('scan_' + gtin, JSON.stringify({ data, ts: Date.now() })); } catch (e) { /* quota */ }
+  },
+  stats() {
+    let count = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      if (localStorage.key(i).startsWith('scan_')) count++;
+    }
+    return count;
+  }
+};
+
 try {
   const { createClient } = supabase;
   db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1181,13 +1205,23 @@ async function triggerScan() {
   document.getElementById('scanResult').style.display = 'none';
   resetWaterfall();
 
+  // Check cache local d'abord
+  const cached = SCAN_CACHE.get(code);
+  if (cached) {
+    setWfStep('wf-supabase', 'done');
+    setWfStep('wf-off', 'done');
+    setWfStep('wf-ia', 'done');
+    toast('Produit en cache local');
+    showScanResult(cached.produit, cached.existe_stock, cached.source, cached.prices);
+    return;
+  }
+
   // Animation : demarrer etape 1
   setWfStep('wf-supabase', 'active');
 
   try {
-    // UN SEUL appel API — le backend fait le waterfall complet
-    // (Supabase → OpenFoodFacts → Claude Haiku IA)
-    const res = await fetch(`${API_BASE}/stock/scan/${encodeURIComponent(code)}`, { headers: apiHeaders() });
+    // UN SEUL appel API — le backend fait le waterfall complet multi-niveaux
+    const res = await fetch(`${API_BASE}/stock/scan/${encodeURIComponent(code)}?method=${html5QrScanner?'camera':'manual'}`, { headers: apiHeaders() });
     if (!res.ok) throw new Error('Erreur API');
     const data = await res.json();
 
@@ -1195,38 +1229,42 @@ async function triggerScan() {
     const source = data.source || 'unknown';
 
     if (source === 'jadomi') {
-      // Trouve dans le stock Supabase
       setWfStep('wf-supabase', 'done');
       setWfStep('wf-off', 'done');
       setWfStep('wf-ia', 'done');
-      showScanResult(data.produit, data.existe_stock);
-    } else if (source === 'openfoodfacts') {
-      // Trouve via OpenFoodFacts
+    } else if (source === 'products_database') {
       setWfStep('wf-supabase', 'error');
       setWfStep('wf-off', 'done');
       setWfStep('wf-ia', 'done');
-      showScanResult(data.produit, false);
+      toast('Trouve dans la base JADOMI (' + (data.produit?.confidence ? Math.round(data.produit.confidence*100)+'%' : 'OK') + ')');
+    } else if (source === 'openfoodfacts') {
+      setWfStep('wf-supabase', 'error');
+      setWfStep('wf-off', 'done');
+      setWfStep('wf-ia', 'done');
     } else if (source === 'jadomi-ia') {
-      // Identifie par JADOMI IA (Claude)
       setWfStep('wf-supabase', 'error');
       setWfStep('wf-off', 'error');
       setWfStep('wf-ia', 'done');
-      if (data.produit && data.produit.confidence) {
-        toast(`Identifie par JADOMI IA (confiance: ${Math.round(data.produit.confidence*100)}%)`);
+      if (data.produit?.confidence) {
+        toast('Identifie par JADOMI IA (confiance: ' + Math.round(data.produit.confidence*100) + '%)');
       }
-      showScanResult(data.produit, false);
     } else {
-      // Aucune source n'a trouve
       setWfStep('wf-supabase', 'error');
       setWfStep('wf-off', 'error');
       setWfStep('wf-ia', 'error');
-      showScanResult(data.produit || { code_barre: code, nom: null }, false);
     }
+
+    // Cache le resultat si produit trouve
+    if (data.produit && source !== 'unknown') {
+      SCAN_CACHE.set(code, { produit: data.produit, existe_stock: data.existe_stock, source, prices: data.prices || null });
+    }
+
+    showScanResult(data.produit || { code_barre: code, nom: null }, data.existe_stock, source, data.prices);
   } catch(e) {
     setWfStep('wf-supabase', 'error');
     setWfStep('wf-off', 'error');
     setWfStep('wf-ia', 'error');
-    showScanResult({ code_barre: code, nom: null }, false);
+    showScanResult({ code_barre: code, nom: null }, false, 'error');
     toast('Erreur lors de la recherche', 'error');
   }
 }
@@ -1247,28 +1285,53 @@ function setWfStep(id, state) {
   else if (state==='error') icon.textContent='❌';
 }
 
-function showScanResult(product, exists) {
+function showScanResult(product, exists, source, prices) {
   const el = document.getElementById('scanResult');
   el.style.display = 'block';
+  if (!product) { el.innerHTML = '<div class="scan-result-card" style="text-align:center;color:var(--muted);">Produit non identifie. Ajoutez-le manuellement.</div>'; return; }
+
   const existsInStock = allProducts.find(p => p.code_barre === product.code_barre || p.id == product.id);
+  const srcBadge = source === 'jadomi' ? '<span class="badge badge-green">Stock interne</span>'
+    : source === 'products_database' ? '<span class="badge" style="background:var(--blue-bg);color:var(--blue);">Base JADOMI</span>'
+    : source === 'openfoodfacts' ? '<span class="badge" style="background:var(--orange-bg);color:var(--orange);">OpenFoodFacts</span>'
+    : source === 'jadomi-ia' ? '<span class="badge" style="background:#ede9fe;color:#7c3aed;">JADOMI IA</span>'
+    : '';
+
+  // Prix multi-fournisseurs
+  let pricesHtml = '';
+  if (prices && prices.market_stats) {
+    const ms = prices.market_stats;
+    pricesHtml = `<div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);font-size:12px;">
+      <div style="font-weight:600;margin-bottom:4px;">Prix marche (${ms.suppliers_count} fournisseurs)</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <span style="color:var(--green);">Min: ${ms.best.toFixed(2)}EUR</span>
+        <span>Moy: ${ms.average.toFixed(2)}EUR</span>
+        <span style="color:var(--red);">Max: ${ms.worst.toFixed(2)}EUR</span>
+      </div>
+    </div>`;
+  }
 
   if (existsInStock || exists) {
     const p = existsInStock || product;
+    const needsPeremption = !p.date_peremption;
     el.innerHTML = `<div class="scan-result-card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <span style="font-size:18px;">📦</span>
-        <span class="badge badge-green">En stock</span>
+        ${srcBadge}
       </div>
-      <div class="scan-result-name">${p.nom}</div>
+      <div class="scan-result-name">${p.nom||p.name_fr||p.name||'Produit'}</div>
       <div class="scan-result-fields">
-        ${p.marque ? `<div class="scan-result-field"><span class="srf-label">Marque :</span>${p.marque}</div>` : ''}
-        ${p.quantite!=null ? `<div class="scan-result-field"><span class="srf-label">Quantité :</span><strong>${p.quantite} ${p.unite||''}</strong></div>` : ''}
-        ${p.categorie ? `<div class="scan-result-field"><span class="srf-label">Catégorie :</span>${p.categorie}</div>` : ''}
-        ${p.date_peremption ? `<div class="scan-result-field"><span class="srf-label">Péremption :</span>${new Date(p.date_peremption).toLocaleDateString('fr-FR')}</div>` : ''}
+        ${p.marque||p.brand ? `<div class="scan-result-field"><span class="srf-label">Marque :</span>${p.marque||p.brand}</div>` : ''}
+        ${p.quantite!=null ? `<div class="scan-result-field"><span class="srf-label">Quantite :</span><strong>${p.quantite} ${p.unite||''}</strong></div>` : ''}
+        ${p.categorie||p.category ? `<div class="scan-result-field"><span class="srf-label">Categorie :</span>${p.categorie||p.category}</div>` : ''}
+        ${p.fournisseur||p.manufacturer ? `<div class="scan-result-field"><span class="srf-label">Fabricant :</span>${p.fournisseur||p.manufacturer}</div>` : ''}
+        ${p.date_peremption ? `<div class="scan-result-field"><span class="srf-label">Peremption :</span>${new Date(p.date_peremption).toLocaleDateString('fr-FR')}</div>` : ''}
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="openAdjustModal('${p.id}')">📊 Mouvement de stock</button>
+      ${pricesHtml}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn btn-outline btn-sm" onclick="openAdjustModal('${p.id}')">📊 Mouvement</button>
         <button class="btn btn-outline btn-sm" onclick="openEditModal('${p.id}');switchTab('inventaire')">✏️ Modifier</button>
+        ${needsPeremption ? `<button class="btn btn-outline btn-sm" style="color:var(--amber);border-color:var(--amber);" onclick="openPhotoPeremption()">📷 Ajouter peremption</button>` : ''}
       </div>
     </div>`;
   } else {
@@ -1276,13 +1339,20 @@ function showScanResult(product, exists) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <span style="font-size:18px;">🆕</span>
         <span class="badge badge-amber">Nouveau produit</span>
+        ${srcBadge}
       </div>
-      <div class="scan-result-name">${product.nom||'Produit '+product.code_barre}</div>
+      <div class="scan-result-name">${product.nom||product.name_fr||product.name||'Produit '+(product.code_barre||'')}</div>
       <div class="scan-result-fields">
-        ${product.marque ? `<div class="scan-result-field"><span class="srf-label">Marque :</span>${product.marque}</div>` : ''}
-        <div class="scan-result-field"><span class="srf-label">Code-barres :</span>${product.code_barre}</div>
+        ${product.marque||product.brand ? `<div class="scan-result-field"><span class="srf-label">Marque :</span>${product.marque||product.brand}</div>` : ''}
+        ${product.fournisseur||product.manufacturer ? `<div class="scan-result-field"><span class="srf-label">Fabricant :</span>${product.fournisseur||product.manufacturer}</div>` : ''}
+        <div class="scan-result-field"><span class="srf-label">Code-barres :</span>${product.code_barre||product.gtin||''}</div>
+        ${product.confidence ? `<div class="scan-result-field"><span class="srf-label">Confiance :</span>${Math.round(product.confidence*100)}%</div>` : ''}
       </div>
-      <button class="btn btn-primary btn-sm" onclick="addFromScan(${JSON.stringify(product).replace(/"/g,'&quot;')})">➕ Ajouter au stock</button>
+      ${pricesHtml}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn btn-primary btn-sm" onclick="addFromScan(${JSON.stringify(product).replace(/"/g,'&quot;')})">➕ Ajouter au stock</button>
+        <button class="btn btn-outline btn-sm" onclick="openPhotoPeremption()">📷 Photo peremption</button>
+      </div>
     </div>`;
   }
 }

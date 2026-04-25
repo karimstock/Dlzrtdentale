@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Admin — Scan Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--primary:#1a56db;--bg:#f4f6fb;--surface:#fff;--border:#e2e7f0;--text:#111827;--muted:#6b7280;--green:#059669;--red:#dc2626;--amber:#d97706;--blue:#1a56db;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.08);--font:'Inter',system-ui,sans-serif;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;padding:24px;}
+.container{max-width:1200px;margin:0 auto;}
+h1{font-size:22px;font-weight:700;margin-bottom:8px;}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);}
+.kpi-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.kpi-value{font-size:28px;font-weight:700;color:var(--text);}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:18px;}
+.card-title{font-size:15px;font-weight:700;margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;}
+td{padding:8px 10px;border-bottom:1px solid var(--border);}
+tr:hover{background:var(--bg);}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.badge-green{background:#d1fae5;color:#059669;}
+.badge-blue{background:#dbeafe;color:#1a56db;}
+.badge-amber{background:#fef3c7;color:#d97706;}
+.badge-red{background:#fee2e2;color:#dc2626;}
+.badge-purple{background:#ede9fe;color:#7c3aed;}
+.bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;}
+.bar-fill{height:100%;border-radius:3px;transition:width 0.5s;}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:16px;}
+.back-link:hover{color:var(--primary);}
+.loading{text-align:center;padding:40px;color:var(--muted);}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr;}.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/organisation.html" class="back-link">← Retour organisation</a>
+  <h1>Scan & Stock Analytics</h1>
+  <p class="subtitle">Statistiques du module scan — Performance, sources, apprentissage</p>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi"><div class="kpi-label">Total scans</div><div class="kpi-value" id="kpiTotalScans">--</div><div class="kpi-sub" id="kpiTotalPeriod"></div></div>
+    <div class="kpi"><div class="kpi-label">Taux identification</div><div class="kpi-value" id="kpiSuccessRate">--%</div><div class="kpi-sub">Produits identifies vs inconnus</div></div>
+    <div class="kpi"><div class="kpi-label">Produits en base</div><div class="kpi-value" id="kpiDbProducts">--</div><div class="kpi-sub" id="kpiDbSources"></div></div>
+    <div class="kpi"><div class="kpi-label">Temps moyen</div><div class="kpi-value" id="kpiAvgTime">--ms</div><div class="kpi-sub">Duree moyenne scan</div></div>
+    <div class="kpi"><div class="kpi-label">Cache local</div><div class="kpi-value" id="kpiCacheCount">--</div><div class="kpi-sub">Produits en cache navigateur</div></div>
+    <div class="kpi"><div class="kpi-label">Corrections</div><div class="kpi-value" id="kpiCorrections">--</div><div class="kpi-sub">Corrections utilisateur</div></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Repartition par source -->
+    <div class="card">
+      <div class="card-title">Repartition par source</div>
+      <div id="sourceBreakdown"><div class="loading">Chargement...</div></div>
+    </div>
+
+    <!-- Top produits scannes -->
+    <div class="card">
+      <div class="card-title">Top 20 produits scannes</div>
+      <div id="topProducts"><div class="loading">Chargement...</div></div>
+    </div>
+  </div>
+
+  <!-- Base produits par source -->
+  <div class="card">
+    <div class="card-title">Base produits par source d'import</div>
+    <div id="dbSourcesTable"><div class="loading">Chargement...</div></div>
+  </div>
+
+  <!-- Scans recents -->
+  <div class="card">
+    <div class="card-title">Derniers scans (50)</div>
+    <div id="recentScans"><div class="loading">Chargement...</div></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api/labo';
+let currentToken, currentSocieteId;
+
+async function apiHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': currentToken ? 'Bearer ' + currentToken : '',
+    'X-Societe-Id': currentSocieteId || ''
+  };
+}
+
+async function loadStats() {
+  try {
+    // Cache local stats
+    let cacheCount = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      if (localStorage.key(i).startsWith('scan_')) cacheCount++;
+    }
+    document.getElementById('kpiCacheCount').textContent = cacheCount;
+
+    // Scan logs
+    const headers = await apiHeaders();
+    const logsRes = await fetch(`${API_BASE}/stock/scan-stats`, { headers });
+    if (logsRes.ok) {
+      const stats = await logsRes.json();
+      renderStats(stats);
+    } else {
+      // Fallback: afficher ce qu'on peut
+      document.getElementById('kpiTotalScans').textContent = '0';
+      document.getElementById('kpiSuccessRate').textContent = 'N/A';
+      document.getElementById('kpiAvgTime').textContent = 'N/A';
+      document.getElementById('kpiCorrections').textContent = '0';
+      document.getElementById('sourceBreakdown').innerHTML = '<p style="color:var(--muted);font-size:13px;">Endpoint scan-stats non disponible. Les analytics seront actives une fois la table scan_logs creee dans Supabase.</p>';
+      document.getElementById('topProducts').innerHTML = '<p style="color:var(--muted);font-size:13px;">Aucune donnee de scan encore.</p>';
+      document.getElementById('dbSourcesTable').innerHTML = '<p style="color:var(--muted);font-size:13px;">Executez les scripts d\'import pour peupler la base produits.</p>';
+      document.getElementById('recentScans').innerHTML = '<p style="color:var(--muted);font-size:13px;">Aucun scan enregistre.</p>';
+    }
+  } catch (e) {
+    console.error('Stats error:', e);
+  }
+}
+
+function renderStats(stats) {
+  document.getElementById('kpiTotalScans').textContent = (stats.total_scans || 0).toLocaleString('fr-FR');
+  document.getElementById('kpiSuccessRate').textContent = stats.success_rate ? stats.success_rate + '%' : 'N/A';
+  document.getElementById('kpiDbProducts').textContent = (stats.db_total || 0).toLocaleString('fr-FR');
+  document.getElementById('kpiAvgTime').textContent = stats.avg_duration ? stats.avg_duration + 'ms' : 'N/A';
+  document.getElementById('kpiCorrections').textContent = (stats.total_corrections || 0).toLocaleString('fr-FR');
+
+  // Source breakdown
+  if (stats.by_source) {
+    const total = Object.values(stats.by_source).reduce((a, b) => a + b, 0) || 1;
+    const colors = { labo_stock: 'var(--green)', products_database: 'var(--blue)', openfoodfacts: 'var(--amber)', claude_ia: '#7c3aed', unknown: 'var(--red)' };
+    document.getElementById('sourceBreakdown').innerHTML = Object.entries(stats.by_source)
+      .sort((a, b) => b[1] - a[1])
+      .map(([src, count]) => {
+        const pct = Math.round(count / total * 100);
+        return `<div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span>${src}</span><span>${count} (${pct}%)</span></div>
+          <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${colors[src]||'var(--muted)'}"></div></div>
+        </div>`;
+      }).join('');
+  }
+
+  // Top products
+  if (stats.top_products?.length) {
+    document.getElementById('topProducts').innerHTML = '<table><thead><tr><th>Produit</th><th>Scans</th></tr></thead><tbody>' +
+      stats.top_products.map(p => `<tr><td>${p.name||p.gtin}</td><td><strong>${p.scan_count}</strong></td></tr>`).join('') +
+      '</tbody></table>';
+  }
+
+  // DB sources
+  if (stats.db_sources) {
+    document.getElementById('dbSourcesTable').innerHTML = '<table><thead><tr><th>Source</th><th>Produits</th><th>%</th></tr></thead><tbody>' +
+      Object.entries(stats.db_sources).sort((a,b)=>b[1]-a[1])
+        .map(([src, count]) => `<tr><td>${src}</td><td>${count.toLocaleString('fr-FR')}</td><td>${Math.round(count/(stats.db_total||1)*100)}%</td></tr>`)
+        .join('') +
+      '</tbody></table>';
+  }
+
+  // Recent scans
+  if (stats.recent_scans?.length) {
+    document.getElementById('recentScans').innerHTML = '<table><thead><tr><th>Date</th><th>Code</th><th>Source</th><th>Confiance</th><th>Duree</th></tr></thead><tbody>' +
+      stats.recent_scans.map(s => {
+        const srcClass = s.source_used === 'unknown' ? 'badge-red' : s.source_used === 'claude_ia' ? 'badge-purple' : 'badge-green';
+        return `<tr>
+          <td>${new Date(s.created_at).toLocaleString('fr-FR')}</td>
+          <td style="font-family:monospace;font-size:12px;">${s.gtin||s.raw_code||'--'}</td>
+          <td><span class="badge ${srcClass}">${s.source_used}</span></td>
+          <td>${s.confidence ? Math.round(s.confidence*100)+'%' : '--'}</td>
+          <td>${s.duration_ms ? s.duration_ms+'ms' : '--'}</td>
+        </tr>`;
+      }).join('') +
+      '</tbody></table>';
+  }
+}
+
+// Init
+loadStats();
+</script>
+</body>
+</html>

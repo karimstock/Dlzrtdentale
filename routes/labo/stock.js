@@ -70,12 +70,37 @@ router.get('/alertes', async (req, res) => {
   }
 });
 
-// GET /api/labo/stock/scan/:code — Lookup waterfall (Supabase → OpenFoodFacts → JADOMI IA)
+// GET /api/labo/stock/scan/:code — Lookup waterfall multi-niveaux (Passe 51)
+// Niveaux : labo_stock → products_database → products_database(ref) → OpenFoodFacts → Claude IA
 router.get('/scan/:code', async (req, res) => {
   try {
     const code = req.params.code;
     if (!code) return res.status(400).json({ error: 'code requis' });
 
+    let scanEngine;
+    try { scanEngine = require('../../services/scan-engine'); } catch (e) { scanEngine = null; }
+
+    // Si scan-engine disponible, utiliser le waterfall complet
+    if (scanEngine) {
+      const result = await scanEngine.lookupProduct(code, req.prothesisteId, {
+        userId: req.userId || null,
+        societeId: req.societeId || null,
+        prothesisteId: req.prothesisteId || null,
+        scanMethod: req.query.method || 'manual'
+      });
+
+      // Ajouter les prix multi-fournisseurs si produit trouve
+      if (result.produit && result.source !== 'unknown') {
+        try {
+          const pricesData = await scanEngine.getProductPrices(code);
+          if (pricesData) result.prices = pricesData;
+        } catch (e) { /* silent */ }
+      }
+
+      return res.json(result);
+    }
+
+    // Fallback : waterfall inline (si scan-engine pas encore charge)
     // Niveau 1 : Stock interne
     if (req.prothesisteId) {
       const { data } = await admin().from('labo_stock').select('*')
@@ -83,7 +108,29 @@ router.get('/scan/:code', async (req, res) => {
       if (data) return res.json({ source: 'jadomi', produit: data, existe_stock: true });
     }
 
-    // Niveau 2 : OpenFoodFacts
+    // Niveau 2 : products_database (GTIN exact)
+    try {
+      const { data } = await admin().from('products_database').select('*')
+        .eq('gtin', code).maybeSingle();
+      if (data) {
+        return res.json({
+          source: 'products_database',
+          produit: {
+            nom: data.name_fr || data.name,
+            marque: data.brand,
+            categorie: data.category,
+            fournisseur: data.manufacturer,
+            code_barre: data.gtin,
+            image_url: data.image_url,
+            reference: data.reference,
+            confidence: data.confidence_score
+          },
+          existe_stock: false
+        });
+      }
+    } catch (e) { /* table may not exist yet */ }
+
+    // Niveau 3 : OpenFoodFacts
     try {
       const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`);
       const d = await r.json();
@@ -103,7 +150,7 @@ router.get('/scan/:code', async (req, res) => {
       }
     } catch (e) { /* fallback */ }
 
-    // Niveau 3 : JADOMI IA (Claude Haiku)
+    // Niveau 4 : JADOMI IA (Claude Haiku)
     if (process.env.ANTHROPIC_API_KEY) {
       try {
         const Anthropic = require('@anthropic-ai/sdk');
@@ -200,6 +247,72 @@ router.post('/:id/mouvement', async (req, res) => {
     });
 
     res.json({ success: true, nouvelle_quantite: Math.max(0, newQty) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/labo/stock/scan-stats — Analytics scans (Passe 51)
+router.get('/scan-stats', async (req, res) => {
+  try {
+    let totalScans = 0, successRate = 0, avgDuration = 0, bySource = {}, topProducts = [], recentScans = [], totalCorrections = 0;
+
+    // Stats scan_logs
+    try {
+      const { data: logs } = await admin().from('scan_logs')
+        .select('source_used, confidence, duration_ms, gtin, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5000);
+
+      if (logs?.length) {
+        totalScans = logs.length;
+        const identified = logs.filter(l => l.source_used !== 'unknown').length;
+        successRate = Math.round(identified / totalScans * 100);
+        const durations = logs.filter(l => l.duration_ms).map(l => l.duration_ms);
+        avgDuration = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+
+        logs.forEach(l => { bySource[l.source_used] = (bySource[l.source_used] || 0) + 1; });
+        recentScans = logs.slice(0, 50);
+      }
+    } catch (e) { /* scan_logs table may not exist yet */ }
+
+    // Stats products_database
+    let dbTotal = 0, dbSources = {};
+    try {
+      const { count } = await admin().from('products_database').select('*', { count: 'exact', head: true });
+      dbTotal = count || 0;
+
+      const { data: srcData } = await admin().from('products_database').select('source').limit(100000);
+      if (srcData) srcData.forEach(r => { dbSources[r.source] = (dbSources[r.source] || 0) + 1; });
+    } catch (e) { /* table may not exist */ }
+
+    // Top produits
+    try {
+      const { data } = await admin().from('products_database')
+        .select('gtin, name_fr, name, scan_count')
+        .order('scan_count', { ascending: false })
+        .gt('scan_count', 0)
+        .limit(20);
+      topProducts = (data || []).map(p => ({ gtin: p.gtin, name: p.name_fr || p.name, scan_count: p.scan_count }));
+    } catch (e) { /* silent */ }
+
+    // Corrections
+    try {
+      const { count } = await admin().from('product_corrections').select('*', { count: 'exact', head: true });
+      totalCorrections = count || 0;
+    } catch (e) { /* silent */ }
+
+    res.json({
+      total_scans: totalScans,
+      success_rate: successRate,
+      avg_duration: avgDuration,
+      by_source: bySource,
+      db_total: dbTotal,
+      db_sources: dbSources,
+      top_products: topProducts,
+      recent_scans: recentScans,
+      total_corrections: totalCorrections
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
