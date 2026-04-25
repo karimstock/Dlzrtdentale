@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 25 avril 2026
-**Derniere passe** : Passe 51 — Scan & Stock Pro (3 fixes critiques)
+**Derniere passe** : Passe 51 — JADOMI Scan World-Class (fixes + base produits + intelligence prix)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -978,6 +978,14 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [ ] RDV avocat (CGV + partenariat)
 - [x] Audit complet modules existants
 - [x] Fix Scan & Stock : waterfall unifie + camera decoder + peremption Sonnet (Passe 51)
+- [x] Base produits world-class : products_database + 8 scripts import (Passe 51)
+- [x] Intelligence prix multi-fournisseurs : supplier_prices + insights (Passe 51)
+- [x] Dashboard scan analytics : /admin/scan-stats.html (Passe 51)
+- [ ] Executer SQL scan/*.sql dans Supabase Dashboard
+- [ ] Lancer import GUDID : node scripts/import-gudid.js --all
+- [ ] Lancer enrichissement IA : node scripts/enrich-products-ia.js
+- [ ] Activer pgvector + embeddings : node scripts/generate-embeddings.js
+- [ ] Lancer scrapers FR : node scripts/scrape-henry-schein.js + scrape-gacd.js
 - [ ] Nettoyer 5 sites dupliques en BDD
 
 - [x] JADOMI Care Network : reseau de soins interprofessionnel (Passe 53)
@@ -1212,16 +1220,19 @@ Fonctionnalites : login OTP email, liste cas avec filtres, detail cas avec galer
 upload photo (fabrication/essayage/produit fini), messages labo-cabinet, profil specialites.
 Demo data : 4 cas, 23 photos, messages. Auto-login demo.
 
-## Passe 51 (25 avril 2026) -- Scan & Stock Pro (3 fixes critiques)
-Audit revele 3 bugs majeurs, tous corriges :
-- Fix 1 : Waterfall unifie — frontend faisait 3 appels (Supabase+OFF+fake IA),
-  remplace par 1 seul appel backend GET /api/labo/stock/scan/:code
-- Fix 2 : Camera barcode decodage — branche html5-qrcode (deja bundle) au flux
-  camera, decodage temps reel, vibration+bip, auto-trigger scan
-- Fix 3 : Peremption upgrade — Haiku→Sonnet, prompt expert dentaire/medical,
-  max_tokens 200→500, confidence score exploite dans l'UI (3 niveaux feedback)
-Fichiers modifies : routes/labo/stock.js, public/labo/stock.html
-Doc audit : docs/audit-scan/audit-scan-stock.md (608 lignes)
+## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class
+A) Fixes critiques (3 bugs audit) :
+- Waterfall unifie 1 appel API, camera html5-qrcode branchee, peremption Sonnet
+B) Base produits world-class :
+- SQL : products_database + scan_logs + prices_intelligence (3 fichiers, 7 tables)
+- Services : scan-engine.js (waterfall 5 niveaux), products-database.js, invoice-matcher.js
+- 8 scripts import : GUDID FDA, Datakick, Henry Schein, GACD, distributeurs FR,
+  enrichissement IA Claude, embeddings pgvector, deduplication
+C) Intelligence prix : supplier_prices, invoice_imports, price_insights, v_market_prices
+D) UX : cache localStorage 7j, prix multi-fournisseurs dans scan result, bouton
+  peremption integre, source badges, confidence affichee
+E) Analytics : dashboard /admin/scan-stats.html, endpoint GET /scan-stats
+SQL a executer : sql/scan/*.sql (3 fichiers)
 
 ## Passe 50 (25 avril 2026) -- JADOMI Care Network (Reseau de Soins WORLD FIRST)
 Reseau de soins interprofessionnel centre sur le PATIENT.
@@ -1468,6 +1479,70 @@ A surveiller : Mailing (fixe), Rappels SMS (fixe), Communication (fixe)
 Restant : STRIPE_SECRET_KEY (.env), SQL 53, icones PWA, images OG
 
 ===============================================================
+# 27. JADOMI SCAN WORLD-CLASS (Passe 51)
+===============================================================
+
+## Architecture waterfall 5 niveaux
+1. labo_stock (stock cabinet interne) — 0ms, gratuit
+2. products_database GTIN exact — <10ms, gratuit
+3. products_database reference/fabricant — <10ms, gratuit
+4. OpenFoodFacts API — ~200ms, gratuit
+5. Claude Haiku IA — ~1-2s, ~$0.001/scan
+
++ Cache localStorage frontend (TTL 7j) → 0ms, 0 appel API
++ Auto-cache dans products_database (apprend de chaque scan)
+
+## Base produits products_database
+Schema : sql/scan/products_database.sql
+- GTIN unique, multi-source, categories FR
+- Full-text search (GIN index francais)
+- Embeddings pgvector ready (colonne a ajouter apres activation)
+- Apprentissage : scan_count, user_validations, user_corrections
+- 3 tables : products_database, product_corrections, prothesiste_products
+
+## Sources d'import
+| Source | Script | Produits estimes |
+|--------|--------|-----------------|
+| GUDID FDA | scripts/import-gudid.js | ~50 000 |
+| Datakick | scripts/import-datakick.js | enrichissement |
+| Henry Schein FR | scripts/scrape-henry-schein.js | ~10 000 |
+| GACD FR | scripts/scrape-gacd.js | ~5 000 |
+| Distributeurs FR | scripts/scrape-dental-distributors.js | ~3 000 |
+| Claude IA enrichissement | scripts/enrich-products-ia.js | categories FR |
+| OpenAI embeddings | scripts/generate-embeddings.js | recherche semantique |
+| Deduplication | scripts/dedup-products.js | nettoyage |
+
+## Intelligence prix
+Schema : sql/scan/prices_intelligence.sql
+- supplier_prices : historique prix multi-fournisseurs
+- invoice_imports : import factures avec dedup hash
+- price_insights : alertes economiques automatiques
+- v_market_prices : vue stats marche par GTIN
+- Service : services/invoice-matcher.js (match facture → produits → insights)
+
+## SQL a executer dans Supabase Dashboard
+- sql/scan/products_database.sql
+- sql/scan/scan_logs.sql
+- sql/scan/prices_intelligence.sql
+
+===============================================================
+# 28. JADOMI SCAN — PEREMPTION PRO (Passe 51)
+===============================================================
+
+## Modele : Claude Sonnet (claude-sonnet-4-20250514)
+- System prompt expert dentaire/medical/labo
+- Formats reconnus : DD/MM/YYYY, MM/YYYY, MM/YY, YYYY-MM-DD, EXP, USE BY, BBE
+- Confidence calibree : 0.9-1.0 parfait, 0.7-0.9 leger, 0.5-0.7 partiel, <0.3 illisible
+- Retour enrichi : date, lot, format detecte, zone image, observations
+
+## Frontend confidence UI
+- < 30% : bloc rouge, pas de pre-remplissage, bouton "reprendre photo"
+- 30-70% : bloc ambre, date pre-remplie, warning verification
+- >= 70% : bloc vert, date confirmee avec details
+
+## JPEG quality : 0.92 (ameliore vs 0.85)
+
+===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 25 avril 2026 (Passe 50 — Audit complet)
+Derniere mise a jour : 25 avril 2026 (Passe 51 — JADOMI Scan World-Class)
 ===============================================================
