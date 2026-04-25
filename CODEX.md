@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 25 avril 2026
-**Derniere passe** : Passe 53 — JADOMI Care Network (Reseau de Soins)
+**Derniere passe** : Passe 50 — Audit complet (Operation Total Checkup)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1345,6 +1345,103 @@ Le modele Prescripteur-Beneficiaire-Executant applicable a 6 marches :
 ## Date revue : juillet 2026 (fin Phase A)
 
 ===============================================================
+# 25. PASSE 50 — Audit Complet (Operation Total Checkup)
+===============================================================
+
+### Date : 25 avril 2026
+### Agents deployes : audit infrastructure, backend, frontend, crons, securite
+
+#### 25.1 Lecture du CODEX
+CODEX lu integralement (1349 lignes). Passes 14-53 comprises.
+Architecture : Node.js/Express + Supabase + vanilla JS frontend.
+34 modules backend, 12 crons, 3 webhooks Stripe, 3 PWAs.
+
+#### 25.2 Audit Infrastructure
+- server.js : 3349 lignes, syntaxe valide, 34 modules montes
+- Port 3000 (pas 3001 — override via env PORT)
+- Rate limiting OK (300/15min global, 5/15min login)
+- CORS strict en production
+- Helmet actif (CSP desactive pour CDN)
+- Supabase anon key en frontend = normal (protege par RLS)
+
+#### 25.3 Audit Endpoints Backend
+- 20 fichiers multiSocietes (6031 lignes) : OK sauf communication.js
+- 10 fichiers dentiste-pro : OK sauf SMS waitlist/rappels
+- 2 fichiers avocat : coffre-fort AES-256 OK, espace-client OK
+- 9 fichiers studio : CMS OK, themes OK, enhance-media = stub
+- 26+ fichiers vitrines : chatbot OK, 23 professions supportees
+
+#### 25.4 Audit Frontend
+- 20+ landing pages metiers : OK
+- PWA Patient (13 fichiers) : OK, icones manquantes
+- PWA Labo (10 fichiers) : OK
+- Dashboard Admin (13 tabs) : OK
+- 20 images OG social manquantes (non bloquant)
+
+#### 25.5 Audit Cron Jobs & Services
+- 12 crons actifs, tous fonctionnels
+- 3 webhooks Stripe OK (signatures verifiees)
+- SMTP OVH Pro OK
+- Doublon cron rappels detecte et corrige
+
+#### 25.6 Bugs detectes (14 total)
+CRITIQUE :
+1. Mailing token invalide (requireAuth sur attachment)
+2. SMS waitlist : sendSmsOTP au lieu de sendSms
+3. SMS rappels : sendSmsOTP au lieu de sendSms
+4. Communication unsubscribe RGPD casse (tokens non persistes)
+
+HAUTE :
+5. Duplicate cron rappels (setInterval + node-cron)
+6. site-analysis getActiveSociete sans filtre user_id
+
+MOYENNE :
+7. billing.js .single() sans error handling
+8. commerce.js JSON parsing IA greedy regex
+9. generate-section.js JSON parse sans try-catch
+10. dashboard.js reference table dentiste_pro_appointments
+
+BASSE :
+11. chatbot-public.js status codes manquants sur erreurs
+12. enhance-media.js Remotion = TODO stub
+13. Icones PWA manquantes
+14. 20 images OG social manquantes
+
+#### 25.7 Corrections appliquees (6 fixes)
+1. server.js:2171 — Retrait requireAuth() sur /api/mail/attachment/:token
+2. waitlist.js:8,350 — Import sendSms au lieu de sendSmsOTP
+3. rappels.js:9,294 — Import sendSms au lieu de sendSmsOTP
+4. communication.js:341,386 — Token = contact ID pour desinscription RGPD
+5. server.js:523-538 — Retrait doublon setInterval cron rappels
+6. site-analysis/index.js:558 — Ajout filtre .eq('user_id', userId)
+Fichier ajoute : sendSms() dans services/otp-sender.js (SMS generique)
+
+#### 25.8 Bug mailing token (PRIORITE)
+Cause racine : requireAuth() ajoute sur /api/mail/attachment/:token.
+Le frontend ouvre les PJ via window.open() (nouvel onglet) qui n'envoie
+pas le header Authorization. Le token (hex 32 chars, TTL 30min) sert
+lui-meme d'authentification. Fix : retrait du middleware requireAuth().
+
+#### 25.9 Recommandations Karim
+Bugs non corriges (validation Karim requise) :
+- billing.js : ajouter error handling sur .single() (3 endroits)
+- commerce.js : ameliorer regex JSON parsing IA
+- generate-section.js : wrapper JSON.parse dans try-catch
+- dashboard.js : verifier nom table dentiste_pro_appointments vs schema
+Actions a faire :
+- Configurer STRIPE_SECRET_KEY dans .env
+- Executer SQL 53 (reseau_soins) dans Supabase
+- Generer icones PWA (icon-192.png, icon-512.png)
+- Generer 20 images OG pour partage social
+
+#### 25.10 Etat de sante global : 16/20
+Modules parfaits : Stock, GPO, Logistique, Chatbot, Coach, 60 Themes,
+  Coffre-fort Avocat, Triangle Photo, Reseau Soins, PWA Patient+Labo
+A surveiller : Mailing (fixe), Rappels SMS (fixe), Communication (fixe)
+A ameliorer : Billing Stripe (cle manquante), Studio Enhance (stub),
+  CMS Photos (local vs R2)
+
+===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 25 avril 2026 (nuit historique)
+Derniere mise a jour : 25 avril 2026 (Passe 50 — Audit complet)
 ===============================================================
