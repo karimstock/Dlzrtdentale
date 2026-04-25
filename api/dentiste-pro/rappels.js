@@ -6,7 +6,7 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const { admin, requirePatient, requireCabinet, requirePermission, formatDateFR } = require('./shared');
-const { sendSmsOTP } = require('../../services/otp-sender');
+const { sendSms } = require('../../services/otp-sender');
 
 const router = express.Router();
 
@@ -291,7 +291,7 @@ async function processRappels() {
           case 'sms':
             if (patient.telephone) {
               const smsMessage = `Rappel RDV le ${dateFR} a ${appointment.start_time}. Confirmez : ${confirmLink}`;
-              sendResult = await sendSmsOTP(patient.telephone, smsMessage);
+              sendResult = await sendSms(patient.telephone, smsMessage);
             } else {
               sendResult = { success: false, error: 'Pas de telephone' };
             }

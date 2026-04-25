@@ -5,7 +5,7 @@
 // =============================================
 const express = require('express');
 const { admin, requirePatient, requireCabinet, requirePermission, formatDateFR } = require('./shared');
-const { sendSmsOTP } = require('../../services/otp-sender');
+const { sendSms } = require('../../services/otp-sender');
 
 const router = express.Router();
 
@@ -347,7 +347,7 @@ router.post('/cancellation-detected', requireCabinet(), requirePermission('waitl
       // SMS
       if (patient.telephone) {
         try {
-          await sendSmsOTP(patient.telephone, message);
+          await sendSms(patient.telephone, message);
         } catch (smsErr) {
           console.warn('[waitlist] SMS failed for', patient.telephone, smsErr.message);
         }
