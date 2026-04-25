@@ -8,6 +8,7 @@ import { Composition } from 'remotion';
 import { HeroHomepage } from './compositions/HeroHomepage';
 import { AdTemplate } from './compositions/AdTemplate';
 import { StatsAnimation } from './compositions/StatsAnimation';
+import { DentistDemo } from './compositions/DentistDemo';
 import { JADOMI_CONFIG } from './config';
 
 export const Root: React.FC = () => {
@@ -45,6 +46,14 @@ export const Root: React.FC = () => {
         fps={JADOMI_CONFIG.fps}
         width={JADOMI_CONFIG.width}
         height={JADOMI_CONFIG.height}
+      />
+      <Composition
+        id="DentistDemo"
+        component={DentistDemo}
+        durationInFrames={525}
+        fps={30}
+        width={1280}
+        height={720}
       />
     </>
   );
