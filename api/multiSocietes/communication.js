@@ -338,7 +338,15 @@ module.exports = function mountCommunication(app) {
 
       let sent = 0;
       for (const email of emails) {
-        const token = crypto.randomUUID();
+        // Chercher le contact pour utiliser son ID comme token de desinscription
+        let token = crypto.randomUUID();
+        if (societeId) {
+          try {
+            const { data: contact } = await admin().from('contacts_cabinet')
+              .select('id').eq('societe_id', societeId).eq('email', email).limit(1).single();
+            if (contact) token = contact.id;
+          } catch (e) { /* contact pas trouve, token random OK */ }
+        }
         const htmlContent = wrapEmailHtml(contenu_html, cabinetName, logoUrl, signature, token, BASE_URL);
         try {
           await queueEmail({
@@ -381,12 +389,14 @@ module.exports = function mountCommunication(app) {
 
   app.get('/api/communication/desabonner/:token', async (req, res) => {
     try {
-      // Mark contact as unsubscribed by token (stored in email URL)
-      // For simplicity, use token as contact ID or search by it
-      await admin().from('contacts_cabinet')
+      // Token = contact ID (UUID) — mise a jour directe
+      const { error } = await admin().from('contacts_cabinet')
         .update({ desabonne: true, actif: false })
         .eq('id', req.params.token);
-    } catch (e) {}
+      if (error) console.warn('[desabonner] token', req.params.token, error.message);
+    } catch (e) {
+      console.warn('[desabonner]', e.message);
+    }
 
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
       body{background:#0f1f3d;color:#f1f5f9;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}
