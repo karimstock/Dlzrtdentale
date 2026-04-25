@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(13,148,136,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#0d9488,#14b8a6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#0d9488,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(13,148,136,.08);color:#5eead4;border-left-color:#0d9488;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(13,148,136,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(13,148,136,.1);color:#5eead4;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(13,148,136,.12),rgba(20,184,166,.06));border:1px solid rgba(13,148,136,.15);}.stat.i::after{background:#0d9488;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(251,191,36,.06));border:1px solid rgba(245,158,11,.15);}.stat.r::after{background:#f59e0b;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(13,148,136,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(13,148,136,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-6{grid-template-columns:1.5fr 1fr 1fr 1fr 1fr .8fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-i{background:rgba(13,148,136,.12);color:#5eead4;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(13,148,136,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Score dots */
+.score-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.score-row .lbl{font-size:10px;color:#94a3b8;width:110px;flex-shrink:0;}
+.score-dots{display:flex;gap:3px;}
+.score-dots span{width:8px;height:8px;border-radius:50%;}
+.sd-g{background:#10b981;}.sd-y{background:#f59e0b;}.sd-r{background:#ef4444;}.sd-e{background:rgba(30,41,59,.5);}
+
+/* Timeline */
+.timeline{padding:0 24px 18px;}
+.tl-item{display:flex;gap:12px;padding:10px 0;border-left:2px solid rgba(13,148,136,.15);margin-left:8px;padding-left:18px;position:relative;}
+.tl-item::before{content:'';position:absolute;left:-5px;top:14px;width:8px;height:8px;border-radius:50%;background:#0d9488;border:2px solid #080b14;}
+.tl-item.done::before{background:#10b981;}
+.tl-item.pending::before{background:#475569;}
+.tl-item .tl-date{font-size:9px;color:#475569;width:60px;flex-shrink:0;padding-top:1px;}
+.tl-item .tl-content{font-size:11px;color:#e2e8f0;}
+.tl-item .tl-content small{display:block;font-size:9px;color:#64748b;margin-top:2px;}
+
+/* Chart bars */
+.chart-area{padding:12px 24px;}
+.chart-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.chart-row .c-lbl{font-size:10px;color:#94a3b8;width:120px;flex-shrink:0;}
+.chart-row .c-bar{flex:1;height:18px;background:rgba(30,41,59,.5);border-radius:4px;overflow:hidden;position:relative;}
+.chart-row .c-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:6px;font-size:8px;font-weight:700;color:#fff;}
+
+/* Observation grid */
+.obs-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:0 24px 12px;}
+.obs-cell{border-radius:8px;padding:10px 6px;text-align:center;font-size:9px;line-height:1.4;}
+.obs-cell .obs-val{font-size:14px;font-weight:800;margin-bottom:2px;}
+.obs-h{background:rgba(13,148,136,.08);color:#5eead4;font-weight:600;font-size:8px;text-transform:uppercase;letter-spacing:.5px;}
+.obs-g{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.1);color:#6ee7b7;}
+.obs-y{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.1);color:#fcd34d;}
+.obs-r{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.1);color:#fca5a5;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">&#128197; Agenda</div>
+    <div class="sb-item" id="n1">&#128101; Patients</div>
+    <div class="sb-item" id="n2">&#128203; Evaluations <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-sep">Suivi</div>
+    <div class="sb-item" id="n3">&#127919; Plans</div>
+    <div class="sb-item" id="n4">&#128200; Seances</div>
+    <div class="sb-item" id="n5">&#128221; Grilles</div>
+    <div class="sb-sep">Gestion</div>
+    <div class="sb-item" id="n6">&#128176; Comptabilite</div>
+    <div class="sb-item" id="n7">&#10024; Mon Site</div>
+    <div class="sb-sep" style="margin-top:auto;padding-top:20px;">Offre</div>
+    <div class="sb-item" style="color:#c9a961;font-weight:600;font-size:10px;">&#127873; 1er mois offert</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. EVALUATIONS PSYCHOMOTRICES -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">&#128203; Evaluations Psychomotrices</span><span class="top-badge">Bilan structure</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128203;</div><div class="stat-val">42</div><div class="stat-lbl">Bilans realises</div><div class="stat-delta">+6 ce mois</div></div>
+          <div class="stat c"><div class="stat-icon">&#128118;</div><div class="stat-val">38</div><div class="stat-lbl">Patients actifs</div><div class="stat-delta">+4 nouveaux</div></div>
+          <div class="stat e"><div class="stat-icon">&#9989;</div><div class="stat-val">94%</div><div class="stat-lbl">Bilans complets</div><div class="stat-delta">Excellent</div></div>
+          <div class="stat r"><div class="stat-icon">&#128337;</div><div class="stat-val">45min</div><div class="stat-lbl">Temps moyen</div><div class="stat-delta" style="color:#fcd34d;">-12min vs papier</div></div>
+        </div>
+        <div style="padding:4px 24px 10px;font-size:12px;font-weight:700;color:#94a3b8;">Bilan en cours — Lucas D., 6 ans</div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Domaine</span><span>Score brut</span><span>Percentile</span><span>Ecart-type</span><span>Zone</span><span>Note</span></div>
+          <div class="tbl-r tbl-6"><span>Tonus de fond</span><span>28/40</span><span>P45</span><span>-0.3</span><span class="pill p-ok">Normal</span><span style="color:#64748b;font-size:9px;">RAS</span></div>
+          <div class="tbl-r tbl-6"><span>Coordination oculo-manuelle</span><span>18/30</span><span>P25</span><span>-1.2</span><span class="pill p-w">Fragilite</span><span style="color:#64748b;font-size:9px;">A surveiller</span></div>
+          <div class="tbl-r tbl-6"><span>Lateralite</span><span>32/40</span><span>P60</span><span>+0.2</span><span class="pill p-ok">Normal</span><span style="color:#64748b;font-size:9px;">Droitier homogene</span></div>
+          <div class="tbl-r tbl-6"><span>Schema corporel</span><span>14/25</span><span>P15</span><span>-1.8</span><span class="pill p-c">Deficit</span><span style="color:#64748b;font-size:9px;">Prioritaire</span></div>
+          <div class="tbl-r tbl-6"><span>Reperes espace-temps</span><span>22/30</span><span>P40</span><span>-0.5</span><span class="pill p-ok">Normal</span><span style="color:#64748b;font-size:9px;">Progresse</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PLANS D'ACCOMPAGNEMENT -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">&#127919; Plans d'Accompagnement</span><span class="top-badge">Personnalise</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div style="padding:0 24px 12px;font-size:12px;font-weight:700;color:#94a3b8;">Plan — Lucas D. | Objectif : Motricite fine + Regulation tonique</div>
+        <div class="timeline">
+          <div class="tl-item done">
+            <div class="tl-date">Sept. 25</div>
+            <div class="tl-content">Bilan psychomoteur initial complet<small>Tonus, coordination, lateralite, schema corporel, espace-temps</small></div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-date">Oct. 25</div>
+            <div class="tl-content">Phase 1 — Regulation tonique de base<small>Relaxation, respiration, conscience corporelle (8 seances)</small></div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-date">Dec. 25</div>
+            <div class="tl-content">Phase 2 — Coordination et motricite fine<small>Grapho-motricite, manipulation fine, coordination bimanuelle (10 seances)</small></div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Fev. 26</div>
+            <div class="tl-content"><strong style="color:#5eead4;">En cours</strong> — Phase 3 — Schema corporel et reperage spatial<small>Jeux corporels, parcours moteurs, reperes droite-gauche (8 seances)</small></div>
+          </div>
+          <div class="tl-item pending">
+            <div class="tl-date">Avr. 26</div>
+            <div class="tl-content" style="color:#64748b;">Phase 4 — Bilan de renouvellement et ajustements<small>Reevaluation, transmission ecole, reunion equipe pluridisciplinaire</small></div>
+          </div>
+        </div>
+        <div class="cgrid cgrid-2" style="margin-top:4px;">
+          <div class="crd"><h3>&#127919; Objectif principal</h3><p>Ameliorer la motricite fine et la grapho-motricite pour faciliter l'entree en ecriture cursive (CP).</p></div>
+          <div class="crd" style="border-color:rgba(13,148,136,.15);"><h3>&#128200; Progression globale</h3><p>18 seances realisees / 26 prevues<br><strong style="color:#5eead4;">69% du plan accompli</strong></p><div class="bar"><div class="bar-fill" style="width:69%;background:linear-gradient(90deg,#0d9488,#14b8a6);"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SUIVI DEVELOPPEMENT -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">&#128200; Suivi Developpement</span><span class="top-badge">Progression</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div style="padding:0 24px 14px;font-size:12px;font-weight:700;color:#94a3b8;">Evolution sur 6 mois — Lucas D.</div>
+        <div class="chart-area">
+          <div class="chart-row">
+            <div class="c-lbl">Motricite globale</div>
+            <div class="c-bar"><div class="c-fill" style="width:78%;background:linear-gradient(90deg,#0d9488,#14b8a6);">78%</div></div>
+          </div>
+          <div class="chart-row">
+            <div class="c-lbl">Motricite fine</div>
+            <div class="c-bar"><div class="c-fill" style="width:52%;background:linear-gradient(90deg,#f59e0b,#fbbf24);">52%</div></div>
+          </div>
+          <div class="chart-row">
+            <div class="c-lbl">Grapho-motricite</div>
+            <div class="c-bar"><div class="c-fill" style="width:45%;background:linear-gradient(90deg,#f59e0b,#f97316);">45%</div></div>
+          </div>
+          <div class="chart-row">
+            <div class="c-lbl">Regulation tonique</div>
+            <div class="c-bar"><div class="c-fill" style="width:71%;background:linear-gradient(90deg,#0d9488,#10b981);">71%</div></div>
+          </div>
+          <div class="chart-row">
+            <div class="c-lbl">Schema corporel</div>
+            <div class="c-bar"><div class="c-fill" style="width:38%;background:linear-gradient(90deg,#ef4444,#f97316);">38%</div></div>
+          </div>
+          <div class="chart-row">
+            <div class="c-lbl">Reperes temporels</div>
+            <div class="c-bar"><div class="c-fill" style="width:65%;background:linear-gradient(90deg,#06b6d4,#0d9488);">65%</div></div>
+          </div>
+        </div>
+        <div class="cgrid cgrid-3" style="margin-top:8px;">
+          <div class="crd" style="text-align:center;"><h3 style="justify-content:center;">&#128994; Progres</h3><p><strong style="color:#10b981;font-size:18px;">+23%</strong><br>Motricite globale<br><span style="font-size:8px;color:#475569;">vs M-3</span></p></div>
+          <div class="crd" style="text-align:center;"><h3 style="justify-content:center;">&#128993; En cours</h3><p><strong style="color:#f59e0b;font-size:18px;">+12%</strong><br>Grapho-motricite<br><span style="font-size:8px;color:#475569;">vs M-3</span></p></div>
+          <div class="crd" style="text-align:center;"><h3 style="justify-content:center;">&#127919; Objectif</h3><p><strong style="color:#5eead4;font-size:18px;">P40</strong><br>Cible percentile<br><span style="font-size:8px;color:#475569;">Schema corporel</span></p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. GRILLES D'OBSERVATION -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">&#128221; Grilles d'Observation</span><span class="top-badge">Seance du 22/04/2026</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div style="padding:0 24px 10px;font-size:12px;font-weight:700;color:#94a3b8;">Lucas D. — Seance 18 : Parcours moteur + grapho-motricite</div>
+        <div class="obs-grid">
+          <div class="obs-cell obs-h">Critere</div>
+          <div class="obs-cell obs-h">Debut</div>
+          <div class="obs-cell obs-h">Milieu</div>
+          <div class="obs-cell obs-h">Fin</div>
+          <div class="obs-cell obs-h">Tendance</div>
+
+          <div class="obs-cell" style="text-align:left;color:#94a3b8;font-weight:500;">Attention</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-g"><div class="obs-val">3</div>/4</div>
+          <div class="obs-cell obs-g"><div class="obs-val">3</div>/4</div>
+          <div class="obs-cell obs-g" style="font-weight:700;">&#8593;</div>
+
+          <div class="obs-cell" style="text-align:left;color:#94a3b8;font-weight:500;">Tonus</div>
+          <div class="obs-cell obs-r"><div class="obs-val">1</div>/4</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-g"><div class="obs-val">3</div>/4</div>
+          <div class="obs-cell obs-g" style="font-weight:700;">&#8593;&#8593;</div>
+
+          <div class="obs-cell" style="text-align:left;color:#94a3b8;font-weight:500;">Posture</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-g"><div class="obs-val">3</div>/4</div>
+          <div class="obs-cell obs-g" style="font-weight:700;">&#8593;</div>
+
+          <div class="obs-cell" style="text-align:left;color:#94a3b8;font-weight:500;">Coordination</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-y"><div class="obs-val">2</div>/4</div>
+          <div class="obs-cell obs-y" style="font-weight:700;">&#8594;</div>
+
+          <div class="obs-cell" style="text-align:left;color:#94a3b8;font-weight:500;">Comportement</div>
+          <div class="obs-cell obs-g"><div class="obs-val">3</div>/4</div>
+          <div class="obs-cell obs-g"><div class="obs-val">4</div>/4</div>
+          <div class="obs-cell obs-g"><div class="obs-val">4</div>/4</div>
+          <div class="obs-cell obs-g" style="font-weight:700;">&#8593;</div>
+        </div>
+        <div class="cgrid cgrid-2" style="margin-top:6px;">
+          <div class="crd"><h3>&#128221; Notes de seance</h3><p>Lucas montre une amelioration significative du tonus en fin de seance. La regulation tonique par la respiration commence a etre integree. Coordination bimanuelle encore fragile sur les exercices fins.</p></div>
+          <div class="crd" style="border-color:rgba(13,148,136,.15);"><h3>&#127919; Objectifs seance prochaine</h3><p>Poursuivre les exercices de grapho-motricite avec support incline. Introduire jeux de construction pour la coordination bimanuelle.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. TRANSMISSIONS -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">&#128232; Transmissions</span><span class="top-badge">Rapports et partage</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div style="padding:0 24px 14px;font-size:12px;font-weight:700;color:#94a3b8;">Generateur de comptes-rendus</div>
+        <div class="cgrid cgrid-3">
+          <div class="crd" style="text-align:center;border-color:rgba(13,148,136,.15);">
+            <h3 style="justify-content:center;">&#128104;&#8205;&#128105;&#8205;&#128103; Parents</h3>
+            <p>Compte-rendu simplifie<br>Langage accessible<br>Conseils a la maison</p>
+            <div style="margin-top:10px;padding:4px 10px;background:rgba(13,148,136,.1);border-radius:6px;font-size:9px;color:#5eead4;font-weight:600;display:inline-block;">Generer PDF</div>
+          </div>
+          <div class="crd" style="text-align:center;border-color:rgba(6,182,212,.15);">
+            <h3 style="justify-content:center;">&#127979; Ecole</h3>
+            <p>Rapport technique adapte<br>Amenagements proposes<br>Recommandations AVS</p>
+            <div style="margin-top:10px;padding:4px 10px;background:rgba(6,182,212,.1);border-radius:6px;font-size:9px;color:#67e8f9;font-weight:600;display:inline-block;">Generer PDF</div>
+          </div>
+          <div class="crd" style="text-align:center;border-color:rgba(139,92,246,.15);">
+            <h3 style="justify-content:center;">&#129658; Medecin</h3>
+            <p>Bilan detaille complet<br>Scores et percentiles<br>Diagnostic differentiel</p>
+            <div style="margin-top:10px;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px;font-size:9px;color:#c4b5fd;font-weight:600;display:inline-block;">Generer PDF</div>
+          </div>
+        </div>
+        <div style="padding:4px 24px 10px;font-size:12px;font-weight:700;color:#94a3b8;">Derniers envois</div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Document</span><span>Destinataire</span><span>Patient</span><span>Date</span><span>Statut</span></div>
+          <div class="tbl-r tbl-5"><span>CR Bilan initial</span><span>Dr. Martin (medecin)</span><span>Lucas D.</span><span>15/04/2026</span><span class="pill p-ok">Envoye &#10003;</span></div>
+          <div class="tbl-r tbl-5"><span>Fiche liaison ecole</span><span>Ecole Saint-Exupery</span><span>Lea R.</span><span>12/04/2026</span><span class="pill p-ok">Lu &#10003;</span></div>
+          <div class="tbl-r tbl-5"><span>CR Evolution</span><span>Mme Durand (parent)</span><span>Hugo M.</span><span>08/04/2026</span><span class="pill p-ok">Envoye &#10003;</span></div>
+          <div class="tbl-r tbl-5"><span>Bilan renouvellement</span><span>Dr. Petit (pedopsych.)</span><span>Emma T.</span><span>02/04/2026</span><span class="pill p-i">En attente</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap=[2,3,4,5,null];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  const navIdx=[2,3,4,5,null];
+  if(navIdx[cur]!==null) document.getElementById('n'+navIdx[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

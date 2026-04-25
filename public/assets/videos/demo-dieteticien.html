@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(13,148,136,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#0d9488,#14b8a6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#0d9488,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(13,148,136,.08);color:#5eead4;border-left-color:#0d9488;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(13,148,136,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(13,148,136,.1);color:#5eead4;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(13,148,136,.12),rgba(20,184,166,.06));border:1px solid rgba(13,148,136,.15);}.stat.i::after{background:#0d9488;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(13,148,136,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(13,148,136,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-6{grid-template-columns:2fr .8fr .8fr .8fr .8fr .6fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-i{background:rgba(13,148,136,.12);color:#5eead4;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.cgrid-7{grid-template-columns:repeat(7,1fr);}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(13,148,136,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Meal plan grid */
+.meal-grid{display:grid;grid-template-columns:100px repeat(7,1fr);gap:1px;margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(13,148,136,.06);font-size:9px;}
+.meal-hdr{background:rgba(13,148,136,.08);color:#5eead4;font-weight:700;padding:8px 6px;text-align:center;font-size:8px;text-transform:uppercase;letter-spacing:.5px;}
+.meal-label{background:rgba(15,23,42,.8);color:#94a3b8;font-weight:600;padding:8px 8px;display:flex;align-items:center;font-size:9px;}
+.meal-cell{background:rgba(15,23,42,.4);padding:6px;color:#cbd5e1;font-size:8px;line-height:1.4;border-top:1px solid rgba(13,148,136,.03);}
+.meal-cal{color:#0d9488;font-weight:700;font-size:7px;margin-top:2px;}
+
+/* Chart mockup */
+.chart-area{margin:18px 24px;background:rgba(15,23,42,.5);border:1px solid rgba(13,148,136,.06);border-radius:12px;padding:18px;position:relative;height:200px;}
+.chart-line{position:absolute;bottom:40px;left:60px;right:20px;top:20px;}
+.chart-svg{width:100%;height:100%;}
+.chart-axis-y{position:absolute;left:8px;top:20px;bottom:40px;display:flex;flex-direction:column;justify-content:space-between;font-size:8px;color:#475569;}
+.chart-axis-x{position:absolute;bottom:12px;left:60px;right:20px;display:flex;justify-content:space-between;font-size:8px;color:#475569;}
+.chart-legend{display:flex;gap:16px;margin-top:8px;font-size:9px;color:#94a3b8;}
+.chart-legend span{display:flex;align-items:center;gap:4px;}
+.chart-legend .dot-teal{width:8px;height:8px;border-radius:50%;background:#0d9488;}
+.chart-legend .dot-gold{width:8px;height:8px;border-radius:50%;background:#c9a961;}
+.chart-legend .line-dash{width:16px;height:2px;border-top:2px dashed #ef4444;}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(13,148,136,.06),rgba(20,184,166,.03));border:1px solid rgba(13,148,136,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#0d9488;margin-top:4px;}
+
+/* Bilan form */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 24px;margin-bottom:12px;}
+.form-group{background:rgba(30,41,59,.4);border:1px solid rgba(13,148,136,.06);border-radius:10px;padding:12px 14px;}
+.form-group label{font-size:8px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;}
+.form-group .value{font-size:14px;font-weight:700;color:#f1f5f9;}
+.form-group .unit{font-size:9px;color:#64748b;margin-left:2px;}
+.form-group .sub{font-size:9px;color:#0d9488;margin-top:2px;}
+
+/* IMC gauge */
+.imc-bar{height:8px;background:linear-gradient(90deg,#06b6d4 0%,#10b981 25%,#f59e0b 55%,#ef4444 80%,#dc2626 100%);border-radius:4px;margin:8px 0 4px;position:relative;}
+.imc-marker{position:absolute;top:-3px;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #0d9488;transform:translateX(-50%);}
+
+/* Tags */
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:8px;font-weight:600;margin:2px;}
+.tag-green{background:rgba(16,185,129,.12);color:#6ee7b7;}
+.tag-red{background:rgba(239,68,68,.12);color:#fca5a5;}
+.tag-blue{background:rgba(6,182,212,.12);color:#67e8f9;}
+.tag-teal{background:rgba(13,148,136,.12);color:#5eead4;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">&#128203; Agenda</div>
+    <div class="sb-item" id="n1">&#129485; Patients</div>
+    <div class="sb-item" id="n2">&#128221; Bilans</div>
+    <div class="sb-item" id="n3">&#127860; Plans alimentaires</div>
+    <div class="sb-item" id="n4">&#128200; Suivi</div>
+    <div class="sb-item" id="n5">&#127822; Recettes</div>
+    <div class="sb-sep">Gestion</div>
+    <div class="sb-item" id="n6">&#128176; Comptabilite <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n7">&#10024; Mon Site</div>
+    <div class="sb-sep" style="margin-top:auto;padding-top:20px;"></div>
+    <div style="margin:8px 18px;padding:8px 12px;background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(6,182,212,.04));border:1px solid rgba(13,148,136,.12);border-radius:8px;font-size:9px;color:#5eead4;font-weight:600;text-align:center;">1er mois offert</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. BILAN NUTRITIONNEL -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">&#128221; Bilan Nutritionnel</span><span class="top-badge">Consultation initiale</span></div>
+      <div class="content">
+        <div style="padding:14px 24px 8px;font-size:12px;font-weight:700;color:#f1f5f9;display:flex;align-items:center;gap:8px;">&#129485; Mme Sophie Lefebvre <span style="font-size:9px;color:#64748b;font-weight:400;">42 ans &middot; Consultation du 25/04/2026</span></div>
+        <div class="form-row">
+          <div class="form-group"><label>Poids actuel</label><div class="value">78,5 <span class="unit">kg</span></div><div class="sub">Objectif : 68 kg (-10,5 kg)</div></div>
+          <div class="form-group"><label>Taille</label><div class="value">1,65 <span class="unit">m</span></div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>IMC</label><div class="value">28,8 <span class="unit">kg/m2</span></div><div class="imc-bar"><div class="imc-marker" style="left:58%;"></div></div><div class="sub" style="color:#f59e0b;">Surpoids (seuil 25)</div></div>
+          <div class="form-group"><label>Tour de taille</label><div class="value">92 <span class="unit">cm</span></div><div class="sub" style="color:#f59e0b;">Risque cardiovasculaire eleve (&gt;80 cm)</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Allergies / Intolerances</label><div style="margin-top:4px;"><span class="tag tag-red">Lactose</span><span class="tag tag-red">Gluten</span></div></div>
+          <div class="form-group"><label>Objectifs</label><div style="margin-top:4px;"><span class="tag tag-teal">Perte de poids</span><span class="tag tag-blue">Equilibre alimentaire</span></div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Habitudes alimentaires</label><p style="font-size:10px;color:#94a3b8;margin-top:4px;">Saute le petit-dejeuner, grignotage 16h, repas du soir copieux. 2 cafes/jour. Peu de fruits et legumes.</p></div>
+          <div class="form-group"><label>Activite physique</label><p style="font-size:10px;color:#94a3b8;margin-top:4px;">Sedentaire (bureau). Marche 20 min/jour. Pas de sport regulier.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PLAN ALIMENTAIRE -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">&#127860; Plan Alimentaire Personnalise</span><span class="top-badge">Semaine 1 &middot; 1 650 kcal/j</span></div>
+      <div class="content">
+        <div style="padding:10px 24px 8px;font-size:11px;color:#94a3b8;">Objectif macro : P 25% &middot; G 45% &middot; L 30% &middot; Fibres 30g/j &middot; <strong style="color:#5eead4;">Sans gluten &middot; Sans lactose</strong></div>
+        <div class="meal-grid">
+          <div class="meal-hdr"></div>
+          <div class="meal-hdr">Lun</div><div class="meal-hdr">Mar</div><div class="meal-hdr">Mer</div><div class="meal-hdr">Jeu</div><div class="meal-hdr">Ven</div><div class="meal-hdr">Sam</div><div class="meal-hdr">Dim</div>
+
+          <div class="meal-label">Petit-dej</div>
+          <div class="meal-cell">Porridge avoine GF, fruits rouges<div class="meal-cal">380 kcal</div></div>
+          <div class="meal-cell">Smoothie banane amande epinards<div class="meal-cal">340 kcal</div></div>
+          <div class="meal-cell">Toast sarrasin, avocat, oeuf<div class="meal-cal">410 kcal</div></div>
+          <div class="meal-cell">Chia pudding lait coco, mangue<div class="meal-cal">350 kcal</div></div>
+          <div class="meal-cell">Galette sarrasin, jambon, oeuf<div class="meal-cal">390 kcal</div></div>
+          <div class="meal-cell">Granola maison GF, yaourt coco<div class="meal-cal">370 kcal</div></div>
+          <div class="meal-cell">Pancakes farine riz, myrtilles<div class="meal-cal">360 kcal</div></div>
+
+          <div class="meal-label">Dejeuner</div>
+          <div class="meal-cell">Poulet grille, quinoa, legumes<div class="meal-cal">520 kcal</div></div>
+          <div class="meal-cell">Saumon, riz complet, brocoli<div class="meal-cal">540 kcal</div></div>
+          <div class="meal-cell">Salade lentilles, chevre, noix<div class="meal-cal">480 kcal</div></div>
+          <div class="meal-cell">Wok poulet, nouilles riz, legumes<div class="meal-cal">500 kcal</div></div>
+          <div class="meal-cell">Filet colin, pommes de terre, haricots<div class="meal-cal">460 kcal</div></div>
+          <div class="meal-cell">Bowl quinoa, pois chiches, avocat<div class="meal-cal">510 kcal</div></div>
+          <div class="meal-cell">Roti porc, polenta, ratatouille<div class="meal-cal">530 kcal</div></div>
+
+          <div class="meal-label">Collation</div>
+          <div class="meal-cell">Pomme + amandes<div class="meal-cal">180 kcal</div></div>
+          <div class="meal-cell">Compote SSA + noix<div class="meal-cal">150 kcal</div></div>
+          <div class="meal-cell">Carotte + houmous<div class="meal-cal">140 kcal</div></div>
+          <div class="meal-cell">Banane + beurre cacah.<div class="meal-cal">200 kcal</div></div>
+          <div class="meal-cell">Yaourt coco + graines<div class="meal-cal">170 kcal</div></div>
+          <div class="meal-cell">Fruits secs + chocolat noir<div class="meal-cal">190 kcal</div></div>
+          <div class="meal-cell">Smoothie vert<div class="meal-cal">160 kcal</div></div>
+
+          <div class="meal-label">Diner</div>
+          <div class="meal-cell">Soupe legumes, oeuf dur<div class="meal-cal">380 kcal</div></div>
+          <div class="meal-cell">Omelette courgette, salade<div class="meal-cal">360 kcal</div></div>
+          <div class="meal-cell">Poisson vapeur, riz, epinards<div class="meal-cal">420 kcal</div></div>
+          <div class="meal-cell">Salade tiede quinoa, legumes<div class="meal-cal">370 kcal</div></div>
+          <div class="meal-cell">Soupe miso, saumon fume, riz<div class="meal-cal">390 kcal</div></div>
+          <div class="meal-cell">Gratin legumes, tofu<div class="meal-cal">350 kcal</div></div>
+          <div class="meal-cell">Veloute potimarron, tartine GF<div class="meal-cal">340 kcal</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SUIVI PONDERAL -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">&#128200; Suivi Ponderal</span><span class="top-badge">12 semaines</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#9878;</div><div class="stat-val">78,5</div><div class="stat-lbl">Poids actuel (kg)</div><div class="stat-delta">-4,2 kg depuis debut</div></div>
+          <div class="stat c"><div class="stat-icon">&#128207;</div><div class="stat-val">28,8</div><div class="stat-lbl">IMC actuel</div><div class="stat-delta" style="color:#fcd34d;">Objectif : 25,0</div></div>
+          <div class="stat e"><div class="stat-icon">&#127919;</div><div class="stat-val">68,0</div><div class="stat-lbl">Objectif (kg)</div><div class="stat-delta">Reste -10,5 kg</div></div>
+          <div class="stat r"><div class="stat-icon">&#128293;</div><div class="stat-val">1 650</div><div class="stat-lbl">Kcal/jour cible</div><div class="stat-delta" style="color:#5eead4;">Deficit -350 kcal</div></div>
+        </div>
+        <div class="chart-area">
+          <div style="font-size:11px;font-weight:700;margin-bottom:8px;">Evolution ponderale (kg)</div>
+          <div class="chart-axis-y"><span>84</span><span>82</span><span>80</span><span>78</span><span>76</span><span>74</span></div>
+          <div class="chart-line">
+            <svg class="chart-svg" viewBox="0 0 500 120" preserveAspectRatio="none">
+              <!-- Objective line -->
+              <line x1="0" y1="108" x2="500" y2="108" stroke="#ef4444" stroke-width="1" stroke-dasharray="6,4" opacity=".4"/>
+              <text x="505" y="112" font-size="8" fill="#ef4444" opacity=".6">Obj.</text>
+              <!-- Weight curve -->
+              <polyline fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                points="0,10 42,14 84,20 126,18 168,28 210,32 252,38 294,42 336,48 378,52 420,56 462,60"/>
+              <polyline fill="url(#tealGrad)" stroke="none"
+                points="0,10 42,14 84,20 126,18 168,28 210,32 252,38 294,42 336,48 378,52 420,56 462,60 462,120 0,120"/>
+              <!-- IMC curve -->
+              <polyline fill="none" stroke="#c9a961" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".6"
+                points="0,8 42,12 84,16 126,15 168,24 210,28 252,34 294,38 336,44 378,48 420,52 462,56"/>
+              <!-- Data points -->
+              <circle cx="0" cy="10" r="3" fill="#0d9488"/><circle cx="84" cy="20" r="3" fill="#0d9488"/><circle cx="168" cy="28" r="3" fill="#0d9488"/><circle cx="252" cy="38" r="3" fill="#0d9488"/><circle cx="336" cy="48" r="3" fill="#0d9488"/><circle cx="420" cy="56" r="3" fill="#0d9488"/><circle cx="462" cy="60" r="3" fill="#0d9488" stroke="#fff" stroke-width="1.5"/>
+              <defs><linearGradient id="tealGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d9488" stop-opacity=".15"/><stop offset="100%" stop-color="#0d9488" stop-opacity="0"/></linearGradient></defs>
+            </svg>
+          </div>
+          <div class="chart-axis-x"><span>S1</span><span>S2</span><span>S3</span><span>S4</span><span>S5</span><span>S6</span><span>S7</span><span>S8</span><span>S9</span><span>S10</span><span>S11</span><span>S12</span></div>
+          <div class="chart-legend"><span><span class="dot-teal"></span> Poids</span><span><span class="dot-gold"></span> IMC</span><span><span class="line-dash"></span> Objectif 68 kg</span></div>
+        </div>
+        <div class="cgrid cgrid-2" style="margin-top:8px;">
+          <div class="crd"><h3>&#128202; Tendance</h3><p>Perte moyenne : <strong style="color:#5eead4;">-0,35 kg/sem</strong><br>Rythme adapte et progressif. Objectif atteint en ~30 semaines.</p></div>
+          <div class="crd"><h3>&#128170; Composition corporelle</h3><p>Masse grasse : <strong>32,4%</strong> (objectif 26%)<br>Masse maigre : <strong>53,1 kg</strong> (stable)</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. BASE ALIMENTS -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">&#127822; Base Aliments</span><span class="top-badge">2 840 references</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content">
+        <div style="padding:14px 24px 8px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="flex:1;background:rgba(30,41,59,.5);border:1px solid rgba(13,148,136,.1);border-radius:8px;padding:8px 14px;font-size:11px;color:#64748b;">&#128269; Rechercher un aliment...</div>
+            <div style="display:flex;gap:4px;"><span class="tag tag-teal">CIQUAL</span><span class="tag tag-blue">Table Anses</span></div>
+          </div>
+        </div>
+        <div class="tbl" style="margin-top:8px;">
+          <div class="tbl-h tbl-6"><span>Aliment</span><span>Calories</span><span>Proteines</span><span>Glucides</span><span>Lipides</span><span>Fibres</span></div>
+          <div class="tbl-r tbl-6"><span>&#127822; Pomme Golden (100g)</span><span style="font-weight:600;">52 kcal</span><span>0,3 g</span><span>11,4 g</span><span>0,2 g</span><span>2,4 g</span></div>
+          <div class="tbl-r tbl-6"><span>&#129385; Blanc de poulet (100g)</span><span style="font-weight:600;">165 kcal</span><span style="color:#5eead4;font-weight:600;">31,0 g</span><span>0 g</span><span>3,6 g</span><span>0 g</span></div>
+          <div class="tbl-r tbl-6"><span>&#129408; Saumon frais (100g)</span><span style="font-weight:600;">208 kcal</span><span style="color:#5eead4;font-weight:600;">20,4 g</span><span>0 g</span><span style="color:#fcd34d;">13,4 g</span><span>0 g</span></div>
+          <div class="tbl-r tbl-6"><span>&#127834; Quinoa cuit (100g)</span><span style="font-weight:600;">120 kcal</span><span>4,4 g</span><span>21,3 g</span><span>1,9 g</span><span style="color:#5eead4;">2,8 g</span></div>
+          <div class="tbl-r tbl-6"><span>&#129382; Avocat (100g)</span><span style="font-weight:600;">160 kcal</span><span>2,0 g</span><span>8,5 g</span><span style="color:#fcd34d;">14,7 g</span><span style="color:#5eead4;">6,7 g</span></div>
+          <div class="tbl-r tbl-6"><span>&#129361; Lentilles cuites (100g)</span><span style="font-weight:600;">116 kcal</span><span style="color:#5eead4;font-weight:600;">9,0 g</span><span>20,1 g</span><span>0,4 g</span><span style="color:#5eead4;">7,9 g</span></div>
+          <div class="tbl-r tbl-6"><span>&#127858; Oeuf entier (60g)</span><span style="font-weight:600;">86 kcal</span><span>7,5 g</span><span>0,4 g</span><span>6,2 g</span><span>0 g</span></div>
+        </div>
+        <div style="padding:12px 24px;font-size:9px;color:#475569;">Portion personnalisable &middot; Source CIQUAL/Anses &middot; 2 840 aliments indexes</div>
+      </div>
+    </div>
+
+    <!-- 5. COMPTABILITE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">&#128176; Comptabilite</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128181;</div><div class="stat-val">4 680&#8364;</div><div class="stat-lbl">CA mensuel</div><div class="stat-delta">+12% vs mars</div></div>
+          <div class="stat c"><div class="stat-icon">&#129485;</div><div class="stat-val">72</div><div class="stat-lbl">Consultations</div><div class="stat-delta">+8 vs mars</div></div>
+          <div class="stat e"><div class="stat-icon">&#128179;</div><div class="stat-val">65&#8364;</div><div class="stat-lbl">Honoraire moyen</div><div class="stat-delta">Libre (non conv.)</div></div>
+          <div class="stat r"><div class="stat-icon">&#128203;</div><div class="stat-val">3</div><div class="stat-lbl">Factures impayees</div><div class="stat-delta" style="color:#fca5a5;">195&#8364; en retard</div></div>
+        </div>
+        <div style="padding:0 24px 8px;font-size:12px;font-weight:700;">Dernieres factures</div>
+        <div class="tbl">
+          <div class="tbl-h tbl-5"><span>Patient</span><span>Date</span><span>Montant</span><span>Type</span><span>Statut</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Lefebvre S.</span><span>25/04</span><span style="font-weight:600;">65,00&#8364;</span><span style="font-size:9px;">Bilan initial</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-5"><span>M. Durand P.</span><span>24/04</span><span style="font-weight:600;">55,00&#8364;</span><span style="font-size:9px;">Suivi mensuel</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Garcia A.</span><span>23/04</span><span style="font-weight:600;">75,00&#8364;</span><span style="font-size:9px;">Bilan complet</span><span class="pill p-w">En attente</span></div>
+          <div class="tbl-r tbl-5"><span>M. Bernard L.</span><span>22/04</span><span style="font-weight:600;">55,00&#8364;</span><span style="font-size:9px;">Suivi mensuel</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Petit C.</span><span>21/04</span><span style="font-weight:600;">65,00&#8364;</span><span style="font-size:9px;">Education therap.</span><span class="pill p-c">Impayee</span></div>
+        </div>
+        <div class="cgrid cgrid-3" style="margin-top:14px;">
+          <div class="gcard"><div class="ico">&#128200;</div><div class="lbl">CA YTD 2026</div><div class="val">18 240&#8364;</div></div>
+          <div class="gcard"><div class="ico">&#128202;</div><div class="lbl">Taux encaissement</div><div class="val">95,8%</div></div>
+          <div class="gcard"><div class="ico">&#128230;</div><div class="lbl">Export comptable</div><div class="val" style="font-size:12px;">CSV / PDF</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navIdx=[2,3,4,5,6];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navIdx[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

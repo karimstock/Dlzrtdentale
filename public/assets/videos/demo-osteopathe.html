@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+.sb-offer{margin:12px 14px;padding:10px 12px;background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(6,182,212,.04));border:1px solid rgba(13,148,136,.15);border-radius:8px;text-align:center;font-size:9px;color:#5eead4;font-weight:600;line-height:1.5;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-3{grid-template-columns:1.5fr 2fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-i{background:rgba(99,102,241,.12);color:#a5b4fc;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Body diagram */
+.body-diagram{margin:18px 24px;border-radius:14px;padding:20px;background:rgba(13,148,136,.03);border:1px solid rgba(13,148,136,.1);position:relative;min-height:260px;display:flex;align-items:center;justify-content:center;}
+.body-zone{position:absolute;padding:4px 10px;border-radius:6px;font-size:9px;font-weight:600;}
+.bz-red{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.15);}
+.bz-yellow{background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.15);}
+.bz-green{background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.15);}
+.body-center{font-size:11px;color:#475569;text-align:center;line-height:1.8;}
+.body-line{position:absolute;height:1px;background:rgba(148,163,184,.15);}
+
+/* Timeline */
+.timeline{padding:0 24px;}
+.tl-item{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid rgba(99,102,241,.04);}
+.tl-date{min-width:70px;font-size:10px;font-weight:700;color:#a5b4fc;}
+.tl-content{flex:1;}
+.tl-title{font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:3px;}
+.tl-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
+.tl-tag{font-size:8px;padding:2px 7px;border-radius:4px;font-weight:600;}
+.tl-result{font-size:9px;font-weight:600;margin-left:auto;padding:3px 8px;border-radius:4px;}
+
+/* Exercise cards */
+.ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 24px;}
+.ex-card{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:10px;padding:14px;position:relative;}
+.ex-card h4{font-size:11px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.ex-card p{font-size:9px;color:#94a3b8;line-height:1.5;}
+.ex-freq{font-size:9px;font-weight:600;color:#06b6d4;margin-top:6px;}
+.ex-compliance{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:9px;color:#94a3b8;}
+.ex-bar{flex:1;height:4px;background:rgba(30,41,59,.8);border-radius:2px;overflow:hidden;}
+.ex-bar-fill{height:100%;border-radius:2px;}
+
+/* Revenue cards */
+.rev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 24px 14px;}
+.rev-card{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:16px;text-align:center;}
+.rev-card .ico{font-size:22px;margin-bottom:4px;}
+.rev-card .lbl{font-size:9px;font-weight:500;color:#94a3b8;}
+.rev-card .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+.rev-card .delta{font-size:9px;font-weight:600;color:#34d399;margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">&#128197; Agenda</div>
+    <div class="sb-item" id="n1">&#129489; Patients</div>
+    <div class="sb-item" id="n2">&#128203; Fiches cliniques</div>
+    <div class="sb-item" id="n3">&#129516; Schemas</div>
+    <div class="sb-item" id="n4">&#128170; Exercices</div>
+    <div class="sb-sep">Gestion</div>
+    <div class="sb-item" id="n5">&#128257; Suivi</div>
+    <div class="sb-item" id="n6">&#128176; Comptabilite</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n7">&#10024; Mon Site <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-offer">&#127873; 1er mois offert<br>sur tous les plans</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. FICHES PATIENTS -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">&#128203; Fiches Patients</span><span class="top-badge">342 patients</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#129489;</div><div class="stat-val">342</div><div class="stat-lbl">Patients actifs</div><div class="stat-delta">+18 ce mois</div></div>
+          <div class="stat c"><div class="stat-icon">&#128197;</div><div class="stat-val">28</div><div class="stat-lbl">RDV cette semaine</div><div class="stat-delta">+4 vs sem. dern.</div></div>
+          <div class="stat e"><div class="stat-icon">&#9989;</div><div class="stat-val">94%</div><div class="stat-lbl">Taux presence</div><div class="stat-delta">+2% ce mois</div></div>
+          <div class="stat r"><div class="stat-icon">&#128276;</div><div class="stat-val">6</div><div class="stat-lbl">Relances a faire</div><div class="stat-delta" style="color:#fca5a5;">A traiter</div></div>
+        </div>
+        <div style="padding:4px 24px 8px;font-size:12px;font-weight:700;color:#94a3b8;">Derniers patients consultes</div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Patient</span><span>Motif</span><span>Antecedents</span><span>Zone tension</span><span>Tests</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Leroy Sophie</span><span>Cervicalgies</span><span>Whiplash 2023</span><span class="pill p-c">C3-C5</span><span style="font-size:9px;color:#64748b;">Spurling (&#8722;)</span></div>
+          <div class="tbl-r tbl-5"><span>M. Durand Pierre</span><span>Lombalgies</span><span>Hernie L4-L5</span><span class="pill p-w">L4-L5</span><span style="font-size:9px;color:#64748b;">Lasegue (+)</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Petit Claire</span><span>Douleur bassin</span><span>Post-partum</span><span class="pill p-i">Sacro-iliaque</span><span style="font-size:9px;color:#64748b;">Downing (+)</span></div>
+          <div class="tbl-r tbl-5"><span>M. Martin Lucas</span><span>Cephalees</span><span>Bruxisme</span><span class="pill p-ok">Cranien</span><span style="font-size:9px;color:#64748b;">Flexion SSB</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Garcia Ines</span><span>Epaule gelee</span><span>Tendinite 2024</span><span class="pill p-c">Epaule D.</span><span style="font-size:9px;color:#64748b;">Neer (+)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. SCHEMAS ANATOMIQUES -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">&#129516; Schemas Anatomiques — Mme Leroy</span><span class="top-badge">Vue corporelle</span></div>
+      <div class="content">
+        <div style="padding:14px 24px 8px;font-size:11px;color:#94a3b8;">Zones identifiees lors de la derniere seance — cliquez pour annoter</div>
+        <div class="body-diagram">
+          <div class="body-center">
+            &#9711;<br>
+            &#9475;<br>
+            &#9585;&#8192;&#9586;<br>
+            &#9475;<br>
+            &#9585;&#8192;&#9586;<br>
+            <span style="font-size:9px;color:#334155;">Vue posterieure</span>
+          </div>
+          <div class="body-zone bz-red" style="top:18%;left:38%">&#128308; Rachis cervical C3-C5<br><span style="font-size:7px;opacity:.7;">Restriction mobilite rotation D.</span></div>
+          <div class="body-zone bz-yellow" style="top:42%;right:18%">&#128992; Trapeze superieur D.<br><span style="font-size:7px;opacity:.7;">Contracture, trigger point</span></div>
+          <div class="body-zone bz-red" style="top:58%;left:22%">&#128308; Rachis lombaire L4-L5<br><span style="font-size:7px;opacity:.7;">Dysfonction ERS gauche</span></div>
+          <div class="body-zone bz-yellow" style="top:68%;right:22%">&#128992; Bassin / Sacrum<br><span style="font-size:7px;opacity:.7;">Torsion sacree gauche</span></div>
+          <div class="body-zone bz-green" style="top:32%;left:18%">&#128994; Epaule D.<br><span style="font-size:7px;opacity:.7;">Mobilite normale</span></div>
+          <div class="body-zone bz-green" style="bottom:18%;right:35%">&#128994; Genoux<br><span style="font-size:7px;opacity:.7;">RAS</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. HISTORIQUE SEANCES -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">&#128336; Historique Seances — Mme Leroy</span><span class="top-badge">12 seances</span></div>
+      <div class="content">
+        <div style="padding:14px 24px 8px;font-size:11px;color:#94a3b8;">Chronologie des consultations et techniques appliquees</div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-date">15/04/2026</div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 12 — Cervicalgies + lombalgies</div>
+              <div class="tl-tags">
+                <span class="tl-tag" style="background:rgba(99,102,241,.12);color:#a5b4fc;">Structurel</span>
+                <span class="tl-tag" style="background:rgba(6,182,212,.12);color:#67e8f9;">Fascial</span>
+              </div>
+            </div>
+            <div class="tl-result" style="background:rgba(16,185,129,.12);color:#6ee7b7;">Amelioration</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">02/04/2026</div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 11 — Cephalees + tensions cranien</div>
+              <div class="tl-tags">
+                <span class="tl-tag" style="background:rgba(139,92,246,.12);color:#c4b5fd;">Cranien</span>
+                <span class="tl-tag" style="background:rgba(244,63,94,.12);color:#fda4af;">Visceral</span>
+              </div>
+            </div>
+            <div class="tl-result" style="background:rgba(16,185,129,.12);color:#6ee7b7;">Amelioration</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">18/03/2026</div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 10 — Lombalgies aigues post-effort</div>
+              <div class="tl-tags">
+                <span class="tl-tag" style="background:rgba(99,102,241,.12);color:#a5b4fc;">Structurel</span>
+                <span class="tl-tag" style="background:rgba(245,158,11,.12);color:#fcd34d;">MTP</span>
+              </div>
+            </div>
+            <div class="tl-result" style="background:rgba(245,158,11,.12);color:#fcd34d;">Stable</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">04/03/2026</div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 9 — Troubles digestifs + psoas</div>
+              <div class="tl-tags">
+                <span class="tl-tag" style="background:rgba(244,63,94,.12);color:#fda4af;">Visceral</span>
+                <span class="tl-tag" style="background:rgba(6,182,212,.12);color:#67e8f9;">Fascial</span>
+              </div>
+            </div>
+            <div class="tl-result" style="background:rgba(239,68,68,.12);color:#fca5a5;">Douloureux</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">15/02/2026</div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 8 — Bilan global, cervicalgies</div>
+              <div class="tl-tags">
+                <span class="tl-tag" style="background:rgba(99,102,241,.12);color:#a5b4fc;">Structurel</span>
+                <span class="tl-tag" style="background:rgba(139,92,246,.12);color:#c4b5fd;">Cranien</span>
+                <span class="tl-tag" style="background:rgba(6,182,212,.12);color:#67e8f9;">Fascial</span>
+              </div>
+            </div>
+            <div class="tl-result" style="background:rgba(16,185,129,.12);color:#6ee7b7;">Amelioration</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. EXERCICES PRESCRITS -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">&#128170; Exercices Prescrits — Mme Leroy</span><span class="top-badge">6 exercices actifs</span></div>
+      <div class="content" style="padding-top:14px;">
+        <div style="padding:0 24px 10px;font-size:11px;color:#94a3b8;">Exercices personnalises avec suivi d'observance patient</div>
+        <div class="ex-grid">
+          <div class="ex-card">
+            <h4>&#128170; Etirement trapeze bilateral</h4>
+            <p>Incliner la tete lateralement, maintenir 30 secondes chaque cote. Ne pas forcer.</p>
+            <div class="ex-freq">&#128337; 3x / jour &middot; 30 sec / cote</div>
+            <div class="ex-compliance"><span>Observance</span><div class="ex-bar"><div class="ex-bar-fill" style="width:85%;background:linear-gradient(90deg,#10b981,#14b8a6);"></div></div><span style="color:#10b981;font-weight:700;">85%</span></div>
+          </div>
+          <div class="ex-card">
+            <h4>&#129336; Respiration diaphragmatique</h4>
+            <p>Inspirer 4s par le nez, bloquer 4s, expirer 6s par la bouche. Position allongee.</p>
+            <div class="ex-freq">&#128337; Matin et soir &middot; 5 min</div>
+            <div class="ex-compliance"><span>Observance</span><div class="ex-bar"><div class="ex-bar-fill" style="width:72%;background:linear-gradient(90deg,#06b6d4,#3b82f6);"></div></div><span style="color:#06b6d4;font-weight:700;">72%</span></div>
+          </div>
+          <div class="ex-card">
+            <h4>&#127939; Gainage lateral</h4>
+            <p>Position laterale sur coude, maintenir l'alignement tete-bassin-pieds.</p>
+            <div class="ex-freq">&#128337; 2x / jour &middot; 3 x 30 sec</div>
+            <div class="ex-compliance"><span>Observance</span><div class="ex-bar"><div class="ex-bar-fill" style="width:60%;background:linear-gradient(90deg,#f59e0b,#f97316);"></div></div><span style="color:#f59e0b;font-weight:700;">60%</span></div>
+          </div>
+          <div class="ex-card">
+            <h4>&#128694; Marche active quotidienne</h4>
+            <p>Marche soutenue en terrain plat. Chaussures adaptees, bras balancants.</p>
+            <div class="ex-freq">&#128337; 1x / jour &middot; 30 min</div>
+            <div class="ex-compliance"><span>Observance</span><div class="ex-bar"><div class="ex-bar-fill" style="width:90%;background:linear-gradient(90deg,#10b981,#14b8a6);"></div></div><span style="color:#10b981;font-weight:700;">90%</span></div>
+          </div>
+          <div class="ex-card">
+            <h4>&#128260; Rotation cervicale douce</h4>
+            <p>Tourner lentement la tete de chaque cote, sans a-coup. Amplitude progressive.</p>
+            <div class="ex-freq">&#128337; 3x / jour &middot; 10 repetitions</div>
+            <div class="ex-compliance"><span>Observance</span><div class="ex-bar"><div class="ex-bar-fill" style="width:78%;background:linear-gradient(90deg,#6366f1,#8b5cf6);"></div></div><span style="color:#a5b4fc;font-weight:700;">78%</span></div>
+          </div>
+          <div class="ex-card">
+            <h4>&#129496; Cat-Cow (quadrupedie)</h4>
+            <p>Alterner flexion/extension du rachis en position quatre pattes. Rythme lent.</p>
+            <div class="ex-freq">&#128337; Matin &middot; 2 x 10 repetitions</div>
+            <div class="ex-compliance"><span>Observance</span><div class="ex-bar"><div class="ex-bar-fill" style="width:55%;background:linear-gradient(90deg,#f59e0b,#f97316);"></div></div><span style="color:#f59e0b;font-weight:700;">55%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. COMPTABILITE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">&#128176; Comptabilite</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat e"><div class="stat-icon">&#128176;</div><div class="stat-val">6 840 &#8364;</div><div class="stat-lbl">CA Avril</div><div class="stat-delta">+12% vs mars</div></div>
+          <div class="stat i"><div class="stat-icon">&#128197;</div><div class="stat-val">114</div><div class="stat-lbl">Seances facturees</div><div class="stat-delta">+8 vs mars</div></div>
+          <div class="stat c"><div class="stat-icon">&#128184;</div><div class="stat-val">60 &#8364;</div><div class="stat-lbl">Honoraire moyen</div><div class="stat-delta">Stable</div></div>
+          <div class="stat r"><div class="stat-icon">&#128200;</div><div class="stat-val">78 420 &#8364;</div><div class="stat-lbl">CA annuel cumule</div><div class="stat-delta">+15% vs N-1</div></div>
+        </div>
+        <div style="padding:4px 24px 10px;font-size:12px;font-weight:700;color:#94a3b8;">Declarations et suivi</div>
+        <div class="rev-grid">
+          <div class="rev-card"><div class="ico">&#127970;</div><div class="lbl">URSSAF T1 2026</div><div class="val" style="font-size:16px;color:#f59e0b;">2 145 &#8364;</div><div class="delta" style="color:#fcd34d;">Echeance 05/05</div></div>
+          <div class="rev-card"><div class="ico">&#128195;</div><div class="lbl">Factures en attente</div><div class="val" style="font-size:16px;">4</div><div class="delta">480 &#8364; a encaisser</div></div>
+          <div class="rev-card"><div class="ico">&#128200;</div><div class="lbl">Taux encaissement</div><div class="val" style="font-size:16px;">96%</div><div class="delta">+2% vs T4 2025</div></div>
+        </div>
+        <div style="padding:4px 24px 8px;font-size:12px;font-weight:700;color:#94a3b8;">Derniers reglements</div>
+        <div class="tbl"><div class="tbl-h tbl-4"><span>Patient</span><span>Date</span><span>Montant</span><span>Mode</span></div>
+          <div class="tbl-r tbl-4"><span>Mme Leroy Sophie</span><span>15/04/2026</span><span style="font-weight:600;">60,00 &#8364;</span><span class="pill p-ok">CB &#10003;</span></div>
+          <div class="tbl-r tbl-4"><span>M. Durand Pierre</span><span>15/04/2026</span><span style="font-weight:600;">60,00 &#8364;</span><span class="pill p-ok">Cheque &#10003;</span></div>
+          <div class="tbl-r tbl-4"><span>Mme Petit Claire</span><span>14/04/2026</span><span style="font-weight:600;">60,00 &#8364;</span><span class="pill p-ok">CB &#10003;</span></div>
+          <div class="tbl-r tbl-4"><span>M. Martin Lucas</span><span>14/04/2026</span><span style="font-weight:600;">60,00 &#8364;</span><span class="pill p-w">Especes</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap={0:0,1:1,2:2,3:3,4:6};
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navMap[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

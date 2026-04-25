@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 24 avril 2026
-**Derniere passe** : Passe 36 — CMS 3 formules Studio (Classic/Pro/Expert)
+**Derniere mise a jour** : 25 avril 2026
+**Derniere passe** : Passe 53 — JADOMI Care Network (Reseau de Soins)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -288,6 +288,19 @@ et recommander l'approche (reconstruire, ameliorer, refuser).
 - 17 endpoints API /api/studio/cms/* et /api/studio/analyse/*
 - Dashboard frontend : Pro/Expert/Classic avec differenciation visuelle
 - Onglet JADOMI Studio dans sidebar dashboard principal
+
+## 2.24 JADOMI Care Network — Reseau de Soins interprofessionnel (Passe 53)
+Extension du Triangle Photo : coordination N praticiens autour d'un patient.
+- Cercle de soins : chaque patient a N praticiens (internes JADOMI ou externes)
+- Partages inter-praticiens : photos, videos, notes, documents entre membres du cercle
+- Adressage patient : praticien refere un patient a un confrere avec preuves visuelles
+- Vue patient : equipe de soins visible (sans messages interprofessionnels confidentiels)
+- Professions supportees : dentiste, kine, medecin, osteo, dermato, orl, ophtalmo, etc. (22)
+- 2 tables SQL : care_circle + partages, 1 vue care_team_view
+- 12 endpoints API /api/dentiste-pro/reseau/* (11 fonctionnels + mark-as-read)
+- Roles cercle : referent (primaire), membre, consultant
+- Urgences : routine, urgent, immediat
+- Upload media : 25 Mo max (photo/video/PDF)
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -966,6 +979,8 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [ ] Audit complet modules existants
 - [ ] Nettoyer 5 sites dupliques en BDD
 
+- [x] JADOMI Care Network : reseau de soins interprofessionnel (Passe 53)
+- [ ] Executer migration SQL 53 dans Supabase (reseau de soins)
 - [ ] Passe 38 : Systeme JADOMI Coins (wallet tokens type PlayStation/Steam)
   - Packs : 100/500/1000/2500/10000 coins
   - Gamification : bonus quotidien, quetes, niveaux Bronze→Diamant
@@ -1039,6 +1054,8 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - Tester onboarding v2 avec epouse avocate
 - Ajouter OPENAI_API_KEY dans .env pour DALL-E 3
 - Appeler contact avocat pour RDV CGV partenariat
+- Executer SQL 53 (reseau_soins) dans Supabase Dashboard
+- Ajouter permission 'reseau' aux membres equipe existants pour activer le module
 
 ===============================================================
 # 11. SECURITE & ACCES
@@ -1107,6 +1124,227 @@ Utiliser 1Password ou Bitwarden pour :
 Tables chatbot : utilisent deja le prefixe vitrine_chatbot_* (correct).
 Tables coins (Passe 38) : sql/vitrines/38_coins_wallet_structure.sql cree (user_coins_wallet).
 
+## Passe 44 (25 avril 2026) -- JADOMI Avocat Expert + Coffre-fort OTP + Homepage BMW
+Fichiers crees :
+- api/avocat/coffre.js (20 KB, coffre-fort chiffre AES-256-GCM, double auth password+OTP)
+- api/avocat/espace-client.js (15 KB, portail client avocat, invitation tokens)
+- services/otp-sender.js (4.8 KB, OTP multi-canal : email, SMS OVH, WhatsApp Meta)
+- public/avocat/coffre.html + public/avocat/espace-client.html
+- sql/vitrines/48_avocat_expert_coffre.sql (7 tables avocat_*)
+- sql/vitrines/49_otp_verification.sql (table avocat_otp_codes)
+Refonte homepage landing.html style BMW (hero video, letter-fly JADOMI, social proof photos defilantes).
+16 demos HTML animees interfaces metier (page-flip 3D, 5 ecrans, 3.5s cycle) :
+- demo-dentiste, demo-avocat, demo-sci, demo-btp, demo-createur
+- demo-orthodontiste, demo-prothesiste, demo-paramedical
+- demo-kine, demo-osteopathe, demo-podologue, demo-orthophoniste
+- demo-psychomotricien, demo-dieteticien, demo-sage-femme, demo-infirmier
+8 pages landing paramedicales dediees :
+- kinesitherapeutes.html, osteopathes.html, podologues.html, orthophonistes.html
+- psychomotriciens.html, dieteticiens.html, sages-femmes.html, infirmiers.html
+Cartes metiers cliquables sur professions-paramedicales.html ("Decouvrir →").
+Nettoyage tele-transmission CPAM : retire comme feature JADOMI (garde en pain points).
+SQL 48-49 executes en prod. Badges "GRATUIT" Stock + "1er mois offert" modules.
+
+## Passe 46 (25 avril 2026) -- JADOMI Dentiste Pro Phase A (Backend)
+Decision GO Phase A. Construction complete du backend multi-profession.
+Fichiers crees (14 fichiers API, ~250 KB) :
+- sql/dentiste-pro/50_dentiste_pro_schema.sql (10 tables + indexes + RLS)
+- sql/dentiste-pro/51_roles_permissions.sql (1 table dentiste_pro_team)
+- api/dentiste-pro/shared.js (JWT patient, middleware requirePatient/requireCabinet/requireLabo)
+- api/dentiste-pro/auth.js (6 endpoints : OTP telephone, profil, push subscribe)
+- api/dentiste-pro/cabinet.js (5 endpoints : CRUD cabinet, config IA)
+- api/dentiste-pro/batch-slots.js (6 endpoints : Smart Batch Slot-Finder WORLD FIRST)
+- api/dentiste-pro/chat.js (5 endpoints : chat direct SSE temps reel)
+- api/dentiste-pro/chat-ia.js (2 endpoints : chatbot IA Claude Haiku 24/7)
+- api/dentiste-pro/waitlist.js (8 endpoints : liste attente smart + notif urgence)
+- api/dentiste-pro/rappels.js (3 endpoints + cron 15min : rappels multi-touch J-7/J-3/J-1/H-2)
+- api/dentiste-pro/dashboard.js (4 endpoints : morning huddle, stats, pipeline)
+- api/dentiste-pro/team.js (7 endpoints : roles/permissions 6 roles, 14 modules checkboxes)
+- api/dentiste-pro/index.js (router principal, 11 sous-modules)
+- web-push npm installe pour notifications VAPID
+SQL 50-51 executes en prod. Toutes professions supportees (15 types).
+
+## Passe 47 (25 avril 2026) -- PWA Patient + Dashboard Admin
+3 apps PWA construites et en ligne :
+- public/patient/ (13 fichiers : shell SPA, SW, manifest, 6 pages, CSS, router, API)
+  URL : jadomi.fr/patient/ — login OTP, mes RDV, chat, chat IA, mon equipe, profil
+- public/admin/dentiste-pro.html (dashboard 13 tabs, sidebar, routing)
+  URL : jadomi.fr/admin/dentiste-pro — morning huddle, agenda semaine,
+  patients, chat split-view, batch RDV, waitlist, rappels, equipe checkboxes,
+  stats, config, triangle, reseau
+- public/admin/js/ (13 fichiers tab-*.js + photo-tools.js + photo-consent.js)
+  185 KB de modules frontend avec demo data integree
+Serveur monte : routes /patient/, /admin/dentiste-pro, CORS patient.jadomi.fr.
+
+## Passe 48 (25 avril 2026) -- Triangle Photo (systeme 3 parties WORLD FIRST)
+Systeme photo triangulaire Praticien-Patient-Labo. AUCUN concurrent mondial.
+Regle : patient et labo ne communiquent JAMAIS directement. Tout via praticien.
+Contrainte SQL triangle_routing enforce au niveau BDD.
+Fichiers crees :
+- sql/dentiste-pro/52_triangle_photo.sql (3 tables + trigger auto-reference + contrainte)
+- api/dentiste-pro/triangle.js (16 endpoints : patient 2, praticien 5, labo 4, auth labo 2, cases 4)
+- api/dentiste-pro/photo-ai.js (3 endpoints : analyse Claude Vision, qualite photo, triage urgence)
+  9 types photos supportes : urgence, teinte, clinique, fabrication, essayage, produit_fini, plaie, suivi, question
+- public/admin/js/photo-tools.js (guide camera overlay 6 types, annotation canvas,
+  templates demande, memo vocal 60s, video 15s)
+- public/admin/js/photo-consent.js (consentement RGPD par photo, audit trail)
+- public/admin/js/tab-triangle.js (timeline cas Instagram-style, scoring labo 5 etoiles,
+  teintier VITA visuel, nouveau cas modal)
+SQL 52 execute en prod. Upload directory /uploads/triangle/.
+
+## Passe 49 (25 avril 2026) -- App Labo Prothesiste (PWA)
+PWA dediee prothesistes dentaires a jadomi.fr/labo-pro/
+Accent rose #be185d (differencie de patient teal et admin teal).
+Fichiers crees (10 fichiers) :
+- public/labo-pro/ : index.html, manifest.json, sw.js, css/main.css
+- public/labo-pro/js/ : router.js, api.js
+- public/labo-pro/js/pages/ : login.js (email OTP), mes-cas.js, case-detail.js, profil.js
+Fonctionnalites : login OTP email, liste cas avec filtres, detail cas avec galerie photos,
+upload photo (fabrication/essayage/produit fini), messages labo-cabinet, profil specialites.
+Demo data : 4 cas, 23 photos, messages. Auto-login demo.
+
+## Passe 50 (25 avril 2026) -- JADOMI Care Network (Reseau de Soins WORLD FIRST)
+Reseau de soins interprofessionnel centre sur le PATIENT.
+Le PATIENT est le HUB — c'est lui qui invite ses praticiens (email, SMS, ou les deux).
+Viralite : 1 patient → invite 3-5 praticiens → chaque praticien a d'autres patients → LOOP.
+Fichiers crees :
+- sql/dentiste-pro/53_reseau_soins.sql (2 tables + 1 vue + indexes + RLS)
+- api/dentiste-pro/reseau.js (12 endpoints : cercle soins, partages, inbox, referral, my-team)
+- public/patient/js/pages/mon-equipe.js enrichi (invitation multi-canal email/SMS/les deux,
+  notification "2 praticiens ont rejoint", section "pourquoi connecter", partages recents,
+  bouton sticky "Ajouter un praticien")
+- public/admin/js/tab-reseau.js (adresser patient, partages recus, mon reseau)
+- public/labo-pro/js/pages/case-detail.js enrichi (cercle soins par cas, origine photo patient)
+Dashboard admin : tabs Triangle + Reseau ajoutes dans sidebar.
+Section "Reseau de Soins" ajoutee sur 12 landing pages profession + homepage.
+Section "JADOMI Pro" ajoutee sur 14 landing pages + demo dentiste ecran 6.
+SQL 53 a executer en prod.
+
+## Passe 45 (25 avril 2026) -- Pre-etude JADOMI Dentiste Pro
+Pre-etude architecture, PAS de code production. 4 livrables :
+- docs/passe-45/audit-modules-patient.md (audit 5 modules patient existants)
+- docs/passe-45/architecture-dentiste-pro.md (schema technique propose)
+- docs/passe-45/rapport-executif.md (rapport 2 pages GO/WAIT/NO-GO)
+- CODEX.md section 24 (ci-dessous)
+Audit concurrentiel : Doctolib, Maiia, Allisone, Dental Monitoring, Julie, LOGOS_w.
+Audit API logiciels metier : aucune API publique (Julie, LOGOS_w, Veasy).
+Strategie integration : CSV Phase A → iCal Phase B → Segur Phase D.
+Resultat : 60-65% du produit existe deja. Estimation Phase A : ~210h.
+Recommandation : **GO Phase A**.
+
+===============================================================
+# 13. JADOMI DENTISTE PRO (PHASE A LAB)
+===============================================================
+
+## Vision fondateur (25 avril 2026, 5h du matin)
+70% des 42 000 dentistes FR sont satures (4+ mois d'attente).
+Doctolib (149EUR/mois) = inutile pour eux (fait de l'acquisition).
+JADOMI Dentiste Pro = gestion + relation patient pour cabinets satures.
+Modele B2B2C : cabinets paient, patients gratuit via PWA.
+
+## 4 features killers
+1. Chat chiffre dentiste-patient (photos, ordo, devis, push)
+2. RDV simple (creneaux, reserve 2 clics, rappels auto)
+3. Chat IA 24/7 (80% questions courantes, escalade humaine)
+4. Notif urgence annulation (algo score → push 5 patients → premier arrive)
+
+## Pricing
+- Free : 50 RDV/mois, 1 praticien, 100 patients
+- Pro 79EUR/mois : illimite, 2 praticiens, chat IA, notif urgence
+- Expert 149EUR/mois : 5 praticiens, API, branding, stats avancees
+
+## Modules existants reutilisables (~60-65%)
+- /api/appointments (RDV complet, 15 endpoints)
+- /api/timeline (suivi photo patient IA, 20 endpoints) -- KILLER
+- /api/client-portal (portail securise, 8 endpoints)
+- /api/coach (onboarding, 11 endpoints)
+- /api/communication (email/SMS/WhatsApp, 9 endpoints)
+- /services/otp-sender (OTP multi-canal)
+
+## Modules a creer (~35-40%)
+- PWA patient (shell, sw.js, manifest, offline) -- 16h
+- Auth telephone + OTP -- 16h
+- Notifications push VAPID -- 20h
+- Chat direct temps reel -- 24h
+- Chat IA patient -- 24h
+- Liste attente smart + scoring -- 16h
+- Notif urgence annulation -- 40h
+- Rappels RDV auto -- 8h
+- Dashboard dentiste enrichi -- 12h
+- Import CSV patients -- 8h
+Total Phase A : ~210h
+
+## Analyse concurrentielle
+- Doctolib : leader acquisition, inutile cabinets satures
+- Maiia : 2eme, lie Cegedim, petite base patients
+- Julie/LOGOS_w : gestion cabinet, ZERO engagement patient
+- Allisone : IA imagerie, pas relation patient
+- Dental Monitoring : ortho seulement, tres cher
+- Gap marche confirme : AUCUN acteur sert les cabinets satures
+
+## Integration logiciels metier
+- Julie, LOGOS_w, Veasy : PAS d'API publique
+- Phase A : import CSV generique (8h)
+- Phase B : iCal sync calendrier (16h)
+- Phase C : Pro Sante Connect e-CPS (20h)
+- Phase D : Segur (DMP, MSSante, INS) -- 200h+, avantage massif
+- Referencement Segur = prime ANS 5 040EUR/cabinet adoptant
+
+## Contraintes legales
+- HDS obligatoire des Phase B (multi-cabinets)
+- Phase A sur cabinet Karim uniquement = pas d'obligation HDS
+- RGPD renforce (donnees sante sensibles)
+- Ségur du Numerique (Phase D+)
+- Conseil de l'Ordre dentaire
+
+## Roadmap 5 phases
+- Phase A (mois 1-3) : Labo interne Karim, 50-100 patients, ~25EUR
+- Phase B (mois 4-6) : HDS OVH, 5 confreres beta, ~15-25KEUR setup
+- Phase C (mois 7-12) : 50 cabinets, 4KEUR/mois
+- Phase D (an 2) : 500 cabinets, 480KEUR/an
+- Phase E (an 3+) : 2000 cabinets, 1.9MEUR/an
+
+## Architecture technique (LIVREE 25 avril 2026)
+- App Patient : jadomi.fr/patient/ (PWA vanilla JS, 13 fichiers)
+- App Labo : jadomi.fr/labo-pro/ (PWA vanilla JS, 10 fichiers, accent rose)
+- Dashboard Admin : jadomi.fr/admin/dentiste-pro (SPA 13 tabs, 13 modules JS)
+- Backend : /api/dentiste-pro/* (14 fichiers, 87 endpoints)
+- SQL : 16 tables dentiste_pro_* + 1 vue (sql/dentiste-pro/50-53)
+- Auth patient : telephone + OTP (zero mot de passe)
+- Auth labo : email + OTP
+- Chat : SSE Phase A, WebSocket Phase C
+- Chat IA : Claude Haiku (~0.001$/msg)
+- Photo IA : Claude Vision (triage urgence, qualite photo, analyse teinte)
+- Push : web-push npm (VAPID, gratuit)
+- Roles : 6 roles (praticien/associe/secretaire/assistante/comptable/stagiaire)
+- Permissions : 14 modules, checkboxes dans dashboard admin
+
+## 3 innovations mondiales (confirmees par recherche)
+1. Smart Batch Slot-Finder : trouver N creneaux recurrents en 1 clic (0 concurrent)
+2. Triangle Photo : routing praticien-patient-labo avec contrainte SQL (0 concurrent)
+3. Reseau de Soins : patient = hub invite ses praticiens, coordination interpro (0 concurrent)
+
+## Viralite patient-hub
+Le PATIENT invite ses praticiens (email + SMS + les deux).
+1 patient → invite 3-5 praticiens → chaque praticien a d'autres patients → boucle exponentielle.
+1 dentiste → 4000 patients → 12 000-20 000 praticiens invites → 10% s'inscrivent = 2000 nouveaux.
+
+## App desktop Electron (Phase B-C)
+Prevue pour connecteurs LOGOS_w/Julie (lecture BDD locale Firebird).
+Phase A = web uniquement + import CSV.
+
+## Expansion multi-secteur Triangle (Phase C+)
+Le modele Prescripteur-Beneficiaire-Executant applicable a 6 marches :
+1. Dentiste → Patient → Prothesiste (CONSTRUIT)
+2. Orthodontiste → Patient → Labo aligneurs (extension immediate)
+3. IDEL → Patient → Medecin (120K IDELs, plus gros marche, urgence RGPD)
+4. Dermatologue → Patient → Labo analyses (photo-first)
+5. Ophtalmologue → Patient → Opticien (0 concurrent)
+6. Garagiste → Client → Assurance (plus haute valeur)
+
+## Date revue : juillet 2026 (fin Phase A)
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
+Derniere mise a jour : 25 avril 2026 (nuit historique)
 ===============================================================

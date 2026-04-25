@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(13,148,136,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#0d9488,#14b8a6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#0d9488,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(13,148,136,.08);color:#5eead4;border-left-color:#0d9488;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(13,148,136,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(13,148,136,.1);color:#5eead4;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(13,148,136,.12),rgba(20,184,166,.06));border:1px solid rgba(13,148,136,.15);}.stat.i::after{background:#0d9488;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(13,148,136,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(13,148,136,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-6{grid-template-columns:1.5fr 1fr .8fr .8fr .8fr .8fr;}
+.tbl-7{grid-template-columns:1fr .7fr 1.2fr 1fr .8fr .7fr .6fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-b{background:rgba(59,130,246,.12);color:#93c5fd;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(13,148,136,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+
+/* Map route mockup */
+.route-map{margin:0 24px;border-radius:12px;border:1px solid rgba(13,148,136,.1);background:rgba(15,23,42,.4);padding:18px;position:relative;overflow:hidden;}
+.route-map::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(13,148,136,.03),rgba(6,182,212,.02));pointer-events:none;}
+.route-stop{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;margin-bottom:8px;position:relative;font-size:11px;background:rgba(30,41,59,.5);border:1px solid rgba(13,148,136,.08);}
+.route-stop:last-child{margin-bottom:0;}
+.route-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+.route-num.urgent{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.2);}
+.route-num.normal{background:rgba(13,148,136,.15);color:#5eead4;border:1px solid rgba(13,148,136,.2);}
+.route-num.done{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.2);}
+.route-info{flex:1;}
+.route-info strong{color:#e2e8f0;font-size:11px;}
+.route-info span{font-size:9px;color:#64748b;display:block;margin-top:2px;}
+.route-meta{text-align:right;font-size:9px;color:#64748b;}
+.route-meta strong{color:#94a3b8;display:block;}
+.route-line{position:absolute;left:30px;top:36px;bottom:0;width:2px;background:linear-gradient(180deg,rgba(13,148,136,.3),rgba(13,148,136,.1));z-index:0;}
+
+/* Nursing care file */
+.care-section{margin:0 24px 12px;padding:14px 18px;border-radius:10px;border:1px solid rgba(13,148,136,.08);background:rgba(15,23,42,.4);}
+.care-section h4{font-size:10px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.care-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:10px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,.02);}
+.care-row:last-child{border-bottom:none;}
+.care-row .label{color:#64748b;min-width:90px;font-weight:500;}
+.care-row .value{color:#e2e8f0;font-weight:500;}
+.care-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:600;}
+.care-badge.done{background:rgba(16,185,129,.1);color:#6ee7b7;}
+.care-badge.pending{background:rgba(245,158,11,.1);color:#fcd34d;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Activite</div>
+    <div class="sb-item active" id="n0">&#128663; Tournees</div>
+    <div class="sb-item" id="n1">&#128101; Patients</div>
+    <div class="sb-item" id="n2">&#129657; Soins <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n3">&#128200; Facturation</div>
+    <div class="sb-sep">Suivi</div>
+    <div class="sb-item" id="n4">&#128203; Ordonnances</div>
+    <div class="sb-item" id="n5">&#128203; Ordonnances</div>
+    <div class="sb-item" id="n6">&#128176; Comptabilite</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n7">&#10024; Mon Site <span style="font-size:7px;background:linear-gradient(135deg,#0d9488,#14b8a6);color:#fff;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:auto;letter-spacing:.3px;">1er mois offert</span></div>
+  </div>
+
+  <div class="main">
+    <!-- 1. TOURNEES DOMICILE -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">&#128663; Tournees domicile — Itineraire optimise</span><span class="top-badge">12 patients aujourd'hui</span><span style="margin-left:auto;font-size:10px;font-weight:600;color:#5eead4;">Montpellier &middot; Mardi 22 avril</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128663;</div><div class="stat-val">12</div><div class="stat-lbl">Patients du jour</div><div class="stat-delta">Tournee optimisee</div></div>
+          <div class="stat c"><div class="stat-icon">&#128336;</div><div class="stat-val">6h20</div><div class="stat-lbl">Temps estime</div><div class="stat-delta">-45min vs non-opti</div></div>
+          <div class="stat e"><div class="stat-icon">&#128205;</div><div class="stat-val">34km</div><div class="stat-lbl">Distance totale</div><div class="stat-delta">-12km economies</div></div>
+          <div class="stat r"><div class="stat-icon">&#9888;&#65039;</div><div class="stat-val">2</div><div class="stat-lbl">Urgences</div><div class="stat-delta" style="color:#fca5a5;">Priorite haute</div></div>
+        </div>
+        <div class="route-map">
+          <div class="route-stop"><div class="route-num urgent">1</div><div class="route-info"><strong>Mme Duval, Marguerite</strong><span>Insuline + glycemie &middot; 12 rue des Arceaux</span></div><div class="route-meta"><strong>07:30</strong>0 km &middot; Urgent</div></div>
+          <div class="route-stop"><div class="route-num normal">2</div><div class="route-info"><strong>M. Bertin, Jean-Pierre</strong><span>Pansement escarre &middot; 5 av. Clemenceau</span></div><div class="route-meta"><strong>08:05</strong>2,1 km</div></div>
+          <div class="route-stop"><div class="route-num normal">3</div><div class="route-info"><strong>Mme Lefebvre, Colette</strong><span>Perfusion IV antibiotique &middot; 28 bd Gambetta</span></div><div class="route-meta"><strong>08:40</strong>1,8 km</div></div>
+          <div class="route-stop"><div class="route-num urgent">4</div><div class="route-info"><strong>M. Rousseau, Andre</strong><span>Soins palliatifs &middot; 7 imp. des Lilas</span></div><div class="route-meta"><strong>09:20</strong>3,4 km &middot; Urgent</div></div>
+          <div class="route-stop"><div class="route-num done">5</div><div class="route-info"><strong>Mme Garcia, Therese</strong><span>Injection Lovenox &middot; 15 rue Foch</span></div><div class="route-meta"><strong>10:00</strong>2,7 km</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. DOSSIER SOINS -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">&#129657; Dossier soins infirmiers</span><span class="top-badge">Mme Duval, Marguerite</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div class="care-section">
+          <h4>&#128203; Prescription en cours</h4>
+          <div class="care-row"><span class="label">Medecin</span><span class="value">Dr. Moreau, Claude &middot; Medecin traitant</span></div>
+          <div class="care-row"><span class="label">Ordonnance</span><span class="value">Insuline Lantus 22UI/j + glycemie capillaire matin</span></div>
+          <div class="care-row"><span class="label">Duree</span><span class="value">Du 01/03/2026 au 31/08/2026 &middot; Renouvelable</span></div>
+          <div class="care-row"><span class="label">Frequence</span><span class="value">1x/jour, 7j/7</span></div>
+        </div>
+        <div class="care-section">
+          <h4>&#129657; Actes realises aujourd'hui</h4>
+          <div class="care-row"><span class="label">07:32</span><span class="value">Glycemie capillaire : 1,42 g/L</span><span class="care-badge done">Fait</span></div>
+          <div class="care-row"><span class="label">07:35</span><span class="value">Injection sous-cutanee Lantus 22UI abdomen G</span><span class="care-badge done">Fait</span></div>
+          <div class="care-row"><span class="label">07:38</span><span class="value">Surveillance signes hypo/hyperglycemie</span><span class="care-badge done">Fait</span></div>
+        </div>
+        <div class="care-section">
+          <h4>&#128200; Constantes</h4>
+          <div class="care-row"><span class="label">Glycemie</span><span class="value">1,42 g/L <span style="color:#fcd34d;font-size:9px;">&#9650; legerement elevee</span></span></div>
+          <div class="care-row"><span class="label">Tension</span><span class="value">135/82 mmHg</span></div>
+          <div class="care-row"><span class="label">Pouls</span><span class="value">72 bpm &middot; regulier</span></div>
+          <div class="care-row"><span class="label">Temperature</span><span class="value">36,8 C</span></div>
+        </div>
+        <div class="care-section">
+          <h4>&#128221; Observations</h4>
+          <div class="care-row"><span class="value" style="color:#94a3b8;line-height:1.5;">Patiente en bon etat general. Glycemie legerement au-dessus de la cible (1,42 vs 1,26 objectif). Pas de signes d'hypoglycemie. Point injection rotation respectee. Prevenir Dr. Moreau si glycemie > 1,80 demain.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. FACTURATION -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">&#128200; Facturation — Suivi factures patients</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128176;</div><div class="stat-val">3 842&#8364;</div><div class="stat-lbl">Facture ce mois</div><div class="stat-delta">48 factures emises</div></div>
+          <div class="stat c"><div class="stat-icon">&#9989;</div><div class="stat-val">41</div><div class="stat-lbl">Payees</div><div class="stat-delta">85% reglement</div></div>
+          <div class="stat e"><div class="stat-icon">&#9203;</div><div class="stat-val">4</div><div class="stat-lbl">En attente</div><div class="stat-delta" style="color:#fcd34d;">Relance prevue</div></div>
+          <div class="stat r"><div class="stat-icon">&#128202;</div><div class="stat-val">353&#8364;</div><div class="stat-lbl">Aujourd'hui</div><div class="stat-delta" style="color:#5eead4;">12 actes factures</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Patient</span><span>Date</span><span>Montant</span><span>Type</span><span>Echeance</span><span>Statut</span></div>
+          <div class="tbl-r tbl-6"><span>Mme Duval M.</span><span>22/04</span><span style="font-weight:600;">47,25&#8364;</span><span>Soins domicile</span><span>30/04</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-6"><span>M. Bertin J-P.</span><span>22/04</span><span style="font-weight:600;">18,90&#8364;</span><span>Pansement</span><span>30/04</span><span class="pill p-w">En attente</span></div>
+          <div class="tbl-r tbl-6"><span>Mme Lefebvre C.</span><span>21/04</span><span style="font-weight:600;">94,50&#8364;</span><span>Perfusion</span><span>28/04</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-6"><span>M. Rousseau A.</span><span>20/04</span><span style="font-weight:600;">35,70&#8364;</span><span>Soins palliatifs</span><span>28/04</span><span class="pill p-c">Impayee</span></div>
+          <div class="tbl-r tbl-6"><span>Mme Garcia T.</span><span>22/04</span><span style="font-weight:600;">8,15&#8364;</span><span>Injection</span><span>30/04</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-6"><span>M. Petit R.</span><span>22/04</span><span style="font-weight:600;">63,40&#8364;</span><span>Evaluation BSI</span><span>30/04</span><span class="pill p-w">En attente</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. ORDONNANCES -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">&#128203; Ordonnances — Suivi et renouvellements</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128203;</div><div class="stat-val">34</div><div class="stat-lbl">Ordonnances actives</div><div class="stat-delta">Ce mois</div></div>
+          <div class="stat e"><div class="stat-icon">&#9989;</div><div class="stat-val">28</div><div class="stat-lbl">A jour</div><div class="stat-delta">82% conformes</div></div>
+          <div class="stat c"><div class="stat-icon">&#9203;</div><div class="stat-val">4</div><div class="stat-lbl">Expiration proche</div><div class="stat-delta" style="color:#fcd34d;">Sous 7 jours</div></div>
+          <div class="stat r"><div class="stat-icon">&#10060;</div><div class="stat-val">2</div><div class="stat-lbl">Expirees</div><div class="stat-delta" style="color:#fca5a5;">Renouvellement requis</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Patient</span><span>Prescripteur</span><span>Soins</span><span>Debut</span><span>Fin</span><span>Statut</span></div>
+          <div class="tbl-r tbl-6"><span>Mme Duval M.</span><span>Dr. Moreau</span><span>Insuline + glycemie</span><span>01/03</span><span>31/08</span><span class="pill p-ok">Active</span></div>
+          <div class="tbl-r tbl-6"><span>M. Bertin J-P.</span><span>Dr. Blanc</span><span>Pansement escarre</span><span>10/03</span><span>10/05</span><span class="pill p-w">Expire bientot</span></div>
+          <div class="tbl-r tbl-6"><span>Mme Lefebvre C.</span><span>Dr. Faure</span><span>Perfusion IV</span><span>15/04</span><span>15/05</span><span class="pill p-ok">Active</span></div>
+          <div class="tbl-r tbl-6"><span>M. Rousseau A.</span><span>Dr. Levy</span><span>Soins palliatifs</span><span>01/02</span><span>15/04</span><span class="pill p-c">Expiree</span></div>
+          <div class="tbl-r tbl-6"><span>Mme Garcia T.</span><span>Dr. Moreau</span><span>Injection Lovenox</span><span>20/03</span><span>20/06</span><span class="pill p-ok">Active</span></div>
+          <div class="tbl-r tbl-6"><span>M. Petit R.</span><span>Dr. Dumont</span><span>BSI evaluation</span><span>01/04</span><span>30/04</span><span class="pill p-w">Expire bientot</span></div>
+        </div>
+        <div style="padding:12px 24px;">
+          <div class="cgrid cgrid-2" style="padding:0;">
+            <div class="crd" style="border-color:rgba(245,158,11,.12);"><h3 style="color:#fcd34d;">&#9203; Renouvellement urgent</h3><p>M. Rousseau : ordonnance soins palliatifs expiree le 15/04. Contacter Dr. Levy.</p></div>
+            <div class="crd" style="border-color:rgba(16,185,129,.12);"><h3 style="color:#6ee7b7;">&#128203; Bilan ordonnances</h3><p><strong style="color:#10b981;font-size:16px;">82% a jour</strong><br>28 ordonnances conformes sur 34</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. TRACABILITE ACTES -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">&#128203; Tracabilite des actes — Journal reglementaire</span><span class="top-badge">Conforme ARS</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128203;</div><div class="stat-val">247</div><div class="stat-lbl">Actes ce mois</div><div class="stat-delta">100% traces</div></div>
+          <div class="stat e"><div class="stat-icon">&#9989;</div><div class="stat-val">100%</div><div class="stat-lbl">Conformite</div><div class="stat-delta">Aucune anomalie</div></div>
+          <div class="stat c"><div class="stat-icon">&#128138;</div><div class="stat-val">18</div><div class="stat-lbl">Lots medicaments</div><div class="stat-delta">Tracabilite complete</div></div>
+          <div class="stat r"><div class="stat-icon">&#128221;</div><div class="stat-val">12</div><div class="stat-lbl">Signatures jour</div><div class="stat-delta" style="color:#5eead4;">Toutes validees</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-7"><span>Date</span><span>Heure</span><span>Patient</span><span>Acte</span><span>Lot</span><span>Signature</span><span>Conf.</span></div>
+          <div class="tbl-r tbl-7"><span>22/04</span><span>07:32</span><span>Mme Duval M.</span><span>Injection insuline</span><span>LT-4521A</span><span style="color:#5eead4;">&#9998; P. Garnier</span><span class="pill p-ok">&#10003;</span></div>
+          <div class="tbl-r tbl-7"><span>22/04</span><span>08:12</span><span>M. Bertin J-P.</span><span>Pansement escarre</span><span>PAN-8834</span><span style="color:#5eead4;">&#9998; P. Garnier</span><span class="pill p-ok">&#10003;</span></div>
+          <div class="tbl-r tbl-7"><span>22/04</span><span>08:48</span><span>Mme Lefebvre C.</span><span>Perfusion IV</span><span>AB-2267C</span><span style="color:#5eead4;">&#9998; P. Garnier</span><span class="pill p-ok">&#10003;</span></div>
+          <div class="tbl-r tbl-7"><span>22/04</span><span>09:25</span><span>M. Rousseau A.</span><span>Soins palliatifs</span><span>MO-1190</span><span style="color:#5eead4;">&#9998; P. Garnier</span><span class="pill p-ok">&#10003;</span></div>
+          <div class="tbl-r tbl-7"><span>22/04</span><span>10:05</span><span>Mme Garcia T.</span><span>Injection Lovenox</span><span>LV-7743B</span><span style="color:#5eead4;">&#9998; P. Garnier</span><span class="pill p-ok">&#10003;</span></div>
+          <div class="tbl-r tbl-7"><span>22/04</span><span>10:40</span><span>M. Petit R.</span><span>BSI evaluation</span><span>--</span><span style="color:#5eead4;">&#9998; P. Garnier</span><span class="pill p-ok">&#10003;</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navMap[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>
