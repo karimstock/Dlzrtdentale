@@ -353,10 +353,11 @@ label.fl{font-size:12px;font-weight:600;color:var(--text-secondary);}
           </div>
           <p class="scanner-hint">Formats supportés : EAN-13, EAN-8, Code128, QR Code, DataMatrix, PDF417</p>
 
-          <!-- Camera feed (hidden by default) -->
+          <!-- Camera barcode scanner (html5-qrcode) -->
           <div id="cameraWrap" style="display:none;margin-bottom:16px;">
-            <video id="cameraFeed" style="width:100%;border-radius:var(--radius);border:2px solid var(--primary);" autoplay playsinline muted></video>
-            <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;" onclick="stopCamera()">❌ Fermer la caméra</button>
+            <div id="barcodeScannerView" style="width:100%;border-radius:var(--radius);overflow:hidden;border:2px solid var(--primary);"></div>
+            <div id="scannerFeedback" style="display:none;padding:10px 14px;margin-top:8px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;text-align:center;background:var(--green-bg);color:var(--green);">Code detecte !</div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;" onclick="stopCamera()">Fermer le scanner</button>
           </div>
 
           <!-- Waterfall lookup -->
@@ -1180,53 +1181,54 @@ async function triggerScan() {
   document.getElementById('scanResult').style.display = 'none';
   resetWaterfall();
 
-  // Step 1: Supabase local stock
+  // Animation : demarrer etape 1
   setWfStep('wf-supabase', 'active');
-  await sleep(400);
+
   try {
+    // UN SEUL appel API — le backend fait le waterfall complet
+    // (Supabase → OpenFoodFacts → Claude Haiku IA)
     const res = await fetch(`${API_BASE}/stock/scan/${encodeURIComponent(code)}`, { headers: apiHeaders() });
-    if (res.ok) {
-      const data = await res.json();
-      const prod = data.data || data;
-      if (prod && prod.id) {
-        setWfStep('wf-supabase', 'done');
-        setWfStep('wf-off', 'done');
-        setWfStep('wf-ia', 'done');
-        showScanResult(prod, true);
-        return;
-      }
-    }
-  } catch(e) {}
-  setWfStep('wf-supabase', 'error');
+    if (!res.ok) throw new Error('Erreur API');
+    const data = await res.json();
 
-  // Step 2: OpenFoodFacts
-  setWfStep('wf-off', 'active');
-  await sleep(600);
-  try {
-    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.status === 1 && data.product) {
-        const p = data.product;
-        setWfStep('wf-off', 'done');
-        setWfStep('wf-ia', 'done');
-        showScanResult({
-          nom: p.product_name||p.product_name_fr||'Produit inconnu',
-          marque: p.brands||'',
-          code_barre: code,
-          notes: p.categories||'',
-        }, false);
-        return;
-      }
-    }
-  } catch(e) {}
-  setWfStep('wf-off', 'error');
+    // Piloter les animations par la source retournee
+    const source = data.source || 'unknown';
 
-  // Step 3: JADOMI IA
-  setWfStep('wf-ia', 'active');
-  await sleep(800);
-  setWfStep('wf-ia', 'done');
-  showScanResult({ code_barre: code, nom: `Produit ${code}` }, false);
+    if (source === 'jadomi') {
+      // Trouve dans le stock Supabase
+      setWfStep('wf-supabase', 'done');
+      setWfStep('wf-off', 'done');
+      setWfStep('wf-ia', 'done');
+      showScanResult(data.produit, data.existe_stock);
+    } else if (source === 'openfoodfacts') {
+      // Trouve via OpenFoodFacts
+      setWfStep('wf-supabase', 'error');
+      setWfStep('wf-off', 'done');
+      setWfStep('wf-ia', 'done');
+      showScanResult(data.produit, false);
+    } else if (source === 'jadomi-ia') {
+      // Identifie par JADOMI IA (Claude)
+      setWfStep('wf-supabase', 'error');
+      setWfStep('wf-off', 'error');
+      setWfStep('wf-ia', 'done');
+      if (data.produit && data.produit.confidence) {
+        toast(`Identifie par JADOMI IA (confiance: ${Math.round(data.produit.confidence*100)}%)`);
+      }
+      showScanResult(data.produit, false);
+    } else {
+      // Aucune source n'a trouve
+      setWfStep('wf-supabase', 'error');
+      setWfStep('wf-off', 'error');
+      setWfStep('wf-ia', 'error');
+      showScanResult(data.produit || { code_barre: code, nom: null }, false);
+    }
+  } catch(e) {
+    setWfStep('wf-supabase', 'error');
+    setWfStep('wf-off', 'error');
+    setWfStep('wf-ia', 'error');
+    showScanResult({ code_barre: code, nom: null }, false);
+    toast('Erreur lors de la recherche', 'error');
+  }
 }
 
 function resetWaterfall() {
@@ -1294,17 +1296,60 @@ function addFromScan(product) {
   document.getElementById('productModal').classList.add('open');
 }
 
-/* ── Camera (scanner) ───────────────────────────────────────── */
+/* ── Camera barcode scanner (html5-qrcode) ─────────────────── */
+let html5QrScanner = null;
+
 async function startCamera() {
+  document.getElementById('cameraWrap').style.display = 'block';
+  document.getElementById('scannerFeedback').style.display = 'none';
+
+  // Verifier que Html5Qrcode est disponible (jadomi-scan.js)
+  if (typeof Html5Qrcode === 'undefined') {
+    toast('Scanner non disponible — saisissez le code manuellement', 'error');
+    return;
+  }
+
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
-    document.getElementById('cameraFeed').srcObject = cameraStream;
-    document.getElementById('cameraWrap').style.display = 'block';
-    toast('Caméra activée — approchez le code-barres');
-  } catch(e) { toast('Impossible d\'accéder à la caméra', 'error'); }
+    html5QrScanner = new Html5Qrcode('barcodeScannerView');
+    await html5QrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.5 },
+      function onScanSuccess(decodedText) {
+        // Vibration mobile
+        if (navigator.vibrate) navigator.vibrate(100);
+        // Bip sonore
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 880; gain.gain.value = 0.15;
+          osc.start(); osc.stop(ctx.currentTime + 0.12);
+        } catch(e) {}
+        // Feedback visuel
+        document.getElementById('scannerFeedback').style.display = 'block';
+        document.getElementById('scannerFeedback').textContent = 'Code detecte : ' + decodedText;
+        // Injecter le code et lancer le scan
+        document.getElementById('scanInput').value = decodedText;
+        stopCamera();
+        triggerScan();
+      },
+      function onScanError() { /* silence — scan en cours */ }
+    );
+    toast('Scanner actif — pointez le code-barres');
+  } catch(e) {
+    toast('Impossible d\'acceder a la camera', 'error');
+    document.getElementById('cameraWrap').style.display = 'none';
+  }
 }
 
 function stopCamera() {
+  if (html5QrScanner) {
+    html5QrScanner.stop().then(() => {
+      html5QrScanner.clear();
+      html5QrScanner = null;
+    }).catch(() => { html5QrScanner = null; });
+  }
   if (cameraStream) { cameraStream.getTracks().forEach(t=>t.stop()); cameraStream=null; }
   document.getElementById('cameraWrap').style.display = 'none';
 }
@@ -1383,11 +1428,11 @@ function capturePhoto() {
   canvas.width  = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
   document.getElementById('photoImg').src = dataUrl;
   document.getElementById('photoCaptured').style.display = 'block';
   stopPhotoCamera();
-  analyzePhotoDate(canvas.toBlob ? null : dataUrl, dataUrl);
+  analyzePhotoDate(null, dataUrl);
 }
 
 function onPhotoFileSelected(e) {
@@ -1396,41 +1441,74 @@ function onPhotoFileSelected(e) {
   reader.onload = ev => {
     document.getElementById('photoImg').src = ev.target.result;
     document.getElementById('photoCaptured').style.display = 'block';
-    analyzePhotoDate(file, ev.target.result);
+    analyzePhotoDate(null, ev.target.result);
   };
   reader.readAsDataURL(file);
 }
 
 async function analyzePhotoDate(file, dataUrl) {
-  toast('Analyse de l\'image par JADOMI IA…');
+  toast('Analyse par JADOMI IA (Sonnet Vision)...');
   try {
-    let body;
-    if (file) {
-      const fd = new FormData(); fd.append('image', file);
-      const res = await fetch(`${API_BASE}/stock/scan-peremption`, {
-        method:'POST',
-        headers: { Authorization: currentToken?`Bearer ${currentToken}`:'', 'X-Societe-Id': currentSocieteId||'' },
-        body: fd
-      });
-      if (res.ok) {
-        const data = await res.json();
-        document.getElementById('photoDateResult').value = data.date_peremption||data.date||'';
-        document.getElementById('photoResultWrap').style.display = 'block';
-        document.getElementById('applyPhotoBtn').style.display = 'flex';
-        return;
-      }
-    }
-    // Fallback: try base64
+    // Envoi direct en JSON base64 (le backend attend image_base64)
     const res = await fetch(`${API_BASE}/stock/scan-peremption`, {
       method:'POST', headers:apiHeaders(),
       body: JSON.stringify({ image_base64: dataUrl })
     });
-    if (res.ok) {
-      const data = await res.json();
-      document.getElementById('photoDateResult').value = data.date_peremption||data.date||'';
-      document.getElementById('photoResultWrap').style.display = 'block';
-      document.getElementById('applyPhotoBtn').style.display = 'flex';
-    } else { toast('JADOMI IA n\'a pas pu extraire la date', 'error'); }
+    if (!res.ok) { toast('JADOMI IA n\'a pas pu analyser l\'image', 'error'); return; }
+
+    const data = await res.json();
+    const confidence = data.confidence || 0;
+    const dateVal = data.date_peremption || null;
+    const lot = data.numero_lot || null;
+    const zone = data.zone_image || '';
+    const format = data.format_detecte || '';
+    const obs = data.observations || '';
+
+    const resultWrap = document.getElementById('photoResultWrap');
+    const dateInput = document.getElementById('photoDateResult');
+    const applyBtn = document.getElementById('applyPhotoBtn');
+
+    // Construire le feedback selon le niveau de confidence
+    let feedbackHtml = '';
+
+    if (confidence < 0.3 || !dateVal) {
+      // Trop faible — ne pas pre-remplir
+      feedbackHtml = `<div style="padding:12px;border-radius:var(--radius-sm);background:var(--red-bg);color:var(--red);font-size:13px;margin-bottom:12px;">
+        <strong>Date non lisible</strong> (confiance : ${Math.round(confidence*100)}%)<br>
+        ${obs ? obs + '<br>' : ''}Reprenez une photo plus nette, bien cadree sur la date de peremption.
+        <div style="margin-top:8px;"><button class="btn btn-outline btn-sm" onclick="openPhotoPeremption()">Reprendre une photo</button></div>
+      </div>`;
+      dateInput.value = '';
+      applyBtn.style.display = 'none';
+    } else if (confidence < 0.7) {
+      // Moyenne — pre-remplir avec warning
+      feedbackHtml = `<div style="padding:12px;border-radius:var(--radius-sm);background:var(--amber-bg);color:var(--amber);font-size:13px;margin-bottom:12px;">
+        <strong>Date lue avec confiance moyenne (${Math.round(confidence*100)}%)</strong><br>
+        ${format ? 'Format detecte : ' + format + '<br>' : ''}${zone ? 'Zone : ' + zone + '<br>' : ''}${lot ? 'Lot : ' + lot + '<br>' : ''}${obs ? obs + '<br>' : ''}Verifiez la date ci-dessous avant de valider.
+      </div>`;
+      dateInput.value = dateVal;
+      applyBtn.style.display = 'flex';
+    } else {
+      // Bonne confiance
+      feedbackHtml = `<div style="padding:12px;border-radius:var(--radius-sm);background:var(--green-bg);color:var(--green);font-size:13px;margin-bottom:12px;">
+        <strong>Date trouvee (confiance : ${Math.round(confidence*100)}%)</strong><br>
+        ${format ? 'Format : ' + format + '<br>' : ''}${zone ? 'Zone : ' + zone + '<br>' : ''}${lot ? 'Lot : ' + lot : ''}
+      </div>`;
+      dateInput.value = dateVal;
+      applyBtn.style.display = 'flex';
+    }
+
+    // Injecter le feedback au-dessus du champ date
+    let fbEl = document.getElementById('photoConfidenceFeedback');
+    if (!fbEl) {
+      fbEl = document.createElement('div');
+      fbEl.id = 'photoConfidenceFeedback';
+      resultWrap.insertBefore(fbEl, resultWrap.firstChild);
+    }
+    fbEl.innerHTML = feedbackHtml;
+
+    resultWrap.style.display = 'block';
+    populatePhotoProductSelect();
   } catch(e) { toast('Erreur lors de l\'analyse', 'error'); }
 }
 
