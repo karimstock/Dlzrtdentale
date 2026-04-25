@@ -187,6 +187,7 @@ async function insertToSupabase(products) {
 async function main() {
   log('╔══════════════════════════════════════════════╗');
   log('║  JADOMI — Import GUDID FDA Dental (XML)     ║');
+  log('║  Mode: fichier par fichier (low memory)     ║');
   log('╚══════════════════════════════════════════════╝');
 
   // Lister les fichiers XML extraits
@@ -208,9 +209,15 @@ async function main() {
   log(`${xmlFiles.length} fichiers XML a traiter`);
 
   let totalDental = 0;
+  let totalInserted = 0;
+  let totalSkipped = 0;
+  let totalErrors = 0;
   let totalProcessed = 0;
-  const allProducts = [];
   const seenGtins = new Set();
+  const catStats = {};
+
+  // Ouvrir le fichier JSONL en append
+  const jsonlStream = fs.createWriteStream(OUTPUT_FILE, { flags: 'w' });
 
   for (let i = 0; i < xmlFiles.length; i++) {
     const xmlFile = xmlFiles[i];
@@ -221,52 +228,54 @@ async function main() {
 
     try {
       const products = parseGudidXml(xmlPath);
-      let newProducts = 0;
 
+      // Dedup par GTIN
+      const uniqueProducts = [];
       for (const p of products) {
         if (!seenGtins.has(p.gtin)) {
           seenGtins.add(p.gtin);
-          allProducts.push(p);
-          newProducts++;
+          uniqueProducts.push(p);
+          // Stats categories
+          catStats[p.category] = (catStats[p.category] || 0) + 1;
+          // Ecrire dans JSONL
+          jsonlStream.write(JSON.stringify(p) + '\n');
         }
       }
 
-      totalDental += newProducts;
+      totalDental += uniqueProducts.length;
       totalProcessed++;
-      log(`  → ${products.length} dental trouves, ${newProducts} uniques (total: ${totalDental})`);
+
+      // Inserer dans Supabase immediatement (libere la memoire)
+      if (uniqueProducts.length > 0) {
+        const result = await insertToSupabase(uniqueProducts);
+        totalInserted += result.inserted;
+        totalSkipped += result.skipped;
+        totalErrors += result.errors;
+      }
+
+      log(`  → ${products.length} dental, ${uniqueProducts.length} uniques, cumul: ${totalDental} (DB: ${totalInserted} OK)`);
+
+      // Forcer le garbage collector si disponible
+      if (global.gc) global.gc();
     } catch (e) {
       log(`  ERREUR: ${e.message}`);
     }
   }
 
-  log(`\n=== FILTRAGE TERMINE ===`);
+  jsonlStream.end();
+
+  log(`\n=== IMPORT GUDID TERMINE ===`);
   log(`Fichiers traites: ${totalProcessed}/${xmlFiles.length}`);
   log(`Produits dentaires uniques: ${totalDental}`);
+  log(`Inseres Supabase: ${totalInserted}`);
+  log(`Skips (doublons): ${totalSkipped}`);
+  log(`Erreurs: ${totalErrors}`);
+  log(`JSONL: ${OUTPUT_FILE}`);
 
-  // Sauvegarder en JSONL
-  log(`\nSauvegarde dans ${OUTPUT_FILE}...`);
-  const ws = fs.createWriteStream(OUTPUT_FILE);
-  allProducts.forEach(p => ws.write(JSON.stringify(p) + '\n'));
-  ws.end();
-  log(`Fichier JSONL cree: ${totalDental} lignes`);
-
-  // Stats categories
-  const catStats = {};
-  allProducts.forEach(p => { catStats[p.category] = (catStats[p.category] || 0) + 1; });
   log('\nRepartition par categorie:');
   Object.entries(catStats).sort((a, b) => b[1] - a[1]).forEach(([cat, count]) => {
     log(`  ${cat}: ${count} (${Math.round(count / totalDental * 100)}%)`);
   });
-
-  // Insert dans Supabase
-  log(`\n=== INSERT SUPABASE ===`);
-  log(`${allProducts.length} produits a inserer...`);
-  const result = await insertToSupabase(allProducts);
-  log(`\nResultat final:`);
-  log(`  Inseres: ${result.inserted}`);
-  log(`  Skips (doublons): ${result.skipped}`);
-  log(`  Erreurs: ${result.errors}`);
-  log(`\n=== IMPORT GUDID TERMINE ===`);
 }
 
 main().catch(e => { log('ERREUR FATALE: ' + e.message); process.exit(1); });
