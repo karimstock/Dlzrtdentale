@@ -74,7 +74,13 @@ module.exports = function (router) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return res.status(500).json({ error: 'Reponse IA invalide' });
 
-      const generatedContent = JSON.parse(jsonMatch[0]);
+      let generatedContent;
+      try {
+        generatedContent = JSON.parse(jsonMatch[0]);
+      } catch (parseErr) {
+        console.error('[generate-section] JSON.parse error:', parseErr.message);
+        return res.status(500).json({ error: 'Erreur parsing reponse IA' });
+      }
 
       // Sauvegarder en DB
       if (isPage) {

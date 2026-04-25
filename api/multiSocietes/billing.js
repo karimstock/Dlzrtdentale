@@ -107,10 +107,10 @@ module.exports = function mountBilling(app) {
     try {
       const societe_id = req.headers['x-societe-id'] || req.query.societe_id;
       if (!societe_id) return res.status(400).json({ error: 'societe_id requis' });
-      const { data: soc } = await admin().from('societes')
+      const { data: soc, error: socErr } = await admin().from('societes')
         .select('id, nom, plan, actif, stripe_customer_id, stripe_subscription_id, owner_id')
         .eq('id', societe_id).single();
-      if (!soc) return res.status(404).json({ error: 'not_found' });
+      if (socErr || !soc) return res.status(404).json({ error: 'not_found' });
 
       // Vérifie membership
       const { data: role } = await admin().from('user_societe_roles')
@@ -164,8 +164,9 @@ module.exports = function mountBilling(app) {
         return res.status(403).json({ error: 'role_insuffisant' });
       }
 
-      const { data: soc } = await admin().from('societes')
+      const { data: soc, error: socErr } = await admin().from('societes')
         .select('stripe_customer_id').eq('id', societe_id).single();
+      if (socErr || !soc) return res.status(404).json({ error: 'not_found' });
 
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
@@ -219,9 +220,9 @@ module.exports = function mountBilling(app) {
       if (!stripe) return res.status(503).json({ error: 'stripe non configuré' });
       const { societe_id } = req.body || {};
       if (!societe_id) return res.status(400).json({ error: 'societe_id requis' });
-      const { data: soc } = await admin().from('societes').select('stripe_customer_id, owner_id')
+      const { data: soc, error: socErr } = await admin().from('societes').select('stripe_customer_id, owner_id')
         .eq('id', societe_id).single();
-      if (!soc || soc.owner_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+      if (socErr || !soc || soc.owner_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
       if (!soc.stripe_customer_id) return res.status(400).json({ error: 'pas de stripe_customer_id' });
       const session = await stripe.billingPortal.sessions.create({
         customer: soc.stripe_customer_id,

@@ -385,7 +385,7 @@ ${html}`
       try {
         const text = completion.content[0].text;
         // Extract JSON from response (might be wrapped in markdown code blocks)
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonMatch = text.match(/\{[\s\S]*?\}/);
         result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
       } catch (e) {
         return res.status(422).json({ success: false, error: 'Aucun produit détecté. Essayez le CSV.', raw: completion.content[0]?.text?.substring(0, 200) });
@@ -523,7 +523,7 @@ Retourne UNIQUEMENT un JSON valide : {"produits": [...]}` }
       let result;
       try {
         const text = completion.content[0].text;
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonMatch = text.match(/\{[\s\S]*?\}/);
         result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
       } catch {
         return res.status(422).json({ success: false, error: 'Impossible d\'extraire les produits de ce fichier.' });
