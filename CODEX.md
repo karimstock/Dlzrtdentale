@@ -1414,6 +1414,8 @@ BASSE :
 4. communication.js:341,386 — Token = contact ID pour desinscription RGPD
 5. server.js:523-538 — Retrait doublon setInterval cron rappels
 6. site-analysis/index.js:558 — Ajout filtre .eq('user_id', userId)
+7. dashboard.js + waitlist.js — dentiste_pro_appointments → appointments (table inexistante)
+8. dashboard.js — dentiste_pro_appointment_types → appointment_types
 Fichier ajoute : sendSms() dans services/otp-sender.js (SMS generique)
 
 #### 25.8 Bug mailing token (PRIORITE)
@@ -1434,7 +1436,7 @@ Actions a faire :
 - Generer icones PWA (icon-192.png, icon-512.png)
 - Generer 20 images OG pour partage social
 
-#### 25.10 Etat de sante global : 16/20
+#### 25.10 Etat de sante global : 17/20
 Modules parfaits : Stock, GPO, Logistique, Chatbot, Coach, 60 Themes,
   Coffre-fort Avocat, Triangle Photo, Reseau Soins, PWA Patient+Labo
 A surveiller : Mailing (fixe), Rappels SMS (fixe), Communication (fixe)
