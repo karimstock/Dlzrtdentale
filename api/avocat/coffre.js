@@ -130,9 +130,121 @@ router.post('/coffre/unlock', requireAvocat, async (req, res) => {
     return res.status(401).json({ error: 'Mot de passe incorrect.' + (attempts >= 3 ? ' Coffre verrouille 15 min.' : '') });
   }
 
-  await admin().from('avocat_coffre_auth').update({ failed_attempts: 0, locked_until: null, last_access: new Date().toISOString() }).eq('avocat_societe_id', req.societeId);
-  await logAudit(req.userId, 'avocat', 'coffre_unlock', 'coffre', req.societeId, req, true);
+  // Mot de passe correct → envoyer OTP pour double auth
+  await admin().from('avocat_coffre_auth').update({ failed_attempts: 0, locked_until: null }).eq('avocat_societe_id', req.societeId);
+
+  const { generateCode, sendOTP } = require('../../services/otp-sender');
+  const canal = auth.otp_canal_prefere || 'email';
+  const code = generateCode();
+
+  // Determiner la destination
+  let destination;
+  if (canal === 'email') {
+    destination = req.userEmail || req.user?.email || '';
+  } else {
+    destination = auth.otp_telephone || '';
+  }
+
+  if (!destination) {
+    // Pas de destination dispo → unlock direct (fallback)
+    await admin().from('avocat_coffre_auth').update({ last_access: new Date().toISOString() }).eq('avocat_societe_id', req.societeId);
+    await logAudit(req.userId, 'avocat', 'coffre_unlock', 'coffre', req.societeId, req, true, { otp: 'skipped_no_destination' });
+    return res.json({ success: true, message: 'Coffre deverrouille.', session_minutes: 15 });
+  }
+
+  // Sauvegarder le code OTP
+  await admin().from('avocat_otp_codes').insert({
+    user_id: req.userId, user_role: 'avocat', canal, destination, code
+  });
+
+  // Envoyer le code
+  const sendResult = await sendOTP(canal, destination, code, 'JADOMI Avocat');
+
+  if (sendResult.success) {
+    await logAudit(req.userId, 'avocat', 'otp_sent', 'coffre', req.societeId, req, true, { canal });
+    return res.json({
+      requires_otp: true,
+      canal,
+      destination_masked: canal === 'email' ? destination.replace(/(.{2}).*(@.*)/, '$1***$2') : destination.replace(/(\d{2}).*(\d{2})$/, '$1******$2'),
+      message: 'Code envoye par ' + canal + '. Valable 5 minutes.'
+    });
+  } else {
+    // Fallback : si envoi echoue, unlock direct
+    await admin().from('avocat_coffre_auth').update({ last_access: new Date().toISOString() }).eq('avocat_societe_id', req.societeId);
+    await logAudit(req.userId, 'avocat', 'coffre_unlock', 'coffre', req.societeId, req, true, { otp: 'fallback_send_failed' });
+    return res.json({ success: true, message: 'Coffre deverrouille (code non envoye).', session_minutes: 15 });
+  }
+});
+
+// POST /coffre/verify-otp — Verifier le code OTP
+router.post('/coffre/verify-otp', requireAvocat, async (req, res) => {
+  const { code } = req.body || {};
+  if (!code || code.length !== 6) return res.status(400).json({ error: 'Code 6 chiffres requis' });
+
+  // Trouver le dernier OTP non expire
+  const { data: otp } = await admin().from('avocat_otp_codes')
+    .select('*')
+    .eq('user_id', req.userId)
+    .eq('user_role', 'avocat')
+    .eq('verified', false)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!otp) return res.status(400).json({ error: 'Aucun code en attente ou code expire. Reessayez.' });
+
+  if (otp.attempts >= 3) {
+    return res.status(429).json({ error: 'Trop de tentatives. Redemandez un code.' });
+  }
+
+  if (otp.code !== code) {
+    await admin().from('avocat_otp_codes').update({ attempts: (otp.attempts || 0) + 1 }).eq('id', otp.id);
+    await logAudit(req.userId, 'avocat', 'otp_verify_fail', 'coffre', req.societeId, req, false);
+    return res.status(401).json({ error: 'Code incorrect. ' + (2 - (otp.attempts || 0)) + ' tentative(s) restante(s).' });
+  }
+
+  // Code correct
+  await admin().from('avocat_otp_codes').update({ verified: true, verified_at: new Date().toISOString() }).eq('id', otp.id);
+  await admin().from('avocat_coffre_auth').update({ last_access: new Date().toISOString() }).eq('avocat_societe_id', req.societeId);
+  await logAudit(req.userId, 'avocat', 'coffre_unlock', 'coffre', req.societeId, req, true, { otp: 'verified' });
+
   return res.json({ success: true, message: 'Coffre deverrouille.', session_minutes: 15 });
+});
+
+// POST /coffre/resend-otp — Renvoyer un nouveau code
+router.post('/coffre/resend-otp', requireAvocat, async (req, res) => {
+  const { canal } = req.body || {};
+  const { data: auth } = await admin().from('avocat_coffre_auth').select('*').eq('avocat_societe_id', req.societeId).single();
+  if (!auth) return res.status(404).json({ error: 'Coffre non configure' });
+
+  const { generateCode, sendOTP } = require('../../services/otp-sender');
+  const chosenCanal = canal || auth.otp_canal_prefere || 'email';
+  const code = generateCode();
+
+  let destination;
+  if (chosenCanal === 'email') destination = req.userEmail || '';
+  else destination = auth.otp_telephone || '';
+
+  if (!destination) return res.status(400).json({ error: 'Pas de destination pour ' + chosenCanal + '. Configurez votre telephone.' });
+
+  await admin().from('avocat_otp_codes').insert({ user_id: req.userId, user_role: 'avocat', canal: chosenCanal, destination, code });
+  const r = await sendOTP(chosenCanal, destination, code, 'JADOMI Avocat');
+
+  if (r.success) return res.json({ success: true, canal: chosenCanal, message: 'Nouveau code envoye par ' + chosenCanal + '.' });
+  return res.status(500).json({ error: r.error || 'Envoi echoue' });
+});
+
+// PATCH /coffre/otp-preferences — Changer canal prefere
+router.patch('/coffre/otp-preferences', requireAvocat, async (req, res) => {
+  const { canal, telephone } = req.body || {};
+  const updates = {};
+  if (canal && ['sms', 'whatsapp', 'email'].includes(canal)) updates.otp_canal_prefere = canal;
+  if (telephone) updates.otp_telephone = telephone;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'canal ou telephone requis' });
+
+  await admin().from('avocat_coffre_auth').update(updates).eq('avocat_societe_id', req.societeId);
+  return res.json({ success: true });
 });
 
 // ================================================
