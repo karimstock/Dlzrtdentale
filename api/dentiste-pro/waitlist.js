@@ -415,7 +415,7 @@ router.post('/claim/:urgenceSlotId', requirePatient(), async (req, res) => {
 
     // 2. Creer le rendez-vous
     const { data: rdv, error: rdvErr } = await admin()
-      .from('dentiste_pro_appointments')
+      .from('appointments')
       .insert({
         cabinet_id: claimed.cabinet_id,
         patient_id,

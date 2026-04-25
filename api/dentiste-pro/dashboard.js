@@ -47,8 +47,8 @@ router.get('/today', requireCabinet(), requirePermission('agenda'), async (req, 
 
     // 1. RDV du jour avec infos patient
     const { data: appointments, error: rdvErr } = await admin()
-      .from('dentiste_pro_appointments')
-      .select('*, patient:dentiste_pro_patients(id, nom, prenom, telephone, email), type:dentiste_pro_appointment_types(id, nom, duree_minutes, couleur)')
+      .from('appointments')
+      .select('*, patient:dentiste_pro_patients(id, nom, prenom, telephone, email), type:appointment_types(id, nom, duree_minutes, couleur)')
       .eq('cabinet_id', cabinetId)
       .eq('date', today)
       .order('start_time', { ascending: true });
@@ -63,7 +63,7 @@ router.get('/today', requireCabinet(), requirePermission('agenda'), async (req, 
       // Progression serie (si le RDV fait partie d'une serie)
       if (rdv.series_id) {
         const { data: seriesRdvs } = await admin()
-          .from('dentiste_pro_appointments')
+          .from('appointments')
           .select('id, status')
           .eq('series_id', rdv.series_id);
 
@@ -134,7 +134,7 @@ router.get('/stats', requireCabinet(), requirePermission('statistiques'), async 
 
     // 1. Stats rendez-vous
     const { data: rdvs, error: rdvErr } = await admin()
-      .from('dentiste_pro_appointments')
+      .from('appointments')
       .select('id, status')
       .eq('cabinet_id', cabinetId)
       .gte('date', start)
@@ -297,7 +297,7 @@ router.get('/rappels-today', requireCabinet(), requirePermission('rappels'), asy
 
     const { data: rappels, error } = await admin()
       .from('dentiste_pro_rappels')
-      .select('*, patient:dentiste_pro_patients(id, nom, prenom, telephone), appointment:dentiste_pro_appointments(id, date, start_time)')
+      .select('*, patient:dentiste_pro_patients(id, nom, prenom, telephone), appointment:appointments(id, date, start_time)')
       .eq('cabinet_id', cabinetId)
       .gte('scheduled_at', today + 'T00:00:00')
       .lt('scheduled_at', tomorrow + 'T00:00:00')
