@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+.sb-free{font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;}
+.sb-offer{position:absolute;bottom:14px;left:18px;right:18px;text-align:center;font-size:9px;color:#c9a961;font-weight:600;letter-spacing:.5px;opacity:.7;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-6{grid-template-columns:1.5fr 1.5fr 1fr .8fr .8fr .5fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-i{background:rgba(99,102,241,.12);color:#a5b4fc;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Calendar grid */
+.cal{display:grid;grid-template-columns:40px repeat(5,1fr);gap:1px;margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.3);}
+.cal-h{padding:8px 4px;font-size:8px;font-weight:700;color:#475569;text-align:center;background:rgba(15,23,42,.8);text-transform:uppercase;}
+.cal-time{padding:6px 4px;font-size:8px;color:#475569;text-align:center;background:rgba(15,23,42,.4);display:flex;align-items:center;justify-content:center;}
+.cal-slot{padding:4px;font-size:8px;background:rgba(15,23,42,.2);min-height:28px;display:flex;align-items:center;justify-content:center;}
+.cal-ev{padding:3px 5px;border-radius:4px;font-size:7px;font-weight:600;text-align:center;line-height:1.3;width:100%;}
+.ev-reeeduc{background:rgba(13,148,136,.15);color:#5eead4;border:1px solid rgba(13,148,136,.2);}
+.ev-bilan{background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.2);}
+.ev-domicile{background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.2);}
+.ev-empty{background:transparent;}
+
+/* Progress items */
+.prog{margin:0 24px;display:flex;flex-direction:column;gap:10px;}
+.prog-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(30,41,59,.4);border:1px solid rgba(99,102,241,.06);border-radius:10px;}
+.prog-label{font-size:11px;font-weight:500;flex:1;color:#e2e8f0;}
+.prog-bar{width:100px;height:6px;background:rgba(30,41,59,.8);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:3px;}
+.prog-val{font-size:11px;font-weight:700;width:45px;text-align:right;}
+
+/* Timeline */
+.timeline{margin:0 24px;display:flex;flex-direction:column;gap:8px;}
+.tl-item{display:flex;gap:12px;padding:10px 14px;background:rgba(30,41,59,.4);border:1px solid rgba(99,102,241,.06);border-radius:10px;align-items:flex-start;}
+.tl-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.tl-content{flex:1;}
+.tl-title{font-size:11px;font-weight:600;color:#e2e8f0;}
+.tl-desc{font-size:9px;color:#64748b;margin-top:2px;}
+.tl-meta{font-size:9px;color:#475569;margin-top:4px;display:flex;gap:12px;}
+
+/* Submission cards */
+.sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 24px;}
+.sub-card{padding:16px;border-radius:12px;background:rgba(30,41,59,.4);border:1px solid rgba(99,102,241,.06);}
+.sub-card h4{font-size:11px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.sub-card .val{font-size:22px;font-weight:800;letter-spacing:-1px;}
+.sub-card .lbl{font-size:9px;color:#64748b;margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">&#128197; Agenda</div>
+    <div class="sb-item" id="n1">&#128100; Patients</div>
+    <div class="sb-item" id="n2">&#128178; Facturation</div>
+    <div class="sb-item" id="n3">&#128203; Seances</div>
+    <div class="sb-sep">Clinique</div>
+    <div class="sb-item" id="n4">&#128203; Bilans BDK</div>
+    <div class="sb-item" id="n5">&#128200; Reeducation</div>
+    <div class="sb-item" id="n6">&#128200; Statistiques</div>
+    <div class="sb-sep">Services</div>
+    <div class="sb-item" id="n7">&#128100; Espace Patient</div>
+    <div class="sb-item" id="n8">&#128176; Comptabilite</div>
+    <div class="sb-item" id="n9">&#10024; Mon Site <span class="sb-free">GRATUIT</span></div>
+    <div class="sb-offer">1er mois offert</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. AGENDA SEANCES -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">&#128197; Agenda Seances</span><span class="top-badge">Semaine 17</span><span style="margin-left:auto;font-size:10px;color:#5eead4;font-weight:600;">32 seances/semaine &middot; 6 patients/jour</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128197;</div><div class="stat-val">32</div><div class="stat-lbl">Seances/sem.</div><div class="stat-delta">+3 vs sem. dern.</div></div>
+          <div class="stat c"><div class="stat-icon">&#128100;</div><div class="stat-val">18</div><div class="stat-lbl">Patients actifs</div><div class="stat-delta">+2 nouveaux</div></div>
+          <div class="stat e"><div class="stat-icon">&#127968;</div><div class="stat-val">5</div><div class="stat-lbl">Domicile</div><div class="stat-delta">Planifies</div></div>
+          <div class="stat r"><div class="stat-icon">&#9888;&#65039;</div><div class="stat-val">2</div><div class="stat-lbl">Annulations</div><div class="stat-delta" style="color:#fca5a5;">A remplacer</div></div>
+        </div>
+        <div class="cal">
+          <div class="cal-h"></div><div class="cal-h">Lun</div><div class="cal-h">Mar</div><div class="cal-h">Mer</div><div class="cal-h">Jeu</div><div class="cal-h">Ven</div>
+          <div class="cal-time">8h30</div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">M. Dupont<br>Epaule</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-bilan">Mme Leroy<br>BDK</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">M. Garcia<br>Genou</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-domicile">Mme Petit<br>Domicile</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">M. Martin<br>Rachis</div></div>
+          <div class="cal-time">9h15</div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme Roux<br>Hanche</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">M. Bernard<br>Cheville</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-domicile">M. Moreau<br>Domicile</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme Simon<br>Epaule</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-bilan">M. Laurent<br>BDK</div></div>
+          <div class="cal-time">10h00</div>
+          <div class="cal-slot"><div class="cal-ev ev-bilan">M. Michel<br>BDK</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme Duval<br>Rachis</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">M. Thomas<br>Genou</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme Blanc<br>Poignet</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">M. Robert<br>Hanche</div></div>
+          <div class="cal-time">14h00</div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme David<br>Genou</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-domicile">M. Bertrand<br>Domicile</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme Morel<br>Rachis</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-bilan">M. Fournier<br>BDK</div></div>
+          <div class="cal-slot"><div class="cal-ev ev-reeeduc">Mme Girard<br>Cheville</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. DOSSIER PATIENT BDK -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">&#128203; Dossier Patient — Bilan BDK</span><span class="top-badge">M. Dupont Jean</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128197;</div><div class="stat-val">8/15</div><div class="stat-lbl">Seances realisees</div><div class="stat-delta">Ordonnance active</div></div>
+          <div class="stat c"><div class="stat-icon">&#128203;</div><div class="stat-val">BDK</div><div class="stat-lbl">Bilan initial</div><div class="stat-delta">12/03/2026</div></div>
+          <div class="stat e"><div class="stat-icon">&#127919;</div><div class="stat-val">72%</div><div class="stat-lbl">Objectif atteint</div><div class="stat-delta">+15% ce mois</div></div>
+          <div class="stat r"><div class="stat-icon">&#128200;</div><div class="stat-val">3/10</div><div class="stat-lbl">EVA Douleur</div><div class="stat-delta" style="color:#34d399;">-4 pts depuis debut</div></div>
+        </div>
+        <div style="padding:6px 24px 10px;font-size:12px;font-weight:700;color:#94a3b8;">Progression reeducation</div>
+        <div class="prog">
+          <div class="prog-item">
+            <span class="prog-label">Mobilite epaule (flexion)</span>
+            <div class="prog-bar"><div class="prog-fill" style="width:72%;background:linear-gradient(90deg,#0d9488,#5eead4);"></div></div>
+            <span class="prog-val" style="color:#5eead4;">130/180</span>
+          </div>
+          <div class="prog-item">
+            <span class="prog-label">Force musculaire (cotation)</span>
+            <div class="prog-bar"><div class="prog-fill" style="width:58%;background:linear-gradient(90deg,#6366f1,#a5b4fc);"></div></div>
+            <span class="prog-val" style="color:#a5b4fc;">3+/5</span>
+          </div>
+          <div class="prog-item">
+            <span class="prog-label">Echelle douleur (EVA)</span>
+            <div class="prog-bar"><div class="prog-fill" style="width:30%;background:linear-gradient(90deg,#10b981,#34d399);"></div></div>
+            <span class="prog-val" style="color:#34d399;">3/10</span>
+          </div>
+          <div class="prog-item">
+            <span class="prog-label">Autonomie fonctionnelle</span>
+            <div class="prog-bar"><div class="prog-fill" style="width:85%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div></div>
+            <span class="prog-val" style="color:#fbbf24;">85%</span>
+          </div>
+          <div class="prog-item">
+            <span class="prog-label">Objectif global reeducation</span>
+            <div class="prog-bar"><div class="prog-fill" style="width:72%;background:linear-gradient(90deg,#0d9488,#06b6d4);"></div></div>
+            <span class="prog-val" style="color:#06b6d4;">72%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. FACTURATION -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">&#128178; Facturation</span><span class="top-badge">Suivi paiements</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128178;</div><div class="stat-val">2 840</div><div class="stat-lbl">CA mois (EUR)</div><div class="stat-delta">+8% vs mois dern.</div></div>
+          <div class="stat c"><div class="stat-icon">&#128203;</div><div class="stat-val">48</div><div class="stat-lbl">Factures emises</div><div class="stat-delta">Ce mois</div></div>
+          <div class="stat e"><div class="stat-icon">&#9989;</div><div class="stat-val">92%</div><div class="stat-lbl">Taux encaissement</div><div class="stat-delta">Paiements recus</div></div>
+          <div class="stat r"><div class="stat-icon">&#9888;&#65039;</div><div class="stat-val">4</div><div class="stat-lbl">Relances</div><div class="stat-delta" style="color:#fca5a5;">A envoyer</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Facture</span><span>Patient</span><span>Montant</span><span>Statut</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>#2026-048</span><span>M. Dupont J.</span><span style="font-weight:600;">45,00 EUR</span><span class="pill p-ok">Payee</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>#2026-047</span><span>Mme Leroy S.</span><span style="font-weight:600;">35,00 EUR</span><span class="pill p-ok">Payee</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>#2026-046</span><span>M. Garcia P.</span><span style="font-weight:600;">60,00 EUR</span><span class="pill p-w">En attente</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>#2026-045</span><span>Mme Roux L.</span><span style="font-weight:600;">45,00 EUR</span><span class="pill p-c">Retard</span><span style="color:#6366f1;font-size:10px;">Relancer</span></div>
+          <div class="tbl-r tbl-5"><span>#2026-044</span><span>M. Bernard K.</span><span style="font-weight:600;">35,00 EUR</span><span class="pill p-ok">Payee</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>#2026-043</span><span>Mme Simon A.</span><span style="font-weight:600;">50,00 EUR</span><span class="pill p-ok">Payee</span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. SUIVI REEDUCATION -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">&#128200; Suivi Reeducation</span><span class="top-badge">M. Dupont — Epaule droite</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div style="padding:0 24px 12px;font-size:12px;font-weight:700;color:#94a3b8;">Timeline des seances</div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot" style="background:#10b981;"></div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 8/15 — Mobilisation passive + renforcement</div>
+              <div class="tl-desc">Flexion epaule 130 deg. (+10 deg.) — Force 3+/5 — EVA 3/10</div>
+              <div class="tl-meta"><span>21/04/2026</span><span>45 min — Cabinet</span><span style="color:#10b981;">Progression +</span></div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:#06b6d4;"></div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 7/15 — Etirements + proprioception</div>
+              <div class="tl-desc">Flexion epaule 120 deg. — Force 3/5 — EVA 4/10</div>
+              <div class="tl-meta"><span>18/04/2026</span><span>45 min — Cabinet</span><span style="color:#06b6d4;">Stable</span></div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:#6366f1;"></div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 6/15 — Cryotherapie + mobilisation</div>
+              <div class="tl-desc">Flexion epaule 115 deg. — Force 3/5 — EVA 4/10</div>
+              <div class="tl-meta"><span>16/04/2026</span><span>45 min — Cabinet</span><span style="color:#a5b4fc;">En cours</span></div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:#8b5cf6;"></div>
+            <div class="tl-content">
+              <div class="tl-title">Seance 5/15 — Renforcement isometrique</div>
+              <div class="tl-desc">Flexion epaule 110 deg. — Force 2+/5 — EVA 5/10</div>
+              <div class="tl-meta"><span>14/04/2026</span><span>45 min — Cabinet</span><span style="color:#c4b5fd;">Progression +</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:12px 24px 0;">
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;padding:12px;background:rgba(13,148,136,.06);border:1px solid rgba(13,148,136,.12);border-radius:10px;text-align:center;">
+              <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Exercices prescrits</div>
+              <div style="font-size:18px;font-weight:800;color:#5eead4;margin-top:4px;">12</div>
+            </div>
+            <div style="flex:1;padding:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.12);border-radius:10px;text-align:center;">
+              <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">ROM objectif</div>
+              <div style="font-size:18px;font-weight:800;color:#a5b4fc;margin-top:4px;">180 deg.</div>
+            </div>
+            <div style="flex:1;padding:12px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.12);border-radius:10px;text-align:center;">
+              <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">ROM actuel</div>
+              <div style="font-size:18px;font-weight:800;color:#34d399;margin-top:4px;">130 deg.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. STATISTIQUES -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">&#128200; Statistiques cabinet</span><span class="top-badge">Dashboard</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="sub-grid">
+          <div class="sub-card" style="border-color:rgba(16,185,129,.15);">
+            <h4 style="color:#34d399;">&#128178; CA mensuel</h4>
+            <div class="val" style="color:#10b981;">2 840</div>
+            <div class="lbl">EUR — +8% vs mois precedent</div>
+          </div>
+          <div class="sub-card" style="border-color:rgba(6,182,212,.15);">
+            <h4 style="color:#06b6d4;">&#128197; Seances</h4>
+            <div class="val" style="color:#06b6d4;">142</div>
+            <div class="lbl">Ce mois — 32/semaine</div>
+          </div>
+          <div class="sub-card" style="border-color:rgba(245,158,11,.15);">
+            <h4 style="color:#fbbf24;">&#9989; Taux de presence</h4>
+            <div class="val" style="color:#f59e0b;">94%</div>
+            <div class="lbl">+2% vs mois precedent</div>
+          </div>
+          <div class="sub-card" style="border-color:rgba(99,102,241,.15);">
+            <h4 style="color:#a5b4fc;">&#128100; Nouveaux patients</h4>
+            <div class="val" style="color:#6366f1;">6</div>
+            <div class="lbl">Ce mois — +50% vs prec.</div>
+          </div>
+        </div>
+        <div style="padding:12px 24px 8px;font-size:12px;font-weight:700;color:#94a3b8;">Repartition activite</div>
+        <div class="cgrid cgrid-3">
+          <div class="crd">
+            <h3 style="color:#5eead4;">&#127919; Reeducation</h3>
+            <p>108 seances (76%)</p>
+            <div class="bar"><div class="bar-fill" style="width:76%;background:linear-gradient(90deg,#0d9488,#5eead4);"></div></div>
+          </div>
+          <div class="crd">
+            <h3 style="color:#a5b4fc;">&#128203; Bilans BDK</h3>
+            <p>18 seances (13%)</p>
+            <div class="bar"><div class="bar-fill" style="width:13%;background:linear-gradient(90deg,#6366f1,#a5b4fc);"></div></div>
+          </div>
+          <div class="crd">
+            <h3 style="color:#fbbf24;">&#127968; Domicile</h3>
+            <p>16 seances (11%)</p>
+            <div class="bar"><div class="bar-fill" style="width:11%;background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap={0:0,1:1,2:2,3:5,4:6};
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  // Exit previous
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  // Enter new
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  // Nav highlight
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  const navIdx=navMap[cur];
+  if(navIdx!==undefined) document.getElementById('n'+navIdx)?.classList.add('active');
+}
+
+// Auto cycle with page-flip transitions
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

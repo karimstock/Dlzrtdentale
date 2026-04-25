@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+
+/* Alert bar */
+.alert-bar{margin:0 24px 12px;padding:12px 18px;background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(239,68,68,.06));border:1px solid rgba(245,158,11,.12);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;}
+.alert-bar .dots{display:flex;gap:8px;}
+.alert-bar .dot{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;}
+.dot-r{background:rgba(240,80,80,.1);color:#f05050;}
+.dot-y{background:rgba(240,160,48,.1);color:#f0a030;}
+.dot-g{background:rgba(16,185,129,.1);color:#10b981;}
+
+/* Calendar */
+.cal{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.cal-h{display:grid;grid-template-columns:60px repeat(5,1fr);padding:8px 12px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.cal-r{display:grid;grid-template-columns:60px repeat(5,1fr);padding:6px 12px;font-size:9px;border-top:1px solid rgba(99,102,241,.04);align-items:center;}
+.cal-cell{padding:3px 6px;border-radius:4px;margin:1px;font-size:8px;font-weight:600;text-align:center;}
+.cc-blue{background:rgba(99,102,241,.12);color:#a5b4fc;border:1px solid rgba(99,102,241,.15);}
+.cc-green{background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.15);}
+.cc-orange{background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.15);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Chantiers</div>
+    <div class="sb-item active" id="n0">🏗️ Chantiers</div>
+    <div class="sb-item" id="n1">📋 Devis</div>
+    <div class="sb-item" id="n2">📦 Stock <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-sep">Organisation</div>
+    <div class="sb-item" id="n3">📅 Planning</div>
+    <div class="sb-item" id="n4">💰 Factures</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n5">✨ Mon site</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. CHANTIERS -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">🏗️ Chantiers — Suivi en temps reel</span><span class="top-badge">4 chantiers actifs</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">🏗️</div><div class="stat-val">4</div><div class="stat-lbl">Chantiers actifs</div><div class="stat-delta">+1 ce mois</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">12</div><div class="stat-lbl">Termines en 2026</div><div class="stat-delta">100% dans les temps</div></div>
+          <div class="stat c"><div class="stat-icon">💰</div><div class="stat-val">84 500€</div><div class="stat-lbl">Budget total en cours</div><div class="stat-delta">Marge 32%</div></div>
+          <div class="stat r"><div class="stat-icon">⏰</div><div class="stat-val">1</div><div class="stat-lbl">Retard signale</div><div class="stat-delta" style="color:#fca5a5;">Intemperies</div></div>
+        </div>
+        <div style="padding:0 24px 18px;">
+          <div class="cgrid cgrid-2">
+            <div class="crd"><h3>🔨 Renovation cuisine Dupont</h3><p>Budget : <strong>18 500€</strong> &middot; Deadline : 15/05/26<br>Avancement : <strong style="color:#a5b4fc;">72%</strong></p><div class="bar"><div class="bar-fill" style="width:72%;background:linear-gradient(90deg,#6366f1,#8b5cf6);"></div></div></div>
+            <div class="crd"><h3>🏠 Extension Maison Martin</h3><p>Budget : <strong>42 000€</strong> &middot; Deadline : 30/06/26<br>Avancement : <strong style="color:#a5b4fc;">35%</strong></p><div class="bar"><div class="bar-fill" style="width:35%;background:linear-gradient(90deg,#06b6d4,#3b82f6);"></div></div></div>
+            <div class="crd" style="border-color:rgba(239,68,68,.15);"><h3>🚿 Salle de bain Leroy</h3><p>Budget : <strong>8 200€</strong> &middot; Deadline : 02/05/26<br>Avancement : <strong style="color:#fca5a5;">90% — Retard 3j</strong></p><div class="bar"><div class="bar-fill" style="width:90%;background:linear-gradient(90deg,#f59e0b,#f97316);"></div></div></div>
+            <div class="crd" style="border-color:rgba(16,185,129,.15);"><h3>🏢 Ravalement facade SCI</h3><p>Budget : <strong>15 800€</strong> &middot; Deadline : 20/07/26<br>Avancement : <strong style="color:#6ee7b7;">15% — En avance</strong></p><div class="bar"><div class="bar-fill" style="width:15%;background:linear-gradient(90deg,#10b981,#14b8a6);"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. DEVIS -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">📋 Devis — Gestion commerciale</span><span class="top-badge">18 devis ce mois</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📋</div><div class="stat-val">18</div><div class="stat-lbl">Devis envoyes</div><div class="stat-delta">+5 cette semaine</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">72%</div><div class="stat-lbl">Taux conversion</div><div class="stat-delta">+8% vs mars</div></div>
+          <div class="stat c"><div class="stat-icon">💰</div><div class="stat-val">126 400€</div><div class="stat-lbl">Montant total</div><div class="stat-delta">Pipeline solide</div></div>
+          <div class="stat r"><div class="stat-icon">⏳</div><div class="stat-val">4</div><div class="stat-lbl">En attente reponse</div><div class="stat-delta" style="color:#fcd34d;">Relances a faire</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Devis</span><span>Client</span><span>Montant</span><span>Statut</span><span>Date</span></div>
+          <div class="tbl-r tbl-5"><span>DEV-2026-042</span><span>M. Dupont</span><span style="font-weight:600;">18 500€</span><span class="pill p-ok">Accepte</span><span>12/03/26</span></div>
+          <div class="tbl-r tbl-5"><span>DEV-2026-045</span><span>Fam. Martin</span><span style="font-weight:600;">42 000€</span><span class="pill p-ok">Accepte</span><span>20/03/26</span></div>
+          <div class="tbl-r tbl-5"><span>DEV-2026-048</span><span>M. Bernard</span><span style="font-weight:600;">12 800€</span><span class="pill p-w">En attente</span><span>05/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>DEV-2026-050</span><span>Mme Garcia</span><span style="font-weight:600;">6 400€</span><span class="pill p-w">En attente</span><span>18/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>DEV-2026-044</span><span>SCI Horizon</span><span style="font-weight:600;">15 800€</span><span class="pill p-ok">Accepte</span><span>15/03/26</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. STOCK MATERIAUX -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">📦 Stock materiaux — Inventaire</span><span class="top-badge">32 references</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📦</div><div class="stat-val">32</div><div class="stat-lbl">References</div><div class="stat-delta">Stock complet</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">4</div><div class="stat-lbl">Alertes stock bas</div><div class="stat-delta" style="color:#fca5a5;">Commander</div></div>
+          <div class="stat e"><div class="stat-icon">💰</div><div class="stat-val">8 420€</div><div class="stat-lbl">Valeur stock</div><div class="stat-delta">Inventaire a jour</div></div>
+          <div class="stat c"><div class="stat-icon">🚚</div><div class="stat-val">2</div><div class="stat-lbl">Commandes en cours</div><div class="stat-delta">Livraison J+2</div></div>
+        </div>
+        <div class="alert-bar"><span>⚠️ Stocks critiques</span><div class="dots"><span class="dot dot-r">2 ruptures</span><span class="dot dot-y">2 bas</span><span class="dot dot-g">28 OK</span></div></div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Materiau</span><span>Quantite</span><span>Unite</span><span>Statut</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Ciment Portland 25kg</span><span>3 sacs</span><span>sac</span><span class="pill p-c">Critique</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-5"><span>Plaques BA13 (2.5m)</span><span>8</span><span>plaque</span><span class="pill p-w">Faible</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-5"><span>Vis placo 35mm (x500)</span><span>2 boites</span><span>boite</span><span class="pill p-c">Critique</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-5"><span>Parpaings 20x20x50</span><span>120</span><span>unite</span><span class="pill p-ok">OK</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Sable 0/4 (big bag)</span><span>4</span><span>big bag</span><span class="pill p-ok">OK</span><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. PLANNING -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">📅 Planning — Semaine du 21 avril</span><span class="top-badge">6 ouvriers</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cal">
+          <div class="cal-h"><span>Equipe</span><span>Lundi</span><span>Mardi</span><span>Mercredi</span><span>Jeudi</span><span>Vendredi</span></div>
+          <div class="cal-r"><span style="font-weight:600;font-size:9px;">Marc P.</span><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-green">Martin</div></div>
+          <div class="cal-r"><span style="font-weight:600;font-size:9px;">Ali K.</span><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-green">Martin</div></div>
+          <div class="cal-r"><span style="font-weight:600;font-size:9px;">Lucas D.</span><div class="cal-cell cc-orange">Leroy</div><div class="cal-cell cc-orange">Leroy</div><div class="cal-cell cc-orange">Leroy</div><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-blue">Dupont</div></div>
+          <div class="cal-r"><span style="font-weight:600;font-size:9px;">Thomas R.</span><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-orange">Leroy</div><div class="cal-cell cc-orange">Leroy</div><div class="cal-cell cc-green">Martin</div></div>
+          <div class="cal-r"><span style="font-weight:600;font-size:9px;">Julien M.</span><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-green">Martin</div><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-blue">Dupont</div><div class="cal-cell cc-orange">Leroy</div></div>
+          <div class="cal-r"><span style="font-weight:600;font-size:9px;">Kevin B.</span><div class="cal-cell" style="background:rgba(139,92,246,.12);color:#c4b5fd;border:1px solid rgba(139,92,246,.15);">SCI Facade</div><div class="cal-cell" style="background:rgba(139,92,246,.12);color:#c4b5fd;border:1px solid rgba(139,92,246,.15);">SCI Facade</div><div class="cal-cell" style="background:rgba(139,92,246,.12);color:#c4b5fd;border:1px solid rgba(139,92,246,.15);">SCI Facade</div><div class="cal-cell" style="background:rgba(139,92,246,.12);color:#c4b5fd;border:1px solid rgba(139,92,246,.15);">SCI Facade</div><div class="cal-cell" style="background:rgba(139,92,246,.12);color:#c4b5fd;border:1px solid rgba(139,92,246,.15);">SCI Facade</div></div>
+        </div>
+        <div style="padding:14px 24px;">
+          <div class="cgrid cgrid-3">
+            <div class="crd" style="padding:12px;"><h3 style="font-size:10px;"><span class="cal-cell cc-blue" style="display:inline;">■</span> Dupont</h3><p>Cuisine — 72%</p></div>
+            <div class="crd" style="padding:12px;"><h3 style="font-size:10px;"><span class="cal-cell cc-green" style="display:inline;">■</span> Martin</h3><p>Extension — 35%</p></div>
+            <div class="crd" style="padding:12px;"><h3 style="font-size:10px;"><span class="cal-cell cc-orange" style="display:inline;">■</span> Leroy</h3><p>SdB — 90%</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. FACTURES -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">💰 Factures — Suivi paiements</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">💰</div><div class="stat-val">32 800€</div><div class="stat-lbl">CA ce mois</div><div class="stat-delta">+18% vs mars</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">85%</div><div class="stat-lbl">Taux encaissement</div><div class="stat-delta">Bon</div></div>
+          <div class="stat c"><div class="stat-icon">📄</div><div class="stat-val">3</div><div class="stat-lbl">Factures en attente</div><div class="stat-delta" style="color:#fcd34d;">Relances</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">4 200€</div><div class="stat-lbl">Impayes > 30j</div><div class="stat-delta" style="color:#fca5a5;">2 dossiers</div></div>
+        </div>
+        <div class="alert-bar"><span>⚠️ Retards de paiement</span><div class="dots"><span class="dot dot-r">2 > 60j</span><span class="dot dot-y">1 > 30j</span><span class="dot dot-g">8 a jour</span></div></div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Facture</span><span>Client</span><span>Montant TTC</span><span>Statut</span><span>Date</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-028</span><span>M. Dupont</span><span style="font-weight:600;">6 240€</span><span class="pill p-ok">Payee</span><span>05/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-029</span><span>Fam. Martin</span><span style="font-weight:600;">14 700€</span><span class="pill p-ok">Payee</span><span>10/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-030</span><span>M. Leroy</span><span style="font-weight:600;">8 200€</span><span class="pill p-w">En attente</span><span>15/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-025</span><span>Mme Petit</span><span style="font-weight:600;">2 800€</span><span class="pill p-c">Impayee 45j</span><span>01/03/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-022</span><span>M. Bernard</span><span style="font-weight:600;">1 400€</span><span class="pill p-c">Impayee 62j</span><span>15/02/26</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navMap[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

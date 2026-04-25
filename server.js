@@ -9,6 +9,32 @@ const crypto = require('crypto');
 
 const app = express();
 
+// === PWA Patient — MUST be first (before Helmet, CORS, etc.) ===
+app.use('/patient', (req, res) => {
+  const reqPath = req.path === '/' ? '/index.html' : req.path;
+  const filePath = path.join(__dirname, 'public', 'patient', reqPath);
+  const fs = require('fs');
+  try {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      return res.sendFile(filePath);
+    }
+  } catch(e) {}
+  res.sendFile(path.join(__dirname, 'public', 'patient', 'index.html'));
+});
+
+// === PWA Labo Pro — MUST be before Helmet, CORS, etc. ===
+app.use('/labo-pro', (req, res) => {
+  const reqPath = req.path === '/' ? '/index.html' : req.path;
+  const filePath = path.join(__dirname, 'public', 'labo-pro', reqPath);
+  const fs = require('fs');
+  try {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      return res.sendFile(filePath);
+    }
+  } catch(e) {}
+  res.sendFile(path.join(__dirname, 'public', 'labo-pro', 'index.html'));
+});
+
 // === Security: Helmet (HTTP headers) ===
 const helmet = require('helmet');
 app.use(helmet({
@@ -22,7 +48,8 @@ app.use(helmet({
 // En dev/local (sans NODE_ENV=production), toutes origines acceptees.
 const allowedOrigins = [
   'https://jadomi.fr', 'https://www.jadomi.fr',
-  'https://jadomi.be', 'https://www.jadomi.be'
+  'https://jadomi.be', 'https://www.jadomi.be',
+  'https://patient.jadomi.fr'
 ];
 app.use(cors({
   origin: function(origin, cb) {
@@ -74,6 +101,8 @@ app.use('/api/auth/forgot-password', rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de demandes, réessayez dans 15 minutes' }
 }));
+
+// PWA Patient — monté en tout premier dans le fichier (avant Helmet)
 
 // === Performance: in-memory cache helper ===
 const _cache = new Map();
@@ -133,6 +162,8 @@ app.get('/orthodontistes', (req, res) => res.sendFile(path.join(__dirname, 'publ
 app.get('/prothesistes-dentaires', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesistes-dentaires.html')));
 app.get('/professions-paramedicales', (req, res) => res.sendFile(path.join(__dirname, 'public/professions-paramedicales.html')));
 app.get('/services-bien-etre', (req, res) => res.sendFile(path.join(__dirname, 'public/services-bien-etre.html')));
+// JADOMI Dentiste Pro Dashboard
+app.get('/admin/dentiste-pro', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/dentiste-pro.html')));
 // JADOMI Ads (Passe 34)
 app.get('/jadomi-ads', (req, res) => res.sendFile(path.join(__dirname, 'public/jadomi-ads.html')));
 app.get('/dashboard-annonceur', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard-annonceur.html')));
@@ -156,6 +187,7 @@ app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname
 app.get('/avocat/coffre', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/coffre.html')));
 app.get('/espace-client', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
 app.get('/espace-client/', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
+// PWA Patient — routes dupliquees retirees (gere en tout premier du fichier)
 // Sites staging JADOMI — copies pour modification (Passe 43)
 app.use('/sites-staging/:slug', (req, res, next) => {
   const slug = req.params.slug;
@@ -480,6 +512,32 @@ try {
   console.warn('[JADOMI] Module Coach non chargé:', e.message);
 }
 
+// === JADOMI Dentiste Pro (gestion cabinet sante multi-professions) ===
+try {
+  require('./api/dentiste-pro/index')(app);
+  console.log('[JADOMI] Module Dentiste Pro monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Dentiste Pro non charge:', e.message);
+}
+
+// === JADOMI Dentiste Pro — Rappels CRON (toutes les 15 min) ===
+try {
+  const { processRappels } = require('./api/dentiste-pro/rappels');
+  setInterval(async () => {
+    try {
+      const result = await processRappels();
+      if (result.processed > 0) {
+        console.log(`[dentiste-pro] Rappels CRON: ${result.sent || 0} envoyes, ${result.failed || 0} echoues`);
+      }
+    } catch (cronErr) {
+      console.error('[dentiste-pro] Rappels CRON error:', cronErr.message);
+    }
+  }, 15 * 60 * 1000); // toutes les 15 minutes
+  console.log('[JADOMI] CRON rappels Dentiste Pro programme (toutes les 15 min)');
+} catch (e) {
+  console.warn('[JADOMI] CRON rappels Dentiste Pro non charge:', e.message);
+}
+
 // === JADOMI Timeline (suivi visuel chronologique patient) ===
 try {
   app.use('/api/timeline', require('./api/timeline'));
@@ -503,6 +561,24 @@ try {
 } catch (e) {
   console.warn('[JADOMI] Module Appointments non chargé:', e.message);
 }
+
+// === JADOMI Dentiste Pro — Smart Batch Slot-Finder ===
+try {
+  app.use('/api/dentiste-pro/batch-slots', require('./api/dentiste-pro/batch-slots'));
+  console.log('[JADOMI] Module Dentiste Pro Batch Slots monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Dentiste Pro Batch Slots non chargé:', e.message);
+}
+
+// Dentiste Pro - Rappels cron (every 15 minutes)
+try {
+  const { processRappels } = require('./api/dentiste-pro/rappels');
+  if (processRappels) {
+    const cron = require('node-cron');
+    cron.schedule('*/15 * * * *', processRappels);
+    console.log('[CRON] Dentiste Pro rappels: every 15 min');
+  }
+} catch(e) { console.log('[CRON] Dentiste Pro rappels not loaded:', e.message); }
 
 // === JADOMI Admin Email (inbox IMAP + campagnes mailing) ===
 try {

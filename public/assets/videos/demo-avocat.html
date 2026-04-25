@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Scanner zone */
+.scan{margin:18px 24px;border:2px dashed rgba(99,102,241,.15);border-radius:14px;padding:28px;text-align:center;background:rgba(99,102,241,.02);}
+.scan-icon{font-size:32px;margin-bottom:8px;opacity:.5;}
+.scan p{font-size:11px;color:#64748b;}
+.scan small{font-size:9px;color:#475569;}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+
+/* Chat bubbles */
+.chat{padding:18px 24px;display:flex;flex-direction:column;gap:10px;}
+.bubble{max-width:70%;padding:10px 14px;border-radius:12px;font-size:11px;line-height:1.5;}
+.bubble-l{background:rgba(30,41,59,.8);border:1px solid rgba(99,102,241,.08);align-self:flex-start;border-bottom-left-radius:4px;}
+.bubble-r{background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.2);align-self:flex-end;border-bottom-right-radius:4px;}
+.bubble-name{font-size:9px;font-weight:700;color:#a5b4fc;margin-bottom:4px;}
+.bubble-time{font-size:8px;color:#475569;margin-top:4px;text-align:right;}
+
+/* Alert bar */
+.alert-bar{margin:0 24px 12px;padding:12px 18px;background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(239,68,68,.06));border:1px solid rgba(245,158,11,.12);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">📁 Dossiers</div>
+    <div class="sb-item" id="n1">🔐 Coffre-fort</div>
+    <div class="sb-item" id="n2">💬 Messagerie</div>
+    <div class="sb-sep">Gestion</div>
+    <div class="sb-item" id="n3">💰 Facturation</div>
+    <div class="sb-item" id="n4">👤 Espace Client <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n5">✨ Mon site</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. DOSSIERS -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">📁 Dossiers — Affaires en cours</span><span class="top-badge">14 dossiers actifs</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📁</div><div class="stat-val">14</div><div class="stat-lbl">Dossiers actifs</div><div class="stat-delta">+3 ce mois</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">8</div><div class="stat-lbl">Clos ce trimestre</div><div class="stat-delta">+60% vs T3</div></div>
+          <div class="stat c"><div class="stat-icon">⏳</div><div class="stat-val">4</div><div class="stat-lbl">En attente</div><div class="stat-delta" style="color:#fcd34d;">Relances a faire</div></div>
+          <div class="stat r"><div class="stat-icon">⚖️</div><div class="stat-val">2</div><div class="stat-lbl">Audiences proches</div><div class="stat-delta" style="color:#fca5a5;">Cette semaine</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Dossier</span><span>Client</span><span>Type</span><span>Statut</span><span>Date</span></div>
+          <div class="tbl-r tbl-5"><span>Divorce Dupont</span><span>M. Dupont</span><span>Famille</span><span class="pill p-w">En cours</span><span>15/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>Contrat SCI Martin</span><span>SCI Martin</span><span>Immobilier</span><span class="pill p-ok">En attente</span><span>22/03/26</span></div>
+          <div class="tbl-r tbl-5"><span>Litige Leroy</span><span>Mme Leroy</span><span>Commercial</span><span class="pill p-c">Urgent</span><span>10/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>Succession Bernard</span><span>Fam. Bernard</span><span>Patrimoine</span><span class="pill p-w">En cours</span><span>05/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>Bail commercial Petit</span><span>SARL Petit</span><span>Commercial</span><span class="pill p-ok">Clos</span><span>28/02/26</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. COFFRE-FORT -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">🔐 Coffre-fort — Echange securise</span><span class="top-badge">AES-256</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:rgba(16,185,129,.15);color:#6ee7b7;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">Chiffrement bout-en-bout</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📄</div><div class="stat-val">42</div><div class="stat-lbl">Documents stockes</div><div class="stat-delta">+6 cette semaine</div></div>
+          <div class="stat e"><div class="stat-icon">🔒</div><div class="stat-val">100%</div><div class="stat-lbl">Chiffres AES-256</div><div class="stat-delta">Securite maximale</div></div>
+          <div class="stat c"><div class="stat-icon">👥</div><div class="stat-val">8</div><div class="stat-lbl">Clients connectes</div><div class="stat-delta">Acces securise</div></div>
+          <div class="stat r"><div class="stat-icon">⏰</div><div class="stat-val">3</div><div class="stat-lbl">En attente validation</div><div class="stat-delta" style="color:#fca5a5;">A valider</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Document</span><span>Client</span><span>Date</span><span>Statut</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Acte mariage.pdf</span><span>M. Dupont</span><span>12/04/26</span><span class="pill p-ok">Valide</span><span style="color:#6366f1;font-size:10px;">🔒</span></div>
+          <div class="tbl-r tbl-5"><span>Contrat bail.pdf</span><span>SCI Martin</span><span>18/03/26</span><span class="pill p-w">En attente</span><span style="color:#6366f1;font-size:10px;">🔒</span></div>
+          <div class="tbl-r tbl-5"><span>PV assemblee.pdf</span><span>SCI Martin</span><span>20/03/26</span><span class="pill p-ok">Valide</span><span style="color:#6366f1;font-size:10px;">🔒</span></div>
+          <div class="tbl-r tbl-5"><span>Jugement divorce.pdf</span><span>Mme Leroy</span><span>08/04/26</span><span class="pill p-w">En attente</span><span style="color:#6366f1;font-size:10px;">🔒</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. MESSAGERIE -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">💬 Messagerie — Communication chiffree</span><span class="top-badge">3 conversations</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:rgba(16,185,129,.15);color:#6ee7b7;padding:4px 12px;border-radius:5px;">🔒 Chiffre E2E</span></div>
+      <div class="content">
+        <div style="padding:12px 24px;font-size:12px;font-weight:700;color:#94a3b8;">Dossier Divorce Dupont — Conversation avec M. Dupont</div>
+        <div class="chat">
+          <div class="bubble bubble-r"><div class="bubble-name">Me. Avocat</div>Bonjour M. Dupont, j'ai bien recu les documents. L'audience est fixee au 28 avril. Merci de preparer les justificatifs de revenus.<div class="bubble-time">10:32</div></div>
+          <div class="bubble bubble-l"><div class="bubble-name">M. Dupont</div>Merci Maitre. Je vous envoie les 3 derniers bulletins de salaire via le coffre-fort ce soir.<div class="bubble-time">11:15</div></div>
+          <div class="bubble bubble-r"><div class="bubble-name">Me. Avocat</div>Parfait. J'ai egalement depose le projet de convention dans votre espace client. Pouvez-vous le relire ?<div class="bubble-time">14:08</div></div>
+          <div class="bubble bubble-l"><div class="bubble-name">M. Dupont</div>C'est note, je regarde ce soir et je vous fais un retour demain matin.<div class="bubble-time">14:22</div></div>
+          <div class="bubble bubble-r"><div class="bubble-name">Me. Avocat</div>Tres bien. N'hesitez pas si vous avez des questions. Bonne journee.<div class="bubble-time">14:25</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. FACTURATION -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">💰 Facturation — Suivi honoraires</span><span class="top-badge">CARPA</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">💰</div><div class="stat-val">18 450€</div><div class="stat-lbl">CA ce mois</div><div class="stat-delta">+12% vs mars</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">92%</div><div class="stat-lbl">Taux encaissement</div><div class="stat-delta">Excellent</div></div>
+          <div class="stat c"><div class="stat-icon">📄</div><div class="stat-val">6</div><div class="stat-lbl">Factures en attente</div><div class="stat-delta" style="color:#fcd34d;">2 relances</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">1 250€</div><div class="stat-lbl">Impayes</div><div class="stat-delta" style="color:#fca5a5;">1 dossier</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Facture</span><span>Client</span><span>Montant HT</span><span>Statut</span><span>Date</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-001</span><span>M. Dupont</span><span style="font-weight:600;">1 500€</span><span class="pill p-ok">Payee</span><span>02/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-002</span><span>SCI Martin</span><span style="font-weight:600;">3 200€</span><span class="pill p-ok">Payee</span><span>10/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-003</span><span>Mme Leroy</span><span style="font-weight:600;">2 800€</span><span class="pill p-w">En attente</span><span>15/04/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-004</span><span>SARL Petit</span><span style="font-weight:600;">1 250€</span><span class="pill p-c">Impayee</span><span>01/03/26</span></div>
+          <div class="tbl-r tbl-5"><span>FAC-2026-005</span><span>Fam. Bernard</span><span style="font-weight:600;">4 500€</span><span class="pill p-ok">Payee</span><span>18/04/26</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. ESPACE CLIENT -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">👤 Espace Client — Portail securise</span><span class="top-badge">8 clients</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-3">
+          <div class="gcard"><div class="ico">👥</div><div class="lbl">Clients actifs</div><div class="val">8</div></div>
+          <div class="gcard"><div class="ico">📄</div><div class="lbl">Documents partages</div><div class="val">42</div></div>
+          <div class="gcard"><div class="ico">🔒</div><div class="lbl">Securite</div><div class="val">AES-256</div></div>
+        </div>
+        <div style="padding:12px 24px;font-size:12px;font-weight:700;color:#94a3b8;">Portail client — Vue client</div>
+        <div class="cgrid cgrid-2">
+          <div class="crd"><h3>📁 Mes dossiers</h3><p>Divorce — <strong style="color:#fcd34d;">En cours</strong><br>Audience prevue le 28/04/2026<br>3 documents a consulter</p></div>
+          <div class="crd"><h3>📤 Zone d'envoi</h3><p>Deposez vos documents en toute securite.<br><strong style="color:#a5b4fc;">Glissez vos fichiers ici</strong><br>PDF, JPG — chiffrement automatique</p></div>
+          <div class="crd" style="border-color:rgba(16,185,129,.15);"><h3>🛡️ Badges securite</h3><p><strong style="color:#6ee7b7;">RGPD Conforme</strong> &middot; Hebergement France<br>Chiffrement AES-256 &middot; Audit securite<br>Certification ISO 27001</p></div>
+          <div class="crd"><h3>💬 Messages</h3><p>2 messages non lus de Me. Avocat<br>Derniere connexion : aujourd'hui<br><strong style="color:#a5b4fc;">Repondre au message</strong></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navMap[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

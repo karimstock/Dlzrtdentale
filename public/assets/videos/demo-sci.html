@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+
+/* Alert bar */
+.alert-bar{margin:0 24px 12px;padding:12px 18px;background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(239,68,68,.06));border:1px solid rgba(245,158,11,.12);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;}
+.alert-bar .dots{display:flex;gap:8px;}
+.alert-bar .dot{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;}
+.dot-r{background:rgba(240,80,80,.1);color:#f05050;}
+.dot-y{background:rgba(240,160,48,.1);color:#f0a030;}
+.dot-g{background:rgba(16,185,129,.1);color:#10b981;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Patrimoine</div>
+    <div class="sb-item active" id="n0">🏠 Patrimoine <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n1">💰 Comptabilite</div>
+    <div class="sb-item" id="n2">👥 Locataires</div>
+    <div class="sb-sep">Administration</div>
+    <div class="sb-item" id="n3">📄 Documents</div>
+    <div class="sb-item" id="n4">📊 Fiscalite</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n5">✨ Mon site</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. PATRIMOINE -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">🏠 Patrimoine — Vue d'ensemble</span><span class="top-badge">5 biens</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">🏠</div><div class="stat-val">5</div><div class="stat-lbl">Biens immobiliers</div><div class="stat-delta">+1 ce trimestre</div></div>
+          <div class="stat e"><div class="stat-icon">💰</div><div class="stat-val">1,2M€</div><div class="stat-lbl">Valeur patrimoine</div><div class="stat-delta">+8% vs 2025</div></div>
+          <div class="stat c"><div class="stat-icon">📈</div><div class="stat-val">94%</div><div class="stat-lbl">Taux occupation</div><div class="stat-delta">Excellent</div></div>
+          <div class="stat r"><div class="stat-icon">🔑</div><div class="stat-val">4 680€</div><div class="stat-lbl">Loyers mensuels</div><div class="stat-delta">+5% vs 2025</div></div>
+        </div>
+        <div style="padding:0 24px 18px;">
+          <div class="cgrid cgrid-3">
+            <div class="crd"><h3>🏢 Appartement T3 Lyon</h3><p>Valeur : <strong>280 000€</strong><br>Loyer : 850€/mois<br><span class="pill p-ok">Loue</span> &middot; M. Durand</p></div>
+            <div class="crd"><h3>🏡 Maison Rennes</h3><p>Valeur : <strong>420 000€</strong><br>Loyer : 1 200€/mois<br><span class="pill p-ok">Loue</span> &middot; Fam. Morel</p></div>
+            <div class="crd"><h3>🏠 Studio Paris 11e</h3><p>Valeur : <strong>195 000€</strong><br>Loyer : 780€/mois<br><span class="pill p-w">Preavis</span> &middot; 30/05/26</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. COMPTABILITE -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">💰 Comptabilite — Revenus & Charges</span><span class="top-badge">Annee 2026</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat e"><div class="stat-icon">📈</div><div class="stat-val">56 160€</div><div class="stat-lbl">Revenus annuels</div><div class="stat-delta">+12% vs 2025</div></div>
+          <div class="stat r"><div class="stat-icon">📉</div><div class="stat-val">18 400€</div><div class="stat-lbl">Charges annuelles</div><div class="stat-delta" style="color:#fca5a5;">Taxe fonciere incluse</div></div>
+          <div class="stat i"><div class="stat-icon">💵</div><div class="stat-val">37 760€</div><div class="stat-lbl">Resultat net</div><div class="stat-delta">Benefice</div></div>
+          <div class="stat c"><div class="stat-icon">📊</div><div class="stat-val">67%</div><div class="stat-lbl">Marge nette</div><div class="stat-delta">Tres bon</div></div>
+        </div>
+        <div class="alert-bar"><span>⚠️ Loyers en retard</span><div class="dots"><span class="dot dot-r">1 impaye</span><span class="dot dot-y">1 retard</span><span class="dot dot-g">3 a jour</span></div></div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Bien</span><span>Loyer</span><span>Encaisse</span><span>Statut</span><span>Mois</span></div>
+          <div class="tbl-r tbl-5"><span>T3 Lyon</span><span>850€</span><span style="font-weight:600;">850€</span><span class="pill p-ok">Encaisse</span><span>Avril</span></div>
+          <div class="tbl-r tbl-5"><span>Maison Rennes</span><span>1 200€</span><span style="font-weight:600;">1 200€</span><span class="pill p-ok">Encaisse</span><span>Avril</span></div>
+          <div class="tbl-r tbl-5"><span>Studio Paris</span><span>780€</span><span style="font-weight:600;">0€</span><span class="pill p-c">Impaye</span><span>Avril</span></div>
+          <div class="tbl-r tbl-5"><span>T2 Bordeaux</span><span>650€</span><span style="font-weight:600;">650€</span><span class="pill p-w">Retard</span><span>Avril</span></div>
+          <div class="tbl-r tbl-5"><span>Local Nantes</span><span>1 200€</span><span style="font-weight:600;">1 200€</span><span class="pill p-ok">Encaisse</span><span>Avril</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. LOCATAIRES -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">👥 Locataires — Gestion des baux</span><span class="top-badge">5 locataires</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">👥</div><div class="stat-val">5</div><div class="stat-lbl">Locataires actifs</div><div class="stat-delta">Tous les biens</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">3</div><div class="stat-lbl">Paiements a jour</div><div class="stat-delta">60% du parc</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">1</div><div class="stat-lbl">Impaye</div><div class="stat-delta" style="color:#fca5a5;">Relance envoyee</div></div>
+          <div class="stat c"><div class="stat-icon">📅</div><div class="stat-val">1</div><div class="stat-lbl">Fin bail proche</div><div class="stat-delta" style="color:#fcd34d;">Dans 2 mois</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Locataire</span><span>Bien</span><span>Loyer</span><span>Statut</span><span>Bail</span></div>
+          <div class="tbl-r tbl-5"><span>M. Durand</span><span>T3 Lyon</span><span>850€</span><span class="pill p-ok">Paye</span><span>→ 08/2027</span></div>
+          <div class="tbl-r tbl-5"><span>Fam. Morel</span><span>Maison Rennes</span><span>1 200€</span><span class="pill p-ok">Paye</span><span>→ 12/2027</span></div>
+          <div class="tbl-r tbl-5"><span>Mme Petit</span><span>Studio Paris</span><span>780€</span><span class="pill p-c">Impaye</span><span>→ 05/2026</span></div>
+          <div class="tbl-r tbl-5"><span>M. Garcia</span><span>T2 Bordeaux</span><span>650€</span><span class="pill p-w">Retard</span><span>→ 06/2026</span></div>
+          <div class="tbl-r tbl-5"><span>SARL Techno</span><span>Local Nantes</span><span>1 200€</span><span class="pill p-ok">Paye</span><span>→ 03/2029</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. DOCUMENTS -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">📄 Documents — Gestion documentaire</span><span class="top-badge">28 documents</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-2">
+          <div class="crd"><h3>📋 Baux de location</h3><p>5 contrats actifs<br>Prochaine echeance : <strong style="color:#fcd34d;">Mme Petit — 30/05/2026</strong><br>Renouvellements automatiques actives</p></div>
+          <div class="crd"><h3>🧾 Quittances de loyer</h3><p>Generation automatique mensuelle<br><strong style="color:#a5b4fc;">20 quittances ce trimestre</strong><br>Envoi par email inclus</p></div>
+          <div class="crd" style="border-color:rgba(16,185,129,.15);"><h3>📝 PV Assemblee Generale</h3><p>Dernier PV : <strong style="color:#6ee7b7;">15/03/2026</strong><br>AG annuelle approuvee a l'unanimite<br>Archivage securise</p></div>
+          <div class="crd"><h3>📊 Declarations fiscales</h3><p>Declaration 2072 preparee<br>Liasse fiscale <strong style="color:#a5b4fc;">prete a deposer</strong><br>Echeance : 15/05/2026</p></div>
+        </div>
+        <div class="tbl" style="margin-top:6px;"><div class="tbl-h tbl-4"><span>Document</span><span>Type</span><span>Date</span><span>Statut</span></div>
+          <div class="tbl-r tbl-4"><span>Bail_Durand_Lyon.pdf</span><span>Contrat</span><span>01/08/24</span><span class="pill p-ok">Signe</span></div>
+          <div class="tbl-r tbl-4"><span>Quittance_Avril_2026.pdf</span><span>Quittance</span><span>01/04/26</span><span class="pill p-ok">Envoyee</span></div>
+          <div class="tbl-r tbl-4"><span>PV_AG_2026.pdf</span><span>PV</span><span>15/03/26</span><span class="pill p-ok">Archive</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. FISCALITE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">📊 Fiscalite — Simulation & Declarations</span><span class="top-badge">Exercice 2026</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-3">
+          <div class="gcard"><div class="ico">🏛️</div><div class="lbl">Regime actuel</div><div class="val">IS</div></div>
+          <div class="gcard"><div class="ico">💰</div><div class="lbl">Impot estime</div><div class="val">5 664€</div></div>
+          <div class="gcard"><div class="ico">📊</div><div class="lbl">Taux effectif</div><div class="val">15%</div></div>
+        </div>
+        <div style="padding:12px 24px;font-size:12px;font-weight:700;color:#94a3b8;">Comparaison IS vs IR</div>
+        <div class="cgrid cgrid-2">
+          <div class="crd" style="border-color:rgba(16,185,129,.15);"><h3>🏢 Regime IS (actuel)</h3><p>Resultat fiscal : 37 760€<br>IS 15% : <strong style="color:#6ee7b7;">5 664€</strong><br>Report deficits : possible<br><span class="pill p-ok" style="margin-top:6px;">Recommande</span></p></div>
+          <div class="crd" style="border-color:rgba(239,68,68,.15);"><h3>👤 Regime IR (simulation)</h3><p>Revenus fonciers : 37 760€<br>TMI 30% : <strong style="color:#fca5a5;">11 328€</strong><br>+ Prelevements sociaux : 6 489€<br><span class="pill p-c" style="margin-top:6px;">Moins avantageux</span></p></div>
+        </div>
+        <div style="padding:12px 24px;">
+          <div class="crd"><h3>📋 Declarations a venir</h3><p>Declaration 2072 (IS) — Echeance <strong style="color:#fcd34d;">15/05/2026</strong><br>Declaration 2065 — Echeance <strong style="color:#fcd34d;">15/05/2026</strong><br>Liasse fiscale — <strong style="color:#6ee7b7;">Prete</strong></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navMap=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navMap[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

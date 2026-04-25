@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(13,148,136,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#0d9488,#14b8a6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#0d9488,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(13,148,136,.08);color:#5eead4;border-left-color:#0d9488;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(13,148,136,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(13,148,136,.1);color:#5eead4;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.t{background:linear-gradient(135deg,rgba(13,148,136,.12),rgba(20,184,166,.06));border:1px solid rgba(13,148,136,.15);}.stat.t::after{background:#0d9488;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat.p{background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(124,58,237,.06));border:1px solid rgba(139,92,246,.15);}.stat.p::after{background:#8b5cf6;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(13,148,136,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(13,148,136,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-6{grid-template-columns:1.5fr 1fr .8fr .8fr .8fr .8fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-t{background:rgba(13,148,136,.12);color:#5eead4;}.p-v{background:rgba(139,92,246,.12);color:#c4b5fd;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(13,148,136,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Form mockup */
+.form-section{margin:0 24px 12px;background:rgba(15,23,42,.5);border:1px solid rgba(13,148,136,.06);border-radius:10px;padding:16px;}
+.form-section h4{font-size:11px;font-weight:700;color:#5eead4;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.form-field{background:rgba(30,41,59,.5);border:1px solid rgba(13,148,136,.08);border-radius:6px;padding:8px 10px;font-size:10px;color:#94a3b8;}
+.form-field .label{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.form-field .value{color:#e2e8f0;font-weight:500;}
+
+/* Progress graph mockup */
+.graph-area{margin:0 24px;background:rgba(15,23,42,.5);border:1px solid rgba(13,148,136,.06);border-radius:10px;padding:16px;position:relative;height:120px;overflow:hidden;}
+.graph-area h4{font-size:11px;font-weight:700;color:#5eead4;margin-bottom:8px;}
+.graph-line{position:absolute;bottom:20px;left:16px;right:16px;height:60px;}
+.graph-line svg{width:100%;height:100%;}
+.graph-labels{position:absolute;bottom:4px;left:16px;right:16px;display:flex;justify-content:space-between;font-size:7px;color:#475569;}
+
+/* Exercise cards */
+.ex-card{background:rgba(30,41,59,.6);border:1px solid rgba(13,148,136,.06);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.ex-card:last-child{margin-bottom:0;}
+.ex-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.ex-info{flex:1;}
+.ex-info h5{font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px;}
+.ex-info p{font-size:9px;color:#64748b;}
+.ex-status{font-size:9px;font-weight:600;padding:3px 8px;border-radius:6px;}
+
+/* Offer badge */
+.offer-badge{margin:0 24px 12px;padding:10px 18px;background:linear-gradient(90deg,rgba(201,169,97,.08),rgba(201,169,97,.04));border:1px solid rgba(201,169,97,.15);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;color:#c9a961;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item" id="n0">📅 Agenda</div>
+    <div class="sb-item" id="n1">👥 Patients</div>
+    <div class="sb-item active" id="n2">📋 Bilans <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n3">🗓 Seances</div>
+    <div class="sb-item" id="n4">🎯 Exercices</div>
+    <div class="sb-sep">Soins</div>
+    <div class="sb-item" id="n5">📝 Plans de soins</div>
+    <div class="sb-item" id="n6">💰 Facturation</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n7">✨ Mon Site</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. BILANS ORTHOPHONIQUES -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">📋 Bilan Orthophonique</span><span class="top-badge">Bilan initial</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">1er mois offert</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat t"><div class="stat-icon">📋</div><div class="stat-val">42</div><div class="stat-lbl">Bilans realises</div><div class="stat-delta">+6 ce mois</div></div>
+          <div class="stat c"><div class="stat-icon">👤</div><div class="stat-val">68</div><div class="stat-lbl">Patients actifs</div><div class="stat-delta">+4 nouveaux</div></div>
+          <div class="stat e"><div class="stat-icon">📊</div><div class="stat-val">94%</div><div class="stat-lbl">Bilans complets</div><div class="stat-delta">Taux excellence</div></div>
+          <div class="stat p"><div class="stat-icon">⏱</div><div class="stat-val">45min</div><div class="stat-lbl">Temps moyen</div><div class="stat-delta">-12min vs papier</div></div>
+        </div>
+        <div class="form-section">
+          <h4>🔬 Bilan — Lucas M., 7 ans</h4>
+          <div class="form-row">
+            <div class="form-field"><div class="label">Langage oral - Expression</div><div class="value">Score: 72/100 — NS: -1.2 ET</div></div>
+            <div class="form-field"><div class="label">Langage oral - Comprehension</div><div class="value">Score: 81/100 — NS: -0.8 ET</div></div>
+          </div>
+          <div class="form-row">
+            <div class="form-field"><div class="label">Langage ecrit - Lecture</div><div class="value">Score: 58/100 — NS: -1.8 ET</div></div>
+            <div class="form-field"><div class="label">Langage ecrit - Orthographe</div><div class="value">Score: 54/100 — NS: -2.1 ET</div></div>
+          </div>
+          <div class="form-row">
+            <div class="form-field"><div class="label">Articulation / Phonologie</div><div class="value">Sigmatisme lateral, /ch/ > /s/</div></div>
+            <div class="form-field"><div class="label">Fluence verbale</div><div class="value">Categorielle: 12 mots/min — OK</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PLAN DE SOINS -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">📝 Plan de Soins</span><span class="top-badge">30 seances</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="offer-badge">🎁 1er mois offert — Testez toutes les fonctionnalites sans engagement</div>
+        <div class="cgrid cgrid-2">
+          <div class="crd" style="border-color:rgba(13,148,136,.15);">
+            <h3>🎯 Objectifs therapeutiques</h3>
+            <p><strong style="color:#5eead4;">Obj. 1</strong> — Ameliorer la conscience phonologique<br>
+            <strong style="color:#5eead4;">Obj. 2</strong> — Corriger le sigmatisme lateral<br>
+            <strong style="color:#5eead4;">Obj. 3</strong> — Renforcer la lecture decodage<br>
+            <strong style="color:#5eead4;">Obj. 4</strong> — Developper l'orthographe lexicale</p>
+          </div>
+          <div class="crd">
+            <h3>📅 Organisation</h3>
+            <p><strong>Frequence :</strong> 2x / semaine<br>
+            <strong>Duree seance :</strong> 30 minutes<br>
+            <strong>Nb seances :</strong> 30 (renouvellement)<br>
+            <strong>Date debut :</strong> 14/01/2026<br>
+            <strong>Date fin prevue :</strong> 22/05/2026</p>
+          </div>
+        </div>
+        <div style="padding:12px 24px;font-size:12px;font-weight:700;color:#94a3b8;">Jalons de progression</div>
+        <div class="tbl"><div class="tbl-h tbl-4"><span>Jalon</span><span>Seance</span><span>Objectif</span><span>Statut</span></div>
+          <div class="tbl-r tbl-4"><span>Evaluation phonologie</span><span>Seance 10</span><span>Score > 70</span><span class="pill p-ok">Atteint ✓</span></div>
+          <div class="tbl-r tbl-4"><span>Correction /ch/</span><span>Seance 15</span><span>Production isolee</span><span class="pill p-t">En cours</span></div>
+          <div class="tbl-r tbl-4"><span>Lecture fluide</span><span>Seance 20</span><span>> 50 mots/min</span><span class="pill p-w">A venir</span></div>
+          <div class="tbl-r tbl-4"><span>Bilan de renouvellement</span><span>Seance 30</span><span>Synthese progres</span><span class="pill p-w">A venir</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SUIVI SEANCES -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">🗓 Suivi Seances — Lucas M.</span><span class="top-badge">Seance 14/30</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat t"><div class="stat-icon">🗓</div><div class="stat-val">14</div><div class="stat-lbl">Seances realisees</div><div class="stat-delta">16 restantes</div></div>
+          <div class="stat e"><div class="stat-icon">📈</div><div class="stat-val">+18%</div><div class="stat-lbl">Progression globale</div><div class="stat-delta">Bonne evolution</div></div>
+          <div class="stat c"><div class="stat-icon">⏱</div><div class="stat-val">7h</div><div class="stat-lbl">Temps cumule</div><div class="stat-delta">30min / seance</div></div>
+          <div class="stat p"><div class="stat-icon">🎯</div><div class="stat-val">2/4</div><div class="stat-lbl">Objectifs atteints</div><div class="stat-delta">50% du plan</div></div>
+        </div>
+        <div class="graph-area">
+          <h4>📈 Progression phonologie — 3 derniers mois</h4>
+          <div class="graph-line">
+            <svg viewBox="0 0 400 60" preserveAspectRatio="none">
+              <polyline points="0,55 40,50 80,48 120,42 160,38 200,32 240,28 280,22 320,18 360,14 400,10" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="0,55 40,50 80,48 120,42 160,38 200,32 240,28 280,22 320,18 360,14 400,10" fill="url(#grad)" stroke="none"/>
+              <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0d9488" stop-opacity=".2"/><stop offset="100%" stop-color="#0d9488" stop-opacity="0"/></linearGradient></defs>
+            </svg>
+          </div>
+          <div class="graph-labels"><span>Jan</span><span>Fev</span><span>Mar</span><span>Avr</span></div>
+        </div>
+        <div style="padding:12px 24px 6px;font-size:12px;font-weight:700;color:#94a3b8;">Dernieres seances</div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Date</span><span>Competences</span><span>Notes</span><span>Humeur</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>22/04/2026</span><span>Phonologie, Lecture</span><span>Progres /ch/ en mot</span><span class="pill p-ok">😊</span><span style="color:#0d9488;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-5"><span>18/04/2026</span><span>Articulation</span><span>Placement lingual OK</span><span class="pill p-ok">😊</span><span style="color:#0d9488;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-5"><span>15/04/2026</span><span>Orthographe</span><span>Dictee 12/20 mots</span><span class="pill p-w">😐</span><span style="color:#0d9488;font-size:10px;">Voir</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. EXERCICES PATIENTS -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">🎯 Exercices Patients</span><span class="top-badge">Bibliotheque</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="stats">
+          <div class="stat t"><div class="stat-icon">🎯</div><div class="stat-val">156</div><div class="stat-lbl">Exercices disponibles</div><div class="stat-delta">+12 nouveaux</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">78%</div><div class="stat-lbl">Taux observance</div><div class="stat-delta">Parents engages</div></div>
+          <div class="stat c"><div class="stat-icon">👨‍👩‍👦</div><div class="stat-val">23</div><div class="stat-lbl">Patients assignes</div><div class="stat-delta">Cette semaine</div></div>
+          <div class="stat p"><div class="stat-icon">📱</div><div class="stat-val">92%</div><div class="stat-lbl">Acces mobile</div><div class="stat-delta">Parents connectes</div></div>
+        </div>
+        <div style="padding:0 24px 6px;font-size:12px;font-weight:700;color:#94a3b8;">Exercices assignes — Lucas M.</div>
+        <div style="padding:0 24px;">
+          <div class="ex-card">
+            <div class="ex-icon" style="background:rgba(13,148,136,.12);">🗣</div>
+            <div class="ex-info"><h5>Articulation — Le serpent siffle</h5><p>Repetition /s/ en position initiale, mediane, finale</p></div>
+            <div class="ex-status" style="background:rgba(16,185,129,.12);color:#6ee7b7;">Fait 3/3</div>
+          </div>
+          <div class="ex-card">
+            <div class="ex-icon" style="background:rgba(6,182,212,.12);">📖</div>
+            <div class="ex-info"><h5>Phonologie — Rimes et syllabes</h5><p>Identifier les rimes, segmenter en syllabes</p></div>
+            <div class="ex-status" style="background:rgba(245,158,11,.12);color:#fcd34d;">Fait 1/3</div>
+          </div>
+          <div class="ex-card">
+            <div class="ex-icon" style="background:rgba(139,92,246,.12);">📚</div>
+            <div class="ex-info"><h5>Lecture — Mots frequents CP</h5><p>Lecture flash de 20 mots, chronometrage parent</p></div>
+            <div class="ex-status" style="background:rgba(239,68,68,.12);color:#fca5a5;">Non fait</div>
+          </div>
+          <div class="ex-card">
+            <div class="ex-icon" style="background:rgba(16,185,129,.12);">✍️</div>
+            <div class="ex-info"><h5>Orthographe — Dictee de mots</h5><p>10 mots invariables, auto-correction avec modele</p></div>
+            <div class="ex-status" style="background:rgba(16,185,129,.12);color:#6ee7b7;">Fait 2/2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. FACTURATION -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">💰 Facturation</span><span class="top-badge">Suivi paiements</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat t"><div class="stat-icon">💰</div><div class="stat-val">3 240€</div><div class="stat-lbl">CA ce mois</div><div class="stat-delta">+8% vs mars</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">89%</div><div class="stat-lbl">Taux encaissement</div><div class="stat-delta">Bon suivi</div></div>
+          <div class="stat c"><div class="stat-icon">⏳</div><div class="stat-val">3</div><div class="stat-lbl">En attente paiement</div><div class="stat-delta" style="color:#fcd34d;">A relancer</div></div>
+          <div class="stat p"><div class="stat-icon">📊</div><div class="stat-val">42</div><div class="stat-lbl">Factures ce mois</div><div class="stat-delta">Export dispo</div></div>
+        </div>
+        <div style="padding:0 24px 6px;font-size:12px;font-weight:700;color:#94a3b8;">Factures — Avril 2026</div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Facture</span><span>Patient</span><span>Date</span><span>Montant</span><span>Statut</span><span>Action</span></div>
+          <div class="tbl-r tbl-6"><span>FAC-2026-042</span><span>Lucas M.</span><span>22/04/2026</span><span style="font-weight:600;">60,00€</span><span class="pill p-ok">Paye ✓</span><span style="color:#0d9488;font-size:10px;">PDF</span></div>
+          <div class="tbl-r tbl-6"><span>FAC-2026-041</span><span>Emma R.</span><span>20/04/2026</span><span style="font-weight:600;">30,00€</span><span class="pill p-ok">Paye ✓</span><span style="color:#0d9488;font-size:10px;">PDF</span></div>
+          <div class="tbl-r tbl-6"><span>FAC-2026-040</span><span>Noah P.</span><span>18/04/2026</span><span style="font-weight:600;">30,00€</span><span class="pill p-ok">Paye ✓</span><span style="color:#0d9488;font-size:10px;">PDF</span></div>
+          <div class="tbl-r tbl-6"><span>FAC-2026-039</span><span>Lea D.</span><span>15/04/2026</span><span style="font-weight:600;">40,00€</span><span class="pill p-w">En attente</span><span style="color:#f59e0b;font-size:10px;">Relancer</span></div>
+          <div class="tbl-r tbl-6"><span>FAC-2026-038</span><span>Lucas M.</span><span>12/04/2026</span><span style="font-weight:600;">30,00€</span><span class="pill p-ok">Paye ✓</span><span style="color:#0d9488;font-size:10px;">PDF</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navIds=[2,5,3,4,6];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navIds[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

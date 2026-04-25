@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(13,148,136,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#0d9488,#14b8a6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#0d9488,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(13,148,136,.08);color:#5eead4;border-left-color:#0d9488;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(13,148,136,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(13,148,136,.1);color:#5eead4;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(13,148,136,.12),rgba(20,184,166,.06));border:1px solid rgba(13,148,136,.15);}.stat.i::after{background:#0d9488;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(244,114,182,.12),rgba(236,72,153,.06));border:1px solid rgba(244,114,182,.15);}.stat.r::after{background:#f472b6;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(13,148,136,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(13,148,136,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-6{grid-template-columns:1.8fr .8fr .8fr .8fr .8fr .6fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}.p-t{background:rgba(13,148,136,.12);color:#5eead4;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(13,148,136,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Timeline */
+.timeline{margin:0 24px;display:flex;flex-direction:column;gap:0;}
+.tl-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;position:relative;}
+.tl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px;position:relative;}
+.tl-dot::after{content:'';position:absolute;top:12px;left:4px;width:2px;height:28px;background:rgba(13,148,136,.15);}
+.tl-item:last-child .tl-dot::after{display:none;}
+.tl-content{flex:1;}
+.tl-content strong{font-size:11px;color:#e2e8f0;}
+.tl-content span{font-size:10px;color:#64748b;display:block;margin-top:2px;}
+
+/* Session cards */
+.sess{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 24px;margin-top:12px;}
+.sess-card{background:rgba(30,41,59,.5);border:1px solid rgba(13,148,136,.08);border-radius:10px;padding:14px;text-align:center;}
+.sess-card .ico{font-size:22px;margin-bottom:6px;}
+.sess-card .nm{font-size:10px;font-weight:600;color:#e2e8f0;}
+.sess-card .dt{font-size:9px;color:#64748b;margin-top:3px;}
+.sess-card.done{border-color:rgba(16,185,129,.15);}
+.sess-card.next{border-color:rgba(13,148,136,.25);background:rgba(13,148,136,.04);}
+
+/* Progress ring */
+.prog-wrap{display:flex;align-items:center;gap:18px;padding:18px 24px;}
+.prog-ring{width:80px;height:80px;position:relative;}
+.prog-ring svg{transform:rotate(-90deg);}
+.prog-ring circle{fill:none;stroke-width:6;}
+.prog-ring .bg{stroke:rgba(30,41,59,.8);}
+.prog-ring .fg{stroke:#0d9488;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.16,1,.3,1);}
+.prog-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#5eead4;}
+.prog-info{flex:1;}
+.prog-info h4{font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:4px;}
+.prog-info p{font-size:10px;color:#94a3b8;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">&#128197; Agenda</div>
+    <div class="sb-item" id="n1">&#128105; Patientes</div>
+    <div class="sb-item" id="n2">&#129328; Grossesses <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n3">&#128118; Accouchements</div>
+    <div class="sb-sep">Suivi</div>
+    <div class="sb-item" id="n4">&#128118; Post-natal</div>
+    <div class="sb-item" id="n5">&#128170; Perineal</div>
+    <div class="sb-sep">Gestion</div>
+    <div class="sb-item" id="n6">&#128176; Comptabilite</div>
+    <div class="sb-item" id="n7">&#10024; Mon Site</div>
+    <div style="position:absolute;bottom:18px;left:18px;right:18px;padding:10px;background:linear-gradient(135deg,rgba(201,169,97,.08),rgba(201,169,97,.03));border:1px solid rgba(201,169,97,.15);border-radius:8px;text-align:center;">
+      <div style="font-size:9px;font-weight:700;color:#c9a961;letter-spacing:.5px;">1er mois offert</div>
+      <div style="font-size:8px;color:#64748b;margin-top:2px;">Sans engagement</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- 1. SUIVI GROSSESSE -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">&#129328; Suivi Grossesse</span><span class="top-badge">Mme Dupont — 32 SA</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">&#128197;</div><div class="stat-val">32</div><div class="stat-lbl">Semaines SA</div><div class="stat-delta">Terme : 18/06/2026</div></div>
+          <div class="stat c"><div class="stat-icon">&#9878;</div><div class="stat-val">74kg</div><div class="stat-lbl">Poids actuel</div><div class="stat-delta">+9,5 kg depuis debut</div></div>
+          <div class="stat e"><div class="stat-icon">&#128147;</div><div class="stat-val">12/7</div><div class="stat-lbl">Tension</div><div class="stat-delta">Normale</div></div>
+          <div class="stat r"><div class="stat-icon">&#128476;</div><div class="stat-val">4,2</div><div class="stat-lbl">Glycemie g/L</div><div class="stat-delta" style="color:#6ee7b7;">Dans les normes</div></div>
+        </div>
+        <div style="padding:6px 24px 8px;font-size:11px;font-weight:700;color:#94a3b8;">Suivi foetal et examens</div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Examen</span><span>Date</span><span>Resultat</span><span>SA</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Echo T1 — Clarte nucale</span><span>12/01</span><span class="pill p-ok">Normal</span><span>12 SA</span><span style="color:#0d9488;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-5"><span>Echo T2 — Morphologie</span><span>08/03</span><span class="pill p-ok">Normal</span><span>22 SA</span><span style="color:#0d9488;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-5"><span>Echo T3 — Croissance</span><span>26/04</span><span class="pill p-t">Planifiee</span><span>34 SA</span><span style="color:#0d9488;font-size:10px;">RDV</span></div>
+          <div class="tbl-r tbl-5"><span>Mvts foetaux (dernier)</span><span>24/04</span><span class="pill p-ok">Actifs</span><span>32 SA</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Monitoring</span><span>30/04</span><span class="pill p-t">Planifie</span><span>33 SA</span><span style="color:#0d9488;font-size:10px;">RDV</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. DOSSIER OBSTETRICAL -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">&#128203; Dossier Obstetrical</span><span class="top-badge">Complet</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-2">
+          <div class="crd"><h3>&#128105;&#8205;&#9877; Antecedents obstetricaux</h3><p>G3P2 — 2 accouchements voie basse<br>Pas de cesarienne anterieure<br>Dernier accouchement : 03/2023</p></div>
+          <div class="crd"><h3>&#129656; Groupe sanguin</h3><p>A+ (Rhesus positif)<br>RAI : Negatives (04/2026)<br>Coombs indirect : Negatif</p></div>
+          <div class="crd"><h3>&#128300; Serologies</h3><p>Toxoplasmose : <strong style="color:#fcd34d;">Non immunisee</strong><br>Rubeole : Immunisee<br>VIH / VHB / VHC : Negatifs<br>Syphilis : Negative</p></div>
+          <div class="crd"><h3>&#128196; Examens complementaires</h3><p>NFS + Ferritine : Normaux<br>TSH : 2,1 mUI/L (normal)<br>ECBU : Sterile<br>Prelevement vaginal : 35 SA prevu</p></div>
+          <div class="crd" style="grid-column:span 2;border-color:rgba(13,148,136,.15);"><h3>&#128203; Protocole de suivi</h3><p>Consultation mensuelle jusqu'a 36 SA, puis bimensuelle &middot; Monitoring a partir de 38 SA &middot; Projet de naissance : voie basse, peridurale souhaitee &middot; Maternite : CHU Nice — Niveau III</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. PREPARATION ACCOUCHEMENT -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">&#129328; Preparation Accouchement</span><span class="top-badge">8 seances</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div style="padding:0 24px 10px;font-size:11px;font-weight:700;color:#94a3b8;">Seances de preparation</div>
+        <div class="sess">
+          <div class="sess-card done"><div class="ico">&#129495;</div><div class="nm">Sophrologie</div><div class="dt">Seance 1/3 &#10003;</div></div>
+          <div class="sess-card done"><div class="ico">&#129295;</div><div class="nm">Haptonomie</div><div class="dt">Seance 2/3 &#10003;</div></div>
+          <div class="sess-card next"><div class="ico">&#127946;</div><div class="nm">Piscine</div><div class="dt">28/04 - 14h</div></div>
+        </div>
+        <div class="sess" style="padding:0 24px;margin-top:10px;">
+          <div class="sess-card done"><div class="ico">&#128101;</div><div class="nm">Cours collectif</div><div class="dt">Respiration &#10003;</div></div>
+          <div class="sess-card next"><div class="ico">&#128101;</div><div class="nm">Cours collectif</div><div class="dt">Poussee — 02/05</div></div>
+          <div class="sess-card"><div class="ico">&#128100;</div><div class="nm">Individuel</div><div class="dt">Projet naissance</div></div>
+        </div>
+        <div style="padding:18px 24px 0;">
+          <div class="crd" style="border-color:rgba(13,148,136,.15);"><h3>&#128197; Calendrier previsionnel</h3><p>5/8 seances realisees &middot; Prochaine : Piscine le 28/04 a 14h00 &middot; Preparation terminee avant 37 SA</p><div class="bar"><div class="bar-fill" style="width:62%;background:linear-gradient(90deg,#0d9488,#14b8a6);"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. SUIVI POST-NATAL -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">&#128118; Suivi Post-natal</span><span class="top-badge">J+12 post-partum</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-2">
+          <div class="crd"><h3>&#129329; Allaitement</h3><p>Allaitement maternel exclusif<br>8 tetees/jour — bonne prise<br>Pas de crevasse ni engorgement<br><strong style="color:#6ee7b7;">Evolution favorable</strong></p></div>
+          <div class="crd"><h3>&#129657; Cicatrisation</h3><p>Episiotomie : Cicatrisation J+12<br>Fils resorbables en place<br>Pas de signe infectieux<br><strong style="color:#6ee7b7;">Bonne evolution</strong></p></div>
+          <div class="crd" style="border-color:rgba(244,114,182,.12);"><h3>&#128156; Depistage baby blues</h3><p>Score EPDS : <strong style="color:#6ee7b7;">6/30 (normal)</strong><br>Humeur : Stable<br>Sommeil : Fragmente mais adapte<br>Soutien conjoint : Present</p></div>
+          <div class="crd"><h3>&#128118; Suivi bebe</h3><p>Poids naissance : 3 280g<br>Poids J+12 : <strong style="color:#5eead4;">3 310g (+30g)</strong><br>Ictere : Negatif<br>Vaccin BCG : Planifie J+30</p></div>
+        </div>
+        <div style="padding:0 24px;">
+          <div class="crd"><h3>&#128197; Prochains rendez-vous</h3><p>J+21 : Visite sage-femme a domicile &middot; J+42 : Visite post-natale obligatoire &middot; 6 sem : Debut reeducation perineale</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. REEDUCATION PERINEALE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">&#128170; Reeducation Perineale</span><span class="top-badge">En cours</span></div>
+      <div class="content" style="padding-top:12px;">
+        <div class="prog-wrap">
+          <div class="prog-ring">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle class="bg" cx="40" cy="40" r="34"/>
+              <circle class="fg" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="85.4"/>
+            </svg>
+            <div class="prog-center">6/10</div>
+          </div>
+          <div class="prog-info">
+            <h4>Progression globale</h4>
+            <p>6 seances realisees sur 10 prescrites<br>Testing perineal : 3/5 (amelioration significative)</p>
+          </div>
+        </div>
+        <div style="padding:6px 24px 10px;font-size:11px;font-weight:700;color:#94a3b8;">Detail des seances</div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Seance</span><span>Date</span><span>Technique</span><span>Duree</span><span>Testing</span><span></span></div>
+          <div class="tbl-r tbl-6"><span>Seance 1</span><span>10/03</span><span>Manuelle</span><span>30 min</span><span>1/5</span><span class="pill p-ok">Fait</span></div>
+          <div class="tbl-r tbl-6"><span>Seance 2</span><span>17/03</span><span>Manuelle</span><span>30 min</span><span>1,5/5</span><span class="pill p-ok">Fait</span></div>
+          <div class="tbl-r tbl-6"><span>Seance 3</span><span>24/03</span><span>Sonde</span><span>30 min</span><span>2/5</span><span class="pill p-ok">Fait</span></div>
+          <div class="tbl-r tbl-6"><span>Seance 4</span><span>31/03</span><span>Biofeedback</span><span>30 min</span><span>2,5/5</span><span class="pill p-ok">Fait</span></div>
+          <div class="tbl-r tbl-6"><span>Seance 5</span><span>07/04</span><span>Biofeedback</span><span>30 min</span><span>3/5</span><span class="pill p-ok">Fait</span></div>
+          <div class="tbl-r tbl-6"><span>Seance 6</span><span>14/04</span><span>Biofeedback</span><span>30 min</span><span>3/5</span><span class="pill p-ok">Fait</span></div>
+          <div class="tbl-r tbl-6"><span>Seance 7</span><span>28/04</span><span>Sonde + BF</span><span>30 min</span><span>—</span><span class="pill p-t">A venir</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navIdx=[0,2,3,4,5];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navIdx[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

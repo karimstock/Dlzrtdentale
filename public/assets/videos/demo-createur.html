@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:1.2fr 1.5fr 1fr .8fr .8fr;}
+.tbl-4{grid-template-columns:1.5fr 1fr 1fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+.p-b{background:rgba(99,102,241,.12);color:#a5b4fc;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.cgrid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Product cards */
+.prod{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:16px;backdrop-filter:blur(4px);}
+.prod-img{height:80px;border-radius:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;font-size:32px;}
+.prod-name{font-size:12px;font-weight:700;margin-bottom:4px;}
+.prod-price{font-size:16px;font-weight:800;color:#c9a961;margin-bottom:6px;}
+.prod-stars{font-size:10px;color:#fbbf24;margin-bottom:6px;}
+.prod-status{font-size:9px;font-weight:600;display:inline-block;padding:2px 8px;border-radius:10px;}
+.ps-sale{background:rgba(16,185,129,.12);color:#6ee7b7;}
+.ps-res{background:rgba(245,158,11,.12);color:#fcd34d;}
+.ps-sold{background:rgba(99,102,241,.12);color:#a5b4fc;}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+
+/* Gold stats */
+.goldcard{background:linear-gradient(135deg,rgba(201,169,97,.08),rgba(201,169,97,.03));border:1px solid rgba(201,169,97,.15);border-radius:12px;padding:18px;text-align:center;}
+.goldcard .ico{font-size:26px;margin-bottom:6px;}
+.goldcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.goldcard .val{font-size:20px;font-weight:800;color:#c9a961;margin-top:4px;}
+
+/* Site preview */
+.site-prev{margin:0 24px;border-radius:12px;border:1px solid rgba(99,102,241,.1);overflow:hidden;background:rgba(15,23,42,.5);}
+.site-header{padding:14px 20px;background:linear-gradient(90deg,rgba(201,169,97,.1),rgba(99,102,241,.05));border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;justify-content:space-between;}
+.site-header .name{font-size:14px;font-weight:800;background:linear-gradient(135deg,#c9a961,#e8c77b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.site-header .links{display:flex;gap:14px;font-size:10px;color:#64748b;}
+.site-body{padding:20px;display:flex;gap:16px;}
+.site-hero{flex:1;padding:20px;border-radius:10px;background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(201,169,97,.04));border:1px solid rgba(99,102,241,.06);}
+.site-hero h4{font-size:14px;font-weight:800;margin-bottom:6px;}
+.site-hero p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.site-mini{display:flex;gap:8px;margin-top:12px;}
+.site-mini-item{width:50px;height:50px;border-radius:6px;background:rgba(30,41,59,.8);border:1px solid rgba(99,102,241,.06);display:flex;align-items:center;justify-content:center;font-size:18px;}
+
+/* Alert bar */
+.alert-bar{margin:0 24px 12px;padding:12px 18px;background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(239,68,68,.06));border:1px solid rgba(245,158,11,.12);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;}
+.alert-bar .dots{display:flex;gap:8px;}
+.alert-bar .dot{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;}
+.dot-r{background:rgba(240,80,80,.1);color:#f05050;}
+.dot-y{background:rgba(240,160,48,.1);color:#f0a030;}
+.dot-g{background:rgba(16,185,129,.1);color:#10b981;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Atelier</div>
+    <div class="sb-item active" id="n0">🎨 Showroom <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n1">📦 Commandes</div>
+    <div class="sb-item" id="n2">🧵 Stock matieres</div>
+    <div class="sb-item" id="n3">💰 Revenus</div>
+    <div class="sb-item" id="n4">🌐 Mon site</div>
+    <div class="sb-item" id="n5">📧 Messages</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. SHOWROOM -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">🎨 Showroom — Galerie de creations</span><span class="top-badge">4 creations</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-4">
+          <div class="prod">
+            <div class="prod-img" style="background:linear-gradient(135deg,rgba(201,169,97,.1),rgba(201,169,97,.04));">💍</div>
+            <div class="prod-name">Bracelet Or Rose</div>
+            <div class="prod-price">450€</div>
+            <div class="prod-stars">★★★★★</div>
+            <span class="prod-status ps-sale">En vente</span>
+          </div>
+          <div class="prod">
+            <div class="prod-img" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(99,102,241,.04));">👜</div>
+            <div class="prod-name">Sac Cuir Tresse</div>
+            <div class="prod-price">890€</div>
+            <div class="prod-stars">★★★★☆</div>
+            <span class="prod-status ps-res">Reserve</span>
+          </div>
+          <div class="prod">
+            <div class="prod-img" style="background:linear-gradient(135deg,rgba(6,182,212,.1),rgba(59,130,246,.04));">💎</div>
+            <div class="prod-name">Bague Saphir</div>
+            <div class="prod-price">1 200€</div>
+            <div class="prod-stars">★★★★★</div>
+            <span class="prod-status ps-sold">Vendu</span>
+          </div>
+          <div class="prod">
+            <div class="prod-img" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(239,68,68,.04));">🪡</div>
+            <div class="prod-name">Ceinture Artisanale</div>
+            <div class="prod-price">150€</div>
+            <div class="prod-stars">★★★★☆</div>
+            <span class="prod-status ps-sale">En vente</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. COMMANDES -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">📦 Commandes — Suivi des commandes</span><span class="top-badge">3 commandes</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📦</div><div class="stat-val">3</div><div class="stat-lbl">Commandes actives</div><div class="stat-delta">+2 cette semaine</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">18</div><div class="stat-lbl">Livrees ce mois</div><div class="stat-delta">+25% vs precedent</div></div>
+          <div class="stat c"><div class="stat-icon">⏱️</div><div class="stat-val">4.2j</div><div class="stat-lbl">Delai moyen</div><div class="stat-delta">-0.8j vs precedent</div></div>
+          <div class="stat r"><div class="stat-icon">💰</div><div class="stat-val">2 540€</div><div class="stat-lbl">CA commandes</div><div class="stat-delta">+18%</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Ref</span><span>Produit / Client</span><span>Montant</span><span>Statut</span><span></span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;color:#a5b4fc;">CMD-001</span><span>Bracelet Or Rose — Mme Dupont</span><span style="font-weight:600;">450€</span><span class="pill p-w">En cours</span><span style="color:#6366f1;font-size:10px;">Details</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;color:#a5b4fc;">CMD-002</span><span>Sac Cuir Tresse — M. Martin</span><span style="font-weight:600;">890€</span><span class="pill p-b">Expedie</span><span style="color:#6366f1;font-size:10px;">Suivre</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;color:#a5b4fc;">CMD-003</span><span>Bague Saphir — M. Leroy</span><span style="font-weight:600;">1 200€</span><span class="pill p-ok">Livre</span><span style="color:#6366f1;font-size:10px;">Facture</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. STOCK MATIERES -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">🧵 Stock matieres — Inventaire matieres premieres</span><span class="top-badge">4 matieres</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">🧵</div><div class="stat-val">4</div><div class="stat-lbl">Matieres suivies</div><div class="stat-delta">Inventaire a jour</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">2</div><div class="stat-lbl">Alertes stock</div><div class="stat-delta" style="color:#fca5a5;">Reappro. urgente</div></div>
+          <div class="stat c"><div class="stat-icon">📦</div><div class="stat-val">3</div><div class="stat-lbl">Commandes fournisseurs</div><div class="stat-delta" style="color:#fcd34d;">En transit</div></div>
+          <div class="stat e"><div class="stat-icon">💰</div><div class="stat-val">680€</div><div class="stat-lbl">Budget matieres</div><div class="stat-delta">Ce mois</div></div>
+        </div>
+        <div class="alert-bar"><span>⚠️ Alertes de stock matieres</span><div class="dots"><span class="dot dot-r">🔴 2 critiques</span><span class="dot dot-y">🟡 1 faible</span><span class="dot dot-g">🟢 1 OK</span></div></div>
+        <div class="tbl"><div class="tbl-h tbl-4"><span>Matiere</span><span>Quantite</span><span>Statut</span><span>Action</span></div>
+          <div class="tbl-r tbl-4"><span>Or 18 carats</span><span style="font-weight:600;">45g</span><span class="pill p-c">Critique</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-4"><span>Cuir Tannage Vegetal</span><span style="font-weight:600;">12 m²</span><span class="pill p-ok">OK</span><span></span></div>
+          <div class="tbl-r tbl-4"><span>Pierres precieuses</span><span style="font-weight:600;">8 pcs</span><span class="pill p-w">Faible</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-4"><span>Fil d'argent 925</span><span style="font-weight:600;">200g</span><span class="pill p-c">Critique</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. REVENUS -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">💰 Revenus — Performance financiere</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-3">
+          <div class="goldcard"><div class="ico">💰</div><div class="lbl">Revenus ce mois</div><div class="val">3 450€</div></div>
+          <div class="goldcard"><div class="ico">📈</div><div class="lbl">vs mois precedent</div><div class="val" style="color:#34d399;">+18%</div></div>
+          <div class="goldcard"><div class="ico">🛒</div><div class="lbl">Panier moyen</div><div class="val">575€</div></div>
+        </div>
+        <div style="padding:14px 24px 8px;font-size:12px;font-weight:700;color:#94a3b8;">Top creations par ventes</div>
+        <div class="cgrid cgrid-3">
+          <div class="crd" style="border-color:rgba(201,169,97,.15);"><h3>🥇 Bague Saphir</h3><p>8 ventes &middot; <strong style="color:#c9a961;">9 600€</strong><br>Meilleure marge</p><div class="bar"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#c9a961,#e8c77b);"></div></div></div>
+          <div class="crd" style="border-color:rgba(201,169,97,.1);"><h3>🥈 Sac Cuir Tresse</h3><p>5 ventes &middot; <strong style="color:#c9a961;">4 450€</strong><br>Forte demande</p><div class="bar"><div class="bar-fill" style="width:65%;background:linear-gradient(90deg,#6366f1,#8b5cf6);"></div></div></div>
+          <div class="crd" style="border-color:rgba(201,169,97,.1);"><h3>🥉 Bracelet Or Rose</h3><p>12 ventes &middot; <strong style="color:#c9a961;">5 400€</strong><br>Best-seller</p><div class="bar"><div class="bar-fill" style="width:80%;background:linear-gradient(90deg,#06b6d4,#3b82f6);"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. MON SITE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">🌐 Mon site — Votre vitrine JADOMI</span><span class="top-badge">En ligne</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-3">
+          <div class="gcard"><div class="ico">👁️</div><div class="lbl">Visiteurs ce mois</div><div class="val">234</div></div>
+          <div class="gcard"><div class="ico">📧</div><div class="lbl">Contacts recus</div><div class="val">12</div></div>
+          <div class="gcard"><div class="ico">✅</div><div class="lbl">Statut publication</div><div class="val" style="font-size:14px;">En ligne</div></div>
+        </div>
+        <div style="padding:14px 24px 10px;font-size:12px;font-weight:700;color:#94a3b8;">Apercu de votre site</div>
+        <div class="site-prev">
+          <div class="site-header">
+            <div class="name">Atelier Lumiere — Creations d'Art</div>
+            <div class="links"><span>Accueil</span><span>Creations</span><span>Sur mesure</span><span>Contact</span></div>
+          </div>
+          <div class="site-body">
+            <div class="site-hero">
+              <h4>Creations artisanales uniques</h4>
+              <p>Bijoux, maroquinerie et pieces d'exception faconnes a la main dans notre atelier parisien.</p>
+              <div class="site-mini">
+                <div class="site-mini-item">💍</div>
+                <div class="site-mini-item">👜</div>
+                <div class="site-mini-item">💎</div>
+                <div class="site-mini-item">🪡</div>
+              </div>
+            </div>
+            <div style="flex:0 0 140px;display:flex;flex-direction:column;gap:8px;">
+              <div class="crd" style="padding:12px;"><h3 style="font-size:10px;">📊 Trafic</h3><p>+34% cette semaine<br><strong style="color:#10b981;">En croissance</strong></p></div>
+              <div class="crd" style="padding:12px;"><h3 style="font-size:10px;">⭐ Avis</h3><p>4.9/5 (42 avis)<br><strong style="color:#c9a961;">Excellent</strong></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  // Exit previous
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  // Enter new
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  // Nav highlight
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+cur)?.classList.add('active');
+}
+
+// Auto cycle with page-flip transitions
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

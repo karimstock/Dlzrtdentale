@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+.sb-offer{margin:auto 14px 14px;padding:10px 14px;background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(6,182,212,.06));border:1px solid rgba(99,102,241,.12);border-radius:10px;text-align:center;}
+.sb-offer p{font-size:9px;color:#94a3b8;line-height:1.5;}
+.sb-offer strong{font-size:10px;color:#a5b4fc;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+.p-i{background:rgba(99,102,241,.12);color:#a5b4fc;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Body diagram */
+.body-diagram{display:flex;align-items:center;justify-content:center;gap:24px;padding:18px 24px;}
+.body-svg{width:120px;height:260px;position:relative;display:flex;align-items:center;justify-content:center;}
+.body-outline{width:100%;height:100%;border:2px solid rgba(99,102,241,.2);border-radius:40px;background:rgba(99,102,241,.03);position:relative;}
+.body-marker{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid;animation:pulse-marker 2s ease infinite;}
+@keyframes pulse-marker{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(1.4);}}
+.body-notes{flex:1;}
+.body-note{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:8px;margin-bottom:6px;font-size:10px;color:#94a3b8;}
+.body-note .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* Photo grid */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 24px;}
+.photo-item{border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.08);background:rgba(30,41,59,.4);position:relative;}
+.photo-placeholder{height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:22px;}
+.photo-label{font-size:9px;color:#64748b;text-align:center;padding:6px;font-weight:500;}
+.photo-date{position:absolute;top:6px;right:6px;font-size:8px;background:rgba(0,0,0,.6);color:#94a3b8;padding:2px 6px;border-radius:4px;}
+.photo-badge{position:absolute;top:6px;left:6px;font-size:7px;padding:2px 6px;border-radius:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.photo-badge.before{background:rgba(239,68,68,.15);color:#fca5a5;}
+.photo-badge.after{background:rgba(16,185,129,.15);color:#6ee7b7;}
+
+/* Revenue chart mockup */
+.rev-chart{margin:0 24px;padding:18px;background:rgba(30,41,59,.4);border:1px solid rgba(99,102,241,.06);border-radius:12px;}
+.rev-bars{display:flex;align-items:flex-end;gap:8px;height:100px;padding-top:10px;}
+.rev-bar{flex:1;border-radius:4px 4px 0 0;position:relative;transition:height .6s cubic-bezier(.16,1,.3,1);}
+.rev-bar span{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:8px;color:#475569;white-space:nowrap;}
+.rev-legend{display:flex;gap:16px;margin-top:24px;font-size:9px;color:#94a3b8;}
+.rev-legend .dot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item" id="n0">📅 Agenda</div>
+    <div class="sb-item active" id="n1">👤 Patients</div>
+    <div class="sb-item" id="n2">🦶 Examens</div>
+    <div class="sb-item" id="n3">🥿 Semelles</div>
+    <div class="sb-item" id="n4">📷 Phototheque <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-sep">Gestion</div>
+    <div class="sb-item" id="n5">📊 Bilans</div>
+    <div class="sb-item" id="n6">💰 Comptabilite</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n7">✨ Mon Site</div>
+    <div class="sb-offer">
+      <strong>1er mois offert</strong>
+      <p>Testez toutes les fonctionnalites sans engagement</p>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- 1. DOSSIER PATIENT -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">👤 Dossier Patient — Fiche podologique</span><span class="top-badge">342 patients</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">👤</div><div class="stat-val">342</div><div class="stat-lbl">Patients actifs</div><div class="stat-delta">+18 ce mois</div></div>
+          <div class="stat c"><div class="stat-icon">🦶</div><div class="stat-val">89</div><div class="stat-lbl">Semelles en cours</div><div class="stat-delta">+7 ce mois</div></div>
+          <div class="stat e"><div class="stat-icon">📋</div><div class="stat-val">156</div><div class="stat-lbl">Examens ce mois</div><div class="stat-delta">+12% vs oct.</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">14</div><div class="stat-lbl">Revisions a planifier</div><div class="stat-delta" style="color:#fca5a5;">Action requise</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Patient</span><span>Type de pied</span><span>Pathologie</span><span>Derniere visite</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Dupont Marie, 54 ans</span><span>Creux bilat.</span><span class="pill p-c">Hallux valgus</span><span>12/04/2026</span><span style="color:#6366f1;font-size:10px;">Ouvrir</span></div>
+          <div class="tbl-r tbl-5"><span>Leroy Thomas, 38 ans</span><span>Plat souple</span><span class="pill p-w">Metatarsalgies</span><span>08/04/2026</span><span style="color:#6366f1;font-size:10px;">Ouvrir</span></div>
+          <div class="tbl-r tbl-5"><span>Martin Sophie, 67 ans</span><span>Creux rigide</span><span class="pill p-c">Epine calcan.</span><span>03/04/2026</span><span style="color:#6366f1;font-size:10px;">Ouvrir</span></div>
+          <div class="tbl-r tbl-5"><span>Bernard Lucas, 12 ans</span><span>Plat valgus</span><span class="pill p-ok">Suivi croiss.</span><span>15/04/2026</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Moreau Claire, 45 ans</span><span>Normal</span><span class="pill p-w">Fasciite plant.</span><span>10/04/2026</span><span style="color:#6366f1;font-size:10px;">Ouvrir</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. EXAMEN POSTURAL -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">🦶 Examen Postural — Analyse posturale</span><span class="top-badge">Podoscope numerique</span></div>
+      <div class="content">
+        <div style="padding:12px 24px;font-size:12px;font-weight:700;color:#e2e8f0;">Patient : Dupont Marie — Bilan postural du 12/04/2026</div>
+        <div class="body-diagram">
+          <div class="body-svg">
+            <div class="body-outline">
+              <div class="body-marker" style="top:8%;left:45%;background:rgba(239,68,68,.2);border-color:#ef4444;" title="Bascule tete"></div>
+              <div class="body-marker" style="top:28%;left:38%;background:rgba(245,158,11,.2);border-color:#f59e0b;" title="Epaule D haute"></div>
+              <div class="body-marker" style="top:48%;left:52%;background:rgba(245,158,11,.2);border-color:#f59e0b;" title="Bassin"></div>
+              <div class="body-marker" style="top:72%;left:40%;background:rgba(239,68,68,.2);border-color:#ef4444;" title="Genu valgum"></div>
+              <div class="body-marker" style="top:92%;left:46%;background:rgba(99,102,241,.2);border-color:#6366f1;" title="Appui"></div>
+            </div>
+          </div>
+          <div class="body-notes">
+            <div class="body-note"><div class="dot" style="background:#ef4444;"></div>Bascule cervicale D — 3mm</div>
+            <div class="body-note"><div class="dot" style="background:#f59e0b;"></div>Epaule droite surelev. — 5mm</div>
+            <div class="body-note"><div class="dot" style="background:#f59e0b;"></div>Bassin — retroversion legere</div>
+            <div class="body-note"><div class="dot" style="background:#ef4444;"></div>Genu valgum bilat. — 8 degres</div>
+            <div class="body-note"><div class="dot" style="background:#6366f1;"></div>Appui plantaire : hyperpression avant-pied</div>
+            <div class="body-note" style="border-color:rgba(16,185,129,.15);"><div class="dot" style="background:#10b981;"></div>Podoscope : empreinte pied creux bilateral</div>
+          </div>
+        </div>
+        <div class="cgrid cgrid-3" style="margin-top:6px;">
+          <div class="crd"><h3>📐 Angle de Djian</h3><p>Pied G : 118 degres<br>Pied D : 122 degres<br><strong style="color:#fcd34d;">Pied creux confirme</strong></p></div>
+          <div class="crd"><h3>🔍 Test Fukuda</h3><p>Deviation 28 degres D<br>Dysfonction vestibulaire<br><strong style="color:#a5b4fc;">Bilan ORL conseille</strong></p></div>
+          <div class="crd"><h3>📊 Baropodometrie</h3><p>Avant-pied : 68% charge<br>Arriere-pied : 32%<br><strong style="color:#fca5a5;">Surcharge M2-M3</strong></p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SUIVI SEMELLES -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">🥿 Suivi Semelles — Ortheses plantaires</span><span class="top-badge">89 paires actives</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">🥿</div><div class="stat-val">89</div><div class="stat-lbl">Paires actives</div><div class="stat-delta">+7 ce mois</div></div>
+          <div class="stat c"><div class="stat-icon">🔧</div><div class="stat-val">12</div><div class="stat-lbl">En fabrication</div><div class="stat-delta">Delai 5-7j</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">23</div><div class="stat-lbl">Livrees ce mois</div><div class="stat-delta">+15% vs sept.</div></div>
+          <div class="stat r"><div class="stat-icon">🔄</div><div class="stat-val">8</div><div class="stat-lbl">Revisions dues</div><div class="stat-delta" style="color:#fca5a5;">&lt; 30 jours</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Patient</span><span>Type semelle</span><span>Fabrication</span><span>Proch. revision</span><span>Statut</span></div>
+          <div class="tbl-r tbl-5"><span>Dupont Marie</span><span>Thermoformee EVA</span><span>08/03/2026</span><span>08/09/2026</span><span class="pill p-ok">Active</span></div>
+          <div class="tbl-r tbl-5"><span>Leroy Thomas</span><span>Resine + PP</span><span>15/04/2026</span><span>—</span><span class="pill p-i">Fabrication</span></div>
+          <div class="tbl-r tbl-5"><span>Martin Sophie</span><span>Cuir + liege</span><span>12/01/2026</span><span>12/04/2026</span><span class="pill p-c">Revision due</span></div>
+          <div class="tbl-r tbl-5"><span>Moreau Claire</span><span>Thermoformee EVA</span><span>20/02/2026</span><span>20/08/2026</span><span class="pill p-ok">Active</span></div>
+          <div class="tbl-r tbl-5"><span>Bernard Lucas</span><span>Mousse pediatr.</span><span>01/04/2026</span><span>01/07/2026</span><span class="pill p-ok">Active</span></div>
+        </div>
+        <div class="cgrid cgrid-2" style="margin-top:14px;">
+          <div class="crd"><h3>🧪 Materiaux utilises</h3><p>EVA 40 shore : 42%<br>Resine + PP : 28%<br>Cuir + liege : 18%<br>Mousse pediatr. : 12%</p></div>
+          <div class="crd"><h3>📐 Corrections courantes</h3><p>Coin supinateur : 34 paires<br>Barre retrocapitale : 28 paires<br>Voute mediane : 45 paires<br>Talonnette : 19 paires</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. PHOTOTHEQUE -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">📷 Phototheque — Examens photographiques</span><span class="top-badge">1 247 cliches</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content" style="padding-top:14px;">
+        <div style="padding:0 24px 10px;font-size:12px;font-weight:700;color:#e2e8f0;">Patient : Dupont Marie — Hallux valgus bilateral</div>
+        <div class="photo-grid">
+          <div class="photo-item">
+            <div class="photo-placeholder" style="background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(244,63,94,.03));">🦶<span style="font-size:9px;color:#64748b;">Vue dorsale</span></div>
+            <div class="photo-date">12/01/2026</div>
+            <div class="photo-badge before">Avant</div>
+            <div class="photo-label">Hallux valgus 28 degres G</div>
+          </div>
+          <div class="photo-item">
+            <div class="photo-placeholder" style="background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));">🦶<span style="font-size:9px;color:#64748b;">Vue dorsale</span></div>
+            <div class="photo-date">12/04/2026</div>
+            <div class="photo-badge after">Apres</div>
+            <div class="photo-label">Hallux valgus 22 degres G</div>
+          </div>
+          <div class="photo-item">
+            <div class="photo-placeholder" style="background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(139,92,246,.03));">📊<span style="font-size:9px;color:#64748b;">Podoscope</span></div>
+            <div class="photo-date">12/04/2026</div>
+            <div class="photo-label">Empreinte plantaire</div>
+          </div>
+          <div class="photo-item">
+            <div class="photo-placeholder" style="background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(244,63,94,.03));">🦶<span style="font-size:9px;color:#64748b;">Vue plantaire</span></div>
+            <div class="photo-date">08/01/2026</div>
+            <div class="photo-badge before">Avant</div>
+            <div class="photo-label">Hyperkeratose M2-M3</div>
+          </div>
+          <div class="photo-item">
+            <div class="photo-placeholder" style="background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));">🦶<span style="font-size:9px;color:#64748b;">Vue plantaire</span></div>
+            <div class="photo-date">08/04/2026</div>
+            <div class="photo-badge after">Apres</div>
+            <div class="photo-label">Hyperkeratose reduite</div>
+          </div>
+          <div class="photo-item">
+            <div class="photo-placeholder" style="background:linear-gradient(135deg,rgba(6,182,212,.06),rgba(59,130,246,.03));">📏<span style="font-size:9px;color:#64748b;">Mesure</span></div>
+            <div class="photo-date">12/04/2026</div>
+            <div class="photo-label">Annotation angle HV</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. COMPTABILITE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">💰 Comptabilite — Suivi financier</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">💰</div><div class="stat-val">8 420&euro;</div><div class="stat-lbl">CA avril 2026</div><div class="stat-delta">+14% vs mars</div></div>
+          <div class="stat c"><div class="stat-icon">🏥</div><div class="stat-val">4 280&euro;</div><div class="stat-lbl">Honor. conventionnes</div><div class="stat-delta">156 actes</div></div>
+          <div class="stat e"><div class="stat-icon">🥿</div><div class="stat-val">3 640&euro;</div><div class="stat-lbl">Semelles orthop.</div><div class="stat-delta">28 paires</div></div>
+          <div class="stat r"><div class="stat-icon">🧾</div><div class="stat-val">18</div><div class="stat-lbl">Factures en attente</div><div class="stat-delta" style="color:#fcd34d;">A relancer</div></div>
+        </div>
+        <div class="rev-chart">
+          <div style="font-size:11px;font-weight:700;color:#e2e8f0;margin-bottom:12px;">Chiffre d'affaires mensuel 2026</div>
+          <div class="rev-bars">
+            <div class="rev-bar" style="height:55%;background:linear-gradient(180deg,#6366f1,#4f46e5);"><span>Jan</span></div>
+            <div class="rev-bar" style="height:62%;background:linear-gradient(180deg,#6366f1,#4f46e5);"><span>Fev</span></div>
+            <div class="rev-bar" style="height:58%;background:linear-gradient(180deg,#6366f1,#4f46e5);"><span>Mar</span></div>
+            <div class="rev-bar" style="height:78%;background:linear-gradient(180deg,#06b6d4,#0891b2);"><span>Avr</span></div>
+            <div class="rev-bar" style="height:40%;background:linear-gradient(180deg,rgba(99,102,241,.3),rgba(79,70,229,.2));border:1px dashed rgba(99,102,241,.2);"><span>Mai</span></div>
+            <div class="rev-bar" style="height:35%;background:linear-gradient(180deg,rgba(99,102,241,.3),rgba(79,70,229,.2));border:1px dashed rgba(99,102,241,.2);"><span>Jun</span></div>
+          </div>
+          <div class="rev-legend">
+            <span><span class="dot" style="background:#6366f1;"></span>Realise</span>
+            <span><span class="dot" style="background:#06b6d4;"></span>Mois en cours</span>
+            <span><span class="dot" style="background:rgba(99,102,241,.3);"></span>Previsionnel</span>
+          </div>
+        </div>
+        <div class="cgrid cgrid-2" style="margin-top:14px;">
+          <div class="crd"><h3>🧾 Factures patients</h3><p>Emises : 156 factures<br>Payees : 141<br>En attente : 15<br><strong style="color:#6ee7b7;">Export comptable disponible</strong></p></div>
+          <div class="crd"><h3>📊 Repartition actes</h3><p>Soins podologiques : 58%<br>Semelles orthopediques : 32%<br>Bilans posturaux : 10%<br><strong style="color:#a5b4fc;">Panier moyen : 54&euro;</strong></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+const navIds=[1,2,3,4,6];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n'+navIds[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

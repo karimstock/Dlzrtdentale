@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-6{grid-template-columns:1.2fr 1.2fr 1fr .8fr .8fr .5fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+.p-i{background:rgba(99,102,241,.12);color:#a5b4fc;}.p-exp{background:rgba(6,182,212,.12);color:#67e8f9;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.cgrid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+.cgrid-5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+
+/* Kanban */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 24px 18px;}
+.k-col{background:rgba(15,23,42,.4);border:1px solid rgba(99,102,241,.06);border-radius:10px;padding:10px;min-height:200px;}
+.k-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;padding-bottom:8px;border-bottom:1px solid rgba(99,102,241,.06);margin-bottom:8px;text-align:center;}
+.k-card{background:rgba(30,41,59,.8);border:1px solid rgba(99,102,241,.08);border-radius:8px;padding:10px;margin-bottom:6px;font-size:9px;}
+.k-card .k-name{font-weight:700;font-size:10px;margin-bottom:3px;}
+.k-card .k-detail{color:#64748b;line-height:1.4;}
+
+/* Alert bar */
+.alert-bar{margin:0 24px 12px;padding:12px 18px;background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(239,68,68,.06));border:1px solid rgba(245,158,11,.12);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;}
+.alert-bar .dots{display:flex;gap:8px;}
+.alert-bar .dot{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;}
+.dot-r{background:rgba(240,80,80,.1);color:#f05050;}
+.dot-y{background:rgba(240,160,48,.1);color:#f0a030;}
+.dot-g{background:rgba(16,185,129,.1);color:#10b981;}
+
+/* Catalog */
+.cat-card{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;text-align:center;}
+.cat-card .cat-icon{font-size:28px;margin-bottom:8px;}
+.cat-card .cat-name{font-size:11px;font-weight:700;margin-bottom:4px;}
+.cat-card .cat-price{font-size:18px;font-weight:800;color:#c9a961;margin-bottom:4px;}
+.cat-card .cat-detail{font-size:9px;color:#64748b;}
+
+/* Portal preview */
+.portal{margin:18px 24px;background:rgba(30,41,59,.4);border:1px solid rgba(99,102,241,.08);border-radius:14px;padding:24px;position:relative;overflow:hidden;}
+.portal::before{content:'';position:absolute;top:0;right:0;width:200px;height:200px;background:radial-gradient(circle,rgba(99,102,241,.06),transparent);border-radius:50%;}
+.portal h3{font-size:14px;font-weight:800;margin-bottom:12px;}
+.portal-row{display:flex;gap:16px;margin-bottom:12px;}
+.portal-item{flex:1;background:rgba(15,23,42,.5);border:1px solid rgba(99,102,241,.06);border-radius:10px;padding:14px;text-align:center;}
+.portal-item .pi-icon{font-size:20px;margin-bottom:6px;}
+.portal-item .pi-label{font-size:9px;color:#94a3b8;font-weight:500;}
+.portal-item .pi-value{font-size:14px;font-weight:800;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Laboratoire</div>
+    <div class="sb-item active" id="n0">📋 Commandes</div>
+    <div class="sb-item" id="n1">⚙️ Production</div>
+    <div class="sb-item" id="n2">📦 Stock <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-sep">Commercial</div>
+    <div class="sb-item" id="n3">📖 Catalogue</div>
+    <div class="sb-item" id="n4">🦷 Portail Dentistes</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n5">✨ Mon site</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. COMMANDES LABO -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">📋 Commandes Labo — Suivi travaux</span><span class="top-badge">14 commandes actives</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📋</div><div class="stat-val">14</div><div class="stat-lbl">Commandes actives</div><div class="stat-delta">+3 cette semaine</div></div>
+          <div class="stat r"><div class="stat-icon">🔴</div><div class="stat-val">3</div><div class="stat-lbl">Urgentes</div><div class="stat-delta" style="color:#fca5a5;">A traiter</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">47</div><div class="stat-lbl">Livrees ce mois</div><div class="stat-delta">+12% vs mois dernier</div></div>
+          <div class="stat c"><div class="stat-icon">💰</div><div class="stat-val">8 420€</div><div class="stat-lbl">CA ce mois</div><div class="stat-delta">+8% vs objectif</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Dentiste</span><span>Travail</span><span>Materiau</span><span>Priorite</span><span>Deadline</span><span></span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Dr Martin</span><span>3 couronnes</span><span>Zircone</span><span class="pill p-c">Urgent</span><span>25/04</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Dr Leroy</span><span>Bridge</span><span>E-max</span><span class="pill p-w">Standard</span><span>30/04</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Dr Dupont</span><span>Gouttiere</span><span>CFAO</span><span class="pill p-exp">Express</span><span>26/04</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Dr Garcia</span><span>2 facettes</span><span>E-max</span><span class="pill p-ok">Normal</span><span>05/05</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PRODUCTION -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">⚙️ Production — Workflow labo</span><span class="top-badge">Kanban</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="kanban">
+          <div class="k-col">
+            <div class="k-title" style="color:#a5b4fc;">A faire</div>
+            <div class="k-card" style="border-left:3px solid #ef4444;"><div class="k-name">Dr Garcia</div><div class="k-detail">2 facettes E-max<br><span style="color:#fca5a5;">Normal</span></div></div>
+            <div class="k-card" style="border-left:3px solid #f59e0b;"><div class="k-name">Dr Bernard</div><div class="k-detail">Inlay Composite<br><span style="color:#fcd34d;">Standard</span></div></div>
+          </div>
+          <div class="k-col">
+            <div class="k-title" style="color:#06b6d4;">En cours</div>
+            <div class="k-card" style="border-left:3px solid #06b6d4;"><div class="k-name">Dr Martin</div><div class="k-detail">3 couronnes Zircone<br><span style="color:#fca5a5;">Urgent</span></div></div>
+            <div class="k-card" style="border-left:3px solid #06b6d4;"><div class="k-name">Dr Dupont</div><div class="k-detail">Gouttiere CFAO<br><span style="color:#67e8f9;">Express</span></div></div>
+          </div>
+          <div class="k-col">
+            <div class="k-title" style="color:#f59e0b;">Cuisson</div>
+            <div class="k-card" style="border-left:3px solid #f59e0b;"><div class="k-name">Dr Leroy</div><div class="k-detail">Bridge E-max<br><span style="color:#fcd34d;">Standard</span></div></div>
+          </div>
+          <div class="k-col">
+            <div class="k-title" style="color:#8b5cf6;">Finition</div>
+            <div class="k-card" style="border-left:3px solid #8b5cf6;"><div class="k-name">Dr Petit</div><div class="k-detail">Couronne Zircone<br><span style="color:#c4b5fd;">Maquillage</span></div></div>
+            <div class="k-card" style="border-left:3px solid #8b5cf6;"><div class="k-name">Dr Simon</div><div class="k-detail">4 facettes<br><span style="color:#c4b5fd;">Polissage</span></div></div>
+          </div>
+          <div class="k-col">
+            <div class="k-title" style="color:#10b981;">Expedie</div>
+            <div class="k-card" style="border-left:3px solid #10b981;"><div class="k-name">Dr Moreau</div><div class="k-detail">Prothese amov.<br><span style="color:#6ee7b7;">Livre ✓</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. STOCK MATERIAUX -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">📦 Stock Materiaux — Inventaire</span><span class="top-badge">24 references</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📦</div><div class="stat-val">24</div><div class="stat-lbl">References</div><div class="stat-delta">Stock controle</div></div>
+          <div class="stat r"><div class="stat-icon">⚠️</div><div class="stat-val">3</div><div class="stat-lbl">Alertes stock</div><div class="stat-delta" style="color:#fca5a5;">A commander</div></div>
+          <div class="stat e"><div class="stat-icon">💰</div><div class="stat-val">2 340€</div><div class="stat-lbl">Valeur stock</div><div class="stat-delta">Optimise</div></div>
+          <div class="stat c"><div class="stat-icon">📉</div><div class="stat-val">12%</div><div class="stat-lbl">Perte gaspillage</div><div class="stat-delta" style="color:#fcd34d;">-5% vs 2025</div></div>
+        </div>
+        <div class="alert-bar"><span>⚠️ Alertes stock bas</span><div class="dots"><span class="dot dot-r">🔴 2 critiques</span><span class="dot dot-y">🟡 3 a surveiller</span><span class="dot dot-g">🟢 19 OK</span></div></div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Materiau</span><span>Quantite</span><span>Statut</span><span>Fournisseur</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Zircone blocs</span><span>12 unites</span><span class="pill p-ok">OK</span><span>Ivoclar</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>E-max lingots</span><span>8 unites</span><span class="pill p-w">Faible</span><span>Ivoclar</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-5"><span>Cire modelage</span><span>3 kg</span><span class="pill p-c">Critique</span><span>Yeti Dental</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+          <div class="tbl-r tbl-5"><span>Platre type IV</span><span>15 kg</span><span class="pill p-ok">OK</span><span>GC Europe</span><span></span></div>
+          <div class="tbl-r tbl-5"><span>Disques PMMA</span><span>2 unites</span><span class="pill p-c">Critique</span><span>Dental Direkt</span><span style="color:#6366f1;font-size:10px;">Commander</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. CATALOGUE -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">📖 Catalogue — Tarifs protheses</span><span class="top-badge">Grille tarifaire</span></div>
+      <div class="content" style="padding-top:18px;">
+        <div class="cgrid cgrid-4">
+          <div class="cat-card"><div class="cat-icon">👑</div><div class="cat-name">Couronne Zircone</div><div class="cat-price">180€</div><div class="cat-detail">Monolithique ou stratifiee<br>Delai : 5 jours</div></div>
+          <div class="cat-card"><div class="cat-icon">🌉</div><div class="cat-name">Bridge 3 elements</div><div class="cat-price">420€</div><div class="cat-detail">Zircone ou E-max<br>Delai : 7 jours</div></div>
+          <div class="cat-card"><div class="cat-icon">✨</div><div class="cat-name">Facette E-max</div><div class="cat-price">150€</div><div class="cat-detail">Epaisseur 0.3-0.5mm<br>Delai : 5 jours</div></div>
+          <div class="cat-card"><div class="cat-icon">🦷</div><div class="cat-name">Gouttiere</div><div class="cat-price">90€</div><div class="cat-detail">Thermoformee ou CFAO<br>Delai : 3 jours</div></div>
+        </div>
+        <div style="padding:6px 24px 12px;font-size:12px;font-weight:700;color:#94a3b8;">Autres prestations</div>
+        <div class="tbl"><div class="tbl-h tbl-4"><span>Prestation</span><span>Materiau</span><span>Prix</span><span>Delai</span></div>
+          <div class="tbl-r tbl-4"><span>Inlay/Onlay</span><span>Composite/Ceramique</span><span style="font-weight:700;color:#c9a961;">120€</span><span>4 jours</span></div>
+          <div class="tbl-r tbl-4"><span>Prothese amovible partielle</span><span>Stellite/Resine</span><span style="font-weight:700;color:#c9a961;">350€</span><span>10 jours</span></div>
+          <div class="tbl-r tbl-4"><span>Prothese complete</span><span>Resine</span><span style="font-weight:700;color:#c9a961;">480€</span><span>12 jours</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. PORTAIL DENTISTES -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">🦷 Portail Dentistes — Espace pro</span><span class="top-badge">Apercu</span></div>
+      <div class="content">
+        <div class="portal">
+          <h3>Portail Dr Martin 🦷</h3>
+          <div class="portal-row">
+            <div class="portal-item"><div class="pi-icon">📋</div><div class="pi-label">Commandes en cours</div><div class="pi-value" style="color:#6366f1;">3</div></div>
+            <div class="portal-item"><div class="pi-icon">✅</div><div class="pi-label">Livrees ce mois</div><div class="pi-value" style="color:#10b981;">8</div></div>
+            <div class="portal-item"><div class="pi-icon">🚚</div><div class="pi-label">Prochaine livraison</div><div class="pi-value" style="color:#06b6d4;font-size:12px;">25/04</div></div>
+          </div>
+        </div>
+        <div style="padding:8px 24px 8px;font-size:12px;font-weight:700;color:#94a3b8;">Suivi commandes</div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Reference</span><span>Travail</span><span>Statut</span><span>Livraison</span><span></span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">CMD-2026-0087</span><span>3 couronnes Zircone</span><span class="pill p-w">En cours</span><span>25/04</span><span style="color:#6366f1;font-size:10px;">Suivre</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">CMD-2026-0082</span><span>Bridge 3 elements</span><span class="pill p-ok">Expedie</span><span>23/04</span><span style="color:#10b981;font-size:10px;">Recu ✓</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">CMD-2026-0079</span><span>2 facettes E-max</span><span class="pill p-ok">Livre</span><span>18/04</span><span style="color:#10b981;font-size:10px;">Recu ✓</span></div>
+        </div>
+        <div style="padding:18px 24px;">
+          <div class="crd" style="border-color:rgba(99,102,241,.15);text-align:center;">
+            <h3 style="justify-content:center;">📝 Nouvelle commande</h3>
+            <p>Passez vos commandes en ligne 24h/24. Photos, empreintes numeriques, instructions — tout en un clic.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const screens=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  const navIdx=[0,1,2,3,4];
+  document.getElementById('n'+navIdx[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>

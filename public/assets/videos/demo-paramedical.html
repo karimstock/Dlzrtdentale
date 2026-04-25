@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#080b14;color:#f1f5f9;overflow:hidden;height:100vh;width:100vw;}
+
+.app{display:flex;height:100vh;perspective:1200px;}
+
+/* Sidebar */
+.sb{width:210px;background:linear-gradient(180deg,#0a1628 0%,#0d1a30 50%,#080e1c 100%);border-right:1px solid rgba(99,102,241,.1);padding:14px 0;flex-shrink:0;position:relative;z-index:2;}
+.sb::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6,#06b6d4,transparent);}
+.sb-logo{padding:14px 18px 20px;font-size:18px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sb-logo span{font-size:8px;color:#c9a961;-webkit-text-fill-color:#c9a961;vertical-align:super;margin-left:2px;letter-spacing:1px;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:11px;font-weight:400;color:#64748b;border-left:2px solid transparent;margin:1px 0;transition:all .4s cubic-bezier(.16,1,.3,1);}
+.sb-item.active{background:rgba(99,102,241,.08);color:#a5b4fc;border-left-color:#6366f1;font-weight:600;}
+.sb-sep{font-size:8px;font-weight:700;color:#334155;padding:14px 18px 4px;text-transform:uppercase;letter-spacing:1.5px;}
+
+/* Main area */
+.main{flex:1;position:relative;overflow:hidden;}
+
+/* Screens with page-flip effect */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;backface-visibility:hidden;transform-origin:left center;transition:all .9s cubic-bezier(.4,0,.2,1);opacity:0;transform:rotateY(-90deg) scale(.92);filter:blur(4px);}
+.screen.active{opacity:1;transform:rotateY(0) scale(1);filter:blur(0);z-index:2;}
+.screen.exit{opacity:0;transform:rotateY(90deg) scale(.92);filter:blur(4px);z-index:1;}
+
+/* Top bar */
+.top{height:48px;background:linear-gradient(90deg,#0f172a,#111827);border-bottom:1px solid rgba(99,102,241,.06);display:flex;align-items:center;padding:0 24px;gap:10px;}
+.top-title{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+.top-badge{font-size:9px;background:rgba(99,102,241,.1);color:#a5b4fc;padding:3px 8px;border-radius:4px;font-weight:600;}
+.content{flex:1;overflow:hidden;padding:0;}
+
+/* Stats row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 24px;}
+.stat{padding:16px;border-radius:12px;position:relative;overflow:hidden;}
+.stat::after{content:'';position:absolute;top:-50%;right:-30%;width:80px;height:80px;border-radius:50%;opacity:.06;}
+.stat.i{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.15);}.stat.i::after{background:#6366f1;}
+.stat.c{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(59,130,246,.06));border:1px solid rgba(6,182,212,.15);}.stat.c::after{background:#06b6d4;}
+.stat.e{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(20,184,166,.06));border:1px solid rgba(16,185,129,.15);}.stat.e::after{background:#10b981;}
+.stat.r{background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(244,63,94,.06));border:1px solid rgba(239,68,68,.15);}.stat.r::after{background:#ef4444;}
+.stat-icon{font-size:18px;margin-bottom:6px;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:400;}
+.stat-delta{font-size:9px;font-weight:600;color:#34d399;margin-top:4px;}
+
+/* Table */
+.tbl{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.tbl-h{display:grid;padding:10px 16px;font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px;background:rgba(15,23,42,.8);}
+.tbl-r{display:grid;padding:11px 16px;font-size:11px;border-top:1px solid rgba(99,102,241,.04);align-items:center;transition:background .2s;}
+.tbl-5{grid-template-columns:2fr 1fr 1fr 1fr .5fr;}
+.tbl-4{grid-template-columns:2fr 1.2fr 1fr 1fr;}
+.tbl-6{grid-template-columns:1.5fr 1.2fr .8fr .8fr .8fr .5fr;}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;}
+.p-ok{background:rgba(16,185,129,.12);color:#6ee7b7;}.p-w{background:rgba(245,158,11,.12);color:#fcd34d;}.p-c{background:rgba(239,68,68,.12);color:#fca5a5;}
+.p-i{background:rgba(99,102,241,.12);color:#a5b4fc;}.p-exp{background:rgba(6,182,212,.12);color:#67e8f9;}
+
+/* Cards */
+.cgrid{display:grid;gap:12px;padding:0 24px 18px;}
+.cgrid-2{grid-template-columns:1fr 1fr;}
+.cgrid-3{grid-template-columns:1fr 1fr 1fr;}
+.crd{background:rgba(30,41,59,.6);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:18px;backdrop-filter:blur(4px);transition:all .3s;}
+.crd h3{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.crd p{font-size:10px;color:#94a3b8;line-height:1.6;}
+.bar{height:5px;background:rgba(30,41,59,.8);border-radius:3px;margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+/* Green stats */
+.gcard{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(20,184,166,.03));border:1px solid rgba(16,185,129,.1);border-radius:12px;padding:18px;text-align:center;}
+.gcard .ico{font-size:26px;margin-bottom:6px;}
+.gcard .lbl{font-size:10px;font-weight:500;color:#94a3b8;}
+.gcard .val{font-size:20px;font-weight:800;color:#10b981;margin-top:4px;}
+
+/* Calendar grid */
+.cal{margin:0 24px;border-radius:10px;overflow:hidden;border:1px solid rgba(99,102,241,.06);background:rgba(15,23,42,.5);}
+.cal-header{display:grid;grid-template-columns:60px repeat(5,1fr);font-size:9px;font-weight:600;color:#475569;text-transform:uppercase;background:rgba(15,23,42,.8);}
+.cal-header span{padding:8px 6px;text-align:center;}
+.cal-row{display:grid;grid-template-columns:60px repeat(5,1fr);border-top:1px solid rgba(99,102,241,.04);}
+.cal-time{font-size:9px;color:#475569;padding:6px;display:flex;align-items:center;justify-content:center;}
+.cal-cell{padding:4px;min-height:36px;display:flex;align-items:center;justify-content:center;}
+.cal-ev{font-size:8px;padding:3px 6px;border-radius:4px;font-weight:600;width:100%;text-align:center;line-height:1.3;}
+.ev-kine{background:rgba(99,102,241,.12);color:#a5b4fc;}
+.ev-osteo{background:rgba(139,92,246,.12);color:#c4b5fd;}
+.ev-bilan{background:rgba(245,158,11,.12);color:#fcd34d;}
+.ev-dom{background:rgba(16,185,129,.12);color:#6ee7b7;}
+
+/* Teleconsultation mockup */
+.tele{margin:18px 24px;background:rgba(15,23,42,.6);border:1px solid rgba(99,102,241,.1);border-radius:14px;overflow:hidden;}
+.tele-video{height:180px;background:linear-gradient(135deg,#0f172a,#1e293b);display:flex;align-items:center;justify-content:center;position:relative;}
+.tele-video .cam{width:120px;height:90px;background:rgba(99,102,241,.08);border:2px solid rgba(99,102,241,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:28px;}
+.tele-video .pip{position:absolute;bottom:12px;right:12px;width:60px;height:45px;background:rgba(30,41,59,.8);border:1px solid rgba(99,102,241,.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.tele-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:rgba(30,41,59,.4);border-top:1px solid rgba(99,102,241,.06);}
+.tele-bar .name{font-size:12px;font-weight:700;}
+.tele-bar .timer{font-size:11px;color:#10b981;font-weight:600;font-variant-numeric:tabular-nums;}
+.tele-controls{display:flex;gap:8px;}
+.tele-btn{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:none;cursor:pointer;}
+.btn-mic{background:rgba(99,102,241,.15);}
+.btn-cam{background:rgba(99,102,241,.15);}
+.btn-end{background:rgba(239,68,68,.2);}
+
+/* Revenue dashboard */
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 24px 12px;}
+.rev-card{background:rgba(30,41,59,.5);border:1px solid rgba(99,102,241,.06);border-radius:12px;padding:16px;}
+.rev-card h4{font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.rev-bar{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.rev-label{font-size:9px;color:#94a3b8;width:60px;}
+.rev-track{flex:1;height:6px;background:rgba(30,41,59,.8);border-radius:3px;overflow:hidden;}
+.rev-fill{height:100%;border-radius:3px;}
+.rev-val{font-size:9px;font-weight:700;width:50px;text-align:right;}
+
+/* Alert bar */
+.alert-bar{margin:0 24px 12px;padding:12px 18px;background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(239,68,68,.06));border:1px solid rgba(245,158,11,.12);border-radius:10px;display:flex;align-items:center;gap:12px;font-size:11px;}
+
+/* Portal preview */
+.portal{margin:18px 24px;background:rgba(30,41,59,.4);border:1px solid rgba(99,102,241,.08);border-radius:14px;padding:24px;position:relative;overflow:hidden;}
+.portal::before{content:'';position:absolute;top:0;right:0;width:200px;height:200px;background:radial-gradient(circle,rgba(99,102,241,.06),transparent);border-radius:50%;}
+.portal h3{font-size:14px;font-weight:800;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sb">
+    <div class="sb-logo">JADOMI<span>IA</span></div>
+    <div class="sb-sep">Cabinet</div>
+    <div class="sb-item active" id="n0">👥 Patients <span style="font-size:7px;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:auto;letter-spacing:.5px;">GRATUIT</span></div>
+    <div class="sb-item" id="n1">📅 Planning</div>
+    <div class="sb-item" id="n2">📋 Bilans</div>
+    <div class="sb-sep">Outils</div>
+    <div class="sb-item" id="n3">🎥 Teleconsultation</div>
+    <div class="sb-item" id="n4">💰 Comptabilite</div>
+    <div class="sb-sep">Studio</div>
+    <div class="sb-item" id="n5">✨ Mon site</div>
+  </div>
+
+  <div class="main">
+    <!-- 1. PATIENTS -->
+    <div class="screen active" id="s0">
+      <div class="top"><span class="top-title">👥 Patients — Suivi paramedical</span><span class="top-badge">64 patients actifs</span><span style="margin-left:auto;font-size:10px;font-weight:700;background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f;padding:4px 12px;border-radius:5px;letter-spacing:.5px;">GRATUIT — Inclus a vie</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">👥</div><div class="stat-val">64</div><div class="stat-lbl">Patients actifs</div><div class="stat-delta">+8 ce mois</div></div>
+          <div class="stat c"><div class="stat-icon">📅</div><div class="stat-val">32</div><div class="stat-lbl">RDV cette semaine</div><div class="stat-delta">Taux remplissage 85%</div></div>
+          <div class="stat e"><div class="stat-icon">✅</div><div class="stat-val">12</div><div class="stat-lbl">Fins de traitement</div><div class="stat-delta">Ce mois</div></div>
+          <div class="stat r"><div class="stat-icon">📋</div><div class="stat-val">5</div><div class="stat-lbl">Bilans a faire</div><div class="stat-delta" style="color:#fca5a5;">Cette semaine</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-6"><span>Patient</span><span>Pathologie</span><span>Seances</span><span>Prochain RDV</span><span>Statut</span><span></span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Pierre Durand</span><span>Lombalgie chronique</span><span>8/15</span><span>25/04</span><span class="pill p-i">En cours</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Claire Fontaine</span><span>Entorse cheville</span><span>4/10</span><span>26/04</span><span class="pill p-w">Phase 2</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Marc Rousseau</span><span>Reeducation genou</span><span>12/20</span><span>28/04</span><span class="pill p-i">En cours</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Anne Petit</span><span>Cervicalgies</span><span>6/8</span><span>24/04</span><span class="pill p-ok">Bientot fini</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+          <div class="tbl-r tbl-6"><span style="font-weight:600;">Lucas Moreau</span><span>Tendinite epaule</span><span>2/12</span><span>29/04</span><span class="pill p-c">Debut</span><span style="color:#6366f1;font-size:10px;">Voir</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PLANNING -->
+    <div class="screen" id="s1">
+      <div class="top"><span class="top-title">📅 Planning — Semaine en cours</span><span class="top-badge">Taux occupation 85%</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📅</div><div class="stat-val">32</div><div class="stat-lbl">RDV semaine</div></div>
+          <div class="stat c"><div class="stat-icon">🏠</div><div class="stat-val">6</div><div class="stat-lbl">Visites domicile</div></div>
+          <div class="stat e"><div class="stat-icon">📊</div><div class="stat-val">85%</div><div class="stat-lbl">Taux occupation</div><div class="stat-delta">+5% vs moy.</div></div>
+          <div class="stat r"><div class="stat-icon">🚫</div><div class="stat-val">2</div><div class="stat-lbl">Annulations</div></div>
+        </div>
+        <div class="cal">
+          <div class="cal-header"><span></span><span>Lun 21</span><span>Mar 22</span><span>Mer 23</span><span>Jeu 24</span><span>Ven 25</span></div>
+          <div class="cal-row"><div class="cal-time">8h30</div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Durand</div></div><div class="cal-cell"><div class="cal-ev ev-dom">Domicile<br>Lefevre</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Petit</div></div><div class="cal-cell"><div class="cal-ev ev-bilan">Bilan<br>Moreau</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Durand</div></div></div>
+          <div class="cal-row"><div class="cal-time">9h00</div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Fontaine</div></div><div class="cal-cell"><div class="cal-ev ev-osteo">Osteo<br>Simon</div></div><div class="cal-cell"></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Rousseau</div></div><div class="cal-cell"><div class="cal-ev ev-osteo">Osteo<br>Bernard</div></div></div>
+          <div class="cal-row"><div class="cal-time">10h00</div><div class="cal-cell"><div class="cal-ev ev-osteo">Osteo<br>Garcia</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Rousseau</div></div><div class="cal-cell"><div class="cal-ev ev-dom">Domicile<br>Martin</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Fontaine</div></div><div class="cal-cell"></div></div>
+          <div class="cal-row"><div class="cal-time">14h00</div><div class="cal-cell"><div class="cal-ev ev-bilan">Bilan<br>Laurent</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Petit</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Moreau</div></div><div class="cal-cell"><div class="cal-ev ev-dom">Domicile<br>Dubois</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Roux</div></div></div>
+          <div class="cal-row"><div class="cal-time">16h00</div><div class="cal-cell"></div><div class="cal-cell"><div class="cal-ev ev-dom">Domicile<br>Lefevre</div></div><div class="cal-cell"><div class="cal-ev ev-osteo">Osteo<br>Blanc</div></div><div class="cal-cell"><div class="cal-ev ev-kine">Kine<br>Petit</div></div><div class="cal-cell"><div class="cal-ev ev-bilan">Bilan<br>Durand</div></div></div>
+        </div>
+        <div style="padding:12px 24px;display:flex;gap:12px;font-size:9px;">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:rgba(99,102,241,.3);"></span> Kine</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:rgba(139,92,246,.3);"></span> Osteo</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:rgba(245,158,11,.3);"></span> Bilan</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:rgba(16,185,129,.3);"></span> Domicile</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. BILANS -->
+    <div class="screen" id="s2">
+      <div class="top"><span class="top-title">📋 Bilans — Evaluations patients</span><span class="top-badge">12 bilans ce mois</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat i"><div class="stat-icon">📋</div><div class="stat-val">12</div><div class="stat-lbl">Bilans ce mois</div><div class="stat-delta">+3 vs mois dernier</div></div>
+          <div class="stat c"><div class="stat-icon">🆕</div><div class="stat-val">4</div><div class="stat-lbl">Bilans initiaux</div></div>
+          <div class="stat e"><div class="stat-icon">📊</div><div class="stat-val">5</div><div class="stat-lbl">Intermediaires</div></div>
+          <div class="stat r"><div class="stat-icon">✅</div><div class="stat-val">3</div><div class="stat-lbl">Bilans finaux</div></div>
+        </div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Patient</span><span>Type</span><span>Date</span><span>Pathologie</span><span>Statut</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">Pierre Durand</span><span class="pill p-i">Intermediaire</span><span>22/04/2026</span><span>Lombalgie</span><span class="pill p-ok">Complete</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">Lucas Moreau</span><span class="pill p-exp">Initial</span><span>20/04/2026</span><span>Tendinite</span><span class="pill p-ok">Complete</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">Anne Petit</span><span class="pill p-ok">Final</span><span>24/04/2026</span><span>Cervicalgies</span><span class="pill p-w">A faire</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">Claire Fontaine</span><span class="pill p-i">Intermediaire</span><span>28/04/2026</span><span>Entorse</span><span class="pill p-w">Planifie</span></div>
+          <div class="tbl-r tbl-5"><span style="font-weight:600;">Marc Rousseau</span><span class="pill p-i">Intermediaire</span><span>30/04/2026</span><span>Reeducation genou</span><span class="pill p-w">Planifie</span></div>
+        </div>
+        <div style="padding:18px 24px 0;">
+          <div class="cgrid cgrid-3" style="padding:0;">
+            <div class="gcard"><div class="ico">📝</div><div class="lbl">Taux completion</div><div class="val">92%</div></div>
+            <div class="gcard"><div class="ico">⏱️</div><div class="lbl">Temps moyen bilan</div><div class="val">25 min</div></div>
+            <div class="gcard"><div class="ico">📊</div><div class="lbl">Satisfaction patient</div><div class="val">4.8/5</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. TELECONSULTATION -->
+    <div class="screen" id="s3">
+      <div class="top"><span class="top-title">🎥 Teleconsultation — Seance en cours</span><span class="top-badge">Video HD</span></div>
+      <div class="content">
+        <div class="tele">
+          <div class="tele-video">
+            <div class="cam">👤</div>
+            <div class="pip">🧑‍⚕️</div>
+            <div style="position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:pulse 1.5s infinite;"></span><span style="font-size:9px;color:#fca5a5;font-weight:600;">EN DIRECT</span></div>
+          </div>
+          <div class="tele-bar">
+            <div><div class="name">Pierre Durand — Lombalgie</div><div style="font-size:9px;color:#64748b;">Seance 8/15 &middot; Suivi exercices</div></div>
+            <div class="timer">12:34</div>
+            <div class="tele-controls">
+              <div class="tele-btn btn-mic">🎤</div>
+              <div class="tele-btn btn-cam">📷</div>
+              <div class="tele-btn btn-end">📴</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:0 24px;">
+          <div class="cgrid cgrid-2" style="padding:0;margin-top:12px;">
+            <div class="crd"><h3>📝 Notes de seance</h3><p>Amelioration mobilite L4-L5.<br>Exercices domicile bien suivis.<br>Douleur EVA 3/10 (vs 7/10 initial).</p></div>
+            <div class="crd"><h3>📊 Prochaines etapes</h3><p>Renforcement musculaire phase 2.<br>Ajout exercices gainage.<br>Prochain bilan intermediaire : 05/05.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. COMPTABILITE -->
+    <div class="screen" id="s4">
+      <div class="top"><span class="top-title">💰 Comptabilite — Tableau de bord</span><span class="top-badge">Avril 2026</span></div>
+      <div class="content">
+        <div class="stats">
+          <div class="stat e"><div class="stat-icon">💰</div><div class="stat-val">6 840€</div><div class="stat-lbl">CA ce mois</div><div class="stat-delta">+12% vs mars</div></div>
+          <div class="stat i"><div class="stat-icon">📄</div><div class="stat-val">128</div><div class="stat-lbl">Actes realises</div><div class="stat-delta">32/semaine moy.</div></div>
+          <div class="stat c"><div class="stat-icon">🏥</div><div class="stat-val">96%</div><div class="stat-lbl">Taux encaissement</div><div class="stat-delta">Ce mois</div></div>
+          <div class="stat r"><div class="stat-icon">⏳</div><div class="stat-val">3</div><div class="stat-lbl">Factures impayees</div><div class="stat-delta" style="color:#fca5a5;">A relancer</div></div>
+        </div>
+        <div style="padding:0 24px 8px;font-size:12px;font-weight:700;color:#94a3b8;">Factures patients — Dernieres emissions</div>
+        <div class="tbl"><div class="tbl-h tbl-5"><span>Patient</span><span>Prestation</span><span>Montant</span><span>Date</span><span>Statut</span></div>
+          <div class="tbl-r tbl-5"><span>P. Durand</span><span>Seance kine</span><span style="font-weight:600;">25,00€</span><span>22/04</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-5"><span>C. Fontaine</span><span>Seance kine</span><span style="font-weight:600;">31,25€</span><span>21/04</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-5"><span>M. Rousseau</span><span>Seance kine</span><span style="font-weight:600;">25,00€</span><span>20/04</span><span class="pill p-ok">Payee</span></div>
+          <div class="tbl-r tbl-5"><span>A. Petit</span><span>Bilan initial</span><span style="font-weight:600;">37,50€</span><span>19/04</span><span class="pill p-c">Impayee</span></div>
+        </div>
+        <div style="padding:18px 24px 0;">
+          <div class="rev-grid" style="padding:0;">
+            <div class="rev-card"><h4>CA par type d'acte</h4>
+              <div class="rev-bar"><span class="rev-label">Kine</span><div class="rev-track"><div class="rev-fill" style="width:72%;background:linear-gradient(90deg,#6366f1,#8b5cf6);"></div></div><span class="rev-val" style="color:#a5b4fc;">4 925€</span></div>
+              <div class="rev-bar"><span class="rev-label">Osteo</span><div class="rev-track"><div class="rev-fill" style="width:20%;background:linear-gradient(90deg,#06b6d4,#3b82f6);"></div></div><span class="rev-val" style="color:#67e8f9;">1 368€</span></div>
+              <div class="rev-bar"><span class="rev-label">Domicile</span><div class="rev-track"><div class="rev-fill" style="width:8%;background:linear-gradient(90deg,#10b981,#14b8a6);"></div></div><span class="rev-val" style="color:#6ee7b7;">547€</span></div>
+            </div>
+            <div class="rev-card"><h4>Encaissements ce mois</h4>
+              <div class="rev-bar"><span class="rev-label">Payees</span><div class="rev-track"><div class="rev-fill" style="width:94%;background:linear-gradient(90deg,#10b981,#14b8a6);"></div></div><span class="rev-val" style="color:#6ee7b7;">94%</span></div>
+              <div class="rev-bar"><span class="rev-label">En attente</span><div class="rev-track"><div class="rev-fill" style="width:4%;background:linear-gradient(90deg,#f59e0b,#f97316);"></div></div><span class="rev-val" style="color:#fcd34d;">4%</span></div>
+              <div class="rev-bar"><span class="rev-label">Impayees</span><div class="rev-track"><div class="rev-fill" style="width:2%;background:linear-gradient(90deg,#ef4444,#f43f5e);"></div></div><span class="rev-val" style="color:#fca5a5;">2%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}</style>
+
+<script>
+const screens=[0,1,2,3,4];
+let cur=0,prev=-1;
+
+function show(idx){
+  if(idx===cur)return;
+  prev=cur;cur=idx;
+  document.getElementById('s'+prev).classList.remove('active');
+  document.getElementById('s'+prev).classList.add('exit');
+  setTimeout(()=>{
+    document.getElementById('s'+prev).classList.remove('exit');
+    document.getElementById('s'+cur).classList.add('active');
+  },200);
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  const navIdx=[0,1,2,3,4];
+  document.getElementById('n'+navIdx[cur])?.classList.add('active');
+}
+
+let i=0;
+setInterval(()=>{
+  i=(i+1)%screens.length;
+  show(i);
+},3500);
+</script>
+</body>
+</html>
