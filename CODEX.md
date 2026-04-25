@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 25 avril 2026
-**Derniere passe** : Passe 50 — Audit complet (Operation Total Checkup)
+**Derniere passe** : Passe 51 — Scan & Stock Pro (3 fixes critiques)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -976,7 +976,8 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [ ] Feedback post-test utilisateur
 - [ ] Parler aux 2 associes DENTALEVOLUTION
 - [ ] RDV avocat (CGV + partenariat)
-- [ ] Audit complet modules existants
+- [x] Audit complet modules existants
+- [x] Fix Scan & Stock : waterfall unifie + camera decoder + peremption Sonnet (Passe 51)
 - [ ] Nettoyer 5 sites dupliques en BDD
 
 - [x] JADOMI Care Network : reseau de soins interprofessionnel (Passe 53)
@@ -1027,6 +1028,14 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
 - JWT_SECRET du client-portal utilise fallback — ajouter dans .env pour production
+
+## Corriges par Passe 51
+- Waterfall scan barcode : etape IA simulee au frontend → unifie via 1 appel backend
+- Camera barcode : flux video sans decodage → html5-qrcode branche, decode en temps reel
+- Photo peremption : Haiku prompt basique → Sonnet expert + confidence score exploite
+- FormData/JSON incohérent dans analyzePhotoDate() → JSON seul (corrige echec systematique)
+- Compression photo 0.85 → 0.92 pour meilleure OCR
+- Data URL prefix non strip avant envoi API → strip automatique cote backend
 
 ## Corriges par Passe 33
 - Wizard specialites avocat min 3 -> min 1
@@ -1202,6 +1211,17 @@ Fichiers crees (10 fichiers) :
 Fonctionnalites : login OTP email, liste cas avec filtres, detail cas avec galerie photos,
 upload photo (fabrication/essayage/produit fini), messages labo-cabinet, profil specialites.
 Demo data : 4 cas, 23 photos, messages. Auto-login demo.
+
+## Passe 51 (25 avril 2026) -- Scan & Stock Pro (3 fixes critiques)
+Audit revele 3 bugs majeurs, tous corriges :
+- Fix 1 : Waterfall unifie — frontend faisait 3 appels (Supabase+OFF+fake IA),
+  remplace par 1 seul appel backend GET /api/labo/stock/scan/:code
+- Fix 2 : Camera barcode decodage — branche html5-qrcode (deja bundle) au flux
+  camera, decodage temps reel, vibration+bip, auto-trigger scan
+- Fix 3 : Peremption upgrade — Haiku→Sonnet, prompt expert dentaire/medical,
+  max_tokens 200→500, confidence score exploite dans l'UI (3 niveaux feedback)
+Fichiers modifies : routes/labo/stock.js, public/labo/stock.html
+Doc audit : docs/audit-scan/audit-scan-stock.md (608 lignes)
 
 ## Passe 50 (25 avril 2026) -- JADOMI Care Network (Reseau de Soins WORLD FIRST)
 Reseau de soins interprofessionnel centre sur le PATIENT.
