@@ -75,8 +75,25 @@ h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margi
       <input type="password" id="coffre-pwd" placeholder="Mot de passe coffre" onkeydown="if(event.key==='Enter')unlockCoffre()">
       <button class="btn btn-gold" onclick="unlockCoffre()">Deverrouiller</button>
       <div id="lock-error" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
-      <div class="security-note" style="justify-content:center;margin-top:20px;">&#128274; Chiffrement AES-256 &middot; Hebergement France &middot; Conforme RGPD &middot; Article 66-5</div>
+      <div class="security-note" style="justify-content:center;margin-top:20px;">&#128274; Double verification &middot; AES-256 &middot; France &middot; RGPD &middot; Art. 66-5</div>
       <div style="margin-top:20px;"><a href="javascript:void(0)" onclick="showSetup()" style="font-size:12px;color:var(--or);">Premiere fois ? Configurer le coffre</a></div>
+    </div>
+  </div>
+
+  <!-- OTP VERIFICATION -->
+  <div class="view" id="v-otp">
+    <div class="lock" style="padding:60px 20px;">
+      <div class="lock-icon">&#128272;</div>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:6px;">Code de verification</h2>
+      <p id="otp-msg" style="font-size:13px;color:var(--ink-s);margin-bottom:20px;">Un code a ete envoye.</p>
+      <input type="text" id="otp-code" maxlength="6" placeholder="000000" style="max-width:200px;margin:0 auto 12px;display:block;text-align:center;font-size:24px;letter-spacing:8px;padding:14px;font-weight:700;font-family:'Inter',sans-serif;border:1px solid var(--line);border-radius:8px;" onkeydown="if(event.key==='Enter')verifyOTP()" autofocus>
+      <button class="btn btn-gold" onclick="verifyOTP()">Verifier</button>
+      <div id="otp-error" style="color:var(--danger);font-size:12px;margin-top:8px;display:none;"></div>
+      <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-s" style="font-size:11px;" onclick="resendOTP('email')">&#9993; Renvoyer par email</button>
+        <button class="btn btn-s" style="font-size:11px;" onclick="resendOTP('sms')">&#128241; Renvoyer par SMS</button>
+        <button class="btn btn-s" style="font-size:11px;" onclick="resendOTP('whatsapp')">&#128172; Renvoyer par WhatsApp</button>
+      </div>
     </div>
   </div>
 
@@ -166,8 +183,48 @@ async function unlockCoffre(){
   if(!pwd)return;
   const errEl=document.getElementById('lock-error');
   const r=await api('POST','/coffre/unlock',{password:pwd});
-  if(r.success){errEl.style.display='none';showView('v-main');loadClients();}
-  else{errEl.textContent=r.error||'Mot de passe incorrect';errEl.style.display='block';}
+
+  if(r.success){
+    // Pas d'OTP requis (fallback) → acces direct
+    errEl.style.display='none';
+    showView('v-main');loadClients();
+  }else if(r.requires_otp){
+    // OTP envoye → afficher ecran code
+    errEl.style.display='none';
+    document.getElementById('otp-msg').textContent='Code envoye par '+r.canal+' a '+r.destination_masked+'. Valable 5 minutes.';
+    showView('v-otp');
+    document.getElementById('otp-code').focus();
+  }else{
+    errEl.textContent=r.error||'Mot de passe incorrect';
+    errEl.style.display='block';
+  }
+}
+
+async function verifyOTP(){
+  const code=document.getElementById('otp-code').value.trim();
+  if(!code||code.length!==6){document.getElementById('otp-error').textContent='Entrez le code a 6 chiffres';document.getElementById('otp-error').style.display='block';return;}
+  const errEl=document.getElementById('otp-error');
+  const r=await api('POST','/coffre/verify-otp',{code});
+  if(r.success){
+    errEl.style.display='none';
+    showToast('Coffre deverrouille !');
+    showView('v-main');loadClients();
+  }else{
+    errEl.textContent=r.error||'Code incorrect';
+    errEl.style.display='block';
+  }
+}
+
+async function resendOTP(canal){
+  const r=await api('POST','/coffre/resend-otp',{canal});
+  if(r.success){
+    showToast('Nouveau code envoye par '+r.canal);
+    document.getElementById('otp-msg').textContent='Nouveau code envoye par '+r.canal+'.';
+    document.getElementById('otp-code').value='';
+    document.getElementById('otp-code').focus();
+  }else{
+    showToast(r.error||'Erreur envoi');
+  }
 }
 
 async function loadClients(){
