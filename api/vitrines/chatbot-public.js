@@ -32,16 +32,16 @@ module.exports = function(router) {
 
       // --- Validation des inputs ---
       if (!site_id || typeof site_id !== 'string') {
-        return res.json({ error: 'site_id requis' });
+        return res.status(400).json({ error: 'site_id requis' });
       }
       if (!session_id || typeof session_id !== 'string') {
-        return res.json({ error: 'session_id requis' });
+        return res.status(400).json({ error: 'session_id requis' });
       }
       if (!message || typeof message !== 'string' || message.trim().length === 0) {
-        return res.json({ error: 'message requis' });
+        return res.status(400).json({ error: 'message requis' });
       }
       if (message.length > 2000) {
-        return res.json({ error: 'Message trop long (2000 caracteres max)' });
+        return res.status(400).json({ error: 'Message trop long (2000 caracteres max)' });
       }
 
       // --- Recuperer la config chatbot ---
@@ -52,7 +52,7 @@ module.exports = function(router) {
         .maybeSingle();
       if (configErr) throw configErr;
       if (!config || !config.enabled) {
-        return res.json({ error: 'Chatbot non disponible pour ce site' });
+        return res.status(404).json({ error: 'Chatbot non disponible pour ce site' });
       }
 
       // --- Recuperer les infos du site ---
@@ -63,7 +63,7 @@ module.exports = function(router) {
         .maybeSingle();
       if (siteErr) throw siteErr;
       if (!site) {
-        return res.json({ error: 'Site introuvable' });
+        return res.status(404).json({ error: 'Site introuvable' });
       }
 
       const societe = site.societes || {};
@@ -194,7 +194,7 @@ Regles strictes :
 
     } catch (err) {
       console.error('[vitrines/chatbot]', err);
-      return res.json({ error: 'Erreur interne du chatbot' });
+      return res.status(500).json({ error: 'Erreur interne du chatbot' });
     }
   });
 
@@ -207,7 +207,7 @@ Regles strictes :
       const { siteId } = req.params;
 
       if (!siteId) {
-        return res.json({ error: 'siteId requis' });
+        return res.status(400).json({ error: 'siteId requis' });
       }
 
       const { data: config, error: configErr } = await admin()
@@ -231,7 +231,7 @@ Regles strictes :
 
     } catch (err) {
       console.error('[vitrines/chatbot]', err);
-      return res.json({ error: 'Erreur lors du chargement de la configuration' });
+      return res.status(500).json({ error: 'Erreur lors du chargement de la configuration' });
     }
   });
 
