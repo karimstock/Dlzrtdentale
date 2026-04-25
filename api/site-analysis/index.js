@@ -560,6 +560,7 @@ async function getActiveSociete(userId) {
     const { data } = await supabase
       .from('societes')
       .select('id')
+      .eq('user_id', userId)
       .limit(1)
       .single();
     return data?.id || null;
