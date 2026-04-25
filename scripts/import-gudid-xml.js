@@ -213,14 +213,23 @@ async function main() {
   let totalSkipped = 0;
   let totalErrors = 0;
   let totalProcessed = 0;
-  const seenGtins = new Set();
   const catStats = {};
 
+  // Resume support : skip fichiers deja traites
+  const PROGRESS_FILE = path.join(WORK_DIR, 'import_progress.txt');
+  const doneFiles = new Set();
+  if (fs.existsSync(PROGRESS_FILE)) {
+    fs.readFileSync(PROGRESS_FILE, 'utf8').split('\n').filter(Boolean).forEach(f => doneFiles.add(f));
+    log(`Resume mode: ${doneFiles.size} fichiers deja traites, skip`);
+  }
+
   // Ouvrir le fichier JSONL en append
-  const jsonlStream = fs.createWriteStream(OUTPUT_FILE, { flags: 'w' });
+  const jsonlStream = fs.createWriteStream(OUTPUT_FILE, { flags: 'a' });
 
   for (let i = 0; i < xmlFiles.length; i++) {
     const xmlFile = xmlFiles[i];
+    if (doneFiles.has(xmlFile)) { totalProcessed++; continue; }
+
     const xmlPath = path.join(EXTRACTED_DIR, xmlFile);
     const fileSize = (fs.statSync(xmlPath).size / 1024 / 1024).toFixed(1);
 
@@ -229,34 +238,27 @@ async function main() {
     try {
       const products = parseGudidXml(xmlPath);
 
-      // Dedup par GTIN
-      const uniqueProducts = [];
+      // Pas de dedup en memoire — Supabase gere avec ignoreDuplicates
       for (const p of products) {
-        if (!seenGtins.has(p.gtin)) {
-          seenGtins.add(p.gtin);
-          uniqueProducts.push(p);
-          // Stats categories
-          catStats[p.category] = (catStats[p.category] || 0) + 1;
-          // Ecrire dans JSONL
-          jsonlStream.write(JSON.stringify(p) + '\n');
-        }
+        catStats[p.category] = (catStats[p.category] || 0) + 1;
+        jsonlStream.write(JSON.stringify(p) + '\n');
       }
 
-      totalDental += uniqueProducts.length;
+      totalDental += products.length;
       totalProcessed++;
 
       // Inserer dans Supabase immediatement (libere la memoire)
-      if (uniqueProducts.length > 0) {
-        const result = await insertToSupabase(uniqueProducts);
+      if (products.length > 0) {
+        const result = await insertToSupabase(products);
         totalInserted += result.inserted;
         totalSkipped += result.skipped;
         totalErrors += result.errors;
       }
 
-      log(`  → ${products.length} dental, ${uniqueProducts.length} uniques, cumul: ${totalDental} (DB: ${totalInserted} OK)`);
+      // Marquer comme traite
+      fs.appendFileSync(PROGRESS_FILE, xmlFile + '\n');
 
-      // Forcer le garbage collector si disponible
-      if (global.gc) global.gc();
+      log(`  → ${products.length} dental, cumul inseres: ${totalInserted} (skip: ${totalSkipped})`);
     } catch (e) {
       log(`  ERREUR: ${e.message}`);
     }
