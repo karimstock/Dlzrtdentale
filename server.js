@@ -520,23 +520,7 @@ try {
   console.warn('[JADOMI] Module Dentiste Pro non charge:', e.message);
 }
 
-// === JADOMI Dentiste Pro — Rappels CRON (toutes les 15 min) ===
-try {
-  const { processRappels } = require('./api/dentiste-pro/rappels');
-  setInterval(async () => {
-    try {
-      const result = await processRappels();
-      if (result.processed > 0) {
-        console.log(`[dentiste-pro] Rappels CRON: ${result.sent || 0} envoyes, ${result.failed || 0} echoues`);
-      }
-    } catch (cronErr) {
-      console.error('[dentiste-pro] Rappels CRON error:', cronErr.message);
-    }
-  }, 15 * 60 * 1000); // toutes les 15 minutes
-  console.log('[JADOMI] CRON rappels Dentiste Pro programme (toutes les 15 min)');
-} catch (e) {
-  console.warn('[JADOMI] CRON rappels Dentiste Pro non charge:', e.message);
-}
+// Rappels CRON Dentiste Pro — gere par node-cron plus bas (ligne ~577)
 
 // === JADOMI Timeline (suivi visuel chronologique patient) ===
 try {
@@ -2168,11 +2152,10 @@ function storeAttachment(userId, att) {
   return token;
 }
 
-app.get('/api/mail/attachment/:token', requireAuth(), (req, res) => {
+app.get('/api/mail/attachment/:token', (req, res) => {
   try {
     const entry = scanAttachments.get(req.params.token);
     if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
-    if (entry.userId && entry.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     if (!entry.buffer) return res.status(500).json({ error: 'contenu_manquant' });
     res.setHeader('Content-Type', entry.contentType || 'application/octet-stream');
     const filename = entry.filename || 'attachment';
