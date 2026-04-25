@@ -75,6 +75,27 @@ async function sendSmsOTP(telephone, code) {
   }
 }
 
+// === SMS generique (rappels, notifications — PAS OTP) ===
+async function sendSms(telephone, message) {
+  const account = process.env.OVH_SMS_ACCOUNT;
+  const login = process.env.OVH_SMS_LOGIN;
+  const password = process.env.OVH_SMS_PASSWORD;
+
+  if (!account || !login) {
+    console.warn('[SMS] OVH SMS non configure');
+    return { success: false, error: 'SMS non configure.', fallback: 'email' };
+  }
+
+  try {
+    const res = await fetch(`https://www.ovh.com/cgi-bin/sms/http2sms.cgi?account=${account}&login=${login}&password=${password}&from=JADOMI&to=${telephone.replace(/\s/g, '')}&message=${encodeURIComponent(message)}&noStop=1`);
+    const text = await res.text();
+    if (text.includes('OK')) return { success: true };
+    return { success: false, error: 'Envoi SMS echoue : ' + text };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 // === WHATSAPP OTP (Meta Cloud API) ===
 async function sendWhatsAppOTP(telephone, code) {
   const token = process.env.WHATSAPP_TOKEN;
@@ -127,4 +148,4 @@ async function sendOTP(canal, destination, code, cabinetName) {
   }
 }
 
-module.exports = { generateCode, sendOTP, sendEmailOTP, sendSmsOTP, sendWhatsAppOTP };
+module.exports = { generateCode, sendOTP, sendEmailOTP, sendSmsOTP, sendSms, sendWhatsAppOTP };
