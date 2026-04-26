@@ -30,10 +30,11 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
     supplier_summary: null
   };
 
-  const supplierName = (invoiceData.fournisseur || invoiceData.supplier_name || 'Inconnu').trim();
+  let supplierName = (invoiceData.fournisseur || invoiceData.supplier_name || 'Inconnu').trim();
   const products = invoiceData.produits || invoiceData.products || [];
   const invoiceDate = invoiceData.date_emission ? new Date(invoiceData.date_emission) : new Date();
   const invoiceId = invoiceData.invoice_id || null;
+  const invoiceClientCode = (invoiceData.code_client || invoiceData.numero_client || '').trim();
 
   if (!products.length) return results;
 
@@ -41,6 +42,43 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
   // ETAPE 1 : Identifier/categoriser le distributeur
   // ══════════════════════════════════════════
   const supplierCategory = classifySupplier(supplierName);
+
+  // ══════════════════════════════════════════
+  // ETAPE 1a : MATCHING PAR CODE CLIENT
+  // Le code client est sur CHAQUE facture — c'est le moyen le plus
+  // fiable de matcher un fournisseur et retrouver ses conditions.
+  // On cherche ce code dans la table fournisseurs du cabinet.
+  // Si trouvé → on connaît le nom exact + toutes les conditions.
+  // ══════════════════════════════════════════
+  let matchedByClientCode = false;
+  if (invoiceClientCode && societeId) {
+    try {
+      const { data: byCode } = await admin().from('fournisseurs')
+        .select('*')
+        .eq('code_client', invoiceClientCode)
+        .limit(1)
+        .maybeSingle();
+      if (byCode) {
+        supplierName = byCode.nom; // On utilise le nom exact du fournisseur
+        matchedByClientCode = true;
+        console.log(`[invoice-matcher] Code client "${invoiceClientCode}" → ${byCode.nom} (match exact)`);
+      } else {
+        // Fallback : cherche le code client partiellement (certains codes ont des préfixes)
+        const { data: byCodePartial } = await admin().from('fournisseurs')
+          .select('*')
+          .ilike('code_client', `%${invoiceClientCode}%`)
+          .limit(1)
+          .maybeSingle();
+        if (byCodePartial) {
+          supplierName = byCodePartial.nom;
+          matchedByClientCode = true;
+          console.log(`[invoice-matcher] Code client "${invoiceClientCode}" → ${byCodePartial.nom} (match partiel)`);
+        }
+      }
+    } catch (e) {
+      console.warn('[invoice-matcher] Erreur matching code client:', e.message);
+    }
+  }
 
   // ══════════════════════════════════════════
   // ETAPE 1b : Charger le CONTRAT fournisseur du cabinet
