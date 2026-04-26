@@ -432,4 +432,208 @@ async function logScan(code, source, confidence, levels, durationMs, options = {
   } catch (e) { /* silent — logging is best-effort */ }
 }
 
-module.exports = { lookupProduct, getProductPrices, logScan, cacheProduct };
+// ══════════════════════════════════════════
+// DÉTECTION ÉQUIVALENCES (white label)
+// Quand un produit est identifié, cherche si le même produit
+// existe sous une autre marque (même usine, même QR code, même réf OEM)
+// → montre les alternatives moins chères
+// ══════════════════════════════════════════
+
+/**
+ * Cherche les produits équivalents (même produit, marques différentes)
+ * @param {string} productId - UUID du produit scanné
+ * @param {string} gtin - Code-barres du produit
+ * @returns {Array} Liste d'alternatives équivalentes avec prix
+ */
+async function findEquivalents(productId, gtin) {
+  const equivalents = [];
+
+  try {
+    // 1. Chercher dans la table product_equivalences (liens connus)
+    if (productId) {
+      const { data: known } = await admin().from('product_equivalences')
+        .select(`
+          id, equivalence_type, confidence, oem_manufacturer, oem_country, differences,
+          product_a_id, product_b_id
+        `)
+        .or(`product_a_id.eq.${productId},product_b_id.eq.${productId}`)
+        .gte('confidence', 0.70)
+        .order('confidence', { ascending: false })
+        .limit(10);
+
+      if (known?.length) {
+        for (const eq of known) {
+          const otherId = eq.product_a_id === productId ? eq.product_b_id : eq.product_a_id;
+          const { data: otherProduct } = await admin().from('products_database')
+            .select('id, gtin, name, name_fr, brand, manufacturer, category, image_url')
+            .eq('id', otherId)
+            .maybeSingle();
+
+          if (otherProduct) {
+            // Trouver le meilleur prix de l'alternative
+            const { data: prices } = await admin().from('supplier_prices')
+              .select('supplier_name, price_negotiated, observed_at')
+              .eq('product_id', otherId)
+              .not('price_negotiated', 'is', null)
+              .order('price_negotiated', { ascending: true })
+              .limit(3);
+
+            equivalents.push({
+              product: {
+                id: otherProduct.id,
+                nom: otherProduct.name_fr || otherProduct.name,
+                marque: otherProduct.brand,
+                fabricant: otherProduct.manufacturer,
+                gtin: otherProduct.gtin,
+                image_url: otherProduct.image_url
+              },
+              equivalence_type: eq.equivalence_type,
+              confidence: eq.confidence,
+              oem: eq.oem_manufacturer ? {
+                manufacturer: eq.oem_manufacturer,
+                country: eq.oem_country
+              } : null,
+              differences: eq.differences,
+              best_price: prices?.[0]?.price_negotiated || null,
+              best_supplier: prices?.[0]?.supplier_name || null,
+              all_prices: (prices || []).map(p => ({
+                price: p.price_negotiated,
+                supplier: p.supplier_name,
+                date: p.observed_at
+              }))
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Détection automatique : même GTIN chez un autre fabricant
+    // (cas rare mais possible : repackaging avec même code-barres)
+    if (gtin && gtin.length >= 8) {
+      const { data: sameGtin } = await admin().from('products_database')
+        .select('id, gtin, name, name_fr, brand, manufacturer')
+        .eq('gtin', gtin)
+        .neq('id', productId || '00000000-0000-0000-0000-000000000000')
+        .limit(5);
+
+      if (sameGtin?.length) {
+        for (const p of sameGtin) {
+          if (!equivalents.find(e => e.product.id === p.id)) {
+            equivalents.push({
+              product: {
+                id: p.id,
+                nom: p.name_fr || p.name,
+                marque: p.brand,
+                fabricant: p.manufacturer,
+                gtin: p.gtin
+              },
+              equivalence_type: 'same_gtin',
+              confidence: 1.0,
+              auto_detected: true
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Détection automatique : même manufacturer_ref sous un brand différent
+    if (productId) {
+      try {
+        const { data: current } = await admin().from('products_database')
+          .select('manufacturer_ref, reference, brand')
+          .eq('id', productId)
+          .maybeSingle();
+
+        if (current?.manufacturer_ref && current.manufacturer_ref.length >= 4) {
+          const { data: sameRef } = await admin().from('products_database')
+            .select('id, gtin, name, name_fr, brand, manufacturer, manufacturer_ref')
+            .eq('manufacturer_ref', current.manufacturer_ref)
+            .neq('id', productId)
+            .limit(10);
+
+          if (sameRef?.length) {
+            for (const p of sameRef) {
+              if (!equivalents.find(e => e.product.id === p.id)) {
+                // Si même ref fabricant mais brand différent → white label détecté
+                const isDifferentBrand = p.brand?.toLowerCase() !== current.brand?.toLowerCase();
+                equivalents.push({
+                  product: {
+                    id: p.id,
+                    nom: p.name_fr || p.name,
+                    marque: p.brand,
+                    fabricant: p.manufacturer,
+                    gtin: p.gtin
+                  },
+                  equivalence_type: isDifferentBrand ? 'same_oem' : 'same_manufacturer_ref',
+                  confidence: isDifferentBrand ? 0.90 : 0.95,
+                  auto_detected: true,
+                  shared_ref: current.manufacturer_ref
+                });
+
+                // Auto-enregistrer l'équivalence pour la prochaine fois
+                try {
+                  await admin().from('product_equivalences').upsert({
+                    product_a_id: productId,
+                    product_b_id: p.id,
+                    equivalence_type: isDifferentBrand ? 'same_oem' : 'same_manufacturer_ref',
+                    confidence: isDifferentBrand ? 0.90 : 0.95,
+                    oem_reference: current.manufacturer_ref,
+                    source: 'system'
+                  }, { onConflict: 'product_a_id,product_b_id', ignoreDuplicates: true });
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      } catch (e) { /* continue */ }
+    }
+  } catch (e) {
+    console.warn('[findEquivalents] Error:', e.message);
+  }
+
+  return equivalents;
+}
+
+/**
+ * Enrichit un résultat de scan avec les équivalences et prix comparés
+ */
+async function enrichScanResult(result) {
+  if (!result?.produit || result.source === 'unknown') return result;
+
+  const productId = result.product_db_id;
+  const gtin = result.produit?.code_barre || result.produit?.gtin;
+
+  // Chercher les équivalents
+  const equivalents = await findEquivalents(productId, gtin);
+
+  if (equivalents.length > 0) {
+    result.equivalents = equivalents;
+    result.has_equivalents = true;
+
+    // Trouver le meilleur prix parmi les équivalents
+    const pricesAll = equivalents
+      .filter(e => e.best_price > 0)
+      .map(e => ({ price: e.best_price, supplier: e.best_supplier, product: e.product.nom, brand: e.product.marque }));
+
+    if (pricesAll.length > 0) {
+      const best = pricesAll.reduce((a, b) => a.price < b.price ? a : b);
+      result.cheapest_equivalent = {
+        product_name: best.product,
+        brand: best.brand,
+        price: best.price,
+        supplier: best.supplier,
+        message: `Même produit disponible sous la marque "${best.brand}" à ${best.price.toFixed(2)} EUR chez ${best.supplier}`
+      };
+    }
+  }
+
+  // Chercher les prix multi-fournisseurs pour CE produit
+  if (gtin) {
+    const priceData = await getProductPrices(gtin);
+    if (priceData) result.market_prices = priceData;
+  }
+
+  return result;
+}
+
+module.exports = { lookupProduct, getProductPrices, findEquivalents, enrichScanResult, logScan, cacheProduct };

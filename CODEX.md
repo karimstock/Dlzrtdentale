@@ -982,6 +982,7 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [x] Enrichissement EUDAMED EU : +13 406 produits, 19 321 EUDAMED total (Passe 51b)
 - [x] Detection lignes "suivra"/reliquat sur factures : pas de stock (Passe 51b)
 - [x] Contrats fournisseur type DPI : prix catalogue vs prix reel (Passe 51b)
+- [x] Detection white label : meme produit sous marques differentes (Passe 51b)
 - [x] Intelligence prix multi-fournisseurs : supplier_prices + insights (Passe 51)
 - [x] Dashboard scan analytics : /admin/scan-stats.html (Passe 51)
 - [ ] Executer SQL scan/*.sql dans Supabase Dashboard
@@ -1223,7 +1224,7 @@ Fonctionnalites : login OTP email, liste cas avec filtres, detail cas avec galer
 upload photo (fabrication/essayage/produit fini), messages labo-cabinet, profil specialites.
 Demo data : 4 cas, 23 photos, messages. Auto-login demo.
 
-## Passe 51b (26 avril 2026) -- Enrichissement EUDAMED + Contrats + Suivra
+## Passe 51b (26 avril 2026) -- EUDAMED + Contrats + Suivra + Equivalences White Label
 A) Audit et reprise apres coupure PC :
 - 4 scripts EUDAMED (v1→all-manufacturers) avaient tous termine avec succes
 - 5 104 produits EUDAMED deja en base, 1 466 770 GUDID FDA
@@ -1253,6 +1254,15 @@ F) Contrats fournisseur type DPI (invoice-matcher.js + index.html) :
    - metadata.contract_applied = true dans supplier_prices
    - Approche imparable : on connait le code client + la remise,
      on calcule le VRAI prix meme si la facture montre le catalogue
+G) Detection equivalences white label (KILLER FEATURE) :
+   - Table product_equivalences : liens entre produits physiquement identiques
+   - 3 niveaux detection : same_gtin, same_manufacturer_ref, same_oem
+   - Auto-detection via manufacturer_ref partagee entre marques differentes
+   - Vue v_product_equivalences_with_prices pour comparaison prix directe
+   - scan-engine enrichScanResult() : ajoute equivalents + cheapest_equivalent
+   - Endpoint /api/scan/lookup enrichi : retourne equivalents + market_prices
+   - Ex: Lime Reverso (GACD) = meme usine que ProFile (autre) → alerte prix
+   SQL a executer : sql/scan/product_equivalences.sql
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class

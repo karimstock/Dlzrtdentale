@@ -1545,89 +1545,54 @@ const scanLookupLimiter = rateLimit({
 });
 
 app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
-  const { code } = req.query;
+  const { code, profession } = req.query;
   if (!code) return res.status(400).json({ error: 'code requis' });
 
-  // 1. Lookup interne JADOMI
-  try {
-    const { data } = await supabase
-      .from('produits')
-      .select('nom, categorie, marque, fournisseur, code_barre')
-      .eq('code_barre', code)
-      .single();
-    if (data) {
-      return res.json({
-        source: 'jadomi',
-        nom: data.nom,
-        categorie: data.categorie,
-        marque: data.marque,
-        fournisseur: data.fournisseur
-      });
-    }
-  } catch (e) { /* table absente ou no row -> fallback */ }
+  // Utiliser le scan engine world-class (Passe 51)
+  const scanEngine = require('./services/scan-engine');
 
-  // 2. Fallback OpenFoodFacts
   try {
-    const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`);
-    const d = await r.json();
-    if (d && d.status === 1 && d.product) {
-      const p = d.product;
-      const cat = (p.categories_tags && p.categories_tags[0]) ? p.categories_tags[0].replace(/^en:/, '') : 'Produit';
-      return res.json({
-        source: 'openfoodfacts',
-        nom: p.product_name_fr || p.product_name || null,
-        marque: p.brands || null,
-        categorie: cat,
-        image: p.image_url || null
-      });
-    }
-  } catch (e) { /* network ou parse -> unknown */ }
+    let result = await scanEngine.lookupProduct(code, null, {
+      profession: profession || 'dentiste',
+      userId: req.user?.id,
+      societeId: req.user?.societe_id
+    });
 
-  // 3. Fallback JADOMI IA (Claude Haiku via api.anthropic.com)
-  //    Identifie les produits dentaires/médicaux/vétérinaires à partir du GTIN.
-  //    Coût : ~$0.001 par appel. Rate-limité à 30/min/IP par scanLookupLimiter.
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (apiKey) {
-    try {
-      const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 250,
-          system: "Tu es expert en produits dentaires, médicaux et vétérinaires. Tu identifies les produits à partir de leur code-barres GTIN/EAN. Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication, sans texte avant ou après.",
-          messages: [{
-            role: 'user',
-            content: 'Code-barres GTIN/EAN: ' + code + '. Identifie ce produit s\'il fait partie du domaine sante (dentaire, medical, veterinaire). Format JSON strict obligatoire: {"nom":"nom exact","marque":"marque fabricant","categorie":"categorie precise","fournisseur":null,"confidence":0.0}. La confidence est entre 0 et 1. Si tu ne reconnais pas ce code, mets confidence a 0 et tous les champs textuels a null.'
-          }]
-        })
-      });
-      if (aiResp.ok) {
-        const aiData = await aiResp.json();
-        const txt = (aiData && aiData.content && aiData.content[0] && aiData.content[0].text) || '';
-        const cleaned = txt.replace(/```json|```/g, '').trim();
-        let json = null;
-        try { json = JSON.parse(cleaned); } catch (_) { /* parse fail -> unknown */ }
-        if (json && typeof json.confidence === 'number' && json.confidence >= 0.4 && json.nom) {
-          return res.json({
-            source: 'jadomi-ia',
-            nom: json.nom,
-            marque: json.marque || null,
-            categorie: json.categorie || 'Autre',
-            fournisseur: json.fournisseur || null,
-            confidence: json.confidence
-          });
-        }
-      }
-    } catch (e) { /* IA fail -> unknown */ }
+    // ── ENRICHIR avec équivalences (white label) + prix marché ──
+    result = await scanEngine.enrichScanResult(result);
+
+    // Formater la réponse (rétrocompatible)
+    const response = {
+      source: result.source,
+      nom: result.produit?.nom || result.produit?.name || null,
+      marque: result.produit?.marque || result.produit?.brand || null,
+      categorie: result.produit?.categorie || result.produit?.category || null,
+      fournisseur: result.produit?.fournisseur || result.produit?.manufacturer || null,
+      code_barre: code,
+      confidence: result.produit?.confidence || 0,
+      image_url: result.produit?.image_url || null,
+      product_db_id: result.product_db_id || null,
+      is_dental: result.is_dental,
+      waterfall_levels: result.waterfall_levels,
+      duration_ms: result.duration_ms
+    };
+
+    // Ajouter les équivalences (produits identiques sous d'autres marques)
+    if (result.has_equivalents && result.equivalents?.length) {
+      response.equivalents = result.equivalents;
+      response.cheapest_equivalent = result.cheapest_equivalent || null;
+    }
+
+    // Ajouter les prix marché multi-fournisseurs
+    if (result.market_prices) {
+      response.market_prices = result.market_prices;
+    }
+
+    res.json(response);
+  } catch (e) {
+    console.error('[scan/lookup] Error:', e.message);
+    res.json({ source: 'unknown', code_barre: code, nom: null });
   }
-
-  // 4. Inconnu
-  res.json({ source: 'unknown', code_barre: code, nom: null });
 });
 
 
