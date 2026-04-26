@@ -1292,7 +1292,7 @@ I) Architecture non-intrusive (UX) :
 | scripts/import-eudamed-v3.js | Import EUDAMED fabricants manquants |
 | scripts/import-eudamed-v4-all.js | Import EUDAMED 38 fabricants + 60 mots-cles |
 | server.js | /api/scan/lookup enrichi + extraction code_client + detection suivra IA |
-| index.html | Onglet fournisseurs dynamique + contrats + remises |
+| index.html | Onglet fournisseurs dynamique + contrats + remises + widget OEM dashboard |
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class
