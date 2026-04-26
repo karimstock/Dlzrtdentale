@@ -12,17 +12,26 @@ const DENTAL_CATEGORIES = [
   'CFAO','Radiologie','Anesthesie','Hygiene','Sterilisation','Esthetique'
 ];
 
-// Categories prioritaires par metier du praticien
-// Le scan cherche D'ABORD dans la specialite, PUIS elargit
+// 3 metiers reels qui commandent du materiel dentaire
+// Chacun cherche D'ABORD dans ses categories prioritaires, PUIS elargit a tout
+// Un dentiste avec une usineuse commande aussi du matos prothesiste → on elargit toujours
 const PRIORITY_BY_PROFESSION = {
-  'orthodontiste': ['Orthodontie', 'Instruments', 'CFAO', 'Equipement'],
-  'prothesiste': ['Prothese', 'CFAO', 'Instruments', 'Empreintes', 'Equipement'],
-  'implantologue': ['Implants', 'Chirurgie', 'Prothese', 'Instruments'],
-  'endodontiste': ['Endodontie', 'Instruments', 'Radiologie', 'Equipement'],
-  'parodontiste': ['Parodontie', 'Chirurgie', 'Instruments', 'Implants'],
-  'omnipraticien': ['Composites', 'Instruments', 'Empreintes', 'Anesthesie', 'Hygiene'],
-  'chirurgien': ['Chirurgie', 'Implants', 'Instruments', 'Anesthesie'],
-  'labo': ['Prothese', 'CFAO', 'Empreintes', 'Instruments', 'Equipement'],
+  // Chirurgien-dentiste = omnipraticien, fait TOUT (endo, paro, implants, compo, chirurgie)
+  'dentiste': [
+    'Composites', 'Instruments', 'Endodontie', 'Empreintes', 'Anesthesie',
+    'Chirurgie', 'Parodontie', 'Implants', 'Hygiene', 'Radiologie',
+    'Equipement', 'CFAO', 'Sterilisation', 'Prothese', 'Esthetique'
+  ],
+  // Prothesiste dentaire = labo, mais partage des produits avec les dentistes
+  'prothesiste': [
+    'Prothese', 'CFAO', 'Empreintes', 'Instruments', 'Equipement',
+    'Composites', 'Sterilisation', 'Implants', 'Radiologie'
+  ],
+  // Orthodontiste = specialise mais commande aussi du materiel general
+  'orthodontiste': [
+    'Orthodontie', 'Instruments', 'CFAO', 'Equipement', 'Empreintes',
+    'Composites', 'Sterilisation', 'Radiologie', 'Anesthesie'
+  ],
 };
 
 /**

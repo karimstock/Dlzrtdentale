@@ -307,14 +307,10 @@ label.fl{font-size:12px;font-weight:600;color:var(--text-secondary);}
         </div>
       </div>
       <div class="topbar-right">
-        <select class="profession-select" id="professionSelect" onchange="changeProfession(this.value)" title="Votre specialite — optimise la recherche de produits">
-          <option value="labo">Labo prothese</option>
-          <option value="orthodontiste">Orthodontie</option>
-          <option value="omnipraticien">Omnipratique</option>
-          <option value="implantologue">Implantologie</option>
-          <option value="endodontiste">Endodontie</option>
-          <option value="parodontiste">Parodontie</option>
-          <option value="chirurgien">Chirurgie</option>
+        <select class="profession-select" id="professionSelect" onchange="changeProfession(this.value)" title="Votre metier — le scan cherche vos produits en priorite">
+          <option value="dentiste">Chirurgien-dentiste</option>
+          <option value="prothesiste">Prothesiste dentaire</option>
+          <option value="orthodontiste">Orthodontiste</option>
         </select>
         <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter produit</button>
         <button class="btn btn-ghost btn-sm" onclick="logout()" title="Deconnexion">&#x2715;</button>
@@ -770,18 +766,14 @@ function renderUserInfo() {
   document.getElementById('userName').textContent  = nom;
   document.getElementById('userAvatar').textContent = nom.charAt(0).toUpperCase();
 
-  // Detecter la profession depuis le profil d'inscription
-  // Le scan sera automatiquement cible selon le metier
-  const metier = meta.metier || meta.profession || meta.secteur || meta.specialite || '';
-  const metierLower = metier.toLowerCase();
-  let profession = 'labo'; // defaut pour la page labo
-  if (/ortho/i.test(metierLower)) profession = 'orthodontiste';
-  else if (/proth/i.test(metierLower)) profession = 'prothesiste';
-  else if (/implant/i.test(metierLower)) profession = 'implantologue';
-  else if (/endo/i.test(metierLower)) profession = 'endodontiste';
-  else if (/paro/i.test(metierLower)) profession = 'parodontiste';
-  else if (/chirurg/i.test(metierLower)) profession = 'chirurgien';
-  else if (/omni|general|dentiste/i.test(metierLower)) profession = 'omnipraticien';
+  // Detecter le metier depuis le profil d'inscription
+  // 3 metiers reels : dentiste, prothesiste, orthodontiste
+  // Un endodontiste/parodontiste/implantologue = chirurgien-dentiste (meme commandes)
+  const metier = (meta.metier || meta.profession || meta.secteur || meta.specialite || '').toLowerCase();
+  let profession = 'prothesiste'; // defaut page labo
+  if (/ortho/i.test(metier)) profession = 'orthodontiste';
+  else if (/proth|labo/i.test(metier)) profession = 'prothesiste';
+  else if (/dentiste|omni|endo|paro|implant|chirurg|general/i.test(metier)) profession = 'dentiste';
 
   window._jadomiProfession = profession;
   const sel = document.getElementById('professionSelect');
@@ -790,8 +782,8 @@ function renderUserInfo() {
   // Afficher le metier dans la sidebar
   const roleEl = document.querySelector('.user-role');
   if (roleEl) {
-    const labels = { labo:'Prothesiste', orthodontiste:'Orthodontiste', prothesiste:'Prothesiste', implantologue:'Implantologue', endodontiste:'Endodontiste', parodontiste:'Parodontiste', chirurgien:'Chirurgien', omnipraticien:'Dentiste' };
-    roleEl.textContent = labels[profession] || metier || 'Prothesiste';
+    const labels = { dentiste: 'Chirurgien-dentiste', prothesiste: 'Prothesiste dentaire', orthodontiste: 'Orthodontiste' };
+    roleEl.textContent = labels[profession] || 'Prothesiste dentaire';
   }
 }
 
