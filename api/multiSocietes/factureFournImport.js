@@ -117,30 +117,61 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
       .update({ statut: 'integree' }).eq('id', facture.id);
   }
 
+  // ══════════════════════════════════════════
+  // INTELLIGENCE PRIX (Passe 51)
+  // Enrichit automatiquement products_database + supplier_prices
+  // Chaque facture = des prix REELS (pas catalogue)
+  // ══════════════════════════════════════════
+  let pricesRecorded = 0, productsEnriched = 0, priceInsights = [];
+  try {
+    const invoiceMatcher = require('../../services/invoice-matcher');
+    const matchResult = await invoiceMatcher.matchInvoiceToProducts(
+      { ...doc, invoice_id: facture.id },
+      societe_id,
+      user_id
+    );
+    pricesRecorded = matchResult.prices_recorded;
+    productsEnriched = matchResult.created;
+    priceInsights = matchResult.insights;
+  } catch (e) {
+    console.warn('[importer/intelligence-prix]', e.message);
+  }
+
   await auditLog({
     userId: user_id, societeId: societe_id,
     action: 'import_facture_fournisseur', entity: 'facture_fournisseur', entityId: facture.id,
-    meta: { matched, created, total_ttc: payload.montant_ttc, hash }
+    meta: { matched, created, total_ttc: payload.montant_ttc, hash, prices_recorded: pricesRecorded, products_enriched: productsEnriched, insights_count: priceInsights.length }
   });
 
-  // Notif
+  // Notif enrichie avec insights prix
   try {
     const { data: members } = await admin().from('user_societe_roles')
       .select('user_id').eq('societe_id', societe_id)
       .in('role', ['proprietaire', 'associe', 'comptable']);
+
+    // Message enrichi avec intelligence prix
+    let notifMessage = `${doc.fournisseur || 'Fournisseur inconnu'} · ${Number(payload.montant_ttc).toFixed(2)} EUR`;
+    if (pricesRecorded > 0) notifMessage += ` · ${pricesRecorded} prix enregistres`;
+    if (priceInsights.length > 0) {
+      const totalSavings = priceInsights.reduce((sum, i) => sum + (i.potential_savings || 0), 0);
+      notifMessage += ` · ${priceInsights.length} economies detectees (${totalSavings.toFixed(2)} EUR)`;
+    }
+
     for (const m of members || []) {
       await pushNotif({
         user_id: m.user_id, societe_id,
-        type: 'autre', urgence: 'normale',
-        titre: `Nouvelle facture fournisseur importée`,
-        message: `${doc.fournisseur || 'Fournisseur inconnu'} · ${Number(payload.montant_ttc).toFixed(2)} €`,
+        type: 'autre', urgence: priceInsights.length > 0 ? 'haute' : 'normale',
+        titre: priceInsights.length > 0
+          ? `Facture importee — ${priceInsights.length} economies detectees !`
+          : `Nouvelle facture fournisseur importee`,
+        message: notifMessage,
         entity_type: 'facture_fournisseur', entity_id: facture.id,
         cta_label: 'Voir', cta_url: '/commerce.html?tab=fournisseurs'
       });
     }
   } catch (_) {}
 
-  return { inserted: true, facture_id: facture.id, matched, created };
+  return { inserted: true, facture_id: facture.id, matched, created, prices_recorded: pricesRecorded, insights: priceInsights };
 }
 
 function mountFactureFournImport(app) {
