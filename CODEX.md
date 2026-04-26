@@ -1231,7 +1231,11 @@ B) Nouveaux scripts et enrichissements :
   Kerr Italia (830), Adin (761), Kentzler-Kaschner (570), Hu-Friedy (500),
   ASTAR Ortho (500), Bloomden (500), Biomet 3i (500), orthodontic bracket (2999)...
 C) Methode EUDAMED documentee dans le CODEX (section 27) pour ne plus perdre de temps
-D) Total final : 1 486 118 produits (19 321 EUDAMED + 1 466 770 GUDID)
+D) Catalogues manuels (import-catalogues-manuels.js) : 270 produits, 12 fabricants
+   Septodont (82 ref), GC (37), DMG (26), Anios (24), Kulzer (16), Durr (14),
+   Shofu (14), KaVo (14), MELAG (12), Pierre Fabre (12), Cattani (10), Metasys (9)
+   → Permet matching scan photo/IA par nom produit (Septanest, Biodentine, Orotol...)
+E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class
 A) Fixes critiques (3 bugs audit) :
@@ -1520,6 +1524,7 @@ Schema : sql/scan/products_database.sql
 | EUDAMED (EU) | scripts/import-eudamed-v2.js | 19 321 |
 | EUDAMED (EU) | scripts/import-eudamed-v3.js | (complet v2) |
 | EUDAMED (EU) | scripts/import-eudamed-v4-all.js | (complet v4) |
+| Catalogues manuels | scripts/import-catalogues-manuels.js | 270 (12 fabricants) |
 | Datakick | scripts/import-datakick.js | enrichissement |
 | Henry Schein FR | scripts/scrape-henry-schein.js | ~10 000 |
 | GACD FR | scripts/scrape-gacd.js | ~5 000 |
@@ -1546,8 +1551,17 @@ SOLUTION QUI FONCTIONNE :
 4. Rate limit : 1s entre requetes
 5. Fabricants ABSENTS d'EUDAMED search (a ne pas re-tester) :
    Septodont, GC, DMG, Kulzer, Shofu, KaVo, MELAG, 3Shape, Vatech, Owandy
+6. Pour ces fabricants : CATALOGUES MANUELS (scripts/import-catalogues-manuels.js)
+   Source : sites officiels fabricants, noms exacts pour matching scan photo/IA
+   GTIN synthetique MAN-XXXX-NNNNN, source='manual_catalogue', confidence 0.95
+   Fabricants couverts : Septodont (82), GC (37), DMG (26), Anios (24),
+   Kulzer (16), Durr Dental (14), Shofu (14), KaVo (14), MELAG (12),
+   Pierre Fabre (12), Cattani (10), Metasys (9)
 
-**Total base 26/04/2026 : 1 486 118 produits (1 466 770 GUDID + 19 321 EUDAMED)**
+**Total base 26/04/2026 : 1 486 272 produits**
+- 1 466 770 GUDID FDA (US)
+- 19 321 EUDAMED (EU)
+- 270 catalogues manuels (12 fabricants FR/EU essentiels)
 
 ## Intelligence prix
 Schema : sql/scan/prices_intelligence.sql
