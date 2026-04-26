@@ -81,11 +81,15 @@ router.get('/scan/:code', async (req, res) => {
     try { scanEngine = require('../../services/scan-engine'); } catch (e) { scanEngine = null; }
 
     // Si scan-engine disponible, utiliser le waterfall complet
+    // Le parametre profession permet le scan contextuel :
+    // orthodontiste → cherche d'abord Orthodontie
+    // prothesiste → cherche d'abord Prothese, etc.
     if (scanEngine) {
       const result = await scanEngine.lookupProduct(code, req.prothesisteId, {
         userId: req.userId || null,
         societeId: req.societeId || null,
         prothesisteId: req.prothesisteId || null,
+        profession: req.query.profession || 'labo',
         scanMethod: req.query.method || 'manual'
       });
 
