@@ -830,19 +830,43 @@ function fileToBase64(file) {
 function renderImportResult(facture) {
   const result = document.getElementById('importResult');
   const produits = facture.produits || [];
+  const hasFournisseur = facture.fournisseur && facture.fournisseur.trim().length > 1;
   result.style.display = 'block';
+
+  // Fournisseurs connus pour autocomplete
+  const knownSuppliers = ['Henry Schein','GACD','Mega Dental','Dental Express','Dental Hi Tec',
+    'Pierre Fabre','Acteon','Dentsply Sirona','Ivoclar Vivadent','GC France','3M France',
+    'Kerr','Hu-Friedy','Bien-Air','W&H','NSK','Septodont','Zhermack','Kulzer','VOCO',
+    'DMG','Ultradent','Coltene','SDI','Straumann','Nobel Biocare','Zimmer Biomet','Osstem',
+    'Planmeca','Carestream','KaVo','Tokuyama','Shofu','Kuraray'];
+
   result.innerHTML = `
     <div style="padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div>
-          <div style="font-weight:700;font-size:15px;color:var(--text);">Facture analys\u00e9e</div>
-          <div style="font-size:12px;color:var(--muted);">${facture.fournisseur||'—'} &middot; ${facture.date_facture||'—'} &middot; ${facture.montant_ttc ? facture.montant_ttc+' \u20AC TTC' : ''}</div>
-        </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px;">Facture analysee</div>
+        ${!hasFournisseur ? `
+          <div style="padding:10px 14px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius-sm);margin-bottom:10px;">
+            <div style="font-weight:600;color:var(--amber);font-size:13px;margin-bottom:6px;">Fournisseur non detecte</div>
+            <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Le fournisseur est essentiel pour comparer les prix. Indiquez-le :</div>
+            <input type="text" id="importFournisseur" list="suppliersList" placeholder="Nom du fournisseur (ex: Henry Schein)"
+              style="width:100%;padding:8px 12px;border:1px solid var(--amber);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);"
+              value="${facture.fournisseur||''}">
+            <datalist id="suppliersList">${knownSuppliers.map(s=>'<option value="'+s+'">').join('')}</datalist>
+          </div>
+        ` : `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--muted);">Fournisseur :</span>
+            <input type="text" id="importFournisseur" list="suppliersList" value="${facture.fournisseur||''}"
+              style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:var(--font);flex:1;">
+            <datalist id="suppliersList">${knownSuppliers.map(s=>'<option value="'+s+'">').join('')}</datalist>
+          </div>
+        `}
+        <div style="font-size:12px;color:var(--muted);">${facture.date_facture||'—'} ${facture.montant_ttc ? ' \u00b7 ' + Number(facture.montant_ttc).toFixed(2)+' \u20ac TTC' : ''}</div>
       </div>
       <table style="width:100%;font-size:12px;border-collapse:collapse;">
         <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted);">
           <th style="text-align:left;padding:6px 8px;">Produit</th>
-          <th style="text-align:right;padding:6px 8px;">Qt\u00e9</th>
+          <th style="text-align:right;padding:6px 8px;">Qte</th>
           <th style="text-align:right;padding:6px 8px;">PU</th>
           <th style="text-align:right;padding:6px 8px;">Total</th>
         </tr></thead>
@@ -850,13 +874,13 @@ function renderImportResult(facture) {
           ${produits.map(p => `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:6px 8px;font-weight:600;color:var(--text);">${p.nom||'—'}</td>
             <td style="text-align:right;padding:6px 8px;">${p.quantite||1}</td>
-            <td style="text-align:right;padding:6px 8px;">${p.prix_unitaire ? p.prix_unitaire.toFixed(2)+' \u20AC' : '—'}</td>
-            <td style="text-align:right;padding:6px 8px;">${p.prix_total ? p.prix_total.toFixed(2)+' \u20AC' : '—'}</td>
+            <td style="text-align:right;padding:6px 8px;">${p.prix_unitaire ? Number(p.prix_unitaire).toFixed(2)+' \u20ac' : '—'}</td>
+            <td style="text-align:right;padding:6px 8px;">${p.prix_total ? Number(p.prix_total).toFixed(2)+' \u20ac' : '—'}</td>
           </tr>`).join('')}
         </tbody>
       </table>
-      <button class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center;" onclick="ajouterProduitsImport()">
-        \u2705 Ajouter ${produits.length} produit${produits.length>1?'s':''} au stock
+      <button class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center;" onclick="ajouterProduitsImport()" id="importSubmitBtn">
+        Ajouter ${produits.length} produit${produits.length>1?'s':''} au stock + enregistrer les prix
       </button>
     </div>
   `;
@@ -866,6 +890,23 @@ function renderImportResult(facture) {
 async function ajouterProduitsImport() {
   const facture = window._importedFacture;
   if (!facture || !facture.produits) return;
+
+  // Recuperer le fournisseur (saisi ou detecte)
+  const fournisseurInput = document.getElementById('importFournisseur');
+  const fournisseur = fournisseurInput ? fournisseurInput.value.trim() : (facture.fournisseur || '');
+
+  if (!fournisseur) {
+    toast('Indiquez le fournisseur — essentiel pour les comparatifs prix', 'error');
+    if (fournisseurInput) { fournisseurInput.focus(); fournisseurInput.style.borderColor = 'var(--red)'; }
+    return;
+  }
+
+  // Mettre a jour la facture avec le fournisseur confirme
+  facture.fournisseur = fournisseur;
+
+  const btn = document.getElementById('importSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Import en cours...'; }
+
   let added = 0;
   for (const p of facture.produits) {
     try {
@@ -873,14 +914,15 @@ async function ajouterProduitsImport() {
       if (existing) {
         await fetch(`${API_BASE}/stock/${existing.id}/mouvement`, {
           method:'POST', headers:apiHeaders(),
-          body: JSON.stringify({ type:'entree', quantite: (existing.quantite||0) + (p.quantite||1), motif: 'Import facture ' + (facture.fournisseur||'') })
+          body: JSON.stringify({ type_mouvement:'entree', quantite: p.quantite||1, motif: 'Import facture ' + fournisseur })
         });
       } else {
         await fetch(`${API_BASE}/stock`, {
           method:'POST', headers:apiHeaders(),
           body: JSON.stringify({
-            nom: p.nom, quantite: p.quantite||1, categorie:'autre',
-            fournisseur: facture.fournisseur||'', prix_achat: p.prix_unitaire||null,
+            nom: p.nom, quantite: p.quantite||1, categorie: 'autre',
+            fournisseur: fournisseur, prix_unitaire: p.prix_unitaire||null,
+            code_barre: p.reference||p.ean||null,
             date_peremption: p.date_peremption||null
           })
         });
@@ -888,7 +930,17 @@ async function ajouterProduitsImport() {
       added++;
     } catch(e) {}
   }
-  toast(added + ' produit'+(added>1?'s':'')+' ajout\u00e9'+(added>1?'s':'') + ' au stock', 'success');
+
+  // Envoyer a l'intelligence prix (enrichit products_database + supplier_prices)
+  try {
+    await fetch('/api/commerce/factures-fournisseurs/import', {
+      method: 'POST', headers: apiHeaders(),
+      body: JSON.stringify({ doc: facture })
+    });
+  } catch(e) { /* silent — le stock local est deja mis a jour */ }
+
+  toast(added + ' produit' + (added>1?'s':'') + ' ajoute' + (added>1?'s':'') + ' + prix ' + fournisseur + ' enregistres', 'success');
+  if (btn) { btn.disabled = false; btn.textContent = 'Importe'; }
   await loadStock();
   switchTab('inventaire');
 }
