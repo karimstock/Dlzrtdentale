@@ -848,7 +848,7 @@ function renderImportResult(facture) {
           <div style="padding:10px 14px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius-sm);margin-bottom:10px;">
             <div style="font-weight:600;color:var(--amber);font-size:13px;margin-bottom:6px;">Fournisseur non detecte</div>
             <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Le fournisseur est essentiel pour comparer les prix. Indiquez-le :</div>
-            <input type="text" id="importFournisseur" list="suppliersList" placeholder="Nom du fournisseur (ex: Henry Schein)"
+            <input type="text" id="importFournisseur" list="suppliersList" placeholder="Nom du fournisseur (ex: Henry Schein)" oninput="onSupplierInput(this)"
               style="width:100%;padding:8px 12px;border:1px solid var(--amber);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);"
               value="${facture.fournisseur||''}">
             <datalist id="suppliersList">${knownSuppliers.map(s=>'<option value="'+s+'">').join('')}</datalist>
@@ -1683,6 +1683,68 @@ function populatePhotoProductSelect() {
   allProducts.forEach(p => {
     const o = document.createElement('option'); o.value=p.id; o.textContent=p.nom; sel.appendChild(o);
   });
+}
+
+/* ── Supplier Lookup (fournisseur inconnu → IA enrichit l'annuaire) ── */
+let supplierLookupTimeout;
+function onSupplierInput(input) {
+  clearTimeout(supplierLookupTimeout);
+  const val = input.value.trim();
+  if (val.length < 3) return;
+
+  // Check si c'est dans la datalist (connu)
+  const options = document.querySelectorAll('#suppliersList option');
+  const known = Array.from(options).some(o => o.value.toLowerCase() === val.toLowerCase());
+  if (known) return; // deja connu, pas besoin de lookup
+
+  // Debounce 1.5s puis lookup IA
+  supplierLookupTimeout = setTimeout(() => lookupSupplier(val), 1500);
+}
+
+async function lookupSupplier(name) {
+  const infoEl = document.getElementById('supplierInfo');
+  if (!infoEl) {
+    // Creer le div info sous l'input
+    const input = document.getElementById('importFournisseur');
+    if (!input) return;
+    const div = document.createElement('div');
+    div.id = 'supplierInfo';
+    div.style.cssText = 'font-size:12px;margin-top:6px;padding:8px 10px;border-radius:6px;';
+    input.parentNode.insertBefore(div, input.nextSibling);
+  }
+
+  const el = document.getElementById('supplierInfo');
+  el.style.background = 'var(--blue-bg)';
+  el.style.color = 'var(--blue)';
+  el.innerHTML = 'Recherche du fournisseur...';
+
+  try {
+    const res = await fetch(`${API_BASE}/stock/supplier/lookup`, {
+      method: 'POST', headers: apiHeaders(),
+      body: JSON.stringify({ name })
+    });
+    if (!res.ok) { el.innerHTML = ''; return; }
+    const data = await res.json();
+
+    if (data.found && data.supplier) {
+      const s = data.supplier;
+      // Mettre a jour le nom officiel dans l'input
+      const input = document.getElementById('importFournisseur');
+      if (input && s.name) input.value = s.name;
+
+      el.style.background = 'var(--green-bg)';
+      el.style.color = 'var(--green)';
+      el.innerHTML = `<strong>${s.name}</strong>${s.supplier_type ? ' (' + s.supplier_type + ')' : ''}
+        ${s.description ? '<br>' + s.description : ''}
+        ${s.website ? '<br><a href="'+s.website+'" target="_blank" style="color:var(--blue);">'+s.website+'</a>' : ''}
+        ${s.specialties?.length ? '<br>Specialites : ' + s.specialties.join(', ') : ''}
+        ${s.brands_distributed?.length ? '<br>Marques : ' + s.brands_distributed.slice(0,8).join(', ') : ''}`;
+    } else {
+      el.style.background = 'var(--amber-bg)';
+      el.style.color = 'var(--amber)';
+      el.innerHTML = 'Fournisseur non reconnu — il sera enregistre avec la facture';
+    }
+  } catch (e) { el.innerHTML = ''; }
 }
 
 /* ── Photo Identify (produit inconnu → photo → enrichit la base) ── */

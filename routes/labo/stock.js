@@ -396,6 +396,103 @@ Format JSON strict :
   }
 });
 
+// POST /api/labo/stock/supplier/lookup — Recherche et enrichit un fournisseur inconnu via IA
+router.post('/supplier/lookup', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim().length < 2) return res.status(400).json({ error: 'name requis (min 2 caracteres)' });
+
+    const supplierName = name.trim();
+    const normalized = supplierName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
+
+    // Chercher d'abord dans suppliers_directory
+    try {
+      const { data: existing } = await admin().from('suppliers_directory')
+        .select('*')
+        .ilike('name_normalized', `%${normalized.substring(0, 20)}%`)
+        .limit(5);
+
+      if (existing?.length) {
+        return res.json({ found: true, source: 'directory', suppliers: existing });
+      }
+    } catch (e) { /* table pas encore creee, continue */ }
+
+    // Pas trouve → Claude Haiku recherche les infos
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.json({ found: false, source: 'none', supplier: { name: supplierName } });
+    }
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 500,
+      system: `Tu es un expert du marche de la distribution dentaire et medicale en France et en Europe. Tu connais tous les distributeurs, fabricants et groupements d'achats du secteur dentaire.`,
+      messages: [{
+        role: 'user',
+        content: `Le fournisseur "${supplierName}" est mentionne sur une facture de cabinet dentaire.
+
+Identifie ce fournisseur et donne toutes les infos utiles.
+
+JSON strict :
+{
+  "name": "Nom officiel exact",
+  "legal_name": "Raison sociale ou null",
+  "supplier_type": "distributor|manufacturer|groupement|depot|marketplace",
+  "website": "URL ou null",
+  "phone": "telephone ou null",
+  "country": "FR|DE|CH|IT|US|...",
+  "city": "ville siege ou null",
+  "specialties": ["orthodontie","prothese","implants","omnipratique","labo"],
+  "brands_distributed": ["Marque1","Marque2"],
+  "sectors": ["dentaire","medical","labo"],
+  "coverage_national": true/false,
+  "description": "1-2 phrases description en francais",
+  "confidence": 0.0-1.0
+}`
+      }]
+    });
+
+    const txt = msg.content[0]?.text || '';
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (!m) return res.json({ found: false, source: 'ia', supplier: { name: supplierName } });
+
+    const supplier = JSON.parse(m[0]);
+
+    // Sauvegarder dans suppliers_directory
+    try {
+      await admin().from('suppliers_directory').upsert({
+        name: supplier.name || supplierName,
+        name_normalized: (supplier.name || supplierName).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ''),
+        legal_name: supplier.legal_name || null,
+        supplier_type: supplier.supplier_type || 'distributor',
+        website: supplier.website || null,
+        phone: supplier.phone || null,
+        country: supplier.country || 'FR',
+        city: supplier.city || null,
+        specialties: supplier.specialties || [],
+        brands_distributed: supplier.brands_distributed || [],
+        sectors: supplier.sectors || ['dentaire'],
+        coverage_national: supplier.coverage_national || false,
+        source: 'ia_enriched',
+        enriched_at: new Date().toISOString(),
+        enriched_by: 'claude_haiku',
+        metadata: { description: supplier.description, confidence: supplier.confidence }
+      }, { onConflict: 'name', ignoreDuplicates: false });
+    } catch (e) { /* silent — table may not exist yet */ }
+
+    res.json({
+      found: true,
+      source: 'ia',
+      supplier: { ...supplier, name: supplier.name || supplierName },
+      message: 'Fournisseur identifie et enregistre dans l\'annuaire JADOMI'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/labo/stock/scan/photo-identify — Photo produit → Claude Vision → enrichit la base JADOMI
 // Workflow : code-barres inconnu → dentiste prend le produit en photo → IA identifie → base enrichie pour TOUS
 router.post('/scan/photo-identify', async (req, res) => {
