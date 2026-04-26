@@ -59,7 +59,7 @@ module.exports = function mountReclamations(app) {
       const { data, error } = await qb;
       if (error) throw error;
       res.json({ success: true, reclamations: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Créer une réclamation
@@ -141,7 +141,7 @@ module.exports = function mountReclamations(app) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create_reclamation', entity: 'reclamation', entityId: data.id, req });
       res.json({ success: true, reclamation: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Mise à jour statut
@@ -161,7 +161,7 @@ module.exports = function mountReclamations(app) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, reclamation: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Générer un email fournisseur via JADOMI IA (preview avant envoi manuel)
@@ -177,7 +177,7 @@ module.exports = function mountReclamations(app) {
       if (!ia) return res.status(503).json({ error: 'ia_unavailable' });
       const txt = `Objet : ${ia.sujet}\n\n${ia.corps}`;
       res.json({ success: true, email_generated: txt, sujet: ia.sujet, corps: ia.corps });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Envoyer manuellement un email fournisseur (avec sujet + corps fournis par l'UI)
@@ -206,7 +206,7 @@ module.exports = function mountReclamations(app) {
         emails_envoyes: [...(r.emails_envoyes || []), journal]
       }).eq('id', r.id);
       res.json({ success: true, sent: !!sentResult?.ok, error: sentResult?.error || null });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Vue analytics pertes
@@ -215,7 +215,7 @@ module.exports = function mountReclamations(app) {
       const { data } = await admin().from('v_pertes_reclamations')
         .select('*').eq('societe_id', req.societe.id).order('mois', { ascending: false });
       res.json({ success: true, analytics: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/commerce/reclamations', router);

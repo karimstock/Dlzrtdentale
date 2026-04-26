@@ -1,6 +1,7 @@
 // JADOMI — BTP : Factures
 const { admin, requireSociete, auditLog } = require('../multiSocietes/middleware');
 const mailer = require('../multiSocietes/mailer');
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function getProfilId(societeId) {
   const { data } = await admin().from('btp_profil').select('id').eq('societe_id', societeId).maybeSingle();
@@ -34,7 +35,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, factures: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer facture
@@ -78,7 +79,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_factures', entityId: data.id, req });
       res.json({ success: true, facture: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET detail facture
@@ -92,7 +93,7 @@ module.exports = function (router) {
         .eq('id', req.params.id).eq('profil_id', profilId).single();
       if (error) throw error;
       res.json({ success: true, facture: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // PATCH marquer facture comme payee
@@ -116,7 +117,7 @@ module.exports = function (router) {
         action: 'payment', entity: 'btp_factures', entityId: data.id,
         meta: { mode_paiement }, req });
       res.json({ success: true, facture: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST envoyer facture par email
@@ -148,7 +149,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'send', entity: 'btp_factures', entityId: facture.id, req });
       res.json({ success: true, facture: updated });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET PDF facture (placeholder — retourne JSON)
@@ -175,6 +176,6 @@ module.exports = function (router) {
           note: 'Generation PDF a implementer — JADOMI IA'
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

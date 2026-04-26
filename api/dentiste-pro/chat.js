@@ -158,6 +158,11 @@ router.post('/send', async (req, res) => {
       if (!patient_id) {
         return res.status(400).json({ error: 'patient_id requis pour un praticien' });
       }
+      // SECURITE : verifier que le patient appartient au cabinet
+      const { data: patientCheck } = await admin()
+        .from('dentiste_pro_patients')
+        .select('id').eq('id', patient_id).eq('cabinet_id', auth.cabinet_id).maybeSingle();
+      if (!patientCheck) return res.status(404).json({ error: 'Patient introuvable dans ce cabinet' });
       targetPatientId = patient_id;
     }
 

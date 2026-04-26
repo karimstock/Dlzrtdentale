@@ -35,24 +35,29 @@ module.exports = function mountInterventions(app, supabase) {
 
   // --- Rate limit : max 5/site/jour, 10/pro/jour ---
   async function checkLimits(req, res, next) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const siteId = req.body?.site_id;
+    try {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const siteId = req.body?.site_id;
 
-    if (siteId) {
-      const { count } = await supabase.from('sites_existants_interventions')
+      if (siteId) {
+        const { count } = await supabase.from('sites_existants_interventions')
+          .select('*', { count: 'exact', head: true })
+          .eq('site_id', siteId).eq('exec_automatique', true)
+          .gte('executee_le', today.toISOString());
+        if ((count || 0) >= 5) return res.status(429).json({ error: 'Limite 5 interventions auto/site/jour atteinte' });
+      }
+
+      const { count: countPro } = await supabase.from('sites_existants_interventions')
         .select('*', { count: 'exact', head: true })
-        .eq('site_id', siteId).eq('exec_automatique', true)
+        .eq('societe_id', req.societeId).eq('exec_automatique', true)
         .gte('executee_le', today.toISOString());
-      if ((count || 0) >= 5) return res.status(429).json({ error: 'Limite 5 interventions auto/site/jour atteinte' });
+      if ((countPro || 0) >= 10) return res.status(429).json({ error: 'Limite 10 interventions auto/jour atteinte' });
+
+      next();
+    } catch (err) {
+      console.error('[checkLimits] Erreur:', err.message);
+      return res.status(500).json({ error: 'Verification des limites echouee' });
     }
-
-    const { count: countPro } = await supabase.from('sites_existants_interventions')
-      .select('*', { count: 'exact', head: true })
-      .eq('societe_id', req.societeId).eq('exec_automatique', true)
-      .gte('executee_le', today.toISOString());
-    if ((countPro || 0) >= 10) return res.status(429).json({ error: 'Limite 10 interventions auto/jour atteinte' });
-
-    next();
   }
 
   // ================================================
@@ -86,7 +91,7 @@ module.exports = function mountInterventions(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       // Lancer en arriere-plan
       executerIntervention(intervention.id, supabase)
@@ -99,7 +104,7 @@ module.exports = function mountInterventions(app, supabase) {
         message: 'JADOMI IA analyse votre demande...'
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -147,7 +152,7 @@ module.exports = function mountInterventions(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       // Lancer en arriere-plan
       executerIntervention(intervention.id, supabase)
@@ -161,7 +166,7 @@ module.exports = function mountInterventions(app, supabase) {
         message: 'JADOMI IA execute: ' + action.nom + '...'
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -178,7 +183,7 @@ module.exports = function mountInterventions(app, supabase) {
       if (error || !data) return res.status(404).json({ error: 'Intervention non trouvee' });
       return res.json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -193,10 +198,10 @@ module.exports = function mountInterventions(app, supabase) {
         .eq('societe_id', req.societeId)
         .order('executee_le', { ascending: false })
         .limit(50);
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -235,21 +240,21 @@ module.exports = function mountInterventions(app, supabase) {
 
       return res.json({ success: ok, message: ok ? 'Rollback effectue, fichiers restaures' : 'Rollback echoue' });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
   // ================================================
   // GET /api/studio/interventions/actions-rapides
   // ================================================
-  router.get('/actions-rapides', async (req, res) => {
+  router.get('/actions-rapides', requireAuth, async (req, res) => {
     try {
       const { data, error } = await supabase.from('interventions_actions_predefinies')
         .select('*').order('ordre');
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

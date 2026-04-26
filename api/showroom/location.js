@@ -39,7 +39,7 @@ module.exports = function (router) {
         blocages: blocages || [],
         locations: locations || []
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST bloquer des dates
@@ -64,7 +64,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'bloquer_dates', entity: 'showroom_location', entityId: data.id, req });
       res.json({ success: true, blocage: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // DELETE supprimer un blocage
@@ -81,7 +81,7 @@ module.exports = function (router) {
 
       await admin().from('showroom_location_blocages').delete().eq('id', req.params.id);
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET retours en attente
@@ -97,7 +97,7 @@ module.exports = function (router) {
         .order('date_fin_location');
 
       res.json({ success: true, retours: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // PATCH gérer un retour
@@ -128,7 +128,7 @@ module.exports = function (router) {
         action: 'retour_location', entity: 'showroom_commande', entityId: data.id,
         meta: { etat, deduire_caution }, req });
       res.json({ success: true, commande: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET planning location (vue calendrier)
@@ -184,6 +184,6 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, events, produits: produits || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

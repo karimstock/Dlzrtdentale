@@ -87,7 +87,7 @@ module.exports = function mountSci(app) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'bien', entityId: data.id, req });
       res.json({ success: true, bien: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/biens/:id', requireSociete(), async (req, res) => {
     try {
@@ -96,7 +96,7 @@ module.exports = function mountSci(app) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, bien: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.delete('/biens/:id', requireSociete(), async (req, res) => {
     await admin().from('biens_immobiliers').delete()
@@ -118,7 +118,7 @@ module.exports = function mountSci(app) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'locataire', entityId: data.id, req });
       res.json({ success: true, locataire: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/locataires/:id', requireSociete(), async (req, res) => {
     try {
@@ -127,7 +127,7 @@ module.exports = function mountSci(app) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, locataire: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.delete('/locataires/:id', requireSociete(), async (req, res) => {
     await admin().from('locataires').delete()
@@ -154,7 +154,7 @@ module.exports = function mountSci(app) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'generate', entity: 'quittance', entityId: q.id, req });
       res.json({ success: true, quittance: q });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   router.post('/quittances/:id/envoyer', requireSociete(), async (req, res) => {
@@ -164,7 +164,7 @@ module.exports = function mountSci(app) {
       if (!q) return res.status(404).json({ error: 'not_found' });
       const r = await envoyerQuittanceEmail(q);
       res.json({ success: true, ...r });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.get('/quittances/:id/pdf', requireSociete(), async (req, res) => {
@@ -181,7 +181,7 @@ module.exports = function mountSci(app) {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${q.numero}.pdf"`);
       res.end(pdf);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
 
   router.patch('/quittances/:id/paiement', requireSociete(), async (req, res) => {
@@ -192,7 +192,7 @@ module.exports = function mountSci(app) {
         .eq('id', req.params.id).eq('societe_id', req.societe.id).select('*').single();
       if (error) throw error;
       res.json({ success: true, quittance: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // ---------- Factures SCI ----------
@@ -232,7 +232,7 @@ module.exports = function mountSci(app) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'generate', entity: 'facture_sci', entityId: facture.id, req });
       res.json({ success: true, facture });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   router.get('/factures', requireSociete(), async (req, res) => {
@@ -277,7 +277,7 @@ module.exports = function mountSci(app) {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${facture.numero}.pdf"`);
       res.end(pdf);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
 
   router.post('/factures/:id/envoyer', requireSociete(), async (req, res) => {
@@ -320,7 +320,7 @@ module.exports = function mountSci(app) {
         statut: 'envoyee', date_envoi: new Date().toISOString()
       }).eq('id', facture.id);
       res.json({ success: true, sent: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST /factures/envoyer-lot — envoi groupé de factures (rate limit 50/min OVH)
@@ -381,7 +381,7 @@ module.exports = function mountSci(app) {
         }
       }
       res.json({ success: true, sent, skipped, errors, total: ids.length });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.patch('/factures/:id/paiement', requireSociete(), async (req, res) => {
@@ -436,7 +436,7 @@ module.exports = function mountSci(app) {
       }
 
       res.json({ success: true, facture: { ...facture, entre_en_compta: true } });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // ---------- Batch generation: factures ----------
@@ -495,7 +495,7 @@ module.exports = function mountSci(app) {
       }
 
       res.json({ success: true, created });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // ---------- Factures toutes sociétés (vue consolidée) ----------
@@ -528,7 +528,7 @@ module.exports = function mountSci(app) {
         .map(r => ({ id: r.societe_id, nom: r.societes.nom }));
 
       res.json({ success: true, factures: factures || [], societes });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // ---------- Batch generation: quittances ----------
@@ -570,7 +570,7 @@ module.exports = function mountSci(app) {
       }
 
       res.json({ success: true, created, skipped, errors });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // ---------- Dashboard ----------
@@ -595,7 +595,7 @@ module.exports = function mountSci(app) {
           impayes_total: sum(impayes), impayes_count: impayes.length
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // ---------- Export comptable CSV ----------
@@ -616,7 +616,7 @@ module.exports = function mountSci(app) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="quittances-${annee}.csv"`);
       res.send(csv);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
 
   app.use('/api/sci', router);

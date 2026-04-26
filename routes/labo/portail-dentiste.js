@@ -42,7 +42,7 @@ router.post('/magic-link', async (req, res) => {
     res.json({ success: true, link, expires: expires.toISOString() });
   } catch (e) {
     console.error('[LABO magic-link]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -65,7 +65,7 @@ router.get('/factures', async (req, res) => {
     res.json({ factures: data || [] });
   } catch (e) {
     console.error('[LABO portail factures]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -86,7 +86,7 @@ router.get('/bons', async (req, res) => {
     res.json({ bons: data || [] });
   } catch (e) {
     console.error('[LABO portail bons]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

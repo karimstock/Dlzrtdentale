@@ -71,7 +71,7 @@ Repondez UNIQUEMENT en JSON valide, format :
       res.json({ slogans });
     } catch (err) {
       console.error('[vitrines/ai-assistants] generate-slogan:', err.message);
-      res.status(500).json({ error: 'ai_error', message: err.message });
+      res.status(500).json({ error: 'ai_error', message: 'Erreur interne' });
     }
   });
 
@@ -112,7 +112,7 @@ Repondez UNIQUEMENT avec le sous-titre, sans guillemets ni ponctuation finale.`
       res.json({ subtitle });
     } catch (err) {
       console.error('[vitrines/ai-assistants] generate-subtitle:', err.message);
-      res.status(500).json({ error: 'ai_error', message: err.message });
+      res.status(500).json({ error: 'ai_error', message: 'Erreur interne' });
     }
   });
 
@@ -162,7 +162,7 @@ Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
       res.json({ content });
     } catch (err) {
       console.error('[vitrines/ai-assistants] generate-legal:', err.message);
-      res.status(500).json({ error: 'ai_error', message: err.message });
+      res.status(500).json({ error: 'ai_error', message: 'Erreur interne' });
     }
   });
 
@@ -206,7 +206,7 @@ Repondez UNIQUEMENT avec le texte de la biographie, sans titre ni guillemets.`
       res.json({ content });
     } catch (err) {
       console.error('[vitrines/ai-assistants] generate-bio:', err.message);
-      res.status(500).json({ error: 'ai_error', message: err.message });
+      res.status(500).json({ error: 'ai_error', message: 'Erreur interne' });
     }
   });
 
@@ -280,7 +280,7 @@ Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
       res.json({ content });
     } catch (err) {
       console.error('[vitrines/ai-assistants] generate-section-content:', err.message);
-      res.status(500).json({ error: 'ai_error', message: err.message });
+      res.status(500).json({ error: 'ai_error', message: 'Erreur interne' });
     }
   });
 
@@ -324,7 +324,7 @@ Repondez UNIQUEMENT avec le contenu traduit, sans commentaire ni bloc de code.`
       res.json({ translated });
     } catch (err) {
       console.error('[vitrines/ai-assistants] translate:', err.message);
-      res.status(500).json({ error: 'ai_error', message: err.message });
+      res.status(500).json({ error: 'ai_error', message: 'Erreur interne' });
     }
   });
 

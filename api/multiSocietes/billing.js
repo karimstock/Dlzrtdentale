@@ -88,7 +88,7 @@ function mountBillingWebhook(app) {
         res.json({ received: true });
       } catch (e) {
         console.error('[billing/webhook]', e.message);
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'Erreur interne' });
       }
     }
   );
@@ -144,7 +144,7 @@ module.exports = function mountBilling(app) {
       });
     } catch (e) {
       console.error('[billing/status]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -185,7 +185,7 @@ module.exports = function mountBilling(app) {
       res.json({ success: true, url: session.url });
     } catch (e) {
       console.error('[billing/checkout]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -210,7 +210,7 @@ module.exports = function mountBilling(app) {
       }).eq('id', societe_id);
       res.json({ success: true });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -229,7 +229,7 @@ module.exports = function mountBilling(app) {
         return_url: `${PUBLIC_HOST}/billing.html`
       });
       res.json({ success: true, url: session.url });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/billing', router);

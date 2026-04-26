@@ -61,7 +61,7 @@ module.exports = function (router) {
           net_year: sum(entries, 'montant_net')
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Liste honoraires
@@ -79,7 +79,7 @@ module.exports = function (router) {
 
       const { data } = await query;
       res.json({ success: true, honoraires: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Saisie manuelle
@@ -106,7 +106,7 @@ module.exports = function (router) {
         }).select('*').single();
       if (error) throw error;
       res.json({ success: true, honoraire: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Export CSV
@@ -127,6 +127,6 @@ module.exports = function (router) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="honoraires-${annee}.csv"`);
       res.send('\uFEFF' + csv);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
 };

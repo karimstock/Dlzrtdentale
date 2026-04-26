@@ -67,7 +67,7 @@ module.exports = function mountTargetPrices(app, admin, auth) {
       res.json({ success: true, computed, total_products: Object.keys(groups).length });
     } catch (e) {
       console.error('[GPO POST /target-prices/compute]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -81,7 +81,8 @@ module.exports = function mountTargetPrices(app, admin, auth) {
 
       if (req.query.category) query = query.eq('category', req.query.category);
       if (req.query.search) {
-        query = query.ilike('product_name_display', `%${req.query.search}%`);
+        const safe = String(req.query.search).replace(/%/g, '\\%').replace(/_/g, '\\_');
+        query = query.ilike('product_name_display', `%${safe}%`);
       }
 
       const limit = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -93,7 +94,7 @@ module.exports = function mountTargetPrices(app, admin, auth) {
       res.json({ target_prices: data || [] });
     } catch (e) {
       console.error('[GPO GET /target-prices]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -117,7 +118,7 @@ module.exports = function mountTargetPrices(app, admin, auth) {
       res.json({ success: true, target_price: data });
     } catch (e) {
       console.error('[GPO PATCH /target-prices/:id]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

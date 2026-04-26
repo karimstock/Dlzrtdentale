@@ -552,6 +552,9 @@ router.post('/admin/types', async (req, res) => {
 router.put('/admin/types/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const siteId = req.headers['x-site-id'] || req.body.site_id;
+    if (!siteId) return res.status(400).json({ error: 'site_id requis' });
+
     const { name, duration_min, price_eur, mode, description, enabled } = req.body;
 
     const updates = {};
@@ -570,6 +573,7 @@ router.put('/admin/types/:id', async (req, res) => {
       .from('appointment_types')
       .update(updates)
       .eq('id', id)
+      .eq('site_id', siteId)
       .select()
       .single();
 
@@ -585,11 +589,14 @@ router.put('/admin/types/:id', async (req, res) => {
 router.delete('/admin/types/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const siteId = req.headers['x-site-id'] || req.query.site_id;
+    if (!siteId) return res.status(400).json({ error: 'site_id requis' });
 
     const { data, error } = await admin()
       .from('appointment_types')
       .update({ enabled: false })
       .eq('id', id)
+      .eq('site_id', siteId)
       .select()
       .single();
 
@@ -667,11 +674,14 @@ router.post('/admin/slots', async (req, res) => {
 router.delete('/admin/slots/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const siteId = req.headers['x-site-id'] || req.query.site_id;
+    if (!siteId) return res.status(400).json({ error: 'site_id requis' });
 
     const { error } = await admin()
       .from('availability_slots')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('site_id', siteId);
 
     if (error) throw error;
     res.json({ deleted: true });
@@ -714,6 +724,9 @@ router.get('/admin/appointments', async (req, res) => {
 router.put('/admin/appointments/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const siteId = req.headers['x-site-id'] || req.body.site_id;
+    if (!siteId) return res.status(400).json({ error: 'site_id requis' });
+
     const { status, notes } = req.body;
 
     const validStatuses = ['confirmed', 'cancelled', 'completed', 'no_show', 'pending'];
@@ -733,6 +746,7 @@ router.put('/admin/appointments/:id', async (req, res) => {
       .from('appointments')
       .update(updates)
       .eq('id', id)
+      .eq('site_id', siteId)
       .select('*, appointment_types(name, duration_min, mode)')
       .single();
 

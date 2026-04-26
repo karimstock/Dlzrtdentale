@@ -20,7 +20,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ clients: data || [], total: count });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -46,7 +46,7 @@ module.exports = function (router) {
 
       res.json({ client: data, historique: rdvs || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -76,7 +76,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'client_create', entity: 'services_clients', entityId: data.id, req });
       res.json({ client: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -98,7 +98,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ client: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -113,7 +113,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -129,7 +129,7 @@ module.exports = function (router) {
       (data || []).forEach(c => (c.segments || []).forEach(s => all.add(s)));
       res.json({ segments: [...all].sort() });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -156,7 +156,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'client_points', entity: 'services_clients', entityId: req.params.id, meta: { points, motif }, req });
       res.json({ client: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
     res.json({ factures: data || [] });
   } catch (e) {
     console.error('[LABO factures GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -81,7 +81,7 @@ router.get('/a-facturer', async (req, res) => {
     });
   } catch (e) {
     console.error('[LABO a-facturer]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -219,7 +219,7 @@ router.post('/generer', async (req, res) => {
     res.json({ success: true, factures: facturesCreees });
   } catch (e) {
     console.error('[LABO factures generer]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -280,7 +280,7 @@ router.post('/envoyer', async (req, res) => {
     res.json({ success: true, resultats });
   } catch (e) {
     console.error('[LABO factures envoyer]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -306,7 +306,7 @@ router.get('/:id', async (req, res) => {
     res.json({ facture, bons_livraison: bls || [] });
   } catch (e) {
     console.error('[LABO facture detail]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -331,7 +331,7 @@ router.patch('/:id/payer', async (req, res) => {
     res.json({ success: true, facture: data });
   } catch (e) {
     console.error('[LABO facture payer]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -375,7 +375,7 @@ router.post('/:id/avoir', async (req, res) => {
     res.json({ success: true, avoir });
   } catch (e) {
     console.error('[LABO avoir]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -400,7 +400,7 @@ router.get('/:id/pdf', async (req, res) => {
     res.send(buffer);
   } catch (e) {
     console.error('[LABO facture pdf]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

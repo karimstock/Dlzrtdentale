@@ -41,7 +41,7 @@ function createScoringRouter(supabase) {
       res.json({ success: true, scores });
     } catch (e) {
       console.error('[RUSH scores GET]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -71,7 +71,7 @@ function createScoringRouter(supabase) {
       });
     } catch (e) {
       console.error('[RUSH score detail]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -122,7 +122,7 @@ function createScoringRouter(supabase) {
       res.json({ success: true, evaluation: data });
     } catch (e) {
       console.error('[RUSH evaluation POST]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

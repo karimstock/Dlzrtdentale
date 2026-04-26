@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
     if (error) throw error;
     res.json({ stock: data || [] });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -66,7 +66,7 @@ router.get('/alertes', async (req, res) => {
       total_alertes: alertesStock.length + (peremption30||[]).length
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -180,7 +180,7 @@ router.get('/scan/:code', async (req, res) => {
 
     res.json({ source: 'unknown', produit: null, existe_stock: false });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -204,7 +204,7 @@ router.post('/', async (req, res) => {
     if (error) throw error;
     res.json({ success: true, produit: data });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -223,7 +223,7 @@ router.put('/:id', async (req, res) => {
     if (error) throw error;
     res.json({ success: true, produit: data });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -255,7 +255,7 @@ router.get('/mouvements', async (req, res) => {
 
     res.json({ mouvements: formatted });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -286,7 +286,7 @@ router.post('/:id/mouvement', async (req, res) => {
 
     res.json({ success: true, nouvelle_quantite: Math.max(0, newQty) });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -352,7 +352,7 @@ router.get('/scan-stats', async (req, res) => {
       total_corrections: totalCorrections
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -363,7 +363,7 @@ router.delete('/:id', async (req, res) => {
       .eq('id', req.params.id).eq('prothesiste_id', req.prothesisteId);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -426,7 +426,7 @@ Format JSON strict :
     }
     res.json({ success: false, confidence: 0, error: 'Non lisible' });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -523,7 +523,7 @@ JSON strict :
       message: 'Fournisseur identifie et enregistre dans l\'annuaire JADOMI'
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -672,10 +672,10 @@ JSON strict :
     } catch (e) { /* silent */ }
 
     // ══════════════════════════════════════════
-    // OEM INTELLIGENCE — Tourne en ARRIÈRE-PLAN
-    // Le scan reste rapide et propre. L'OEM Intelligence
+    // JADOMI COMPARE — Tourne en ARRIÈRE-PLAN
+    // Le scan reste rapide et propre. L'intelligence
     // analyse en background et envoie une NOTIFICATION
-    // si quelque chose d'intéressant est détecté.
+    // si une alternative moins chère est détectée.
     // ══════════════════════════════════════════
     setImmediate(async () => {
       try {
@@ -726,13 +726,13 @@ JSON strict :
           if (pushNotif) {
             let titre, message;
             if (oemReport.is_white_label && oemReport.oem_origin) {
-              titre = `White label detecte : ${product.nom_fr || product.nom}`;
-              message = oemReport.market_insight || `Ce produit (${brandName}) est fabrique par ${oemReport.oem_origin.manufacturer}.`;
+              titre = `Alternative verifiee : ${product.nom_fr || product.nom}`;
+              message = oemReport.market_insight || `Ce produit (${brandName}) existe sous d'autres marques, potentiellement moins cher.`;
             } else if (oemReport.potential_savings > 0) {
               titre = `Economie detectee : ${product.nom_fr || product.nom}`;
-              message = `Equivalent disponible a -${oemReport.savings_percent}%. ${oemReport.market_insight || ''}`;
+              message = `Meme produit disponible a -${oemReport.savings_percent}%. ${oemReport.market_insight || ''}`;
             } else {
-              titre = `${oemReport.equivalents_count} equivalent(s) : ${product.nom_fr || product.nom}`;
+              titre = `${oemReport.equivalents_count} alternative(s) : ${product.nom_fr || product.nom}`;
               message = oemReport.market_insight || `Des alternatives existent sous d'autres marques.`;
             }
 
@@ -749,17 +749,17 @@ JSON strict :
                   urgence: oemReport.potential_savings > 5 ? 'haute' : 'normale',
                   titre,
                   message,
-                  entity_type: 'oem_alert',
+                  entity_type: 'economies_alert',
                   entity_id: productDbId,
-                  cta_label: 'Voir le rapport',
-                  cta_url: '/index.html?tab=stock&oem=true',
+                  cta_label: 'Voir mes economies',
+                  cta_url: '/index.html?tab=economies',
                 });
               } catch (_) {}
             }
           }
         }
       } catch (e) {
-        console.warn('[photo-identify/background] OEM Intelligence error:', e.message);
+        console.warn('[photo-identify/background] JADOMI Compare error:', e.message);
       }
     });
 
@@ -803,16 +803,18 @@ JSON strict :
       message: 'Produit identifie et ajoute a la base JADOMI.'
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
 // ══════════════════════════════════════════
-// GET /api/labo/stock/oem-report — Rapport OEM consultable
-// Appelé quand le dentiste clique sur la notification
-// Retourne tous les produits du stock avec alertes OEM
+// GET /api/labo/stock/economies-report — Rapport economies consultable
+// Appelé quand le dentiste clique sur "Voir mes economies"
+// Retourne tous les produits avec alternatives moins chères
 // ══════════════════════════════════════════
-router.get('/oem-report', async (req, res) => {
+// Rétrocompatibilité : /oem-report redirige vers /economies-report
+router.get('/oem-report', (req, res) => res.redirect(307, '/api/labo/stock/economies-report' + (req._parsedUrl.search || '')));
+router.get('/economies-report', async (req, res) => {
   try {
     const societeId = req.societeId || req.query.societe_id;
     if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
@@ -828,7 +830,7 @@ router.get('/oem-report', async (req, res) => {
       .limit(100);
 
     if (!equivs?.length) {
-      return res.json({ alerts: [], total_savings: 0, message: 'Aucune alerte OEM pour le moment. Scannez vos produits pour enrichir la base.' });
+      return res.json({ alerts: [], total_savings: 0, message: 'Aucune alternative detectee pour le moment. Scannez vos produits pour enrichir la base JADOMI.' });
     }
 
     // 2. Enrichir chaque équivalence avec les détails produit + prix
@@ -905,11 +907,11 @@ router.get('/oem-report', async (req, res) => {
       alerts_count: alerts.length,
       total_savings: +totalSavings.toFixed(2),
       message: alerts.length > 0
-        ? `${alerts.length} equivalent(s) detecte(s). Economie potentielle : ${totalSavings.toFixed(2)} EUR.`
-        : 'Aucune alerte OEM pour le moment.',
+        ? `${alerts.length} alternative(s) verifiee(s). Economie potentielle : ${totalSavings.toFixed(2)} EUR.`
+        : 'Aucune alternative detectee pour le moment.',
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

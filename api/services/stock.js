@@ -24,7 +24,7 @@ module.exports = function (router) {
       }
       res.json({ stock: items });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -40,7 +40,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ item: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -68,7 +68,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'stock_create', entity: 'services_stock', entityId: data.id, req });
       res.json({ item: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -89,7 +89,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ item: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -104,7 +104,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -121,7 +121,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ mouvements: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -171,7 +171,7 @@ module.exports = function (router) {
       const alerte = updated && updated.quantite <= (updated.seuil_alerte || 5);
       res.json({ mouvement: mvt, stock: updated, alerte });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -186,7 +186,7 @@ module.exports = function (router) {
       const alertes = (data || []).filter(i => i.quantite <= (i.seuil_alerte || 5));
       res.json({ alertes });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

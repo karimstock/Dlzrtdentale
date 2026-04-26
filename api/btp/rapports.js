@@ -22,7 +22,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, rapports: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer rapport
@@ -31,8 +31,10 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ar = ['chantier_id', 'type', 'contenu', 'date_rapport', 'meteo', 'observations', 'photos', 'materiaux_utilises'];
+      const _sr = {}; for (const k of _ar) { if (req.body[k] !== undefined) _sr[k] = req.body[k]; }
       const { data: rapport, error } = await admin().from('btp_rapports')
-        .insert({ ...req.body, profil_id: profilId })
+        .insert({ ..._sr, profil_id: profilId })
         .select('*').single();
       if (error) throw error;
 
@@ -66,7 +68,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_rapports', entityId: rapport.id, req });
       res.json({ success: true, rapport });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET detail rapport
@@ -80,7 +82,7 @@ module.exports = function (router) {
         .eq('id', req.params.id).eq('profil_id', profilId).single();
       if (error) throw error;
       res.json({ success: true, rapport: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // PATCH modifier rapport
@@ -89,12 +91,14 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ar = ['chantier_id', 'type', 'contenu', 'date_rapport', 'meteo', 'observations', 'photos', 'materiaux_utilises'];
+      const _sr = {}; for (const k of _ar) { if (req.body[k] !== undefined) _sr[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_rapports')
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update({ ..._sr, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, rapport: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

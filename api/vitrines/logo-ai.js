@@ -159,7 +159,7 @@ module.exports = function(router) {
       res.json({ success: true, logos });
     } catch (err) {
       console.error('[logo-ai/generate]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -206,7 +206,7 @@ module.exports = function(router) {
       res.json({ success: true, r2_key: r2Result.key });
     } catch (err) {
       console.error('[logo-ai/save]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

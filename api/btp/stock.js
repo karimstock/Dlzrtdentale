@@ -19,7 +19,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, stock: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET alertes stock bas
@@ -37,7 +37,7 @@ module.exports = function (router) {
         item.seuil_alerte != null && item.quantite <= item.seuil_alerte
       );
       res.json({ success: true, alertes });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET mouvements stock
@@ -56,7 +56,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, mouvements: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer item stock
@@ -65,14 +65,16 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _as = ['nom', 'reference', 'quantite', 'unite', 'prix_unitaire', 'seuil_alerte', 'categorie', 'fournisseur'];
+      const _ss = {}; for (const k of _as) { if (req.body[k] !== undefined) _ss[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_stock')
-        .insert({ ...req.body, profil_id: profilId })
+        .insert({ ..._ss, profil_id: profilId })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_stock', entityId: data.id, req });
       res.json({ success: true, stock: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier item stock
@@ -81,13 +83,15 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _as2 = ['nom', 'reference', 'quantite', 'unite', 'prix_unitaire', 'seuil_alerte', 'categorie', 'fournisseur'];
+      const _us = { updated_at: new Date().toISOString() }; for (const k of _as2) { if (req.body[k] !== undefined) _us[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_stock')
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update(_us)
         .eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, stock: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST mouvement de stock
@@ -135,6 +139,6 @@ module.exports = function (router) {
         action: 'stock_movement', entity: 'btp_stock', entityId: req.params.id,
         meta: { type, quantite, mouvement_id: mouvement.id }, req });
       res.json({ success: true, mouvement, quantite_stock: newQty });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

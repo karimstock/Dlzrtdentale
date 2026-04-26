@@ -101,7 +101,7 @@ function createFichiersRouter(supabase) {
       });
     } catch (e) {
       console.error('[RUSH fichiers upload]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -119,7 +119,7 @@ function createFichiersRouter(supabase) {
       res.json({ success: true, fichiers: data || [] });
     } catch (e) {
       console.error('[RUSH fichiers GET]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -163,7 +163,7 @@ function createFichiersRouter(supabase) {
       res.status(404).json({ error: 'Fichier non disponible' });
     } catch (e) {
       console.error('[RUSH fichier download]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -194,7 +194,7 @@ function createFichiersRouter(supabase) {
       res.download(localPath, fichier.nom_original);
     } catch (e) {
       console.error('[RUSH fichier stream]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -224,7 +224,7 @@ function createFichiersRouter(supabase) {
       res.json({ success: true });
     } catch (e) {
       console.error('[RUSH fichier delete]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

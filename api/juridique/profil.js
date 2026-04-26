@@ -14,7 +14,7 @@ module.exports = function (router) {
       const { data } = await admin().from('juridique_profil')
         .select('*').eq('societe_id', req.societe.id).maybeSingle();
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST créer profil
@@ -35,20 +35,25 @@ module.exports = function (router) {
         slug = `${baseSlug}-${attempt}`;
       }
 
+      const allowedProfil = ['nom', 'prenom', 'titre', 'type_professionnel', 'description', 'specialites', 'barreau', 'langues', 'adresse', 'code_postal', 'ville', 'telephone', 'email_contact', 'photo_url', 'commission_jadomi_pct'];
+      const safeProfil = {};
+      for (const k of allowedProfil) { if (req.body[k] !== undefined) safeProfil[k] = req.body[k]; }
       const { data, error } = await admin().from('juridique_profil')
-        .insert({ ...req.body, societe_id: req.societe.id, slug })
+        .insert({ ...safeProfil, societe_id: req.societe.id, slug })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'juridique_profil', entityId: data.id, req });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier profil
   router.patch('/profil/:id', requireSociete(), async (req, res) => {
     try {
-      const updates = { ...req.body, updated_at: new Date().toISOString() };
+      const allowedUpdate = ['nom', 'prenom', 'titre', 'type_professionnel', 'description', 'specialites', 'barreau', 'langues', 'adresse', 'code_postal', 'ville', 'telephone', 'email_contact', 'photo_url', 'commission_jadomi_pct', 'slug', 'actif'];
+      const updates = { updated_at: new Date().toISOString() };
+      for (const k of allowedUpdate) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
       // Si changement de slug, vérifier unicité
       if (updates.slug) {
         const { data: existing } = await admin().from('juridique_profil')
@@ -60,6 +65,6 @@ module.exports = function (router) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

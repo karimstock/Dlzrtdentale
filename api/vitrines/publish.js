@@ -121,7 +121,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/publish]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -146,7 +146,7 @@ module.exports = function(router) {
       res.json({ success: true, site: data });
     } catch (err) {
       console.error('[vitrines/publish]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -176,7 +176,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/publish]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

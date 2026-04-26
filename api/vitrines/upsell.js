@@ -55,7 +55,7 @@ module.exports = function(router) {
       res.json({ success: true, suggestions: filtered.slice(0, 2) });
     } catch (err) {
       console.error('[vitrines/upsell]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -74,7 +74,7 @@ module.exports = function(router) {
       res.json({ success: true });
     } catch (err) {
       console.error('[vitrines/upsell]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

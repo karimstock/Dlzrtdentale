@@ -6,7 +6,7 @@ const { admin, requireSociete, auditLog } = require('../multiSocietes/middleware
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 let _sb = null;
 function sb() {
@@ -46,7 +46,7 @@ function publicRoutes(router) {
       res.json({ ok: true, count: deals.length, deals });
     } catch (e) {
       console.error('[deals/public]', e.message);
-      res.status(500).json({ error: 'deals_public_error', message: e.message });
+      res.status(500).json({ error: 'deals_public_error', message: 'Erreur interne' });
     }
   });
 }
@@ -70,7 +70,7 @@ function authRoutes(router) {
       res.json({ ok: true, deals: data || [] });
     } catch (e) {
       console.error('[deals/mes-deals]', e.message);
-      res.status(500).json({ error: 'mes_deals_error', message: e.message });
+      res.status(500).json({ error: 'mes_deals_error', message: 'Erreur interne' });
     }
   });
 
@@ -116,7 +116,7 @@ function authRoutes(router) {
       res.status(201).json({ ok: true, deal: data });
     } catch (e) {
       console.error('[deals/create]', e.message);
-      res.status(500).json({ error: 'deal_create_error', message: e.message });
+      res.status(500).json({ error: 'deal_create_error', message: 'Erreur interne' });
     }
   });
 
@@ -167,7 +167,7 @@ function authRoutes(router) {
       res.json({ ok: true, deal: data });
     } catch (e) {
       console.error('[deals/update]', e.message);
-      res.status(500).json({ error: 'deal_update_error', message: e.message });
+      res.status(500).json({ error: 'deal_update_error', message: 'Erreur interne' });
     }
   });
 
@@ -203,7 +203,7 @@ function authRoutes(router) {
       res.json({ ok: true, message: 'Deal désactivé' });
     } catch (e) {
       console.error('[deals/delete]', e.message);
-      res.status(500).json({ error: 'deal_delete_error', message: e.message });
+      res.status(500).json({ error: 'deal_delete_error', message: 'Erreur interne' });
     }
   });
 
@@ -275,7 +275,7 @@ function authRoutes(router) {
       res.json({ ok: true, utilisation });
     } catch (e) {
       console.error('[deals/utiliser]', e.message);
-      res.status(500).json({ error: 'deal_use_error', message: e.message });
+      res.status(500).json({ error: 'deal_use_error', message: 'Erreur interne' });
     }
   });
 }

@@ -237,14 +237,14 @@ module.exports = function(router) {
 
       stream.on('error', (err) => {
         console.error('[vitrines/chat] Erreur Claude:', err);
-        res.write('data: ' + JSON.stringify({ type: 'error', error: err.message }) + '\n\n');
+        res.write('data: ' + JSON.stringify({ type: 'error', error: 'Erreur interne' }) + '\n\n');
         res.end();
       });
 
     } catch (err) {
       console.error('[vitrines/chat]', err);
       if (!res.headersSent) {
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({ success: false, error: 'Erreur interne' });
       }
     }
   });
@@ -283,7 +283,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/chat]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -310,7 +310,7 @@ module.exports = function(router) {
       res.json({ success: true, conversation: data });
     } catch (err) {
       console.error('[vitrines/chat]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

@@ -40,7 +40,7 @@ module.exports = function mountMarket(app) {
       const { data, error } = await qb.limit(200);
       if (error) throw error;
       res.json({ success: true, annonces: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Créer une annonce
@@ -77,7 +77,7 @@ module.exports = function mountMarket(app) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create_annonce_market', entity: 'annonce_market', entityId: data.id, req });
       res.json({ success: true, annonce: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Maj annonce (vendeur)
@@ -96,7 +96,7 @@ module.exports = function mountMarket(app) {
         .eq('id', a.id).select('*').single();
       if (error) throw error;
       res.json({ success: true, annonce: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Supprimer (seulement si brouillon)
@@ -110,7 +110,7 @@ module.exports = function mountMarket(app) {
       }
       await admin().from('annonces_market').delete().eq('id', a.id);
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Simulation net vendeur
@@ -158,7 +158,7 @@ module.exports = function mountMarket(app) {
       } catch (_) {}
 
       res.json({ success: true, annonce: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Confirmer vente (vendeur ou acheteur après réception)
@@ -175,7 +175,7 @@ module.exports = function mountMarket(app) {
         vendue_at: new Date().toISOString()
       }).eq('id', a.id).select('*').single();
       res.json({ success: true, annonce: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Notation
@@ -192,7 +192,7 @@ module.exports = function mountMarket(app) {
       const { data } = await admin().from('annonces_market').update(patch)
         .eq('id', a.id).select('*').single();
       res.json({ success: true, annonce: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   app.use('/api/commerce/market', router);

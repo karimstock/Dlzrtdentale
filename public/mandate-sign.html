@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JADOMI — Mandat de facturation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8f8fc;
+      color: #1a1a2e;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    .header {
+      background: #1a1a2e;
+      padding: 24px 0;
+    }
+    .header-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.4px;
+    }
+    .header p {
+      font-size: 12px;
+      color: #8888a8;
+      margin-top: 2px;
+    }
+
+    /* Main container */
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* States */
+    .state-loading, .state-error, .state-signed, .state-already {
+      text-align: center;
+      padding: 80px 24px;
+    }
+    .state-loading .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e0e0ec;
+      border-top-color: #4F5BD5;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-error h2 { color: #dc2626; font-size: 18px; margin-bottom: 8px; }
+    .state-error p { color: #6c6c80; font-size: 14px; }
+    .state-signed h2, .state-already h2 { font-size: 20px; margin-bottom: 12px; }
+    .state-signed .checkmark {
+      width: 56px;
+      height: 56px;
+      background: #ecfdf5;
+      border: 2px solid #a7f3d0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 24px;
+      color: #059669;
+    }
+
+    /* Contract card */
+    .card {
+      background: #fff;
+      border: 1px solid #e2e2ee;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .card-header {
+      padding: 24px 28px 20px;
+      border-bottom: 1px solid #eeeef4;
+    }
+    .card-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+      margin-bottom: 4px;
+    }
+    .card-header .meta {
+      font-size: 13px;
+      color: #8888a0;
+    }
+    .card-body {
+      padding: 28px;
+    }
+
+    /* Contract text */
+    .contract-text {
+      font-size: 13.5px;
+      line-height: 1.8;
+      color: #3c3c50;
+    }
+    .contract-text h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 24px 0 10px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .contract-text h3:first-child { margin-top: 0; }
+    .contract-text p { margin-bottom: 10px; }
+    .contract-text ul {
+      margin: 8px 0 12px 20px;
+    }
+    .contract-text ul li {
+      margin-bottom: 4px;
+    }
+    .contract-text .highlight {
+      background: #f5f5fa;
+      border-left: 3px solid #4F5BD5;
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin: 16px 0;
+    }
+
+    /* Summary box */
+    .summary-box {
+      background: #fafafe;
+      border: 1px solid #e8e8f0;
+      border-radius: 8px;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .summary-item label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #8888a0;
+      margin-bottom: 4px;
+    }
+    .summary-item span {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a2e;
+    }
+
+    /* Form */
+    .sign-form {
+      background: #fff;
+      border: 1px solid #e2e2ee;
+      border-radius: 12px;
+      padding: 28px;
+    }
+    .sign-form h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      letter-spacing: -.2px;
+    }
+    .form-row {
+      margin-bottom: 16px;
+    }
+    .form-row label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #3c3c50;
+      margin-bottom: 6px;
+    }
+    .form-row input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d4d4de;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1a1a2e;
+      transition: border-color .2s;
+      outline: none;
+    }
+    .form-row input[type="text"]:focus {
+      border-color: #4F5BD5;
+      box-shadow: 0 0 0 3px rgba(79,91,213,.12);
+    }
+
+    /* Checkbox */
+    .checkbox-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin: 20px 0 24px;
+      padding: 16px;
+      background: #fafafe;
+      border: 1px solid #e8e8f0;
+      border-radius: 8px;
+    }
+    .checkbox-row input[type="checkbox"] {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      accent-color: #4F5BD5;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .checkbox-row label {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #3c3c50;
+      cursor: pointer;
+    }
+
+    /* Button */
+    .btn-sign {
+      width: 100%;
+      padding: 14px 24px;
+      background: #4F5BD5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: -.2px;
+      transition: background .2s cubic-bezier(.16,1,.3,1), transform .15s;
+    }
+    .btn-sign:hover:not(:disabled) {
+      background: #3d48b8;
+    }
+    .btn-sign:active:not(:disabled) {
+      transform: scale(.985);
+    }
+    .btn-sign:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .form-error {
+      color: #dc2626;
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* Footer */
+    .page-footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 11px;
+      color: #b0b0c0;
+    }
+
+    @media (max-width: 520px) {
+      .summary-box { grid-template-columns: 1fr; }
+      .card-body, .sign-form { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-inner">
+      <div>
+        <h1>JADOMI</h1>
+        <p>Mandat de facturation electronique</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Loading state -->
+    <div id="state-loading" class="state-loading">
+      <div class="spinner"></div>
+      <p style="color:#6c6c80;font-size:14px;">Chargement du mandat...</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="state-error" class="state-error" style="display:none;">
+      <h2>Mandat introuvable</h2>
+      <p id="error-msg">Ce lien est invalide ou le mandat n'existe plus.</p>
+    </div>
+
+    <!-- Already signed state -->
+    <div id="state-already" class="state-already" style="display:none;">
+      <div class="state-signed .checkmark" style="width:56px;height:56px;background:#fef3c7;border:2px solid #fde68a;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:24px;color:#d97706;">i</div>
+      <h2>Mandat deja signe</h2>
+      <p style="color:#6c6c80;font-size:14px;">Ce mandat a deja ete signe. Aucune action supplementaire n'est requise.</p>
+    </div>
+
+    <!-- Success state -->
+    <div id="state-signed" class="state-signed" style="display:none;">
+      <div class="checkmark">&#10003;</div>
+      <h2>Mandat signe avec succes</h2>
+      <p style="color:#6c6c80;font-size:14px;">Une copie vous sera envoyee par email. Vous pouvez fermer cette page.</p>
+    </div>
+
+    <!-- Main content -->
+    <div id="state-main" style="display:none;">
+
+      <div class="summary-box">
+        <div class="summary-item">
+          <label>Fournisseur</label>
+          <span id="s-name">—</span>
+        </div>
+        <div class="summary-item">
+          <label>Commission</label>
+          <span id="s-commission">—</span>
+        </div>
+        <div class="summary-item">
+          <label>Delai de paiement</label>
+          <span id="s-delay">—</span>
+        </div>
+        <div class="summary-item">
+          <label>Statut</label>
+          <span id="s-status">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Mandat de facturation</h2>
+          <div class="meta">Entre JADOMI SAS et <span id="c-supplier">le fournisseur</span></div>
+        </div>
+        <div class="card-body contract-text">
+
+          <h3>Article 1 — Objet du mandat</h3>
+          <p>Par le present mandat, le Fournisseur (ci-apres « le Mandant ») autorise JADOMI SAS (ci-apres « le Mandataire ») a etablir, en son nom et pour son compte, les factures relatives aux commandes realisees par les professionnels de sante via la plateforme JADOMI.</p>
+          <p>Ce mandat est conclu dans le cadre de l'article 289 I-2 du Code General des Impots, autorisant un tiers a emettre des factures au nom et pour le compte d'un assujetti.</p>
+
+          <h3>Article 2 — Obligations du mandataire (JADOMI)</h3>
+          <p>JADOMI s'engage a :</p>
+          <ul>
+            <li>Emettre les factures conformement aux dispositions legales et reglementaires en vigueur, notamment les articles 289 et 242 nonies A du CGI.</li>
+            <li>Transmettre une copie de chaque facture emise au Mandant dans un delai raisonnable.</li>
+            <li>Assurer la numerotation sequentielle et unique des factures.</li>
+            <li>Conserver les factures emises pendant la duree legale de conservation (10 ans).</li>
+            <li>Respecter les obligations de facturation electronique conformement a la reforme 2026.</li>
+          </ul>
+
+          <h3>Article 3 — Obligations du mandant (Fournisseur)</h3>
+          <p>Le Mandant s'engage a :</p>
+          <ul>
+            <li>Ne pas emettre de factures pour les operations couvertes par le present mandat.</li>
+            <li>Informer JADOMI de toute modification de ses informations legales (raison sociale, numero TVA, adresse, etc.).</li>
+            <li>Verifier les factures emises et signaler toute anomalie dans un delai de 15 jours.</li>
+            <li>Fournir les informations necessaires a l'emission correcte des factures.</li>
+          </ul>
+
+          <h3>Article 4 — Conditions financieres</h3>
+          <div class="highlight">
+            <p><strong>Commission :</strong> <span id="c-commission">3</span>% du montant HT de chaque commande facturee.</p>
+            <p style="margin-bottom:0;"><strong>Delai de paiement :</strong> <span id="c-delay">30</span> jours a compter de la date de facture.</p>
+          </div>
+          <p>La commission est deduite automatiquement du montant verse au Mandant. Un releve detaille accompagne chaque virement.</p>
+
+          <h3>Article 5 — Duree et resiliation</h3>
+          <p>Le present mandat est conclu pour une duree indeterminee. Il entre en vigueur a la date de signature electronique.</p>
+          <p>Chaque partie peut resilier le mandat a tout moment, par notification ecrite (email avec accuse de reception), sous reserve d'un preavis de <strong>30 jours</strong>.</p>
+          <p>La resiliation ne remet pas en cause les factures deja emises au titre du mandat.</p>
+
+          <h3>Article 6 — Acceptation electronique</h3>
+          <p>Conformement aux articles 1366 et 1367 du Code civil, la signature electronique du present mandat a la meme valeur juridique qu'une signature manuscrite. L'acceptation est horodatee et l'adresse IP du signataire est enregistree a titre de preuve.</p>
+
+          <h3>Article 7 — Loi applicable et juridiction</h3>
+          <p>Le present mandat est regi par le droit francais. Tout litige sera soumis aux tribunaux competents du siege social de JADOMI SAS.</p>
+        </div>
+      </div>
+
+      <div class="sign-form">
+        <h3>Signature du mandat</h3>
+        <div class="form-row">
+          <label for="signer_name">Nom et prenom du signataire *</label>
+          <input type="text" id="signer_name" placeholder="Ex. Jean Dupont" autocomplete="name" required>
+        </div>
+        <div class="form-row">
+          <label for="signer_title">Fonction / Titre</label>
+          <input type="text" id="signer_title" placeholder="Ex. Gerant, Directeur commercial" autocomplete="organization-title">
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="accept_terms">
+          <label for="accept_terms">J'ai lu et j'accepte les termes du mandat de facturation ci-dessus. Je confirme avoir l'autorite necessaire pour engager ma societe.</label>
+        </div>
+        <button class="btn-sign" id="btn-sign" disabled>Signer le mandat</button>
+        <p class="form-error" id="form-error"></p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="page-footer">JADOMI SAS — Tous droits reserves</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // Escape HTML for display
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  var params = new URLSearchParams(window.location.search);
+  var token = (params.get('token') || '').trim();
+
+  var elLoading  = document.getElementById('state-loading');
+  var elError    = document.getElementById('state-error');
+  var elAlready  = document.getElementById('state-already');
+  var elSigned   = document.getElementById('state-signed');
+  var elMain     = document.getElementById('state-main');
+  var elErrorMsg = document.getElementById('error-msg');
+
+  function showState(name) {
+    elLoading.style.display = 'none';
+    elError.style.display   = 'none';
+    elAlready.style.display = 'none';
+    elSigned.style.display  = 'none';
+    elMain.style.display    = 'none';
+    var el = document.getElementById('state-' + name);
+    if (el) el.style.display = '';
+  }
+
+  if (!token) {
+    // Mode apercu — afficher le contrat modele
+    showState('main');
+    document.getElementById('supplier-name').textContent = '[Nom du fournisseur]';
+    document.getElementById('mandate-date').textContent = new Date().toLocaleDateString('fr-FR');
+    try { document.getElementById('commission').textContent = '4%'; } catch(e){}
+    try { document.getElementById('payment-delay').textContent = '30 jours'; } catch(e){}
+    try { document.getElementById('contestation-delay').textContent = '7 jours'; } catch(e){}
+
+    // Remplacer le formulaire signature par un bandeau apercu
+    var signForm = document.querySelector('.sign-form');
+    if (signForm) {
+      signForm.innerHTML = '<div style="text-align:center;padding:32px 20px;background:linear-gradient(135deg,#f0f0ff,#e8f5e9);border-radius:12px;">'
+        + '<div style="font-size:36px;margin-bottom:12px;">&#128065;</div>'
+        + '<h3 style="font-size:18px;font-weight:700;margin-bottom:8px;color:#1a1a2e;">Mode apercu</h3>'
+        + '<p style="font-size:13px;color:#6c6c80;margin-bottom:16px;">Ceci est un apercu du contrat tel que le fournisseur le verra.<br>Pour envoyer ce contrat a un fournisseur, utilisez l\'onglet Documents de votre dashboard.</p>'
+        + '<a href="/organisation.html#documents" style="padding:10px 24px;background:#4F5BD5;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:inline-block;">Retour au dashboard</a>'
+        + '</div>';
+    }
+    return;
+  }
+
+  // Fetch mandate details
+  fetch('/api/facturation/mandate/' + encodeURIComponent(token))
+    .then(function(r) {
+      if (!r.ok) throw new Error(r.status === 404 ? 'Mandat introuvable ou lien expire.' : 'Erreur serveur (' + r.status + ')');
+      return r.json();
+    })
+    .then(function(data) {
+      if (data.status === 'signed') {
+        showState('already');
+        return;
+      }
+
+      // Populate data
+      document.getElementById('s-name').textContent       = data.supplier_name || '—';
+      document.getElementById('s-commission').textContent  = (data.commission_percent || 3) + '%';
+      document.getElementById('s-delay').textContent       = (data.payment_delay_days || 30) + ' jours';
+      document.getElementById('s-status').textContent      = data.status === 'viewed' ? 'En attente de signature' : data.status;
+      document.getElementById('c-supplier').textContent    = data.supplier_name || 'le fournisseur';
+      document.getElementById('c-commission').textContent  = data.commission_percent || 3;
+      document.getElementById('c-delay').textContent       = data.payment_delay_days || 30;
+
+      showState('main');
+    })
+    .catch(function(err) {
+      showState('error');
+      elErrorMsg.textContent = err.message || 'Erreur inconnue.';
+    });
+
+  // Form logic
+  var cbAccept   = document.getElementById('accept_terms');
+  var inputName  = document.getElementById('signer_name');
+  var btnSign    = document.getElementById('btn-sign');
+  var formError  = document.getElementById('form-error');
+
+  function updateBtn() {
+    btnSign.disabled = !(cbAccept.checked && inputName.value.trim().length >= 2);
+  }
+  cbAccept.addEventListener('change', updateBtn);
+  inputName.addEventListener('input', updateBtn);
+
+  btnSign.addEventListener('click', function() {
+    if (btnSign.disabled) return;
+    var name  = inputName.value.trim();
+    var title = document.getElementById('signer_title').value.trim();
+    formError.style.display = 'none';
+    btnSign.disabled = true;
+    btnSign.textContent = 'Signature en cours...';
+
+    fetch('/api/facturation/mandate/' + encodeURIComponent(token) + '/sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accepted: true, signer_name: name, signer_title: title || undefined })
+    })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Erreur serveur'); });
+        return r.json();
+      })
+      .then(function() {
+        showState('signed');
+      })
+      .catch(function(err) {
+        formError.textContent = err.message || 'Erreur lors de la signature.';
+        formError.style.display = 'block';
+        btnSign.disabled = false;
+        btnSign.textContent = 'Signer le mandat';
+      });
+  });
+
+})();
+</script>
+</body>
+</html>

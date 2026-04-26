@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
     res.json({ bons_livraison: data || [] });
   } catch (e) {
     console.error('[LABO BL GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -55,7 +55,7 @@ router.get('/:id', async (req, res) => {
     res.json({ bl, lignes: lignes || [] });
   } catch (e) {
     console.error('[LABO BL detail]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -144,7 +144,7 @@ router.post('/', async (req, res) => {
     res.json({ success: true, bl: newBl, numero_bl: numeroBl });
   } catch (e) {
     console.error('[LABO BL POST]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -227,7 +227,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, bl: data });
   } catch (e) {
     console.error('[LABO BL PUT]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -327,7 +327,7 @@ router.post('/:id/valider', async (req, res) => {
     });
   } catch (e) {
     console.error('[LABO BL valider]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -350,7 +350,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('[LABO BL DELETE]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -375,7 +375,7 @@ router.get('/:id/pdf', async (req, res) => {
     res.send(buffer);
   } catch (e) {
     console.error('[LABO BL pdf]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

@@ -79,7 +79,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       });
     } catch (e) {
       console.error('[Groupage POST /campaigns]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -104,7 +104,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       res.json({ campaigns: data || [] });
     } catch (e) {
       console.error('[Groupage GET /campaigns]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -129,7 +129,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       res.json({ campaign, participants: items || [], participants_count: (items || []).length });
     } catch (e) {
       console.error('[Groupage GET /campaigns/:id]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -212,7 +212,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       });
     } catch (e) {
       console.error('[Groupage POST /join]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -268,7 +268,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       res.json({ success: true });
     } catch (e) {
       console.error('[Groupage POST /withdraw]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -313,7 +313,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       res.json({ success: true });
     } catch (e) {
       console.error('[Groupage POST /invite]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

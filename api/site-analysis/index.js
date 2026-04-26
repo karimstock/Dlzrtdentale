@@ -66,7 +66,7 @@ router.post('/start', authMiddleware, async (req, res) => {
     });
   } catch (e) {
     console.error('Start analysis error:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -82,7 +82,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     if (error || !analysis) return res.status(404).json({ error: 'Analyse non trouvée' });
     res.json(analysis);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -98,7 +98,7 @@ router.get('/:id/assets', authMiddleware, async (req, res) => {
     if (error) throw error;
     res.json({ assets: assets || [] });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -129,7 +129,7 @@ router.post('/:id/select-assets', authMiddleware, async (req, res) => {
     const kept = asset_selections.filter(s => s.action !== 'discard').length;
     res.json({ success: true, kept });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -167,7 +167,7 @@ router.post('/:id/auto-select', authMiddleware, async (req, res) => {
       kept_ids: toKeep.map(a => a.id)
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

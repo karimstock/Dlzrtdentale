@@ -62,7 +62,7 @@ function createMessagesRouter(supabase) {
       });
     } catch (e) {
       console.error('[RUSH messages POST]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -87,7 +87,7 @@ function createMessagesRouter(supabase) {
       res.json({ success: true, messages });
     } catch (e) {
       console.error('[RUSH messages GET]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -101,7 +101,7 @@ function createMessagesRouter(supabase) {
       res.json({ success: true });
     } catch (e) {
       console.error('[RUSH messages lu]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

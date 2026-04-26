@@ -121,7 +121,7 @@ module.exports = function (router) {
 
     } catch (err) {
       console.error('[generate-section]', err.message);
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -184,7 +184,7 @@ module.exports = function (router) {
       return res.json({ recommendations, metier, equipements_detectes: equipements, specialites_detectees: specialites });
 
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

@@ -148,6 +148,7 @@ h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margi
 <script>
 let clientToken=null,clientData=null;
 const API='/api/avocat/espace-client';
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function api(method,path,body){
   const opts={method,headers:{'Content-Type':'application/json'}};
@@ -244,8 +245,8 @@ async function loadDossiers(){
     <div class="dossier-card" onclick="openDossier('${d.id}')">
       <div class="dossier-icon">&#128193;</div>
       <div class="dossier-info">
-        <div class="dossier-title">${d.titre||d.reference||'Dossier'}</div>
-        <div class="dossier-meta">${d.type||''} &middot; ${d.reference||''} &middot; ${d.nb_documents} document(s)</div>
+        <div class="dossier-title">${esc(d.titre||d.reference||'Dossier')}</div>
+        <div class="dossier-meta">${esc(d.type||'')} &middot; ${esc(d.reference||'')} &middot; ${d.nb_documents} document(s)</div>
       </div>
       ${d.nb_non_lus?'<span class="badge badge-new">'+d.nb_non_lus+' nouveau(x)</span>':'<span class="badge badge-ok">A jour</span>'}
     </div>
@@ -261,8 +262,8 @@ async function openDossier(id){
 
   document.getElementById('dossier-detail').innerHTML=`
     <div class="card">
-      <h2 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:6px;">${d.titre||d.reference}</h2>
-      <div style="font-size:12px;color:var(--ink-d);">Ref : ${d.reference||'—'} &middot; Type : ${d.type||'—'} &middot; Statut : ${d.statut}</div>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:6px;">${esc(d.titre||d.reference)}</h2>
+      <div style="font-size:12px;color:var(--ink-d);">Ref : ${esc(d.reference||'—')} &middot; Type : ${esc(d.type||'—')} &middot; Statut : ${esc(d.statut)}</div>
     </div>
 
     <div class="card">
@@ -288,12 +289,12 @@ async function openDossier(id){
         return `<div class="doc">
           <div class="doc-head">
             <span class="doc-icon">${doc.mime_type?.includes('pdf')?'&#128196;':doc.mime_type?.includes('image')?'&#128248;':doc.mime_type?.includes('audio')?'&#127925;':'&#128196;'}</span>
-            <span class="doc-name">${doc.filename}</span>
+            <span class="doc-name">${esc(doc.filename)}</span>
             <span class="doc-date">${new Date(doc.created_at).toLocaleDateString('fr-FR')}</span>
           </div>
           <div class="doc-status" style="color:${statusColor[doc.statut_validation]||'var(--ink-d)'};">${doc.uploaded_by_role==='client'?'Envoye par vous':'Envoye par votre avocat'} &middot; ${statusLabel[doc.statut_validation]||doc.statut_validation}</div>
-          ${doc.note_client?'<div class="doc-note">&#9998; '+doc.note_client+'</div>':''}
-          ${docComments.map(c=>'<div class="comment '+(c.author_role==='avocat'?'avocat':'')+'"><strong>'+(c.author_role==='avocat'?'Votre avocat':'Vous')+'</strong> : '+c.content+'</div>').join('')}
+          ${doc.note_client?'<div class="doc-note">&#9998; '+esc(doc.note_client)+'</div>':''}
+          ${docComments.map(c=>'<div class="comment '+(c.author_role==='avocat'?'avocat':'')+'"><strong>'+(c.author_role==='avocat'?'Votre avocat':'Vous')+'</strong> : '+esc(c.content)+'</div>').join('')}
           <div class="doc-actions">
             <button class="btn btn-s" onclick="downloadDoc('${doc.id}')">&#128229; Telecharger</button>
             <button class="btn btn-s" onclick="commentDoc('${doc.id}','${id}')">&#128172; Repondre</button>

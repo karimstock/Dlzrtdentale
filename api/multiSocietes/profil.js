@@ -50,7 +50,7 @@ module.exports = function mountProfil(app) {
       });
     } catch (e) {
       console.error('[GET /api/profil]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -67,7 +67,7 @@ module.exports = function mountProfil(app) {
       res.json({ success: true, profil: data });
     } catch (e) {
       console.error('[PUT /api/profil]', e.message);
-      res.status(400).json({ success: false, error: e.message });
+      res.status(400).json({ success: false, error: 'Erreur validation' });
     }
   });
 

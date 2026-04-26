@@ -125,7 +125,7 @@ Reponds en JSON :
       res.json({ success: true, video_params: videoParams });
     } catch (err) {
       console.error('[vitrines/video]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

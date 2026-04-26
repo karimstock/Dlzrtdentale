@@ -59,7 +59,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       return res.json({ optimized_prompt: optimized });
     } catch (err) {
       console.error('[STUDIO] enhance-prompt error:', err.message);
-      return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: 'Erreur validation' });
     }
   });
 
@@ -87,7 +87,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
         : err.message.includes('rate_limit') ? 429
         : err.message.includes('provider_not_available') ? 503
         : 500;
-      return res.status(status).json({ error: err.message });
+      return res.status(status).json({ error: 'Erreur interne' });
     }
   });
 
@@ -115,7 +115,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
         : err.message.includes('rate_limit') ? 429
         : err.message.includes('provider_not_available') ? 503
         : 500;
-      return res.status(status).json({ error: err.message });
+      return res.status(status).json({ error: 'Erreur interne' });
     }
   });
 
@@ -145,7 +145,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
         : err.message.includes('rate_limit') ? 429
         : err.message.includes('provider_not_available') ? 503
         : 500;
-      return res.status(status).json({ error: err.message });
+      return res.status(status).json({ error: 'Erreur interne' });
     }
   });
 
@@ -173,7 +173,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
         : err.message.includes('rate_limit') ? 429
         : err.message.includes('provider_not_available') ? 503
         : 500;
-      return res.status(status).json({ error: err.message });
+      return res.status(status).json({ error: 'Erreur interne' });
     }
   });
 
@@ -199,7 +199,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       return res.json(results);
     } catch (err) {
       console.error('[STUDIO] stock/images error:', err.message);
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -224,7 +224,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       return res.json(results);
     } catch (err) {
       console.error('[STUDIO] stock/videos error:', err.message);
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -251,7 +251,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       return res.json(data || []);
     } catch (err) {
       console.error('[STUDIO] library error:', err.message);
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -276,6 +276,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
           .from('ai_generations_log')
           .select('r2_url, generation_type')
           .eq('id', generation_id)
+          .eq('user_id', req.userId)
           .single();
         if (gen) {
           item.r2_url = gen.r2_url;
@@ -297,7 +298,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       return res.json(data);
     } catch (err) {
       console.error('[STUDIO] library/save error:', err.message);
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -317,7 +318,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       return res.json({ success: true });
     } catch (err) {
       console.error('[STUDIO] library/delete error:', err.message);
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -329,7 +330,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
       const status = await getProvidersStatus();
       return res.json(status);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -346,7 +347,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
         total_spent: wallet.total_spent,
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

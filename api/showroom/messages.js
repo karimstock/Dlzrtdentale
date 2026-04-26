@@ -1,6 +1,7 @@
 // JADOMI — Showroom Créateurs : Messagerie client-créateur
 const { admin, requireSociete, auditLog } = require('../multiSocietes/middleware');
 const mailer = require('../multiSocietes/mailer');
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function getProfilId(societeId) {
   const { data } = await admin().from('showroom_profil')
@@ -27,7 +28,7 @@ module.exports = function (router) {
       }));
 
       res.json({ success: true, conversations });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET messages d'une conversation
@@ -55,7 +56,7 @@ module.exports = function (router) {
         .eq('id', conv.id);
 
       res.json({ success: true, conversation: conv, messages: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST envoyer un message (créateur)
@@ -104,7 +105,7 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, message: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET nombre de messages non lus
@@ -118,6 +119,6 @@ module.exports = function (router) {
 
       const count = (data || []).reduce((s, c) => s + (c.nb_non_lus_createur || 0), 0);
       res.json({ success: true, count });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

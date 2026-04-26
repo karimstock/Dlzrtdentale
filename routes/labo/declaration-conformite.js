@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     res.json({ declarations: data || [] });
   } catch (e) {
     console.error('[LABO declarations GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -45,7 +45,7 @@ router.get('/:id/pdf', async (req, res) => {
     res.send(buffer);
   } catch (e) {
     console.error('[LABO declaration pdf]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

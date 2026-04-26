@@ -462,21 +462,47 @@ async function findEquivalents(productId, gtin) {
         .limit(10);
 
       if (known?.length) {
+        // Batch: collect all other IDs, fetch products in ONE query
+        const otherIdMap = {};
         for (const eq of known) {
           const otherId = eq.product_a_id === productId ? eq.product_b_id : eq.product_a_id;
-          const { data: otherProduct } = await admin().from('products_database')
-            .select('id, gtin, name, name_fr, brand, manufacturer, category, image_url')
-            .eq('id', otherId)
-            .maybeSingle();
+          otherIdMap[otherId] = eq;
+        }
+        const otherIds = Object.keys(otherIdMap);
 
+        // Guard: skip batch queries if no other IDs (avoids empty .in() error)
+        let otherProducts = [];
+        let allPrices = [];
+        if (otherIds.length > 0) {
+          const prodRes = await admin().from('products_database')
+            .select('id, gtin, name, name_fr, brand, manufacturer, category, image_url')
+            .in('id', otherIds);
+          otherProducts = prodRes.data || [];
+
+          // Batch: fetch all prices for all other IDs in ONE query
+          const priceRes = await admin().from('supplier_prices')
+            .select('product_id, supplier_name, price_negotiated, observed_at')
+            .in('product_id', otherIds)
+            .not('price_negotiated', 'is', null)
+            .gt('price_negotiated', 0)
+            .order('price_negotiated', { ascending: true });
+          allPrices = priceRes.data || [];
+        }
+
+        // Index products and prices by ID for fast lookup
+        const productMap = {};
+        for (const p of otherProducts) { productMap[p.id] = p; }
+        const priceMap = {};
+        for (const p of allPrices) {
+          if (!priceMap[p.product_id]) priceMap[p.product_id] = [];
+          priceMap[p.product_id].push(p);
+        }
+
+        for (const otherId of otherIds) {
+          const otherProduct = productMap[otherId];
+          const eq = otherIdMap[otherId];
           if (otherProduct) {
-            // Trouver le meilleur prix de l'alternative
-            const { data: prices } = await admin().from('supplier_prices')
-              .select('supplier_name, price_negotiated, observed_at')
-              .eq('product_id', otherId)
-              .not('price_negotiated', 'is', null)
-              .order('price_negotiated', { ascending: true })
-              .limit(3);
+            const prices = (priceMap[otherId] || []).slice(0, 3);
 
             equivalents.push({
               product: {
@@ -494,9 +520,9 @@ async function findEquivalents(productId, gtin) {
                 country: eq.oem_country
               } : null,
               differences: eq.differences,
-              best_price: prices?.[0]?.price_negotiated || null,
-              best_supplier: prices?.[0]?.supplier_name || null,
-              all_prices: (prices || []).map(p => ({
+              best_price: prices[0]?.price_negotiated || null,
+              best_supplier: prices[0]?.supplier_name || null,
+              all_prices: prices.map(p => ({
                 price: p.price_negotiated,
                 supplier: p.supplier_name,
                 date: p.observed_at
@@ -597,7 +623,7 @@ async function findEquivalents(productId, gtin) {
 /**
  * Enrichit un résultat de scan avec les équivalences, prix comparés et intelligence OEM
  */
-async function enrichScanResult(result, societeId) {
+async function enrichScanResult(result, societeId, existingPrices = null) {
   if (!result?.produit || result.source === 'unknown') return result;
 
   const productId = result.product_db_id;
@@ -643,14 +669,17 @@ async function enrichScanResult(result, societeId) {
         result.cheapest_equivalent = {
           product_name: best.product, brand: best.brand,
           price: best.price, supplier: best.supplier,
-          message: `Même produit disponible sous la marque "${best.brand}" à ${best.price.toFixed(2)} EUR chez ${best.supplier}`
+          message: `Meme produit disponible sous la marque "${best.brand}" a ${best.price.toFixed(2)} EUR chez ${best.supplier}`
         };
       }
     }
   }
 
   // Chercher les prix multi-fournisseurs pour CE produit
-  if (gtin) {
+  // Skip if prices already fetched by caller (avoids duplicate query)
+  if (existingPrices) {
+    result.market_prices = existingPrices;
+  } else if (gtin) {
     const priceData = await getProductPrices(gtin);
     if (priceData) result.market_prices = priceData;
   }

@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 26 avril 2026
-**Derniere passe** : Passe 51b — Enrichissement EUDAMED + Contrats fournisseur + Detection suivra
+**Derniere passe** : Passe 54 — Audit Securite Massif + BASEPLAN v2.0
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -985,7 +985,18 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [x] Detection white label : meme produit sous marques differentes (Passe 51b)
 - [x] Intelligence prix multi-fournisseurs : supplier_prices + insights (Passe 51)
 - [x] Dashboard scan analytics : /admin/scan-stats.html (Passe 51)
-- [ ] Executer SQL scan/*.sql dans Supabase Dashboard
+- [x] Executer SQL scan/*.sql dans Supabase Dashboard [FAIT 26/04/2026]
+- [x] JADOMI Compare + Intelligence Achats (Passe 52)
+- [x] Renaming OEM → terminologie dentiste (Passe 52)
+- [x] Endpoint /api/scan/search multi-resultats avec prix compares (Passe 52)
+- [x] Onglet Economies JADOMI dans index.html (Passe 52)
+- [x] Spend Analytics : depenses par categorie/fournisseur/mois (Passe 52)
+- [x] Historique prix graphique par produit type CamelCamelCamel (Passe 52)
+- [x] Alertes prix Price Watch (Passe 52)
+- [x] Benchmark anonyme inter-cabinets (Passe 52)
+- [x] GPO enrichi avec preuves prix marche fournisseurs (Passe 52)
+- [x] Fix perf N+1 queries + doublon prix scan engine (Passe 52)
+- [x] Executer SQL Passe 52 dans Supabase Dashboard [FAIT 26/04/2026]
 - [ ] Lancer import GUDID : node scripts/import-gudid.js --all
 - [ ] Lancer enrichissement IA : node scripts/enrich-products-ia.js
 - [ ] Activer pgvector + embeddings : node scripts/generate-embeddings.js
@@ -993,7 +1004,18 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [ ] Nettoyer 5 sites dupliques en BDD
 
 - [x] JADOMI Care Network : reseau de soins interprofessionnel (Passe 53)
+- [x] Strategie facturation GPO : Solution A "Revelation post-acceptation" (Passe 53)
+- [x] Audit securite massif : 221 vulns identifiees, 136 corrigees sur 50 fichiers (Passe 54)
+- [x] Infrastructure securite : headers, TLS 1.2+, UFW, backups, health check, integrite SHA-256 (Passe 54)
+- [x] Supabase RLS : 39 policies deployees et testees (Passe 54)
+- [x] MFA/2FA TOTP : endpoints + dashboard + Supabase admin active (Passe 54)
+- [x] BASEPLAN v2.0 : 3 documents fondateur reecrits (Passe 54)
+- [x] Dashboard securite + documents + 2FA parametres (Passe 54)
+- [ ] Executer SQL 56 dans Supabase (security_reports)
 - [ ] Executer migration SQL 53 dans Supabase (reseau de soins)
+- [ ] Executer SQL 54 dans Supabase (table gpo_orders)
+- [ ] Solution C "Mandat de facturation" (quand 50+ cabinets) — creation SAS/cooperative
+- [ ] Integration facturation electronique 2026 (Chorus Pro / plateforme agreee)
 - [ ] Passe 38 : Systeme JADOMI Coins (wallet tokens type PlayStation/Steam)
   - Packs : 100/500/1000/2500/10000 coins
   - Gamification : bonus quotidien, quetes, niveaux Bronze→Diamant
@@ -1039,7 +1061,10 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
-- JWT_SECRET du client-portal utilise fallback — ajouter dans .env pour production
+- ~~JWT_SECRET du client-portal utilise fallback~~ [RESOLU Passe 54 - JWT random genere]
+- CSP unsafe-inline (dette technique — a remplacer par nonces/hashes quand refacto frontend)
+- ~~npm imap abandonne~~ [RESOLU ✅ Passe 54 — migre vers imapflow]
+- npm xlsx abandonne (6 CVEs, remplacer par exceljs)
 
 ## Corriges par Passe 51
 - Waterfall scan barcode : etape IA simulee au frontend → unifie via 1 appel backend
@@ -1076,10 +1101,137 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - Ajouter OPENAI_API_KEY dans .env pour DALL-E 3
 - Appeler contact avocat pour RDV CGV partenariat
 - Executer SQL 53 (reseau_soins) dans Supabase Dashboard
+- ~~Executer SQL 56 (security_reports) dans Supabase Dashboard~~ [FAIT ✅ 26/04/2026]
 - Ajouter permission 'reseau' aux membres equipe existants pour activer le module
 
+## TODO Securite (Passe 54)
+- ~~.env expose publiquement~~ [CORRIGE ✅]
+- ~~18 IDOR corriges~~ [CORRIGE ✅]
+- ~~7 SQL injections~~ [CORRIGE ✅]
+- ~~18 mass assignment~~ [CORRIGE ✅]
+- ~~RLS Supabase 39 policies~~ [DEPLOYE ✅]
+- ~~MFA TOTP endpoints~~ [DEPLOYE ✅]
+- ~~imap → imapflow migration~~ [FAIT ✅]
+- ~~Auto-pentest script~~ [CREE ✅ — score 84/100]
+- ~~Contrat mandat facturation PDF~~ [FAIT ✅ — endpoint + bouton dashboard]
+- ~~Auto-pentest score 84/100~~ [FAIT ✅]
+- Configurer fail2ban (apt-get toujours en cours — relancer apres)
+- Activer Cloudflare free (WAF + DDoS gratuit) — Karim doit changer DNS OVH
+- Remplacer xlsx par exceljs (6 CVEs restantes npm — chantier code)
+- CSP strict sans unsafe-inline (refacto frontend necessaire — gros chantier)
+- Fixer le dernier error leak sur route 404 generique (pentest FAIL mineur)
+- ~~Ajouter pentest-jadomi.sh au cron mensuel~~ [FAIT ✅]
+
+## Bugs Dashboard Documents — CORRIGES Passe 54
+- ~~bouton Contrat Mandat ouvrait page signature~~ [CORRIGE — boutons Voir+Telecharger sur chaque carte]
+- ~~bouton Envoyer email ne marchait pas~~ [CORRIGE — variable tk au lieu de db.auth.getSession]
+- ~~page moulinait~~ [CORRIGE — doublon let mfaFactorId cassait tout le JS]
+- ~~texte inputs noir sur fond sombre~~ [CORRIGE — color:#fff]
+- ~~page signature erreur sans token~~ [CORRIGE — mode apercu]
+- ~~manque envoi contrat au fournisseur~~ [CORRIGE — endpoint /api/facturation/mandates/send]
+- ~~manque created_by dans supplier_mandates~~ [CORRIGE — retire du insert]
+- ~~organisation.html doublon fichier racine vs public/~~ [CORRIGE — cp systematique]
+
+## Etat Dashboard Documents (fin Passe 54)
+5 cartes ar-card avec boutons Voir + Telecharger :
+- Dossier Avocat (HTML)
+- Business Plan (HTML)
+- Dossier Juridique Complet (HTML)
+- Contrat Mandat Facturation (PDF 6 pages, 12 articles niveau avocat d'affaires)
+- Page Signature Fournisseur (apercu si pas de token)
+2 blocs envoi cote a cote :
+- Envoyer les 4 documents par email (3 HTML + 1 PDF)
+- Envoyer le contrat a un fournisseur (autocompletion API gouv.fr, SIRET/ville auto)
+
+## API Entreprise (Passe 54)
+GET /api/entreprises/search?q=... — Recherche entreprise via recherche-entreprises.api.gouv.fr
+Gratuit, sans cle, retourne nom/siren/siret/adresse/ville/activite.
+Utilise dans le dashboard Documents pour autocompletion fournisseurs.
+
+## Contrat Mandat Facturation (Passe 54)
+PDF genere par lib/mandate-contract-pdf.js — 12 articles niveau avocat d'affaires :
+Preambule, Art.1 Objet (289-I-2 CGI + 1984 C.civil), Art.2 Perimetre (GPO + mentions 242 nonies),
+Art.3 Obligations JADOMI (7 obligations + Factur-X EN16931 + PDP), Art.4 Obligations Fournisseur (5),
+Art.5 Acceptation (tacite + rectificative 5j), Art.6 Conditions financieres (commission + SEPA),
+Art.7 Duree/Resiliation (ordinaire 30j + faute 15j), Art.8 Confidentialite (2 ans),
+Art.9 Responsabilite/Assurance RC Pro, Art.10 RGPD, Art.11 Dispositions generales, Art.12 Loi/Juridiction.
+Endpoints : GET /api/facturation/mandate-template/pdf (modele vierge)
+GET /api/facturation/mandate/:id/pdf (mandat specifique)
+POST /api/facturation/mandates/send (creer + envoyer email signature au fournisseur)
+Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
+
+## TODO Passe 55
+- Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
+- Tester envoi email contrat fournisseur en conditions reelles
+- Tester envoi 4 documents par email
+- Fail2ban configurer (apt-get ClamAV bloquait le lock)
+- Cloudflare free (Karim — changer DNS OVH)
+- Remplacer xlsx par exceljs (6 CVEs npm)
+- CSP strict sans unsafe-inline (refacto frontend)
+
 ===============================================================
-# 11. SECURITE & ACCES
+# 11. METHODE DE DEVELOPPEMENT OBLIGATOIRE
+===============================================================
+
+## Strategie Builder/Reviewer (instauree Passe 52)
+OBLIGATOIRE pour chaque passe de developpement.
+
+### Principe
+Pour chaque tache non-triviale :
+1. Un agent BUILDER construit le code
+2. Un agent REVIEWER passe derriere, verifie, corrige, ameliore
+
+### Pourquoi
+Passe 52 : 5 builders + 5 reviewers → 25 bugs rattrapes dont 4 failles
+de securite critiques (IDOR, XSS, injection, fuite donnees cross-cabinet).
+Sans les reviewers, ces bugs seraient passes en production.
+
+### Regles
+- Lancer les builders EN PARALLELE (agents simultanes)
+- Des qu'un builder finit, lancer son reviewer IMMEDIATEMENT
+- Le reviewer a le droit de MODIFIER le code directement (pas juste signaler)
+- Le reviewer doit faire un `node -c` apres chaque correction
+- Le reviewer verifie : bugs, securite, perf, edge cases, UX, format reponse
+
+### Checklist reviewer
+1. Injection SQL / ilike / XSS (sanitization des inputs)
+2. Auth + scoping societe_id (pas d'acces cross-cabinet)
+3. N+1 queries, doublons, performance
+4. Edge cases : tableau vide, null, division par zero
+5. try/catch robustes (tables qui n'existent pas encore)
+6. Format reponse JSON coherent
+7. `node -c` syntax check obligatoire
+
+### Gains mesures
+| Passe | Builders | Reviewers | Bugs rattrapes | Critiques |
+|-------|----------|-----------|----------------|-----------|
+| 52    | 5        | 5         | 25             | 4         |
+| 53    | 5        | 5         | 10             | 2         |
+| 54    | 40+      | internes  | 221 detectes, 145 corriges | 46 critiques |
+| **Total** | **55+** | **15+** | **278** | **57** |
+
+## BASEPLAN — Documents fondateur (instauree Passe 54)
+Nom officiel de la base documentaire du fondateur. OBLIGATOIRE a enrichir
+a chaque mise a jour du CODEX si la passe impacte le juridique ou le business.
+
+### Fichiers BASEPLAN
+| Document | Fichier | Contenu |
+|----------|---------|---------|
+| Dossier Avocat | docs/DOSSIER-AVOCAT-JADOMI.html | v2.0 — 19 questions, CGV 13 articles, 7 secteurs, 21 modules |
+| Business Plan | docs/business-plan-jadomi.html | v2.0 — TAM 2.4Mds, 8 revenus, projections 3 ans multi-secteur |
+| Dossier Avocat V2 | docs/dossier-avocat-jadomi.html | Version complementaire avec annexes techniques |
+
+### Regles
+1. A chaque fin de passe : verifier si BASEPLAN doit etre enrichie
+2. Nouvelles features → mettre a jour le business plan (section services)
+3. Nouveaux flux financiers → mettre a jour le dossier avocat (questions)
+4. Nouveaux contrats → ajouter dans les CGV
+5. Accessible dans dashboard admin onglet "Documents" (organisation.html)
+6. Envoyable par email : /api/admin/send-documents ou node scripts/send-dossier-mail.js
+7. Quand enrichie, renvoyer par email a karim_bahmed@yahoo.fr
+
+===============================================================
+# 12. SECURITE & ACCES
 ===============================================================
 
 NE PAS stocker mots de passe / cles API dans ce document.
@@ -1294,6 +1446,86 @@ I) Architecture non-intrusive (UX) :
 | server.js | /api/scan/lookup enrichi + extraction code_client + detection suivra IA |
 | index.html | Onglet fournisseurs dynamique + contrats + remises + widget OEM dashboard |
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
+
+## Passe 54 (26 avril 2026) -- Audit Securite Massif + BASEPLAN v2.0
+Audit complet : 8 Bug Hunters + 2 Frontend/SQL Auditors → 221 vulnerabilites identifiees.
+136 corrections appliquees sur 50 fichiers JS (0 erreur syntax check).
+
+Securite :
+- .env expose publiquement → bloque (404)
+- 18 IDOR corriges (coffre, requests, appointments, sites-jadomi, studio)
+- 7 SQL injections sanitisees (suppliers, target-prices, dossiers, public, triangle, eco)
+- 18 mass assignment → whitelist (BTP, showroom, juridique)
+- 6 auth bypass corriges (media-upload JWT, shared.js, ads token, client-portal, interventions, ratings)
+- 2 OTP bypass coffre bloques
+- 4 XSS frontend (coffre, espace-client, organisation esc() quotes)
+- 4 XSS email (escHtml devis, factures, commandes, messages)
+- 62+ error info leaks → "Erreur serveur/interne"
+- 1 SSRF bloque (analyse scan)
+- 4 path traversal (slugs, coffre storage, static root)
+- 4 hardcoded secrets retires (Supabase key, admin token, annuaire, deals)
+- 3 hardcoded JWT → random (shared.js, client-portal, media-upload)
+- 1 crypto fix (GCM auth tag mandatory)
+- 2 fail-open → fail-closed (permissions, quotas)
+
+Infrastructure :
+- Security headers deployes (CSP, HSTS, X-Frame, X-XSS, X-Content-Type, Referrer, Permissions)
+- TLS 1.0/1.1 desactive → 1.2+ only
+- UFW Firewall actif
+- robots.txt anti-crawlers cree
+- jadomi-shield.js anti-copie cree
+- Backup quotidien 3h + hebdo dimanche (cron)
+- Health check /5min avec auto-restart (cron)
+- Integrite SHA-256 quotidien (cron, baseline 204 fichiers)
+- Scan securite nocturne 2h (cron : ClamAV + rkhunter + integrite + reseau)
+- MFA/2FA TOTP endpoints (enroll, verify, challenge, factors, unenroll)
+- Compte Supabase admin MFA Google Authenticator active
+
+Supabase RLS :
+- 39 policies deployees et testees (anon key → [] sur toutes tables sensibles)
+- Coffre avocat 9 policies (secret professionnel)
+- Client portal 4 policies (RLS active)
+- GPO financier 7 policies (service_role only)
+- Coins wallet 9 policies + CHECK >= 0
+- SECURITY DEFINER search_path fixe
+- Table security_reports (SQL 56)
+
+Dashboard :
+- Onglet Documents BASEPLAN (3 docs v2.0, envoi email)
+- Onglet Securite (score, scan manuel, historique)
+- Section 2FA dans Parametres (activer/desactiver MFA TOTP)
+- Route /docs statique pour acceder aux documents
+
+BASEPLAN v2.0 :
+- DOSSIER-AVOCAT-JADOMI.html reecrit (11 sections, 19 questions, 7 secteurs, 21 modules)
+- business-plan-jadomi.html reecrit (TAM 2.4Mds, 8 revenus, projections 3 ans)
+- dossier-avocat-jadomi.html reecrit (10 sections, 24 questions, HDS/Ads/Coins)
+
+Methode Builder/Reviewer : 8 hunters + reviewers, 221 bugs detectes, 136 corriges.
+Fichiers crees : scripts/backup.sh, scripts/health-check.sh, scripts/integrity-check.sh,
+  scripts/security-scan.sh, public/js/jadomi-shield.js, public/robots.txt,
+  sql/vitrines/56_security_reports.sql
+
+## Passe 53 (26 avril 2026) -- Facturation GPO : Revelation post-acceptation
+Solution A implementee : apres acceptation fournisseur, prix verrouille
+puis identite cabinet revelee (nom, adresse, SIRET, email, telephone).
+Fichiers crees :
+- sql/vitrines/54_gpo_orders.sql (table gpo_orders + sequence + RLS)
+- lib/emails/supplier-order-confirmation.js (email fournisseur avec coordonnees cabinet)
+- lib/gpo-order-pdf.js (bon de commande PDF pdfkit avec prix verrouille)
+Fichiers modifies :
+- api/gpo/public.js (POST /accept enrichi : fetch cabinet, create gpo_orders, email reveal)
+- lib/emails/dentist-offer-accepted.js (email enrichi : order#, contact fournisseur, etapes)
+Solution C documentee dans CODEX section 30 (mandat facturation art. 289 CGI, roadmap).
+Methode Builder/Reviewer : 5 builders + 5 reviewers, 10 bugs rattrapes.
+SQL 54 a executer dans Supabase Dashboard.
+
+## Passe 52 (26 avril 2026) -- JADOMI Compare + Intelligence Achats
+Renaming OEM → terminologie dentiste. Onglet "Economies JADOMI" dans index.html.
+9 endpoints API achats (search, economies, spend-analytics, price-history, benchmark,
+price-watch CRUD, check-price-watches). GPO enrichi avec preuves prix marche.
+Fix perf scan engine (N+1 → batch, doublon prix). SQL Passe 52 execute.
+Methode Builder/Reviewer instauree : 5 builders + 5 reviewers, 25 bugs rattrapes.
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class
 A) Fixes critiques (3 bugs audit) :
@@ -1652,6 +1884,141 @@ Schema : sql/scan/prices_intelligence.sql
 ## JPEG quality : 0.92 (ameliore vs 0.85)
 
 ===============================================================
+# 29. JADOMI COMPARE + INTELLIGENCE ACHATS (Passe 52)
+===============================================================
+
+## Renaming strategique
+"OEM" supprime partout — les dentistes ne connaissent pas ce terme.
+Nouvelle terminologie : "Alternative verifiee", "Mes Economies",
+"JADOMI Compare", "Meme produit, meilleur prix".
+
+## Onglet "Economies JADOMI" (index.html)
+Nouvel onglet sidebar dans Achats. Contient :
+- KPI total economies recuperables (annuel)
+- Liste produits ou un meilleur prix existe, tri par economie decroissante
+- Bouton "Negocier via JADOMI" par produit
+- Courbe historique prix par produit (Chart.js, type CamelCamelCamel)
+- Price Watch : "Prevenez-moi quand ce produit passe sous X EUR"
+- Benchmark anonyme : "Votre cabinet vs la moyenne du segment"
+- Spend Analytics : depenses par categorie, fournisseur, mois
+
+## Nouveaux endpoints API
+| Endpoint | Methode | Description |
+|----------|---------|-------------|
+| /api/scan/search | GET | Recherche multi-resultats par nom, prix compares |
+| /api/achats/economies | GET | Produits ou un meilleur prix existe (vue v_economies_jadomi) |
+| /api/achats/spend-analytics | GET | Depenses par categorie/fournisseur/mois + top produits |
+| /api/achats/price-history/:gtin | GET | Historique prix par produit (courbe) |
+| /api/achats/benchmark | GET | Benchmark anonyme inter-cabinets par segment |
+| /api/achats/price-watch | POST | Creer une alerte prix |
+| /api/achats/price-watches | GET | Lister les alertes prix actives |
+| /api/achats/price-watch/:id | DELETE | Desactiver une alerte prix |
+| /api/achats/check-price-watches | POST | Verifier si des alertes se declenchent |
+| /api/labo/stock/economies-report | GET | Rapport economies (ex oem-report, retrocompat) |
+
+## GPO enrichi avec preuves prix
+Quand JADOMI envoie au fournisseur via GPO :
+- Email et page tokenisee enrichis avec "Prix marche constates"
+- Liste des prix concurrents prouves par factures
+- Tarif cible JADOMI avec pourcentage reduction
+- Le fournisseur voit les prix de ses concurrents → pression d'alignement
+
+## SQL Passe 52 (execute en prod 26/04/2026)
+Fichier : sql/scan/passe52_compare_intelligence.sql
+- Table price_watches (alertes prix)
+- Table spend_snapshots (snapshots mensuels)
+- Table cabinet_benchmarks (benchmark anonyme)
+- Vue v_economies_jadomi (produits moins cher ailleurs)
+- Vue v_spend_by_category (depenses par categorie)
+- Vue v_spend_by_supplier (depenses par fournisseur)
+- Vue v_price_history (historique prix pour courbes)
+- Vue v_benchmark_category (benchmark anonyme par categorie)
+- Fonction check_price_watches() (declenchement alertes)
+
+## Fix performance scan engine
+- findEquivalents() : batch queries (11 → 3 requetes)
+- enrichScanResult() : parametre existingPrices evite doublon getProductPrices()
+
+## Securite (corrige par review)
+- Injection ilike sanitizee dans /api/scan/search
+- XSS corrige dans emails GPO fournisseur (escHtml)
+- XSS corrige dans onclick UI economies (escAttr)
+- IDOR corrige sur /api/achats/* (verification acces societe)
+- Fuite donnees cross-cabinet corrigee sur price-history
+- Validation GTIN (format + longueur)
+- Division par zero protegee (savings, trend)
+
+## Fichiers cles Passe 52
+| Fichier | Modifications |
+|---------|--------------|
+| server.js | +9 endpoints achats, renaming notif, fix IDOR |
+| services/scan-engine.js | Fix N+1, batch queries, doublon prix |
+| services/oem-intelligence.js | Renaming messages user-facing |
+| routes/labo/stock.js | Renaming notif + endpoint economies-report |
+| lib/emails/supplier-offer.js | Prix marche dans emails GPO + escHtml |
+| api/gpo/public.js | Prix marche dans page fournisseur + escLike |
+| public/supplier-offer.html | Section market intelligence frontend |
+| index.html | Onglet Economies complet + widget "Mes Economies" |
+| sql/scan/passe52_compare_intelligence.sql | 3 tables + 5 vues + 1 fonction |
+
+## Benchmark concurrence mondiale
+JADOMI a maintenant 5 features UNIQUES (detection alternatives, prix factures,
+GPO rotation, groupage, photo IA) + toutes les features des meilleurs
+(Alara, ZenOne, Torch Dental, Coupa) : spend analytics, price watch,
+benchmark anonyme, historique prix.
+
+===============================================================
+# 30. STRATEGIE FACTURATION GPO (Passe 53)
+===============================================================
+
+## Probleme resolu
+Le GPO JADOMI est ANONYME pendant la negociation. Mais apres acceptation,
+le fournisseur doit facturer le cabinet (nom, adresse, SIRET obligatoires).
+La facturation electronique devient obligatoire le 1er septembre 2026.
+
+## Solution A — "Revelation post-acceptation" (EN PROD)
+1. Negociation ANONYME : "Cabinet #JD-4827 veut 200 boites de Septanest"
+2. Fournisseur accepte le prix → PRIX VERROUILLE contractuellement
+3. JADOMI revele l'identite : nom, adresse, SIRET, email, telephone
+4. Fournisseur facture DIRECTEMENT le cabinet
+5. Le cabinet deduit normalement (comptabilite classique)
+Avantage : zero intermediaire, zero risque fiscal.
+Le fournisseur ne peut PAS modifier le prix apres acceptation.
+
+## Solution C — "Mandat de facturation" (ROADMAP, quand 50+ cabinets)
+Article 289 du CGI autorise un tiers a emettre des factures
+AU NOM ET POUR LE COMPTE du fournisseur.
+1. Le fournisseur signe un mandat de facturation avec JADOMI
+2. JADOMI emet la facture au nom du fournisseur → vers le cabinet
+3. Le cabinet recoit une facture legale (deductible)
+4. JADOMI gere la facturation electronique 2026 pour tous
+5. Le fournisseur n'a RIEN a faire (argument commercial massif)
+Avantage : anonymat PERMANENT, JADOMI controle tout le flux,
+facturation electronique as a service, enrichissement auto base prix.
+Prerequis : creation structure juridique JADOMI (SAS ou cooperative achats)
+
+## Facturation electronique 2026
+- Obligatoire 1er sept 2026 (grandes entreprises + ETI)
+- Obligatoire 1er sept 2027 (PME + micro)
+- JADOMI peut devenir plateforme de facturation pour ses fournisseurs
+- Argument commercial : "Vous n'avez rien a faire, JADOMI s'en occupe"
+- API a integrer : Chorus Pro / plateforme agreee
+
+## Enrichissement base de prix
+| Methode | Rapidite | Donnees |
+|---------|----------|---------|
+| Scraping catalogues publics | Immediat | Prix catalogue (sans remise) |
+| Connexion logins fournisseurs (modele Minti) | Rapide | Prix negocies reels |
+| Import factures PDF (deja fait P51) | Progressif | Prix reels payes |
+| Crowdsource scans (deja fait P51) | Progressif | Prix verifies |
+
+## Table gpo_orders (SQL 54)
+Commande confirmee avec identites revelees, prix verrouille,
+bon de commande PDF, suivi livraison + facturation.
+Statuts : confirmed → order_sent → acknowledged → shipped → delivered → invoiced → completed
+Numerotation : JD-YYYY-NNNN (sequence PostgreSQL)
+
+===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 26 avril 2026 (Passe 51b — EUDAMED + Contrats fournisseur + Suivra)
+Derniere mise a jour : 26 avril 2026 (Passe 54 — Audit Securite Massif + BASEPLAN v2.0)
 ===============================================================

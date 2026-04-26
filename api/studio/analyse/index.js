@@ -43,6 +43,15 @@ module.exports = function mountAnalyse(app, supabase) {
       let targetUrl = url.trim();
       if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
 
+      // SECURITE : bloquer SSRF (reseau interne)
+      try {
+        const parsed = new URL(targetUrl);
+        const h = parsed.hostname;
+        if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.startsWith('10.') || h.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h === '169.254.169.254' || parsed.protocol === 'file:') {
+          return res.status(400).json({ error: 'URL non autorisee (reseau interne)' });
+        }
+      } catch { return res.status(400).json({ error: 'URL invalide' }); }
+
       const rapport = {
         url_analysee: targetUrl,
         plateforme_detectee: null,
@@ -394,7 +403,7 @@ module.exports = function mountAnalyse(app, supabase) {
 
     } catch (err) {
       console.error('[analyse/scan]', err);
-      return res.status(500).json({ error: 'Erreur analyse', details: err.message });
+      return res.status(500).json({ error: 'Erreur analyse' });
     }
   });
 
@@ -413,7 +422,7 @@ module.exports = function mountAnalyse(app, supabase) {
       if (error || !data) return res.status(404).json({ error: 'Analyse non trouvee' });
       return res.json(data);
     } catch (err) {
-      return res.status(500).json({ error: 'Erreur', details: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -431,10 +440,10 @@ module.exports = function mountAnalyse(app, supabase) {
         .order('analysee_le', { ascending: false })
         .limit(20);
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

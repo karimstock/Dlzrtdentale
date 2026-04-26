@@ -120,7 +120,7 @@ module.exports = function mountLabels(app, admin, auth) {
       });
     } catch (e) {
       console.error('[Logistics POST /labels]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -135,7 +135,7 @@ module.exports = function mountLabels(app, admin, auth) {
       if (error || !data) return res.status(404).json({ error: 'Etiquette introuvable' });
       res.json(data);
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

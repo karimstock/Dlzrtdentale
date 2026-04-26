@@ -19,7 +19,7 @@ module.exports = function (router) {
       const { data } = await admin().from('btp_profil')
         .select('*').eq('societe_id', req.societe.id).maybeSingle();
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer profil
@@ -40,14 +40,16 @@ module.exports = function (router) {
         slug = `${baseSlug}-${attempt}`;
       }
 
+      const _ap = ['nom', 'prenom', 'telephone', 'email', 'adresse', 'code_postal', 'ville', 'siret', 'type_entreprise', 'description', 'specialites', 'logo_url', 'photo_url'];
+      const _sp = {}; for (const k of _ap) { if (req.body[k] !== undefined) _sp[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_profil')
-        .insert({ ...req.body, societe_id: req.societe.id, slug })
+        .insert({ ..._sp, societe_id: req.societe.id, slug })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_profil', entityId: data.id, req });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier profil
@@ -66,6 +68,6 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'update', entity: 'btp_profil', entityId: data.id, req });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

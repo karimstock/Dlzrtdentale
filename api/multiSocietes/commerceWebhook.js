@@ -131,7 +131,7 @@ function mountCommerceWebhook(app) {
         res.json({ received: true });
       } catch (e) {
         console.error('[commerce/webhook]', e.message);
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'Erreur interne' });
       }
     }
   );

@@ -79,7 +79,7 @@ router.get('/state', async (req, res) => {
     res.json({ success: true, state });
   } catch (err) {
     console.error('[coach/state]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -102,7 +102,7 @@ router.post('/welcome-shown', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/welcome-shown]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -128,7 +128,7 @@ router.post('/welcome-completed', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/welcome-completed]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -153,7 +153,7 @@ router.post('/welcome-skipped', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/welcome-skipped]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -180,7 +180,7 @@ router.post('/tooltip-seen', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/tooltip-seen]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -211,7 +211,7 @@ router.post('/toggle-tooltips', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/toggle-tooltips]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -258,7 +258,7 @@ router.post('/generate-welcome', async (req, res) => {
     });
   } catch (err) {
     console.error('[coach/generate-welcome]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -285,7 +285,7 @@ router.post('/tour-completed', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/tour-completed]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -312,7 +312,7 @@ router.post('/tour-skipped', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/tour-skipped]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -339,7 +339,7 @@ router.post('/tour-restart', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[coach/tour-restart]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -353,7 +353,7 @@ router.get('/tour-steps/:type', async (req, res) => {
     res.json({ success: true, steps });
   } catch (err) {
     console.error('[coach/tour-steps]', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

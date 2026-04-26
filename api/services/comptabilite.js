@@ -35,7 +35,7 @@ module.exports = function (router) {
         total: calc(all)
       });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -103,7 +103,7 @@ module.exports = function (router) {
 
       res.json({ stats: statsByPrat });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -124,7 +124,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ entries: data || [], total: count });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -153,7 +153,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'compta_entry_create', entity: 'services_comptabilite', entityId: data.id, req });
       res.json({ entry: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -181,7 +181,7 @@ module.exports = function (router) {
       res.setHeader('Content-Disposition', `attachment; filename=comptabilite_${new Date().toISOString().split('T')[0]}.csv`);
       res.send('\uFEFF' + csv);
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

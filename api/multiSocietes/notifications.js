@@ -68,7 +68,7 @@ function mountNotifications(app) {
         total: count || 0,
         nb_urgentes: nbUrgentes || 0
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Badge seul : nombre non lues + nb urgentes
@@ -81,7 +81,7 @@ function mountNotifications(app) {
           .eq('user_id', req.user.id).eq('lu', false).eq('urgence', 'urgente')
       ]);
       res.json({ success: true, total: total || 0, urgentes: urgentes || 0 });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Marquer une notif comme lue
@@ -93,7 +93,7 @@ function mountNotifications(app) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, notification: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Tout marquer lu
@@ -103,7 +103,7 @@ function mountNotifications(app) {
         .update({ lu: true, lu_at: new Date().toISOString() })
         .eq('user_id', req.user.id).eq('lu', false);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Supprimer une notif
@@ -112,7 +112,7 @@ function mountNotifications(app) {
       await admin().from('notifications').delete()
         .eq('id', req.params.id).eq('user_id', req.user.id);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/notifications', router);

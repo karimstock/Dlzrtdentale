@@ -30,7 +30,7 @@ module.exports = function (router) {
         .eq('id', data.id);
 
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Produits publics d'un créateur
@@ -56,7 +56,7 @@ module.exports = function (router) {
 
       const { data } = await query;
       res.json({ success: true, produits: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Détail d'un produit
@@ -73,7 +73,7 @@ module.exports = function (router) {
         .eq('id', data.id);
 
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Avis publics d'un créateur
@@ -88,7 +88,7 @@ module.exports = function (router) {
         .eq('profil_id', profil.id).eq('visible', true)
         .order('created_at', { ascending: false });
       res.json({ success: true, avis: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST commander (Stripe)
@@ -188,7 +188,7 @@ module.exports = function (router) {
         commande,
         client_secret: paymentIntent.client_secret
       });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Confirmer après paiement Stripe
@@ -220,7 +220,7 @@ module.exports = function (router) {
       });
 
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Recherche de créateurs
@@ -250,7 +250,7 @@ module.exports = function (router) {
 
       const { data } = await query;
       res.json({ success: true, createurs: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Tendances (produits les plus vus cette semaine)
@@ -265,7 +265,7 @@ module.exports = function (router) {
         .limit(parseInt(req.query.limit || '12'));
 
       res.json({ success: true, tendances: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Nouveautés (derniers produits ajoutés)
@@ -278,7 +278,7 @@ module.exports = function (router) {
         .limit(parseInt(req.query.limit || '12'));
 
       res.json({ success: true, nouveautes: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Catégories avec comptage
@@ -298,7 +298,7 @@ module.exports = function (router) {
       }));
 
       res.json({ success: true, categories: result });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Créateurs mis en avant
@@ -311,7 +311,7 @@ module.exports = function (router) {
         .limit(6);
 
       res.json({ success: true, createurs: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Laisser un avis (après commande terminée)
@@ -354,7 +354,7 @@ module.exports = function (router) {
       }).eq('id', cmd.profil_id);
 
       res.json({ success: true, avis: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Disponibilités location pour un produit
@@ -404,7 +404,7 @@ module.exports = function (router) {
         produit,
         dates_indisponibles: [...indisponibles].sort()
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Envoyer un message à un créateur (public)
@@ -453,6 +453,6 @@ module.exports = function (router) {
       if (error) throw error;
 
       res.json({ success: true, message: msg });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

@@ -197,7 +197,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/public]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -291,7 +291,7 @@ module.exports = function(router) {
       res.json({ success: true });
     } catch (err) {
       console.error('[vitrines/public]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -323,7 +323,7 @@ module.exports = function(router) {
       res.json({ success: true });
     } catch (err) {
       console.error('[vitrines/public]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

@@ -64,7 +64,7 @@ module.exports = function mountMailing(app) {
       }
       await admin().from('bases_emails_importees').update({ nb_contacts: inserted }).eq('id', base.id);
       res.json({ success: true, base: { ...base, nb_contacts: inserted } });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.delete('/bases/:id', requireSociete(), async (req, res) => {
     await admin().from('bases_emails_importees').delete()
@@ -90,7 +90,7 @@ module.exports = function mountMailing(app) {
       }).select('*').single();
       if (error) throw error;
       res.json({ success: true, campagne: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/campagnes/:id', requireSociete(), async (req, res) => {
     try {
@@ -99,7 +99,7 @@ module.exports = function mountMailing(app) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, campagne: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Récupère les destinataires selon la cible, filtrés par matching sectoriel.
@@ -189,7 +189,7 @@ module.exports = function mountMailing(app) {
       const html = renderHtmlForEnvoi(c, fakeToken);
       await mailer.sendMail({ to, subject: '[TEST] ' + c.objet_email, html });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Envoi réel de la campagne
@@ -235,7 +235,7 @@ module.exports = function mountMailing(app) {
       res.json({ success: true, envoyes, exclus: exclus.length });
     } catch (e) {
       console.error('[mailing envoyer]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

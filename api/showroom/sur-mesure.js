@@ -26,7 +26,7 @@ module.exports = function (router) {
 
       const { data } = await query;
       res.json({ success: true, demandes: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET une demande
@@ -38,7 +38,7 @@ module.exports = function (router) {
         .eq('id', req.params.id).eq('profil_id', profilId).maybeSingle();
       if (!data) return res.status(404).json({ error: 'Demande introuvable' });
       res.json({ success: true, demande: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST envoyer un devis
@@ -97,7 +97,7 @@ module.exports = function (router) {
         action: 'devis_sur_mesure', entity: 'showroom_sur_mesure', entityId: data.id,
         meta: { prix_devis, acompte, delai_jours }, req });
       res.json({ success: true, demande: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH mettre à jour le statut
@@ -119,7 +119,7 @@ module.exports = function (router) {
       if (error) throw error;
 
       res.json({ success: true, demande: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST confirmer l'acompte (appelé après paiement Stripe)
@@ -141,6 +141,6 @@ module.exports = function (router) {
       if (error) throw error;
 
       res.json({ success: true, demande: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

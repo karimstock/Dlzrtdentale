@@ -109,6 +109,12 @@
           <span class="savings-pct" id="savings-pct">-15%</span>
           <span class="savings-text" id="savings-text">Économies client via JADOMI</span>
         </div>
+        <!-- Market price intelligence -->
+        <div id="market-intel" style="display:none;margin-top:16px;padding:16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;">
+          <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:10px;">Prix march&eacute; constat&eacute;s (sources JADOMI)</div>
+          <div id="market-intel-items"></div>
+          <div id="market-intel-target" style="margin-top:10px;font-size:13px;font-weight:700;color:#10b981;"></div>
+        </div>
       </div>
 
       <!-- Response -->
@@ -221,6 +227,24 @@ function renderOffer() {
   if (offerData.supplier_status === 'active') {
     document.getElementById('intro-card').querySelector('h2').textContent = 'Nouvelle commande JADOMI';
     document.getElementById('intro-text').textContent = 'Un cabinet dentaire JADOMI souhaite commander chez vous. R\u00e9pondez avant la fin du compte \u00e0 rebours.';
+  }
+
+  // Market price intelligence
+  if (offerData.market_price_intel && offerData.market_price_intel.length > 0) {
+    var intelDiv = document.getElementById('market-intel');
+    var itemsDiv = document.getElementById('market-intel-items');
+    intelDiv.style.display = 'block';
+    itemsDiv.innerHTML = offerData.market_price_intel.map(function(item) {
+      var priceList = item.prices.map(function(p) {
+        return esc(p.supplier) + ' ' + Number(p.price).toFixed(2) + '\u20ac';
+      }).join(' | ');
+      return '<div style="font-size:12px;color:#d97706;margin-bottom:4px;"><strong>' + esc(item.item_name) + '</strong> : ' + priceList + '</div>';
+    }).join('');
+
+    if (offerData.target_discount_pct && offerData.target_discount_pct > 0 && offerData.total_target_eur) {
+      document.getElementById('market-intel-target').textContent =
+        'Tarif cible JADOMI : ' + Number(offerData.total_target_eur).toFixed(2) + '\u20ac (-' + offerData.target_discount_pct + '% vs votre catalogue)';
+    }
   }
 }
 

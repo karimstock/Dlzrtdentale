@@ -543,7 +543,7 @@ router.post('/labo/auth/request-otp', async (req, res) => {
       .eq('id', labo.id);
 
     // TODO: envoyer email avec OTP via emailService
-    console.log(`[triangle/labo-auth] OTP for ${normalizedEmail}: ${otp} (DEV ONLY)`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[triangle/labo-auth] OTP for ${normalizedEmail}: ${otp} (DEV ONLY)`);
 
     return res.json({ ok: true, message: 'Si ce compte existe, un code vous sera envoye.' });
 
@@ -886,7 +886,8 @@ router.get('/cases', requireCabinet(), requirePermission('triangle'), async (req
       query = query.eq('statut', statut);
     }
     if (search) {
-      query = query.or(`titre.ilike.%${search}%,reference.ilike.%${search}%`);
+      const sanitized = search.replace(/[^a-zA-Z0-9\s\-_àâäéèêëïîôùûüÿçœæ]/g, '');
+      if (sanitized) query = query.or(`titre.ilike.%${sanitized}%,reference.ilike.%${sanitized}%`);
     }
 
     const { data: cases, error, count } = await query;

@@ -27,7 +27,7 @@ function createTransportRouter(supabase) {
       res.json({ success: true, estimation });
     } catch (e) {
       console.error('[RUSH transport estimer]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -49,7 +49,7 @@ function createTransportRouter(supabase) {
       res.json({ success: true, message: 'Expedition enregistree', numero_suivi });
     } catch (e) {
       console.error('[RUSH expedition]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -71,7 +71,7 @@ function createTransportRouter(supabase) {
       });
     } catch (e) {
       console.error('[RUSH reception]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

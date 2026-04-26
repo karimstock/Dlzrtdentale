@@ -63,7 +63,7 @@ module.exports = function mountSocietes(app) {
       res.json({ success: true, societes });
     } catch (e) {
       console.error('[GET /api/societes]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -80,7 +80,7 @@ module.exports = function mountSocietes(app) {
       res.json({ success: true, societe: data });
     } catch (e) {
       console.error('[POST /api/societes]', e.message);
-      res.status(400).json({ success: false, error: e.message });
+      res.status(400).json({ success: false, error: 'Erreur validation' });
     }
   });
 
@@ -92,7 +92,7 @@ module.exports = function mountSocietes(app) {
       if (error) throw error;
       res.json({ success: true, societe: { ...data, role: req.role } });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -109,7 +109,7 @@ module.exports = function mountSocietes(app) {
         action: 'update', entity: 'societe', entityId: data.id, meta: payload, req });
       res.json({ success: true, societe: data });
     } catch (e) {
-      res.status(400).json({ success: false, error: e.message });
+      res.status(400).json({ success: false, error: 'Erreur validation' });
     }
   });
 
@@ -154,7 +154,7 @@ module.exports = function mountSocietes(app) {
       res.json({ success: true, logo_url, societe: soc });
     } catch (e) {
       console.error('[POST logo]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -168,7 +168,7 @@ module.exports = function mountSocietes(app) {
         .eq('id', req.params.id)
         .select('*').single();
       res.json({ success: true, societe: soc });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // ---------- DELETE /api/societes/:id — owner seulement ----------
@@ -182,7 +182,7 @@ module.exports = function mountSocietes(app) {
         action: 'delete', entity: 'societe', entityId: req.params.id, req });
       res.json({ success: true });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -206,7 +206,7 @@ module.exports = function mountSocietes(app) {
       }
       res.json({ success: true, membres: out });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -244,7 +244,7 @@ module.exports = function mountSocietes(app) {
       res.json({ success: true });
     } catch (e) {
       console.error('[invite]', e.message);
-      res.status(400).json({ success: false, error: e.message });
+      res.status(400).json({ success: false, error: 'Erreur validation' });
     }
   });
 
@@ -262,7 +262,7 @@ module.exports = function mountSocietes(app) {
         action: 'remove', entity: 'membre', entityId: req.params.userId, req });
       res.json({ success: true });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -283,7 +283,7 @@ module.exports = function mountSocietes(app) {
         action: 'bootstrap_cabinet', entity: 'societe', entityId: data.id, req });
       res.json({ success: true, bootstrapped: true, societe: data });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

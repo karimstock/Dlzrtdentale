@@ -160,7 +160,7 @@ module.exports = function mountCMS(app, supabase) {
         next();
       } catch (err) {
         console.error('[cms/quota]', err.message);
-        next(); // En cas d'erreur quota, on laisse passer (fail-open)
+        return res.status(500).json({ error: 'Erreur verification quota. Reessayez.' });
       }
     };
   }
@@ -204,7 +204,7 @@ module.exports = function mountCMS(app, supabase) {
         }
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -222,7 +222,7 @@ module.exports = function mountCMS(app, supabase) {
         .order('section')
         .order('cle');
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       // Grouper par section
       const grouped = {};
@@ -233,7 +233,7 @@ module.exports = function mountCMS(app, supabase) {
 
       return res.json({ contenus: grouped, total: (data || []).length });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -247,10 +247,10 @@ module.exports = function mountCMS(app, supabase) {
         .eq('section', req.params.section)
         .order('cle');
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -273,10 +273,10 @@ module.exports = function mountCMS(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(400).json({ error: error.message });
+      if (error) return res.status(400).json({ error: 'Erreur validation' });
       return res.status(201).json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -320,7 +320,7 @@ module.exports = function mountCMS(app, supabase) {
       if (updateErr) return res.status(500).json({ error: updateErr.message });
       return res.json(updated);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -335,10 +335,10 @@ module.exports = function mountCMS(app, supabase) {
         .order('modifie_le', { ascending: false })
         .limit(50);
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -399,7 +399,7 @@ module.exports = function mountCMS(app, supabase) {
       if (updateErr) return res.status(500).json({ error: updateErr.message });
       return res.json({ message: 'Rollback effectue', contenu: updated });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -443,10 +443,10 @@ module.exports = function mountCMS(app, supabase) {
         .order('section')
         .order('ordre');
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -461,10 +461,10 @@ module.exports = function mountCMS(app, supabase) {
         .eq('actif', true)
         .order('ordre');
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -492,14 +492,14 @@ module.exports = function mountCMS(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       return res.status(201).json({
         ...data,
         quota: req.quotaInfo
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -521,10 +521,10 @@ module.exports = function mountCMS(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -539,10 +539,10 @@ module.exports = function mountCMS(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json({ message: 'Photo desactivee', photo: data });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -567,7 +567,7 @@ module.exports = function mountCMS(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       // TODO: notification admin (email ou queue selon existant)
 
@@ -576,7 +576,7 @@ module.exports = function mountCMS(app, supabase) {
         quota: req.quotaInfo
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -590,10 +590,10 @@ module.exports = function mountCMS(app, supabase) {
         .order('demandee_le', { ascending: false })
         .limit(50);
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -608,10 +608,10 @@ module.exports = function mountCMS(app, supabase) {
         .eq('actif', true)
         .order('ordre');
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -649,7 +649,7 @@ module.exports = function mountCMS(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       return res.status(201).json({
         ...data,
@@ -658,7 +658,7 @@ module.exports = function mountCMS(app, supabase) {
         message: `Modification creee. Montant : ${montant} EUR. Paiement Stripe a venir.`
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -672,10 +672,10 @@ module.exports = function mountCMS(app, supabase) {
         .order('demandee_le', { ascending: false })
         .limit(50);
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

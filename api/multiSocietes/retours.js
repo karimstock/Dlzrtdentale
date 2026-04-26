@@ -25,7 +25,7 @@ module.exports = function mountRetours(app) {
       const { data, error } = await qb;
       if (error) throw error;
       res.json({ success: true, retours: data || [], sens });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Créer une demande de retour
@@ -94,7 +94,7 @@ module.exports = function mountRetours(app) {
         action: 'create_retour', entity: 'retour', entityId: data.id,
         meta: { rentable, valeur: valeurUnite }, req });
       res.json({ success: true, retour: data, rentable, valeur_unite: valeurUnite });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Action fournisseur : accepter retour physique
@@ -132,7 +132,7 @@ module.exports = function mountRetours(app) {
       } catch (_) {}
 
       res.json({ success: true, retour: r });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Action fournisseur : envoyer nouveau produit (pas de retour physique)
@@ -160,7 +160,7 @@ module.exports = function mountRetours(app) {
         });
       } catch (_) {}
       res.json({ success: true, retour: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Action fournisseur : refuser
@@ -188,7 +188,7 @@ module.exports = function mountRetours(app) {
         });
       } catch (_) {}
       res.json({ success: true, retour: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/commerce/retours', router);

@@ -24,7 +24,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ liste: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -50,7 +50,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ entry: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -96,7 +96,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'liste_attente_notify', entity: 'services_liste_attente', meta: { notified, prestation_id }, req });
       res.json({ notified });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -111,7 +111,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

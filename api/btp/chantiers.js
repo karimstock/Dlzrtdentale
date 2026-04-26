@@ -38,7 +38,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, chantiers: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET agenda view
@@ -63,7 +63,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, chantiers: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer chantier
@@ -75,14 +75,16 @@ module.exports = function (router) {
       const year = new Date().getFullYear();
       const reference = await generateReference(profilId, year);
 
+      const _ac = ['nom', 'client_id', 'adresse', 'description', 'date_debut', 'date_fin_prevue', 'statut', 'budget_prevu'];
+      const _sb = {}; for (const k of _ac) { if (req.body[k] !== undefined) _sb[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_chantiers')
-        .insert({ ...req.body, profil_id: profilId, reference })
+        .insert({ ..._sb, profil_id: profilId, reference })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_chantiers', entityId: data.id, req });
       res.json({ success: true, chantier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET detail chantier complet
@@ -109,7 +111,7 @@ module.exports = function (router) {
         factures: facturesRes.data || [],
         rapports: rapportsRes.data || []
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // PATCH modifier chantier
@@ -118,15 +120,17 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ac = ['nom', 'client_id', 'adresse', 'description', 'date_debut', 'date_fin_prevue', 'statut', 'budget_prevu'];
+      const _sb = {}; for (const k of _ac) { if (req.body[k] !== undefined) _sb[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_chantiers')
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update({ ..._sb, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'update', entity: 'btp_chantiers', entityId: data.id, req });
       res.json({ success: true, chantier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH changer statut chantier
@@ -180,6 +184,6 @@ module.exports = function (router) {
         action: 'status_change', entity: 'btp_chantiers', entityId: data.id,
         meta: { statut }, req });
       res.json({ success: true, chantier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

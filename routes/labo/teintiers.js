@@ -46,7 +46,7 @@ router.get('/', async (req, res) => {
     res.json({ systemes: Object.values(systemes) });
   } catch (e) {
     console.error('[LABO teintiers]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -77,7 +77,7 @@ router.get('/:code', async (req, res) => {
     });
   } catch (e) {
     console.error('[LABO teintier detail]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

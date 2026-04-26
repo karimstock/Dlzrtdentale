@@ -17,18 +17,20 @@ module.exports = function (router) {
       const { data } = await admin().from('juridique_disponibilites')
         .select('*').eq('profil_id', profilId).order('jour_semaine');
       res.json({ success: true, disponibilites: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.post('/agenda/disponibilites', requireSociete(), async (req, res) => {
     try {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(400).json({ error: 'Profil requis' });
+      const _ad = ['jour_semaine', 'heure_debut', 'heure_fin', 'type', 'mode'];
+      const _sd = {}; for (const k of _ad) { if (req.body[k] !== undefined) _sd[k] = req.body[k]; }
       const { data, error } = await admin().from('juridique_disponibilites')
-        .insert({ ...req.body, profil_id: profilId }).select('*').single();
+        .insert({ ..._sd, profil_id: profilId }).select('*').single();
       if (error) throw error;
       res.json({ success: true, disponibilite: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   router.put('/agenda/disponibilites', requireSociete(), async (req, res) => {
@@ -37,7 +39,8 @@ module.exports = function (router) {
       if (!profilId) return res.status(400).json({ error: 'Profil requis' });
       // Bulk replace: delete all then insert
       await admin().from('juridique_disponibilites').delete().eq('profil_id', profilId);
-      const rows = (req.body.disponibilites || []).map(d => ({ ...d, profil_id: profilId }));
+      const _ad2 = ['jour_semaine', 'heure_debut', 'heure_fin', 'type', 'mode'];
+      const rows = (req.body.disponibilites || []).map(d => { const s = { profil_id: profilId }; for (const k of _ad2) { if (d[k] !== undefined) s[k] = d[k]; } return s; });
       if (rows.length) {
         const { error } = await admin().from('juridique_disponibilites').insert(rows);
         if (error) throw error;
@@ -45,7 +48,7 @@ module.exports = function (router) {
       const { data } = await admin().from('juridique_disponibilites')
         .select('*').eq('profil_id', profilId).order('jour_semaine');
       res.json({ success: true, disponibilites: data || [] });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   router.delete('/agenda/disponibilites/:id', requireSociete(), async (req, res) => {
@@ -54,7 +57,7 @@ module.exports = function (router) {
       await admin().from('juridique_disponibilites')
         .delete().eq('id', req.params.id).eq('profil_id', profilId);
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // --- Blocages ---
@@ -65,7 +68,7 @@ module.exports = function (router) {
       const { data } = await admin().from('juridique_blocages')
         .select('*').eq('profil_id', profilId).order('date_debut', { ascending: false });
       res.json({ success: true, blocages: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.post('/agenda/blocages', requireSociete(), async (req, res) => {
@@ -76,7 +79,7 @@ module.exports = function (router) {
         .insert({ ...req.body, profil_id: profilId }).select('*').single();
       if (error) throw error;
       res.json({ success: true, blocage: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   router.delete('/agenda/blocages/:id', requireSociete(), async (req, res) => {
@@ -85,7 +88,7 @@ module.exports = function (router) {
       await admin().from('juridique_blocages')
         .delete().eq('id', req.params.id).eq('profil_id', profilId);
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // --- Bloquer journée entière (annule tous les RDV) ---
@@ -145,6 +148,6 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, annules, rembourses });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

@@ -17,7 +17,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ disponibilites: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -40,7 +40,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ disponibilite: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -60,7 +60,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ disponibilite: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -75,7 +75,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -92,7 +92,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ praticiens: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -117,7 +117,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'praticien_create', entity: 'services_praticiens', entityId: data.id, req });
       res.json({ praticien: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -137,7 +137,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ praticien: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -152,7 +152,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -177,7 +177,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ reservations: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

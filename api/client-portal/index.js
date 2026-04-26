@@ -42,10 +42,12 @@ function verifyPassword(password, stored) {
 }
 
 // ===== JWT (crypto HMAC, no jsonwebtoken dep) =====
+const JWT_SECRET = process.env.JWT_SECRET || (() => { const s = require('crypto').randomBytes(32).toString('hex'); console.warn('[WARN] JWT_SECRET not set'); return s; })();
+
 function createToken(payload) {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const body = Buffer.from(JSON.stringify({ ...payload, exp: Date.now() + 86400000 })).toString('base64url');
-  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'jadomi-client-portal-secret')
+  const sig = crypto.createHmac('sha256', JWT_SECRET)
     .update(header + '.' + body).digest('base64url');
   return header + '.' + body + '.' + sig;
 }
@@ -53,7 +55,7 @@ function createToken(payload) {
 function verifyToken(token) {
   try {
     const [header, body, sig] = token.split('.');
-    const expected = crypto.createHmac('sha256', process.env.JWT_SECRET || 'jadomi-client-portal-secret')
+    const expected = crypto.createHmac('sha256', JWT_SECRET)
       .update(header + '.' + body).digest('base64url');
     if (sig !== expected) return null;
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString());

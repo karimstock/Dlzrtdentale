@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
     res.json({ dentistes: data || [] });
   } catch (e) {
     console.error('[LABO dentistes GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -41,7 +41,7 @@ router.get('/recherche-cabinet', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('[LABO recherche cabinet]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -84,7 +84,7 @@ router.post('/', async (req, res) => {
     res.json({ success: true, dentiste: data });
   } catch (e) {
     console.error('[LABO dentistes POST]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -113,7 +113,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, dentiste: data });
   } catch (e) {
     console.error('[LABO dentistes PUT]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -131,7 +131,7 @@ router.get('/:id', async (req, res) => {
     res.json({ dentiste: data });
   } catch (e) {
     console.error('[LABO dentiste detail]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

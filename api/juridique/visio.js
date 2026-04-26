@@ -53,7 +53,7 @@ module.exports = function (router) {
           titre: rdv.offre?.titre || 'Consultation'
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Envoyer un message de signaling
@@ -69,7 +69,7 @@ module.exports = function (router) {
       if (room.messages.length > 100) room.messages = room.messages.slice(-50);
 
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Récupérer les messages de signaling (polling)
@@ -85,7 +85,7 @@ module.exports = function (router) {
       );
 
       res.json({ success: true, messages });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Chat textuel pendant la visio
@@ -100,7 +100,7 @@ module.exports = function (router) {
         timestamp: Date.now()
       });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.get('/visio/chat/:token', async (req, res) => {
@@ -111,6 +111,6 @@ module.exports = function (router) {
       const since = parseInt(req.query.since || '0');
       const chat = room.chat.filter(m => m.timestamp > since);
       res.json({ success: true, chat });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

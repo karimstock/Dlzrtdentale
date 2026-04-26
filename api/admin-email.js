@@ -5,7 +5,7 @@
 // =============================================
 
 const express = require('express');
-const Imap = require('imap');
+const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
 
@@ -54,113 +54,100 @@ function getMailer() {
 }
 
 // ===== IMAP : lire boite reception =====
-function fetchInbox({ limit = 50, since } = {}) {
-  return new Promise((resolve, reject) => {
-    const imap = new Imap({
-      user: process.env.SMTP_USER,
-      password: process.env.SMTP_PASS,
-      host: 'pro2.mail.ovh.net',
-      port: 993,
-      tls: true,
-      tlsOptions: { rejectUnauthorized: false },
-      connTimeout: 10000,
-      authTimeout: 10000
-    });
-
-    const messages = [];
-    const timeout = setTimeout(() => {
-      try { imap.end(); } catch (e) {}
-      resolve(messages);
-    }, 15000);
-
-    imap.once('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    imap.once('ready', () => {
-      imap.openBox('INBOX', true, (err) => {
-        if (err) { clearTimeout(timeout); imap.end(); return reject(err); }
-
-        const criteria = since ? [['SINCE', since]] : ['ALL'];
-        imap.search(criteria, (err, uids) => {
-          if (err) { clearTimeout(timeout); imap.end(); return reject(err); }
-          if (!uids || !uids.length) { clearTimeout(timeout); imap.end(); return resolve([]); }
-
-          // Prendre les derniers messages
-          const toFetch = uids.slice(-limit).reverse();
-          const f = imap.fetch(toFetch, { bodies: '', struct: true });
-          let pending = toFetch.length;
-
-          f.on('message', (msg, seqno) => {
-            let buffer = '';
-            msg.on('body', (stream) => {
-              stream.on('data', (chunk) => buffer += chunk.toString('utf8'));
-            });
-            msg.once('attributes', (attrs) => {
-              msg.once('end', async () => {
-                try {
-                  const parsed = await simpleParser(buffer);
-                  messages.push({
-                    uid: attrs.uid,
-                    seqno,
-                    date: parsed.date || attrs.date,
-                    from: parsed.from?.text || '',
-                    from_address: parsed.from?.value?.[0]?.address || '',
-                    to: parsed.to?.text || '',
-                    subject: parsed.subject || '(sans objet)',
-                    text: (parsed.text || '').slice(0, 500),
-                    html: parsed.html || null,
-                    flags: attrs.flags || [],
-                    seen: (attrs.flags || []).includes('\\Seen'),
-                    attachments: (parsed.attachments || []).map(a => ({
-                      filename: a.filename, size: a.size, contentType: a.contentType
-                    }))
-                  });
-                } catch (e) {}
-                pending--;
-                if (pending <= 0) { clearTimeout(timeout); imap.end(); resolve(messages); }
-              });
-            });
-          });
-
-          f.once('error', () => { clearTimeout(timeout); imap.end(); resolve(messages); });
-          f.once('end', () => {
-            if (pending <= 0) { clearTimeout(timeout); imap.end(); resolve(messages); }
-          });
-        });
-      });
-    });
-
-    imap.connect();
+async function fetchInbox({ limit = 50, since } = {}) {
+  const client = new ImapFlow({
+    host: 'pro2.mail.ovh.net',
+    port: 993,
+    secure: true,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    tls: { rejectUnauthorized: false },
+    logger: false
   });
+
+  const messages = [];
+  const timeout = setTimeout(() => {
+    try { client.close(); } catch (e) {}
+  }, 15000);
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      // Build search criteria
+      const criteria = since ? { since: new Date(since) } : { all: true };
+      const uids = [];
+      for await (const msg of client.fetch(criteria, { uid: true })) {
+        uids.push(msg.uid);
+      }
+      if (!uids.length) { clearTimeout(timeout); return []; }
+
+      // Prendre les derniers messages
+      const toFetch = uids.slice(-limit).reverse();
+      const uidRange = toFetch.join(',');
+
+      for await (const msg of client.fetch(uidRange, { source: true, flags: true, uid: true }, { uid: true })) {
+        try {
+          const parsed = await simpleParser(msg.source);
+          messages.push({
+            uid: msg.uid,
+            seqno: msg.seq,
+            date: parsed.date || null,
+            from: parsed.from?.text || '',
+            from_address: parsed.from?.value?.[0]?.address || '',
+            to: parsed.to?.text || '',
+            subject: parsed.subject || '(sans objet)',
+            text: (parsed.text || '').slice(0, 500),
+            html: parsed.html || null,
+            flags: Array.from(msg.flags || []),
+            seen: (msg.flags || new Set()).has('\\Seen'),
+            attachments: (parsed.attachments || []).map(a => ({
+              filename: a.filename, size: a.size, contentType: a.contentType
+            }))
+          });
+        } catch (e) {}
+      }
+    } finally {
+      lock.release();
+    }
+    clearTimeout(timeout);
+    await client.logout();
+  } catch (e) {
+    clearTimeout(timeout);
+    try { await client.logout(); } catch (_) {}
+    throw e;
+  }
+  return messages;
 }
 
 // Marquer lu/non lu via IMAP
-function setFlags(uid, flags, add = true) {
-  return new Promise((resolve, reject) => {
-    const imap = new Imap({
-      user: process.env.SMTP_USER,
-      password: process.env.SMTP_PASS,
-      host: 'pro2.mail.ovh.net',
-      port: 993, tls: true,
-      tlsOptions: { rejectUnauthorized: false },
-      connTimeout: 10000
-    });
-
-    imap.once('error', reject);
-    imap.once('ready', () => {
-      imap.openBox('INBOX', false, (err) => {
-        if (err) { imap.end(); return reject(err); }
-        const method = add ? 'addFlags' : 'delFlags';
-        imap[method](uid, flags, (err) => {
-          imap.end();
-          if (err) reject(err); else resolve(true);
-        });
-      });
-    });
-    imap.connect();
+async function setFlags(uid, flags, add = true) {
+  const client = new ImapFlow({
+    host: 'pro2.mail.ovh.net',
+    port: 993,
+    secure: true,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    tls: { rejectUnauthorized: false },
+    logger: false
   });
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      if (add) {
+        await client.messageFlagsAdd(String(uid), flags, { uid: true });
+      } else {
+        await client.messageFlagsRemove(String(uid), flags, { uid: true });
+      }
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+    return true;
+  } catch (e) {
+    try { await client.logout(); } catch (_) {}
+    throw e;
+  }
 }
 
 // ===== MOUNT ROUTES =====
@@ -179,7 +166,7 @@ function mountAdminEmail(app, supabase) {
       res.json({ success: true, messages, total: messages.length, unread });
     } catch (e) {
       console.error('[ADMIN email inbox]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -201,7 +188,7 @@ function mountAdminEmail(app, supabase) {
       res.json({ success: true, messageId: info.messageId });
     } catch (e) {
       console.error('[ADMIN email reply]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -211,7 +198,7 @@ function mountAdminEmail(app, supabase) {
       await setFlags(parseInt(req.params.uid), ['\\Seen'], true);
       res.json({ success: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -221,7 +208,7 @@ function mountAdminEmail(app, supabase) {
       await setFlags(parseInt(req.params.uid), ['\\Seen'], false);
       res.json({ success: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -298,7 +285,7 @@ function mountAdminEmail(app, supabase) {
       });
     } catch (e) {
       console.error('[ADMIN email segments]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -398,7 +385,7 @@ function mountAdminEmail(app, supabase) {
       });
     } catch (e) {
       console.error('[ADMIN email campagne]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -453,7 +440,7 @@ function mountAdminEmail(app, supabase) {
       res.setHeader('Content-Disposition', `attachment; filename="jadomi_${segment}_${new Date().toISOString().split('T')[0]}.csv"`);
       res.send(csv);
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

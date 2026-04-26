@@ -12,7 +12,7 @@ module.exports = function (router) {
       if (error) throw error;
       if (!data) return res.status(404).json({ error: 'Artisan non trouve' });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET avis publics par slug
@@ -28,7 +28,7 @@ module.exports = function (router) {
         .order('created_at', { ascending: false });
       if (error) throw error;
       res.json({ success: true, avis: avis || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST demande de devis publique
@@ -64,7 +64,7 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, demande: { id: demande.id } });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET recherche artisans
@@ -91,6 +91,6 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, artisans: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

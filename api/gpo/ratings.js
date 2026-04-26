@@ -13,6 +13,14 @@ module.exports = function mountRatings(app, admin, auth) {
       if (!request_id || !supplier_id || !societe_id) {
         return res.status(400).json({ error: 'request_id, supplier_id, societe_id requis' });
       }
+      // Validation des scores (0-5)
+      const scores = [quality_score, delivery_score, service_score, overall_score].filter(s => s !== undefined && s !== null);
+      if (scores.some(s => typeof s !== 'number' || s < 0 || s > 5 || isNaN(s))) {
+        return res.status(400).json({ error: 'Scores doivent etre entre 0 et 5' });
+      }
+      if (overall_score === undefined || overall_score === null) {
+        return res.status(400).json({ error: 'overall_score requis' });
+      }
 
       // Verifier pas de doublon
       const { data: existing } = await admin()
@@ -57,12 +65,12 @@ module.exports = function mountRatings(app, admin, auth) {
       res.json({ success: true, rating: data });
     } catch (e) {
       console.error('[GPO POST /ratings]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
   // GET /api/gpo/ratings/supplier/:id — voir notes d'un fournisseur
-  app.get('/api/gpo/ratings/supplier/:id', async (req, res) => {
+  app.get('/api/gpo/ratings/supplier/:id', auth, async (req, res) => {
     try {
       const { data, error } = await admin()
         .from('supplier_ratings')
@@ -81,7 +89,7 @@ module.exports = function mountRatings(app, admin, auth) {
       res.json({ ratings, average: Math.round(avg * 10) / 10, total: ratings.length });
     } catch (e) {
       console.error('[GPO GET /ratings/supplier/:id]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

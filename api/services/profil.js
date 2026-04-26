@@ -23,7 +23,7 @@ module.exports = function (router) {
       res.json({ profil: data });
     } catch (e) {
       console.error('[services/profil] GET:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -53,7 +53,7 @@ module.exports = function (router) {
       res.json({ profil: data });
     } catch (e) {
       console.error('[services/profil] POST:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -81,7 +81,7 @@ module.exports = function (router) {
       res.json({ profil: data });
     } catch (e) {
       console.error('[services/profil] PATCH:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

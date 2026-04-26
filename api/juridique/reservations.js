@@ -27,7 +27,7 @@ module.exports = function (router) {
 
       const { data } = await query;
       res.json({ success: true, reservations: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Détail d'une réservation
@@ -39,7 +39,7 @@ module.exports = function (router) {
         .eq('id', req.params.id).eq('profil_id', profilId).single();
       if (!data) return res.status(404).json({ error: 'not_found' });
       res.json({ success: true, reservation: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Changer le statut
@@ -111,7 +111,7 @@ module.exports = function (router) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, reservation: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Ajouter des notes
@@ -124,6 +124,6 @@ module.exports = function (router) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, reservation: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

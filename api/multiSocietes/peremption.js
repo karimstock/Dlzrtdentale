@@ -154,7 +154,7 @@ function mountPeremption(app) {
         total: rows.length
       };
       res.json({ success: true, counts, alertes: rows.slice(0, 20) });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Résumé par user (cabinet legacy)
@@ -173,7 +173,7 @@ function mountPeremption(app) {
         total: rows.length
       };
       res.json({ success: true, counts, alertes: rows.slice(0, 20) });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Marquer une alerte comme traitée (écoulée, détruite, etc.)
@@ -183,7 +183,7 @@ function mountPeremption(app) {
         traite: true, traite_at: new Date().toISOString()
       }).eq('id', req.params.id);
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Lancer un scan manuel (admin/debug)
@@ -191,7 +191,7 @@ function mountPeremption(app) {
     try {
       const r = await scanPeremptions();
       res.json({ success: true, ...r });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/peremption', router);

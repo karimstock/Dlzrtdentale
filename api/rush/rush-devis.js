@@ -68,7 +68,7 @@ function createDevisRouter(supabase) {
       res.json({ success: true, devis: data });
     } catch (e) {
       console.error('[RUSH devis POST]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -107,7 +107,7 @@ function createDevisRouter(supabase) {
       res.json({ success: true, devis: enriched });
     } catch (e) {
       console.error('[RUSH devis GET]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -158,7 +158,7 @@ function createDevisRouter(supabase) {
       });
     } catch (e) {
       console.error('[RUSH devis accepter]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

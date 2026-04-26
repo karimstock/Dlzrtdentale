@@ -47,7 +47,7 @@ module.exports = function mountCatalogue(app) {
       if (error) throw error;
       res.json({ success: true, produits: data || [] });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -66,7 +66,7 @@ module.exports = function mountCatalogue(app) {
       if (!g) return res.json({ success: true, found: false });
       res.json({ success: true, found: true, produit: g });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -114,7 +114,7 @@ module.exports = function mountCatalogue(app) {
       });
     } catch (e) {
       console.error('[catalogue/comparateur]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -167,7 +167,7 @@ module.exports = function mountCatalogue(app) {
       res.json({ success: true, produits: rows });
     } catch (e) {
       console.error('[catalogue/veille]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -185,7 +185,7 @@ module.exports = function mountCatalogue(app) {
       const anon = anonymiseFournisseurs(rows || [], req.societe.id);
       res.json({ success: true, fournisseurs: anon });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -206,7 +206,7 @@ module.exports = function mountCatalogue(app) {
       const anon = anonymiseFournisseurs(data || [], req.societe.id);
       res.json({ success: true, points: anon });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -241,7 +241,7 @@ module.exports = function mountCatalogue(app) {
       deals.sort((a, b) => (a.prix_ht / a.prix_moyen_ht) - (b.prix_ht / b.prix_moyen_ht));
       res.json({ success: true, deals: deals.slice(0, limit) });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -286,7 +286,7 @@ module.exports = function mountCatalogue(app) {
       surpayeur.sort((a, b) => (b.prix_ht / b.prix_moyen_ht) - (a.prix_ht / a.prix_moyen_ht));
       res.json({ success: true, produits: surpayeur.slice(0, limit) });
     } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

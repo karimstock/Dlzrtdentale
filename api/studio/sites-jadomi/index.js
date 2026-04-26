@@ -65,10 +65,10 @@ module.exports = function mountSitesJadomi(app, supabase) {
       let query = supabase.from('themes_sites').select('*').eq('actif', true).order('ordre');
       if (req.query.metier) query = query.eq('metier', req.query.metier);
       const { data, error } = await query;
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -87,7 +87,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
 
       return res.json({ site: data, sections: sections || [] });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -148,7 +148,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
         message: 'Site en cours de generation...'
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -167,7 +167,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       const url = '/sites/' + req.siteSlug + '/assets/' + req.file.filename;
       return res.json({ url, filename: req.file.filename, size: req.file.size });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -183,7 +183,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
         .eq('site_id', req.params.id)
         .eq('societe_id', req.societeId)
         .select().single();
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       // Regenerer async
       regenererSite(req.params.id, supabase, 'Modification section')
@@ -191,7 +191,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
 
       return res.json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -207,7 +207,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       const result = await genererSite(req.params.id, supabase);
       return res.json({ ...result, issues });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -220,10 +220,10 @@ module.exports = function mountSitesJadomi(app, supabase) {
         .select('id, commentaire, auteur_user_id, created_at')
         .eq('site_id', req.params.id).eq('societe_id', req.societeId)
         .order('created_at', { ascending: false }).limit(30);
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -233,11 +233,11 @@ module.exports = function mountSitesJadomi(app, supabase) {
   router.post('/:id/rollback/:version_id', requireAuth, async (req, res) => {
     try {
       const { data: version } = await supabase.from('sites_jadomi_versions')
-        .select('*').eq('id', req.params.version_id).eq('site_id', req.params.id).single();
+        .select('*').eq('id', req.params.version_id).eq('site_id', req.params.id).eq('societe_id', req.societeId).single();
       if (!version || !version.snapshot?.sections) return res.status(404).json({ error: 'Version non trouvee' });
 
       // Supprimer sections actuelles et restaurer
-      await supabase.from('sites_jadomi_sections').delete().eq('site_id', req.params.id);
+      await supabase.from('sites_jadomi_sections').delete().eq('site_id', req.params.id).eq('societe_id', req.societeId);
       for (const sec of version.snapshot.sections) {
         await supabase.from('sites_jadomi_sections').insert({
           site_id: req.params.id, societe_id: req.societeId,
@@ -248,7 +248,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       await regenererSite(req.params.id, supabase, 'Rollback vers version ' + req.params.version_id);
       return res.json({ success: true, message: 'Version restauree' });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -264,7 +264,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       const result = await regenererSite(req.params.id, supabase, 'Changement theme → ' + theme_code);
       return res.json(result);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -277,7 +277,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
     try {
       const { type, contexte_cabinet, texte_actuel } = req.body || {};
       const { data: site } = await supabase.from('sites_jadomi')
-        .select('metier, nom_affiche').eq('id', req.params.id).single();
+        .select('metier, nom_affiche').eq('id', req.params.id).eq('societe_id', req.societeId).single();
 
       const result = await suggestText(type || 'hero_titre', contexte_cabinet || site?.nom_affiche, texte_actuel, site?.metier);
 
@@ -289,7 +289,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
 
       return res.json(result);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -300,7 +300,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       const palettes = await suggestPalette(ambiance || 'premium');
       return res.json({ palettes });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -309,11 +309,11 @@ module.exports = function mountSitesJadomi(app, supabase) {
     try {
       const { section } = req.body || {};
       const { data: site } = await supabase.from('sites_jadomi')
-        .select('metier').eq('id', req.params.id).single();
+        .select('metier').eq('id', req.params.id).eq('societe_id', req.societeId).single();
       const photos = await suggestPhotos(section || 'hero', site?.metier || 'dentiste');
       return res.json({ photos });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -323,7 +323,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       const issues = await verifierSite(req.params.id, supabase);
       return res.json({ issues });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

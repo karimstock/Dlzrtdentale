@@ -206,7 +206,7 @@ module.exports = function mountCommerce(app) {
       .eq('societe_id', req.societe.id).eq('actif', true);
     if (q) qb = qb.or(`designation.ilike.%${q}%,reference.ilike.%${q}%,code_barre.eq.${q}`);
     const { data, count, error } = await qb.order('designation').range(from, to);
-    if (error) return res.status(500).json({ success: false, error: error.message });
+    if (error) return res.status(500).json({ success: false, error: 'Erreur interne' });
 
     const total = count || 0;
     res.json({
@@ -225,7 +225,7 @@ module.exports = function mountCommerce(app) {
       const { data, error } = await admin().from('produits_societe').insert(p).select('*').single();
       if (error) throw error;
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/produits/:id', requireSociete(), async (req, res) => {
     try {
@@ -234,7 +234,7 @@ module.exports = function mountCommerce(app) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.delete('/produits/:id', requireSociete(), async (req, res) => {
     await admin().from('produits_societe').update({ actif: false })
@@ -305,7 +305,7 @@ module.exports = function mountCommerce(app) {
           action: 'import_csv', entity: 'produits',
           meta: { inserted: job.inserted, failed: job.failed, total: rows.length }, req });
       })().catch(e => { job.status = 'error'; job.error = e.message; job.finished_at = Date.now(); });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Progression d'un job d'import
@@ -404,7 +404,7 @@ ${html}`
         next_page_url: result.next_page_url || null,
         remaining: limits.remaining
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Import CSV/XLSX avec support variantes
@@ -426,7 +426,7 @@ ${html}`
           const sheet = wb.Sheets[wb.SheetNames[0]];
           rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         } catch (e) {
-          return res.status(400).json({ error: 'Fichier Excel invalide. ' + e.message });
+          return res.status(400).json({ error: 'Fichier Excel invalide' });
         }
       } else {
         rows = csvParse(req.file.buffer, { columns: true, skip_empty_lines: true, trim: true, bom: true });
@@ -478,7 +478,7 @@ ${html}`
       }
 
       res.json({ success: true, produits, count: produits.length, remaining: limits.remaining });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Import via PDF/Photo — Claude Haiku
@@ -531,7 +531,7 @@ Retourne UNIQUEMENT un JSON valide : {"produits": [...]}` }
 
       const produits = result.produits || [];
       res.json({ success: true, produits, count: produits.length, remaining: limits.remaining });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Validation finale : import les produits sélectionnés en base avec variantes
@@ -604,7 +604,7 @@ Retourne UNIQUEMENT un JSON valide : {"produits": [...]}` }
         meta: { inserted, failed, source, total: produits.length }, req });
 
       res.json({ success: true, inserted, failed });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Template CSV téléchargeable
@@ -641,7 +641,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .insert({ ...req.body, societe_id: req.societe.id }).select('*').single();
       if (error) throw error;
       res.json({ success: true, client: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/clients/:id', requireSociete(), async (req, res) => {
     try {
@@ -650,7 +650,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, client: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.delete('/clients/:id', requireSociete(), async (req, res) => {
     await admin().from('clients_societe').delete()
@@ -678,7 +678,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         } catch {}
       }
       res.json({ success: true, inserted });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // =====================================================================
@@ -710,7 +710,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'devis', entityId: data.id, req });
       res.json({ success: true, devis: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/devis/:id', requireSociete(), async (req, res) => {
     try {
@@ -732,7 +732,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, devis: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.get('/devis/:id/pdf', requireSociete(), async (req, res) => {
     try {
@@ -747,7 +747,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${d.numero}.pdf"`);
       res.end(pdf);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
   router.post('/devis/:id/envoyer', requireSociete(), async (req, res) => {
     try {
@@ -770,7 +770,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       await admin().from('devis').update({ statut: 'envoye', envoye_at: new Date().toISOString() })
         .eq('id', d.id);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Devis → Facture (en 1 clic)
@@ -798,7 +798,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       await admin().from('devis').update({ statut: 'accepte', accepte_at: new Date().toISOString() })
         .eq('id', d.id);
       res.json({ success: true, facture: f });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // =====================================================================
@@ -848,7 +848,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'facture', entityId: f.id, req });
       res.json({ success: true, facture: f });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/factures/:id', requireSociete(), async (req, res) => {
     try {
@@ -871,7 +871,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, facture: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Suppression : uniquement brouillon
@@ -892,7 +892,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         action: 'delete_brouillon', entity: 'facture', entityId: req.params.id,
         meta: { numero: current.numero }, req });
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.get('/factures/:id/pdf', requireSociete(), async (req, res) => {
     try {
@@ -907,7 +907,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${f.numero}.pdf"`);
       res.end(pdf);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
   router.post('/factures/:id/envoyer', requireSociete(), async (req, res) => {
     try {
@@ -953,7 +953,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       }
 
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Création lien de paiement Stripe
@@ -987,7 +987,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       await admin().from('factures_societe').update({ stripe_payment_link: link.url })
         .eq('id', f.id);
       res.json({ success: true, url: link.url });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Paiement encaissé manuellement
@@ -1019,7 +1019,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       }
 
       res.json({ success: true, facture: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // =====================================================================
@@ -1055,7 +1055,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       res.json({ success: true });
     } catch (e) {
       console.error('[webhook wordpress]', e.message);
-      res.status(500).json({ success: false, error: e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -1071,7 +1071,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .order('created_at', { ascending: false });
       if (error) throw error;
       res.json({ success: true, avoirs: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.get('/factures/:id/avoirs', requireSociete(), async (req, res) => {
@@ -1083,7 +1083,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .order('created_at', { ascending: false });
       if (error) throw error;
       res.json({ success: true, avoirs: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Création d'un avoir sur une facture
@@ -1161,7 +1161,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         meta: { facture_id: f.id, numero: avoir.numero, type_avoir: typeAv }, req
       });
       res.json({ success: true, avoir });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PDF avoir
@@ -1180,7 +1180,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${a.numero}.pdf"`);
       res.end(pdf);
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { res.status(500).send('Erreur interne'); }
   });
 
   // Envoi avoir par email
@@ -1206,7 +1206,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       });
       await admin().from('avoirs').update({ envoye_at: new Date().toISOString() }).eq('id', a.id);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // =====================================================================
@@ -1252,7 +1252,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         can_see_margins: canSeeMargins(req.role),
         pagination: { page, limit, total: count || 0, pages: Math.ceil((count || 0) / limit) }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET alertes stock (faible + rupture)
@@ -1269,7 +1269,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       const rupture = rows.filter(r => r.statut_stock === 'rupture').length;
       const faible = rows.filter(r => r.statut_stock === 'faible').length;
       res.json({ success: true, alertes: rows, rupture, faible, total: rows.length });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // PATCH prix_achat d'un produit (owner/associe uniquement)
@@ -1286,7 +1286,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'update_prix_achat', entity: 'produit', entityId: data.id, req });
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST mouvement stock manuel (ajustement / inventaire / entrée / sortie)
@@ -1340,7 +1340,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       } catch (_) {}
 
       res.json({ success: true, mouvement: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET historique mouvements d'un produit
@@ -1351,7 +1351,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
         .order('created_at', { ascending: false }).limit(200);
       if (error) throw error;
       res.json({ success: true, mouvements: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // =====================================================================
@@ -1424,7 +1424,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
           nb_devis, nb_devis_envoyes, nb_devis_acceptes, taux_conversion
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Top produits par volume / CA / marge (période au choix)
@@ -1478,7 +1478,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       rows = rows.slice(0, limit);
 
       res.json({ success: true, range, tri: sortKey, produits: rows, can_see_margins: canSeeMargins(req.role) });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Simulation promo — marge après remise
@@ -1518,7 +1518,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
           seuil_remise_max, recommandation
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Prévision rupture : vélocité (sorties/vente des 30 derniers jours) → jours restants
@@ -1572,7 +1572,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       });
 
       res.json({ success: true, produits: rows, periode_jours: days });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // =====================================================================
@@ -1610,7 +1610,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
           ca_ttc, encaisse, impayes
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/commerce', router);

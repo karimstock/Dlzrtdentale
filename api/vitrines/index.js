@@ -107,7 +107,7 @@ module.exports = function mountVitrines(app) {
       const results = await crawlSite(targetUrl, Math.min(max_pages || 20, 30));
       return res.json(results);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

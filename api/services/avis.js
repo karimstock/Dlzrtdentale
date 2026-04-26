@@ -19,7 +19,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ avis: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -45,7 +45,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'avis_update', entity: 'services_avis', entityId: req.params.id, req });
       res.json({ avis: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -61,7 +61,7 @@ module.exports = function (router) {
       await updateNoteMoyenne(req.societe.id);
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

@@ -25,7 +25,7 @@ module.exports = function (router) {
       query = query.order('created_at', { ascending: false });
       const { data } = await query;
       res.json({ success: true, produits: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET un produit
@@ -36,7 +36,7 @@ module.exports = function (router) {
         .select('*').eq('id', req.params.id).eq('profil_id', profilId).maybeSingle();
       if (!data) return res.status(404).json({ error: 'Produit introuvable' });
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST créer un produit
@@ -89,14 +89,16 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'showroom_produit', entityId: data.id, req });
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier un produit
   router.patch('/produits/:id', requireSociete(), async (req, res) => {
     try {
       const profilId = await getProfilId(req.societe.id);
-      const updates = { ...req.body, updated_at: new Date().toISOString() };
+      const _ap = ['nom', 'description', 'prix_vente', 'prix_location_jour', 'caution_location', 'duree_location_min', 'duree_location_max', 'delai_sur_mesure_jours', 'prix_sur_mesure_base', 'photos', 'tailles', 'couleurs', 'matieres', 'collection', 'stock', 'poids', 'dimensions', 'metal', 'pierres', 'poincon', 'certificat', 'gravure', 'taille_bague', 'categorie', 'actif'];
+      const _sp = {}; for (const k of _ap) { if (req.body[k] !== undefined) _sp[k] = req.body[k]; }
+      const updates = { ..._sp, updated_at: new Date().toISOString() };
       const { data, error } = await admin().from('showroom_produits')
         .update(updates).eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
@@ -104,7 +106,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'update', entity: 'showroom_produit', entityId: data.id, req });
       res.json({ success: true, produit: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // DELETE un produit (soft delete)
@@ -119,7 +121,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'delete', entity: 'showroom_produit', entityId: data.id, req });
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST générer une description via JADOMI IA (Haiku)
@@ -152,7 +154,7 @@ La description doit être poétique, raffinée, mettre en valeur le savoir-faire
       res.json({ success: true, description });
     } catch (e) {
       console.error('[showroom/ia-description]', e.message);
-      res.status(500).json({ success: false, error: 'Erreur JADOMI IA : ' + e.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -165,6 +167,6 @@ La description doit être poétique, raffinée, mettre en valeur le savoir-faire
         .select('collection').eq('profil_id', profilId).not('collection', 'is', null);
       const unique = [...new Set((data || []).map(d => d.collection).filter(Boolean))];
       res.json({ success: true, collections: unique });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

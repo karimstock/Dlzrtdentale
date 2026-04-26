@@ -49,3 +49,22 @@ Ne JAMAIS modifier sans demande explicite :
 - node -c (syntax check) avant tout reload PM2
 - pm2 reload (pas restart) pour zero downtime
 - Validation etape par etape, pas de big bang
+
+## Methode Builder/Reviewer OBLIGATOIRE
+Pour chaque tache non-triviale dans une passe :
+1. Lancer des agents BUILDERS en parallele (1 par tache)
+2. Des qu'un builder finit, lancer un agent REVIEWER derriere
+3. Le reviewer verifie : securite, bugs, perf, edge cases, XSS, IDOR
+4. Le reviewer corrige directement + node -c apres chaque fix
+5. Bilan des corrections dans le rapport de passe
+Instauree Passe 52. Resultats : 57 bugs rattrapes sur 3 passes (52-54).
+
+## BASEPLAN — Documents fondateur OBLIGATOIRE
+La BASEPLAN regroupe TOUS les documents fondateur du projet :
+- docs/DOSSIER-AVOCAT-JADOMI.html (dossier juridique, CGV, questions avocat)
+- docs/business-plan-jadomi.html (business plan banque, projections, marche)
+- docs/dossier-avocat-jadomi.html (version complementaire avec annexes)
+A chaque mise a jour du CODEX (fin de passe), verifier si la BASEPLAN
+doit etre enrichie (nouvelles features → impact juridique ou business).
+Accessible dans le dashboard admin onglet "Documents" (organisation.html).
+Envoyable par email via /api/admin/send-documents.

@@ -172,7 +172,7 @@ module.exports = function(router) {
       res.json({ success: true, media: insertRes.data });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -196,7 +196,7 @@ module.exports = function(router) {
       res.json({ success: true, media: result.media, analysis: result.analysis, comment: result.comment });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -223,7 +223,7 @@ module.exports = function(router) {
       res.json({ success: true, medias: medias, categories: categories });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -266,7 +266,7 @@ module.exports = function(router) {
       res.json({ success: true, updated: updated, deleted: deleted });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -299,7 +299,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      if (!res.headersSent) res.status(500).json({ success: false, error: err.message });
+      if (!res.headersSent) res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -313,7 +313,7 @@ module.exports = function(router) {
       res.json({ success: true, status: j.status, completed: j.completed, total: j.total, progress_pct: Math.round((j.completed / Math.max(j.total, 1)) * 100) });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -333,7 +333,7 @@ module.exports = function(router) {
       res.json({ success: true });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -356,7 +356,7 @@ module.exports = function(router) {
       res.json({ success: true, media: updRes.data });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -384,7 +384,7 @@ module.exports = function(router) {
       res.json({ success: true, photos: photos });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -407,7 +407,7 @@ module.exports = function(router) {
       res.json({ success: true, categories: categories });
     } catch (err) {
       console.error('[vitrines/photos]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

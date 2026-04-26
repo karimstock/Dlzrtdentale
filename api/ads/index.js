@@ -36,7 +36,8 @@ const upload = multer({
 });
 
 // --- Constantes ---
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'jadomi_admin_karim_2026';
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+if (!ADMIN_TOKEN) console.warn('[ADS] ADMIN_TOKEN absent — routes admin desactivees');
 const TIER_PRIORITY = { enterprise: 3, pro: 2, starter: 1, free: 0 };
 const CAMPAIGN_REQUIRED_FIELDS = ['name', 'objective', 'budget_total', 'bid_amount', 'slot_type'];
 const VALID_STATUSES = ['draft', 'pending_review', 'active', 'paused', 'completed', 'rejected', 'archived'];

@@ -1,6 +1,7 @@
 // JADOMI — Showroom Créateurs : Commandes
 const { admin, requireSociete, auditLog } = require('../multiSocietes/middleware');
 const mailer = require('../multiSocietes/mailer');
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 const COMMISSION_PCT = parseFloat(process.env.JADOMI_SHOWROOM_COMMISSION_PCT || '5');
 
@@ -30,7 +31,7 @@ module.exports = function (router) {
 
       const { data } = await query;
       res.json({ success: true, commandes: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET une commande
@@ -42,7 +43,7 @@ module.exports = function (router) {
         .eq('id', req.params.id).eq('profil_id', profilId).maybeSingle();
       if (!data) return res.status(404).json({ error: 'Commande introuvable' });
       res.json({ success: true, commande: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // PATCH mettre à jour le statut
@@ -100,7 +101,7 @@ module.exports = function (router) {
         action: 'update_statut', entity: 'showroom_commande', entityId: data.id,
         meta: { ancien: cmd.statut, nouveau: statut }, req });
       res.json({ success: true, commande: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST gérer la caution (location)
@@ -142,7 +143,7 @@ module.exports = function (router) {
       } else {
         res.status(400).json({ error: 'action doit être encaisser ou restituer' });
       }
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // POST initier un retour (location)
@@ -177,7 +178,7 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, commande: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET stats commandes
@@ -216,6 +217,6 @@ module.exports = function (router) {
           sur_mesure: commandes.filter(c => c.type === 'sur_mesure').length
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

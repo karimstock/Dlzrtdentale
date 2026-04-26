@@ -21,7 +21,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, clients: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer client
@@ -30,14 +30,16 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ac = ['nom', 'prenom', 'email', 'telephone', 'adresse', 'code_postal', 'ville', 'siret', 'type_client', 'notes'];
+      const _sb = {}; for (const k of _ac) { if (req.body[k] !== undefined) _sb[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_clients')
-        .insert({ ...req.body, profil_id: profilId })
+        .insert({ ..._sb, profil_id: profilId })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_clients', entityId: data.id, req });
       res.json({ success: true, client: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier client
@@ -46,13 +48,15 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ac2 = ['nom', 'prenom', 'email', 'telephone', 'adresse', 'code_postal', 'ville', 'siret', 'type_client', 'notes'];
+      const _ub = { updated_at: new Date().toISOString() }; for (const k of _ac2) { if (req.body[k] !== undefined) _ub[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_clients')
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update(_ub)
         .eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, client: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET detail client avec historique chantiers
@@ -71,6 +75,6 @@ module.exports = function (router) {
         .order('date_debut', { ascending: false });
 
       res.json({ success: true, client, chantiers: chantiers || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

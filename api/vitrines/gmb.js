@@ -69,7 +69,7 @@ module.exports = function(router) {
       res.json({ success: true, gmb: gmbData });
     } catch (err) {
       console.error('[vitrines/gmb]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -110,7 +110,7 @@ module.exports = function(router) {
       res.json({ success: true, results: results });
     } catch (err) {
       console.error('[vitrines/gmb]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

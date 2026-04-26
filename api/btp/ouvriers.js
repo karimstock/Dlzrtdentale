@@ -18,7 +18,7 @@ module.exports = function (router) {
       const { data, error } = await q;
       if (error) throw error;
       res.json({ success: true, ouvriers: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST creer ouvrier
@@ -27,14 +27,16 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ao = ['nom', 'prenom', 'telephone', 'email', 'poste', 'taux_horaire', 'statut'];
+      const _so = {}; for (const k of _ao) { if (req.body[k] !== undefined) _so[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_ouvriers')
-        .insert({ ...req.body, profil_id: profilId })
+        .insert({ ..._so, profil_id: profilId })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_ouvriers', entityId: data.id, req });
       res.json({ success: true, ouvrier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier ouvrier
@@ -43,13 +45,15 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _ao2 = ['nom', 'prenom', 'telephone', 'email', 'poste', 'taux_horaire', 'statut'];
+      const _uo = { updated_at: new Date().toISOString() }; for (const k of _ao2) { if (req.body[k] !== undefined) _uo[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_ouvriers')
-        .update({ ...req.body, updated_at: new Date().toISOString() })
+        .update(_uo)
         .eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, ouvrier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // DELETE soft delete ouvrier (actif=false)
@@ -66,6 +70,6 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'soft_delete', entity: 'btp_ouvriers', entityId: data.id, req });
       res.json({ success: true, ouvrier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

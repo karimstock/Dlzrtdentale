@@ -2,6 +2,9 @@
 // JADOMI — GPO Suppliers (gestion fournisseurs, admin)
 // =============================================
 
+function escLike(s) { return String(s).replace(/%/g, '\\%').replace(/_/g, '\\_'); }
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 module.exports = function mountSuppliers(app, admin, auth) {
 
   // POST /api/gpo/suppliers — creer un fournisseur
@@ -32,7 +35,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
       res.json({ success: true, supplier: data });
     } catch (e) {
       console.error('[GPO POST /suppliers]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -49,7 +52,8 @@ module.exports = function mountSuppliers(app, admin, auth) {
       if (req.query.tier) query = query.eq('subscription_tier', req.query.tier);
       if (req.query.region) query = query.eq('region', req.query.region);
       if (req.query.search) {
-        query = query.or(`name.ilike.%${req.query.search}%,email.ilike.%${req.query.search}%,city.ilike.%${req.query.search}%`);
+        const safe = escLike(req.query.search);
+        query = query.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,city.ilike.%${safe}%`);
       }
 
       const limit = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -62,7 +66,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
       res.json({ suppliers: data || [], total: count });
     } catch (e) {
       console.error('[GPO GET /suppliers]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -96,7 +100,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
       res.json({ success: true, supplier: data });
     } catch (e) {
       console.error('[GPO PATCH /suppliers/:id]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -150,7 +154,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
       res.json({ success: true });
     } catch (e) {
       console.error('[GPO POST /suppliers/:id/invite]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -227,7 +231,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
       });
     } catch (e) {
       console.error('[GPO POST /import-from-invoices]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -263,7 +267,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
       res.json(stats);
     } catch (e) {
       console.error('[GPO GET /suppliers/stats]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

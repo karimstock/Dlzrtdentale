@@ -85,7 +85,7 @@ module.exports = function(router) {
       res.json({ success: true, tabs: tabs, site_id: siteId });
     } catch (err) {
       console.error('[vitrines/dashboard-v2]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -112,7 +112,7 @@ module.exports = function(router) {
       res.json({ success: true, tab: insRes.data });
     } catch (err) {
       console.error('[vitrines/dashboard-v2]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -133,7 +133,7 @@ module.exports = function(router) {
       res.json({ success: true, tab: updRes.data });
     } catch (err) {
       console.error('[vitrines/dashboard-v2]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -145,7 +145,7 @@ module.exports = function(router) {
       await admin().from('dashboard_tabs').update({ is_archived: true }).eq('id', req.params.tabId);
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -157,7 +157,7 @@ module.exports = function(router) {
       var wRes = await admin().from('dashboard_widgets').select('*').eq('tab_id', req.params.tabId).order('position_y').order('position_x');
       res.json({ success: true, widgets: wRes.data || [] });
     } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -179,7 +179,7 @@ module.exports = function(router) {
       if (insRes.error) throw insRes.error;
       res.json({ success: true, widget: insRes.data });
     } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -196,7 +196,7 @@ module.exports = function(router) {
       if (updRes.error) throw updRes.error;
       res.json({ success: true, widget: updRes.data });
     } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -208,7 +208,7 @@ module.exports = function(router) {
       await admin().from('dashboard_widgets').delete().eq('id', req.params.widgetId);
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -260,7 +260,7 @@ module.exports = function(router) {
       res.json({ success: true, response: assistantMsg });
     } catch (err) {
       console.error('[vitrines/dashboard-v2]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -272,7 +272,7 @@ module.exports = function(router) {
       var convRes = await admin().from('dashboard_ia_conversations').select('messages').eq('tab_id', req.params.tabId).maybeSingle();
       res.json({ success: true, messages: convRes.data ? convRes.data.messages : [] });
     } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

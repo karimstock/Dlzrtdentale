@@ -27,7 +27,7 @@ module.exports = function (router) {
       const { data } = await admin().from('showroom_avis')
         .select('*').eq('profil_id', profilId).order('created_at', { ascending: false });
       res.json({ success: true, avis: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Répondre à un avis
@@ -40,7 +40,7 @@ module.exports = function (router) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, avis: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Toggle visibilité
@@ -54,7 +54,7 @@ module.exports = function (router) {
       if (error) throw error;
       await updateNoteMoyenne(profilId);
       res.json({ success: true, avis: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET stats avis
@@ -78,6 +78,6 @@ module.exports = function (router) {
           distribution
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

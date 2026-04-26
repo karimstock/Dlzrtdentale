@@ -25,17 +25,18 @@ const upload = multer({
   }
 });
 
-// Auth middleware
-function authMiddleware(req, res, next) {
+// Auth middleware — verification JWT via Supabase (pas juste decode)
+async function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Non authentifié' });
+  if (!token) return res.status(401).json({ error: 'Non authentifie' });
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    req.user = { id: payload.sub, email: payload.email };
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) return res.status(401).json({ error: 'Token invalide' });
+    req.user = { id: data.user.id, email: data.user.email };
+    next();
   } catch (e) {
     return res.status(401).json({ error: 'Token invalide' });
   }
-  next();
 }
 
 // POST /api/media/upload
@@ -132,7 +133,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
     });
   } catch (e) {
     console.error('Upload error:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

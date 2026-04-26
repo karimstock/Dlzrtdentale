@@ -40,7 +40,7 @@ module.exports = function (router) {
         .eq('slug', req.params.slug).eq('actif', true).maybeSingle();
       if (!data) return res.status(404).json({ error: 'Professionnel introuvable' });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Offres publiques
@@ -54,7 +54,7 @@ module.exports = function (router) {
         .select('id, type, titre, description, duree_minutes, prix, delai_livraison_jours')
         .eq('profil_id', profil.id).eq('actif', true).order('ordre');
       res.json({ success: true, offres: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Créneaux disponibles (prochains 30 jours)
@@ -131,7 +131,7 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, slots });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Avis publics
@@ -146,7 +146,7 @@ module.exports = function (router) {
         .eq('profil_id', profil.id).eq('visible', true)
         .order('created_at', { ascending: false });
       res.json({ success: true, avis: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Créer une réservation + paiement Stripe
@@ -211,7 +211,7 @@ module.exports = function (router) {
         client_secret: paymentIntent.client_secret,
         visio_url: visioUrl
       });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Confirmer après paiement Stripe réussi
@@ -280,7 +280,7 @@ module.exports = function (router) {
       }
 
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Annulation client
@@ -331,7 +331,7 @@ module.exports = function (router) {
         });
         res.json({ success: true, rembourse: false, message: 'Annulation < 24h : non remboursable' });
       }
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Laisser un avis (après consultation terminée)
@@ -372,7 +372,7 @@ module.exports = function (router) {
       }).eq('id', rdv.profil_id);
 
       res.json({ success: true, avis: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // Recherche de professionnels
@@ -386,7 +386,8 @@ module.exports = function (router) {
         query = query.contains('specialites', [req.query.specialite]);
       }
       if (req.query.ville) {
-        query = query.ilike('ville', `%${req.query.ville}%`);
+        const sanitizedVille = req.query.ville.replace(/[%_]/g, '');
+        if (sanitizedVille) query = query.ilike('ville', `%${sanitizedVille}%`);
       }
       if (req.query.type) {
         query = query.eq('type_professionnel', req.query.type);
@@ -428,7 +429,7 @@ module.exports = function (router) {
       }
 
       res.json({ success: true, professionnels: results });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Domaines disponibles avec comptage
@@ -450,7 +451,7 @@ module.exports = function (router) {
       }));
 
       res.json({ success: true, domaines: result });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // Suggestions par type de société

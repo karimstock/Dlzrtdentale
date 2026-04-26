@@ -89,7 +89,7 @@ module.exports = function(router) {
       res.json({ success: true, sections: sections });
     } catch (err) {
       console.error('[vitrines/site-editor]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -105,7 +105,7 @@ module.exports = function(router) {
       res.json({ success: true, sections: secRes.data || [] });
     } catch (err) {
       console.error('[vitrines/site-editor]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -129,7 +129,7 @@ module.exports = function(router) {
       res.json({ success: true, section: updRes.data });
     } catch (err) {
       console.error('[vitrines/site-editor]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -154,7 +154,7 @@ module.exports = function(router) {
       res.json({ success: true, section: insRes.data });
     } catch (err) {
       console.error('[vitrines/site-editor]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -212,7 +212,7 @@ module.exports = function(router) {
       res.json({ success: true, propositions: propositions, field_path: fieldPath, style: styleHint });
     } catch (err) {
       console.error('[vitrines/site-editor]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

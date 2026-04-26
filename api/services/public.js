@@ -21,7 +21,7 @@ module.exports = function (router) {
       if (!data) return res.status(404).json({ error: 'Profil introuvable' });
       res.json({ profil: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -44,7 +44,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ praticiens: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -67,7 +67,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ prestations: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -176,7 +176,7 @@ module.exports = function (router) {
       res.json({ slots, duree });
     } catch (e) {
       console.error('[services/public] disponibilites:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -200,7 +200,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ avis: data || [], note_moyenne: profil.note_moyenne, nb_avis: profil.nb_avis });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -309,7 +309,7 @@ module.exports = function (router) {
       });
     } catch (e) {
       console.error('[services/public] reserver:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -378,7 +378,7 @@ module.exports = function (router) {
       res.json({ reservation: data });
     } catch (e) {
       console.error('[services/public] confirmer:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -438,7 +438,7 @@ module.exports = function (router) {
       res.json({ reservation: data, remboursement, refund_amount: refundAmount });
     } catch (e) {
       console.error('[services/public] annuler:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

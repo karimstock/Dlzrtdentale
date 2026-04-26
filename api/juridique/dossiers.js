@@ -15,10 +15,13 @@ module.exports = function (router) {
       let query = admin().from('juridique_dossiers')
         .select('*').eq('profil_id', profilId).order('created_at', { ascending: false });
       if (req.query.statut) query = query.eq('statut', req.query.statut);
-      if (req.query.search) query = query.or(`client_nom.ilike.%${req.query.search}%,titre_dossier.ilike.%${req.query.search}%`);
+      if (req.query.search) {
+        const sanitized = req.query.search.replace(/[%_,().]/g, '');
+        if (sanitized) query = query.or(`client_nom.ilike.%${sanitized}%,titre_dossier.ilike.%${sanitized}%`);
+      }
       const { data } = await query;
       res.json({ success: true, dossiers: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.get('/dossiers/:id', requireSociete(), async (req, res) => {
@@ -37,18 +40,21 @@ module.exports = function (router) {
         : { data: [] };
 
       res.json({ success: true, dossier, reservations: reservations || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   router.post('/dossiers', requireSociete(), async (req, res) => {
     try {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(400).json({ error: 'Profil requis' });
+      const allowedDossier = ['titre_dossier', 'client_nom', 'client_email', 'client_telephone', 'type_dossier', 'statut', 'description', 'honoraires_total', 'notes'];
+      const safeDossier = {};
+      for (const k of allowedDossier) { if (req.body[k] !== undefined) safeDossier[k] = req.body[k]; }
       const { data, error } = await admin().from('juridique_dossiers')
-        .insert({ ...req.body, profil_id: profilId }).select('*').single();
+        .insert({ ...safeDossier, profil_id: profilId }).select('*').single();
       if (error) throw error;
       res.json({ success: true, dossier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   router.patch('/dossiers/:id', requireSociete(), async (req, res) => {
@@ -60,6 +66,6 @@ module.exports = function (router) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, dossier: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

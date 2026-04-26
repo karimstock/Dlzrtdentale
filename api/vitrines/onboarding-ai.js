@@ -49,7 +49,7 @@ module.exports = function(router) {
       res.json({ success: true });
     } catch (err) {
       console.error('[vitrines/onboarding]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -71,7 +71,7 @@ module.exports = function(router) {
       res.json({ success: true, session: data || null });
     } catch (err) {
       console.error('[vitrines/onboarding]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

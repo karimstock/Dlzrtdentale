@@ -146,10 +146,9 @@ router.post('/coffre/unlock', requireAvocat, async (req, res) => {
   }
 
   if (!destination) {
-    // Pas de destination dispo → unlock direct (fallback)
-    await admin().from('avocat_coffre_auth').update({ last_access: new Date().toISOString() }).eq('avocat_societe_id', req.societeId);
-    await logAudit(req.userId, 'avocat', 'coffre_unlock', 'coffre', req.societeId, req, true, { otp: 'skipped_no_destination' });
-    return res.json({ success: true, message: 'Coffre deverrouille.', session_minutes: 15 });
+    // SECURITE : bloquer si aucune destination OTP configuree (ne jamais bypass le 2FA)
+    await logAudit(req.userId, 'avocat', 'coffre_unlock_blocked', 'coffre', req.societeId, req, false, { otp: 'no_destination_configured' });
+    return res.status(400).json({ error: 'Aucune destination OTP configuree. Configurez votre email ou telephone dans les preferences du coffre.' });
   }
 
   // Sauvegarder le code OTP
@@ -169,10 +168,9 @@ router.post('/coffre/unlock', requireAvocat, async (req, res) => {
       message: 'Code envoye par ' + canal + '. Valable 5 minutes.'
     });
   } else {
-    // Fallback : si envoi echoue, unlock direct
-    await admin().from('avocat_coffre_auth').update({ last_access: new Date().toISOString() }).eq('avocat_societe_id', req.societeId);
-    await logAudit(req.userId, 'avocat', 'coffre_unlock', 'coffre', req.societeId, req, true, { otp: 'fallback_send_failed' });
-    return res.json({ success: true, message: 'Coffre deverrouille (code non envoye).', session_minutes: 15 });
+    // SECURITE : ne jamais bypass le 2FA si l'envoi echoue
+    await logAudit(req.userId, 'avocat', 'otp_send_failed', 'coffre', req.societeId, req, false, { canal, error: sendResult.error });
+    return res.status(503).json({ error: 'Envoi du code OTP echoue. Reessayez ou changez de canal (SMS/Email).' });
   }
 });
 
@@ -293,7 +291,7 @@ router.post('/coffre/clients', requireAvocat, async (req, res) => {
       message: 'Client cree. Email d\'invitation a envoyer.'
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -302,7 +300,7 @@ router.get('/coffre/clients', requireAvocat, async (req, res) => {
   const { data, error } = await admin().from('avocat_clients')
     .select('id, nom, prenom, email, telephone, statut, last_login, created_at')
     .eq('avocat_societe_id', req.societeId).order('created_at', { ascending: false });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return res.status(500).json({ error: 'Erreur interne' });
   return res.json(data || []);
 });
 
@@ -321,7 +319,7 @@ router.get('/coffre/dossiers', requireAvocat, async (req, res) => {
 // GET /coffre/dossiers/:id — Detail dossier + documents
 router.get('/coffre/dossiers/:id', requireAvocat, async (req, res) => {
   const { data: dossier } = await admin().from('avocat_dossiers')
-    .select('*, avocat_clients(nom, prenom, email)').eq('id', req.params.id).single();
+    .select('*, avocat_clients(nom, prenom, email)').eq('id', req.params.id).eq('avocat_societe_id', req.societeId).single();
   if (!dossier) return res.status(404).json({ error: 'Dossier non trouve' });
 
   const { data: docs } = await admin().from('avocat_coffre_documents')
@@ -345,11 +343,17 @@ router.post('/coffre/documents/upload', requireAvocat, upload.single('file'), as
     const { dossier_id, note } = req.body || {};
     if (!dossier_id) return res.status(400).json({ error: 'dossier_id requis' });
 
+    // SECURITE : verifier que le dossier appartient a cette societe
+    const { data: dossierCheck } = await admin().from('avocat_dossiers')
+      .select('id').eq('id', dossier_id).eq('avocat_societe_id', req.societeId).single();
+    if (!dossierCheck) return res.status(403).json({ error: 'Dossier non autorise' });
+
     // Chiffrer le fichier
     const { encrypted, iv, tag } = encryptBuffer(req.file.buffer);
 
     // Stocker
     const fileDir = path.join(COFFRE_DIR, req.societeId, dossier_id);
+    if (!fileDir.startsWith(path.resolve(COFFRE_DIR))) return res.status(400).json({ error: 'Chemin invalide' });
     if (!fs.existsSync(fileDir)) fs.mkdirSync(fileDir, { recursive: true });
     const fileId = crypto.randomUUID();
     const filePath = path.join(fileDir, fileId);
@@ -364,21 +368,24 @@ router.post('/coffre/documents/upload', requireAvocat, upload.single('file'), as
       note_client: note || null
     }).select().single();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return res.status(500).json({ error: 'Erreur interne' });
 
     await logAudit(req.userId, 'avocat', 'document_upload', 'document', doc.id, req, true, { filename: req.file.originalname, size_kb: Math.round(req.file.size / 1024) });
 
     return res.status(201).json({ document: { id: doc.id, filename: doc.filename, file_size_kb: doc.file_size_kb }, message: 'Document chiffre et stocke.' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
 // GET /coffre/documents/:id/download — Telecharger dechiffre
 router.get('/coffre/documents/:id/download', requireAvocat, async (req, res) => {
   try {
-    const { data: doc } = await admin().from('avocat_coffre_documents').select('*').eq('id', req.params.id).single();
+    const { data: doc } = await admin().from('avocat_coffre_documents')
+      .select('*, avocat_dossiers!inner(avocat_societe_id)')
+      .eq('id', req.params.id).single();
     if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (doc.avocat_dossiers.avocat_societe_id !== req.societeId) return res.status(403).json({ error: 'Acces refuse' });
 
     const encrypted = fs.readFileSync(doc.storage_path);
     const decrypted = decryptBuffer(encrypted, doc.encryption_iv, doc.encryption_tag);
@@ -389,7 +396,7 @@ router.get('/coffre/documents/:id/download', requireAvocat, async (req, res) => 
     res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
     return res.send(decrypted);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -399,8 +406,16 @@ router.get('/coffre/documents/:id/download', requireAvocat, async (req, res) => 
 
 // POST /coffre/documents/:id/comment
 router.post('/coffre/documents/:id/comment', requireAvocat, async (req, res) => {
+  try {
   const { content } = req.body || {};
   if (!content) return res.status(400).json({ error: 'Contenu requis' });
+
+  // SECURITE : verifier ownership via dossier
+  const { data: docCheck } = await admin().from('avocat_coffre_documents')
+    .select('id, avocat_dossiers!inner(avocat_societe_id)')
+    .eq('id', req.params.id).single();
+  if (!docCheck || docCheck.avocat_dossiers.avocat_societe_id !== req.societeId)
+    return res.status(403).json({ error: 'Acces refuse' });
 
   const { data } = await admin().from('avocat_coffre_commentaires').insert({
     document_id: req.params.id, author_id: req.userId, author_role: 'avocat', content
@@ -408,16 +423,26 @@ router.post('/coffre/documents/:id/comment', requireAvocat, async (req, res) => 
 
   await logAudit(req.userId, 'avocat', 'comment_add', 'document', req.params.id, req, true);
   return res.status(201).json(data);
+  } catch (err) { console.error('[coffre/comment]', err.message); return res.status(500).json({ error: 'Erreur interne' }); }
 });
 
 // PATCH /coffre/documents/:id/validate
 router.patch('/coffre/documents/:id/validate', requireAvocat, async (req, res) => {
+  try {
   const { statut } = req.body || {};
   if (!['valide', 'refuse', 'a_modifier'].includes(statut)) return res.status(400).json({ error: 'Statut invalide' });
+
+  // SECURITE : verifier ownership via dossier
+  const { data: docVal } = await admin().from('avocat_coffre_documents')
+    .select('id, avocat_dossiers!inner(avocat_societe_id)')
+    .eq('id', req.params.id).single();
+  if (!docVal || docVal.avocat_dossiers.avocat_societe_id !== req.societeId)
+    return res.status(403).json({ error: 'Acces refuse' });
 
   await admin().from('avocat_coffre_documents').update({ statut_validation: statut }).eq('id', req.params.id);
   await logAudit(req.userId, 'avocat', 'document_validate', 'document', req.params.id, req, true, { statut });
   return res.json({ success: true, statut });
+  } catch (err) { console.error('[coffre/validate]', err.message); return res.status(500).json({ error: 'Erreur interne' }); }
 });
 
 // ================================================

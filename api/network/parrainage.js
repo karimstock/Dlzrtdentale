@@ -51,7 +51,7 @@ module.exports = function (router) {
       res.json({ ok: true, code: data });
     } catch (e) {
       console.error('[parrainage/mon-code]', e.message);
-      res.status(500).json({ error: 'parrainage_code_error', message: e.message });
+      res.status(500).json({ error: 'parrainage_code_error', message: 'Erreur interne' });
     }
   });
 
@@ -79,7 +79,7 @@ module.exports = function (router) {
       res.json({ ok: true, referrals: data || [], stats });
     } catch (e) {
       console.error('[parrainage/mes-referrals]', e.message);
-      res.status(500).json({ error: 'referrals_error', message: e.message });
+      res.status(500).json({ error: 'referrals_error', message: 'Erreur interne' });
     }
   });
 
@@ -106,7 +106,7 @@ module.exports = function (router) {
       res.json({ ok: true, gains, totaux: { total, paye, en_attente } });
     } catch (e) {
       console.error('[parrainage/mes-gains]', e.message);
-      res.status(500).json({ error: 'gains_error', message: e.message });
+      res.status(500).json({ error: 'gains_error', message: 'Erreur interne' });
     }
   });
 
@@ -147,7 +147,7 @@ module.exports = function (router) {
       res.json({ ok: true, visite_id: data.id });
     } catch (e) {
       console.error('[parrainage/track]', e.message);
-      res.status(500).json({ error: 'track_error', message: e.message });
+      res.status(500).json({ error: 'track_error', message: 'Erreur interne' });
     }
   });
 
@@ -232,7 +232,7 @@ module.exports = function (router) {
       res.json({ ok: true, referral });
     } catch (e) {
       console.error('[parrainage/attribuer]', e.message);
-      res.status(500).json({ error: 'attribuer_error', message: e.message });
+      res.status(500).json({ error: 'attribuer_error', message: 'Erreur interne' });
     }
   });
 };

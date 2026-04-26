@@ -149,6 +149,7 @@ h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margi
 const SU='https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNTE1ODksImV4cCI6MjA5MDcyNzU4OX0.RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF_W6H_T76tSjk';
 let db,token,societeId;
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 (async function(){
   db=supabase.createClient(SU,SK);
@@ -233,9 +234,9 @@ async function loadClients(){
   if(!clients.length){el.innerHTML='<div class="card" style="text-align:center;padding:32px;"><p style="color:var(--ink-d);">Aucun client. Creez votre premier client pour commencer.</p></div>';return;}
   el.innerHTML=clients.map(c=>`
     <div class="client-card" onclick="openClient('${c.id}')">
-      <div class="client-avatar">${(c.prenom||'?')[0]}${(c.nom||'?')[0]}</div>
-      <div class="client-info"><div class="client-name">${c.prenom||''} ${c.nom}</div><div class="client-email">${c.email}</div></div>
-      <span class="badge ${c.statut==='actif'?'badge-ok':'badge-new'}">${c.statut}</span>
+      <div class="client-avatar">${esc((c.prenom||'?')[0])}${esc((c.nom||'?')[0])}</div>
+      <div class="client-info"><div class="client-name">${esc(c.prenom||'')} ${esc(c.nom)}</div><div class="client-email">${esc(c.email)}</div></div>
+      <span class="badge ${c.statut==='actif'?'badge-ok':'badge-new'}">${esc(c.statut)}</span>
     </div>
   `).join('');
 }
@@ -272,8 +273,8 @@ async function openDossier(dossierId){
 
   document.getElementById('dossier-content').innerHTML=`
     <div class="card">
-      <h3>&#128193; ${d.titre||d.reference}</h3>
-      <div style="font-size:12px;color:var(--ink-d);">Ref : ${d.reference||'—'} &middot; Type : ${d.type||'—'} &middot; Client : ${d.avocat_clients?.prenom||''} ${d.avocat_clients?.nom||''}</div>
+      <h3>&#128193; ${esc(d.titre||d.reference)}</h3>
+      <div style="font-size:12px;color:var(--ink-d);">Ref : ${esc(d.reference||'—')} &middot; Type : ${esc(d.type||'—')} &middot; Client : ${esc(d.avocat_clients?.prenom||'')} ${esc(d.avocat_clients?.nom||'')}</div>
     </div>
 
     <div class="card">
@@ -288,14 +289,14 @@ async function openDossier(dossierId){
         return `<div class="doc-item">
           <div class="doc-header">
             <span class="doc-icon">${doc.mime_type?.includes('pdf')?'&#128196;':doc.mime_type?.includes('image')?'&#128248;':doc.mime_type?.includes('audio')?'&#127925;':'&#128196;'}</span>
-            <span class="doc-name">${doc.filename}</span>
+            <span class="doc-name">${esc(doc.filename)}</span>
             <span class="badge ${doc.statut_validation==='valide'?'badge-ok':doc.statut_validation==='refuse'?'badge-new':''}">
               ${doc.statut_validation==='valide'?'Valide':doc.statut_validation==='refuse'?'Refuse':doc.statut_validation==='a_modifier'?'A modifier':'En attente'}
             </span>
           </div>
           <div class="doc-meta">${doc.file_size_kb} KB &middot; ${doc.uploaded_by_role} &middot; ${new Date(doc.created_at).toLocaleString('fr-FR')}</div>
-          ${doc.note_client?'<div class="doc-note">Note : '+doc.note_client+'</div>':''}
-          ${docComments.map(c=>'<div class="comment '+(c.author_role==='avocat'?'avocat':'')+'"><strong>'+(c.author_role==='avocat'?'Vous':'Client')+'</strong> : '+c.content+'</div>').join('')}
+          ${doc.note_client?'<div class="doc-note">Note : '+esc(doc.note_client)+'</div>':''}
+          ${docComments.map(c=>'<div class="comment '+(c.author_role==='avocat'?'avocat':'')+'"><strong>'+(c.author_role==='avocat'?'Vous':'Client')+'</strong> : '+esc(c.content)+'</div>').join('')}
           <div class="doc-actions">
             <button class="btn btn-s" onclick="downloadDoc('${doc.id}')">Telecharger</button>
             <button class="btn btn-s" style="color:var(--success);" onclick="validateDoc('${doc.id}','valide')">&#10003; Valider</button>

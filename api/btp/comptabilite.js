@@ -74,7 +74,7 @@ module.exports = function (router) {
           marge_moyenne: marge_moyenne != null ? Math.round(marge_moyenne * 100) / 100 : null
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET CA detaille
@@ -101,7 +101,7 @@ module.exports = function (router) {
       });
 
       res.json({ success: true, ca: { par_type_travaux: parType, par_mois: parMois } });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET charges
@@ -115,7 +115,7 @@ module.exports = function (router) {
         .order('date_charge', { ascending: false });
       if (error) throw error;
       res.json({ success: true, charges: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST ajouter charge
@@ -124,14 +124,16 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
+      const _acc = ['type', 'montant', 'description', 'date_operation', 'categorie', 'chantier_id', 'client_id', 'reference_facture', 'mode_paiement'];
+      const _scc = {}; for (const k of _acc) { if (req.body[k] !== undefined) _scc[k] = req.body[k]; }
       const { data, error } = await admin().from('btp_charges')
-        .insert({ ...req.body, profil_id: profilId })
+        .insert({ ..._scc, profil_id: profilId })
         .select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'btp_charges', entityId: data.id, req });
       res.json({ success: true, charge: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET export CSV annee
@@ -169,7 +171,7 @@ module.exports = function (router) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename=export-btp-${annee}.csv`);
       res.send('\uFEFF' + csv); // BOM pour Excel
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // GET resume TVA annee
@@ -226,6 +228,6 @@ module.exports = function (router) {
           a_reverser: Math.round(a_reverser * 100) / 100
         }
       });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };

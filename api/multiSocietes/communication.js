@@ -168,7 +168,7 @@ module.exports = function mountCommunication(app) {
       res.json({ contacts: data || [], total: (data || []).length });
     } catch (e) {
       console.error('[communication/contacts]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -197,7 +197,7 @@ module.exports = function mountCommunication(app) {
       res.json({ ok: true, contact: data });
     } catch (e) {
       console.error('[communication/contacts/add]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -210,7 +210,7 @@ module.exports = function mountCommunication(app) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -268,7 +268,7 @@ module.exports = function mountCommunication(app) {
       });
     } catch (e) {
       console.error('[communication/import]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -290,7 +290,7 @@ module.exports = function mountCommunication(app) {
       if (error) throw error;
       res.json({ campagnes: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -318,7 +318,7 @@ module.exports = function mountCommunication(app) {
       if (error) throw error;
       res.json({ ok: true, campagne: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -379,7 +379,7 @@ module.exports = function mountCommunication(app) {
 
       res.json({ ok: true, sent, total: emails.length });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -436,7 +436,7 @@ module.exports = function mountCommunication(app) {
         taux_ouverture: totalEnvoyes > 0 ? Math.round(totalOuverts / totalEnvoyes * 100) : 0
       });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

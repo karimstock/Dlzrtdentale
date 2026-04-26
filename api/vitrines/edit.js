@@ -139,7 +139,7 @@ module.exports = function(router) {
       res.json({ success: true, section: updated });
     } catch (err) {
       console.error('[vitrines/edit]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -216,7 +216,7 @@ module.exports = function(router) {
       res.json({ success: true, section: updated, new_value: newValue });
     } catch (err) {
       console.error('[vitrines/edit]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -322,7 +322,7 @@ module.exports = function(router) {
       res.json({ success: true, media: newMedia });
     } catch (err) {
       console.error('[vitrines/edit]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -427,14 +427,14 @@ module.exports = function(router) {
 
       stream.on('error', (err) => {
         console.error('[vitrines/edit] Erreur Claude:', err);
-        res.write('data: ' + JSON.stringify({ type: 'error', error: err.message }) + '\n\n');
+        res.write('data: ' + JSON.stringify({ type: 'error', error: 'Erreur interne' }) + '\n\n');
         res.end();
       });
 
     } catch (err) {
       console.error('[vitrines/edit]', err);
       if (!res.headersSent) {
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({ success: false, error: 'Erreur interne' });
       }
     }
   });

@@ -158,7 +158,7 @@ module.exports = function(router) {
       res.json({ success: true, extracted: extracted });
     } catch (err) {
       console.error('[vitrines/scraper]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

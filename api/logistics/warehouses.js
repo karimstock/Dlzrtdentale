@@ -21,7 +21,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
       res.json({ warehouses: data || [] });
     } catch (e) {
       console.error('[Logistics GET /warehouses]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -51,7 +51,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
       res.json({ success: true, warehouse: data });
     } catch (e) {
       console.error('[Logistics POST /warehouses]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -74,7 +74,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
       res.json({ success: true, warehouse: data });
     } catch (e) {
       console.error('[Logistics PATCH /warehouses/:id]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -120,7 +120,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
       res.json({ success: true, warehouse: data });
     } catch (e) {
       console.error('[Logistics POST /warehouses/public]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

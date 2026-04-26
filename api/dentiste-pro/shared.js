@@ -20,7 +20,11 @@ function admin() {
 }
 
 // ===== JWT shared (HMAC-SHA256, 30 jours) =====
-const JWT_SECRET = () => process.env.JWT_SECRET || 'jadomi-dentiste-pro-secret';
+const JWT_SECRET = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) { console.warn('[WARN] JWT_SECRET non defini — tokens ne survivront pas au restart'); return require('crypto').randomBytes(32).toString('hex'); }
+  return secret;
+};
 const TOKEN_EXPIRY = 30 * 24 * 60 * 60 * 1000; // 30 jours
 
 // ===== Generic JWT verify (shared between patient & labo) =====
@@ -209,8 +213,8 @@ function requirePermission(module) {
       next();
     } catch (e) {
       console.error('[requirePermission]', e.message);
-      // En cas d'erreur, laisser passer (fail-open pour ne pas bloquer le proprietaire)
-      next();
+      // SECURITE : fail-closed — ne jamais laisser passer sans verification
+      return res.status(500).json({ error: 'Erreur verification permissions' });
     }
   };
 }

@@ -85,7 +85,7 @@ module.exports = function mountCalculate(app, admin, auth) {
       });
     } catch (e) {
       console.error('[Logistics POST /calculate]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

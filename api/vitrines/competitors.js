@@ -86,7 +86,7 @@ module.exports = function(router) {
       res.json({ success: true, competitors: competitors, ville: ville });
     } catch (err) {
       console.error('[vitrines/competitors]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -113,7 +113,7 @@ module.exports = function(router) {
       res.json({ success: true, competitors: data });
     } catch (err) {
       console.error('[vitrines/competitors]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

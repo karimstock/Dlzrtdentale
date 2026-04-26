@@ -27,7 +27,8 @@ module.exports = function mountSitesExistants(app, supabase) {
   function dechiffrer(donnees_chiffrees, iv, tag) {
     if (!KEY_BUFFER) throw new Error('SITE_CREDENTIALS_KEY non configuree');
     const decipher = crypto.createDecipheriv('aes-256-gcm', KEY_BUFFER, Buffer.from(iv, 'hex'));
-    if (tag) decipher.setAuthTag(Buffer.from(tag, 'hex'));
+    if (!tag) throw new Error('Auth tag manquant — donnees corrompues');
+    decipher.setAuthTag(Buffer.from(tag, 'hex'));
     let decrypted = decipher.update(donnees_chiffrees, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return JSON.parse(decrypted);
@@ -148,14 +149,14 @@ module.exports = function mountSitesExistants(app, supabase) {
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       return res.status(201).json({
         site: data,
         instructions_acces: instructions
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -294,7 +295,7 @@ module.exports = function mountSitesExistants(app, supabase) {
         test_message: testMessage
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -346,7 +347,7 @@ module.exports = function mountSitesExistants(app, supabase) {
 
       return res.json({ test_ok: testOk, test_message: testMessage });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -361,10 +362,10 @@ module.exports = function mountSitesExistants(app, supabase) {
         .eq('societe_id', req.societeId)
         .order('created_at', { ascending: false });
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
       return res.json(data || []);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -402,7 +403,7 @@ module.exports = function mountSitesExistants(app, supabase) {
         interventions: interventions || []
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -418,7 +419,7 @@ module.exports = function mountSitesExistants(app, supabase) {
         .eq('site_id', req.params.id)
         .eq('societe_id', req.societeId);
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) return res.status(500).json({ error: 'Erreur interne' });
 
       await supabase
         .from('sites_existants')
@@ -428,7 +429,7 @@ module.exports = function mountSitesExistants(app, supabase) {
 
       return res.json({ message: 'Credentials supprimes' });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

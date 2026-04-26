@@ -14,7 +14,7 @@ module.exports = function (router) {
       const { data } = await admin().from('showroom_profil')
         .select('*').eq('societe_id', req.societe.id).maybeSingle();
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST créer profil
@@ -35,9 +35,11 @@ module.exports = function (router) {
         slug = `${baseSlug}-${attempt}`;
       }
 
+      const _ash = ['nom_boutique', 'description', 'adresse', 'ville', 'code_postal', 'telephone', 'email', 'type_createur', 'specialites', 'logo_url', 'banner_url', 'horaires'];
+      const _ssh = {}; for (const k of _ash) { if (req.body[k] !== undefined) _ssh[k] = req.body[k]; }
       const { data, error } = await admin().from('showroom_profil')
         .insert({
-          ...req.body,
+          ..._ssh,
           societe_id: req.societe.id,
           user_id: req.user.id,
           slug,
@@ -51,13 +53,14 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'showroom_profil', entityId: data.id, req });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // PATCH modifier profil
   router.patch('/profil/:id', requireSociete(), async (req, res) => {
     try {
-      const updates = { ...req.body, updated_at: new Date().toISOString() };
+      const _ash2 = ['nom_boutique', 'description', 'adresse', 'ville', 'code_postal', 'telephone', 'email', 'type_createur', 'specialites', 'logo_url', 'banner_url', 'horaires', 'slug'];
+      const updates = { updated_at: new Date().toISOString() }; for (const k of _ash2) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
       // Si changement de slug, vérifier unicité
       if (updates.slug) {
         updates.slug = slugify(updates.slug);
@@ -72,7 +75,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'update', entity: 'showroom_profil', entityId: data.id, req });
       res.json({ success: true, profil: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // DELETE profil (soft delete)
@@ -86,6 +89,6 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'delete', entity: 'showroom_profil', entityId: data.id, req });
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 };

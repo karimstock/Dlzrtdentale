@@ -4,6 +4,53 @@
 const { sendCounterProposalNotification } = require('../../lib/emails/supplier-offer');
 const { sendDentistAcceptedEmail } = require('../../lib/emails/dentist-offer-accepted');
 
+/**
+ * Cherche les prix marche pour les items d'une commande GPO.
+ * Retourne un tableau d'objets { item_name, prices: [{ supplier, price }] }
+ */
+/** Echappe les wildcards ilike (%,_) pour Supabase/PostgreSQL */
+function escLike(s) {
+  return String(s).replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+async function lookupMarketPricesForItems(admin, items) {
+  const result = [];
+  try {
+    for (const item of (items || [])) {
+      const name = (item.name || '').trim();
+      if (!name) continue;
+
+      const { data: products } = await admin()
+        .from('products')
+        .select('id, name, name_fr')
+        .or(`name.ilike.%${escLike(name)}%,name_fr.ilike.%${escLike(name)}%`)
+        .limit(1);
+
+      if (!products || products.length === 0) continue;
+
+      const { data: prices } = await admin()
+        .from('supplier_prices')
+        .select('supplier_name, price_catalog, price_negotiated')
+        .eq('product_id', products[0].id)
+        .order('price_catalog', { ascending: true })
+        .limit(5);
+
+      if (prices && prices.length > 0) {
+        result.push({
+          item_name: name,
+          prices: prices.map(p => ({
+            supplier: p.supplier_name,
+            price: Number(p.price_negotiated || p.price_catalog)
+          }))
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[GPO lookupMarketPricesForItems]', e.message);
+  }
+  return result;
+}
+
 // Helper : recuperer email du dentiste proprietaire de la societe
 async function getDentistInfo(admin, societeId) {
   try {
@@ -85,6 +132,20 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
         isGreenTest = !history || !history.is_first_order_done;
       }
 
+      // Intelligence prix marche (best-effort, ne bloque pas si erreur)
+      let market_price_intel = [];
+      try {
+        market_price_intel = await lookupMarketPricesForItems(admin, request?.items || []);
+      } catch (e) {
+        console.warn('[GPO offer] market price lookup error:', e.message);
+      }
+
+      // Calculer le % reduction cible vs marche
+      let target_discount_pct = null;
+      if (request?.total_target_eur && request?.total_market_eur && request.total_market_eur > 0) {
+        target_discount_pct = Math.round((1 - request.total_target_eur / request.total_market_eur) * 100);
+      }
+
       // NE PAS exposer les infos du dentiste (email, tel, adresse)
       res.json({
         attempt_id: attempt.id,
@@ -99,11 +160,13 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
         savings_eur: request?.savings_eur,
         is_green_test: isGreenTest,
         green_test_discount: isGreenTest ? 0.15 : 0,
-        created_at: attempt.created_at
+        created_at: attempt.created_at,
+        market_price_intel,
+        target_discount_pct
       });
     } catch (e) {
       console.error('[GPO GET /public/offer/:token]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -164,47 +227,131 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
           is_first_order_done: true
         }, { onConflict: 'supplier_id,societe_id' });
 
-      // --- NOTIFICATIONS DENTISTE (3 canaux) ---
+      // --- Pre-fetch dentist info ---
       const dentist = await getDentistInfo(admin, request.societe_id);
       const supplierName = s?.name || 'Fournisseur';
       const itemsCount = Array.isArray(request.items) ? request.items.length : 0;
 
-      // A) Email
+      // --- IDENTITY REVEAL AFTER PRICE LOCK ---
+      let orderData = null;
+      let order = null;
+      try {
+        // 1) Fetch cabinet details
+        const { data: cabinet } = await admin()
+          .from('societes')
+          .select('nom, adresse, code_postal, ville, siret, email, telephone, tva_intracom')
+          .eq('id', request.societe_id)
+          .maybeSingle();
+
+        // 2) Generate order number
+        let orderNum = null;
+        let fallbackOrderNum = 'JD-' + new Date().getFullYear() + '-' + Date.now().toString(36).toUpperCase().slice(-6);
+        try {
+          const { data: rpcNum } = await admin().rpc('generate_order_number');
+          orderNum = rpcNum;
+        } catch (rpcErr) {
+          console.warn('[GPO] generate_order_number RPC failed, using fallback:', rpcErr.message);
+        }
+
+        // 3) Create gpo_orders record
+        orderData = {
+          gpo_request_id: request.id,
+          gpo_attempt_id: attempt.id,
+          societe_id: request.societe_id,
+          cabinet_name: cabinet?.nom || 'Cabinet',
+          cabinet_adresse: cabinet?.adresse || null,
+          cabinet_code_postal: cabinet?.code_postal || null,
+          cabinet_ville: cabinet?.ville || null,
+          cabinet_siret: cabinet?.siret || null,
+          cabinet_email: cabinet?.email || dentist?.email || null,
+          cabinet_telephone: cabinet?.telephone || null,
+          cabinet_tva_intracom: cabinet?.tva_intracom || null,
+          supplier_id: attempt.supplier_id,
+          supplier_name: supplierName,
+          supplier_email: s?.email || null,
+          supplier_telephone: s?.phone || null,
+          items: request.items,
+          total_ht: finalPrice,
+          total_ttc: finalPrice ? +(finalPrice * 1.2).toFixed(2) : null,
+          original_target_price: request.total_target_eur,
+          supplier_accepted_price: finalPrice,
+          price_locked_at: now,
+          order_number: orderNum || fallbackOrderNum,
+          status: 'confirmed'
+        };
+        const { data: insertedOrder } = await admin().from('gpo_orders').insert(orderData).select().single();
+        order = insertedOrder;
+
+        // 4) Send supplier reveal email (best-effort)
+        try {
+          const { sendSupplierOrderConfirmation } = require('../../lib/emails/supplier-order-confirmation');
+          await sendSupplierOrderConfirmation({
+            supplierEmail: s?.email,
+            supplierName,
+            cabinet,
+            order: { number: orderData.order_number, accepted_at: orderData.price_locked_at },
+            items: request.items
+          });
+        } catch (emailErr) {
+          console.warn('[GPO] Supplier order confirmation email not sent:', emailErr.message);
+        }
+      } catch (revealErr) {
+        console.warn('[GPO] Identity reveal / order creation failed (table may not exist yet):', revealErr.message);
+        // Nullify orderData so downstream notifications don't reference a non-existent order
+        orderData = null;
+        order = null;
+      }
+
+      // --- NOTIFICATIONS DENTISTE (3 canaux, apres order creation pour avoir orderNumber) ---
+      const effectiveOrderNumber = orderData?.order_number || null;
+
+      // A) Email (enriched with order number + supplier details)
       if (dentist?.email) {
         sendDentistAcceptedEmail({
           dentistEmail: dentist.email,
           supplierName,
           request,
-          finalPrice
+          finalPrice,
+          orderNumber: effectiveOrderNumber,
+          supplierDetails: { name: supplierName, email: s?.email || null, phone: s?.phone || null }
         }).catch(e => console.error('[GPO] Dentist email error:', e.message));
       }
 
-      // B) Notification in-app
+      // B) Notification in-app (include order number when available)
       if (dentist?.user_id) {
+        const orderRef = effectiveOrderNumber ? ` (${effectiveOrderNumber})` : '';
         pushGpoNotification(admin, {
           user_id: dentist.user_id,
           societe_id: request.societe_id,
           type: 'gpo_accepted',
           titre: `Commande acceptee par ${supplierName}`,
-          message: `Votre commande de ${itemsCount} produit${itemsCount > 1 ? 's' : ''} a ete acceptee au tarif de ${finalPrice ? Number(finalPrice).toFixed(2) + '\u20ac' : 'tarif cible'}.`,
-          cta_url: '/index.html',
+          message: `Votre commande${orderRef} de ${itemsCount} produit${itemsCount > 1 ? 's' : ''} a ete acceptee au tarif de ${finalPrice ? Number(finalPrice).toFixed(2) + '\u20ac' : 'tarif cible'}.`,
+          cta_url: '/index.html?tab=commandes',
           entity_id: request.id
         });
       }
 
-      res.json({ success: true, message: 'Commande acceptee', final_price_eur: finalPrice });
+      // 5) Response with order info
+      res.json({
+        success: true,
+        message: 'Commande acceptee',
+        final_price_eur: finalPrice,
+        order_number: orderData?.order_number || null,
+        order_id: order?.id || null
+      });
     } catch (e) {
       console.error('[GPO POST /accept]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
   // POST /api/gpo/public/offer/:token/counter — contre-proposition
   app.post('/api/gpo/public/offer/:token/counter', publicLimiter, async (req, res) => {
     try {
-      const { counter_price_eur, comment } = req.body;
-      if (!counter_price_eur || counter_price_eur <= 0) {
-        return res.status(400).json({ error: 'counter_price_eur requis (> 0)' });
+      const { comment } = req.body;
+      const counter_price_eur = Number(req.body.counter_price_eur);
+      if (!Number.isFinite(counter_price_eur) || counter_price_eur <= 0 || counter_price_eur > 1000000) {
+        return res.status(400).json({ error: 'counter_price_eur invalide (nombre positif <= 1M requis)' });
       }
 
       const { data: attempt, error } = await admin()
@@ -271,7 +418,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
       res.json({ success: true, message: 'Contre-proposition envoyee' });
     } catch (e) {
       console.error('[GPO POST /counter]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -310,7 +457,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
       res.json({ success: true, message: 'Offre refusee, passage au fournisseur suivant' });
     } catch (e) {
       console.error('[GPO POST /refuse]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -340,7 +487,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
       res.json({ success: true, message: 'Compte active' });
     } catch (e) {
       console.error('[GPO POST /signup-extra]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

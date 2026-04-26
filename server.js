@@ -61,6 +61,22 @@ app.use(cors({
   credentials: true
 }));
 
+// ===== SECURITE JADOMI — Headers protection niveau etatique =====
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=self, microphone=self, geolocation=self');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co; frame-src https://js.stripe.com;");
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+  }
+  next();
+});
+
 // === Security: Rate limiting ===
 const rateLimit = require('express-rate-limit');
 
@@ -191,6 +207,7 @@ app.get('/espace-client/', (req, res) => res.sendFile(path.join(__dirname, 'publ
 // Sites staging JADOMI — copies pour modification (Passe 43)
 app.use('/sites-staging/:slug', (req, res, next) => {
   const slug = req.params.slug;
+  if (!/^[a-zA-Z0-9_-]+$/.test(slug)) return res.status(400).send('Invalid slug');
   const stagingPath = path.join(__dirname, 'uploads', 'staging', slug);
   if (require('fs').existsSync(stagingPath)) {
     express.static(stagingPath)(req, res, next);
@@ -201,6 +218,7 @@ app.use('/sites-staging/:slug', (req, res, next) => {
 // Sites clients JADOMI — routage dynamique /sites/:slug (Passe 38)
 app.use('/sites/:slug', (req, res, next) => {
   const slug = req.params.slug;
+  if (!/^[a-zA-Z0-9_-]+$/.test(slug)) return res.status(400).send('Invalid slug');
   const sitePath = path.join(__dirname, 'sites-clients', slug);
   if (require('fs').existsSync(sitePath)) {
     express.static(sitePath)(req, res, next);
@@ -224,7 +242,8 @@ app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaire
 app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
 // Servir /assets depuis /public/assets (pour les images landings)
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
-app.use(express.static(path.join(__dirname)));
+app.use('/docs', express.static(path.join(__dirname, 'docs')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Anthropic Claude client ---
 const anthropic = new Anthropic({
@@ -233,7 +252,8 @@ const anthropic = new Anthropic({
 
 // --- Supabase client ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+if (!SUPABASE_KEY) console.error('[CRITICAL] SUPABASE_KEY non defini dans .env');
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- Supabase admin (service_role) : bypass RLS, usage server-only, JAMAIS expose au client ---
@@ -350,13 +370,6 @@ try {
   require('./api/showroom/index')(app);
 } catch (e) {
   console.warn('[JADOMI] Module showroom non chargé:', e.message);
-}
-
-// === JADOMI Network (Annuaire + Parrainage + Deals) ===
-try {
-  require('./api/network/index')(app);
-} catch (e) {
-  console.warn('[JADOMI] Module network non chargé:', e.message);
 }
 
 // === JADOMI GPO Smart Queue Auction ===
@@ -592,12 +605,12 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     });
     if (error) {
       console.error('[/api/auth/forgot-password]', error.message);
-      return res.json({ success: false, error: error.message });
+      return res.json({ success: false, error: 'Erreur interne' });
     }
     res.json({ success: true });
   } catch (err) {
     console.error('[/api/auth/forgot-password]', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Erreur interne' });
   }
 });
 
@@ -612,10 +625,102 @@ app.post('/api/auth/welcome', async (req, res) => {
     res.json(r);
   } catch (err) {
     console.error('[/api/auth/welcome]', err.message);
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: 'Erreur interne' });
   }
 });
 
+
+// ===== MFA / TOTP — Authentification a deux facteurs pour utilisateurs JADOMI =====
+
+// POST /api/auth/mfa/enroll — Generer un secret TOTP (QR code)
+app.post('/api/auth/mfa/enroll', requireAuth(), async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: 'JADOMI Authenticator'
+    });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
+    res.json({
+      success: true,
+      factor_id: data.id,
+      totp_uri: data.totp.uri,
+      qr_code: data.totp.qr_code,
+      secret: data.totp.secret
+    });
+  } catch (e) {
+    console.error('[mfa/enroll]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/auth/mfa/verify — Verifier le code TOTP et activer le facteur
+app.post('/api/auth/mfa/verify', requireAuth(), async (req, res) => {
+  try {
+    const { factor_id, code } = req.body || {};
+    if (!factor_id || !code) return res.status(400).json({ error: 'factor_id et code requis' });
+
+    const { data: challenge, error: chalErr } = await supabase.auth.mfa.challenge({ factorId: factor_id });
+    if (chalErr) return res.status(400).json({ error: chalErr.message });
+
+    const { data, error } = await supabase.auth.mfa.verify({
+      factorId: factor_id,
+      challengeId: challenge.id,
+      code
+    });
+    if (error) return res.status(400).json({ error: 'Code invalide' });
+    res.json({ success: true, message: 'MFA active avec succes' });
+  } catch (e) {
+    console.error('[mfa/verify]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/auth/mfa/challenge — Demander un challenge (lors du login)
+app.post('/api/auth/mfa/challenge', requireAuth(), async (req, res) => {
+  try {
+    const { factor_id } = req.body || {};
+    if (!factor_id) return res.status(400).json({ error: 'factor_id requis' });
+
+    const { data, error } = await supabase.auth.mfa.challenge({ factorId: factor_id });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
+    res.json({ success: true, challenge_id: data.id });
+  } catch (e) {
+    console.error('[mfa/challenge]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/auth/mfa/factors — Lister les facteurs MFA de l'utilisateur
+app.get('/api/auth/mfa/factors', requireAuth(), async (req, res) => {
+  try {
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
+    res.json({
+      success: true,
+      totp: data.totp || [],
+      phone: data.phone || []
+    });
+  } catch (e) {
+    console.error('[mfa/factors]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/auth/mfa/unenroll — Desactiver un facteur MFA
+app.delete('/api/auth/mfa/unenroll', requireAuth(), async (req, res) => {
+  try {
+    const { factor_id } = req.body || {};
+    if (!factor_id) return res.status(400).json({ error: 'factor_id requis' });
+
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: factor_id });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
+    res.json({ success: true, message: 'Facteur MFA supprime' });
+  } catch (e) {
+    console.error('[mfa/unenroll]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // --- Stripe (optional — set STRIPE_SECRET_KEY in .env) ---
 let stripe = null;
@@ -657,7 +762,7 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
     res.json(response);
   } catch (err) {
     console.error('[/api/claude] Error:', err.message);
-    res.status(err.status || 500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -699,7 +804,7 @@ Retourne UNIQUEMENT un objet JSON (pas de markdown, pas de texte avant/apres) :
     res.json({ ok: true, facture });
   } catch (err) {
     console.error('[/api/ia/extract-facture]', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -711,11 +816,13 @@ app.get('/api/eco/check', requireAuth(), async (req, res) => {
     const { produit, cabinet } = req.query;
     if (!produit) return res.status(400).json({ error: 'produit is required' });
 
+    const escaped = produit.replace(/%/g, '\\%').replace(/_/g, '\\_');
+
     // Find cabinets that have excess stock of this product (qty > seuil * 3)
     let query = supabase
       .from('produits')
       .select('*')
-      .ilike('nom', `%${produit}%`)
+      .ilike('nom', `%${escaped}%`)
       .gt('qty', 0);
 
     // Exclude the requesting cabinet if provided
@@ -762,7 +869,7 @@ app.get('/api/eco/check', requireAuth(), async (req, res) => {
     });
   } catch (err) {
     console.error('[/api/eco/check] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -799,7 +906,7 @@ app.post('/api/eco/proposer', requireAuth(), async (req, res) => {
     res.json({ success: true, record: data[0] });
   } catch (err) {
     console.error('[/api/eco/proposer] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -894,7 +1001,7 @@ app.get('/api/predict/commande', requireAuth(), async (req, res) => {
     });
   } catch (err) {
     console.error('[/api/predict/commande] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -951,7 +1058,7 @@ app.post('/api/stripe/subscribe', requireAuth(), async (req, res) => {
     res.json({ success: true, checkout_url: session.url, customer_id: customer.id });
   } catch (err) {
     console.error('[/api/stripe/subscribe] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1029,7 +1136,7 @@ Retourne UNIQUEMENT le HTML complet. Pas de markdown.` }]
     });
   } catch (err) {
     console.error('[/api/contrats/generer] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1112,7 +1219,7 @@ Retourne UNIQUEMENT le HTML complet.` }]
     });
   } catch (err) {
     console.error('[/api/contrats/resilier] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1277,7 +1384,7 @@ app.post('/api/signature/:token/signer', async (req, res) => {
     res.json({ success: true, signed_at: new Date().toISOString(), ip });
   } catch (err) {
     console.error('[/api/signature/signer] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1305,7 +1412,7 @@ app.get('/api/documents/:user_id', requireAuth(), async (req, res) => {
     res.json({ documents: documents || [], contrats: contrats || [] });
   } catch (err) {
     console.error('[/api/documents] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1398,7 +1505,7 @@ Reponds UNIQUEMENT en JSON:
     });
   } catch (err) {
     console.error('[/api/suggestions] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1433,7 +1540,7 @@ app.get('/api/suggestions/admin', requireAuth(), async (req, res) => {
     });
   } catch (err) {
     console.error('[/api/suggestions/admin] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -1564,19 +1671,19 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
       if (priceData) result.market_prices = priceData;
     }
 
-    // ── OEM Intelligence en ARRIÈRE-PLAN (ne bloque pas la réponse) ──
+    // ── JADOMI Compare en ARRIÈRE-PLAN (ne bloque pas la réponse) ──
     const productDbId = result.product_db_id;
     const societeId = req.user?.societe_id;
     if (productDbId && societeId) {
       setImmediate(async () => {
         try {
-          const enriched = await scanEngine.enrichScanResult({ ...result }, societeId);
-          // Si trouvaille OEM → notification
+          const enriched = await scanEngine.enrichScanResult({ ...result }, societeId, result.market_prices);
+          // Si alternative trouvee → notification
           if (enriched.oem_intelligence?.is_white_label || enriched.oem_intelligence?.potential_savings > 0) {
             let pushNotif;
             try { pushNotif = require('./api/multiSocietes/notifications').pushNotification; } catch (_) {}
             if (pushNotif) {
-              const oemR = enriched.oem_intelligence;
+              const compareR = enriched.oem_intelligence;
               const { data: members } = await require('./api/multiSocietes/middleware').admin()
                 .from('user_societe_roles').select('user_id')
                 .eq('societe_id', societeId).in('role', ['proprietaire', 'associe']);
@@ -1584,19 +1691,19 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
                 try {
                   await pushNotif({
                     user_id: m.user_id, societe_id: societeId,
-                    type: 'autre', urgence: oemR.potential_savings > 5 ? 'haute' : 'normale',
-                    titre: oemR.is_white_label
-                      ? `White label detecte : ${result.produit?.nom || 'Produit'}`
+                    type: 'autre', urgence: compareR.potential_savings > 5 ? 'haute' : 'normale',
+                    titre: compareR.is_white_label
+                      ? `Alternative verifiee : ${result.produit?.nom || 'Produit'}`
                       : `Economie detectee : ${result.produit?.nom || 'Produit'}`,
-                    message: oemR.market_insight || 'Consultez le rapport OEM.',
-                    entity_type: 'oem_alert', entity_id: productDbId,
-                    cta_label: 'Voir le rapport', cta_url: '/index.html?tab=stock&oem=true',
+                    message: compareR.market_insight || 'Consultez vos economies JADOMI.',
+                    entity_type: 'economies_alert', entity_id: productDbId,
+                    cta_label: 'Voir mes economies', cta_url: '/index.html?tab=economies',
                   });
                 } catch (_) {}
               }
             }
           }
-        } catch (e) { console.warn('[scan/lookup/bg-oem]', e.message); }
+        } catch (e) { console.warn('[scan/lookup/bg-compare]', e.message); }
       });
     }
 
@@ -1629,11 +1736,1677 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
   }
 });
 
+// =============================================
+// SCAN/SEARCH — Recherche produits par nom avec comparaison prix
+// =============================================
+const scanSearchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de recherches. Réessaye dans 1 minute.' }
+});
+
+app.get('/api/scan/search', scanSearchLimiter, async (req, res) => {
+  const { q, category, limit: limitParam } = req.query;
+  if (!q || q.trim().length < 2) {
+    return res.status(400).json({ error: 'Paramètre q requis (min 2 caractères)' });
+  }
+
+  const searchQuery = q.trim();
+  if (searchQuery.length > 200) {
+    return res.status(400).json({ error: 'Requête trop longue (max 200 caractères)' });
+  }
+  const maxResults = Math.min(parseInt(limitParam) || 10, 50);
+  const { admin } = require('./api/multiSocietes/middleware');
+
+  try {
+    // Escape special ilike/PostgREST chars to prevent pattern injection
+    const escaped = searchQuery
+      .replace(/\\/g, '\\\\')
+      .replace(/%/g, '\\%')
+      .replace(/_/g, '\\_')
+      .replace(/,/g, '\\,')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
+
+    // 1. Full-text search on name, with ilike fallback on name_fr and brand
+    let query = admin().from('products_database')
+      .select('id, gtin, name, name_fr, brand, manufacturer, category, subcategory, image_url, reference, scan_count')
+      .or(`name.ilike.%${escaped}%,name_fr.ilike.%${escaped}%,brand.ilike.%${escaped}%`)
+      .order('scan_count', { ascending: false, nullsFirst: false })
+      .limit(maxResults * 3); // Fetch extra to allow re-sorting after enrichment
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data: products, error: prodError } = await query;
+
+    if (prodError) {
+      console.error('[scan/search] DB error:', prodError.message);
+      return res.status(500).json({ error: 'Erreur recherche produits' });
+    }
+
+    if (!products || products.length === 0) {
+      return res.json({ query: searchQuery, results_count: 0, results: [] });
+    }
+
+    // 2. Enrich each product with price data and equivalences count
+    const productIds = products.map(p => p.id);
+
+    // Fetch all supplier prices for matched products in one query
+    const { data: allPrices } = await admin().from('supplier_prices')
+      .select('product_id, supplier_name, price_negotiated, price_catalog')
+      .in('product_id', productIds)
+      .not('price_negotiated', 'is', null)
+      .order('price_negotiated', { ascending: true });
+
+    // Fetch equivalences counts
+    const { data: equivA } = await admin().from('product_equivalences')
+      .select('product_a_id')
+      .in('product_a_id', productIds);
+    const { data: equivB } = await admin().from('product_equivalences')
+      .select('product_b_id')
+      .in('product_b_id', productIds);
+
+    // Build price map: product_id -> prices[]
+    const priceMap = {};
+    for (const p of (allPrices || [])) {
+      if (!priceMap[p.product_id]) priceMap[p.product_id] = [];
+      priceMap[p.product_id].push({
+        supplier: p.supplier_name,
+        price: Number(p.price_negotiated || p.price_catalog)
+      });
+    }
+
+    // Build equivalences count map
+    const equivCount = {};
+    for (const e of (equivA || [])) {
+      equivCount[e.product_a_id] = (equivCount[e.product_a_id] || 0) + 1;
+    }
+    for (const e of (equivB || [])) {
+      equivCount[e.product_b_id] = (equivCount[e.product_b_id] || 0) + 1;
+    }
+
+    // 3. Build enriched results
+    const enriched = products.map(p => {
+      const prices = priceMap[p.id] || [];
+      // Deduplicate by supplier (keep best price per supplier)
+      const bySupplier = {};
+      for (const pr of prices) {
+        if (!bySupplier[pr.supplier] || pr.price < bySupplier[pr.supplier]) {
+          bySupplier[pr.supplier] = pr.price;
+        }
+      }
+      const dedupPrices = Object.entries(bySupplier)
+        .map(([supplier, price]) => ({ supplier, price }))
+        .sort((a, b) => a.price - b.price);
+
+      const allPriceValues = dedupPrices.map(p => p.price).filter(v => v > 0);
+      const hasPrices = allPriceValues.length > 0;
+
+      return {
+        id: p.id,
+        nom: p.name_fr || p.name || null,
+        marque: p.brand || p.manufacturer || null,
+        categorie: p.category || null,
+        gtin: p.gtin || null,
+        image_url: p.image_url || null,
+        reference: p.reference || null,
+        prices: hasPrices ? {
+          best_price: Math.min(...allPriceValues),
+          best_supplier: dedupPrices[0]?.supplier || null,
+          avg_price: +(allPriceValues.reduce((s, v) => s + v, 0) / allPriceValues.length).toFixed(2),
+          suppliers_count: dedupPrices.length,
+          all_prices: dedupPrices
+        } : null,
+        alternatives_count: equivCount[p.id] || 0,
+        scan_count: p.scan_count || 0,
+        _has_prices: hasPrices // internal sort key
+      };
+    });
+
+    // 4. Sort: products with price data first, then by scan_count desc
+    enriched.sort((a, b) => {
+      if (a._has_prices && !b._has_prices) return -1;
+      if (!a._has_prices && b._has_prices) return 1;
+      return (b.scan_count || 0) - (a.scan_count || 0);
+    });
+
+    // Trim to limit and remove internal keys
+    const results = enriched.slice(0, maxResults).map(({ _has_prices, ...rest }) => rest);
+
+    res.json({
+      query: searchQuery,
+      results_count: results.length,
+      results
+    });
+  } catch (e) {
+    console.error('[scan/search] Error:', e.message);
+    res.status(500).json({ error: 'Erreur recherche produits' });
+  }
+});
+
+// =============================================
+// PRICE WATCH — Alertes prix produits
+// =============================================
+
+// POST /api/achats/price-watch — Creer une alerte prix
+app.post('/api/achats/price-watch', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const userId = req.user.id;
+    const societeId = req.headers['x-societe-id'] || req.body.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    const { product_id, gtin, product_name, target_price } = req.body;
+    if (!product_name) return res.status(400).json({ error: 'product_name requis' });
+    if (!product_id && !gtin) return res.status(400).json({ error: 'product_id ou gtin requis' });
+    const parsedPrice = Number(target_price);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) return res.status(400).json({ error: 'target_price requis (nombre > 0)' });
+
+    const { data: watch, error } = await admin()
+      .from('price_watches')
+      .insert({
+        societe_id: societeId,
+        user_id: userId,
+        product_id: product_id || null,
+        gtin: gtin || null,
+        product_name,
+        target_price: parsedPrice,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ ok: true, watch });
+  } catch (e) {
+    console.error('[POST /api/achats/price-watch]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/achats/price-watches — Lister les alertes actives du cabinet
+app.get('/api/achats/price-watches', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const societeId = req.headers['x-societe-id'];
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    const { data: watches, error } = await admin()
+      .from('price_watches')
+      .select('*')
+      .eq('societe_id', societeId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Enrichir chaque watch avec le meilleur prix actuel du marche
+    const enriched = [];
+    for (const w of (watches || [])) {
+      let current_best = null;
+      if (w.product_id) {
+        const { data: prices } = await admin()
+          .from('supplier_prices')
+          .select('supplier_name, price_catalog, price_negotiated')
+          .eq('product_id', w.product_id)
+          .order('price_catalog', { ascending: true })
+          .limit(5);
+        if (prices && prices.length > 0) {
+          current_best = {
+            price: Number(prices[0].price_negotiated || prices[0].price_catalog),
+            supplier: prices[0].supplier_name,
+            all_prices: prices.map(p => ({
+              supplier: p.supplier_name,
+              price: Number(p.price_negotiated || p.price_catalog)
+            }))
+          };
+        }
+      } else if (w.gtin) {
+        const { data: products } = await admin()
+          .from('products')
+          .select('id')
+          .eq('gtin', w.gtin)
+          .limit(1);
+        if (products && products.length > 0) {
+          const { data: prices } = await admin()
+            .from('supplier_prices')
+            .select('supplier_name, price_catalog, price_negotiated')
+            .eq('product_id', products[0].id)
+            .order('price_catalog', { ascending: true })
+            .limit(5);
+          if (prices && prices.length > 0) {
+            current_best = {
+              price: Number(prices[0].price_negotiated || prices[0].price_catalog),
+              supplier: prices[0].supplier_name,
+              all_prices: prices.map(p => ({
+                supplier: p.supplier_name,
+                price: Number(p.price_negotiated || p.price_catalog)
+              }))
+            };
+          }
+        }
+      }
+
+      const triggered = current_best && current_best.price <= w.target_price;
+      enriched.push({
+        ...w,
+        current_best,
+        is_triggered: !!triggered
+      });
+    }
+
+    res.json({ ok: true, watches: enriched });
+  } catch (e) {
+    console.error('[GET /api/achats/price-watches]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/achats/price-watch/:id — Desactiver une alerte (soft delete)
+app.delete('/api/achats/price-watch/:id', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const societeId = req.headers['x-societe-id'];
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    const { data, error } = await admin()
+      .from('price_watches')
+      .update({ is_active: false })
+      .eq('id', req.params.id)
+      .eq('societe_id', societeId)
+      .select();
+
+    if (error) throw error;
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Alerte introuvable' });
+
+    res.json({ ok: true, watch: data[0] });
+  } catch (e) {
+    console.error('[DELETE /api/achats/price-watch/:id]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/achats/check-price-watches — Verifier toutes les alertes actives
+app.post('/api/achats/check-price-watches', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const societeId = req.headers['x-societe-id'];
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    const { data: watches, error } = await admin()
+      .from('price_watches')
+      .select('*')
+      .eq('societe_id', societeId)
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    const triggered = [];
+    for (const w of (watches || [])) {
+      let productId = w.product_id;
+
+      // Resoudre product_id via gtin si besoin
+      if (!productId && w.gtin) {
+        const { data: products } = await admin()
+          .from('products')
+          .select('id')
+          .eq('gtin', w.gtin)
+          .limit(1);
+        if (products && products.length > 0) productId = products[0].id;
+      }
+      if (!productId) continue;
+
+      // Chercher si un prix <= target_price existe
+      const { data: matchingPrices } = await admin()
+        .from('supplier_prices')
+        .select('supplier_name, price_catalog, price_negotiated')
+        .eq('product_id', productId)
+        .order('price_catalog', { ascending: true })
+        .limit(10);
+
+      if (!matchingPrices || matchingPrices.length === 0) continue;
+
+      const bestPrice = Number(matchingPrices[0].price_negotiated || matchingPrices[0].price_catalog);
+      if (bestPrice <= w.target_price) {
+        // Marquer comme triggered
+        await admin()
+          .from('price_watches')
+          .update({
+            triggered_at: new Date().toISOString(),
+            triggered_price: bestPrice,
+            triggered_supplier: matchingPrices[0].supplier_name
+          })
+          .eq('id', w.id);
+
+        triggered.push({
+          watch_id: w.id,
+          product_name: w.product_name,
+          target_price: w.target_price,
+          triggered_price: bestPrice,
+          triggered_supplier: matchingPrices[0].supplier_name,
+          all_prices: matchingPrices.map(p => ({
+            supplier: p.supplier_name,
+            price: Number(p.price_negotiated || p.price_catalog)
+          }))
+        });
+      }
+    }
+
+    res.json({ ok: true, checked: (watches || []).length, triggered });
+  } catch (e) {
+    console.error('[POST /api/achats/check-price-watches]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+
+// =============================================
+// ACHATS — Spend Analytics & Price History (Passe Achats)
+// =============================================
+
+// Helper: verify user has access to the requested societe_id (IDOR protection)
+async function _verifySocieteAccess(db, userId, societeId) {
+  if (!userId || !societeId) return false;
+  try {
+    const { data } = await db.from('user_societe_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('societe_id', societeId)
+      .maybeSingle();
+    return !!data;
+  } catch (_) { return false; }
+}
+
+// --- 1. Spend Analytics ---
+app.get('/api/achats/spend-analytics', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const db = admin();
+    const societeId = req.query.societe_id || req.user?.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
+
+    // IDOR protection: verify user belongs to this societe
+    if (req.query.societe_id && req.query.societe_id !== req.user?.societe_id) {
+      const allowed = await _verifySocieteAccess(db, req.user?.id, societeId);
+      if (!allowed) return res.status(403).json({ error: 'forbidden_societe' });
+    }
+
+    const period = req.query.period || '6m';
+    // Validate period: must be digits optionally followed by 'm', capped at 60 months
+    const periodMatch = String(period).match(/^(\d{1,2})m?$/);
+    const months = periodMatch ? Math.min(parseInt(periodMatch[1], 10) || 6, 60) : 6;
+    const since = new Date();
+    since.setMonth(since.getMonth() - months);
+    const sinceISO = since.toISOString();
+
+    // Single query to fetch all data for the period (was 4 separate queries — N+1 fix)
+    let allData = [];
+    try {
+      const { data } = await db.from('supplier_prices')
+        .select('gtin, product_name, brand, category, supplier, price_ht, quantity, best_market_price, observed_at')
+        .eq('societe_id', societeId)
+        .gte('observed_at', sinceISO)
+        .order('observed_at', { ascending: true });
+      if (data) allData = data;
+    } catch (_) {}
+
+    // By category
+    const cats = {};
+    for (const r of allData) {
+      const c = r.category || 'Autre';
+      if (!cats[c]) cats[c] = { category: c, total_ht: 0, nb_purchases: 0, sum_price: 0 };
+      cats[c].total_ht += (r.price_ht || 0) * (r.quantity || 1);
+      cats[c].nb_purchases++;
+      cats[c].sum_price += (r.price_ht || 0);
+    }
+    const byCategory = Object.values(cats).map(c => ({
+      category: c.category,
+      total_ht: Math.round(c.total_ht * 100) / 100,
+      nb_purchases: c.nb_purchases,
+      avg_price: c.nb_purchases > 0 ? Math.round((c.sum_price / c.nb_purchases) * 100) / 100 : 0
+    })).sort((a, b) => b.total_ht - a.total_ht);
+
+    // By supplier
+    const supps = {};
+    for (const r of allData) {
+      const s = r.supplier || 'Inconnu';
+      if (!supps[s]) supps[s] = { supplier: s, total_ht: 0, nb_purchases: 0 };
+      supps[s].total_ht += (r.price_ht || 0) * (r.quantity || 1);
+      supps[s].nb_purchases++;
+    }
+    const bySupplier = Object.values(supps).map(s => ({
+      supplier: s.supplier,
+      total_ht: Math.round(s.total_ht * 100) / 100,
+      nb_purchases: s.nb_purchases
+    })).sort((a, b) => b.total_ht - a.total_ht);
+
+    // By month (sorted ascending for chronological charts)
+    const mons = {};
+    for (const r of allData) {
+      const m = (r.observed_at || '').substring(0, 7);
+      if (!m) continue;
+      if (!mons[m]) mons[m] = { month: m, total_ht: 0 };
+      mons[m].total_ht += (r.price_ht || 0) * (r.quantity || 1);
+    }
+    const byMonth = Object.values(mons).map(m => ({
+      month: m.month,
+      total_ht: Math.round(m.total_ht * 100) / 100
+    })).sort((a, b) => a.month.localeCompare(b.month));
+
+    // Top products + potential savings
+    const prods = {};
+    for (const r of allData) {
+      const key = r.gtin || r.product_name || 'unknown';
+      if (!prods[key]) prods[key] = { gtin: r.gtin, name: r.product_name, brand: r.brand, total_spent: 0, qty: 0, sum_price: 0, count: 0, best_market_price: r.best_market_price };
+      prods[key].total_spent += (r.price_ht || 0) * (r.quantity || 1);
+      prods[key].qty += (r.quantity || 1);
+      prods[key].sum_price += (r.price_ht || 0);
+      prods[key].count++;
+      if (r.best_market_price && (!prods[key].best_market_price || r.best_market_price < prods[key].best_market_price)) {
+        prods[key].best_market_price = r.best_market_price;
+      }
+    }
+    let potentialSavings = 0;
+    const topProducts = Object.values(prods).map(p => {
+      const avgPrice = p.count > 0 ? Math.round((p.sum_price / p.count) * 100) / 100 : 0;
+      const bmp = p.best_market_price || null;
+      if (bmp && avgPrice > bmp) {
+        potentialSavings += (avgPrice - bmp) * p.qty;
+      }
+      return {
+        gtin: p.gtin, name: p.name, brand: p.brand,
+        total_spent: Math.round(p.total_spent * 100) / 100,
+        qty: p.qty,
+        avg_price: avgPrice,
+        best_market_price: bmp
+      };
+    }).sort((a, b) => b.total_spent - a.total_spent).slice(0, 20);
+
+    const totalHt = byCategory.reduce((s, c) => s + c.total_ht, 0);
+
+    res.json({
+      by_category: byCategory,
+      by_supplier: bySupplier,
+      by_month: byMonth,
+      top_products: topProducts,
+      total_ht: Math.round(totalHt * 100) / 100,
+      potential_savings: Math.round(potentialSavings * 100) / 100
+    });
+  } catch (e) {
+    console.error('[achats/spend-analytics]', e.message);
+    res.status(500).json({ error: 'internal_error', by_category: [], by_supplier: [], by_month: [], top_products: [], total_ht: 0, potential_savings: 0 });
+  }
+});
+
+// --- 2. Price History (CamelCamelCamel-style) ---
+app.get('/api/achats/price-history/:gtin', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const db = admin();
+    const gtin = req.params.gtin;
+    if (!gtin) return res.status(400).json({ error: 'gtin requis' });
+
+    // Validate GTIN format: 8-14 digits only (EAN-8, EAN-13, GTIN-14)
+    if (!/^\d{8,14}$/.test(gtin)) {
+      return res.status(400).json({ error: 'Format GTIN invalide (8 a 14 chiffres attendus)' });
+    }
+
+    // Scope price history to the user's societe for data isolation
+    const societeId = req.query.societe_id || req.user?.societe_id;
+
+    // IDOR protection if societe_id explicitly passed
+    if (req.query.societe_id && req.query.societe_id !== req.user?.societe_id) {
+      const allowed = await _verifySocieteAccess(db, req.user?.id, societeId);
+      if (!allowed) return res.status(403).json({ error: 'forbidden_societe' });
+    }
+
+    // Get product info
+    let productName = null, brand = null;
+    try {
+      const { data: prod } = await db.from('products_database')
+        .select('name, brand')
+        .eq('gtin', gtin)
+        .maybeSingle();
+      if (prod) { productName = prod.name; brand = prod.brand; }
+    } catch (_) {}
+
+    // Get price history — scoped to societe_id to prevent cross-cabinet data leak
+    let history = [];
+    try {
+      let query = db.from('supplier_prices')
+        .select('observed_at, price_ht, supplier, source, product_name, brand')
+        .eq('gtin', gtin)
+        .order('observed_at', { ascending: true });
+      if (societeId) query = query.eq('societe_id', societeId);
+      const { data } = await query;
+      if (data) {
+        history = data.map(r => ({
+          date: r.observed_at ? r.observed_at.substring(0, 10) : null,
+          price: r.price_ht,
+          supplier: r.supplier,
+          source: r.source || 'invoice_scan'
+        }));
+        if (!productName && data.length) {
+          productName = data[0].product_name || null;
+          brand = data[0].brand || null;
+        }
+      }
+    } catch (_) {}
+
+    // Compute current best, worst, trend
+    let currentBest = null, currentWorst = null, trend = 'stable';
+    if (history.length > 0) {
+      const prices = history.map(h => h.price).filter(p => p != null && !isNaN(p));
+      if (prices.length) {
+        currentBest = Math.min(...prices);
+        currentWorst = Math.max(...prices);
+      }
+      if (prices.length >= 2) {
+        const recent = history.slice(-3).map(h => h.price).filter(p => p != null && !isNaN(p));
+        const older = history.slice(0, Math.max(1, Math.floor(history.length / 2))).map(h => h.price).filter(p => p != null && !isNaN(p));
+        if (recent.length && older.length) {
+          const avgRecent = recent.reduce((s, p) => s + p, 0) / recent.length;
+          const avgOlder = older.reduce((s, p) => s + p, 0) / older.length;
+          // Avoid division by zero if avgOlder is 0
+          if (avgOlder > 0) {
+            if (avgRecent < avgOlder * 0.97) trend = 'down';
+            else if (avgRecent > avgOlder * 1.03) trend = 'up';
+          }
+        }
+      }
+    }
+
+    res.json({
+      gtin,
+      product_name: productName,
+      brand,
+      history,
+      current_best: currentBest,
+      current_worst: currentWorst,
+      trend
+    });
+  } catch (e) {
+    console.error('[achats/price-history]', e.message);
+    res.status(500).json({ gtin: req.params.gtin, product_name: null, brand: null, history: [], current_best: null, current_worst: null, trend: 'stable' });
+  }
+});
+
+// --- 3. Benchmark (anonymous comparison) ---
+app.get('/api/achats/benchmark', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const db = admin();
+    const societeId = req.query.societe_id || req.user?.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
+
+    // IDOR protection: verify user belongs to this societe
+    if (req.query.societe_id && req.query.societe_id !== req.user?.societe_id) {
+      const allowed = await _verifySocieteAccess(db, req.user?.id, societeId);
+      if (!allowed) return res.status(403).json({ error: 'forbidden_societe' });
+    }
+
+    // Get cabinet info for segment matching
+    let cabinetSize = null, cabinetRegion = null;
+    try {
+      const { data: soc } = await db.from('societes')
+        .select('taille, region')
+        .eq('id', societeId)
+        .maybeSingle();
+      if (soc) { cabinetSize = soc.taille; cabinetRegion = soc.region; }
+    } catch (_) {}
+
+    // Get segment benchmarks
+    let segmentData = [];
+    let nbCabinetsSegment = 0;
+    let insufficientData = false;
+    try {
+      let query = db.from('cabinet_benchmarks').select('*');
+      if (cabinetSize) query = query.eq('taille', cabinetSize);
+      if (cabinetRegion) query = query.eq('region', cabinetRegion);
+      const { data } = await query;
+      if (data && data.length) {
+        segmentData = data;
+        nbCabinetsSegment = data[0]?.nb_cabinets || data.length;
+        // Flag if fewer than 5 cabinets — benchmarks may not be statistically meaningful
+        if (nbCabinetsSegment < 5) insufficientData = true;
+      }
+    } catch (_) {}
+
+    // Get this cabinet's own averages by category
+    const myAvgs = {};
+    try {
+      const { data } = await db.from('supplier_prices')
+        .select('category, price_ht')
+        .eq('societe_id', societeId);
+      if (data && data.length) {
+        const catAcc = {};
+        for (const r of data) {
+          const c = r.category || 'Autre';
+          if (!catAcc[c]) catAcc[c] = { sum: 0, count: 0 };
+          catAcc[c].sum += (r.price_ht || 0);
+          catAcc[c].count++;
+        }
+        for (const [cat, v] of Object.entries(catAcc)) {
+          myAvgs[cat] = v.count > 0 ? Math.round((v.sum / v.count) * 100) / 100 : 0;
+        }
+      }
+    } catch (_) {}
+
+    // Build categories comparison
+    const categories = [];
+    let overallPosition = 'average';
+    let aboveCount = 0, belowCount = 0;
+
+    for (const seg of segmentData) {
+      const cat = seg.category;
+      const myAvg = myAvgs[cat] || null;
+      const segAvg = seg.avg_price || null;
+      const segMedian = seg.median_price || null;
+
+      let position = null, verdict = null;
+      if (myAvg && segAvg) {
+        const diff = Math.round(((myAvg - segAvg) / segAvg) * 100);
+        position = (diff >= 0 ? '+' : '') + diff + '%';
+        if (diff > 5) {
+          verdict = `Vous payez ${diff}% de plus que la moyenne`;
+          aboveCount++;
+        } else if (diff < -5) {
+          verdict = `Vous payez ${Math.abs(diff)}% de moins que la moyenne`;
+          belowCount++;
+        } else {
+          verdict = 'Dans la moyenne du marche';
+        }
+      }
+
+      categories.push({
+        category: cat,
+        my_avg: myAvg,
+        segment_avg: segAvg,
+        segment_median: segMedian,
+        position,
+        verdict
+      });
+    }
+
+    for (const [cat, avg] of Object.entries(myAvgs)) {
+      if (!categories.find(c => c.category === cat)) {
+        categories.push({
+          category: cat, my_avg: avg,
+          segment_avg: null, segment_median: null,
+          position: null, verdict: 'Pas de donnees de comparaison'
+        });
+      }
+    }
+
+    if (aboveCount > belowCount) overallPosition = 'above_average';
+    else if (belowCount > aboveCount) overallPosition = 'below_average';
+
+    const response = {
+      cabinet_position: overallPosition,
+      categories,
+      nb_cabinets_segment: nbCabinetsSegment
+    };
+    // Warn frontend when benchmark data is statistically insufficient
+    if (insufficientData) {
+      response.warning = 'Moins de 5 cabinets dans votre segment — les comparaisons sont indicatives';
+    }
+    if (segmentData.length === 0 && Object.keys(myAvgs).length > 0) {
+      response.warning = 'Aucune donnee de benchmark disponible pour votre segment';
+    }
+
+    res.json(response);
+  } catch (e) {
+    console.error('[achats/benchmark]', e.message);
+    res.status(500).json({ cabinet_position: 'unknown', categories: [], nb_cabinets_segment: 0 });
+  }
+});
+
+// --- 4. Economies (savings opportunities) ---
+app.get('/api/achats/economies', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const db = admin();
+    const societeId = req.query.societe_id || req.user?.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
+
+    // IDOR protection: verify user belongs to this societe
+    if (req.query.societe_id && req.query.societe_id !== req.user?.societe_id) {
+      const allowed = await _verifySocieteAccess(db, req.user?.id, societeId);
+      if (!allowed) return res.status(403).json({ error: 'forbidden_societe' });
+    }
+
+    // Try the v_economies_jadomi SQL view first
+    let economies = [];
+    let viewUsed = false;
+    try {
+      const { data, error } = await db.from('v_economies_jadomi')
+        .select('*')
+        .eq('societe_id', societeId)
+        .order('savings_per_unit', { ascending: false });
+      if (!error && data) {
+        economies = data;
+        viewUsed = true;
+      }
+    } catch (_) {}
+
+    // Fallback: compute from raw tables only if view query failed (not just empty results)
+    if (!viewUsed) {
+      try {
+        const { data } = await db.from('supplier_prices')
+          .select('gtin, product_name, brand, supplier, price_ht, quantity, best_market_price, best_market_supplier')
+          .eq('societe_id', societeId)
+          .not('best_market_price', 'is', null);
+
+        if (data && data.length) {
+          const prods = {};
+          for (const r of data) {
+            const key = r.gtin || r.product_name;
+            if (!key) continue;
+            if (!prods[key] || r.price_ht > (prods[key].price_ht || 0)) {
+              prods[key] = r;
+            }
+          }
+
+          economies = Object.values(prods)
+            .filter(r => r.price_ht && r.best_market_price && r.price_ht > r.best_market_price)
+            .map(r => ({
+              gtin: r.gtin,
+              product_name: r.product_name,
+              brand: r.brand,
+              current_supplier: r.supplier,
+              current_price: r.price_ht,
+              best_price: r.best_market_price,
+              best_supplier: r.best_market_supplier || null,
+              savings_per_unit: Math.round((r.price_ht - r.best_market_price) * 100) / 100,
+              savings_pct: r.price_ht > 0 ? Math.round(((r.price_ht - r.best_market_price) / r.price_ht) * 100) : 0
+            }))
+            .sort((a, b) => b.savings_per_unit - a.savings_per_unit);
+        }
+      } catch (_) {}
+    }
+
+    res.json({
+      economies,
+      total_items: economies.length,
+      total_potential_savings: Math.round(economies.reduce((s, e) => s + (e.savings_per_unit || 0), 0) * 100) / 100
+    });
+  } catch (e) {
+    console.error('[achats/economies]', e.message);
+    res.status(500).json({ economies: [], total_items: 0, total_potential_savings: 0 });
+  }
+});
+
+// =============================================
+// FACTURATION — Mandat de facturation (signature fournisseurs)
+// =============================================
+
+/** Echappe les caracteres HTML dangereux */
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+/** Echappe les wildcards ilike (%,_) pour Supabase/PostgreSQL */
+function _escLike(s) {
+  return String(s).replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+const { sendMail: sendMailMandate } = require('./api/multiSocietes/mailer');
+const JADOMI_PUBLIC_URL = process.env.JADOMI_PUBLIC_URL || 'https://jadomi.fr';
+
+// --- Helper : envoyer l'email de signature mandat ---
+async function sendMandateSigningEmail(supplier, mandate) {
+  const signingUrl = `${JADOMI_PUBLIC_URL}/mandate-sign.html?token=${mandate.signature_token}`;
+  const html = `
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;">
+      <div style="background:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;font-size:22px;font-weight:600;color:#ffffff;letter-spacing:-.3px;">JADOMI</h1>
+        <p style="margin:6px 0 0;font-size:13px;color:#a0a0b8;">Plateforme de gestion professionnelle</p>
+      </div>
+      <div style="padding:36px 40px;border:1px solid #e8e8ee;border-top:none;">
+        <h2 style="margin:0 0 20px;font-size:18px;font-weight:600;color:#1a1a2e;">Mandat de facturation a signer</h2>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          Bonjour <strong>${_escHtml(supplier.name)}</strong>,
+        </p>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          JADOMI vous invite a signer un mandat de facturation electronique. En signant ce mandat, vous autorisez JADOMI a emettre des factures en votre nom pour les commandes realisees via notre plateforme.
+        </p>
+        <div style="background:#f5f5fa;border-radius:8px;padding:20px 24px;margin:24px 0;">
+          <p style="margin:0 0 8px;font-size:13px;color:#6c6c80;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Conditions du mandat</p>
+          <p style="margin:4px 0;font-size:14px;color:#3c3c50;">Commission : <strong>${mandate.commission_percent}%</strong></p>
+          <p style="margin:4px 0;font-size:14px;color:#3c3c50;">Delai de paiement : <strong>${mandate.payment_delay_days} jours</strong></p>
+        </div>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          <strong>Avantage pour vous :</strong> zero paperasse, facturation electronique 2026 geree integralement par JADOMI. Vous recevez vos paiements sans aucune demarche administrative.
+        </p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="${signingUrl}" style="display:inline-block;background:#4F5BD5;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:-.2px;">Consulter et signer le mandat</a>
+        </div>
+        <p style="font-size:12px;color:#9a9ab0;line-height:1.6;border-top:1px solid #e8e8ee;padding-top:20px;margin-top:32px;">
+          Ce mandat est revocable a tout moment avec un preavis de 30 jours. Si vous n'etes pas a l'origine de cette demande, ignorez cet email.
+        </p>
+      </div>
+      <div style="padding:20px 40px;background:#fafafa;border-radius:0 0 12px 12px;border:1px solid #e8e8ee;border-top:none;">
+        <p style="margin:0;font-size:11px;color:#b0b0c0;text-align:center;">JADOMI SAS — contact@jadomi.fr</p>
+      </div>
+    </div>
+  `;
+  return sendMailMandate({
+    to: supplier.email,
+    subject: 'JADOMI — Mandat de facturation a signer',
+    html
+  });
+}
+
+// --- Helper : envoyer l'email de confirmation signature ---
+async function sendMandateConfirmationEmail(supplier, mandate, signerName) {
+  const html = `
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;">
+      <div style="background:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;font-size:22px;font-weight:600;color:#ffffff;letter-spacing:-.3px;">JADOMI</h1>
+      </div>
+      <div style="padding:36px 40px;border:1px solid #e8e8ee;border-top:none;border-radius:0 0 12px 12px;">
+        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+          <p style="margin:0;font-size:15px;color:#065f46;font-weight:600;">Mandat signe avec succes</p>
+        </div>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          Le mandat de facturation pour <strong>${_escHtml(supplier.name)}</strong> a ete signe par <strong>${_escHtml(signerName)}</strong> le ${new Date().toLocaleDateString('fr-FR')}.
+        </p>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          JADOMI est desormais autorisee a emettre des factures pour les commandes realisees via la plateforme.
+        </p>
+        <p style="font-size:12px;color:#9a9ab0;margin-top:24px;">Reference mandat : ${_escHtml(mandate.id)}</p>
+      </div>
+    </div>
+  `;
+  // Send to supplier
+  await sendMailMandate({
+    to: supplier.email,
+    subject: 'JADOMI — Confirmation de signature du mandat',
+    html
+  });
+  // Send to JADOMI admin
+  await sendMailMandate({
+    to: process.env.EMAIL_CONTACT || 'contact@jadomi.fr',
+    subject: `Mandat signe — ${supplier.name}`,
+    html
+  });
+}
+
+// POST /api/facturation/mandate/create — Creer un mandat et envoyer l'email
+app.post('/api/facturation/mandate/create', requireAuth(), async (req, res) => {
+  try {
+    const { supplier_id, commission_percent = 3, payment_delay_days = 30 } = req.body;
+    if (!supplier_id) return res.status(400).json({ error: 'supplier_id requis' });
+
+    // Validate numeric ranges
+    const commPct = Number(commission_percent);
+    const delayDays = Number(payment_delay_days);
+    if (!Number.isFinite(commPct) || commPct < 0 || commPct > 100) return res.status(400).json({ error: 'commission_percent doit etre entre 0 et 100' });
+    if (!Number.isInteger(delayDays) || delayDays < 0 || delayDays > 365) return res.status(400).json({ error: 'payment_delay_days doit etre entre 0 et 365' });
+
+    // Fetch supplier
+    const { data: supplier, error: sErr } = await supabase
+      .from('suppliers')
+      .select('id, name, email, city, region')
+      .eq('id', supplier_id)
+      .maybeSingle();
+    if (sErr || !supplier) return res.status(404).json({ error: 'Fournisseur introuvable' });
+    if (!supplier.email) return res.status(400).json({ error: 'Ce fournisseur n\'a pas d\'email configure' });
+
+    // Generate unique token
+    const signature_token = crypto.randomUUID();
+
+    // Insert mandate
+    const { data: mandate, error: mErr } = await supabase
+      .from('supplier_mandates')
+      .insert({
+        supplier_id,
+        supplier_name: supplier.name,
+        supplier_email: supplier.email,
+        commission_percent: commPct,
+        payment_delay_days: delayDays,
+        signature_token,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        created_by: req.user?.id || null
+      })
+      .select('id, signature_token, commission_percent, payment_delay_days, status')
+      .single();
+    if (mErr) {
+      console.error('[mandate/create] insert:', mErr.message);
+      return res.status(500).json({ error: 'Erreur creation mandat', details: mErr.message });
+    }
+
+    // Send signing email
+    const emailResult = await sendMandateSigningEmail(supplier, mandate);
+    console.log('[mandate/create] email sent:', emailResult);
+
+    res.json({ ok: true, mandate_id: mandate.id, token: mandate.signature_token });
+  } catch (e) {
+    console.error('[POST /api/facturation/mandate/create]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/facturation/mandate/:token — Consulter un mandat (public, pas d'auth)
+app.get('/api/facturation/mandate/:token', async (req, res) => {
+  try {
+    const token = String(req.params.token || '').trim();
+    if (!token || token.length < 10) return res.status(400).json({ error: 'Token invalide' });
+
+    const { data: mandate, error } = await supabase
+      .from('supplier_mandates')
+      .select('id, supplier_name, commission_percent, payment_delay_days, status, sent_at, signed_at')
+      .eq('signature_token', token)
+      .maybeSingle();
+    if (error || !mandate) return res.status(404).json({ error: 'Mandat introuvable' });
+
+    // Update status to 'viewed' if still 'sent' (atomic: WHERE status = 'sent')
+    if (mandate.status === 'sent') {
+      await supabase
+        .from('supplier_mandates')
+        .update({ status: 'viewed', viewed_at: new Date().toISOString() })
+        .eq('id', mandate.id)
+        .eq('status', 'sent');
+      mandate.status = 'viewed';
+    }
+
+    // Do not expose supplier_email on public endpoint
+    res.json({
+      id: mandate.id,
+      supplier_name: mandate.supplier_name,
+      commission_percent: mandate.commission_percent,
+      payment_delay_days: mandate.payment_delay_days,
+      status: mandate.status,
+      sent_at: mandate.sent_at,
+      signed_at: mandate.signed_at
+    });
+  } catch (e) {
+    console.error('[GET /api/facturation/mandate/:token]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/facturation/mandate/:token/sign — Signer un mandat (public)
+app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
+  try {
+    const token = String(req.params.token || '').trim();
+    if (!token || token.length < 10) return res.status(400).json({ error: 'Token invalide' });
+
+    const { accepted, signer_name, signer_title } = req.body;
+    if (!accepted) return res.status(400).json({ error: 'Vous devez accepter les termes du mandat' });
+    if (!signer_name || !String(signer_name).trim()) return res.status(400).json({ error: 'Nom du signataire requis' });
+
+    // Fetch mandate
+    const { data: mandate, error } = await supabase
+      .from('supplier_mandates')
+      .select('id, supplier_name, supplier_email, commission_percent, payment_delay_days, status')
+      .eq('signature_token', token)
+      .maybeSingle();
+    if (error || !mandate) return res.status(404).json({ error: 'Mandat introuvable' });
+    if (mandate.status !== 'sent' && mandate.status !== 'viewed') {
+      return res.status(409).json({ error: 'Ce mandat a deja ete signe ou est invalide', status: mandate.status });
+    }
+
+    // Record signature — atomic: WHERE status IN ('sent','viewed') prevents double-sign race condition
+    const updateData = {
+      status: 'signed',
+      signed_at: new Date().toISOString(),
+      signed_ip: req.ip || req.connection?.remoteAddress || 'unknown',
+      signed_user_agent: String(req.headers['user-agent'] || '').substring(0, 500),
+      signer_name: String(signer_name).trim().substring(0, 200),
+      signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null
+    };
+
+    const { data: updated, error: uErr } = await supabase
+      .from('supplier_mandates')
+      .update(updateData)
+      .eq('id', mandate.id)
+      .in('status', ['sent', 'viewed'])
+      .select('id');
+    if (uErr) {
+      console.error('[mandate/sign] update:', uErr.message);
+      return res.status(500).json({ error: 'Erreur enregistrement signature' });
+    }
+    // If no rows updated, another request already signed it (race condition)
+    if (!updated || updated.length === 0) {
+      return res.status(409).json({ error: 'Ce mandat a deja ete signe (requete concurrente)', status: 'signed' });
+    }
+
+    // Try to generate PDF (optional — lib may not be ready yet)
+    try {
+      const generatePdf = require('./lib/mandate-contract-pdf');
+      if (typeof generatePdf === 'function') {
+        await generatePdf({ ...mandate, ...updateData });
+      }
+    } catch (_pdfErr) {
+      console.log('[mandate/sign] PDF generation skipped (lib not ready):', _pdfErr.message);
+    }
+
+    // Send confirmation emails
+    const supplier = { name: mandate.supplier_name, email: mandate.supplier_email };
+    try {
+      await sendMandateConfirmationEmail(supplier, mandate, updateData.signer_name);
+    } catch (emailErr) {
+      console.error('[mandate/sign] confirmation email error:', emailErr.message);
+    }
+
+    res.json({ ok: true, message: 'Mandat signe avec succes' });
+  } catch (e) {
+    console.error('[POST /api/facturation/mandate/:token/sign]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/facturation/mandates — Lister tous les mandats (admin only)
+app.get('/api/facturation/mandates', requireAuth(), async (req, res) => {
+  try {
+    // Admin check: verify user role
+    const { admin } = require('./api/multiSocietes/middleware');
+    const { data: profile } = await admin()
+      .from('profiles')
+      .select('role')
+      .eq('id', req.user.id)
+      .single();
+    if (!profile || profile.role !== 'admin') {
+      return res.status(403).json({ error: 'Acces reserve aux administrateurs JADOMI' });
+    }
+
+    const { data: mandates, error } = await supabase
+      .from('supplier_mandates')
+      .select('id, supplier_id, supplier_name, supplier_email, commission_percent, payment_delay_days, status, sent_at, viewed_at, signed_at, signer_name, signer_title, created_by')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) {
+      console.error('[GET /api/facturation/mandates]', error.message);
+      return res.status(500).json({ error: 'Erreur chargement mandats' });
+    }
+    res.json({ mandates: mandates || [] });
+  } catch (e) {
+    console.error('[GET /api/facturation/mandates]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/entreprises/search — Recherche entreprise via API gouv (gratuite)
+app.get('/api/entreprises/search', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q || q.length < 2) return res.json({ results: [] });
+    const r = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(q)}&page=1&per_page=5`);
+    const data = await r.json();
+    const results = (data.results || []).map(e => ({
+      nom: e.nom_complet,
+      siren: e.siren,
+      siret: e.siege?.siret || '',
+      adresse: e.siege?.adresse_complete || '',
+      code_postal: e.siege?.code_postal || '',
+      ville: e.siege?.libelle_commune || '',
+      activite: e.siege?.activite_principale || '',
+      tranche_effectifs: e.tranche_effectif_salarie || '',
+      date_creation: e.date_creation || ''
+    }));
+    res.json({ results });
+  } catch (e) {
+    console.error('[entreprises/search]', e.message);
+    res.json({ results: [] });
+  }
+});
+
+// POST /api/facturation/mandates/send — Envoyer un mandat a un fournisseur par nom+email
+app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
+  try {
+    const { supplier_name, supplier_email, supplier_siret, supplier_ville, commission_percent, payment_delay_days } = req.body;
+    if (!supplier_name || !supplier_email) return res.status(400).json({ error: 'Nom et email requis' });
+
+    const signature_token = require('crypto').randomUUID();
+    const insertData = {
+      supplier_name,
+      supplier_email,
+      commission_percent: commission_percent || 4,
+      payment_delay_days: payment_delay_days || 30,
+      signature_token,
+      status: 'sent',
+      sent_at: new Date().toISOString()
+    };
+    if (supplier_siret) insertData.supplier_siret = supplier_siret;
+    if (supplier_ville) insertData.supplier_city = supplier_ville;
+    const { data: mandate, error } = await supabase
+      .from('supplier_mandates')
+      .insert(insertData)
+      .select('id, signature_token, commission_percent, payment_delay_days')
+      .single();
+
+    if (error) { console.error('[mandates/send]', error.message); return res.status(500).json({ error: 'Erreur creation mandat' }); }
+
+    await sendMandateSigningEmail({ name: supplier_name, email: supplier_email }, mandate);
+    res.json({ ok: true, success: true, mandate_id: mandate.id });
+  } catch (e) {
+    console.error('[mandates/send]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route statique page signature mandat
+app.get('/mandate-sign', (req, res) => res.sendFile(path.join(__dirname, 'public/mandate-sign.html')));
+
+// GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
+app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
+  try {
+    const { data: mandate, error } = await supabase
+      .from('supplier_mandates')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    if (error || !mandate) return res.status(404).json({ error: 'Mandat introuvable' });
+
+    const { generateMandateContractPDF } = require('./lib/mandate-contract-pdf');
+    const pdfBuffer = await generateMandateContractPDF(mandate);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    const safeName = ('Mandat-Facturation-' + (mandate.supplier_name || 'JADOMI').replace(/[^a-zA-Z0-9-]/g, '_') + '.pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error('[mandate/pdf]', e.message);
+    res.status(500).json({ error: 'Erreur generation PDF' });
+  }
+});
+
+// GET /api/facturation/mandate-template/pdf — Telecharger le modele vierge
+app.get('/api/facturation/mandate-template/pdf', requireAuth(), async (req, res) => {
+  try {
+    const { generateMandateContractPDF } = require('./lib/mandate-contract-pdf');
+    const pdfBuffer = await generateMandateContractPDF({
+      mandate_id: 'MODELE',
+      supplier_name: '[NOM DU FOURNISSEUR]',
+      supplier_email: '[email@fournisseur.fr]',
+      supplier_siret: '[SIRET]',
+      supplier_address: '[Adresse]',
+      commission_percent: '4',
+      payment_delay_days: '30',
+      created_at: new Date().toISOString()
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Modele-Mandat-Facturation-JADOMI.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error('[mandate-template/pdf]', e.message);
+    res.status(500).json({ error: 'Erreur generation PDF' });
+  }
+});
+
+// ===== JADOMI SECURITE — API Rapports + Scan manuel =====
+
+// POST /api/admin/security-report — Recevoir rapport scan nocturne
+app.post('/api/admin/security-report', async (req, res) => {
+  try {
+    const report = req.body;
+    if (!report || !report.date) return res.status(400).json({ error: 'Rapport invalide' });
+    // Stocker dans Supabase
+    const { error } = await supabase.from('security_reports').insert({
+      report_date: report.date,
+      antivirus_status: report.antivirus?.status || 'unknown',
+      antivirus_scanned: report.antivirus?.fichiers_scannes || 0,
+      antivirus_infected: report.antivirus?.fichiers_infectes || 0,
+      rootkit_status: report.rootkit?.status || 'unknown',
+      rootkit_warnings: report.rootkit?.avertissements || 0,
+      integrity_status: report.integrite?.status || 'unknown',
+      integrity_changes: report.integrite?.changements || 0,
+      network_suspicious_ports: report.reseau?.ports_suspects || 0,
+      network_suspicious_procs: report.reseau?.processus_suspects || 0,
+      network_failed_ssh: report.reseau?.tentatives_ssh_echouees_24h || 0,
+      memory_pct: report.ressources?.memoire_pct || 0,
+      disk_pct: report.ressources?.disque_pct || 0,
+      security_score: report.score_securite || 0,
+      raw_report: report
+    });
+    if (error) console.error('[security-report]', error.message);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[security-report]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/admin/security-report — Dernier rapport pour le dashboard
+app.get('/api/admin/security-report', requireAuth(), async (req, res) => {
+  try {
+    const { data } = await supabase.from('security_reports')
+      .select('*').order('report_date', { ascending: false }).limit(1).single();
+    res.json({ report: data || null });
+  } catch (e) {
+    res.json({ report: null });
+  }
+});
+
+// GET /api/admin/security-reports — Historique des rapports
+app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 30, 90);
+    const { data } = await supabase.from('security_reports')
+      .select('id, report_date, security_score, antivirus_status, antivirus_infected, rootkit_status, integrity_status, memory_pct, disk_pct')
+      .order('report_date', { ascending: false }).limit(limit);
+    res.json({ reports: data || [] });
+  } catch (e) {
+    res.json({ reports: [] });
+  }
+});
+
+// POST /api/admin/security-scan — Lancer un scan manuel
+app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    exec('/home/ubuntu/jadomi/scripts/security-scan.sh', { timeout: 300000 }, (err, stdout, stderr) => {
+      if (err) console.error('[manual-scan]', err.message);
+    });
+    res.json({ success: true, message: 'Scan lance en arriere-plan. Resultat disponible dans ~5 minutes.' });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/admin/send-documents — Envoyer les dossiers par email
+app.post('/api/admin/send-documents', requireAuth(), async (req, res) => {
+  try {
+    const { sendMail } = require('./api/multiSocietes/mailer');
+    const fs = require('fs');
+    const target = req.body.email || 'karim_bahmed@yahoo.fr';
+
+    const attachments = [];
+    const docFiles = [
+      { path: 'docs/DOSSIER-AVOCAT-JADOMI.html', name: 'DOSSIER-AVOCAT-JADOMI.html', label: 'Dossier Avocat' },
+      { path: 'docs/business-plan-jadomi.html', name: 'BUSINESS-PLAN-JADOMI.html', label: 'Business Plan' },
+      { path: 'docs/dossier-avocat-jadomi.html', name: 'Dossier-Juridique-Complet.html', label: 'Dossier Juridique Complet' },
+      { path: 'docs/Modele-Mandat-Facturation-JADOMI.pdf', name: 'Contrat-Mandat-Facturation-JADOMI.pdf', label: 'Contrat Mandat Facturation (PDF)' },
+    ];
+
+    for (const doc of docFiles) {
+      try {
+        const content = fs.readFileSync(path.join(__dirname, doc.path));
+        attachments.push({ filename: doc.name, content, contentType: 'text/html' });
+      } catch (e) { /* fichier pas encore cree */ }
+    }
+
+    if (attachments.length === 0) {
+      return res.json({ ok: false, error: 'Aucun document trouve' });
+    }
+
+    const result = await sendMail({
+      to: target,
+      subject: 'JADOMI — Vos documents mis a jour (' + new Date().toLocaleDateString('fr-FR') + ')',
+      html: '<div style="font-family:system-ui;max-width:600px;margin:0 auto;padding:20px;">'
+        + '<div style="text-align:center;margin-bottom:24px;"><div style="font-size:32px;font-weight:800;color:#10b981;">JADOMI</div></div>'
+        + '<h2 style="color:#0f172a;border-bottom:2px solid #10b981;padding-bottom:8px;">Vos documents sont prets</h2>'
+        + '<p>Bonjour,</p><p>Voici vos documents JADOMI mis a jour :</p>'
+        + '<ul>' + attachments.map(a => '<li><strong>' + a.filename + '</strong></li>').join('') + '</ul>'
+        + '<p style="font-size:12px;color:#64748b;margin-top:20px;">Ouvrez les fichiers .html dans un navigateur ou dans Word pour les modifier.</p>'
+        + '<div style="text-align:center;margin-top:24px;font-size:11px;color:#94a3b8;">JADOMI — Plateforme d\'achats intelligente</div>'
+        + '</div>',
+      attachments
+    });
+
+    res.json({ ok: result.ok, sent: attachments.length, simulated: result.simulated || false });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'Erreur interne' });
+  }
+});
+
+// =============================================
+// FACTURATION — Invoice lifecycle management (GPO)
+// =============================================
+
+// POST /api/facturation/emettre — Emettre une facture pour une commande GPO confirmee
+app.post('/api/facturation/emettre', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const userId = req.user.id;
+    const societeId = req.headers['x-societe-id'] || req.body.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    // IDOR protection: verify user belongs to this societe
+    const hasAccess = await _verifySocieteAccess(admin(), userId, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+
+    const { gpo_order_id } = req.body;
+    if (!gpo_order_id) return res.status(400).json({ error: 'gpo_order_id requis' });
+
+    // Race condition guard: check if invoice already exists for this order
+    const { data: existingInv } = await admin()
+      .from('jadomi_invoices')
+      .select('id, invoice_number')
+      .eq('gpo_order_id', gpo_order_id)
+      .maybeSingle();
+    if (existingInv) return res.status(409).json({ error: 'Une facture existe deja pour cette commande', invoice_number: existingInv.invoice_number });
+
+    // 1. Fetch gpo_orders record and verify societe_id access
+    const { data: order, error: orderErr } = await admin()
+      .from('gpo_orders')
+      .select('*')
+      .eq('id', gpo_order_id)
+      .eq('societe_id', societeId)
+      .single();
+    if (orderErr || !order) return res.status(404).json({ error: 'Commande GPO introuvable ou acces refuse' });
+
+    // 2. Fetch active supplier_mandate for this supplier
+    const { data: mandate, error: mandateErr } = await admin()
+      .from('supplier_mandates')
+      .select('*')
+      .eq('supplier_id', order.supplier_id)
+      .in('status', ['active', 'signed'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (mandateErr || !mandate) return res.status(400).json({ error: 'Aucun mandat actif pour ce fournisseur' });
+
+    // 3. Generate invoice number via RPC or fallback
+    let invoice_number;
+    try {
+      const { data: rpcNum } = await admin().rpc('generate_invoice_number');
+      invoice_number = rpcNum;
+    } catch (_) {
+      invoice_number = 'JADOMI-INV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+    }
+
+    // 4. Calculate commission and net supplier
+    const total_ht = Number(order.total_ht) || 0;
+    const commission_percent = Number(mandate.commission_percent) || 0;
+    const commission = Math.round(total_ht * commission_percent / 100 * 100) / 100;
+    const net_supplier = Math.round((total_ht - commission) * 100) / 100;
+
+    // 5. Try to generate Factur-X PDF
+    let pdf_buffer = null;
+    try {
+      const generateFacturX = require('./lib/facturx-generator');
+      pdf_buffer = await generateFacturX({ order, mandate, invoice_number, total_ht, commission, net_supplier });
+    } catch (_) {
+      console.warn('[facturation/emettre] Factur-X generator not ready, skipping PDF generation');
+    }
+
+    // 6. Insert into jadomi_invoices
+    const invoicePayload = {
+      invoice_number,
+      societe_id: societeId,
+      gpo_order_id,
+      supplier_id: order.supplier_id,
+      mandate_id: mandate.id,
+      total_ht,
+      commission_amount: commission,
+      net_supplier,
+      commission_percent,
+      status: 'emitted',
+      invoice_date: new Date().toISOString(),
+      pdf_data: pdf_buffer ? pdf_buffer.toString('base64') : null,
+      created_by: userId
+    };
+    const { data: invoice, error: invErr } = await admin()
+      .from('jadomi_invoices')
+      .insert(invoicePayload)
+      .select()
+      .single();
+    if (invErr) throw invErr;
+
+    // 7. Insert into jadomi_commissions
+    try {
+      await admin()
+        .from('jadomi_commissions')
+        .insert({
+          invoice_id: invoice.id,
+          mandate_id: mandate.id,
+          societe_id: societeId,
+          supplier_id: order.supplier_id,
+          commission_percent,
+          commission_amount: commission,
+          base_ht: total_ht,
+          payment_status: 'pending'
+        });
+    } catch (commErr) {
+      console.warn('[facturation/emettre] jadomi_commissions insert failed:', commErr.message);
+    }
+
+    // 8. Update supplier_mandates counters (use RPC for atomic increment to avoid race conditions)
+    try {
+      try {
+        await admin().rpc('increment_mandate_counters', {
+          p_mandate_id: mandate.id,
+          p_invoice_ht: total_ht
+        });
+      } catch (_rpcErr) {
+        // Fallback: re-read mandate to get fresh values if RPC not available
+        const { data: freshMandate } = await admin()
+          .from('supplier_mandates')
+          .select('invoices_emitted, total_invoiced_ht')
+          .eq('id', mandate.id)
+          .single();
+        await admin()
+          .from('supplier_mandates')
+          .update({
+            invoices_emitted: ((freshMandate && freshMandate.invoices_emitted) || 0) + 1,
+            total_invoiced_ht: Math.round((((freshMandate && freshMandate.total_invoiced_ht) || 0) + total_ht) * 100) / 100
+          })
+          .eq('id', mandate.id);
+      }
+    } catch (updErr) {
+      console.warn('[facturation/emettre] mandate counters update failed:', updErr.message);
+    }
+
+    // 9. Send email to cabinet with invoice PDF
+    try {
+      const emailService = require('./api/emailService');
+      await emailService.send({
+        to: order.cabinet_email || req.user.email,
+        subject: 'Facture ' + invoice_number + ' - JADOMI',
+        html: '<p>Votre facture <strong>' + _escHtml(invoice_number) + '</strong> a ete emise pour un montant de ' + total_ht + ' EUR HT.</p>',
+        attachments: pdf_buffer ? [{ filename: invoice_number + '.pdf', content: pdf_buffer }] : []
+      });
+    } catch (emailErr) {
+      console.warn('[facturation/emettre] Email cabinet failed:', emailErr.message);
+    }
+
+    // 10. Send copy to supplier
+    try {
+      const emailService = require('./api/emailService');
+      if (order.supplier_email) {
+        await emailService.send({
+          to: order.supplier_email,
+          subject: 'Facture ' + invoice_number + ' - Copie fournisseur - JADOMI',
+          html: '<p>Une facture <strong>' + _escHtml(invoice_number) + '</strong> a ete emise. Montant net fournisseur : ' + net_supplier + ' EUR HT.</p>',
+          attachments: pdf_buffer ? [{ filename: invoice_number + '.pdf', content: pdf_buffer }] : []
+        });
+      }
+    } catch (emailErr) {
+      console.warn('[facturation/emettre] Email supplier failed:', emailErr.message);
+    }
+
+    res.json({ ok: true, invoice });
+  } catch (e) {
+    console.error('[POST /api/facturation/emettre]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/facturation/factures — Lister les factures du cabinet authentifie
+app.get('/api/facturation/factures', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const societeId = req.headers['x-societe-id'] || req.query.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    // IDOR protection: verify user belongs to this societe
+    const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+
+    const { data: factures, error } = await admin()
+      .from('jadomi_invoices')
+      .select('id, invoice_number, invoice_date, supplier_id, total_ht, commission_amount, net_supplier, status, commission_percent')
+      .eq('societe_id', societeId)
+      .order('invoice_date', { ascending: false });
+
+    if (error) throw error;
+    res.json({ ok: true, factures: factures || [] });
+  } catch (e) {
+    console.error('[GET /api/facturation/factures]', e.message);
+    res.status(500).json({ error: 'Erreur interne', factures: [] });
+  }
+});
+
+// GET /api/facturation/facture/:id/pdf — Telecharger le PDF d'une facture
+app.get('/api/facturation/facture/:id/pdf', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const societeId = req.headers['x-societe-id'] || req.query.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    // IDOR protection: verify user belongs to this societe
+    const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+
+    const { data: invoice, error } = await admin()
+      .from('jadomi_invoices')
+      .select('id, invoice_number, pdf_data, societe_id')
+      .eq('id', req.params.id)
+      .eq('societe_id', societeId)
+      .single();
+
+    if (error || !invoice) return res.status(404).json({ error: 'Facture introuvable ou acces refuse' });
+
+    if (!invoice.pdf_data) {
+      // Try to generate on the fly
+      try {
+        const generateFacturX = require('./lib/facturx-generator');
+        const { data: fullInvoice } = await admin()
+          .from('jadomi_invoices')
+          .select('*')
+          .eq('id', req.params.id)
+          .single();
+        const pdfBuf = await generateFacturX(fullInvoice);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="' + invoice.invoice_number + '.pdf"');
+        return res.send(pdfBuf);
+      } catch (_) {
+        return res.status(404).json({ error: 'PDF non disponible pour cette facture' });
+      }
+    }
+
+    const pdfBuf = Buffer.from(invoice.pdf_data, 'base64');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + invoice.invoice_number + '.pdf"');
+    res.send(pdfBuf);
+  } catch (e) {
+    console.error('[GET /api/facturation/facture/:id/pdf]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/facturation/revenue — Dashboard revenus JADOMI (admin only)
+app.get('/api/facturation/revenue', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    // Admin check: verify user role
+    const { data: profile } = await admin()
+      .from('profiles')
+      .select('role')
+      .eq('id', req.user.id)
+      .single();
+    if (!profile || profile.role !== 'admin') {
+      return res.status(403).json({ error: 'Acces reserve aux administrateurs JADOMI' });
+    }
+
+    // Try the materialized view first, fallback to direct query
+    let revenue = null;
+    try {
+      const { data, error } = await admin()
+        .from('v_jadomi_revenue')
+        .select('*')
+        .order('month', { ascending: false });
+      if (!error) revenue = data;
+    } catch (_) {}
+
+    if (!revenue) {
+      // Fallback: aggregate from jadomi_commissions
+      const { data, error } = await admin()
+        .from('jadomi_commissions')
+        .select('commission_amount, base_ht, created_at, payment_status');
+      if (error) throw error;
+
+      const byMonth = {};
+      for (const c of (data || [])) {
+        const month = (c.created_at || '').slice(0, 7);
+        if (!byMonth[month]) byMonth[month] = { month, total_commissions: 0, total_volume_ht: 0, invoice_count: 0 };
+        byMonth[month].total_commissions += Number(c.commission_amount) || 0;
+        byMonth[month].total_volume_ht += Number(c.base_ht) || 0;
+        byMonth[month].invoice_count += 1;
+      }
+      revenue = Object.values(byMonth).sort((a, b) => b.month.localeCompare(a.month));
+    }
+
+    res.json({ ok: true, revenue: revenue || [] });
+  } catch (e) {
+    console.error('[GET /api/facturation/revenue]', e.message);
+    res.status(500).json({ error: 'Erreur interne', revenue: [] });
+  }
+});
+
+// POST /api/facturation/facture/:id/mark-paid — Le cabinet confirme le paiement
+app.post('/api/facturation/facture/:id/mark-paid', requireAuth(), async (req, res) => {
+  try {
+    const { admin } = require('./api/multiSocietes/middleware');
+    const societeId = req.headers['x-societe-id'] || req.body.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+
+    // IDOR protection: verify user belongs to this societe
+    const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+
+    // Verify access
+    const { data: invoice, error: fetchErr } = await admin()
+      .from('jadomi_invoices')
+      .select('id, societe_id, status')
+      .eq('id', req.params.id)
+      .eq('societe_id', societeId)
+      .single();
+    if (fetchErr || !invoice) return res.status(404).json({ error: 'Facture introuvable ou acces refuse' });
+
+    // Guard against double-marking
+    if (invoice.status === 'paid_by_cabinet') {
+      return res.json({ ok: true, status: 'paid_by_cabinet', message: 'Facture deja marquee comme payee' });
+    }
+
+    // Update invoice status
+    const { error: updErr } = await admin()
+      .from('jadomi_invoices')
+      .update({ status: 'paid_by_cabinet', paid_at: new Date().toISOString() })
+      .eq('id', req.params.id);
+    if (updErr) throw updErr;
+
+    // Update commission payment_status
+    try {
+      await admin()
+        .from('jadomi_commissions')
+        .update({ payment_status: 'collected', collected_at: new Date().toISOString() })
+        .eq('invoice_id', req.params.id);
+    } catch (commErr) {
+      console.warn('[facturation/mark-paid] commission update failed:', commErr.message);
+    }
+
+    res.json({ ok: true, status: 'paid_by_cabinet' });
+  } catch (e) {
+    console.error('[POST /api/facturation/facture/:id/mark-paid]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // =============================================
 // COMPTABILITE — Analyse document (facture, charge, note de frais...)
 // =============================================
-const Imap = require('imap');
+const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const pdfParse = require('pdf-parse');
 
@@ -1942,7 +3715,7 @@ app.post('/api/analyser-document', requireAuth(), async (req, res) => {
     res.json({ ...data, hash });
   } catch (e) {
     console.error('analyser-document error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -2046,7 +3819,7 @@ app.post('/api/valider-document', requireAuth(), async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('valider-document error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -2194,7 +3967,7 @@ app.get('/api/mail/attachment/:token', (req, res) => {
     res.end(entry.buffer);
   } catch (e) {
     console.error('[/api/mail/attachment]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -2232,7 +4005,7 @@ app.get('/api/mail/scan-progress', requireAuthSSE(), (req, res) => {
     req.on('close', () => { clearInterval(ping); scanProgressClients.delete(userId); });
   } catch (e) {
     console.error('[SSE scan-progress]', e.message);
-    if (!res.headersSent) res.status(500).json({ error: e.message });
+    if (!res.headersSent) res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -2305,188 +4078,188 @@ function vautLaPeineAnalyser(parsed) {
   return false;
 }
 
-function scanInboxForDocs(imap, periode, mois, annee, provider, userId) {
-  return new Promise((resolve, reject) => {
-    const documents = [];
-    let claudeCalls = 0;
-    let limiteNotifiee = false;
-    let settled = false;
-    const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
-    const SCAN_TIMEOUT_MS = 10 * 60 * 1000;
-    const timer = setTimeout(() => {
-      console.error('IMAP scan timeout for', provider);
-      try { imap.end(); } catch(e) {}
-      sendProgress(userId, { status:'error', error:'Timeout 10min' });
-      settle(() => reject(new Error('Timeout: le scan a pris plus de 10 minutes. Essayez une periode plus courte.')));
-    }, SCAN_TIMEOUT_MS);
+async function scanInboxForDocs(imapConfig, periode, mois, annee, provider, userId) {
+  const documents = [];
+  let claudeCalls = 0;
+  let limiteNotifiee = false;
+  const SCAN_TIMEOUT_MS = 10 * 60 * 1000;
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    console.error('IMAP scan timeout for', provider);
+    sendProgress(userId, { status:'error', error:'Timeout 10min' });
+  }, SCAN_TIMEOUT_MS);
 
+  const client = new ImapFlow({ ...imapConfig, logger: false });
+
+  try {
     sendProgress(userId, { status:'connecting', total:0, done:0, found:0, current:'Connexion IMAP...' });
+    await client.connect();
+    sendProgress(userId, { status:'searching', total:0, done:0, found:0, current:'Recherche des mails...' });
 
-    imap.once('ready', () => {
-      sendProgress(userId, { status:'searching', total:0, done:0, found:0, current:'Recherche des mails...' });
-      imap.openBox('INBOX', true, (err) => {
-        if (err) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); return settle(() => reject(err)); }
-        let sinceDate;
-        if (periode === 'mensuel' && mois && annee) sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
-        else if (periode === 'annuel' && annee) sinceDate = new Date(parseInt(annee), 0, 1);
-        else if (periode === 'tout') sinceDate = new Date(2024, 0, 1);
-        else sinceDate = new Date(2026, 0, 1);
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      let sinceDate;
+      if (periode === 'mensuel' && mois && annee) sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
+      else if (periode === 'annuel' && annee) sinceDate = new Date(parseInt(annee), 0, 1);
+      else if (periode === 'tout') sinceDate = new Date(2024, 0, 1);
+      else sinceDate = new Date(2026, 0, 1);
 
-        console.log('IMAP scan SINCE', sinceDate, 'for', provider);
-        imap.search([['SINCE', sinceDate]], (err, uids) => {
-          if (err) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); return settle(() => reject(err)); }
-          if (!uids || !uids.length) { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'done', total:0, done:0, found:0, current:'Aucun mail' }); return settle(() => resolve(documents)); }
-          uids.sort((a, b) => b - a); // Plus recents en premier
-          const toProcess = uids;
-          console.log('[IMAP]', toProcess.length, 'mails a scanner pour', provider);
-          sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
-          let done = 0;
-          const parsePromises = [];
-          const f = imap.fetch(toProcess, { bodies: '', struct: true });
-          f.on('message', (msg) => {
-            msg.on('body', (stream) => {
-              const p = simpleParser(stream, { skipTextToHtml: true, skipImageLinks: true }).then(async (parsed) => {
-                const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
-                sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
-                const atts = parsed.attachments || [];
-                const fromTxt = (parsed.from && parsed.from.text) || '';
-                const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
-                console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
-                if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
-                  if (!limiteNotifiee) {
-                    console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan arrete');
-                    sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current: 'Limite 100 atteinte' });
-                    limiteNotifiee = true;
-                    try { imap.end(); } catch(e) {}
+      console.log('IMAP scan SINCE', sinceDate, 'for', provider);
+
+      const uids = await client.search({ since: sinceDate }, { uid: true });
+      if (!uids || !uids.length) {
+        sendProgress(userId, { status:'done', total:0, done:0, found:0, current:'Aucun mail' });
+        clearTimeout(timer);
+        lock.release();
+        await client.logout();
+        return documents;
+      }
+      uids.sort((a, b) => b - a);
+      const toProcess = uids;
+      console.log('[IMAP]', toProcess.length, 'mails a scanner pour', provider);
+      sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
+
+      let done = 0;
+      const uidRange = toProcess.join(',');
+      for await (const msg of client.fetch(uidRange, { source: true }, { uid: true })) {
+        if (timedOut) break;
+        if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN && limiteNotifiee) break;
+        try {
+          const parsed = await simpleParser(msg.source, { skipTextToHtml: true, skipImageLinks: true });
+          const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
+          sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
+          const atts = parsed.attachments || [];
+          const fromTxt = (parsed.from && parsed.from.text) || '';
+          const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
+          console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
+          if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
+            if (!limiteNotifiee) {
+              console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan arrete');
+              sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current: 'Limite 100 atteinte' });
+              limiteNotifiee = true;
+            }
+            break;
+          }
+          if (!vautLaPeineAnalyser(parsed)) {
+            console.log('[SKIP]', subj, '— pas une facture potentielle');
+            done++;
+            continue;
+          }
+          let mailPdfToken = null;
+          let mailPdfFilename = null;
+          for (const att of atts) {
+            if (isPdfAttachment(att) && !shouldSkipAttachment(att)) {
+              const t = storeAttachment(userId, att);
+              if (t) { mailPdfToken = t; mailPdfFilename = att.filename; break; }
+            }
+          }
+          let pjExploitable = false;
+          for (const att of atts) {
+            const isPDF = isPdfAttachment(att);
+            const skip = !isPDF || shouldSkipAttachment(att);
+            const contentLen = att && att.content && att.content.length || 0;
+            console.log('[ATT DEBUG]', att.filename || '(sans nom)', '| pdf:', isPDF, '| size:', att.size, '| contentLen:', contentLen, '| type:', att.contentType, '| skip:', skip);
+            if (skip) continue;
+            pjExploitable = true;
+            if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
+              if (!limiteNotifiee) {
+                console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan partiel');
+                sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: 'Limite Claude atteinte (scan partiel)' });
+                limiteNotifiee = true;
+              }
+              break;
+            }
+            try {
+              if (!att.content || !Buffer.isBuffer(att.content)) {
+                console.warn('[IMAP] Attachment sans contenu, skip:', att.filename);
+                continue;
+              }
+              const base64 = att.content.toString('base64');
+              claudeCalls++;
+              const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
+              if (analyse && analyse.type_document !== 'personnel') {
+                const attToken = storeAttachment(userId, att);
+                const docHash = computeDocHash(analyse);
+                if (docHash) storeAttachmentByHash(docHash, att);
+                documents.push({
+                  from: parsed.from ? parsed.from.text : '',
+                  date_mail: parsed.date,
+                  subject: parsed.subject,
+                  filename: att.filename,
+                  analyse,
+                  attachmentToken: attToken,
+                  docHash,
+                  selectionne: analyse.selectionne !== false,
+                });
+                sendProgress(userId, {
+                  status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
+                  newDocument: {
+                    fournisseur: analyse.fournisseur_ou_etablissement,
+                    total_ttc: analyse.total_ttc,
+                    type_document: analyse.type_document,
+                    date: analyse.date,
+                    filename: att.filename,
+                    attachmentToken: attToken,
+                    subject: parsed.subject || '',
+                    date_mail: parsed.date,
+                    selectionne: analyse.selectionne !== false,
                   }
-                  return;
-                }
-                if (!vautLaPeineAnalyser(parsed)) {
-                  console.log('[SKIP]', subj, '— pas une facture potentielle');
-                  return;
-                }
-                // Pre-store du 1er PDF du mail pour le partager avec un eventuel body-scan
-                let mailPdfToken = null;
-                let mailPdfFilename = null;
-                for (const att of atts) {
-                  if (isPdfAttachment(att) && !shouldSkipAttachment(att)) {
-                    const t = storeAttachment(userId, att);
-                    if (t) { mailPdfToken = t; mailPdfFilename = att.filename; break; }
+                });
+              }
+            } catch(e) { console.error('IMAP scan attachment error:', e.message); }
+          }
+          const subjMatch = subjectDeclencheBodyScan(parsed.subject);
+          if (subjMatch && claudeCalls < MAX_CLAUDE_CALLS_PER_SCAN) {
+            try {
+              claudeCalls++;
+              const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
+              if (analyse && analyse.type_document !== 'personnel') {
+                const bodyToken = mailPdfToken || storeMailBodyAsHtml(userId, parsed);
+                documents.push({
+                  from: parsed.from ? parsed.from.text : '',
+                  date_mail: parsed.date,
+                  subject: parsed.subject,
+                  filename: mailPdfFilename || '(corps du mail)',
+                  analyse,
+                  attachmentToken: bodyToken,
+                  selectionne: analyse.selectionne !== false,
+                });
+                sendProgress(userId, {
+                  status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
+                  newDocument: {
+                    fournisseur: analyse.fournisseur_ou_etablissement,
+                    total_ttc: analyse.total_ttc,
+                    type_document: analyse.type_document,
+                    date: analyse.date,
+                    filename: mailPdfFilename || '(corps du mail)',
+                    attachmentToken: bodyToken,
+                    subject: parsed.subject || '',
+                    date_mail: parsed.date,
+                    selectionne: analyse.selectionne !== false,
                   }
-                }
-                let pjExploitable = false;
-                for (const att of atts) {
-                  const isPDF = isPdfAttachment(att);
-                  const skip = !isPDF || shouldSkipAttachment(att);
-                  const contentLen = att && att.content && att.content.length || 0;
-                  console.log('[ATT DEBUG]', att.filename || '(sans nom)', '| pdf:', isPDF, '| size:', att.size, '| contentLen:', contentLen, '| type:', att.contentType, '| skip:', skip);
-                  if (skip) continue;
-                  pjExploitable = true;
-                  if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
-                    if (!limiteNotifiee) {
-                      console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan partiel');
-                      sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: 'Limite Claude atteinte (scan partiel)' });
-                      limiteNotifiee = true;
-                    }
-                    break;
-                  }
-                  try {
-                    if (!att.content || !Buffer.isBuffer(att.content)) {
-                      console.warn('[IMAP] Attachment sans contenu, skip:', att.filename);
-                      continue;
-                    }
-                    const base64 = att.content.toString('base64');
-                    claudeCalls++;
-                    const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
-                    if (analyse && analyse.type_document !== 'personnel') {
-                      const attToken = storeAttachment(userId, att);
-                      const docHash = computeDocHash(analyse);
-                      if (docHash) storeAttachmentByHash(docHash, att);
-                      documents.push({
-                        from: parsed.from ? parsed.from.text : '',
-                        date_mail: parsed.date,
-                        subject: parsed.subject,
-                        filename: att.filename,
-                        analyse,
-                        attachmentToken: attToken,
-                        docHash,
-                        selectionne: analyse.selectionne !== false,
-                      });
-                      sendProgress(userId, {
-                        status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
-                        newDocument: {
-                          fournisseur: analyse.fournisseur_ou_etablissement,
-                          total_ttc: analyse.total_ttc,
-                          type_document: analyse.type_document,
-                          date: analyse.date,
-                          filename: att.filename,
-                          attachmentToken: attToken,
-                          subject: parsed.subject || '',
-                          date_mail: parsed.date,
-                          selectionne: analyse.selectionne !== false,
-                        }
-                      });
-                    }
-                  } catch(e) { console.error('IMAP scan attachment error:', e.message); }
-                }
-                // Scan du corps: uniquement si sujet match (filtre dur pour limiter Claude)
-                const subjMatch = subjectDeclencheBodyScan(parsed.subject);
-                if (subjMatch && claudeCalls < MAX_CLAUDE_CALLS_PER_SCAN) {
-                  try {
-                    claudeCalls++;
-                    const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
-                    if (analyse && analyse.type_document !== 'personnel') {
-                      const bodyToken = mailPdfToken || storeMailBodyAsHtml(userId, parsed);
-                      documents.push({
-                        from: parsed.from ? parsed.from.text : '',
-                        date_mail: parsed.date,
-                        subject: parsed.subject,
-                        filename: mailPdfFilename || '(corps du mail)',
-                        analyse,
-                        attachmentToken: bodyToken,
-                        selectionne: analyse.selectionne !== false,
-                      });
-                      sendProgress(userId, {
-                        status:'scanning', total: toProcess.length, done, found: documents.length, current: subj,
-                        newDocument: {
-                          fournisseur: analyse.fournisseur_ou_etablissement,
-                          total_ttc: analyse.total_ttc,
-                          type_document: analyse.type_document,
-                          date: analyse.date,
-                          filename: mailPdfFilename || '(corps du mail)',
-                          attachmentToken: bodyToken,
-                          subject: parsed.subject || '',
-                          date_mail: parsed.date,
-                          selectionne: analyse.selectionne !== false,
-                        }
-                      });
-                    }
-                  } catch(e) { console.error('IMAP body scan error:', e.message); }
-                }
-                done++;
-                sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
-              }).catch((e) => { done++; console.error('IMAP parse error:', e.message); });
-              parsePromises.push(p);
-            });
-          });
-          f.once('error', (err) => { try { imap.end(); } catch(e) {} sendProgress(userId, { status:'error', error: err.message }); settle(() => reject(err)); });
-          f.once('end', () => {
-            Promise.all(parsePromises).finally(() => {
-              try { imap.end(); } catch(e) {}
-              sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Termine' });
-              settle(() => resolve(documents));
-            });
-          });
-        });
-      });
-    });
-    imap.once('error', (err) => {
-      console.error('IMAP connection error [' + provider + ']:', err.message, err.code || '');
-      sendProgress(userId, { status:'error', error: err.message });
-      settle(() => reject(err));
-    });
-    imap.connect();
-  });
+                });
+              }
+            } catch(e) { console.error('IMAP body scan error:', e.message); }
+          }
+          done++;
+          sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
+        } catch(e) { done++; console.error('IMAP parse error:', e.message); }
+      }
+      sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Termine' });
+    } finally {
+      lock.release();
+    }
+    clearTimeout(timer);
+    await client.logout();
+  } catch(e) {
+    clearTimeout(timer);
+    console.error('IMAP connection error [' + provider + ']:', e.message, e.code || '');
+    sendProgress(userId, { status:'error', error: 'Erreur interne' });
+    try { await client.logout(); } catch(_) {}
+    throw e;
+  }
+  return documents;
 }
 
 async function getYahooAccessToken(userId) {
@@ -2534,7 +4307,7 @@ app.get('/api/yahoo/account', requireAuth(), async (req, res) => {
     res.json({ connected: true, email: row.email, updated_at: row.updated_at });
   } catch (e) {
     console.error('yahoo/account error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -2545,25 +4318,17 @@ app.post('/api/mail/scan-yahoo', requireAuth(), async (req, res) => {
     const row = await getYahooAccessToken(userId);
     if (!row.email) return res.status(400).json({ error: 'Email Yahoo inconnu — reconnectez-vous.' });
 
-    const expired = row.expires_at && new Date(row.expires_at).getTime() < Date.now();
-    const authString = `user=${row.email}\x01auth=Bearer ${row.access_token}\x01\x01`;
-    const xoauth2Token = Buffer.from(authString).toString('base64');
-    console.log('[YAHOO-OAUTH] email=', row.email, 'expired=', expired, 'expires_at=', row.expires_at);
-    console.log('[YAHOO-OAUTH] XOAUTH2 base64 length:', xoauth2Token.length);
+    console.log('[YAHOO-OAUTH] email=', row.email, 'expires_at=', row.expires_at);
 
-    const imap = new Imap({
-      user: row.email,
-      xoauth2: xoauth2Token,
+    const imapConfig = {
       host: 'imap.mail.yahoo.com',
       port: 993,
-      tls: true,
-      tlsOptions: { rejectUnauthorized: false, servername: 'imap.mail.yahoo.com', minVersion: 'TLSv1.2' },
-      connTimeout: 30000,
-      authTimeout: 20000,
-      keepalive: true,
-    });
+      secure: true,
+      auth: { user: row.email, accessToken: row.access_token },
+      tls: { rejectUnauthorized: false, servername: 'imap.mail.yahoo.com', minVersion: 'TLSv1.2' },
+    };
     res.setTimeout(10 * 60 * 1000);
-    const documents = await scanInboxForDocs(imap, periode, mois, annee, 'Yahoo-OAuth', userId);
+    const documents = await scanInboxForDocs(imapConfig, periode, mois, annee, 'Yahoo-OAuth', userId);
     console.log('Yahoo-OAuth scan complete:', documents.length, 'docs for', row.email);
     res.json({ documents, total: documents.length, email: row.email });
   } catch (e) {
@@ -2572,7 +4337,7 @@ app.post('/api/mail/scan-yahoo', requireAuth(), async (req, res) => {
       const hint = /invalid credentials|authenticate/i.test(e.message)
         ? ' (scope OAuth insuffisant : Yahoo exige mail-r pour IMAP. Re-autoriser avec scope=mail-r une fois l\'app verifiee par Yahoo.)'
         : '';
-      res.status(400).json({ error: e.message + hint });
+      res.status(400).json({ error: 'Erreur connexion email' + hint });
     }
   }
 });
@@ -2601,19 +4366,23 @@ app.post('/api/mail/test', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'email_invalide' });
     }
     const config = configs[provider] || { host: `imap.${domain}`, port: 993 };
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
-
-    await new Promise((resolve, reject) => {
-      imap.once('ready', () => { imap.end(); resolve(); });
-      imap.once('error', (err) => { console.error('IMAP error [' + provider + ']:', err.message, err.code || ''); reject(err); });
-      console.log('IMAP connecting to', config.host, 'for', provider, '...');
-      imap.connect();
+    const testClient = new ImapFlow({
+      host: config.host,
+      port: config.port,
+      secure: true,
+      auth: { user: email, pass: password },
+      tls: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined },
+      logger: false
     });
+
+    console.log('IMAP connecting to', config.host, 'for', provider, '...');
+    await testClient.connect();
+    await testClient.logout();
     res.json({ success: true });
   } catch (e) {
     console.error('IMAP test error [' + provider + ']:', e.message, e.source || '');
     if (!res.headersSent) {
-      res.status(400).json({ error: `Connexion impossible : ${e.message}`, provider: provider, code: e.code || null });
+      res.status(400).json({ error: 'Connexion impossible', provider: provider, code: e.code || null });
     }
   }
 });
@@ -2641,208 +4410,17 @@ app.post('/api/mail/scan', requireAuth(), async (req, res) => {
     }
     const config = configs[provider] || { host: `imap.${domain}`, port: 993 };
 
-    const imap = new Imap({ user: email, password, host: config.host, port: config.port, tls: true, tlsOptions: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined }, connTimeout: 30000, authTimeout: 20000, keepalive: true });
+    const imapConfig = {
+      host: config.host,
+      port: config.port,
+      secure: true,
+      auth: { user: email, pass: password },
+      tls: { rejectUnauthorized: false, servername: config.host, minVersion: config.minTLS || undefined },
+    };
 
     res.setTimeout(10 * 60 * 1000);
-    const documents = [];
-    let claudeCalls = 0;
-    let limiteNotifiee = false;
-
-    await new Promise((resolve, reject) => {
-      let settled = false;
-      const settle = (fn) => { if (!settled) { settled = true; clearTimeout(timer); fn(); } };
-
-      // Timeout global 10 min — renvoie JSON, pas HTML
-      const timer = setTimeout(() => {
-        console.error('IMAP scan timeout for', provider, email);
-        try { imap.end(); } catch(e) {}
-        sendProgress(userId, { status:'error', error:'Timeout 10min' });
-        settle(() => reject(new Error('Timeout: le scan a pris plus de 10 minutes. Essayez une periode plus courte.')));
-      }, 10 * 60 * 1000);
-
-      sendProgress(userId, { status:'connecting', total:0, done:0, found:0, current:'Connexion IMAP...' });
-
-      imap.once('ready', () => {
-        sendProgress(userId, { status:'searching', total:0, done:0, found:0, current:'Recherche des mails...' });
-        imap.openBox('INBOX', true, (err) => {
-          if (err) { try { imap.end(); } catch(e) {} sendProgress(userId,{status:'error',error:err.message}); return settle(() => reject(err)); }
-
-          let sinceDate;
-          if (periode === 'mensuel' && mois && annee) {
-            sinceDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
-          } else if (periode === 'annuel' && annee) {
-            sinceDate = new Date(parseInt(annee), 0, 1);
-          } else if (periode === 'tout') {
-            sinceDate = new Date(2024, 0, 1);
-          } else {
-            sinceDate = new Date(2026, 0, 1);
-          }
-
-          console.log('IMAP scan search SINCE', sinceDate, 'for', provider);
-
-          imap.search([['SINCE', sinceDate]], (err, uids) => {
-            if (err) { try { imap.end(); } catch(e) {} return settle(() => reject(err)); }
-            if (!uids || !uids.length) {
-              console.log('IMAP scan: 0 mails found for', provider);
-              try { imap.end(); } catch(e) {}
-              return settle(() => resolve());
-            }
-
-            uids.sort((a, b) => b - a); // Plus recents en premier
-            const toProcess = uids;
-            console.log('[IMAP]', toProcess.length, 'mails a scanner pour', provider);
-            sendProgress(userId, { status:'scanning', total: toProcess.length, done:0, found:0, current:'Demarrage...' });
-            let scanDone = 0;
-            const parsePromises = [];
-
-            const f = imap.fetch(toProcess, { bodies: '', struct: true });
-
-            f.on('message', (msg) => {
-              msg.on('body', (stream) => {
-                const p = simpleParser(stream, { skipTextToHtml: true, skipImageLinks: true }).then(async (parsed) => {
-                  const subj = (parsed.subject || '').slice(0, 80) || 'Mail sans sujet';
-                  sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
-                  const atts = parsed.attachments || [];
-                  const fromTxt = (parsed.from && parsed.from.text) || '';
-                  const dateStr = parsed.date ? new Date(parsed.date).toISOString().slice(0,10) : '-';
-                  console.log('[IMAP mail]', dateStr, '|', fromTxt, '|', subj, '|', atts.length, 'PJ');
-                  if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
-                    if (!limiteNotifiee) {
-                      console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan arrete');
-                      sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current: 'Limite 100 atteinte' });
-                      limiteNotifiee = true;
-                      try { imap.end(); } catch(e) {}
-                    }
-                    return;
-                  }
-                  if (!vautLaPeineAnalyser(parsed)) {
-                    console.log('[SKIP]', subj, '— pas une facture potentielle');
-                    return;
-                  }
-                  let mailPdfToken = null;
-                  let mailPdfFilename = null;
-                  for (const att of atts) {
-                    if (isPdfAttachment(att) && !shouldSkipAttachment(att)) {
-                      const t = storeAttachment(userId, att);
-                      if (t) { mailPdfToken = t; mailPdfFilename = att.filename; break; }
-                    }
-                  }
-                  let pjExploitable = false;
-                  for (const att of atts) {
-                    const isPDF = isPdfAttachment(att);
-                    const skip = !isPDF || shouldSkipAttachment(att);
-                    const contentLen = att && att.content && att.content.length || 0;
-                  console.log('[ATT DEBUG]', att.filename || '(sans nom)', '| pdf:', isPDF, '| size:', att.size, '| contentLen:', contentLen, '| type:', att.contentType, '| skip:', skip);
-                    if (skip) continue;
-                    pjExploitable = true;
-                    if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) {
-                      if (!limiteNotifiee) {
-                        console.log('[CLAUDE] Limite', MAX_CLAUDE_CALLS_PER_SCAN, 'appels atteinte — scan partiel');
-                        sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: 'Limite Claude atteinte (scan partiel)' });
-                        limiteNotifiee = true;
-                      }
-                      break;
-                    }
-                    try {
-                      const base64 = att.content.toString('base64');
-                      claudeCalls++;
-                      const analyse = await claudeLimiter(() => analyserDocumentIA(base64, att.contentType));
-                      if (analyse && analyse.type_document !== 'personnel') {
-                        const attToken = storeAttachment(userId, att);
-                        const docHash = computeDocHash(analyse);
-                        if (docHash) storeAttachmentByHash(docHash, att);
-                        documents.push({
-                          from: parsed.from ? parsed.from.text : '',
-                          date_mail: parsed.date,
-                          subject: parsed.subject,
-                          filename: att.filename,
-                          analyse,
-                          attachmentToken: attToken,
-                          docHash,
-                          selectionne: analyse.selectionne !== false,
-                        });
-                        sendProgress(userId, {
-                          status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj,
-                          newDocument: {
-                            fournisseur: analyse.fournisseur_ou_etablissement,
-                            total_ttc: analyse.total_ttc,
-                            type_document: analyse.type_document,
-                            date: analyse.date,
-                            filename: att.filename,
-                            attachmentToken: attToken,
-                            subject: parsed.subject || '',
-                            selectionne: analyse.selectionne !== false,
-                          }
-                        });
-                      }
-                    } catch(e) { console.error('IMAP scan attachment error:', e.message); }
-                  }
-                  const subjMatch = subjectDeclencheBodyScan(parsed.subject);
-                  if (subjMatch && claudeCalls < MAX_CLAUDE_CALLS_PER_SCAN) {
-                    try {
-                      claudeCalls++;
-                      const analyse = await claudeLimiter(() => analyserTexteDocument(parsed.text || parsed.html || '', parsed.from && parsed.from.text, parsed.subject));
-                      if (analyse && analyse.type_document !== 'personnel') {
-                        const bodyToken = mailPdfToken || storeMailBodyAsHtml(userId, parsed);
-                        documents.push({
-                          from: parsed.from ? parsed.from.text : '',
-                          date_mail: parsed.date,
-                          subject: parsed.subject,
-                          filename: mailPdfFilename || '(corps du mail)',
-                          analyse,
-                          attachmentToken: bodyToken,
-                          selectionne: analyse.selectionne !== false,
-                        });
-                        sendProgress(userId, {
-                          status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj,
-                          newDocument: {
-                            fournisseur: analyse.fournisseur_ou_etablissement,
-                            total_ttc: analyse.total_ttc,
-                            type_document: analyse.type_document,
-                            date: analyse.date,
-                            filename: mailPdfFilename || '(corps du mail)',
-                            attachmentToken: bodyToken,
-                            subject: parsed.subject || '',
-                            selectionne: analyse.selectionne !== false,
-                          }
-                        });
-                      }
-                    } catch(e) { console.error('IMAP body scan error:', e.message); }
-                  }
-                  scanDone++;
-                  sendProgress(userId, { status:'scanning', total: toProcess.length, done: scanDone, found: documents.length, current: subj });
-                }).catch((e) => { scanDone++; console.error('IMAP scan parse error:', e.message); });
-                parsePromises.push(p);
-              });
-            });
-
-            f.once('error', (err) => {
-              console.error('IMAP fetch error:', err.message);
-              try { imap.end(); } catch(e) {}
-              settle(() => reject(err));
-            });
-
-            f.once('end', () => {
-              console.log('IMAP fetch done, waiting for', parsePromises.length, 'parse jobs...');
-              Promise.all(parsePromises).finally(() => {
-                console.log('IMAP scan complete:', documents.length, 'documents found');
-                try { imap.end(); } catch(e) {}
-                sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Termine' });
-                settle(() => resolve());
-              });
-            });
-          });
-        });
-      });
-
-      imap.once('error', (err) => {
-        console.error('IMAP connection error [' + (provider||'?') + ']:', err.message, err.code || '');
-        sendProgress(userId, { status:'error', error: err.message });
-        settle(() => reject(err));
-      });
-      console.log('IMAP scan connecting to', config.host, 'for', provider, '...');
-      imap.connect();
-    });
+    console.log('IMAP scan connecting to', config.host, 'for', provider, '...');
+    const documents = await scanInboxForDocs(imapConfig, periode, mois, annee, provider, userId);
 
     console.log('IMAP scan responding with', documents.length, 'documents');
     if (!res.headersSent) {
@@ -2855,7 +4433,7 @@ app.post('/api/mail/scan', requireAuth(), async (req, res) => {
   } catch (e) {
     console.error('IMAP scan error [' + (provider||'?') + ']:', e.message, e.code || '', e.source || '');
     if (!res.headersSent) {
-      res.status(400).json({ error: e.message, provider: provider });
+      res.status(400).json({ error: 'Erreur validation', provider: provider });
     }
   }
 });
@@ -2966,7 +4544,7 @@ app.post('/api/mail/import', requireAuth(), async (req, res) => {
     res.json({ success: true, imported, duplicates, errors });
   } catch (e) {
     console.error('mail/import error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -3049,7 +4627,7 @@ JSON uniquement :
     });
   } catch (e) {
     console.error('analyser-releve error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -3068,7 +4646,7 @@ app.get('/api/factures', requireAuth(), async (req, res) => {
     res.json(data || []);
   } catch (e) {
     console.error('factures error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -3085,9 +4663,9 @@ app.get('/api/tva/config/:userId', requireAuth(), async (req, res) => {
       .select('*')
       .eq('user_id', userId)
       .maybeSingle();
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
     res.json(data || { statut_tva: 'franchise', seuil_franchise: 37500, ca_annuel_estime: 0 });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.post('/api/tva/config', requireAuth(), async (req, res) => {
@@ -3106,9 +4684,9 @@ app.post('/api/tva/config', requireAuth(), async (req, res) => {
         numero_tva: numero_tva || null,
         updated_at: new Date().toISOString()
       });
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.get('/api/compta/recap/:userId', requireAuth(), async (req, res) => {
@@ -3198,7 +4776,7 @@ app.get('/api/compta/recap/:userId', requireAuth(), async (req, res) => {
         ? Object.values(parMois).reduce((s, m) => s + m.tva_recuperable, 0)
         : 0
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.get('/api/compta/document/:id/pdf', requireAuth(), async (req, res) => {
@@ -3218,7 +4796,7 @@ app.get('/api/compta/document/:id/pdf', requireAuth(), async (req, res) => {
       .createSignedUrl(doc.storage_path, 3600);
     if (error || !signed || !signed.signedUrl) return res.status(404).json({ error: 'URL non generee' });
     res.redirect(signed.signedUrl);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.patch('/api/compta/document/:id/paiement', requireAuth(), async (req, res) => {
@@ -3231,9 +4809,9 @@ app.patch('/api/compta/document/:id/paiement', requireAuth(), async (req, res) =
       .from('documents_compta')
       .update({ mode_paiement })
       .eq('id', id).eq('user_id', userId);
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.patch('/api/compta/document/:id/mois', requireAuth(), async (req, res) => {
@@ -3246,9 +4824,9 @@ app.patch('/api/compta/document/:id/mois', requireAuth(), async (req, res) => {
       .from('documents_compta')
       .update({ mois_manuel: mois })
       .eq('id', id).eq('user_id', userId);
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.patch('/api/compta/document/:id', requireAuth(), async (req, res) => {
@@ -3261,9 +4839,9 @@ app.patch('/api/compta/document/:id', requireAuth(), async (req, res) => {
       .from('documents_compta')
       .update({ tags, commentaire })
       .eq('id', id).eq('user_id', userId);
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.delete('/api/compta/document/:id', requireAuth(), async (req, res) => {
@@ -3275,9 +4853,9 @@ app.delete('/api/compta/document/:id', requireAuth(), async (req, res) => {
       .from('documents_compta')
       .delete()
       .eq('id', id).eq('user_id', userId);
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: 'Erreur validation' });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 app.get('/api/compta/export/:userId', requireAuth(), async (req, res) => {
@@ -3305,7 +4883,7 @@ app.get('/api/compta/export/:userId', requireAuth(), async (req, res) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="JADOMI-Compta-${anneeVal}.csv"`);
     res.send('\ufeff' + csv);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 // =============================================

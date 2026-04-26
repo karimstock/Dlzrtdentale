@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     res.json({ exists: true, prothesiste: req.prothesiste });
   } catch (e) {
     console.error('[LABO profil GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -63,7 +63,7 @@ router.post('/', async (req, res) => {
     res.json({ success: true, prothesiste: data });
   } catch (e) {
     console.error('[LABO profil POST]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -100,7 +100,7 @@ router.put('/', async (req, res) => {
     res.json({ success: true, prothesiste: data });
   } catch (e) {
     console.error('[LABO profil PUT]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -151,7 +151,7 @@ router.post('/template-catalogue', async (req, res) => {
     res.json({ success: true, message: 'Template catalogue installe' });
   } catch (e) {
     console.error('[LABO template]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

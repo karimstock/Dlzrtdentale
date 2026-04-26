@@ -51,7 +51,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/versions]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -80,7 +80,7 @@ module.exports = function(router) {
       res.json({ success: true, version: data });
     } catch (err) {
       console.error('[vitrines/versions]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -154,7 +154,7 @@ module.exports = function(router) {
       res.json({ success: true, restored_version: version.version_number });
     } catch (err) {
       console.error('[vitrines/versions]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

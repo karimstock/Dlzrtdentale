@@ -229,7 +229,7 @@ function mountFactureFournImport(app) {
         }
       }
       res.json({ success: true, results, nb: results.length });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   app.use('/api/commerce/factures-fournisseurs', router);

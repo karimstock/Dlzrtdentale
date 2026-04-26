@@ -33,7 +33,7 @@ module.exports = function(router) {
       res.json({ success: true, themes: data || [] });
     } catch (err) {
       console.error('[vitrines/themes]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -53,7 +53,7 @@ module.exports = function(router) {
       res.json({ success: true, theme: data });
     } catch (err) {
       console.error('[vitrines/themes]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -90,7 +90,7 @@ module.exports = function(router) {
       res.json({ success: true, themes: filtered });
     } catch (err) {
       console.error('[vitrines/themes]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -130,7 +130,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/themes]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -175,7 +175,7 @@ module.exports = function(router) {
       res.json({ success: true, theme_slug: theme_slug, theme_name: theme.name });
     } catch (err) {
       console.error('[vitrines/themes]', err.message);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 

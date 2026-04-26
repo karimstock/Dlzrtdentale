@@ -79,7 +79,7 @@ module.exports = function(router) {
       res.json({ success: true, suggestions: results });
     } catch (err) {
       console.error('[vitrines/domains]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -95,7 +95,7 @@ module.exports = function(router) {
       res.json({ success: true, domain: domain, available: available });
     } catch (err) {
       console.error('[vitrines/domains]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -126,7 +126,7 @@ module.exports = function(router) {
       res.json({ success: true, site: data });
     } catch (err) {
       console.error('[vitrines/domains]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -183,7 +183,7 @@ module.exports = function(router) {
       });
     } catch (err) {
       console.error('[vitrines/domains/ovh/check]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -242,7 +242,7 @@ module.exports = function(router) {
 
           return { domain, available, price_eur: priceEur, mode: 'live' };
         } catch(err) {
-          return { domain, available: null, price_eur: null, mode: 'error', error: err.message };
+          return { domain, available: null, price_eur: null, mode: 'error', error: 'Erreur interne' };
         }
       }));
 
@@ -254,7 +254,7 @@ module.exports = function(router) {
       res.json({ success: true, mode: 'live', suggestions: suggestions });
     } catch (err) {
       console.error('[vitrines/domains/ovh/suggest]', err);
-      res.status(500).json({ success: false, error: err.message });
+      res.status(500).json({ success: false, error: 'Erreur interne' });
     }
   });
 
@@ -306,7 +306,7 @@ module.exports = function(router) {
       console.error('[vitrines/domains/ovh/reserve]', err);
       res.status(500).json({
         success: false,
-        error: err.message,
+        error: 'Erreur interne',
         fallback_url: `https://www.ovh.com/fr/domaines/?q=${encodeURIComponent(req.body.domain || '')}`
       });
     }

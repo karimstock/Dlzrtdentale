@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
     res.json({ produits: data || [] });
   } catch (e) {
     console.error('[LABO catalogue GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -60,7 +60,7 @@ router.get('/categories', async (req, res) => {
     res.json({ categories: result });
   } catch (e) {
     console.error('[LABO categories]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
     res.json({ success: true, produit: data });
   } catch (e) {
     console.error('[LABO catalogue POST]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -128,7 +128,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, produit: data });
   } catch (e) {
     console.error('[LABO catalogue PUT]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -145,7 +145,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('[LABO catalogue DELETE]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

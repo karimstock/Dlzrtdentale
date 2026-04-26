@@ -17,7 +17,7 @@ module.exports = function (router) {
       res.json({ prestations: data || [] });
     } catch (e) {
       console.error('[services/prestations] GET:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -33,7 +33,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ prestation: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -63,7 +63,7 @@ module.exports = function (router) {
       res.json({ prestation: data });
     } catch (e) {
       console.error('[services/prestations] POST:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -86,7 +86,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'prestation_update', entity: 'services_prestations', entityId: data.id, req });
       res.json({ prestation: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -102,7 +102,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'prestation_delete', entity: 'services_prestations', entityId: req.params.id, req });
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -146,7 +146,7 @@ Réponds UNIQUEMENT en JSON valide avec ce format :
       res.json({ description: result.description, seo_keywords: result.seo_keywords });
     } catch (e) {
       console.error('[services/prestations] IA:', e.message);
-      res.status(500).json({ error: 'Erreur JADOMI IA : ' + e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

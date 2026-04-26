@@ -102,7 +102,7 @@ function createPaiementRouter(supabase) {
       });
     } catch (e) {
       console.error('[RUSH paiement]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -124,7 +124,7 @@ function createPaiementRouter(supabase) {
       res.json({ success: true, message: 'Paiement confirme — fabrication peut commencer' });
     } catch (e) {
       console.error('[RUSH paiement confirmer]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -180,7 +180,7 @@ function createPaiementRouter(supabase) {
       res.json({ success: true, message: 'Livraison validee — paiement capture, virement sous-traitant sous 48h' });
     } catch (e) {
       console.error('[RUSH valider-livraison]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -205,7 +205,7 @@ function createPaiementRouter(supabase) {
       res.json({ success: true, message: 'Litige ouvert — escrow gele — admin JADOMI notifie' });
     } catch (e) {
       console.error('[RUSH litige]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -221,7 +221,7 @@ function createPaiementRouter(supabase) {
       res.json({ success: true, paiement: data || null });
     } catch (e) {
       console.error('[RUSH paiement status]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 

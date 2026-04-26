@@ -288,7 +288,7 @@ router.post('/documents/upload', requireClient, upload.single('file'), async (re
 
     return res.status(201).json({ document: { id: doc.id, filename: doc.filename, file_size_kb: doc.file_size_kb } });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -311,7 +311,7 @@ router.get('/documents/:id/download', requireClient, async (req, res) => {
     res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
     return res.send(decrypted);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

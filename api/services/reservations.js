@@ -30,7 +30,7 @@ module.exports = function (router) {
       res.json({ reservations: data || [], total: count });
     } catch (e) {
       console.error('[services/reservations] GET:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -94,7 +94,7 @@ module.exports = function (router) {
       res.json({ reservation: data });
     } catch (e) {
       console.error('[services/reservations] POST:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -171,7 +171,7 @@ module.exports = function (router) {
       res.json({ reservation: data });
     } catch (e) {
       console.error('[services/reservations] PATCH:', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

@@ -157,17 +157,21 @@ module.exports = function mountRequests(app, admin, auth) {
 
     } catch (e) {
       console.error('[GPO POST /requests]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
   // GET /api/gpo/requests/:id — statut d'une demande
   app.get('/api/gpo/requests/:id', auth, async (req, res) => {
     try {
+      const societeId = req.headers['x-societe-id'] || req.query.societe_id;
+      if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
+
       const { data: request, error } = await admin()
         .from('gpo_requests')
         .select('*')
         .eq('id', req.params.id)
+        .eq('societe_id', societeId)
         .single();
 
       if (error || !request) return res.status(404).json({ error: 'Demande introuvable' });
@@ -191,7 +195,7 @@ module.exports = function mountRequests(app, admin, auth) {
       res.json({ request, attempts: attempts || [], winner_supplier: winnerSupplier });
     } catch (e) {
       console.error('[GPO GET /requests/:id]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -217,7 +221,7 @@ module.exports = function mountRequests(app, admin, auth) {
       res.json({ requests: data || [] });
     } catch (e) {
       console.error('[GPO GET /requests]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -289,23 +293,34 @@ module.exports = function mountRequests(app, admin, auth) {
       res.json({ success: true, status: 'accepted', final_price_eur: attempt.counter_price_eur });
     } catch (e) {
       console.error('[GPO POST /confirm-counter]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
   // POST /api/gpo/requests/:id/cancel — annuler
   app.post('/api/gpo/requests/:id/cancel', auth, async (req, res) => {
     try {
+      const societeId = req.headers['x-societe-id'] || req.body.societe_id;
+      if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
+
+      // Verifier statut avant annulation
+      const { data: current } = await admin().from('gpo_requests').select('status').eq('id', req.params.id).eq('societe_id', societeId).single();
+      if (!current) return res.status(404).json({ error: 'Demande introuvable' });
+      if (['accepted', 'fulfilled', 'cancelled'].includes(current.status)) {
+        return res.status(400).json({ error: 'Impossible annuler au statut: ' + current.status });
+      }
+
       const { error } = await admin()
         .from('gpo_requests')
         .update({ status: 'cancelled' })
-        .eq('id', req.params.id);
+        .eq('id', req.params.id)
+        .eq('societe_id', societeId);
 
       if (error) throw error;
       res.json({ success: true });
     } catch (e) {
       console.error('[GPO POST /cancel]', e.message);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

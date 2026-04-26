@@ -22,7 +22,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ produits: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -51,7 +51,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'produit_create', entity: 'services_produits', entityId: data.id, req });
       res.json({ produit: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -73,7 +73,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ produit: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -88,7 +88,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -109,7 +109,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ commandes: data || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -139,7 +139,7 @@ module.exports = function (router) {
       await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'commande_create', entity: 'services_commandes', entityId: data.id, req });
       res.json({ commande: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -175,7 +175,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ commande: data });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -190,7 +190,7 @@ module.exports = function (router) {
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

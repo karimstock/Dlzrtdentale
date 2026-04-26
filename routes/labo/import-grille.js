@@ -151,7 +151,7 @@ router.post('/upload', upload.single('fichier'), async (req, res) => {
     });
   } catch (e) {
     console.error('[LABO import upload]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -176,7 +176,7 @@ router.get('/:id', async (req, res) => {
     res.json({ import: imp, lignes: lignes || [] });
   } catch (e) {
     console.error('[LABO import GET]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -195,7 +195,7 @@ router.get('/', async (req, res) => {
     res.json({ imports: data || [] });
   } catch (e) {
     console.error('[LABO imports list]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 
@@ -262,7 +262,7 @@ router.post('/:id/valider', async (req, res) => {
     res.json({ success: true, updated, created });
   } catch (e) {
     console.error('[LABO import valider]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erreur interne' });
   }
 });
 

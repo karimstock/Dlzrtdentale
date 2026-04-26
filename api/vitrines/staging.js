@@ -71,7 +71,7 @@ module.exports = function (router) {
       });
 
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -85,7 +85,7 @@ module.exports = function (router) {
       if (error || !data) return res.status(404).json({ error: 'Staging non trouve' });
       return res.json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 
@@ -96,7 +96,7 @@ module.exports = function (router) {
       if (!data) return res.status(404).json({ error: 'Non trouve' });
       return res.json(data);
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: 'Erreur interne' });
     }
   });
 };

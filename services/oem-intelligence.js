@@ -315,30 +315,23 @@ async function analyzeProduct(product, societeId) {
   // ÉTAPE 4 : Générer le message insight
   // ══════════════════════════════════════════
 
-  if (report.is_white_label && report.oem_origin) {
-    const origin = report.oem_origin;
-    let msg = `Ce produit est fabriqué par ${origin.manufacturer}`;
-    if (origin.city) msg += ` (${origin.city}`;
-    if (origin.country === 'CN') msg += ', Chine)';
-    else if (origin.country) msg += `, ${origin.country})`;
-    else msg += ')';
-    msg += '.';
-
-    if (report.equivalents_count > 0) {
-      msg += ` ${report.equivalents_count} autre${report.equivalents_count > 1 ? 's' : ''} marque${report.equivalents_count > 1 ? 's' : ''} vend${report.equivalents_count > 1 ? 'ent' : ''} le même produit.`;
-    }
+  if (report.is_white_label && report.equivalents_count > 0) {
+    let msg = `Meme produit disponible sous ${report.equivalents_count} autre${report.equivalents_count > 1 ? 's' : ''} marque${report.equivalents_count > 1 ? 's' : ''}.`;
     if (report.potential_savings > 0) {
-      msg += ` Économie possible : ${report.potential_savings.toFixed(2)} EUR/unité (-${report.savings_percent}%).`;
+      msg += ` Economie possible : ${report.potential_savings.toFixed(2)} EUR/unite (-${report.savings_percent}%).`;
+    }
+    if (report.cheapest_equivalent) {
+      msg += ` Meilleur prix : ${report.cheapest_equivalent.marque} chez ${report.cheapest_equivalent.fournisseur}.`;
     }
     report.market_insight = msg;
 
-  } else if (report.oem_origin && report.is_chinese_oem) {
-    report.market_insight = `Fabricant direct : ${report.oem_origin.manufacturer} (${report.oem_origin.city || 'Chine'}). Produit en marque propre, pas du white label.`;
+  } else if (report.is_white_label && report.oem_origin) {
+    report.market_insight = `Alternative verifiee : ce produit existe sous d'autres marques. JADOMI surveille les prix pour vous.`;
 
   } else if (report.equivalents_count > 0) {
-    let msg = `${report.equivalents_count} produit${report.equivalents_count > 1 ? 's' : ''} équivalent${report.equivalents_count > 1 ? 's' : ''} trouvé${report.equivalents_count > 1 ? 's' : ''} sous d'autres marques.`;
+    let msg = `${report.equivalents_count} alternative${report.equivalents_count > 1 ? 's' : ''} verifiee${report.equivalents_count > 1 ? 's' : ''} sous d'autres marques.`;
     if (report.potential_savings > 0) {
-      msg += ` Économie possible : ${report.potential_savings.toFixed(2)} EUR/unité (-${report.savings_percent}%).`;
+      msg += ` Economie possible : ${report.potential_savings.toFixed(2)} EUR/unite (-${report.savings_percent}%).`;
     }
     report.market_insight = msg;
   }

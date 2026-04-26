@@ -4,7 +4,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 let _sb = null;
 function sb() {
@@ -128,7 +128,7 @@ module.exports = function (router) {
       res.json({ ok: true, count: allResults.length, results: allResults });
     } catch (e) {
       console.error('[annuaire/search]', e.message);
-      res.status(500).json({ error: 'search_error', message: e.message });
+      res.status(500).json({ error: 'search_error', message: 'Erreur interne' });
     }
   });
 
@@ -158,7 +158,7 @@ module.exports = function (router) {
       res.json({ ok: true, categories });
     } catch (e) {
       console.error('[annuaire/categories]', e.message);
-      res.status(500).json({ error: 'categories_error', message: e.message });
+      res.status(500).json({ error: 'categories_error', message: 'Erreur interne' });
     }
   });
 
@@ -196,7 +196,7 @@ module.exports = function (router) {
       res.json({ ok: true, count: allResults.length, prefix, results: allResults });
     } catch (e) {
       console.error('[annuaire/nearby]', e.message);
-      res.status(500).json({ error: 'nearby_error', message: e.message });
+      res.status(500).json({ error: 'nearby_error', message: 'Erreur interne' });
     }
   });
 };

@@ -10,7 +10,7 @@ module.exports = function (router) {
         .eq('user_id', req.user.id)
         .order('created_at', { ascending: false });
       res.json({ success: true, favoris: data || [] });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 
   // POST ajouter un favori
@@ -29,7 +29,7 @@ module.exports = function (router) {
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, favori: data });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // DELETE retirer un favori
@@ -38,7 +38,7 @@ module.exports = function (router) {
       await admin().from('showroom_favoris')
         .delete().eq('user_id', req.user.id).eq('produit_id', req.params.produitId);
       res.json({ success: true });
-    } catch (e) { res.status(400).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
 
   // GET vérifier si un produit est en favoris
@@ -47,6 +47,6 @@ module.exports = function (router) {
       const { data } = await admin().from('showroom_favoris')
         .select('id').eq('user_id', req.user.id).eq('produit_id', req.params.produitId).maybeSingle();
       res.json({ success: true, is_favori: !!data });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
 };
