@@ -1268,8 +1268,31 @@ H) Photo Identify OEM (routes/labo/stock.js) :
    - Detecte : fabricant_reel, adresse_fabricant, pays_fabrication, marquage_ce
    - Distingue marque (distributeur) vs fabricant reel (OEM)
    - Auto-cree des product_equivalences quand OEM detecte
-   - Retourne : oem{}, equivalents[], market_insight, potential_savings
    - Chaque photo prise enrichit la base OEM pour TOUS les dentistes
+I) Architecture non-intrusive (UX) :
+   - Le scan reste RAPIDE et PROPRE (pas de rapport OEM dans la reponse)
+   - L'intelligence OEM tourne en ARRIERE-PLAN (setImmediate)
+   - Si white label ou economie detectee → NOTIFICATION push
+   - Le dentiste consulte le rapport quand il veut via GET /api/labo/stock/oem-report
+   - Le rapport OEM liste toutes les equivalences avec prix compares et economies
+   - Tri par economie decroissante, total savings calcule
+   - Votes communautaires (upvote/downvote) pour valider les equivalences
+
+## Fichiers cles Passe 51b
+| Fichier | Role |
+|---------|------|
+| services/oem-intelligence.js | Cerveau OEM : analyzeProduct, analyzePhotoForOEM, reportEquivalence, voteEquivalence |
+| services/scan-engine.js | Waterfall 5 niveaux + enrichScanResult + findEquivalents |
+| services/invoice-matcher.js | Intelligence prix + contrats fournisseur + normalisation HT/TTC |
+| api/multiSocietes/factureFournImport.js | Import factures + detection suivra + code client |
+| routes/labo/stock.js | Photo Identify OEM + rapport OEM consultable |
+| sql/scan/product_equivalences.sql | Table equivalences + vue v_product_equivalences_with_prices |
+| scripts/seed-oem-equivalences.js | Base connaissance 16+ fabricants OEM chinois |
+| scripts/import-catalogues-manuels.js | 270 produits manuels (Septodont, Anios, GC, DMG...) |
+| scripts/import-eudamed-v3.js | Import EUDAMED fabricants manquants |
+| scripts/import-eudamed-v4-all.js | Import EUDAMED 38 fabricants + 60 mots-cles |
+| server.js | /api/scan/lookup enrichi + extraction code_client + detection suivra IA |
+| index.html | Onglet fournisseurs dynamique + contrats + remises |
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class

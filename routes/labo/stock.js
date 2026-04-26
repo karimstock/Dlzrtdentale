@@ -672,52 +672,96 @@ JSON strict :
     } catch (e) { /* silent */ }
 
     // ══════════════════════════════════════════
-    // OEM INTELLIGENCE — Le vrai effet WOW
+    // OEM INTELLIGENCE — Tourne en ARRIÈRE-PLAN
+    // Le scan reste rapide et propre. L'OEM Intelligence
+    // analyse en background et envoie une NOTIFICATION
+    // si quelque chose d'intéressant est détecté.
     // ══════════════════════════════════════════
-    let oemReport = null;
-    try {
-      const oemIntel = require('../../services/oem-intelligence');
-      oemReport = await oemIntel.analyzeProduct({
-        id: productDbId,
-        nom: product.nom_fr || product.nom,
-        marque: brandName,
-        fournisseur: realManufacturer,
-        categorie: product.categorie,
-        code_barre: gtin,
-      }, req.societeId);
+    setImmediate(async () => {
+      try {
+        const oemIntel = require('../../services/oem-intelligence');
+        const oemReport = await oemIntel.analyzeProduct({
+          id: productDbId,
+          nom: product.nom_fr || product.nom,
+          marque: brandName,
+          fournisseur: realManufacturer,
+          categorie: product.categorie,
+          code_barre: gtin,
+        }, req.societeId);
 
-      // Si Claude a détecté un OEM et que le service le confirme, auto-enregistrer l'équivalence
-      if (product.is_white_label && product.fabricant_reel && productDbId) {
-        // Chercher si le fabricant réel a d'autres produits sous sa propre marque
-        const { data: oemProducts } = await admin().from('products_database')
-          .select('id, gtin, name, brand')
-          .ilike('manufacturer', `%${product.fabricant_reel.split(' ')[0]}%`)
-          .neq('id', productDbId)
-          .eq('category', product.categorie)
-          .limit(10);
+        // Auto-enregistrer les équivalences OEM détectées par la photo
+        if (product.is_white_label && product.fabricant_reel && productDbId) {
+          const { data: oemProducts } = await admin().from('products_database')
+            .select('id, gtin, name, brand')
+            .ilike('manufacturer', `%${product.fabricant_reel.split(' ')[0]}%`)
+            .neq('id', productDbId)
+            .eq('category', product.categorie)
+            .limit(10);
 
-        for (const oemProd of (oemProducts || [])) {
-          try {
-            await admin().from('product_equivalences').upsert({
-              product_a_id: productDbId,
-              product_b_id: oemProd.id,
-              equivalence_type: 'same_oem',
-              confidence: 0.85,
-              oem_manufacturer: product.fabricant_reel,
-              oem_country: product.pays_fabrication === 'Chine' || product.pays_fabrication === 'China' ? 'CN' : null,
-              source: 'ai',
-              metadata: {
-                detected_by: 'photo_identify_claude_vision',
-                ce_marking: product.marquage_ce,
-                detected_at: new Date().toISOString()
-              }
-            }, { onConflict: 'product_a_id,product_b_id', ignoreDuplicates: true });
-          } catch (_) {}
+          for (const oemProd of (oemProducts || [])) {
+            try {
+              await admin().from('product_equivalences').upsert({
+                product_a_id: productDbId,
+                product_b_id: oemProd.id,
+                equivalence_type: 'same_oem',
+                confidence: 0.85,
+                oem_manufacturer: product.fabricant_reel,
+                oem_country: product.pays_fabrication === 'Chine' || product.pays_fabrication === 'China' ? 'CN' : null,
+                source: 'ai',
+                metadata: {
+                  detected_by: 'photo_identify_claude_vision',
+                  ce_marking: product.marquage_ce,
+                  detected_at: new Date().toISOString()
+                }
+              }, { onConflict: 'product_a_id,product_b_id', ignoreDuplicates: true });
+            } catch (_) {}
+          }
         }
+
+        // ── NOTIFICATION si trouvaille intéressante ──
+        const dominated = (oemReport?.is_white_label) || (oemReport?.potential_savings > 0) || (oemReport?.equivalents_count > 0);
+        if (dominated && req.societeId) {
+          let pushNotif;
+          try { pushNotif = require('../../api/multiSocietes/notifications').pushNotification; } catch (_) {}
+          if (pushNotif) {
+            let titre, message;
+            if (oemReport.is_white_label && oemReport.oem_origin) {
+              titre = `White label detecte : ${product.nom_fr || product.nom}`;
+              message = oemReport.market_insight || `Ce produit (${brandName}) est fabrique par ${oemReport.oem_origin.manufacturer}.`;
+            } else if (oemReport.potential_savings > 0) {
+              titre = `Economie detectee : ${product.nom_fr || product.nom}`;
+              message = `Equivalent disponible a -${oemReport.savings_percent}%. ${oemReport.market_insight || ''}`;
+            } else {
+              titre = `${oemReport.equivalents_count} equivalent(s) : ${product.nom_fr || product.nom}`;
+              message = oemReport.market_insight || `Des alternatives existent sous d'autres marques.`;
+            }
+
+            const { data: members } = await admin().from('user_societe_roles')
+              .select('user_id').eq('societe_id', req.societeId)
+              .in('role', ['proprietaire', 'associe']);
+
+            for (const m of (members || [])) {
+              try {
+                await pushNotif({
+                  user_id: m.user_id,
+                  societe_id: req.societeId,
+                  type: 'autre',
+                  urgence: oemReport.potential_savings > 5 ? 'haute' : 'normale',
+                  titre,
+                  message,
+                  entity_type: 'oem_alert',
+                  entity_id: productDbId,
+                  cta_label: 'Voir le rapport',
+                  cta_url: '/index.html?tab=stock&oem=true',
+                });
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[photo-identify/background] OEM Intelligence error:', e.message);
       }
-    } catch (e) {
-      console.warn('[photo-identify] OEM Intelligence error:', e.message);
-    }
+    });
 
     // Logger le scan
     try {
@@ -738,8 +782,9 @@ JSON strict :
       });
     } catch (e) { /* silent */ }
 
-    // Construire la réponse enrichie
-    const response = {
+    // Réponse RAPIDE et PROPRE — pas de rapport OEM ici
+    // L'OEM tourne en background et envoie une notif si trouvaille
+    res.json({
       success: true,
       produit: {
         nom: product.nom_fr || product.nom,
@@ -752,38 +797,117 @@ JSON strict :
         description: product.description_fr,
         conditionnement: product.conditionnement,
         reference: product.reference_fabricant,
+        pays_fabrication: product.pays_fabrication || null,
       },
       enriched: true,
-      message: 'Produit identifie et ajoute a la base JADOMI.',
+      message: 'Produit identifie et ajoute a la base JADOMI.'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-      // ── OEM Intelligence ──
-      oem: {
-        fabricant_reel: product.fabricant_reel || null,
-        adresse_fabricant: product.adresse_fabricant || null,
-        pays_fabrication: product.pays_fabrication || null,
-        marquage_ce: product.marquage_ce || null,
-        is_white_label: product.is_white_label || false,
-        white_label_details: product.white_label_details || null,
-        oem_suspect: product.oem_suspect || null,
-      },
-    };
+// ══════════════════════════════════════════
+// GET /api/labo/stock/oem-report — Rapport OEM consultable
+// Appelé quand le dentiste clique sur la notification
+// Retourne tous les produits du stock avec alertes OEM
+// ══════════════════════════════════════════
+router.get('/oem-report', async (req, res) => {
+  try {
+    const societeId = req.societeId || req.query.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
 
-    // Ajouter le rapport OEM complet si disponible
-    if (oemReport) {
-      response.oem_intelligence = oemReport;
-      if (oemReport.market_insight) response.market_insight = oemReport.market_insight;
-      if (oemReport.equivalents_count > 0) {
-        response.equivalents = oemReport.equivalents;
-        response.equivalents_count = oemReport.equivalents_count;
-      }
-      if (oemReport.cheapest_equivalent) response.cheapest_equivalent = oemReport.cheapest_equivalent;
-      if (oemReport.potential_savings > 0) {
-        response.potential_savings = oemReport.potential_savings;
-        response.savings_percent = oemReport.savings_percent;
-      }
+    // 1. Récupérer les équivalences connues pour les produits de ce cabinet
+    const { data: equivs } = await admin().from('product_equivalences')
+      .select(`
+        id, equivalence_type, confidence, oem_manufacturer, oem_country,
+        product_a_id, product_b_id, upvotes, downvotes, created_at
+      `)
+      .gte('confidence', 0.65)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (!equivs?.length) {
+      return res.json({ alerts: [], total_savings: 0, message: 'Aucune alerte OEM pour le moment. Scannez vos produits pour enrichir la base.' });
     }
 
-    res.json(response);
+    // 2. Enrichir chaque équivalence avec les détails produit + prix
+    const alerts = [];
+    const seenPairs = new Set();
+
+    for (const eq of equivs) {
+      const pairKey = [eq.product_a_id, eq.product_b_id].sort().join('-');
+      if (seenPairs.has(pairKey)) continue;
+      seenPairs.add(pairKey);
+
+      const [{ data: prodA }, { data: prodB }] = await Promise.all([
+        admin().from('products_database')
+          .select('id, gtin, name, name_fr, brand, manufacturer, category, image_url')
+          .eq('id', eq.product_a_id).maybeSingle(),
+        admin().from('products_database')
+          .select('id, gtin, name, name_fr, brand, manufacturer, category, image_url')
+          .eq('id', eq.product_b_id).maybeSingle(),
+      ]);
+
+      if (!prodA || !prodB) continue;
+
+      // Chercher les prix
+      const [{ data: pricesA }, { data: pricesB }] = await Promise.all([
+        admin().from('supplier_prices')
+          .select('price_negotiated, supplier_name, observed_at')
+          .eq('product_id', prodA.id).not('price_negotiated', 'is', null).gt('price_negotiated', 0)
+          .order('observed_at', { ascending: false }).limit(3),
+        admin().from('supplier_prices')
+          .select('price_negotiated, supplier_name, observed_at')
+          .eq('product_id', prodB.id).not('price_negotiated', 'is', null).gt('price_negotiated', 0)
+          .order('observed_at', { ascending: false }).limit(3),
+      ]);
+
+      const bestA = pricesA?.[0]?.price_negotiated || 0;
+      const bestB = pricesB?.[0]?.price_negotiated || 0;
+      const savings = bestA > 0 && bestB > 0 ? Math.abs(bestA - bestB) : 0;
+      const cheaperProduct = bestA <= bestB ? prodA : prodB;
+      const expensiveProduct = bestA <= bestB ? prodB : prodA;
+
+      alerts.push({
+        equivalence_id: eq.id,
+        type: eq.equivalence_type,
+        confidence: eq.confidence,
+        oem_manufacturer: eq.oem_manufacturer,
+        oem_country: eq.oem_country,
+        product_cher: {
+          nom: expensiveProduct.name_fr || expensiveProduct.name,
+          marque: expensiveProduct.brand,
+          fabricant: expensiveProduct.manufacturer,
+          prix: Math.max(bestA, bestB),
+          fournisseur: (bestA > bestB ? pricesA : pricesB)?.[0]?.supplier_name,
+        },
+        product_equivalent: {
+          nom: cheaperProduct.name_fr || cheaperProduct.name,
+          marque: cheaperProduct.brand,
+          fabricant: cheaperProduct.manufacturer,
+          prix: Math.min(bestA, bestB),
+          fournisseur: (bestA <= bestB ? pricesA : pricesB)?.[0]?.supplier_name,
+        },
+        savings,
+        savings_percent: savings > 0 && Math.max(bestA, bestB) > 0
+          ? +((savings / Math.max(bestA, bestB)) * 100).toFixed(1) : 0,
+        votes: { up: eq.upvotes || 0, down: eq.downvotes || 0 },
+      });
+    }
+
+    // Trier par économie décroissante
+    alerts.sort((a, b) => b.savings - a.savings);
+    const totalSavings = alerts.reduce((sum, a) => sum + a.savings, 0);
+
+    res.json({
+      alerts,
+      alerts_count: alerts.length,
+      total_savings: +totalSavings.toFixed(2),
+      message: alerts.length > 0
+        ? `${alerts.length} equivalent(s) detecte(s). Economie potentielle : ${totalSavings.toFixed(2)} EUR.`
+        : 'Aucune alerte OEM pour le moment.',
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

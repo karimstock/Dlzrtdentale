@@ -1558,8 +1558,47 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
       societeId: req.user?.societe_id
     });
 
-    // ── ENRICHIR avec équivalences (white label) + prix marché + intelligence OEM ──
-    result = await scanEngine.enrichScanResult(result, req.user?.societe_id);
+    // ── Prix marché (rapide, pas bloquant) ──
+    if (result.produit?.code_barre || result.produit?.gtin) {
+      const priceData = await scanEngine.getProductPrices(result.produit.code_barre || result.produit.gtin);
+      if (priceData) result.market_prices = priceData;
+    }
+
+    // ── OEM Intelligence en ARRIÈRE-PLAN (ne bloque pas la réponse) ──
+    const productDbId = result.product_db_id;
+    const societeId = req.user?.societe_id;
+    if (productDbId && societeId) {
+      setImmediate(async () => {
+        try {
+          const enriched = await scanEngine.enrichScanResult({ ...result }, societeId);
+          // Si trouvaille OEM → notification
+          if (enriched.oem_intelligence?.is_white_label || enriched.oem_intelligence?.potential_savings > 0) {
+            let pushNotif;
+            try { pushNotif = require('./api/multiSocietes/notifications').pushNotification; } catch (_) {}
+            if (pushNotif) {
+              const oemR = enriched.oem_intelligence;
+              const { data: members } = await require('./api/multiSocietes/middleware').admin()
+                .from('user_societe_roles').select('user_id')
+                .eq('societe_id', societeId).in('role', ['proprietaire', 'associe']);
+              for (const m of (members || [])) {
+                try {
+                  await pushNotif({
+                    user_id: m.user_id, societe_id: societeId,
+                    type: 'autre', urgence: oemR.potential_savings > 5 ? 'haute' : 'normale',
+                    titre: oemR.is_white_label
+                      ? `White label detecte : ${result.produit?.nom || 'Produit'}`
+                      : `Economie detectee : ${result.produit?.nom || 'Produit'}`,
+                    message: oemR.market_insight || 'Consultez le rapport OEM.',
+                    entity_type: 'oem_alert', entity_id: productDbId,
+                    cta_label: 'Voir le rapport', cta_url: '/index.html?tab=stock&oem=true',
+                  });
+                } catch (_) {}
+              }
+            }
+          }
+        } catch (e) { console.warn('[scan/lookup/bg-oem]', e.message); }
+      });
+    }
 
     // Formater la réponse (rétrocompatible)
     const response = {
@@ -1577,31 +1616,11 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
       duration_ms: result.duration_ms
     };
 
-    // Ajouter les équivalences (produits identiques sous d'autres marques)
-    if (result.has_equivalents && result.equivalents?.length) {
-      response.equivalents = result.equivalents;
-      response.equivalents_count = result.equivalents_count || result.equivalents.length;
-      response.cheapest_equivalent = result.cheapest_equivalent || null;
-    }
-
-    // Intelligence OEM (white label, fabricant d'origine)
-    if (result.oem_origin) {
-      response.oem_origin = result.oem_origin;
-      response.is_white_label = result.is_white_label || false;
-    }
-    if (result.market_insight) response.market_insight = result.market_insight;
-    if (result.potential_savings > 0) {
-      response.potential_savings = result.potential_savings;
-      response.savings_percent = result.savings_percent;
-    }
-
-    // Intelligence OEM complète (pour l'UI détaillée)
-    if (result.oem_intelligence) response.oem_intelligence = result.oem_intelligence;
-
-    // Ajouter les prix marché multi-fournisseurs
+    // Prix marché multi-fournisseurs (utile, rapide, pas intrusif)
     if (result.market_prices) {
       response.market_prices = result.market_prices;
     }
+    // L'intelligence OEM tourne en background → notification si trouvaille
 
     res.json(response);
   } catch (e) {
