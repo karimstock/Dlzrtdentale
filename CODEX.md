@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 26 avril 2026
-**Derniere passe** : Passe 51b — Enrichissement EUDAMED base produits (v2→v4, +13 406 produits EU)
+**Derniere passe** : Passe 51b — Enrichissement EUDAMED + Contrats fournisseur + Detection suivra
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -980,6 +980,8 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [x] Fix Scan & Stock : waterfall unifie + camera decoder + peremption Sonnet (Passe 51)
 - [x] Base produits world-class : products_database + 8 scripts import (Passe 51)
 - [x] Enrichissement EUDAMED EU : +13 406 produits, 19 321 EUDAMED total (Passe 51b)
+- [x] Detection lignes "suivra"/reliquat sur factures : pas de stock (Passe 51b)
+- [x] Contrats fournisseur type DPI : prix catalogue vs prix reel (Passe 51b)
 - [x] Intelligence prix multi-fournisseurs : supplier_prices + insights (Passe 51)
 - [x] Dashboard scan analytics : /admin/scan-stats.html (Passe 51)
 - [ ] Executer SQL scan/*.sql dans Supabase Dashboard
@@ -1221,7 +1223,7 @@ Fonctionnalites : login OTP email, liste cas avec filtres, detail cas avec galer
 upload photo (fabrication/essayage/produit fini), messages labo-cabinet, profil specialites.
 Demo data : 4 cas, 23 photos, messages. Auto-login demo.
 
-## Passe 51b (26 avril 2026) -- Enrichissement EUDAMED base produits
+## Passe 51b (26 avril 2026) -- Enrichissement EUDAMED + Contrats + Suivra
 A) Audit et reprise apres coupure PC :
 - 4 scripts EUDAMED (v1→all-manufacturers) avaient tous termine avec succes
 - 5 104 produits EUDAMED deja en base, 1 466 770 GUDID FDA
@@ -1235,6 +1237,22 @@ D) Catalogues manuels (import-catalogues-manuels.js) : 270 produits, 12 fabrican
    Septodont (82 ref), GC (37), DMG (26), Anios (24), Kulzer (16), Durr (14),
    Shofu (14), KaVo (14), MELAG (12), Pierre Fabre (12), Cattani (10), Metasys (9)
    → Permet matching scan photo/IA par nom produit (Septanest, Biodentine, Orotol...)
+E) Detection lignes "suivra" / reliquat (factureFournImport.js) :
+   - Detecte mots-cles : suivra, reliquat, non livre, back order, indisponible...
+   - Detecte aussi quantite_livree < quantite
+   - Lignes suivra NE SONT PAS ajoutees au stock (pas de mouvement entree)
+   - Marquees _jadomi_status='pending_delivery' dans le JSON produits
+   - Compteur suivra dans audit log et notification
+F) Contrats fournisseur type DPI (invoice-matcher.js + index.html) :
+   - Onglet Fournisseurs enrichi : type contrat (standard/abonnement),
+     remise globale %, montant annuel engagement
+   - A l'import facture, si contrat detecte :
+     price_catalog = prix sur la facture (catalogue)
+     price_negotiated = prix_catalogue x (1 - remise%)
+   - Remise par categorie OU remise globale (priorite categorie)
+   - metadata.contract_applied = true dans supplier_prices
+   - Approche imparable : on connait le code client + la remise,
+     on calcule le VRAI prix meme si la facture montre le catalogue
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class
@@ -1595,5 +1613,5 @@ Schema : sql/scan/prices_intelligence.sql
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 26 avril 2026 (Passe 51b — Enrichissement EUDAMED +13 406 produits)
+Derniere mise a jour : 26 avril 2026 (Passe 51b — EUDAMED + Contrats fournisseur + Suivra)
 ===============================================================

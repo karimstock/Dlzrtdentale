@@ -54,10 +54,28 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
   if (error) throw error;
 
   // Rapprochement produits
-  let matched = 0, created = 0;
+  let matched = 0, created = 0, suivra = 0;
   for (const p of (doc.produits || [])) {
     const qte = Math.abs(Number(p.quantite || 0));
     if (!qte) continue;
+
+    // ── Détection lignes "suivra" / reliquat / non livré ──
+    // Ces produits figurent sur la facture mais n'ont PAS été livrés.
+    // On les enregistre mais on ne crée PAS de mouvement stock.
+    const lineText = [p.nom, p.designation, p.note, p.statut_livraison, p.commentaire]
+      .filter(Boolean).join(' ').toLowerCase();
+    const isPendingDelivery = /\bsuivra\b|à suivre|\breliquat\b|back.?order|non.?livr[eé]|en attente|rupture|indisponible|livraison\s+ultérieure|sera\s+livr[eé]/i.test(lineText)
+      || (p.statut_livraison && /suivra|pending|backorder/i.test(p.statut_livraison))
+      || p.quantite_livree === 0
+      || (p.quantite_livree != null && Number(p.quantite_livree) < qte);
+
+    if (isPendingDelivery) {
+      suivra++;
+      // Marquer la ligne dans le JSON produits pour traçabilité
+      p._jadomi_status = 'pending_delivery';
+      p._jadomi_note = 'Ligne détectée comme non livrée (suivra/reliquat)';
+    }
+
     let prodId = null;
 
     // 1. Par EAN/référence exacte
@@ -93,20 +111,32 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
     }
     if (prodId) {
       matched++;
-      // Enregistre mouvement stock (entrée)
-      try {
-        await admin().rpc('enregistrer_mouvement_stock', {
-          p_societe_id: societe_id,
-          p_produit_id: prodId,
-          p_type: 'entree',
-          p_quantite: qte,
-          p_reference_doc: doc.numero || null,
-          p_reference_doc_id: facture.id,
-          p_note: `Import facture fournisseur ${doc.fournisseur || ''}`,
-          p_user_id: user_id
-        });
-      } catch (e) {
-        console.warn('[importer/mouvement]', e.message);
+      // Enregistre mouvement stock (entrée) — SAUF si ligne "suivra" / reliquat
+      if (!isPendingDelivery) {
+        try {
+          await admin().rpc('enregistrer_mouvement_stock', {
+            p_societe_id: societe_id,
+            p_produit_id: prodId,
+            p_type: 'entree',
+            p_quantite: qte,
+            p_reference_doc: doc.numero || null,
+            p_reference_doc_id: facture.id,
+            p_note: `Import facture fournisseur ${doc.fournisseur || ''}`,
+            p_user_id: user_id
+          });
+        } catch (e) {
+          console.warn('[importer/mouvement]', e.message);
+        }
+      } else {
+        // Ligne suivra : enregistrer comme livraison en attente
+        try {
+          await admin().from('factures_fournisseurs_societe')
+            .update({
+              produits: admin().rpc ? undefined : undefined, // ne pas écraser — on marque dans le JSON
+              metadata: { has_pending_deliveries: true }
+            }).eq('id', facture.id);
+        } catch (_) {}
+        console.log(`[importer] SUIVRA: ${p.nom || p.reference} x${qte} (facture ${doc.numero})`);
       }
     }
   }
@@ -140,7 +170,7 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
   await auditLog({
     userId: user_id, societeId: societe_id,
     action: 'import_facture_fournisseur', entity: 'facture_fournisseur', entityId: facture.id,
-    meta: { matched, created, total_ttc: payload.montant_ttc, hash, prices_recorded: pricesRecorded, products_enriched: productsEnriched, insights_count: priceInsights.length }
+    meta: { matched, created, suivra, total_ttc: payload.montant_ttc, hash, prices_recorded: pricesRecorded, products_enriched: productsEnriched, insights_count: priceInsights.length }
   });
 
   // Notif enrichie avec insights prix
@@ -151,6 +181,7 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
 
     // Message enrichi avec intelligence prix
     let notifMessage = `${doc.fournisseur || 'Fournisseur inconnu'} · ${Number(payload.montant_ttc).toFixed(2)} EUR`;
+    if (suivra > 0) notifMessage += ` · ${suivra} produit${suivra > 1 ? 's' : ''} en attente livraison`;
     if (pricesRecorded > 0) notifMessage += ` · ${pricesRecorded} prix enregistres`;
     if (priceInsights.length > 0) {
       const totalSavings = priceInsights.reduce((sum, i) => sum + (i.potential_savings || 0), 0);
@@ -171,7 +202,7 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
     }
   } catch (_) {}
 
-  return { inserted: true, facture_id: facture.id, matched, created, prices_recorded: pricesRecorded, insights: priceInsights };
+  return { inserted: true, facture_id: facture.id, matched, created, suivra, prices_recorded: pricesRecorded, insights: priceInsights };
 }
 
 function mountFactureFournImport(app) {

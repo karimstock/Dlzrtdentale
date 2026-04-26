@@ -43,6 +43,56 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
   const supplierCategory = classifySupplier(supplierName);
 
   // ══════════════════════════════════════════
+  // ETAPE 1b : Charger le CONTRAT fournisseur du cabinet
+  // Si le dentiste a un contrat (type DPI : prix catalogue sur facture
+  // mais remise réelle de X%), on calcule le VRAI prix.
+  // Données stockées dans table "fournisseurs" (code_client + remises par catégorie)
+  // ══════════════════════════════════════════
+  let supplierContract = null;
+  if (societeId) {
+    try {
+      // Cherche dans la table fournisseurs de la société
+      let contractData = null;
+      const { data: cd1 } = await admin().from('fournisseurs')
+        .select('*')
+        .eq('societe_id', societeId)
+        .ilike('nom', `%${supplierName.split(/\s+/)[0]}%`)
+        .limit(1)
+        .maybeSingle();
+      contractData = cd1;
+
+      if (!contractData) {
+        // Fallback : cherche sans societe_id (ancienne structure)
+        const { data: cd2 } = await admin().from('fournisseurs')
+          .select('*')
+          .ilike('nom', `%${supplierName.split(/\s+/)[0]}%`)
+          .limit(1)
+          .maybeSingle();
+        contractData = cd2;
+      }
+
+      if (contractData) {
+        supplierContract = {
+          code_client: contractData.code_client,
+          // Remises par catégorie (stockées comme remise_consommables, remise_composites, etc.)
+          remise_consommables: Number(contractData.remise_consommables || 0),
+          remise_composites: Number(contractData.remise_composites || 0),
+          remise_endodontie: Number(contractData.remise_endodontie || 0),
+          remise_anesthésiants: Number(contractData['remise_anesthésiants'] || contractData.remise_anesthesiants || 0),
+          remise_matériel: Number(contractData['remise_matériel'] || contractData.remise_materiel || 0),
+          // Remise globale (si contrat type abonnement DPI)
+          remise_globale: Number(contractData.remise_globale || 0),
+          type_contrat: contractData.type_contrat || 'standard', // 'standard' | 'abonnement'
+          montant_annuel: Number(contractData.montant_annuel || 0),
+        };
+        console.log(`[invoice-matcher] Contrat ${supplierName}: remise_globale=${supplierContract.remise_globale}%, type=${supplierContract.type_contrat}`);
+      }
+    } catch (e) {
+      console.warn('[invoice-matcher] Erreur chargement contrat:', e.message);
+    }
+  }
+
+  // ══════════════════════════════════════════
   // ETAPE 2 : Pour chaque produit de la facture
   // ══════════════════════════════════════════
   for (const item of products) {
@@ -147,8 +197,56 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
     // ══════════════════════════════════════════
     // ETAPE 3 : Enregistrer le prix REEL
     // C'est ici la MINE D'OR — prix negocie reel, pas catalogue
+    //
+    // CAS CONTRAT (ex DPI) :
+    // La facture montre le prix CATALOGUE, mais le dentiste a un contrat
+    // avec une remise de X%. On calcule le vrai prix :
+    //   prix_reel = prix_catalogue × (1 - remise%)
+    // On stocke TOUJOURS les deux : price_catalog + price_negotiated
     // ══════════════════════════════════════════
     if (unitPrice > 0) {
+      let priceCatalog = unitPrice;
+      let priceNegotiated = unitPrice;
+      let discountApplied = 0;
+      let contractApplied = false;
+
+      if (supplierContract) {
+        // Déterminer la remise applicable
+        // 1. Remise globale (contrat type abonnement, ex: DPI 38%)
+        if (supplierContract.remise_globale > 0) {
+          discountApplied = supplierContract.remise_globale;
+          contractApplied = true;
+        }
+        // 2. Remise par catégorie (prioritaire si définie pour cette catégorie)
+        const productCategory = guessCategory(designation).toLowerCase();
+        const categoryMap = {
+          'composites': 'remise_composites',
+          'endodontie': 'remise_endodontie',
+          'anesthesie': 'remise_anesthésiants',
+          'instruments': 'remise_matériel',
+          'equipement': 'remise_matériel',
+          'sterilisation': 'remise_consommables',
+          'hygiene': 'remise_consommables',
+          'empreintes': 'remise_consommables',
+          'implants': 'remise_matériel',
+          'prothese': 'remise_matériel',
+          'chirurgie': 'remise_matériel',
+          'radiologie': 'remise_matériel',
+          'cfao': 'remise_matériel',
+          'orthodontie': 'remise_matériel',
+        };
+        const remiseKey = categoryMap[productCategory];
+        if (remiseKey && supplierContract[remiseKey] > 0) {
+          discountApplied = supplierContract[remiseKey];
+          contractApplied = true;
+        }
+
+        // Appliquer la remise au prix catalogue pour obtenir le prix réel
+        if (discountApplied > 0) {
+          priceNegotiated = +(priceCatalog * (1 - discountApplied / 100)).toFixed(2);
+        }
+      }
+
       try {
         await admin().from('supplier_prices').insert({
           product_id: productId,
@@ -156,7 +254,9 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
           supplier_name: supplierName,
           supplier_category: supplierCategory,
           supplier_reference: ref || null,
-          price_negotiated: unitPrice,
+          price_catalog: priceCatalog,
+          price_negotiated: priceNegotiated,
+          discount_percent: discountApplied > 0 ? discountApplied : null,
           source: 'invoice_scan',
           source_invoice_id: invoiceId,
           societe_id: societeId,
@@ -165,7 +265,10 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
             designation_facture: designation,
             quantite: qty,
             taux_tva: tva,
-            match_source: matchSource
+            match_source: matchSource,
+            contract_applied: contractApplied,
+            contract_type: supplierContract?.type_contrat || null,
+            contract_discount_pct: discountApplied > 0 ? discountApplied : null
           }
         });
         results.prices_recorded++;

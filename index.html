@@ -629,7 +629,7 @@ tbody tr:hover td{background:var(--surface2);}
 
     <!-- FOURNISSEURS -->
     <div class="page" id="page-fournisseurs">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Entre ton code client et tes remises par catégorie. Données 100% privées.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Configurez vos fournisseurs, codes clients et contrats. Les remises sont appliquées automatiquement lors de l'import de factures. Données 100% privées.</p>
       <div class="fourni-grid" id="fourni-grid"></div>
     </div>
 
@@ -2985,12 +2985,34 @@ function renderFournisseurs() {
   grid.innerHTML = FOURNISSEURS.map(nom=>{
     const c = fournisseurs_config[nom]||{};
     const connected = c.code_client?'connected':'';
+    const isAbonnement = c.type_contrat === 'abonnement';
     return `<div class="fourni-card ${connected}">
       <div class="fourni-name">${nom}</div>
       <span class="fourni-status ${c.code_client?'status-on':'status-off'}">${c.code_client?'Connecté':'Non connecté'}</span>
       <div class="fourni-field">
         <label class="fourni-label">Code client</label>
         <input class="fourni-input ${c.code_client?'filled':''}" id="fc-${nom.replace(/\s/g,'-')}" placeholder="Ex: DPI-48291-FR" value="${c.code_client||''}">
+      </div>
+      <div class="fourni-field">
+        <label class="fourni-label">Type de contrat</label>
+        <select id="ft-${nom.replace(/\s/g,'-')}" class="fourni-input" style="width:100%;padding:6px 8px;">
+          <option value="standard" ${!isAbonnement?'selected':''}>Standard (prix facture = prix réel)</option>
+          <option value="abonnement" ${isAbonnement?'selected':''}>Abonnement (prix facture = catalogue, remise contractuelle)</option>
+        </select>
+      </div>
+      <div class="fourni-field" id="fg-${nom.replace(/\s/g,'-')}-wrap" style="${isAbonnement?'':'display:none'}">
+        <label class="fourni-label">Remise globale contrat (%)</label>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input class="remise-input" id="fg-${nom.replace(/\s/g,'-')}" type="number" min="0" max="80" placeholder="38" value="${c.remise_globale||''}" style="width:70px;">
+          <span style="font-size:11px;color:var(--muted)">% sur tout le catalogue</span>
+        </div>
+      </div>
+      <div class="fourni-field" id="fm-${nom.replace(/\s/g,'-')}-wrap" style="${isAbonnement?'':'display:none'}">
+        <label class="fourni-label">Engagement annuel</label>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input class="remise-input" id="fm-${nom.replace(/\s/g,'-')}" type="number" min="0" placeholder="30000" value="${c.montant_annuel||''}" style="width:90px;">
+          <span style="font-size:11px;color:var(--muted)">EUR/an</span>
+        </div>
       </div>
       <div class="fourni-field">
         <label class="fourni-label">Remises par catégorie</label>
@@ -3003,15 +3025,30 @@ function renderFournisseurs() {
   }).join('');
 }
 
+// Toggle champs abonnement quand on change le type de contrat
+document.addEventListener('change', e => {
+  if (e.target.id?.startsWith('ft-')) {
+    const key = e.target.id.replace('ft-', '');
+    const isAbo = e.target.value === 'abonnement';
+    const gWrap = document.getElementById(`fg-${key}-wrap`);
+    const mWrap = document.getElementById(`fm-${key}-wrap`);
+    if (gWrap) gWrap.style.display = isAbo ? '' : 'none';
+    if (mWrap) mWrap.style.display = isAbo ? '' : 'none';
+  }
+});
+
 async function sauvegarderFourni(nom) {
   const key = nom.replace(/\s/g,'-');
   const code = document.getElementById(`fc-${key}`).value.trim();
+  const typeContrat = document.getElementById(`ft-${key}`)?.value || 'standard';
+  const remiseGlobale = parseFloat(document.getElementById(`fg-${key}`)?.value) || 0;
+  const montantAnnuel = parseFloat(document.getElementById(`fm-${key}`)?.value) || 0;
   const remises = {};
   CATEGORIES_REMISE.forEach(cat=>{
     const v = parseFloat(document.getElementById(`fr-${key}-${cat}`)?.value)||0;
     remises['remise_'+cat.toLowerCase()] = v;
   });
-  const data = {nom,code_client:code,...remises};
+  const data = {nom, code_client:code, type_contrat:typeContrat, remise_globale:remiseGlobale, montant_annuel:montantAnnuel, ...remises};
   try {
     if(db) {
       const ex = fournisseurs_config[nom];
