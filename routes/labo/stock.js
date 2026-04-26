@@ -227,10 +227,44 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET /api/labo/stock/mouvements — Historique mouvements avec noms produits (Passe 51 fix)
+router.get('/mouvements', async (req, res) => {
+  try {
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
+
+    // Recuperer les mouvements avec le nom du produit via join
+    const { data: mouvements, error } = await admin().from('labo_stock_mouvements')
+      .select('id, stock_id, type_mouvement, quantite, motif, bl_id, created_at, labo_stock(nom, code_barre, categorie)')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) throw error;
+
+    // Formatter pour le frontend
+    const formatted = (mouvements || []).map(m => ({
+      id: m.id,
+      stock_id: m.stock_id,
+      type_mouvement: m.type_mouvement,
+      quantite: m.quantite,
+      motif: m.motif,
+      created_at: m.created_at,
+      produit_nom: m.labo_stock?.nom || null,
+      produit_code: m.labo_stock?.code_barre || null,
+      produit_categorie: m.labo_stock?.categorie || null
+    }));
+
+    res.json({ mouvements: formatted });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/labo/stock/:id/mouvement — Entree/sortie stock
 router.post('/:id/mouvement', async (req, res) => {
   try {
-    const { type_mouvement, quantite, motif, bl_id } = req.body;
+    // Accepte type_mouvement OU type (fix mismatch frontend/backend)
+    const type_mouvement = req.body.type_mouvement || req.body.type;
+    const { quantite, motif, bl_id } = req.body;
     if (!type_mouvement || quantite === undefined) return res.status(400).json({ error: 'type_mouvement et quantite requis' });
 
     const { data: stock } = await admin().from('labo_stock').select('quantite')

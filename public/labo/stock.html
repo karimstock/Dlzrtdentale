@@ -990,7 +990,7 @@ async function loadStock() {
     const res = await fetch(`${API_BASE}/stock`, { headers: apiHeaders() });
     if (res.ok) {
       const data = await res.json();
-      allProducts = Array.isArray(data) ? data : (data.data || data.produits || []);
+      allProducts = Array.isArray(data) ? data : (data.stock || data.data || data.produits || []);
     } else { allProducts = []; }
   } catch(e) { allProducts = []; toast('Erreur chargement stock', 'error'); }
   populatePhotoProductSelect();
@@ -1259,7 +1259,7 @@ async function saveAdjust() {
   try {
     const res = await fetch(`${API_BASE}/stock/${adjustingProductId}/mouvement`, {
       method:'POST', headers:apiHeaders(),
-      body: JSON.stringify({ type, quantite: qty, motif })
+      body: JSON.stringify({ type_mouvement: type, quantite: qty, motif })
     });
     if (res.ok) {
       // Update local qty
@@ -1556,14 +1556,20 @@ function daysUntil(dateStr) {
 }
 
 function renderAlertes(data) {
-  const totalAlerts = (data.peremption_rouge||[]).length + (data.stock_bas||[]).length;
+  // Accepte les deux formats de cles (backend: peremption_30j / frontend fallback: peremption_rouge)
+  const red    = data.peremption_30j  || data.peremption_rouge  || [];
+  const orange = data.peremption_60j  || data.peremption_orange || [];
+  const yellow = data.peremption_90j  || data.peremption_jaune  || [];
+  const bas    = data.stock_bas       || [];
+
+  const totalAlerts = red.length + bas.length;
   const badge = document.getElementById('alertBadge');
   if (totalAlerts > 0) { badge.style.display='inline'; badge.textContent=totalAlerts; } else { badge.style.display='none'; }
 
-  renderAlertSection('alertRed',    data.peremption_rouge   || [], p => `Péremption dans ${daysUntil(p.date_peremption)} jour(s)`);
-  renderAlertSection('alertOrange', data.peremption_orange  || [], p => `Péremption dans ${daysUntil(p.date_peremption)} jours`);
-  renderAlertSection('alertYellow', data.peremption_jaune   || [], p => `Péremption dans ${daysUntil(p.date_peremption)} jours`);
-  renderAlertSection('alertBas',    data.stock_bas          || [], p => `Stock: ${p.quantite||0} ${p.unite||''} (seuil: ${p.seuil_alerte})`);
+  renderAlertSection('alertRed',    red,    p => `Peremption dans ${daysUntil(p.date_peremption)} jour(s)`);
+  renderAlertSection('alertOrange', orange, p => `Peremption dans ${daysUntil(p.date_peremption)} jours`);
+  renderAlertSection('alertYellow', yellow, p => `Peremption dans ${daysUntil(p.date_peremption)} jours`);
+  renderAlertSection('alertBas',    bas,    p => `Stock: ${p.quantite||0} ${p.unite||''} (seuil: ${p.seuil_alerte})`);
 }
 
 function renderAlertSection(containerId, items, subtitle) {
@@ -1850,9 +1856,10 @@ function renderMouvements(list) {
     return;
   }
   tbody.innerHTML = list.map(m => {
-    const isEntree = m.type === 'entree';
-    const isSortie = m.type === 'sortie';
-    const typeLabel = m.type === 'entree' ? '↑ Entrée' : m.type === 'sortie' ? '↓ Sortie' : '↔ Ajustement';
+    const type = m.type_mouvement || m.type || 'ajustement';
+    const isEntree = type === 'entree';
+    const isSortie = type === 'sortie';
+    const typeLabel = isEntree ? 'Entree' : isSortie ? 'Sortie' : 'Ajustement';
     const typeClass = isEntree ? 'mv-entree' : isSortie ? 'mv-sortie' : '';
     const date = m.created_at ? new Date(m.created_at).toLocaleString('fr-FR') : '—';
     return `<tr>
@@ -1861,7 +1868,7 @@ function renderMouvements(list) {
       <td><span class="${typeClass}">${typeLabel}</span></td>
       <td style="text-align:right;font-weight:600;">${isEntree?'+':''}${isSortie?'-':''}${m.quantite||0}</td>
       <td>${m.motif||'—'}</td>
-      <td style="color:var(--muted);">${m.user_nom||m.user_email||'—'}</td>
+      <td style="color:var(--muted);">${m.produit_categorie||'—'}</td>
     </tr>`;
   }).join('');
 }
