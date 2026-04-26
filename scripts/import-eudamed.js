@@ -71,50 +71,75 @@ async function fetchEudamedPage(page, pageSize) {
 }
 
 async function searchByManufacturer(manufacturer) {
-  // EUDAMED ne supporte pas de filtre texte direct sur le nom fabricant
-  // On utilise la recherche generale et on filtre cote client
-  const url = `${EUDAMED_API}?page=1&pageSize=25&languageIso2Code=en&freeText=${encodeURIComponent(manufacturer)}`;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.content || [];
-  } catch (e) {
-    return [];
+  const allDevices = [];
+  let page = 1;
+  const maxPages = 10; // max 250 produits par fabricant
+
+  while (page <= maxPages) {
+    const url = `${EUDAMED_API}?page=${page}&pageSize=25&languageIso2Code=en&freeText=${encodeURIComponent(manufacturer)}`;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (!res.ok) break;
+      const data = await res.json();
+      const content = data.content || [];
+      if (!content.length) break;
+
+      // Filtrer par nom fabricant (EUDAMED retourne tout, on filtre cote client)
+      const mfgLower = manufacturer.toLowerCase();
+      const filtered = content.filter(d => {
+        const name = (d.manufacturerName || '').toLowerCase();
+        return name.includes(mfgLower) || mfgLower.includes(name.split(' ')[0]);
+      });
+
+      allDevices.push(...filtered);
+      if (content.length < 25) break; // derniere page
+      page++;
+      await new Promise(r => setTimeout(r, 500));
+    } catch (e) {
+      break;
+    }
   }
+
+  return allDevices;
 }
 
 function mapEudamedToProduct(device) {
-  // Extraire les infos utiles du format EUDAMED
-  const tradeNames = device.tradeNames || device.tradeName || [];
-  const name = Array.isArray(tradeNames) ? tradeNames[0]?.name : (typeof tradeNames === 'string' ? tradeNames : null);
-  const udi = device.primaryDi?.code || device.udiDi || null;
-  const manufacturer = device.manufacturer?.name || device.authorisedRepresentative?.name || null;
-  const riskClass = device.riskClass?.code || null;
+  // EUDAMED fields: tradeName, manufacturerName, primaryDi, riskClass, uuid, reference, sterile
+  const name = device.tradeName || device.deviceName || device.deviceModel || null;
+  const udi = device.primaryDi || null;
+  const manufacturer = device.manufacturerName || device.authorisedRepresentativeName || null;
+  const riskClass = device.riskClass?.code?.replace('refdata.risk-class.', '') || null;
+  const ref = device.reference || null;
+  const sterile = device.sterile || null;
 
   if (!udi && !name) return null;
 
+  // Generer un GTIN unique si pas de primaryDi
+  const gtin = udi || `EU-${(manufacturer||'UNK').substring(0,6).toUpperCase().replace(/[^A-Z0-9]/g,'')}-${ref || Date.now()}-${Math.random().toString(36).substring(2,6)}`;
+
   return {
-    gtin: udi || `EUDAMED-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-    name: name || 'Unknown',
-    name_fr: name, // souvent deja en anglais, sera enrichi par IA
-    brand: name ? name.split(' ')[0] : null,
+    gtin: gtin.substring(0, 14),
+    name: name || ref || 'Unknown',
+    name_fr: name, // sera enrichi par IA
+    brand: name ? name.split(/\s+/)[0] : null,
     manufacturer: manufacturer,
+    reference: ref,
+    sterile: sterile,
     market_region: 'EU',
     source: 'eudamed',
     source_metadata: {
-      eudamed_id: device.uuid || device.id || null,
+      eudamed_uuid: device.uuid || null,
+      eudamed_ulid: device.ulid || null,
       risk_class: riskClass,
-      basic_udi_di: device.basicUdiDi || null,
-      certificate: device.certificates?.[0]?.certificateNumber || null,
-      emdn_code: device.emdnCode || null,
-      status: device.deviceStatusType?.code || null
+      basic_udi: device.basicUdi || null,
+      status: device.deviceStatusType?.code?.replace('refdata.device-model-status.', '') || null,
+      manufacturer_srn: device.manufacturerSrn || null
     },
     confidence_score: 0.7,
     last_synced_at: new Date().toISOString()
@@ -122,8 +147,10 @@ function mapEudamedToProduct(device) {
 }
 
 function isDentalDevice(device) {
-  const text = JSON.stringify(device).toLowerCase();
-  return DENTAL_KEYWORDS.test(text);
+  // EUDAMED: les fabricants dentaires sont TOUS dentaires
+  // On accepte TOUT ce qui vient de nos fabricants cibles
+  // Le filtre par manufacturerName est fait dans searchByManufacturer()
+  return true;
 }
 
 function classifyCategory(device) {
