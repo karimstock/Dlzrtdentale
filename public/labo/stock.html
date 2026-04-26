@@ -174,9 +174,17 @@ select.filter-select:focus{border-color:var(--primary);}
 .card-title{font-size:14px;font-weight:600;color:var(--text);}
 
 /* Modal */
-.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;padding:20px;}
-.modal-backdrop.open{display:flex;}
-.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;}
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:400;align-items:center;justify-content:center;padding:20px;transition:background 0.25s cubic-bezier(.16,1,.3,1);}
+.modal-backdrop.open{display:flex;background:rgba(0,0,0,0.45);}
+.modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;transform:scale(0.95) translateY(10px);opacity:0;transition:transform 0.3s cubic-bezier(.16,1,.3,1),opacity 0.25s ease;}
+.modal-backdrop.open .modal{transform:scale(1) translateY(0);opacity:1;}
+.tab-panel{display:none;opacity:0;transition:opacity 0.2s ease;}
+.tab-panel.active{display:block;animation:fadeInTab 0.25s ease forwards;}
+@keyframes fadeInTab{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.product-card{transition:box-shadow 0.2s cubic-bezier(.16,1,.3,1),border-color 0.2s,transform 0.2s;}
+.product-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary-mid);transform:translateY(-1px);}
+.profession-select{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);cursor:pointer;font-weight:500;}
+.profession-select:focus{border-color:var(--primary);outline:none;}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
 .modal-title{font-size:15px;font-weight:700;}
 .modal-close{width:30px;height:30px;border:none;background:var(--surface2);border-radius:6px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;}
@@ -269,8 +277,13 @@ label.fl{font-size:12px;font-weight:600;color:var(--text-secondary);}
       <div class="nav-section-label" style="margin-top:8px;">Catalogue</div>
       <a class="nav-item" href="catalogue.html"><span class="ni">📊</span> Catalogue</a>
       <a class="nav-item" href="import-grille.html"><span class="ni">📥</span> Import grille tarifaire</a>
+      <div class="nav-section-label" style="margin-top:8px;">JADOMI</div>
+      <a class="nav-item" href="/index.html#gpo"><span class="ni">🤝</span> Paniers groupes (GPO)</a>
+      <a class="nav-item" href="/index.html#green"><span class="ni">♻️</span> JADOMI Green</a>
+      <a class="nav-item" href="/index.html#sos"><span class="ni">🆘</span> SOS Stock</a>
+      <a class="nav-item" href="/admin/scan-stats.html"><span class="ni">📈</span> Analytics scans</a>
       <div class="nav-section-label" style="margin-top:8px;">Compte</div>
-      <a class="nav-item" href="profil-labo.html"><span class="ni">⚙️</span> Paramètres laboratoire</a>
+      <a class="nav-item" href="profil-labo.html"><span class="ni">⚙️</span> Parametres laboratoire</a>
     </nav>
     <div class="sidebar-footer">
       <div class="user-card" onclick="window.location.href='profil-labo.html'">
@@ -294,8 +307,17 @@ label.fl{font-size:12px;font-weight:600;color:var(--text-secondary);}
         </div>
       </div>
       <div class="topbar-right">
-        <button class="btn btn-primary" onclick="openAddModal()">&#xFF0B; Ajouter produit</button>
-        <button class="btn btn-ghost btn-sm" onclick="logout()" title="Déconnexion">&#x2715;</button>
+        <select class="profession-select" id="professionSelect" onchange="changeProfession(this.value)" title="Votre specialite — optimise la recherche de produits">
+          <option value="labo">Labo prothese</option>
+          <option value="orthodontiste">Orthodontie</option>
+          <option value="omnipraticien">Omnipratique</option>
+          <option value="implantologue">Implantologie</option>
+          <option value="endodontiste">Endodontie</option>
+          <option value="parodontiste">Parodontie</option>
+          <option value="chirurgien">Chirurgie</option>
+        </select>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter produit</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" title="Deconnexion">&#x2715;</button>
       </div>
     </header>
 
@@ -790,6 +812,7 @@ function captureImportPhoto() {
 
 async function handleImportFile(file) {
   if (!file) return;
+  if (file.size > 15 * 1024 * 1024) { toast('Fichier trop volumineux (max 15 Mo). Compressez l\'image.', 'error'); return; }
   const status = document.getElementById('importStatus');
   const result = document.getElementById('importResult');
   status.style.display = 'block';
@@ -1239,6 +1262,22 @@ async function saveAdjust() {
   finally { btn.disabled=false; btn.innerHTML='✅ Enregistrer le mouvement'; }
 }
 
+/* ── Profession selector ───────────────────────────────────────── */
+function changeProfession(value) {
+  window._jadomiProfession = value;
+  localStorage.setItem('jadomi_profession', value);
+  toast('Specialite : ' + document.getElementById('professionSelect').selectedOptions[0].text);
+}
+// Restaurer au chargement
+(function() {
+  const saved = localStorage.getItem('jadomi_profession');
+  if (saved) {
+    window._jadomiProfession = saved;
+    const sel = document.getElementById('professionSelect');
+    if (sel) sel.value = saved;
+  }
+})();
+
 /* ── Scanner tab ─────────────────────────────────────────────── */
 let scanTimeout;
 function onScanInput() {
@@ -1257,67 +1296,49 @@ async function triggerScan() {
   document.getElementById('scanResult').style.display = 'none';
   resetWaterfall();
 
-  // Check cache local d'abord
+  // Check cache local d'abord (instantane, 0 appel API)
   const cached = SCAN_CACHE.get(code);
   if (cached) {
-    setWfStep('wf-supabase', 'done');
-    setWfStep('wf-off', 'done');
-    setWfStep('wf-ia', 'done');
+    setWfAll('done', 'done', 'done');
     toast('Produit en cache local');
     showScanResult(cached.produit, cached.existe_stock, cached.source, cached.prices);
     return;
   }
 
-  // Animation : demarrer etape 1
+  // Animation sequentielle : demarrer etape 1
   setWfStep('wf-supabase', 'active');
 
   try {
     // UN SEUL appel API — le backend fait le waterfall complet multi-niveaux
-    // Passer la profession pour scan contextuel (ortho→Orthodontie, prothesiste→Prothese, etc.)
     const scanProfession = window._jadomiProfession || 'labo';
     const res = await fetch(`${API_BASE}/stock/scan/${encodeURIComponent(code)}?method=${html5QrScanner?'camera':'manual'}&profession=${scanProfession}`, { headers: apiHeaders() });
     if (!res.ok) throw new Error('Erreur API');
     const data = await res.json();
-
-    // Piloter les animations par la source retournee
     const source = data.source || 'unknown';
 
+    // Animations sequentielles selon la source (effet premium stagger)
     if (source === 'jadomi') {
-      setWfStep('wf-supabase', 'done');
-      setWfStep('wf-off', 'done');
-      setWfStep('wf-ia', 'done');
+      setWfAll('done', 'done', 'done');
     } else if (source === 'products_database') {
-      setWfStep('wf-supabase', 'error');
-      setWfStep('wf-off', 'done');
-      setWfStep('wf-ia', 'done');
+      setWfAll('error', 'done', 'done');
       toast('Trouve dans la base JADOMI (' + (data.produit?.confidence ? Math.round(data.produit.confidence*100)+'%' : 'OK') + ')');
     } else if (source === 'openfoodfacts') {
-      setWfStep('wf-supabase', 'error');
-      setWfStep('wf-off', 'done');
-      setWfStep('wf-ia', 'done');
+      setWfAll('error', 'done', 'done');
     } else if (source === 'jadomi-ia') {
-      setWfStep('wf-supabase', 'error');
-      setWfStep('wf-off', 'error');
-      setWfStep('wf-ia', 'done');
-      if (data.produit?.confidence) {
-        toast('Identifie par JADOMI IA (confiance: ' + Math.round(data.produit.confidence*100) + '%)');
-      }
+      setWfAll('error', 'error', 'done');
+      if (data.produit?.confidence) toast('Identifie par JADOMI IA (confiance: ' + Math.round(data.produit.confidence*100) + '%)');
     } else {
-      setWfStep('wf-supabase', 'error');
-      setWfStep('wf-off', 'error');
-      setWfStep('wf-ia', 'error');
+      setWfAll('error', 'error', 'error');
     }
 
-    // Cache le resultat si produit trouve
+    // Cache le resultat
     if (data.produit && source !== 'unknown') {
       SCAN_CACHE.set(code, { produit: data.produit, existe_stock: data.existe_stock, source, prices: data.prices || null });
     }
 
     showScanResult(data.produit || { code_barre: code, nom: null }, data.existe_stock, source, data.prices);
   } catch(e) {
-    setWfStep('wf-supabase', 'error');
-    setWfStep('wf-off', 'error');
-    setWfStep('wf-ia', 'error');
+    setWfAll('error', 'error', 'error');
     showScanResult({ code_barre: code, nom: null }, false, 'error');
     toast('Erreur lors de la recherche', 'error');
   }
@@ -1330,13 +1351,25 @@ function resetWaterfall() {
   });
 }
 
-function setWfStep(id, state) {
-  const el = document.getElementById(id);
-  el.className = `wf-step ${state}`;
-  const icon = el.querySelector('.wf-icon');
-  if (state==='active') icon.innerHTML='<span class="wf-spin"></span>';
-  else if (state==='done') icon.textContent='✅';
-  else if (state==='error') icon.textContent='❌';
+function setWfStep(id, state, delay) {
+  const apply = () => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = `wf-step ${state}`;
+    const icon = el.querySelector('.wf-icon');
+    if (state==='active') icon.innerHTML='<span class="wf-spin"></span>';
+    else if (state==='done') icon.textContent='✅';
+    else if (state==='error') icon.textContent='❌';
+  };
+  if (delay > 0) setTimeout(apply, delay);
+  else apply();
+}
+
+// Stagger les 3 etapes pour un effet sequentiel premium
+function setWfAll(supabase, off, ia) {
+  setWfStep('wf-supabase', supabase, 0);
+  setWfStep('wf-off', off, 120);
+  setWfStep('wf-ia', ia, 240);
 }
 
 function showScanResult(product, exists, source, prices) {
