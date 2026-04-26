@@ -396,4 +396,139 @@ Format JSON strict :
   }
 });
 
+// POST /api/labo/stock/scan/photo-identify — Photo produit → Claude Vision → enrichit la base JADOMI
+// Workflow : code-barres inconnu → dentiste prend le produit en photo → IA identifie → base enrichie pour TOUS
+router.post('/scan/photo-identify', async (req, res) => {
+  try {
+    const { image_base64, gtin } = req.body;
+    if (!image_base64) return res.status(400).json({ error: 'image_base64 requis' });
+    if (!gtin) return res.status(400).json({ error: 'gtin requis (code-barres scanne)' });
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'JADOMI IA non disponible' });
+
+    let imageData = image_base64;
+    if (imageData.startsWith('data:')) {
+      imageData = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+    }
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 800,
+      system: `Tu es un expert en produits dentaires, medicaux et de laboratoire prothetique.
+Tu identifies les produits a partir de photos d'emballage, de boite, ou du produit lui-meme.
+Tu connais toutes les marques : 3M, Dentsply Sirona, GC, Ivoclar, Kerr, Vita, Ultradent, Septodont,
+VDW, Hu-Friedy, Bien-Air, W&H, NSK, Acteon, Straumann, Nobel Biocare, Zimmer, Osstem,
+Zhermack, Tokuyama, Shofu, Kuraray, Coltene, SDI, VOCO, Kulzer, DMG, Produits Dentaires SA, etc.
+
+Tu retournes TOUJOURS un JSON strict.`,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageData } },
+          { type: 'text', text: `Identifie ce produit dentaire/medical a partir de cette photo.
+Le code-barres scanne est : ${gtin}
+
+Extrais toutes les informations visibles :
+1. Nom EXACT du produit (tel qu'ecrit sur l'emballage)
+2. Marque / fabricant
+3. Categorie (Instruments, Composites, Endodontie, Orthodontie, Prothese, Implants, etc.)
+4. Sous-categorie precise
+5. Conditionnement (quantite, unite)
+6. Toute info supplementaire visible (taille, couleur, reference)
+
+JSON strict :
+{
+  "nom": "Nom exact du produit",
+  "nom_fr": "Nom en francais si different",
+  "marque": "Marque",
+  "fabricant": "Fabricant",
+  "categorie": "Categorie principale",
+  "sous_categorie": "Sous-categorie precise",
+  "conditionnement": "ex: boite de 6, flacon 5ml",
+  "reference_fabricant": "reference visible ou null",
+  "taille": "taille/dimension ou null",
+  "couleur": "couleur/teinte ou null",
+  "sterile": true/false ou null,
+  "usage_unique": true/false ou null,
+  "description_fr": "Description 1-2 phrases",
+  "mots_cles": ["mot1","mot2","mot3","mot4","mot5"],
+  "confidence": 0.0-1.0
+}` }
+        ]
+      }]
+    });
+
+    const txt = msg.content[0]?.text || '';
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (!m) return res.json({ success: false, error: 'Produit non identifie' });
+
+    const product = JSON.parse(m[0]);
+
+    // Enregistrer dans products_database → enrichit la base pour TOUS les dentistes
+    try {
+      await admin().from('products_database').upsert({
+        gtin: gtin,
+        name: product.nom || product.nom_fr || 'Unknown',
+        name_fr: product.nom_fr || product.nom || null,
+        brand: product.marque || null,
+        manufacturer: product.fabricant || null,
+        category: product.categorie || 'Divers',
+        subcategory: product.sous_categorie || null,
+        reference: product.reference_fabricant || null,
+        manufacturer_ref: product.reference_fabricant || null,
+        sterile: product.sterile || null,
+        single_use: product.usage_unique || null,
+        package_type: product.conditionnement || null,
+        size: product.taille || null,
+        color: product.couleur || null,
+        source: 'photo_identify',
+        confidence_score: product.confidence || 0.8,
+        metadata: {
+          description_fr: product.description_fr,
+          keywords_fr: product.mots_cles,
+          identified_by: req.userId || 'anonymous',
+          identified_at: new Date().toISOString(),
+          photo_source: true
+        },
+        last_synced_at: new Date().toISOString()
+      }, { onConflict: 'gtin', ignoreDuplicates: false });
+    } catch (e) { /* silent */ }
+
+    // Logger le scan
+    try {
+      await admin().from('scan_logs').insert({
+        user_id: req.userId || null,
+        societe_id: req.societeId || null,
+        prothesiste_id: req.prothesisteId || null,
+        scan_type: 'photo',
+        gtin: gtin,
+        source_used: 'photo_identify',
+        confidence: product.confidence || 0.8,
+        scan_method: 'photo'
+      });
+    } catch (e) { /* silent */ }
+
+    res.json({
+      success: true,
+      produit: {
+        nom: product.nom_fr || product.nom,
+        marque: product.marque,
+        categorie: product.categorie,
+        sous_categorie: product.sous_categorie,
+        fournisseur: product.fabricant,
+        code_barre: gtin,
+        confidence: product.confidence,
+        description: product.description_fr,
+        conditionnement: product.conditionnement
+      },
+      enriched: true,
+      message: 'Produit identifie et ajoute a la base JADOMI. Tous les dentistes pourront le scanner instantanement.'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
