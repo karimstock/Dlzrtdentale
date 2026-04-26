@@ -130,7 +130,7 @@ const OEM_MANUFACTURERS = [
     certifications: 'CE',
     known_brands: ['ACCESS', 'Reverso'],
     oem_for: [],
-    note: 'Marque propre GACD. CONFIRMÉ : fabriqué par NIC/SLT Shenzhen (info terrain Dr Bahmed). Limes NiTi réciproques.',
+    note: 'Marque propre GACD. CONFIRMÉ : fabriqué par NIC/SLT Shenzhen (info terrain vérifiée). Limes NiTi réciproques.',
     oem_source: 'NIC / Shenzhen Superline Technology',
     western_equivalents: [
       { western: 'Reverso Silver/Blue (GACD/ACCESS)', oem_type: 'NiTi reciprocating file', note: 'CONFIRMÉ : sort de chez NIC (SLT Shenzhen). Même usine que les limes NIC vendues sous leur propre marque.' },

@@ -1558,8 +1558,8 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
       societeId: req.user?.societe_id
     });
 
-    // ── ENRICHIR avec équivalences (white label) + prix marché ──
-    result = await scanEngine.enrichScanResult(result);
+    // ── ENRICHIR avec équivalences (white label) + prix marché + intelligence OEM ──
+    result = await scanEngine.enrichScanResult(result, req.user?.societe_id);
 
     // Formater la réponse (rétrocompatible)
     const response = {
@@ -1580,8 +1580,23 @@ app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
     // Ajouter les équivalences (produits identiques sous d'autres marques)
     if (result.has_equivalents && result.equivalents?.length) {
       response.equivalents = result.equivalents;
+      response.equivalents_count = result.equivalents_count || result.equivalents.length;
       response.cheapest_equivalent = result.cheapest_equivalent || null;
     }
+
+    // Intelligence OEM (white label, fabricant d'origine)
+    if (result.oem_origin) {
+      response.oem_origin = result.oem_origin;
+      response.is_white_label = result.is_white_label || false;
+    }
+    if (result.market_insight) response.market_insight = result.market_insight;
+    if (result.potential_savings > 0) {
+      response.potential_savings = result.potential_savings;
+      response.savings_percent = result.savings_percent;
+    }
+
+    // Intelligence OEM complète (pour l'UI détaillée)
+    if (result.oem_intelligence) response.oem_intelligence = result.oem_intelligence;
 
     // Ajouter les prix marché multi-fournisseurs
     if (result.market_prices) {

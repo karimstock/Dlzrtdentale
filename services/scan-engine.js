@@ -595,35 +595,57 @@ async function findEquivalents(productId, gtin) {
 }
 
 /**
- * Enrichit un résultat de scan avec les équivalences et prix comparés
+ * Enrichit un résultat de scan avec les équivalences, prix comparés et intelligence OEM
  */
-async function enrichScanResult(result) {
+async function enrichScanResult(result, societeId) {
   if (!result?.produit || result.source === 'unknown') return result;
 
   const productId = result.product_db_id;
   const gtin = result.produit?.code_barre || result.produit?.gtin;
 
-  // Chercher les équivalents
-  const equivalents = await findEquivalents(productId, gtin);
+  // ── Intelligence OEM complète ──
+  try {
+    const oemIntel = require('./oem-intelligence');
+    const oemReport = await oemIntel.analyzeProduct(
+      { ...result.produit, id: productId },
+      societeId
+    );
 
-  if (equivalents.length > 0) {
-    result.equivalents = equivalents;
-    result.has_equivalents = true;
+    if (oemReport) {
+      result.oem_intelligence = oemReport;
 
-    // Trouver le meilleur prix parmi les équivalents
-    const pricesAll = equivalents
-      .filter(e => e.best_price > 0)
-      .map(e => ({ price: e.best_price, supplier: e.best_supplier, product: e.product.nom, brand: e.product.marque }));
-
-    if (pricesAll.length > 0) {
-      const best = pricesAll.reduce((a, b) => a.price < b.price ? a : b);
-      result.cheapest_equivalent = {
-        product_name: best.product,
-        brand: best.brand,
-        price: best.price,
-        supplier: best.supplier,
-        message: `Même produit disponible sous la marque "${best.brand}" à ${best.price.toFixed(2)} EUR chez ${best.supplier}`
-      };
+      // Raccourcis pour l'UI
+      if (oemReport.oem_origin) result.oem_origin = oemReport.oem_origin;
+      if (oemReport.is_white_label) result.is_white_label = true;
+      if (oemReport.market_insight) result.market_insight = oemReport.market_insight;
+      if (oemReport.equivalents_count > 0) {
+        result.has_equivalents = true;
+        result.equivalents = oemReport.equivalents;
+        result.equivalents_count = oemReport.equivalents_count;
+      }
+      if (oemReport.cheapest_equivalent) result.cheapest_equivalent = oemReport.cheapest_equivalent;
+      if (oemReport.potential_savings > 0) {
+        result.potential_savings = oemReport.potential_savings;
+        result.savings_percent = oemReport.savings_percent;
+      }
+    }
+  } catch (e) {
+    // Fallback : équivalences basiques si OEM intelligence fail
+    const equivalents = await findEquivalents(productId, gtin);
+    if (equivalents.length > 0) {
+      result.equivalents = equivalents;
+      result.has_equivalents = true;
+      const pricesAll = equivalents
+        .filter(e => e.best_price > 0)
+        .map(e => ({ price: e.best_price, supplier: e.best_supplier, product: e.product.nom, brand: e.product.marque }));
+      if (pricesAll.length > 0) {
+        const best = pricesAll.reduce((a, b) => a.price < b.price ? a : b);
+        result.cheapest_equivalent = {
+          product_name: best.product, brand: best.brand,
+          price: best.price, supplier: best.supplier,
+          message: `Même produit disponible sous la marque "${best.brand}" à ${best.price.toFixed(2)} EUR chez ${best.supplier}`
+        };
+      }
     }
   }
 
