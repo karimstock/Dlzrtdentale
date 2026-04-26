@@ -1263,6 +1263,13 @@ G) Detection equivalences white label (KILLER FEATURE) :
    - Endpoint /api/scan/lookup enrichi : retourne equivalents + market_prices
    - Ex: Lime Reverso (GACD) = meme usine que ProFile (autre) → alerte prix
    SQL a executer : sql/scan/product_equivalences.sql
+H) Photo Identify OEM (routes/labo/stock.js) :
+   - Prompt Claude Vision expert MDR : lit le PETIT texte sur l'emballage
+   - Detecte : fabricant_reel, adresse_fabricant, pays_fabrication, marquage_ce
+   - Distingue marque (distributeur) vs fabricant reel (OEM)
+   - Auto-cree des product_equivalences quand OEM detecte
+   - Retourne : oem{}, equivalents[], market_insight, potential_savings
+   - Chaque photo prise enrichit la base OEM pour TOUS les dentistes
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class

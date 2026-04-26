@@ -545,13 +545,27 @@ router.post('/scan/photo-identify', async (req, res) => {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 800,
-      system: `Tu es un expert en produits dentaires, medicaux et de laboratoire prothetique.
-Tu identifies les produits a partir de photos d'emballage, de boite, ou du produit lui-meme.
-Tu connais toutes les marques : 3M, Dentsply Sirona, GC, Ivoclar, Kerr, Vita, Ultradent, Septodont,
-VDW, Hu-Friedy, Bien-Air, W&H, NSK, Acteon, Straumann, Nobel Biocare, Zimmer, Osstem,
-Zhermack, Tokuyama, Shofu, Kuraray, Coltene, SDI, VOCO, Kulzer, DMG, Produits Dentaires SA, etc.
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1200,
+      system: `Tu es un expert en dispositifs medicaux dentaires, supply chain et reglementation MDR/CE.
+Tu identifies les produits ET tu analyses l'emballage en profondeur pour detecter le VRAI fabricant.
+
+REGLE CLÉ : En reglementation europeenne MDR, le fabricant REEL doit figurer sur l'emballage
+(nom + adresse). Ce n'est PAS toujours la marque visible en gros. Souvent la marque en gros
+est le DISTRIBUTEUR, et le fabricant reel est ecrit en PETIT (souvent en bas ou au dos).
+
+Fabricants OEM chinois connus dans le dentaire :
+- NIC / Shenzhen Superline Technology (SLT) — Shenzhen — limes NiTi, arcs ortho
+- Shenzhen Perfect Medical Instruments (Dental Perfect) — Shenzhen — limes NiTi
+- Guilin Woodpecker Medical — Guilin — detartreurs, lampes polymerisation
+- COXO Medical Instrument — Foshan — micromoteurs, contre-angles
+- Bloomden Bioceramics — Changsha — disques zircone
+- Shandong HUGE Dental Material — Shandong — composites
+- Ningbo Sinyuan Bur & Tool — Ningbo — fraises carbure et diamant
+- Ningbo Runyes Medical — Ningbo — autoclaves
+- Chengdu SANI Medical — Chengdu — instruments endo
+- Denco Medical — Shenzhen — limes endo
+- Rogin, Belident, Siven — limes endo OEM
 
 Tu retournes TOUJOURS un JSON strict.`,
       messages: [{
@@ -561,31 +575,47 @@ Tu retournes TOUJOURS un JSON strict.`,
           { type: 'text', text: `Identifie ce produit dentaire/medical a partir de cette photo.
 Le code-barres scanne est : ${gtin}
 
-Extrais toutes les informations visibles :
+ETAPE 1 — IDENTIFICATION PRODUIT : Lis le GROS texte
 1. Nom EXACT du produit (tel qu'ecrit sur l'emballage)
-2. Marque / fabricant
-3. Categorie (Instruments, Composites, Endodontie, Orthodontie, Prothese, Implants, etc.)
-4. Sous-categorie precise
-5. Conditionnement (quantite, unite)
-6. Toute info supplementaire visible (taille, couleur, reference)
+2. Marque (le nom en gros, souvent le distributeur)
+3. Categorie et sous-categorie
+4. Conditionnement, taille, couleur, reference
+
+ETAPE 2 — ANALYSE OEM / FABRICANT REEL : Lis le PETIT texte (CRUCIAL)
+5. Cherche "Manufactured by", "Fabrique par", "Made in", "Hersteller"
+6. Cherche une adresse (souvent Shenzhen, Ningbo, Foshan, Guilin, Changsha = Chine)
+7. Cherche le numero organisme notifie CE (ex: CE0197, CE0123)
+8. Cherche le nom du fabricant reel (different de la marque ?)
+9. Cherche "Made in China", "Made in Germany", etc.
+10. La marque en gros est-elle le DISTRIBUTEUR ou le FABRICANT reel ?
+
+ETAPE 3 — DIAGNOSTIC WHITE LABEL
+11. Si le fabricant reel ≠ la marque en gros → c'est du white label / OEM
+12. Si l'adresse est en Chine mais la marque semble europeenne → white label probable
 
 JSON strict :
 {
   "nom": "Nom exact du produit",
   "nom_fr": "Nom en francais si different",
-  "marque": "Marque",
-  "fabricant": "Fabricant",
+  "marque": "Marque visible en gros (souvent le distributeur)",
+  "fabricant_reel": "Fabricant REEL lu en petit sur l'emballage ou null si non visible",
+  "adresse_fabricant": "Adresse du fabricant si visible ou null",
+  "pays_fabrication": "Pays lu sur emballage (Made in...) ou null",
+  "marquage_ce": "Numero organisme notifie (ex: 0197) ou null",
   "categorie": "Categorie principale",
   "sous_categorie": "Sous-categorie precise",
   "conditionnement": "ex: boite de 6, flacon 5ml",
   "reference_fabricant": "reference visible ou null",
   "taille": "taille/dimension ou null",
   "couleur": "couleur/teinte ou null",
-  "sterile": true/false ou null,
-  "usage_unique": true/false ou null,
+  "sterile": true,
+  "usage_unique": true,
+  "is_white_label": false,
+  "white_label_details": "explication si white label detecte ou null",
+  "oem_suspect": "nom du fabricant OEM suspecte ou null",
   "description_fr": "Description 1-2 phrases",
   "mots_cles": ["mot1","mot2","mot3","mot4","mot5"],
-  "confidence": 0.0-1.0
+  "confidence": 0.0
 }` }
         ]
       }]
@@ -597,18 +627,23 @@ JSON strict :
 
     const product = JSON.parse(m[0]);
 
+    // Le fabricant réel (petit texte) vs la marque (gros texte)
+    const realManufacturer = product.fabricant_reel || product.marque || null;
+    const brandName = product.marque || null;
+
     // Enregistrer dans products_database → enrichit la base pour TOUS les dentistes
+    let productDbId = null;
     try {
-      await admin().from('products_database').upsert({
+      const { data: upserted } = await admin().from('products_database').upsert({
         gtin: gtin,
         name: product.nom || product.nom_fr || 'Unknown',
         name_fr: product.nom_fr || product.nom || null,
-        brand: product.marque || null,
-        manufacturer: product.fabricant || null,
+        brand: brandName,
+        manufacturer: realManufacturer,
+        manufacturer_ref: product.reference_fabricant || null,
         category: product.categorie || 'Divers',
         subcategory: product.sous_categorie || null,
         reference: product.reference_fabricant || null,
-        manufacturer_ref: product.reference_fabricant || null,
         sterile: product.sterile || null,
         single_use: product.usage_unique || null,
         package_type: product.conditionnement || null,
@@ -621,11 +656,68 @@ JSON strict :
           keywords_fr: product.mots_cles,
           identified_by: req.userId || 'anonymous',
           identified_at: new Date().toISOString(),
-          photo_source: true
+          photo_source: true,
+          // OEM Intelligence (le petit texte sur l'emballage)
+          fabricant_reel: product.fabricant_reel || null,
+          adresse_fabricant: product.adresse_fabricant || null,
+          pays_fabrication: product.pays_fabrication || null,
+          marquage_ce: product.marquage_ce || null,
+          is_white_label: product.is_white_label || false,
+          white_label_details: product.white_label_details || null,
+          oem_suspect: product.oem_suspect || null,
         },
         last_synced_at: new Date().toISOString()
-      }, { onConflict: 'gtin', ignoreDuplicates: false });
+      }, { onConflict: 'gtin', ignoreDuplicates: false }).select('id').single();
+      if (upserted) productDbId = upserted.id;
     } catch (e) { /* silent */ }
+
+    // ══════════════════════════════════════════
+    // OEM INTELLIGENCE — Le vrai effet WOW
+    // ══════════════════════════════════════════
+    let oemReport = null;
+    try {
+      const oemIntel = require('../../services/oem-intelligence');
+      oemReport = await oemIntel.analyzeProduct({
+        id: productDbId,
+        nom: product.nom_fr || product.nom,
+        marque: brandName,
+        fournisseur: realManufacturer,
+        categorie: product.categorie,
+        code_barre: gtin,
+      }, req.societeId);
+
+      // Si Claude a détecté un OEM et que le service le confirme, auto-enregistrer l'équivalence
+      if (product.is_white_label && product.fabricant_reel && productDbId) {
+        // Chercher si le fabricant réel a d'autres produits sous sa propre marque
+        const { data: oemProducts } = await admin().from('products_database')
+          .select('id, gtin, name, brand')
+          .ilike('manufacturer', `%${product.fabricant_reel.split(' ')[0]}%`)
+          .neq('id', productDbId)
+          .eq('category', product.categorie)
+          .limit(10);
+
+        for (const oemProd of (oemProducts || [])) {
+          try {
+            await admin().from('product_equivalences').upsert({
+              product_a_id: productDbId,
+              product_b_id: oemProd.id,
+              equivalence_type: 'same_oem',
+              confidence: 0.85,
+              oem_manufacturer: product.fabricant_reel,
+              oem_country: product.pays_fabrication === 'Chine' || product.pays_fabrication === 'China' ? 'CN' : null,
+              source: 'ai',
+              metadata: {
+                detected_by: 'photo_identify_claude_vision',
+                ce_marking: product.marquage_ce,
+                detected_at: new Date().toISOString()
+              }
+            }, { onConflict: 'product_a_id,product_b_id', ignoreDuplicates: true });
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      console.warn('[photo-identify] OEM Intelligence error:', e.message);
+    }
 
     // Logger le scan
     try {
@@ -637,26 +729,61 @@ JSON strict :
         gtin: gtin,
         source_used: 'photo_identify',
         confidence: product.confidence || 0.8,
-        scan_method: 'photo'
+        scan_method: 'photo',
+        metadata: {
+          oem_detected: product.is_white_label || false,
+          fabricant_reel: product.fabricant_reel || null,
+          pays_fabrication: product.pays_fabrication || null
+        }
       });
     } catch (e) { /* silent */ }
 
-    res.json({
+    // Construire la réponse enrichie
+    const response = {
       success: true,
       produit: {
         nom: product.nom_fr || product.nom,
         marque: product.marque,
         categorie: product.categorie,
         sous_categorie: product.sous_categorie,
-        fournisseur: product.fabricant,
+        fournisseur: realManufacturer,
         code_barre: gtin,
         confidence: product.confidence,
         description: product.description_fr,
-        conditionnement: product.conditionnement
+        conditionnement: product.conditionnement,
+        reference: product.reference_fabricant,
       },
       enriched: true,
-      message: 'Produit identifie et ajoute a la base JADOMI. Tous les dentistes pourront le scanner instantanement.'
-    });
+      message: 'Produit identifie et ajoute a la base JADOMI.',
+
+      // ── OEM Intelligence ──
+      oem: {
+        fabricant_reel: product.fabricant_reel || null,
+        adresse_fabricant: product.adresse_fabricant || null,
+        pays_fabrication: product.pays_fabrication || null,
+        marquage_ce: product.marquage_ce || null,
+        is_white_label: product.is_white_label || false,
+        white_label_details: product.white_label_details || null,
+        oem_suspect: product.oem_suspect || null,
+      },
+    };
+
+    // Ajouter le rapport OEM complet si disponible
+    if (oemReport) {
+      response.oem_intelligence = oemReport;
+      if (oemReport.market_insight) response.market_insight = oemReport.market_insight;
+      if (oemReport.equivalents_count > 0) {
+        response.equivalents = oemReport.equivalents;
+        response.equivalents_count = oemReport.equivalents_count;
+      }
+      if (oemReport.cheapest_equivalent) response.cheapest_equivalent = oemReport.cheapest_equivalent;
+      if (oemReport.potential_savings > 0) {
+        response.potential_savings = oemReport.potential_savings;
+        response.savings_percent = oemReport.savings_percent;
+      }
+    }
+
+    res.json(response);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
