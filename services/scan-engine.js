@@ -208,6 +208,63 @@ async function lookupProduct(code, prothesisteId, options = {}) {
   }
 
   // ══════════════════════════════════════════
+  // NIVEAU 4bis : Recherche par NOM si code non-numerique
+  // (quand le dentiste tape "equia forte" au lieu de scanner)
+  // ══════════════════════════════════════════
+  if (cleanCode.length >= 3 && !/^\d+$/.test(cleanCode)) {
+    waterfallLevels++;
+    try {
+      // Recherche full-text rapide (utilise index GIN si dispo)
+      let data = null;
+      try {
+        const res = await admin().from('products_database')
+          .select('id,gtin,name,name_fr,brand,manufacturer,category,subcategory,image_url,confidence_score,metadata')
+          .textSearch('name', cleanCode, { type: 'plain' })
+          .in('category', priorityCategories)
+          .limit(1).maybeSingle();
+        data = res.data;
+      } catch (e) { /* fulltext pas dispo, continue */ }
+
+      // Fallback : chercher dans toutes categories
+      if (!data) {
+        try {
+          const res = await admin().from('products_database')
+            .select('id,gtin,name,name_fr,brand,manufacturer,category,subcategory,image_url,confidence_score,metadata')
+            .textSearch('name', cleanCode, { type: 'plain' })
+            .limit(1).maybeSingle();
+          data = res.data;
+        } catch (e) { /* continue */ }
+      }
+
+      // Fallback : recherche par brand
+      if (!data) {
+        try {
+          const res = await admin().from('products_database')
+            .select('id,gtin,name,name_fr,brand,manufacturer,category,subcategory,image_url,confidence_score,metadata')
+            .ilike('brand', `%${cleanCode}%`)
+            .limit(1).maybeSingle();
+          data = res.data;
+        } catch (e) { /* continue */ }
+      }
+
+      if (data) {
+        incrementScanCount(data.gtin);
+        logScan(cleanCode, 'products_database_text', data.confidence_score || 0.7, waterfallLevels, Date.now() - startTime, options);
+        return {
+          source: 'products_database',
+          produit: mapProductToResult(data),
+          existe_stock: false,
+          product_db_id: data.id,
+          is_dental: DENTAL_CATEGORIES.includes(data.category),
+          match_type: 'text_search',
+          waterfall_levels: waterfallLevels,
+          duration_ms: Date.now() - startTime
+        };
+      }
+    } catch (e) { /* continue */ }
+  }
+
+  // ══════════════════════════════════════════
   // NIVEAU 5 : OpenFoodFacts (non-dental, ~200ms)
   // ══════════════════════════════════════════
   waterfallLevels++;
