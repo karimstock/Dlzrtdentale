@@ -769,6 +769,30 @@ function renderUserInfo() {
   const nom  = ((meta.prenom||'')+' '+(meta.nom||'')).trim() || currentUser?.email?.split('@')[0] || '?';
   document.getElementById('userName').textContent  = nom;
   document.getElementById('userAvatar').textContent = nom.charAt(0).toUpperCase();
+
+  // Detecter la profession depuis le profil d'inscription
+  // Le scan sera automatiquement cible selon le metier
+  const metier = meta.metier || meta.profession || meta.secteur || meta.specialite || '';
+  const metierLower = metier.toLowerCase();
+  let profession = 'labo'; // defaut pour la page labo
+  if (/ortho/i.test(metierLower)) profession = 'orthodontiste';
+  else if (/proth/i.test(metierLower)) profession = 'prothesiste';
+  else if (/implant/i.test(metierLower)) profession = 'implantologue';
+  else if (/endo/i.test(metierLower)) profession = 'endodontiste';
+  else if (/paro/i.test(metierLower)) profession = 'parodontiste';
+  else if (/chirurg/i.test(metierLower)) profession = 'chirurgien';
+  else if (/omni|general|dentiste/i.test(metierLower)) profession = 'omnipraticien';
+
+  window._jadomiProfession = profession;
+  const sel = document.getElementById('professionSelect');
+  if (sel) sel.value = profession;
+
+  // Afficher le metier dans la sidebar
+  const roleEl = document.querySelector('.user-role');
+  if (roleEl) {
+    const labels = { labo:'Prothesiste', orthodontiste:'Orthodontiste', prothesiste:'Prothesiste', implantologue:'Implantologue', endodontiste:'Endodontiste', parodontiste:'Parodontiste', chirurgien:'Chirurgien', omnipraticien:'Dentiste' };
+    roleEl.textContent = labels[profession] || metier || 'Prothesiste';
+  }
 }
 
 function apiHeaders() {
@@ -1262,21 +1286,13 @@ async function saveAdjust() {
   finally { btn.disabled=false; btn.innerHTML='✅ Enregistrer le mouvement'; }
 }
 
-/* ── Profession selector ───────────────────────────────────────── */
+/* ── Profession (auto-detectee depuis le profil d'inscription) ── */
 function changeProfession(value) {
+  // Changement temporaire pour cette session (le profil d'inscription reste la reference)
   window._jadomiProfession = value;
-  localStorage.setItem('jadomi_profession', value);
-  toast('Specialite : ' + document.getElementById('professionSelect').selectedOptions[0].text);
+  const label = document.getElementById('professionSelect').selectedOptions[0].text;
+  toast('Scan cible : ' + label + ' (session)');
 }
-// Restaurer au chargement
-(function() {
-  const saved = localStorage.getItem('jadomi_profession');
-  if (saved) {
-    window._jadomiProfession = saved;
-    const sel = document.getElementById('professionSelect');
-    if (sel) sel.value = saved;
-  }
-})();
 
 /* ── Scanner tab ─────────────────────────────────────────────── */
 let scanTimeout;
