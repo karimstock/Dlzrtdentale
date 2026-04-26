@@ -160,7 +160,7 @@ async function main() {
     const pageSize = 100;
     let pageProducts = [];
 
-    while (skip < 2000) { // max 2000 produits par recherche
+    while (skip < 5000) { // max 5000 produits par recherche
       const data = await searchEudamed(search.query, skip, pageSize);
       if (!data || !data.results?.length) break;
 
