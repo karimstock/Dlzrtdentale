@@ -154,7 +154,7 @@ async function main() {
     let skip = 0;
     const pageProducts = [];
 
-    while (skip < 2000) {
+    while (skip < 5000) {
       const data = await searchEudamed(search.query, skip, 100);
       if (!data || !data.results?.length) break;
 
