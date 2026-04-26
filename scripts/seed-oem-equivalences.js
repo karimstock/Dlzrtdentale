@@ -22,25 +22,40 @@ const { createClient } = require('@supabase/supabase-js');
 
 const OEM_MANUFACTURERS = [
 
-  // ═══ ENDODONTIE (le plus gros marché white label) ═══
+  // ═══ ENDODONTIE — FABRICANTS CHINOIS DIRECTS (pas du white label, vrais fabricants) ═══
+  // Tous basés à Shenzhen/Chengdu, se concurrencent entre eux
+  // Certains vendent en propre ET font de l'OEM pour distributeurs EU
   {
     oem: 'Shenzhen Superline Technology (SLT) / NIC Dental',
     country: 'CN',
     city: 'Shenzhen',
     speciality: 'Endodontie',
     products: 'Limes NiTi rotatives, limes manuelles, arcs orthodontiques',
-    capacity: '20M+ limes/an',
+    capacity: '20M+ limes/an, 70+ pays',
     certifications: 'CE, ISO 13485, FDA 510(k)',
-    known_brands: [
-      // Marques connues pour acheter chez SLT/NIC ou similaires
-      'Perfect (TDK/Perfect Dental)', 'EdgeEndo', 'Sani (Chengdu)',
-      'Denco Medical', 'Rogin Dental', 'WaveOne (packaging alternatif)',
-    ],
+    known_brands: ['NIC', 'Superline'],
+    oem_for: ['ACCESS / Reverso (GACD) — CONFIRMÉ', 'Distributeurs EU marque propre', 'Nombreux rebranding'],
     western_equivalents: [
-      // Produits occidentaux qui ont des équivalents chinois OEM
-      { western: 'Limes Reverso (GACD)', oem_type: 'NiTi rotary file', note: 'OEM chinois probable' },
-      { western: 'Limes Protaper-like', oem_type: 'NiTi rotary file taper .04-.06', note: 'Nombreux clones' },
-      { western: 'Limes WaveOne-like reciprocating', oem_type: 'Reciprocating NiTi', note: 'Format universel' },
+      { western: 'Reverso Silver/Blue (GACD/ACCESS)', oem_type: 'NiTi reciprocating file', note: 'CONFIRMÉ : ACCESS/Reverso = fabriqué par NIC (info terrain)' },
+      { western: 'Limes Protaper-like distributeur', oem_type: 'NiTi rotary file taper .04-.06', note: 'Format universel NiTi' },
+      { western: 'Limes reciprocating distributeur', oem_type: 'Reciprocating NiTi', note: 'Clone WaveOne format' },
+    ]
+  },
+
+  {
+    oem: 'Shenzhen Perfect Medical Instruments (Dental Perfect)',
+    country: 'CN',
+    city: 'Shenzhen + Shanwei',
+    speciality: 'Endodontie',
+    products: 'Limes NiTi rotatives (TF, Blue, Gold), arcs ortho, moteurs endo',
+    capacity: 'Fabricant direct (fondé 2009), usine propre',
+    certifications: 'CE 0197, ISO 13485',
+    known_brands: ['Perfect', 'Dental Perfect'],
+    oem_for: [],
+    note: 'FABRICANT DIRECT — concurrent de NIC. Marque propre, usine propre à Shenzhen+Shanwei. Pas du OEM. Vendu en France par Medistock (exclusivité sur certains produits) et autres distributeurs.',
+    western_equivalents: [
+      { western: 'Limes NiTi type Protaper', oem_type: 'NiTi rotary taper variable', note: 'Perfect = alternative directe, fabrication propre, MÊME qualité NiTi, prix très inférieur' },
+      { western: 'Limes NiTi type Reciproc', oem_type: 'Reciprocating NiTi', note: 'Perfect fait son propre système réciproque, concurrent direct VDW' },
     ]
   },
 
@@ -50,8 +65,10 @@ const OEM_MANUFACTURERS = [
     city: 'Chengdu',
     speciality: 'Endodontie',
     products: 'Limes endo, moteurs endo, localisateurs apex',
+    capacity: 'Fabricant direct',
     certifications: 'CE, ISO 13485',
     known_brands: ['SANI', 'CK Dental'],
+    oem_for: [],
     western_equivalents: []
   },
 
@@ -63,7 +80,61 @@ const OEM_MANUFACTURERS = [
     products: 'Limes inox et NiTi, instruments endo complets',
     certifications: 'CE, ISO',
     known_brands: ['Dencodent'],
+    oem_for: ['Distributeurs EU'],
     western_equivalents: []
+  },
+
+  {
+    oem: 'Rogin Dental (Chine)',
+    country: 'CN',
+    city: 'Chine',
+    speciality: 'Endodontie',
+    products: 'Limes rotatives NiTi, instruments endo',
+    certifications: 'CE, ISO',
+    known_brands: ['Rogin'],
+    oem_for: ['OEM pour marques distributeurs'],
+    western_equivalents: []
+  },
+
+  {
+    oem: 'Belident (Chine)',
+    country: 'CN',
+    city: 'Chine',
+    speciality: 'Endodontie',
+    products: 'Limes rotatives, réciproques, moteurs endo',
+    certifications: 'CE',
+    known_brands: ['Belident'],
+    oem_for: [],
+    western_equivalents: []
+  },
+
+  {
+    oem: 'Siven Dental (Chine)',
+    country: 'CN',
+    city: 'Chine',
+    speciality: 'Endodontie',
+    products: 'Limes NiTi, pointes gutta, instruments endo',
+    certifications: 'CE, ISO 13485',
+    known_brands: ['Siven'],
+    oem_for: ['OEM pour distributeurs'],
+    western_equivalents: []
+  },
+
+  // ═══ ENDODONTIE — DISTRIBUTEURS EU QUI REBRANDED ═══
+  {
+    oem: 'ACCESS (distribué par GACD)',
+    country: 'FR',
+    city: 'France',
+    speciality: 'Endodontie',
+    products: 'Reverso Silver, Reverso Blue, Prefile — limes NiTi réciproques',
+    certifications: 'CE',
+    known_brands: ['ACCESS', 'Reverso'],
+    oem_for: [],
+    note: 'Marque propre GACD. CONFIRMÉ : fabriqué par NIC/SLT Shenzhen (info terrain Dr Bahmed). Limes NiTi réciproques.',
+    oem_source: 'NIC / Shenzhen Superline Technology',
+    western_equivalents: [
+      { western: 'Reverso Silver/Blue (GACD/ACCESS)', oem_type: 'NiTi reciprocating file', note: 'CONFIRMÉ : sort de chez NIC (SLT Shenzhen). Même usine que les limes NIC vendues sous leur propre marque.' },
+    ]
   },
 
   // ═══ INSTRUMENTS ROTATIFS ═══
