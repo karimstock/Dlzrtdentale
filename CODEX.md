@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 25 avril 2026
-**Derniere passe** : Passe 51 — JADOMI Scan World-Class (fixes + base produits + intelligence prix)
+**Derniere mise a jour** : 26 avril 2026
+**Derniere passe** : Passe 51b — Enrichissement EUDAMED base produits (v2→v4, +13 406 produits EU)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -979,6 +979,7 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - [x] Audit complet modules existants
 - [x] Fix Scan & Stock : waterfall unifie + camera decoder + peremption Sonnet (Passe 51)
 - [x] Base produits world-class : products_database + 8 scripts import (Passe 51)
+- [x] Enrichissement EUDAMED EU : +13 406 produits, 19 321 EUDAMED total (Passe 51b)
 - [x] Intelligence prix multi-fournisseurs : supplier_prices + insights (Passe 51)
 - [x] Dashboard scan analytics : /admin/scan-stats.html (Passe 51)
 - [ ] Executer SQL scan/*.sql dans Supabase Dashboard
@@ -1219,6 +1220,18 @@ Fichiers crees (10 fichiers) :
 Fonctionnalites : login OTP email, liste cas avec filtres, detail cas avec galerie photos,
 upload photo (fabrication/essayage/produit fini), messages labo-cabinet, profil specialites.
 Demo data : 4 cas, 23 photos, messages. Auto-login demo.
+
+## Passe 51b (26 avril 2026) -- Enrichissement EUDAMED base produits
+A) Audit et reprise apres coupure PC :
+- 4 scripts EUDAMED (v1→all-manufacturers) avaient tous termine avec succes
+- 5 104 produits EUDAMED deja en base, 1 466 770 GUDID FDA
+B) Nouveaux scripts et enrichissements :
+- import-eudamed-v3.js : +811 nouveaux (VOCO, Coltene, Kettenbach, NSK, Kuraray, Hager...)
+- import-eudamed-v4-all.js : +13 406 nouveaux (38 fabricants + 60 mots-cles)
+  Kerr Italia (830), Adin (761), Kentzler-Kaschner (570), Hu-Friedy (500),
+  ASTAR Ortho (500), Bloomden (500), Biomet 3i (500), orthodontic bracket (2999)...
+C) Methode EUDAMED documentee dans le CODEX (section 27) pour ne plus perdre de temps
+D) Total final : 1 486 118 produits (19 321 EUDAMED + 1 466 770 GUDID)
 
 ## Passe 51 (25 avril 2026) -- JADOMI Scan World-Class
 A) Fixes critiques (3 bugs audit) :
@@ -1501,9 +1514,12 @@ Schema : sql/scan/products_database.sql
 - 3 tables : products_database, product_corrections, prothesiste_products
 
 ## Sources d'import
-| Source | Script | Produits estimes |
-|--------|--------|-----------------|
-| GUDID FDA | scripts/import-gudid.js | ~50 000 |
+| Source | Script | Produits reels |
+|--------|--------|---------------|
+| GUDID FDA (US) | scripts/import-gudid.js | ~1 466 770 |
+| EUDAMED (EU) | scripts/import-eudamed-v2.js | 19 321 |
+| EUDAMED (EU) | scripts/import-eudamed-v3.js | (complet v2) |
+| EUDAMED (EU) | scripts/import-eudamed-v4-all.js | (complet v4) |
 | Datakick | scripts/import-datakick.js | enrichissement |
 | Henry Schein FR | scripts/scrape-henry-schein.js | ~10 000 |
 | GACD FR | scripts/scrape-gacd.js | ~5 000 |
@@ -1511,6 +1527,27 @@ Schema : sql/scan/products_database.sql
 | Claude IA enrichissement | scripts/enrich-products-ia.js | categories FR |
 | OpenAI embeddings | scripts/generate-embeddings.js | recherche semantique |
 | Deduplication | scripts/dedup-products.js | nettoyage |
+
+## ASTUCE EUDAMED — Comment capter les produits (NE PAS PERDRE)
+L'API officielle EUDAMED (ec.europa.eu/tools/eudamed/api/devices/udiDiData)
+NE FILTRE PAS par fabricant — freeText est ignore, retourne toujours 1.6M.
+SOLUTION QUI FONCTIONNE :
+1. Utiliser **search.eudamed.com/api/search** (API de recherche publique)
+   - Endpoint : GET https://search.eudamed.com/api/search?q=QUERY&type=device&size=100&skip=0
+   - Pagination par skip (0, 100, 200...)
+   - Filtrer cote client par manufacturer_name (contains)
+   - Champ GTIN = primary_di_code (max 14 chars)
+2. Deux strategies de recherche combinées :
+   a) Par NOM EXACT du fabricant (ex: "KERR ITALIA SRL", "Adin Dental Implant")
+      - Certains fabricants n'apparaissent que sous leur nom legal complet
+   b) Par MOT-CLE PRODUIT (ex: "dental implant", "orthodontic bracket", "dental mirror")
+      - Capture les PETITS fabricants qu'on ne connait pas encore
+3. Anti-doublons : upsert sur gtin + ignoreDuplicates: true
+4. Rate limit : 1s entre requetes
+5. Fabricants ABSENTS d'EUDAMED search (a ne pas re-tester) :
+   Septodont, GC, DMG, Kulzer, Shofu, KaVo, MELAG, 3Shape, Vatech, Owandy
+
+**Total base 26/04/2026 : 1 486 118 produits (1 466 770 GUDID + 19 321 EUDAMED)**
 
 ## Intelligence prix
 Schema : sql/scan/prices_intelligence.sql
@@ -1544,5 +1581,5 @@ Schema : sql/scan/prices_intelligence.sql
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 25 avril 2026 (Passe 51 — JADOMI Scan World-Class)
+Derniere mise a jour : 26 avril 2026 (Passe 51b — Enrichissement EUDAMED +13 406 produits)
 ===============================================================
