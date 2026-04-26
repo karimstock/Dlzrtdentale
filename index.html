@@ -629,7 +629,14 @@ tbody tr:hover td{background:var(--surface2);}
 
     <!-- FOURNISSEURS -->
     <div class="page" id="page-fournisseurs">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Configurez vos fournisseurs, codes clients et contrats. Les remises sont appliquées automatiquement lors de l'import de factures. Données 100% privées.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Configurez vos fournisseurs, codes clients et contrats. Les remises sont appliquées automatiquement lors de l'import de factures. Le <b>code client</b> sur vos factures permet le matching automatique.</p>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+        <input id="new-fourni-name" type="text" placeholder="Nom du fournisseur..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;">
+        <button onclick="ajouterFournisseur()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;">+ Ajouter fournisseur</button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <input id="fourni-search" type="text" placeholder="Rechercher un fournisseur..." oninput="filterFournisseurs(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;">
+      </div>
       <div class="fourni-grid" id="fourni-grid"></div>
     </div>
 
@@ -1599,7 +1606,8 @@ let editId = null;
 let recognition = null;
 let isListening = false;
 
-const FOURNISSEURS = ['DPI','Henry Schein','Septodont','Pluradent','Dental Discount','Mega Dental','DentalEvolution'];
+const FOURNISSEURS_DEFAULT = ['DPI','Henry Schein','Septodont','Pluradent','Dental Discount','Mega Dental','DentalEvolution','GACD','Dental Express','Dental City','Promodentaire','Medistock','BioHorizons','Straumann','Zimmer Biomet','Nobel Biocare','Ivoclar','Acteon','Bien-Air','Cattani','Anios','Dürr Dental','MELAG','Kulzer','GC','DMG','Shofu','KaVo','Pierre Fabre','Komet','3M','Kerr','Coltene','Hu-Friedy'];
+let FOURNISSEURS = [...FOURNISSEURS_DEFAULT];
 const CATEGORIES_REMISE = ['Consommables','Composites','Endodontie','Anesthésiants','Matériel'];
 
 // ═══════════════════════════════════
@@ -2973,11 +2981,43 @@ async function chargerFournisseurs() {
   if(db) {
     try {
       const {data} = await db.from('fournisseurs').select('*');
-      if(data) { data.forEach(f=>{fournisseurs_config[f.nom]=f;}); return; }
+      if(data) {
+        data.forEach(f=>{fournisseurs_config[f.nom]=f;});
+        // Ajouter les fournisseurs custom (pas dans la liste par defaut)
+        const customs = data.map(f=>f.nom).filter(n=>!FOURNISSEURS_DEFAULT.includes(n));
+        FOURNISSEURS = [...new Set([...customs, ...FOURNISSEURS_DEFAULT])];
+        return;
+      }
     } catch(e) {}
   }
   const s = localStorage.getItem('amilo_fournisseurs');
-  if(s) fournisseurs_config=JSON.parse(s);
+  if(s) {
+    fournisseurs_config=JSON.parse(s);
+    const customs = Object.keys(fournisseurs_config).filter(n=>!FOURNISSEURS_DEFAULT.includes(n));
+    FOURNISSEURS = [...new Set([...customs, ...FOURNISSEURS_DEFAULT])];
+  }
+}
+
+function ajouterFournisseur() {
+  const input = document.getElementById('new-fourni-name');
+  const nom = (input.value||'').trim();
+  if(!nom) { showToast('Entrez un nom de fournisseur'); return; }
+  if(FOURNISSEURS.includes(nom)) { showToast('Ce fournisseur existe déjà'); input.value=''; return; }
+  FOURNISSEURS.unshift(nom);
+  input.value='';
+  renderFournisseurs();
+  showToast(`${nom} ajouté — configurez son code client et ses remises`);
+  // Scroll vers la première carte (le nouveau fournisseur)
+  document.getElementById('fourni-grid')?.scrollTo({top:0, behavior:'smooth'});
+}
+
+function filterFournisseurs(q) {
+  const cards = document.querySelectorAll('.fourni-card');
+  const query = (q||'').toLowerCase();
+  cards.forEach(card => {
+    const name = card.querySelector('.fourni-name')?.textContent?.toLowerCase() || '';
+    card.style.display = !query || name.includes(query) ? '' : 'none';
+  });
 }
 
 function renderFournisseurs() {

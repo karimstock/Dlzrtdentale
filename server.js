@@ -1756,6 +1756,20 @@ DETECTION ET CONVERSION DEVISE OBLIGATOIRE :
 
 RAPPEL : TA REPONSE EST UNIQUEMENT LE JSON CI-DESSOUS, RIEN D'AUTRE, PAS DE PROSE.
 
+EXTRACTION CODE CLIENT (CRITIQUE pour matching fournisseur) :
+- Chercher sur la facture : "Code client", "N° client", "Compte client",
+  "Customer No", "N° compte", "Ref client", "Client N°", "Votre reference"
+- C'est souvent en haut de la facture, pres de l'adresse du destinataire
+- Ce code est VITAL : il permet de matcher automatiquement le fournisseur
+  et ses conditions tarifaires (remises, contrats)
+
+DETECTION LIGNES NON LIVREES (CRITIQUE pour stock) :
+- Certaines lignes de facture sont marquees "suivra", "a suivre", "reliquat",
+  "en attente", "rupture", "indisponible", "livraison ulterieure"
+- Pour ces lignes : statut_livraison = "suivra"
+- Pour les lignes normales : statut_livraison = "livree"
+- Si une quantite commandee differe de la quantite livree, l'indiquer
+
 JSON uniquement :
 {
   "type_document": "facture_dentaire",
@@ -1764,6 +1778,7 @@ JSON uniquement :
   "selectionne": true,
   "deductible_tva": true,
   "fournisseur_ou_etablissement": "Nom exact",
+  "code_client": "ABC-12345",
   "numero_document": "FA-2026-001",
   "date": "AAAA-MM-JJ",
   "total_ht": 0.00,
@@ -1781,12 +1796,14 @@ JSON uniquement :
       "nom": "Nom exact du produit",
       "reference": "REF-001",
       "quantite": 1,
+      "quantite_livree": 1,
       "unite": "boite",
       "prix_unitaire_ht": 0.00,
       "prix_unitaire_ttc": 0.00,
       "taux_tva": 20,
       "remise_pct": 0.00,
-      "prix_total_ttc": 0.00
+      "prix_total_ttc": 0.00,
+      "statut_livraison": "livree"
     }
   ]
 }`
@@ -1965,6 +1982,16 @@ app.post('/api/valider-document', requireAuth(), async (req, res) => {
     // Si facture dentaire -> mettre a jour le stock
     if (document.ajouter_au_stock && document.produits && document.produits.length > 0) {
       for (const p of document.produits) {
+        // ── Detection lignes "suivra" : NE PAS ajouter au stock ──
+        const lineText = [p.nom, p.statut_livraison, p.commentaire].filter(Boolean).join(' ').toLowerCase();
+        const isSuivra = /\bsuivra\b|à suivre|\breliquat\b|back.?order|non.?livr|indisponible|rupture/i.test(lineText)
+          || (p.statut_livraison && /suivra|pending|backorder/i.test(p.statut_livraison))
+          || p.quantite_livree === 0;
+        if (isSuivra) {
+          console.log(`[valider-document] SUIVRA: ${p.nom} x${p.quantite} — pas de stock`);
+          continue;
+        }
+
         let match = null;
 
         // Chercher par reference
@@ -1976,7 +2003,7 @@ app.post('/api/valider-document', requireAuth(), async (req, res) => {
         }
 
         // Sinon chercher par nom (mots-cles)
-        if (!match) {
+        if (!match && p.nom) {
           const mots = p.nom.split(' ').filter(m => m.length > 3);
           for (const mot of mots) {
             const { data: matches } = await supabase.from('produits')
@@ -1991,7 +2018,7 @@ app.post('/api/valider-document', requireAuth(), async (req, res) => {
             prix_achat: p.prix_unitaire_ttc,
             fournisseur: document.fournisseur_ou_etablissement,
           }).eq('id', match.id);
-        } else {
+        } else if (p.nom) {
           await supabase.from('produits').insert({
             nom: p.nom,
             reference: p.reference,
@@ -2004,14 +2031,16 @@ app.post('/api/valider-document', requireAuth(), async (req, res) => {
         }
 
         // Prix communaute anonymise
-        await supabase.from('prix_communaute').upsert({
-          nom_produit: p.nom,
-          reference: p.reference,
-          fournisseur: document.fournisseur_ou_etablissement,
-          prix_unitaire: p.prix_unitaire_ttc,
-          remise_pct: p.remise_pct,
-          date_achat: document.date,
-        }, { ignoreDuplicates: true });
+        if (p.nom) {
+          await supabase.from('prix_communaute').upsert({
+            nom_produit: p.nom,
+            reference: p.reference,
+            fournisseur: document.fournisseur_ou_etablissement,
+            prix_unitaire: p.prix_unitaire_ttc,
+            remise_pct: p.remise_pct,
+            date_achat: document.date,
+          }, { ignoreDuplicates: true });
+        }
       }
     }
 
