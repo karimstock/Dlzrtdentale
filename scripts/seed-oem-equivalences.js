@@ -36,7 +36,7 @@ const OEM_MANUFACTURERS = [
     known_brands: ['NIC', 'Superline'],
     oem_for: ['ACCESS / Reverso (GACD) — CONFIRMÉ', 'Distributeurs EU marque propre', 'Nombreux rebranding'],
     western_equivalents: [
-      { western: 'Reverso Silver/Blue (GACD/ACCESS)', oem_type: 'NiTi reciprocating file', note: 'CONFIRMÉ : ACCESS/Reverso = fabriqué par NIC (info terrain)' },
+      { western: 'Reverso Silver/Blue (GACD/ACCESS)', oem_type: 'NiTi reciprocating file', note: 'Reverso = fabriqué par NIC (lisible sur emballage)' },
       { western: 'Limes Protaper-like distributeur', oem_type: 'NiTi rotary file taper .04-.06', note: 'Format universel NiTi' },
       { western: 'Limes reciprocating distributeur', oem_type: 'Reciprocating NiTi', note: 'Clone WaveOne format' },
     ]
@@ -130,7 +130,7 @@ const OEM_MANUFACTURERS = [
     certifications: 'CE',
     known_brands: ['ACCESS', 'Reverso'],
     oem_for: [],
-    note: 'Marque propre GACD. CONFIRMÉ : fabriqué par NIC/SLT Shenzhen (info terrain vérifiée). Limes NiTi réciproques.',
+    note: 'Marque propre GACD. Fabriqué par NIC/SLT Shenzhen (info emballage). Limes NiTi réciproques.',
     oem_source: 'NIC / Shenzhen Superline Technology',
     western_equivalents: [
       { western: 'Reverso Silver/Blue (GACD/ACCESS)', oem_type: 'NiTi reciprocating file', note: 'CONFIRMÉ : sort de chez NIC (SLT Shenzhen). Même usine que les limes NIC vendues sous leur propre marque.' },

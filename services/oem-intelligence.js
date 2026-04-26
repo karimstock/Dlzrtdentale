@@ -39,8 +39,8 @@ const OEM_KNOWLEDGE = {
 
   // Liens OEM confirmés : marque occidentale → fabricant OEM
   confirmed_oem_links: [
-    { brand: 'ACCESS', product: 'Reverso', distributor: 'GACD', oem: 'NIC', confirmed_by: 'terrain', confidence: 1.0 },
-    { brand: 'Zendo', product: 'Limes Zendo', distributor: 'DentalEvolution', oem: 'NIC', confirmed_by: 'verified', confidence: 1.0 },
+    { brand: 'ACCESS', product: 'Reverso', distributor: 'GACD', oem: 'NIC', confidence: 0.95 },
+    { brand: 'Zendo', product: 'Limes Zendo', distributor: 'DentalEvolution', oem: 'NIC', confidence: 0.95 },
     // À enrichir au fil des découvertes
   ],
 
@@ -112,8 +112,6 @@ async function analyzeProduct(product, societeId) {
         country: oemInfo?.country || 'CN',
         city: oemInfo?.city || null,
         type: oemInfo?.type || 'fabricant_oem',
-        confirmed: true,
-        confirmed_by: link.confirmed_by,
       };
       report.is_white_label = true;
       report.is_chinese_oem = (oemInfo?.country === 'CN');
@@ -132,7 +130,6 @@ async function analyzeProduct(product, societeId) {
           country: info.country,
           city: info.city,
           type: info.type,
-          confirmed: true,
         };
         report.is_chinese_oem = (info.country === 'CN');
         report.oem_confidence = 0.95;
