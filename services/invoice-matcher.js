@@ -137,8 +137,57 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
     const ref = (item.reference || item.ean || item.code || '').trim();
     const designation = (item.nom || item.designation || item.name || '').trim();
     const qty = Math.abs(Number(item.quantite || item.quantity || 1));
-    const unitPrice = Math.abs(Number(item.prix_unitaire || item.unit_price || item.prix_ht || 0));
     const tva = Number(item.taux_tva || 20);
+
+    // ── NORMALISATION HT → TTC (CRITIQUE) ──
+    // Certains fournisseurs écrivent les prix HT, d'autres TTC.
+    // On détecte ce qu'on a et on normalise TOUJOURS en TTC.
+    // Règle : pour la comparaison de prix entre fournisseurs, on compare en TTC.
+    const rawHt = Math.abs(Number(item.prix_unitaire_ht || item.prix_ht || item.prix_unitaire || item.unit_price || 0));
+    const rawTtc = Math.abs(Number(item.prix_unitaire_ttc || item.prix_ttc || 0));
+    const rawGeneric = Math.abs(Number(item.prix_unitaire || item.unit_price || 0));
+
+    let unitPriceHt, unitPriceTtc;
+
+    if (rawTtc > 0 && rawHt > 0) {
+      // On a les deux → on les utilise tels quels
+      unitPriceHt = rawHt;
+      unitPriceTtc = rawTtc;
+    } else if (rawTtc > 0) {
+      // On a que le TTC → on calcule le HT
+      unitPriceTtc = rawTtc;
+      unitPriceHt = +(rawTtc / (1 + tva / 100)).toFixed(2);
+    } else if (rawHt > 0) {
+      // On a que le HT → on calcule le TTC
+      unitPriceHt = rawHt;
+      unitPriceTtc = +(rawHt * (1 + tva / 100)).toFixed(2);
+    } else if (rawGeneric > 0) {
+      // Prix générique sans indication → on vérifie via le total ligne si dispo
+      const totalLigne = Math.abs(Number(item.prix_total_ttc || 0));
+      if (totalLigne > 0 && qty > 0) {
+        // Si le total TTC existe, on déduit que le prix unitaire générique est HT
+        const prixUnitaireFromTotal = +(totalLigne / qty).toFixed(2);
+        if (Math.abs(prixUnitaireFromTotal - rawGeneric * (1 + tva / 100)) < 0.05) {
+          // Le générique est bien du HT
+          unitPriceHt = rawGeneric;
+          unitPriceTtc = +(rawGeneric * (1 + tva / 100)).toFixed(2);
+        } else {
+          // Le générique est probablement du TTC
+          unitPriceTtc = rawGeneric;
+          unitPriceHt = +(rawGeneric / (1 + tva / 100)).toFixed(2);
+        }
+      } else {
+        // Pas de total → on suppose HT (cas le plus courant en B2B dentaire)
+        unitPriceHt = rawGeneric;
+        unitPriceTtc = +(rawGeneric * (1 + tva / 100)).toFixed(2);
+      }
+    } else {
+      unitPriceHt = 0;
+      unitPriceTtc = 0;
+    }
+
+    // Pour la comparaison et le stockage, on utilise le TTC
+    const unitPrice = unitPriceTtc;
 
     if (!designation && !ref) continue;
 
@@ -285,6 +334,8 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
         }
       }
 
+      // IMPORTANT : price_catalog et price_negotiated sont TOUJOURS en TTC
+      // pour permettre la comparaison entre fournisseurs (certains facturent HT, d'autres TTC)
       try {
         await admin().from('supplier_prices').insert({
           product_id: productId,
@@ -303,7 +354,12 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
             designation_facture: designation,
             quantite: qty,
             taux_tva: tva,
+            prix_ht: unitPriceHt,
+            prix_ttc: unitPriceTtc,
+            prix_ht_negocie: contractApplied ? +(unitPriceHt * (1 - discountApplied / 100)).toFixed(2) : unitPriceHt,
+            prix_ttc_negocie: priceNegotiated,
             match_source: matchSource,
+            matched_by_client_code: matchedByClientCode,
             contract_applied: contractApplied,
             contract_type: supplierContract?.type_contrat || null,
             contract_discount_pct: discountApplied > 0 ? discountApplied : null
