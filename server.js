@@ -6707,7 +6707,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee a votre compte.' });
 
-    const { patient_initials, urgency_type, description, quartier, deadline, latitude, longitude } = req.body;
+    const { patient_initials, urgency_type, description, quartier, deadline, latitude, longitude, rayon_km } = req.body;
     if (!patient_initials || !urgency_type) {
       return res.status(400).json({ error: 'patient_initials et urgency_type requis.' });
     }
@@ -6730,6 +6730,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
       deadline: deadline || null,
       latitude: senderLat,
       longitude: senderLng,
+      radius_km: parseInt(rayon_km) || 10,
       status: 'open'
     }).select().single();
 
@@ -6749,7 +6750,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
         const cLat = c.lat || c.latitude;
         const cLng = c.lng || c.longitude;
         if (!cLat || !cLng) return false;
-        return _sosHaversineKm(senderLat, senderLng, cLat, cLng) <= 30;
+        return _sosHaversineKm(senderLat, senderLng, cLat, cLng) <= (parseInt(rayon_km) || 10);
       });
       // Fallback: si aucun cabinet GPS dans le rayon, prendre meme ville/region
       if (targets.length === 0 && (senderCity || senderRegion)) {
@@ -6892,11 +6893,20 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
           to: senderEmail,
           subject: `JADOMI SOS Urgence — ${acceptorName} a accepte votre demande`,
           html: `<div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
-            <h2 style="color:#1e1b4b;">Votre demande SOS Urgence a ete acceptee</h2>
-            <p><strong>${acceptorName}</strong> a accepte de prendre en charge votre urgence pour le patient <strong>${sosReq.patient_initials}</strong>.</p>
+            <div style="text-align:center;margin-bottom:24px;"><span style="font-size:32px;font-weight:800;color:#10b981;">JADOMI</span></div>
+            <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:12px;padding:20px;margin-bottom:20px;text-align:center;">
+              <div style="font-size:24px;margin-bottom:8px;">&#x2705;</div>
+              <h2 style="color:#065f46;margin:0;font-size:18px;">Un confrere a accepte votre urgence</h2>
+            </div>
+            <p><strong>${acceptorName}</strong> peut prendre en charge votre patient <strong>${sosReq.patient_initials}</strong>.</p>
             <p>Type d'urgence : <strong>${sosReq.urgency_type}</strong></p>
             ${sosReq.description ? `<p>Description : ${sosReq.description}</p>` : ''}
-            <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — SOS Urgence Confreres</p>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin:20px 0;">
+              <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:8px;">Prochaine etape :</div>
+              <p style="margin:0;font-size:13px;color:#1e3a5f;">Contactez votre patient pour lui proposer le creneau chez <strong>${acceptorName}</strong>. Le transfert ne sera effectif qu'apres validation du patient.</p>
+              <p style="margin:8px 0 0;font-size:13px;color:#1e3a5f;">Coordonnees du confrere disponibles dans votre dashboard JADOMI, onglet SOS Urgence.</p>
+            </div>
+            <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — SOS Urgence Confreres — Le patient valide, pas de transfert sans son accord.</p>
           </div>`
         });
       } catch (mailErr) {

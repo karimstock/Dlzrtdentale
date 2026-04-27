@@ -3609,9 +3609,10 @@ function openParentNavGroup(el) {
 }
 document.addEventListener('DOMContentLoaded', function(){
   restoreNavGroupState();
-  // Init autocomplete on patient name fields
   initPatientAutocomplete('sig-patient-name');
   initPatientAutocomplete('upload-doc-patient-name');
+  // SOS Urgence: polling + notifications
+  setTimeout(function(){ sosUrgStartPolling(); sosUrgRequestNotifPermission(); }, 3000);
 });
 
 function showPage(id, el) {
@@ -6719,8 +6720,89 @@ async function confirmerResiliation(contratId,cabinetNom,plan,prixMensuel) {
 // ═══════════════════════════════════
 // SOS URGENCE CONFRERES
 // ═══════════════════════════════════
+var _sosLastCount=0;
+var _sosPollingInterval=null;
+
 function sosUrgAuthHeaders(){
   return {'Authorization':'Bearer '+(window.jadomiMultiSocietes?.token||JSON.parse(localStorage.getItem('jadomi_session')||'{}').access_token||''),'Content-Type':'application/json'};
+}
+
+// Polling toutes les 30s pour checker les urgences entrantes
+function sosUrgStartPolling(){
+  if(_sosPollingInterval) return;
+  sosUrgCheckBadge(); // check immédiat
+  _sosPollingInterval=setInterval(sosUrgCheckBadge,30000);
+}
+
+async function sosUrgCheckBadge(){
+  try{
+    const headers=sosUrgAuthHeaders();
+    if(!headers.Authorization||headers.Authorization==='Bearer ') return;
+    const res=await fetch('/api/sos-urgence/incoming',{headers});
+    if(!res.ok) return;
+    const data=await res.json();
+    const incoming=data.urgences||[];
+    const openCount=incoming.filter(function(u){return u.status==='open';}).length;
+
+    const badge=document.getElementById('sos-urgence-badge');
+    if(badge){
+      if(openCount>0){
+        badge.textContent=openCount;
+        badge.style.display='inline-block';
+        badge.classList.add('sos-badge-pulse');
+      } else {
+        badge.style.display='none';
+        badge.classList.remove('sos-badge-pulse');
+      }
+    }
+
+    // Nouvelle urgence ? Notification sonore + visuelle
+    if(openCount>_sosLastCount&&_sosLastCount>=0){
+      sosUrgNotify(openCount);
+    }
+    _sosLastCount=openCount;
+  }catch(e){}
+}
+
+function sosUrgNotify(count){
+  // Son de notification (beep court)
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var osc=ctx.createOscillator();var gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.frequency.value=880;osc.type='sine';
+    gain.gain.value=0.15;
+    osc.start();osc.stop(ctx.currentTime+0.15);
+    setTimeout(function(){
+      var osc2=ctx.createOscillator();var gain2=ctx.createGain();
+      osc2.connect(gain2);gain2.connect(ctx.destination);
+      osc2.frequency.value=1100;osc2.type='sine';
+      gain2.gain.value=0.15;
+      osc2.start();osc2.stop(ctx.currentTime+0.2);
+    },180);
+  }catch(e){}
+
+  // Notification navigateur (si autorisé)
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification('SOS Urgence JADOMI',{
+      body:count+' urgence'+(count>1?'s':'')+' de confrere'+(count>1?'s':'')+' en attente',
+      icon:'/favicon.ico',
+      tag:'sos-urgence',
+      requireInteraction:true
+    });
+  }
+
+  // Toast dans l'app
+  if(typeof showToast==='function'){
+    showToast('🚨 '+count+' urgence'+(count>1?'s':'')+' de confrere'+(count>1?'s':'')+' !');
+  }
+}
+
+// Demander permission notifications au premier chargement
+function sosUrgRequestNotifPermission(){
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission();
+  }
 }
 
 function sosUrgTempsRelatif(dateStr){
@@ -6858,6 +6940,17 @@ function ouvrirSOSUrgenceModal(){
           <input id="sos-urg-quartier" type="text" placeholder="Ex: Bab Ezzouar, Alger Centre..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;box-sizing:border-box;">
         </div>
         <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Rayon de recherche</label>
+          <select id="sos-urg-rayon" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;">
+            <option value="5">5 km — Mon quartier</option>
+            <option value="10" selected>10 km — Ma ville</option>
+            <option value="20">20 km — Agglomeration</option>
+            <option value="30">30 km — Metropole</option>
+            <option value="50">50 km — Region proche</option>
+          </select>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;">Plus le rayon est grand, plus de confreres seront alertes</div>
+        </div>
+        <div>
           <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Delai souhaite</label>
           <select id="sos-urg-delai" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;">
             <option>Dans l'heure</option>
@@ -6881,6 +6974,7 @@ async function sosUrgEnvoyer(){
   const initiales=document.getElementById('sos-urg-initiales').value.trim();
   const description=document.getElementById('sos-urg-desc').value.trim();
   const quartier=document.getElementById('sos-urg-quartier').value.trim();
+  const rayon=parseInt(document.getElementById('sos-urg-rayon')?.value||'10');
   const delai=document.getElementById('sos-urg-delai').value;
   if(!initiales||!description||!quartier){
     btn.textContent='Veuillez remplir tous les champs';btn.style.background='#6b7280';
@@ -6889,7 +6983,7 @@ async function sosUrgEnvoyer(){
   }
   btn.disabled=true;btn.textContent='Envoi en cours...';btn.style.opacity='0.7';
   try{
-    const res=await fetch('/api/sos-urgence/create',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({type,initiales,description,quartier,delai})});
+    const res=await fetch('/api/sos-urgence/create',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({type,initiales,description,quartier,rayon_km:rayon,delai})});
     const data=await res.json();
     if(res.ok){
       btn.style.background='linear-gradient(135deg,#22c55e,#16a34a)';
@@ -6914,7 +7008,7 @@ async function sosUrgAccepter(id){
     const res=await fetch('/api/sos-urgence/accept',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({urgence_id:id})});
     const data=await res.json();
     if(res.ok){
-      el.innerHTML='<div style="color:#22c55e;font-size:13px;font-weight:600;">Vous avez accepte cette urgence</div>';
+      el.innerHTML='<div style="color:#22c55e;font-size:13px;font-weight:600;">Vous avez accepte cette urgence</div><div style="color:var(--muted);font-size:12px;margin-top:4px;">Le cabinet d\'origine va proposer votre creneau au patient pour validation.</div>';
       const contactEl=document.getElementById('sos-urg-contact-'+id);
       if(contactEl&&data.cabinet){
         contactEl.style.display='block';
