@@ -316,6 +316,22 @@ router.get('/coffre/dossiers', requireAvocat, async (req, res) => {
   return res.json(data || []);
 });
 
+// POST /coffre/dossiers — Creer un dossier (sans client)
+router.post('/coffre/dossiers', requireAvocat, async (req, res) => {
+  try {
+    const { titre, type } = req.body || {};
+    if (!titre) return res.status(400).json({ error: 'Titre requis' });
+    const ref = 'GEN-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
+    const { data: d, error } = await admin().from('avocat_dossiers').insert({
+      avocat_societe_id: req.societeId, client_id: null, reference: ref,
+      titre, type: type || 'general'
+    }).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    await logAudit(req.userId, 'avocat', 'dossier_create', 'dossier', d.id, req, true, { titre });
+    return res.status(201).json(d);
+  } catch (err) { return res.status(500).json({ error: 'Erreur interne' }); }
+});
+
 // GET /coffre/dossiers/:id — Detail dossier + documents
 router.get('/coffre/dossiers/:id', requireAvocat, async (req, res) => {
   const { data: dossier } = await admin().from('avocat_dossiers')

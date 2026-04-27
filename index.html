@@ -5459,6 +5459,44 @@ let _docCategories=[];
 let _docCurrentPage=1;
 let _docActiveFolder='';
 const _DOC_PER_PAGE=20;
+const _COFFRE_CATEGORIES=['avocat','juridique'];
+
+function _getCoffreHeaders(){
+  const token=window.jadomiMultiSocietes?.token;
+  const societeId=window.userInfo?.societe_id||window.jadomiMultiSocietes?.active?.id||localStorage.getItem('jadomi_societe_id')||'';
+  const h={'Authorization':'Bearer '+(token||'')};
+  if(societeId) h['x-societe-id']=societeId;
+  return h;
+}
+
+async function _ensureCoffreDossier(){
+  if(window._coffreDossierId) return window._coffreDossierId;
+  try{
+    const headers=_getCoffreHeaders();
+    const res=await fetch('/api/avocat/coffre/dossiers',{headers});
+    if(res.status===401||res.status===403){
+      throw new Error('COFFRE_LOCKED');
+    }
+    if(!res.ok) throw new Error('Coffre indisponible');
+    const dossiers=await res.json();
+    const existing=dossiers.find(d=>(d.titre||'').toLowerCase()==='documents generaux');
+    if(existing){window._coffreDossierId=existing.id;return existing.id;}
+    // Creer le dossier
+    const createRes=await fetch('/api/avocat/coffre/dossiers',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({titre:'Documents generaux',type:'general'})});
+    if(!createRes.ok){
+      const err=await createRes.json().catch(()=>({}));
+      if(createRes.status===404) throw new Error('COFFRE_NOT_SETUP');
+      throw new Error(err.error||'Impossible de creer le dossier coffre');
+    }
+    const newDossier=await createRes.json();
+    window._coffreDossierId=newDossier.id;
+    return newDossier.id;
+  }catch(e){
+    if(e.message==='COFFRE_LOCKED'||e.message==='COFFRE_NOT_SETUP') throw e;
+    console.warn('[coffre] ensureDossier error:',e.message);
+    throw e;
+  }
+}
 
 function _escDoc(s){
   if(!s) return '';
@@ -5509,28 +5547,57 @@ async function chargerDocuments() {
   const userId=window.userInfo?.id;
   if(!userId) return;
 
-  // Parallel fetch: signed docs, categories, legacy docs
-  const [signedRes, catRes, legacyRes] = await Promise.allSettled([
-    fetch('/api/documents/signed').then(r=>r.ok?r.json():{documents:[],total:0}).catch(()=>({documents:[],total:0})),
-    fetch('/api/documents/categories').then(r=>r.ok?r.json():[]).catch(()=>[]),
-    fetch('/api/documents/'+userId).then(r=>r.ok?r.json():{}).catch(()=>({}))
+  // Parallel fetch: signed docs, categories, legacy docs, coffre dossiers
+  const coffreHeaders=_getCoffreHeaders();
+  const authHeaders={'Authorization':'Bearer '+(window.jadomiMultiSocietes?.token||JSON.parse(localStorage.getItem('jadomi_session')||'{}').access_token||'')};
+  const [signedRes, catRes, legacyRes, coffreRes] = await Promise.allSettled([
+    fetch('/api/documents/signed',{headers:authHeaders}).then(r=>r.ok?r.json():{documents:[],total:0}).catch(()=>({documents:[],total:0})),
+    fetch('/api/documents/categories',{headers:authHeaders}).then(r=>r.ok?r.json():[]).catch(()=>[]),
+    fetch('/api/documents/'+userId,{headers:authHeaders}).then(r=>r.ok?r.json():{}).catch(()=>({})),
+    fetch('/api/avocat/coffre/dossiers',{headers:coffreHeaders}).then(r=>r.ok?r.json():[]).catch(()=>[])
   ]);
 
   const signedData=signedRes.status==='fulfilled'?signedRes.value:{documents:[],total:0};
   const catData=catRes.status==='fulfilled'?catRes.value:[];
   const legacyData=legacyRes.status==='fulfilled'?legacyRes.value:{};
+  const coffreDossiers=coffreRes.status==='fulfilled'?coffreRes.value:[];
+
+  // Fetch documents from each coffre dossier
+  let coffreDocs=[];
+  if(Array.isArray(coffreDossiers)&&coffreDossiers.length>0){
+    const dossierDetails=await Promise.allSettled(
+      coffreDossiers.map(d=>
+        fetch('/api/avocat/coffre/dossiers/'+d.id,{headers:coffreHeaders}).then(r=>r.ok?r.json():null).catch(()=>null)
+      )
+    );
+    for(const detail of dossierDetails){
+      if(detail.status==='fulfilled'&&detail.value&&Array.isArray(detail.value.documents)){
+        for(const doc of detail.value.documents){
+          coffreDocs.push({
+            ...doc,
+            _source:'coffre',
+            _status:'uploaded',
+            _category:(doc.note_client||'').toLowerCase().includes('juridique')?'juridique':'avocat',
+            title:doc.filename||doc.note_client||'Document coffre',
+            nom:doc.filename||doc.note_client||'Document coffre',
+            created_at:doc.created_at
+          });
+        }
+      }
+    }
+  }
 
   // Update legacy data
   if(legacyData.contrats) mesContrats=legacyData.contrats;
   if(legacyData.documents) mesDocuments=legacyData.documents;
 
-  // Merge: signed docs + legacy docs (deduplicated by id)
+  // Merge: signed docs + legacy docs + coffre docs (deduplicated by id)
   const signedDocs=(signedData.documents||[]).map(d=>({...d, _source:'signed', _status:_normalizeDocStatus(d), _category:_normalizeDocCategory(d)}));
   const legacyDocs=(mesDocuments||[]).map(d=>({...d, _source:'legacy', _status:_normalizeDocStatus(d), _category:_normalizeDocCategory(d)}));
   const seen=new Set();
   _docSignedList=[];
-  for(const d of [...signedDocs,...legacyDocs]){
-    const key=d.id?'id_'+d.id:(d.nom||d.title||Math.random());
+  for(const d of [...signedDocs,...legacyDocs,...coffreDocs]){
+    const key=d.id?'id_'+d._source+'_'+d.id:(d.nom||d.title||Math.random());
     if(!seen.has(key)){seen.add(key);_docSignedList.push(d);}
   }
 
@@ -5585,10 +5652,14 @@ function _renderDocFolders(){
     const meta=_docCategoryMeta[key]||_docCategoryMeta.autre;
     const count=countMap[key]||0;
     const isActive=_docActiveFolder===key;
+    const isCoffre=_COFFRE_CATEGORIES.includes(key);
+    const lockIcon=isCoffre?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-left:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':'';
+    const coffreLabel=isCoffre?'<div style="font-size:10px;color:#818cf8;margin-top:2px;">Coffre-fort chiffre</div>':'';
     return `<div onclick="_docSelectFolder('${key}')" style="background:${isActive?'var(--surface2)':'var(--surface)'};border:1px solid ${isActive?'var(--accent)':'var(--border)'};border-radius:14px;padding:18px 16px;cursor:pointer;transition:all .25s cubic-bezier(.16,1,.3,1);text-align:center;${isActive?'box-shadow:0 0 0 2px rgba(99,102,241,0.2);':''}" onmouseover="if(!this.dataset.active)this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="if(!this.dataset.active)this.style.borderColor='${isActive?'var(--accent)':'var(--border)'}';this.style.transform=''" ${isActive?'data-active="1"':''}>
       <div style="margin-bottom:8px;">${meta.icon}</div>
-      <div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:2px;">${meta.label}</div>
+      <div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:2px;">${meta.label}${lockIcon}</div>
       <div style="font-size:11px;color:var(--muted);">${count} document${count!==1?'s':''}</div>
+      ${coffreLabel}
     </div>`;
   }).join('');
 }
@@ -5622,7 +5693,8 @@ function _renderDocList(){
     if(searchVal){
       const name=(d.title||d.nom||d.type||'').toLowerCase();
       const cat=(d._category||'').toLowerCase();
-      if(!name.includes(searchVal)&&!cat.includes(searchVal)) return false;
+      const pName=(d.patient_name||(d.metadata&&d.metadata.patient_name)||'').toLowerCase();
+      if(!name.includes(searchVal)&&!cat.includes(searchVal)&&!pName.includes(searchVal)) return false;
     }
     return true;
   });
@@ -5674,10 +5746,16 @@ function _renderDocList(){
       const meta=_docCategoryMeta[cat]||_docCategoryMeta.autre;
       const date=d.created_at?new Date(d.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'--';
       const statusHtml=_docStatusBadge(d._status);
+      const isCoffreDoc=d._source==='coffre';
+      const coffreBadge=isCoffreDoc?'<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;background:#1e1b4b;color:#818cf8;margin-left:6px;vertical-align:middle;">Chiffre</span>':'';
+      const patientName=d.patient_name||(d.metadata&&d.metadata.patient_name)||'';
+      const patientBadge=patientName?'<span style="display:inline-block;font-size:11px;color:var(--muted);font-weight:400;margin-left:8px;vertical-align:middle;">'+_escDoc(patientName)+'</span>':'';
 
       // Action buttons
       let actions='';
-      if(d._source==='signed'&&d.id){
+      if(isCoffreDoc&&d.id){
+        actions+=`<button onclick="_coffreDownload('${safeId}')" title="Telecharger (dechiffre)" style="padding:5px 8px;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.3);border-radius:6px;color:#818cf8;font-size:11px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#818cf8'" onmouseout="this.style.borderColor='rgba(129,140,248,0.3)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>`;
+      } else if(d._source==='signed'&&d.id){
         actions+=`<button onclick="telechargerDocPDF('${safeId}','signed')" title="Télécharger" style="padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>`;
       }
       if(d.token_signature){
@@ -5693,7 +5771,7 @@ function _renderDocList(){
         <td style="padding:12px 16px;">
           <div style="display:flex;align-items:center;gap:10px;">
             <div style="width:32px;height:32px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${meta.icon.replace(/width="20"/g,'width="16"').replace(/height="20"/g,'height="16"')}</div>
-            <span style="font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;" title="${safeName}">${safeName}</span>
+            <span style="font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;" title="${safeName}">${safeName}${coffreBadge}${patientBadge}</span>
           </div>
         </td>
         <td style="padding:12px 16px;color:var(--muted);font-size:12px;">${meta.label}</td>
@@ -5747,6 +5825,28 @@ function telechargerDocPDF(docId,source) {
   win.document.write(doc.contenu_html);
   win.document.close();
   setTimeout(()=>win.print(),500);
+}
+
+async function _coffreDownload(docId){
+  try{
+    const headers=_getCoffreHeaders();
+    const res=await fetch('/api/avocat/coffre/documents/'+encodeURIComponent(docId)+'/download',{headers});
+    if(res.status===401||res.status===403){
+      showToast('Coffre-fort verrouille. Deverrouillez-le dans la section Avocat.');return;
+    }
+    if(!res.ok) throw new Error('Erreur telechargement');
+    const blob=await res.blob();
+    const disposition=res.headers.get('Content-Disposition')||'';
+    let filename='document';
+    const match=disposition.match(/filename="(.+?)"/);
+    if(match) filename=match[1];
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+  }catch(e){
+    showToast('Erreur lors du telechargement du document chiffre');
+    console.warn('[coffre] download error:',e.message);
+  }
 }
 
 function _docConfirmDelete(docId){
@@ -5817,10 +5917,10 @@ function ouvrirModalUploadDoc(){
       <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Titre du document</label>
       <input id="upload-doc-title" type="text" placeholder="Ex: Contrat de prestation" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
     </div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;">
+    <div style="display:flex;gap:12px;margin-bottom:14px;">
       <div style="flex:1;">
         <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Catégorie</label>
-        <select id="upload-doc-category" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;">
+        <select id="upload-doc-category" onchange="_docUploadCategoryChanged()" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;">
           <option value="contrat">Contrats</option>
           <option value="facture">Factures</option>
           <option value="devis">Devis</option>
@@ -5833,6 +5933,18 @@ function ouvrirModalUploadDoc(){
       <div style="flex:1;">
         <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Sous-dossier (optionnel)</label>
         <input id="upload-doc-subcategory" type="text" placeholder="Ex: 2026" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+    </div>
+    <div id="upload-patient-name-wrapper" style="display:none;margin-bottom:20px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Nom du patient</label>
+      <input id="upload-doc-patient-name" type="text" placeholder="Ex: M. Dupont Jean" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+    </div>
+
+    <!-- Coffre info (hidden by default) -->
+    <div id="upload-coffre-info" style="display:none;padding:10px 14px;background:rgba(129,140,248,0.08);border:1px solid rgba(129,140,248,0.25);border-radius:10px;margin-bottom:14px;font-size:12px;color:#818cf8;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Ce document sera stocke dans le coffre-fort chiffre (AES-256)</span>
       </div>
     </div>
 
@@ -5905,6 +6017,17 @@ function _docUploadMsg(msg,color){
   el.textContent=msg;
 }
 
+function _docUploadCategoryChanged(){
+  const cat=document.getElementById('upload-doc-category')?.value||'';
+  const isCoffre=_COFFRE_CATEGORIES.includes(cat);
+  const info=document.getElementById('upload-coffre-info');
+  const btn=document.getElementById('upload-doc-submit');
+  if(info) info.style.display=isCoffre?'block':'none';
+  if(btn) btn.textContent=isCoffre?'Importer dans le coffre-fort':'Importer';
+  const patientWrapper=document.getElementById('upload-patient-name-wrapper');
+  if(patientWrapper) patientWrapper.style.display=cat==='devis'?'block':'none';
+}
+
 async function _docDoUpload(){
   const btn=document.getElementById('upload-doc-submit');
   if(btn.disabled) return; // prevent double-click
@@ -5923,21 +6046,61 @@ async function _docDoUpload(){
   btn.disabled=true;
   btn.style.opacity='0.6';
 
-  try{
-    const fd=new FormData();
-    fd.append('file',file);
-    fd.append('title',title);
-    fd.append('category',category);
-    if(subcategory) fd.append('subcategory',subcategory);
+  const isCoffre=_COFFRE_CATEGORIES.includes(category);
 
-    const resp=await fetch('/api/documents/upload',{method:'POST',body:fd});
-    if(!resp.ok){
-      const err=await resp.json().catch(()=>({}));
-      throw new Error(err.error||'Erreur lors de l\'upload');
+  try{
+    if(isCoffre){
+      // Route vers le coffre-fort chiffre
+      let dossierId;
+      try{
+        dossierId=await _ensureCoffreDossier();
+      }catch(coffreErr){
+        if(coffreErr.message==='COFFRE_NOT_SETUP'){
+          _docUploadMsg('Coffre-fort non configure. Rendez-vous dans la section Avocat > Coffre-fort pour le configurer.','#f0a030');
+          btn.textContent=isCoffre?'Importer dans le coffre-fort':'Importer';btn.disabled=false;btn.style.opacity='1';return;
+        }
+        if(coffreErr.message==='COFFRE_LOCKED'){
+          _docUploadMsg('Coffre-fort verrouille. Deverrouillez-le dans la section Avocat avant d\'importer.','#f0a030');
+          btn.textContent=isCoffre?'Importer dans le coffre-fort':'Importer';btn.disabled=false;btn.style.opacity='1';return;
+        }
+        throw coffreErr;
+      }
+
+      const fd=new FormData();
+      fd.append('file',file);
+      fd.append('dossier_id',dossierId);
+      fd.append('note',title+(subcategory?' ('+subcategory+')':''));
+
+      const headers=_getCoffreHeaders();
+      // FormData: ne pas mettre Content-Type, le navigateur le gere
+      const resp=await fetch('/api/avocat/coffre/documents/upload',{method:'POST',headers,body:fd});
+      if(resp.status===401||resp.status===403){
+        _docUploadMsg('Coffre-fort verrouille. Deverrouillez-le dans la section Avocat.','#f0a030');
+        btn.textContent='Importer dans le coffre-fort';btn.disabled=false;btn.style.opacity='1';return;
+      }
+      if(!resp.ok){
+        const err=await resp.json().catch(()=>({}));
+        throw new Error(err.error||'Erreur lors de l\'upload dans le coffre');
+      }
+    } else {
+      // Upload standard
+      const fd=new FormData();
+      fd.append('file',file);
+      fd.append('title',title);
+      fd.append('category',category);
+      if(subcategory) fd.append('subcategory',subcategory);
+      const patientName=document.getElementById('upload-doc-patient-name')?.value?.trim()||'';
+      if(patientName) fd.append('patient_name',patientName);
+
+      const resp=await fetch('/api/documents/upload',{method:'POST',body:fd});
+      if(!resp.ok){
+        const err=await resp.json().catch(()=>({}));
+        throw new Error(err.error||'Erreur lors de l\'upload');
+      }
     }
 
-    _docUploadMsg('Document importé avec succès','var(--green)');
-    btn.textContent='Importé !';
+    _docUploadMsg(isCoffre?'Document chiffre et stocke dans le coffre-fort':'Document importe avec succes','var(--green)');
+    btn.textContent=isCoffre?'Stocke dans le coffre-fort !':'Importe !';
     btn.style.background='var(--green)';
 
     setTimeout(()=>{
@@ -5946,7 +6109,7 @@ async function _docDoUpload(){
     },1200);
   }catch(e){
     _docUploadMsg(e.message||'Erreur lors de l\'upload','#f05050');
-    btn.textContent='Importer';
+    btn.textContent=isCoffre?'Importer dans le coffre-fort':'Importer';
     btn.disabled=false;
     btn.style.opacity='1';
   }

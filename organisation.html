@@ -231,7 +231,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
     <div class="sb-item" onclick="sT('securite',this)"><span class="ico">🛡️</span>Securite</div>
     <div class="sb-item" onclick="sT('documents',this)"><span class="ico">📄</span>Documents</div>
     <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Acces rapide</div>
-    <div class="sb-item" onclick="window.location.href='/signature'"><span class="ico">✍️</span>Signature electronique</div>
+    <div class="sb-item" onclick="sT('signature',this)"><span class="ico">✍️</span>Signature electronique</div>
   </div>
   <div class="sb-nav">
     <div class="sb-section">JADOMI Studio</div>
@@ -515,6 +515,91 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
         </div>
         <div id="sd-send-msg" style="margin-top:8px;font-size:12px;"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNATURE ELECTRONIQUE -->
+<div class="tp" id="t-signature">
+  <style>
+    .sig-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+    .sig-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs,12px);padding:24px;text-align:center;}
+    .sig-stat-val{font-size:36px;font-weight:800;color:var(--text);margin-bottom:4px;}
+    .sig-stat-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+    .sig-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+    .sig-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;}
+    .sig-input:focus{outline:none;border-color:var(--accent,#6366f1);box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+    .sig-input::placeholder{color:var(--text3);}
+    .sig-dropzone{border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface);margin-bottom:16px;}
+    .sig-dropzone:hover,.sig-dropzone.dragover{border-color:var(--accent,#6366f1);background:rgba(99,102,241,.05);}
+    .sig-dropzone-icon{font-size:36px;margin-bottom:8px;}
+    .sig-dropzone-text{font-size:13px;color:var(--text3);}
+    .sig-dropzone-file{font-size:12px;color:var(--accent,#6366f1);margin-top:8px;font-weight:600;}
+    .sig-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;line-height:1.4;}
+    .sig-badge-signed{background:rgba(16,185,129,.15);color:#10b981;}
+    .sig-badge-pending{background:rgba(245,158,11,.15);color:#f59e0b;}
+    .sig-badge-expired{background:rgba(239,68,68,.15);color:#ef4444;}
+    .sig-badge-viewed{background:rgba(59,130,246,.15);color:#3b82f6;}
+    .sig-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .sig-table th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-bottom:2px solid var(--border);}
+    .sig-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+    .sig-table tr:hover td{background:rgba(99,102,241,.03);}
+    .sig-action{padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--text);cursor:pointer;transition:all .2s;}
+    .sig-action:hover{border-color:var(--accent,#6366f1);color:var(--accent,#6366f1);}
+    @media(max-width:768px){
+      .sig-stats{grid-template-columns:1fr;}
+      .sig-form-grid{grid-template-columns:1fr;}
+      .sig-table-wrap{overflow-x:auto;}
+    }
+  </style>
+
+  <!-- Stats -->
+  <div class="sig-stats">
+    <div class="sig-stat"><div class="sig-stat-val" id="sig-total">0</div><div class="sig-stat-lbl">Documents signes</div></div>
+    <div class="sig-stat"><div class="sig-stat-val" id="sig-pending" style="color:#f59e0b;">0</div><div class="sig-stat-lbl">En attente</div></div>
+    <div class="sig-stat"><div class="sig-stat-val" id="sig-rate" style="color:#10b981;">0%</div><div class="sig-stat-lbl">Taux de signature</div></div>
+  </div>
+
+  <!-- Formulaire envoi -->
+  <div class="card" style="padding:24px;margin-bottom:24px;">
+    <div class="ct" style="margin-bottom:16px;">Envoyer un document a signer</div>
+    <div class="sig-form-grid">
+      <input class="sig-input" type="text" id="sig-dest-name" placeholder="Nom du destinataire" required>
+      <input class="sig-input" type="email" id="sig-dest-email" placeholder="Email du destinataire" required>
+      <input class="sig-input" type="text" id="sig-patient-name" placeholder="Nom du patient (optionnel)">
+      <select class="sig-input" id="sig-doc-type">
+        <option value="">Type de document...</option>
+        <option value="devis">Devis</option>
+        <option value="contrat">Contrat</option>
+        <option value="plan_traitement">Plan de traitement</option>
+        <option value="mandat">Mandat</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="sig-dropzone" id="sig-dropzone" onclick="document.getElementById('sig-file-input').click()">
+      <div class="sig-dropzone-icon">📎</div>
+      <div class="sig-dropzone-text">Glissez un fichier PDF ou image ici, ou cliquez pour parcourir</div>
+      <div class="sig-dropzone-file" id="sig-file-name"></div>
+      <input type="file" id="sig-file-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none;">
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="btn bp" onclick="sendSignatureRequest()" id="sig-send-btn">Envoyer pour signature</button>
+      <span id="sig-send-msg" style="font-size:12px;"></span>
+    </div>
+  </div>
+
+  <!-- Tableau documents signes -->
+  <div class="card" style="padding:24px;">
+    <div class="ct" style="margin-bottom:16px;">Documents signes</div>
+    <div class="sig-table-wrap">
+      <table class="sig-table">
+        <thead><tr>
+          <th>Document</th><th>Destinataire</th><th>Patient</th><th>Statut</th><th>Date</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="sig-docs-body">
+          <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Chargement...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -851,8 +936,8 @@ async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'applic
 
 function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
-  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Securite JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
-  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();}
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Securite JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature electronique','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
+  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();}
 function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
   el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
 function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
@@ -1561,6 +1646,196 @@ function copyCodexLink() {
 }
 
 // Auto-load signed docs is handled by the sT wrapper above
+
+// ===================== SIGNATURE ELECTRONIQUE =====================
+let _sigFileData = null;
+
+function _sigToken() {
+  return window.jadomiMultiSocietes?.token || JSON.parse(localStorage.getItem('jadomi_session') || '{}').access_token || tk;
+}
+
+// Drag & drop
+(function initSigDropzone() {
+  document.addEventListener('DOMContentLoaded', function() {
+    const dz = document.getElementById('sig-dropzone');
+    const fi = document.getElementById('sig-file-input');
+    if (!dz || !fi) return;
+    ['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop', ev => { if (ev.dataTransfer.files.length) handleSigFile(ev.dataTransfer.files[0]); });
+    fi.addEventListener('change', () => { if (fi.files.length) handleSigFile(fi.files[0]); });
+  });
+})();
+
+function handleSigFile(file) {
+  const allowed = ['application/pdf','image/png','image/jpeg','image/jpg'];
+  if (!allowed.includes(file.type)) { toast('Format non supporte. PDF, PNG ou JPG uniquement.'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('Fichier trop volumineux (max 10 Mo).'); return; }
+  _sigFileData = file;
+  const fn = document.getElementById('sig-file-name');
+  if (fn) fn.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' Ko)';
+}
+
+async function sendSignatureRequest() {
+  const name = document.getElementById('sig-dest-name').value.trim();
+  const email = document.getElementById('sig-dest-email').value.trim();
+  const patient = document.getElementById('sig-patient-name').value.trim();
+  const docType = document.getElementById('sig-doc-type').value;
+  const msg = document.getElementById('sig-send-msg');
+  const btn = document.getElementById('sig-send-btn');
+
+  if (!name || !email) { msg.style.color = '#ef4444'; msg.textContent = 'Nom et email du destinataire requis.'; return; }
+  if (!docType) { msg.style.color = '#ef4444'; msg.textContent = 'Selectionnez un type de document.'; return; }
+  if (!_sigFileData) { msg.style.color = '#ef4444'; msg.textContent = 'Veuillez ajouter un fichier a signer.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+  msg.textContent = '';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', _sigFileData);
+    formData.append('recipient_name', name);
+    formData.append('recipient_email', email);
+    if (patient) formData.append('patient_name', patient);
+    formData.append('document_type', docType);
+
+    const token = _sigToken();
+    const res = await fetch('/api/documents/request-signature', {
+      method: 'POST',
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+      body: formData
+    });
+    const data = await res.json();
+
+    if (res.ok && !data.error) {
+      msg.style.color = '#10b981';
+      msg.textContent = 'Document envoye pour signature avec succes.';
+      toast('Document envoye pour signature');
+      // Reset form
+      document.getElementById('sig-dest-name').value = '';
+      document.getElementById('sig-dest-email').value = '';
+      document.getElementById('sig-patient-name').value = '';
+      document.getElementById('sig-doc-type').value = '';
+      document.getElementById('sig-file-name').textContent = '';
+      document.getElementById('sig-file-input').value = '';
+      _sigFileData = null;
+      // Refresh list
+      loadSignedDocsTab();
+    } else {
+      msg.style.color = '#ef4444';
+      msg.textContent = data.error || data.message || 'Erreur lors de l\'envoi.';
+    }
+  } catch (e) {
+    msg.style.color = '#ef4444';
+    msg.textContent = 'Erreur reseau. Veuillez reessayer.';
+    console.error('sendSignatureRequest error:', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Envoyer pour signature';
+  }
+}
+
+async function loadSignatureTab() {
+  loadSignedDocsTab();
+}
+
+async function loadSignedDocsTab() {
+  const tbody = document.getElementById('sig-docs-body');
+  const token = _sigToken();
+
+  try {
+    const res = await fetch('/api/documents/signed', {
+      headers: token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    const docs = data.documents || data.data || data || [];
+
+    // Stats
+    const signed = Array.isArray(docs) ? docs.filter(d => (d.status || '').toLowerCase() === 'signed' || (d.status || '').toLowerCase() === 'completed') : [];
+    const pending = Array.isArray(docs) ? docs.filter(d => (d.status || '').toLowerCase() === 'pending' || (d.status || '').toLowerCase() === 'sent') : [];
+    const total = Array.isArray(docs) ? docs.length : 0;
+
+    document.getElementById('sig-total').textContent = signed.length;
+    document.getElementById('sig-pending').textContent = pending.length;
+    document.getElementById('sig-rate').textContent = total > 0 ? Math.round((signed.length / total) * 100) + '%' : '0%';
+
+    if (!Array.isArray(docs) || docs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Aucun document pour le moment</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = docs.map(d => {
+      const status = (d.status || 'pending').toLowerCase();
+      const badgeMap = {
+        signed: 'sig-badge-signed', completed: 'sig-badge-signed',
+        pending: 'sig-badge-pending', sent: 'sig-badge-pending',
+        expired: 'sig-badge-expired',
+        viewed: 'sig-badge-viewed', opened: 'sig-badge-viewed'
+      };
+      const labelMap = {
+        signed: 'Signe', completed: 'Signe',
+        pending: 'En attente', sent: 'En attente',
+        expired: 'Expire',
+        viewed: 'Vu', opened: 'Vu'
+      };
+      const cls = badgeMap[status] || 'sig-badge-pending';
+      const label = labelMap[status] || status;
+      const date = d.created_at || d.date || d.updated_at || '';
+      const fDate = date ? new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+      const docName = d.name || d.document_name || d.title || d.document_type || 'Document';
+      const recipient = d.recipient_name || d.recipient_email || d.signer_name || '-';
+      const patient = d.patient_name || '-';
+      const docId = d.id || '';
+
+      let actions = '';
+      if (d.download_url || d.pdf_url) {
+        actions += '<a href="' + (d.download_url || d.pdf_url) + '" target="_blank" class="sig-action" title="Telecharger">PDF</a> ';
+      }
+      if (status === 'pending' || status === 'sent') {
+        actions += '<button class="sig-action" onclick="resendSignature(\'' + docId + '\')" title="Renvoyer">Renvoyer</button> ';
+      }
+      if (d.certificate_url) {
+        actions += '<a href="' + d.certificate_url + '" target="_blank" class="sig-action" title="Certificat">Certificat</a>';
+      }
+      if (!actions) actions = '<span style="color:var(--text3);font-size:11px;">-</span>';
+
+      return '<tr>' +
+        '<td style="font-weight:600;">' + esc(docName) + '</td>' +
+        '<td>' + esc(recipient) + '</td>' +
+        '<td>' + esc(patient) + '</td>' +
+        '<td><span class="sig-badge ' + cls + '">' + label + '</span></td>' +
+        '<td style="font-size:12px;color:var(--text3);">' + fDate + '</td>' +
+        '<td style="white-space:nowrap;">' + actions + '</td>' +
+      '</tr>';
+    }).join('');
+
+  } catch (e) {
+    console.error('loadSignedDocsTab error:', e);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Erreur de chargement</td></tr>';
+  }
+}
+
+async function resendSignature(docId) {
+  if (!docId) return;
+  try {
+    const token = _sigToken();
+    const res = await fetch('/api/documents/resend-signature', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+      body: JSON.stringify({ document_id: docId })
+    });
+    const data = await res.json();
+    if (res.ok && !data.error) {
+      toast('Relance envoyee avec succes');
+    } else {
+      toast(data.error || 'Erreur lors de la relance');
+    }
+  } catch (e) {
+    toast('Erreur reseau lors de la relance');
+    console.error('resendSignature error:', e);
+  }
+}
 </script>
 </body>
 </html>

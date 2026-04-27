@@ -6167,7 +6167,7 @@ app.post('/api/documents/upload', requireAuth(), (req, res) => {
         return res.status(400).json({ error: 'Aucun fichier fourni.' });
       }
 
-      const { title, category, subcategory } = req.body;
+      const { title, category, subcategory, patient_name } = req.body;
       if (!title || !title.trim()) {
         return res.status(400).json({ error: 'Le champ title est obligatoire.' });
       }
@@ -6180,7 +6180,13 @@ app.post('/api/documents/upload', requireAuth(), (req, res) => {
 
       const filePath = `docs/uploads/${req.file.filename}`;
 
-      const { data: doc, error } = await supabase.from('signed_documents').insert({
+      // Build metadata with optional patient_name
+      const metadata = {};
+      if (patient_name && patient_name.trim()) {
+        metadata.patient_name = patient_name.trim();
+      }
+
+      const insertData = {
         societe_id: req.user.societe_id || null,
         user_id: req.user.id,
         title: title.trim(),
@@ -6188,7 +6194,14 @@ app.post('/api/documents/upload', requireAuth(), (req, res) => {
         subcategory: subcategory ? subcategory.trim() : null,
         status: 'uploaded',
         file_path: filePath
-      }).select().single();
+      };
+
+      // Store patient_name: directly if column exists, otherwise in metadata JSONB
+      if (patient_name && patient_name.trim()) {
+        insertData.metadata = metadata;
+      }
+
+      const { data: doc, error } = await supabase.from('signed_documents').insert(insertData).select().single();
 
       if (error) {
         // Clean up uploaded file if DB insert failed
