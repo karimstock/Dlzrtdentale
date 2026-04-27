@@ -2705,6 +2705,51 @@ async function sendMandateConfirmationEmail(supplier, mandate, signerName) {
   });
 }
 
+async function sendMandateConfirmationEmailWithDocs(supplier, mandate, signerName, attachments) {
+  const html = `
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;">
+      <div style="background:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0;">
+        <h1 style="margin:0;font-size:22px;font-weight:600;color:#ffffff;letter-spacing:-.3px;">JADOMI</h1>
+        <p style="margin:4px 0 0;font-size:12px;color:#8888a8;">Signature electronique</p>
+      </div>
+      <div style="padding:36px 40px;border:1px solid #e8e8ee;border-top:none;border-radius:0 0 12px 12px;">
+        <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+          <p style="margin:0;font-size:15px;color:#065f46;font-weight:600;">Mandat signe avec succes (AES eIDAS)</p>
+        </div>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          Le mandat de facturation pour <strong>${_escHtml(supplier.name)}</strong> a ete signe electroniquement par <strong>${_escHtml(signerName)}</strong> le ${new Date().toLocaleDateString('fr-FR')}.
+        </p>
+        <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
+          JADOMI est desormais autorisee a emettre des factures au nom de ${_escHtml(supplier.name)} pour les commandes realisees via la plateforme.
+        </p>
+        ${attachments && attachments.length > 0 ? `
+        <div style="background:#f8f8fc;border:1px solid #e2e2ee;border-radius:8px;padding:16px 20px;margin:20px 0;">
+          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#1a1a2e;">Documents joints :</p>
+          <ul style="margin:0;padding-left:20px;font-size:13px;color:#3c3c50;">
+            ${attachments.map(a => '<li>' + _escHtml(a.filename) + '</li>').join('')}
+          </ul>
+        </div>` : ''}
+        <div style="margin-top:20px;padding:12px 16px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;">
+          <p style="margin:0;font-size:12px;color:#1e40af;">Signature electronique avancee (AES) conforme a l'article 26 du reglement eIDAS (UE) n°910/2014. Le document signe au format PAdES PKCS#7 est verifiable dans Adobe Acrobat Reader.</p>
+        </div>
+        <p style="font-size:12px;color:#9a9ab0;margin-top:24px;">Reference mandat : ${_escHtml(mandate.id)}</p>
+      </div>
+    </div>
+  `;
+  await sendMailMandate({
+    to: supplier.email,
+    subject: 'JADOMI — Mandat signe (AES eIDAS) — ' + supplier.name,
+    html,
+    attachments: attachments || []
+  });
+  await sendMailMandate({
+    to: process.env.EMAIL_CONTACT || 'contact@jadomi.fr',
+    subject: 'Mandat signe — ' + supplier.name + ' (AES)',
+    html,
+    attachments: attachments || []
+  });
+}
+
 // POST /api/facturation/mandate/create — Creer un mandat et envoyer l'email
 app.post('/api/facturation/mandate/create', requireAuth(), async (req, res) => {
   try {
@@ -2810,7 +2855,7 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
     const token = String(req.params.token || '').trim();
     if (!token || token.length < 10) return res.status(400).json({ error: 'Token invalide' });
 
-    const { accepted, signer_name, signer_title, iban, bic, bank_name, warehouse_address, warehouse_postal_code, warehouse_city } = req.body;
+    const { accepted, signer_name, signer_title, signer_phone, iban, bic, bank_name, warehouse_address, warehouse_postal_code, warehouse_city, signature_image, otp_verified, signature_level } = req.body;
     if (!accepted) return res.status(400).json({ error: 'Vous devez accepter les termes du mandat' });
     if (!signer_name || !String(signer_name).trim()) return res.status(400).json({ error: 'Nom du signataire requis' });
     if (!iban || String(iban).replace(/\s/g, '').length < 15) return res.status(400).json({ error: 'IBAN requis pour le reversement des paiements' });
@@ -2840,6 +2885,10 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       metadata: {
         signer_name: String(signer_name).trim().substring(0, 200),
         signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null,
+        signature_image: req.body.signature_image ? 'stored' : null,
+        signer_phone: req.body.signer_phone || null,
+        otp_verified: req.body.otp_verified || false,
+        signature_level: req.body.signature_level || 'ses',
         iban: cleanIban,
         bic: cleanBic,
         bank_name: bank_name ? String(bank_name).trim().substring(0, 100) : null,
@@ -2878,12 +2927,69 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       console.log('[mandate/sign] PDF generation skipped (lib not ready):', _pdfErr.message);
     }
 
-    // Send confirmation emails
+    // Generate PAdES-signed mandate PDF
+    try {
+      const jadomiSign = require('./lib/jadomi-sign');
+      const PDFDocument = require('pdfkit');
+      // Generate a simple PDF of the mandate text
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks = [];
+      doc.on('data', c => chunks.push(c));
+      await new Promise((resolve) => {
+        doc.on('end', resolve);
+        doc.fontSize(20).font('Helvetica-Bold').text('JADOMI — Mandat de facturation', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(11).font('Helvetica').text('Entre JADOMI SAS et ' + (mandate.supplier_name || 'le fournisseur'));
+        doc.text('SIRET : ' + (mandate.supplier_siret || 'N/A'));
+        doc.text('Date de signature : ' + new Date().toLocaleDateString('fr-FR'));
+        doc.text('Signe par : ' + String(signer_name).trim());
+        doc.moveDown();
+        doc.text('Commission : ' + (mandate.commission_percent || 10) + '% du montant HT');
+        doc.text('Delai reversement : ' + (mandate.payment_delay_days || 30) + ' jours');
+        doc.moveDown();
+        doc.fontSize(9).fillColor('#666').text('Signature electronique AES conforme eIDAS Article 26');
+        doc.text('PAdES PKCS#7 — JADOMI Sign v2.0');
+        doc.end();
+      });
+      const pdfBuffer = Buffer.concat(chunks);
+
+      const signatureId = jadomiSign.generateSignatureId();
+      const archiveResult = await jadomiSign.archiveSignedDocument(signatureId, pdfBuffer, {
+        title: 'Mandat de facturation — ' + (mandate.supplier_name || 'Fournisseur'),
+        category: 'mandat',
+        signer_name: String(signer_name).trim(),
+        signer_email: mandate.supplier_email,
+        signer_role: 'Fournisseur',
+        signed_at: new Date().toISOString(),
+        created_at: mandate.created_at || new Date().toISOString(),
+        status: 'signed',
+        metadata: { signature_level: 'aes', otp_verified: true }
+      });
+      console.log('[mandate/sign] PAdES signed + archived:', signatureId);
+      // Store paths for email attachment
+      mandate._signedPdfPath = require('path').join(__dirname, archiveResult.signed_pdf_path);
+      mandate._certPdfPath = require('path').join(__dirname, archiveResult.certificate_pdf_path);
+      mandate._signatureId = signatureId;
+    } catch (pdfErr) {
+      console.log('[mandate/sign] PAdES generation skipped:', pdfErr.message);
+    }
+
+    // Send confirmation emails with signed PDF attached
     const supplier = { name: mandate.supplier_name, email: mandate.supplier_email };
     try {
-      await sendMandateConfirmationEmail(supplier, mandate, updateData.signer_name);
+      const fs = require('fs');
+      const attachments = [];
+      if (mandate._signedPdfPath && fs.existsSync(mandate._signedPdfPath)) {
+        attachments.push({ filename: 'Mandat-Signe-JADOMI.pdf', content: fs.readFileSync(mandate._signedPdfPath) });
+      }
+      if (mandate._certPdfPath && fs.existsSync(mandate._certPdfPath)) {
+        attachments.push({ filename: 'Certificat-Signature-JADOMI.pdf', content: fs.readFileSync(mandate._certPdfPath) });
+      }
+      await sendMandateConfirmationEmailWithDocs(supplier, mandate, updateData.metadata?.signer_name || String(signer_name).trim(), attachments);
     } catch (emailErr) {
       console.error('[mandate/sign] confirmation email error:', emailErr.message);
+      // Fallback to simple email without attachments
+      try { await sendMandateConfirmationEmail(supplier, mandate, updateData.metadata?.signer_name || String(signer_name).trim()); } catch(_e) {}
     }
 
     res.json({ ok: true, message: 'Mandat signe avec succes' });
@@ -5040,6 +5146,29 @@ app.get('/api/signatures/verify', async (req, res) => {
   } catch (e) {
     res.status(500).json({ valid: false, error: 'Erreur serveur' });
   }
+});
+
+// === PUBLIC OTP for mandate signing (no auth — fournisseur not logged in) ===
+app.post('/api/signatures/send-otp-public', async (req, res) => {
+  try {
+    const { phone, document_id } = req.body;
+    if (!phone || !document_id) return res.status(400).json({ error: 'Telephone et document_id requis' });
+    const otpSms = require('./lib/otp-sms');
+    const otp = otpSms.createOTP(phone, document_id);
+    const smsResult = await otpSms.sendOTPSms(phone, otp.code);
+    if (!smsResult.sent) return res.status(500).json({ error: smsResult.error || 'Erreur envoi SMS' });
+    res.json({ ok: true, expires_at: otp.expires_at, simulated: smsResult.simulated || false });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/signatures/verify-otp-public', async (req, res) => {
+  try {
+    const { phone, document_id, code } = req.body;
+    if (!phone || !document_id || !code) return res.status(400).json({ error: 'Telephone, document_id et code requis' });
+    const otpSms = require('./lib/otp-sms');
+    const result = otpSms.verifyOTP(phone, document_id, code);
+    res.json({ ok: result.valid, error: result.error || undefined });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // === OTP SMS — Verification signataire ===

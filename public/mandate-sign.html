@@ -268,9 +268,11 @@
       color: #b0b0c0;
     }
 
+    #sig-canvas { touch-action: none; }
     @media (max-width: 520px) {
       .summary-box { grid-template-columns: 1fr; }
       .card-body, .sign-form { padding: 20px; }
+      #sig-canvas { height: 140px; }
     }
   </style>
 </head>
@@ -459,6 +461,10 @@
           <label for="signer_title">Fonction / Titre</label>
           <input type="text" id="signer_title" placeholder="Ex. Gerant, Directeur commercial" autocomplete="organization-title">
         </div>
+        <div class="form-row">
+          <label for="signer_phone">Telephone portable * (pour verification SMS)</label>
+          <input type="tel" id="signer_phone" placeholder="06 12 34 56 78" autocomplete="tel" style="letter-spacing:1px;">
+        </div>
 
         <h3 style="margin-top:28px;">Adresse de l'entrepot principal</h3>
         <p style="font-size:12px;color:#8888a0;margin-bottom:16px;">Adresse d'expedition de vos colis. Utilisee pour le calcul des frais de livraison.</p>
@@ -494,11 +500,52 @@
           </div>
         </div>
 
-        <h3 style="margin-top:28px;">Signature</h3>
+        <h3 style="margin-top:28px;">Signature electronique</h3>
+
+        <!-- Step 1: Consent -->
         <div class="checkbox-row">
           <input type="checkbox" id="accept_terms">
           <label for="accept_terms">J'ai lu et j'accepte les termes du mandat de facturation ci-dessus. Je confirme avoir l'autorite necessaire pour engager ma societe et j'autorise JADOMI a emettre des factures en mon nom.</label>
         </div>
+
+        <!-- Step 2: Canvas signature -->
+        <div id="signature-area" style="display:none;">
+          <p style="font-size:12px;color:#6c6c80;margin-bottom:12px;">Signez dans le cadre ci-dessous (souris ou doigt sur mobile) :</p>
+          <div style="position:relative;border:2px dashed #d4d4de;border-radius:10px;background:#fafafe;margin-bottom:12px;">
+            <canvas id="sig-canvas" width="660" height="180" style="width:100%;height:180px;cursor:crosshair;display:block;border-radius:8px;"></canvas>
+            <div id="sig-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:#c4c4d4;font-size:14px;font-style:italic;">Dessinez votre signature ici</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button type="button" onclick="clearSignature()" style="padding:8px 16px;border:1px solid #d4d4de;border-radius:6px;font-size:12px;background:#fff;color:#3c3c50;cursor:pointer;">Effacer</button>
+            <button type="button" onclick="adoptSignature()" style="padding:8px 16px;border:1px solid #d4d4de;border-radius:6px;font-size:12px;background:#fff;color:#3c3c50;cursor:pointer;">Adopter (taper votre nom)</button>
+          </div>
+
+          <!-- OTP SMS verification -->
+          <div id="otp-section" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <p style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:8px;">Verification d'identite par SMS</p>
+            <p style="font-size:12px;color:#6c6c80;margin-bottom:12px;">Un code de verification sera envoye au numero renseigne ci-dessus.</p>
+            <div id="otp-send-area">
+              <button type="button" id="btn-send-otp" onclick="sendOTP()" style="padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Envoyer le code SMS</button>
+            </div>
+            <div id="otp-verify-area" style="display:none;">
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="otp-code" placeholder="Code a 6 chiffres" maxlength="6" style="width:160px;padding:10px 14px;border:1px solid #bfdbfe;border-radius:8px;font-size:16px;font-family:'Courier New',monospace;letter-spacing:4px;text-align:center;">
+                <button type="button" onclick="verifyOTP()" style="padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Verifier</button>
+              </div>
+              <p id="otp-msg" style="font-size:12px;margin-top:8px;"></p>
+            </div>
+            <div id="otp-success" style="display:none;color:#059669;font-size:13px;font-weight:600;">
+              ✓ Identite verifiee par SMS
+            </div>
+          </div>
+
+          <!-- eIDAS badge -->
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px;">
+            <span style="font-size:16px;">🔒</span>
+            <span style="font-size:11px;color:#065f46;">Signature Electronique Avancee (AES) — conforme eIDAS Article 26 — PAdES PKCS#7</span>
+          </div>
+        </div>
+
         <button class="btn-sign" id="btn-sign" disabled>Signer le mandat</button>
         <p class="form-error" id="form-error"></p>
       </div>
@@ -611,42 +658,186 @@
       elErrorMsg.textContent = err.message || 'Erreur inconnue.';
     });
 
-  // Form logic
+  // === FORM LOGIC + JADOMI SIGN ===
   var cbAccept   = document.getElementById('accept_terms');
   var inputName  = document.getElementById('signer_name');
+  var inputPhone = document.getElementById('signer_phone');
   var inputIban  = document.getElementById('signer_iban');
   var btnSign    = document.getElementById('btn-sign');
   var formError  = document.getElementById('form-error');
+  var sigArea    = document.getElementById('signature-area');
 
   var inputWarehouseAddr = document.getElementById('warehouse_address');
   var inputWarehousePostal = document.getElementById('warehouse_postal');
   var inputWarehouseCity = document.getElementById('warehouse_city');
 
+  var otpVerified = false;
+  var signatureData = null;
+
+  // === SIGNATURE CANVAS ===
+  var canvas = document.getElementById('sig-canvas');
+  var ctx = canvas ? canvas.getContext('2d') : null;
+  var drawing = false;
+  var hasDrawn = false;
+
+  if (canvas && ctx) {
+    // High DPI
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    function getPos(e) {
+      var r = canvas.getBoundingClientRect();
+      var t = e.touches ? e.touches[0] : e;
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    }
+    canvas.addEventListener('mousedown', function(e) { drawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); });
+    canvas.addEventListener('mousemove', function(e) { if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; document.getElementById('sig-hint').style.display = 'none'; updateBtn(); });
+    canvas.addEventListener('mouseup', function() { drawing = false; });
+    canvas.addEventListener('mouseleave', function() { drawing = false; });
+    canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); }, { passive: false });
+    canvas.addEventListener('touchmove', function(e) { e.preventDefault(); if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; document.getElementById('sig-hint').style.display = 'none'; updateBtn(); }, { passive: false });
+    canvas.addEventListener('touchend', function() { drawing = false; });
+  }
+
+  function clearSignature() {
+    if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    hasDrawn = false;
+    document.getElementById('sig-hint').style.display = 'flex';
+    signatureData = null;
+    updateBtn();
+  }
+
+  function adoptSignature() {
+    var name = (inputName ? inputName.value.trim() : '') || 'Signature';
+    if (!ctx) return;
+    clearSignature();
+    hasDrawn = true;
+    document.getElementById('sig-hint').style.display = 'none';
+    var dpr = window.devicePixelRatio || 1;
+    ctx.font = 'italic 36px "Brush Script MT", "Segoe Script", cursive';
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillText(name, 30, 110);
+    updateBtn();
+  }
+
+  // === OTP SMS ===
+  function sendOTP() {
+    var phone = (inputPhone ? inputPhone.value.trim() : '');
+    if (!phone || phone.replace(/\s/g, '').length < 8) {
+      alert('Veuillez saisir un numero de telephone valide.');
+      return;
+    }
+    var btn = document.getElementById('btn-send-otp');
+    btn.textContent = 'Envoi en cours...';
+    btn.disabled = true;
+
+    fetch('/api/signatures/send-otp-public', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone, document_id: token })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        document.getElementById('otp-send-area').style.display = 'none';
+        document.getElementById('otp-verify-area').style.display = 'block';
+        var msg = document.getElementById('otp-msg');
+        msg.textContent = data.simulated ? 'Mode test — code: verifiez la console serveur' : 'Code envoye au ' + phone;
+        msg.style.color = '#3b82f6';
+      } else {
+        btn.textContent = 'Envoyer le code SMS';
+        btn.disabled = false;
+        alert(data.error || 'Erreur envoi SMS');
+      }
+    })
+    .catch(function(e) { btn.textContent = 'Envoyer le code SMS'; btn.disabled = false; alert('Erreur: ' + e.message); });
+  }
+
+  function verifyOTP() {
+    var code = (document.getElementById('otp-code').value || '').trim();
+    var phone = (inputPhone ? inputPhone.value.trim() : '');
+    if (!code || code.length < 6) { document.getElementById('otp-msg').textContent = 'Entrez le code a 6 chiffres'; document.getElementById('otp-msg').style.color = '#dc2626'; return; }
+
+    fetch('/api/signatures/verify-otp-public', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone, document_id: token, code: code })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        otpVerified = true;
+        document.getElementById('otp-verify-area').style.display = 'none';
+        document.getElementById('otp-success').style.display = 'block';
+        updateBtn();
+      } else {
+        document.getElementById('otp-msg').textContent = data.error || 'Code incorrect';
+        document.getElementById('otp-msg').style.color = '#dc2626';
+      }
+    })
+    .catch(function(e) { document.getElementById('otp-msg').textContent = 'Erreur: ' + e.message; document.getElementById('otp-msg').style.color = '#dc2626'; });
+  }
+
+  // === FORM VALIDATION ===
   function updateBtn() {
     var nameOk = inputName && inputName.value.trim().length >= 2;
+    var phoneOk = inputPhone && inputPhone.value.replace(/\s/g, '').length >= 8;
     var ibanOk = inputIban && inputIban.value.replace(/\s/g, '').length >= 15;
     var warehouseOk = inputWarehouseAddr && inputWarehouseAddr.value.trim().length >= 3
       && inputWarehousePostal && inputWarehousePostal.value.trim().length >= 4
       && inputWarehouseCity && inputWarehouseCity.value.trim().length >= 2;
     var accepted = cbAccept && cbAccept.checked;
-    btnSign.disabled = !(nameOk && ibanOk && warehouseOk && accepted);
+    var signed = hasDrawn;
+    var otpOk = otpVerified;
+
+    // Show signature area when basic fields are filled + terms accepted
+    if (nameOk && phoneOk && ibanOk && warehouseOk && accepted) {
+      if (sigArea) sigArea.style.display = 'block';
+    }
+
+    btnSign.disabled = !(nameOk && phoneOk && ibanOk && warehouseOk && accepted && signed && otpOk);
+
+    // Update button text based on state
+    if (!signed && accepted) {
+      btnSign.textContent = 'Dessinez votre signature ci-dessus';
+    } else if (!otpOk && signed) {
+      btnSign.textContent = 'Verifiez votre identite par SMS';
+    } else if (nameOk && phoneOk && ibanOk && warehouseOk && accepted && signed && otpOk) {
+      btnSign.textContent = 'Signer le mandat (AES eIDAS)';
+    } else {
+      btnSign.textContent = 'Remplissez tous les champs obligatoires';
+    }
   }
+
   if (cbAccept) cbAccept.addEventListener('change', updateBtn);
   if (inputName) inputName.addEventListener('input', updateBtn);
+  if (inputPhone) inputPhone.addEventListener('input', updateBtn);
   if (inputWarehouseAddr) inputWarehouseAddr.addEventListener('input', updateBtn);
   if (inputWarehousePostal) inputWarehousePostal.addEventListener('input', updateBtn);
   if (inputWarehouseCity) inputWarehouseCity.addEventListener('input', updateBtn);
   if (inputIban) inputIban.addEventListener('input', function() {
-    // Auto-format IBAN with spaces every 4 chars
     var v = this.value.replace(/\s/g, '').toUpperCase();
     this.value = v.replace(/(.{4})/g, '$1 ').trim();
     updateBtn();
   });
 
+  // === SUBMIT ===
   btnSign.addEventListener('click', function() {
     if (btnSign.disabled) return;
     var name  = inputName.value.trim();
     var title = document.getElementById('signer_title').value.trim();
+    var phone = (inputPhone ? inputPhone.value.trim() : '');
     var iban  = (document.getElementById('signer_iban').value || '').replace(/\s/g, '').toUpperCase();
     var bic   = (document.getElementById('signer_bic').value || '').replace(/\s/g, '').toUpperCase();
     var bank  = (document.getElementById('signer_bank').value || '').trim();
@@ -654,20 +845,17 @@
     var whPostal = (document.getElementById('warehouse_postal').value || '').trim();
     var whCity = (document.getElementById('warehouse_city').value || '').trim();
 
-    if (iban.length < 15) {
-      formError.textContent = 'Veuillez saisir un IBAN valide.';
-      formError.style.display = 'block';
-      return;
-    }
-    if (!whAddr || !whPostal || !whCity) {
-      formError.textContent = 'Veuillez renseigner l\'adresse de votre entrepot.';
-      formError.style.display = 'block';
-      return;
-    }
+    // Get signature image from canvas
+    var sigImage = canvas ? canvas.toDataURL('image/png') : null;
+
+    if (iban.length < 15) { formError.textContent = 'Veuillez saisir un IBAN valide.'; formError.style.display = 'block'; return; }
+    if (!whAddr || !whPostal || !whCity) { formError.textContent = 'Veuillez renseigner l\'adresse de votre entrepot.'; formError.style.display = 'block'; return; }
+    if (!hasDrawn) { formError.textContent = 'Veuillez dessiner votre signature.'; formError.style.display = 'block'; return; }
+    if (!otpVerified) { formError.textContent = 'Veuillez verifier votre identite par SMS.'; formError.style.display = 'block'; return; }
 
     formError.style.display = 'none';
     btnSign.disabled = true;
-    btnSign.textContent = 'Signature en cours...';
+    btnSign.textContent = 'Signature AES en cours...';
 
     fetch('/api/facturation/mandate/' + encodeURIComponent(token) + '/sign', {
       method: 'POST',
@@ -676,12 +864,16 @@
         accepted: true,
         signer_name: name,
         signer_title: title || undefined,
+        signer_phone: phone,
         iban: iban,
         bic: bic || undefined,
         bank_name: bank || undefined,
         warehouse_address: whAddr,
         warehouse_postal_code: whPostal,
-        warehouse_city: whCity
+        warehouse_city: whCity,
+        signature_image: sigImage,
+        otp_verified: otpVerified,
+        signature_level: 'aes'
       })
     })
       .then(function(r) {
@@ -695,7 +887,7 @@
         formError.textContent = err.message || 'Erreur lors de la signature.';
         formError.style.display = 'block';
         btnSign.disabled = false;
-        btnSign.textContent = 'Signer le mandat';
+        btnSign.textContent = 'Signer le mandat (AES eIDAS)';
       });
   });
 

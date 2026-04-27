@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 56 — Modele Fournisseurs 3 Paliers + Simplification Contrat
+**Derniere passe** : Passe 57 — JADOMI Sign AES integre au mandat fournisseur
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1382,6 +1382,20 @@ Endpoints : GET /api/facturation/mandate-template/pdf (modele vierge)
 GET /api/facturation/mandate/:id/pdf (mandat specifique)
 POST /api/facturation/mandates/send (creer + envoyer email signature au fournisseur)
 Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
+
+## Passe 57 (27 avril 2026) -- JADOMI Sign AES integre au mandat fournisseur
+Integration complete de JADOMI Sign dans la page de signature du mandat.
+Avant : simple checkbox + nom. Maintenant : flux AES complet.
+- Canvas signature manuscrite (dessin + adoption texte cursif)
+- Verification OTP SMS (endpoints publics /send-otp-public et /verify-otp-public)
+- Telephone obligatoire dans le formulaire fournisseur
+- Generation PDF PAdES du mandat signe (lib/jadomi-sign.js)
+- Certificat de completion genere automatiquement
+- Email confirmation enrichi avec PDF signe + certificat en pieces jointes
+- Badge AES eIDAS visible dans le formulaire
+- Bouton dynamique (indique l'etape suivante)
+- Fix redirect .html qui perdait les query params (?token=...)
+- Fix colonnes inexistantes dans supplier_mandates → metadata JSONB
 
 ## Passe 56 (27 avril 2026) -- Architecture Marketplace Finale "Doctolib du B2B dentaire"
 Refonte du modele economique fournisseur : 3 paliers Bronze/Silver/Gold.
