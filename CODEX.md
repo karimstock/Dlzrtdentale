@@ -1533,6 +1533,21 @@ optimisees GPS, split matin/soir, multi-IDE, placement auto patient.
 - Tracking public: donnees minimales (prenom seulement, pas de GPS live)
 - Generate limite a 90 jours max
 
+### Ordonnances + Comptabilite IDE (Passe 59b)
+- SQL 60_ide_ordonnances_compta.sql: 2 tables (ordonnances + factures), 14 index, RLS
+- 10 endpoints API: upload scan ordonnance, liste filtree par patient/mois, download,
+  envoi email (CPAM etc.), upload justificatif compta, bilan mensuel par categorie
+- Frontend: 2 onglets ajoutes (7 au total), upload drag&drop, barres CSS bilan,
+  alerte ordonnance expirante, categories dynamiques compta
+- Card SQL dans dashboard Documents: 55 fichiers SQL avec boutons Voir/Copier
+- Audit: 20 corrections (path traversal, email injection, montant max, fichier orphelin, etc.)
+
+### Commits Passe 59 (4 commits)
+1. feat(ide): JADOMI Tournees — Module complet infirmieres liberales
+2. fix(audit): Audit massif patient/IDE/SOS — 64 corrections
+3. feat(ide): Ordonnances + Comptabilite IDE + Card SQL + Audit 20 corrections
+4. chore(codex): update Passe 59
+
 ## TODO Passe 60 (prochaine session)
 ### JADOMI Tournees (ameliorer)
 - Tester le dashboard IDE sur mobile reel
