@@ -6730,17 +6730,18 @@ app.post('/api/patients/unban', requireAuth(), async (req, res) => {
   try {
     const { ban_id } = req.body;
     if (!ban_id) return res.status(400).json({ error: 'ban_id requis' });
+    const societeId = req.user.societe_id || req.user.id;
     const db = supabaseAdmin || supabase;
-    const { error } = await db.from('signed_documents')
-      .update({ status: 'inactive', metadata: db.rpc ? undefined : undefined })
+    // Single update with full security filters (societe_id + category)
+    const { data, error } = await db.from('signed_documents')
+      .update({ status: 'inactive' })
       .eq('id', ban_id)
       .eq('category', 'patient_ban')
-      .eq('societe_id', req.user.societe_id || req.user.id);
-    // Update metadata to add unban info
-    await db.from('signed_documents').update({
-      status: 'inactive'
-    }).eq('id', ban_id);
+      .eq('societe_id', societeId)
+      .select('id')
+      .single();
     if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Ban non trouve ou acces refuse' });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -6806,8 +6807,11 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee a votre compte.' });
 
-    const { patient_initials, urgency_type, description, quartier, deadline, latitude, longitude, rayon_km } = req.body;
-    if (!patient_initials || !urgency_type) {
+    const { patient_initials, initiales, urgency_type, type, description, quartier, deadline, delai, latitude, longitude, rayon_km } = req.body;
+    const _patientInitials = patient_initials || initiales;
+    const _urgencyType = urgency_type || type;
+    const _deadline = deadline || delai;
+    if (!_patientInitials || !_urgencyType) {
       return res.status(400).json({ error: 'patient_initials et urgency_type requis.' });
     }
 
@@ -6822,11 +6826,11 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
     const { data: request, error: insertErr } = await db.from('sos_urgence_requests').insert({
       sender_societe_id: societeId,
       sender_user_id: userId,
-      patient_initials,
-      urgency_type,
+      patient_initials: _patientInitials,
+      urgency_type: _urgencyType,
       description: description || null,
       quartier: quartier || null,
-      deadline: deadline || null,
+      deadline: _deadline || null,
       latitude: senderLat,
       longitude: senderLng,
       radius_km: parseInt(rayon_km) || 10,
@@ -6895,10 +6899,13 @@ app.get('/api/sos-urgence/incoming', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
+    // Auto-expirer les vieilles urgences (>24h) a chaque polling
+    await _sosExpireOldRequests(db);
+
     const { data, error } = await db.from('sos_urgence_notifications')
       .select('*, sos_urgence_requests(*)')
       .eq('target_societe_id', societeId)
-      .eq('sos_urgence_requests.status', 'open')
+      .in('status', ['pending', 'accepted'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -6943,26 +6950,28 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
-    // Verifier que la request est encore open
-    const { data: sosReq, error: fetchErr } = await db.from('sos_urgence_requests')
-      .select('*')
-      .eq('id', requestId)
-      .single();
-
-    if (fetchErr || !sosReq) return res.status(404).json({ error: 'Demande introuvable.' });
-    if (sosReq.status !== 'open') return res.status(409).json({ error: 'Cette demande n\'est plus disponible.' });
-
-    // Mettre a jour la request
-    const { error: updateErr } = await db.from('sos_urgence_requests')
+    // Verifier que la request est encore open ET mettre a jour atomiquement
+    // (le filtre .eq('status','open') empeche la race condition: seul le 1er gagne)
+    const { data: updatedReq, error: updateErr } = await db.from('sos_urgence_requests')
       .update({
         status: 'accepted',
         accepted_by_societe_id: societeId,
         accepted_by_user_id: userId,
         accepted_at: new Date().toISOString()
       })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('status', 'open')
+      .select('*')
+      .maybeSingle();
 
     if (updateErr) throw updateErr;
+    if (!updatedReq) {
+      // Soit introuvable, soit deja acceptee
+      const { data: check } = await db.from('sos_urgence_requests').select('status').eq('id', requestId).maybeSingle();
+      if (!check) return res.status(404).json({ error: 'Demande introuvable.' });
+      return res.status(409).json({ error: 'Cette demande n\'est plus disponible (deja ' + check.status + ').' });
+    }
+    const sosReq = updatedReq;
 
     // Mettre a jour la notification correspondante
     await db.from('sos_urgence_notifications')
@@ -7013,7 +7022,22 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
       }
     }
 
-    res.json({ ok: true, sender_name: senderSociete?.nom || null, sender_email: senderEmail || null });
+    // Retourner les coordonnees du cabinet envoyeur pour le confrere acceptant
+    const { data: senderFullSociete } = await db.from('societes')
+      .select('nom, adresse, telephone, email, city, ville')
+      .eq('id', sosReq.sender_societe_id).single();
+    res.json({
+      ok: true,
+      sender_name: senderSociete?.nom || null,
+      sender_email: senderEmail || null,
+      cabinet: senderFullSociete ? {
+        nom: senderFullSociete.nom || null,
+        adresse: senderFullSociete.adresse || null,
+        telephone: senderFullSociete.telephone || null,
+        email: senderFullSociete.email || senderEmail || null,
+        ville: senderFullSociete.city || senderFullSociete.ville || null
+      } : null
+    });
   } catch (e) {
     console.error('[SOS Urgence Accept] Error:', e.message);
     res.status(500).json({ error: 'Erreur serveur.' });
@@ -7050,18 +7074,20 @@ app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
-    // Verifier que c'est bien MA demande
+    // Verifier que c'est bien MA demande ET qu'elle est encore open
     const { data: sosReq, error: fetchErr } = await db.from('sos_urgence_requests')
-      .select('sender_societe_id')
+      .select('sender_societe_id, status')
       .eq('id', requestId)
       .single();
 
     if (fetchErr || !sosReq) return res.status(404).json({ error: 'Demande introuvable.' });
     if (sosReq.sender_societe_id !== societeId) return res.status(403).json({ error: 'Vous ne pouvez annuler que vos propres demandes.' });
+    if (sosReq.status !== 'open') return res.status(409).json({ error: 'Cette demande ne peut plus etre annulee (statut: ' + sosReq.status + ').' });
 
     const { error } = await db.from('sos_urgence_requests')
       .update({ status: 'cancelled' })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('status', 'open');
 
     if (error) throw error;
 
@@ -7072,6 +7098,19 @@ app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
   }
 });
 
+// Auto-expiration des urgences open > 24h (appele a chaque listing)
+async function _sosExpireOldRequests(db) {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    await db.from('sos_urgence_requests')
+      .update({ status: 'expired' })
+      .eq('status', 'open')
+      .lt('created_at', cutoff);
+  } catch (e) {
+    console.error('[SOS Urgence Expire] Error:', e.message);
+  }
+}
+
 // ============================================================
 // JADOMI TOURNEES — Agenda Intelligent Infirmieres
 // ============================================================
@@ -7079,7 +7118,7 @@ app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
 // --- IDE Security helpers ---
 const IDE_VALID_SOINS_TYPES = ['soins', 'pansement', 'injection', 'perfusion', 'prelevements', 'toilette', 'nursing', 'chimio', 'surveillance', 'autre'];
 const IDE_VALID_STATUS = ['planifie', 'en_route', 'arrive', 'en_cours', 'termine', 'annule', 'reporte'];
-const IDE_VALID_TOURNEES = ['matin', 'soir'];
+const IDE_VALID_TOURNEES = ['matin', 'soir', 'les_deux'];
 
 function _ideSanitize(s, maxLen = 500) {
   if (!s) return '';
@@ -7088,6 +7127,10 @@ function _ideSanitize(s, maxLen = 500) {
 
 function _ideValidDate(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00'));
+}
+
+function _ideValidUuid(s) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
 
 // Rate limiter for geocoding-heavy endpoints (prevent Nominatim abuse)
@@ -7440,6 +7483,17 @@ app.post('/api/ide/soins', requireAuth(), async (req, res) => {
     const { data: patient } = await db.from('ide_patients').select('id').eq('id', patient_id).eq('cabinet_id', cabinetId).single();
     if (!patient) return res.status(404).json({ error: 'Patient non trouve dans votre cabinet.' });
 
+    // SECURITY: Verify nurse_preferee_id belongs to this cabinet (IDOR fix)
+    if (nurse_preferee_id) {
+      const { data: nurseCheck } = await db.from('ide_nurses').select('id').eq('id', nurse_preferee_id).eq('cabinet_id', cabinetId).single();
+      if (!nurseCheck) return res.status(404).json({ error: 'Infirmiere preferee non trouvee dans votre cabinet.' });
+    }
+
+    // Warn if jours_semaine is empty (soin will never generate visits)
+    if (jours_semaine && Array.isArray(jours_semaine) && jours_semaine.length === 0) {
+      return res.status(400).json({ error: 'jours_semaine ne peut pas etre vide. Le soin ne genererait aucune visite.' });
+    }
+
     const { data, error } = await db.from('ide_soins_recurrents').insert({
       cabinet_id: cabinetId,
       patient_id,
@@ -7525,18 +7579,34 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
         .eq('cabinet_id', cabinetId).eq('is_active', true).contains('jours_semaine', [dayOfWeek]);
 
       if (soins && soins.length > 0) {
-        const inserts = soins.map(s => ({
-          cabinet_id: cabinetId,
-          patient_id: s.patient_id,
-          nurse_id: s.nurse_preferee_id,
-          soin_recurrent_id: s.id,
-          date_visite: dateStr,
-          tournee: s.tournee,
-          soins_type: s.soins_type,
-          duree_prevue_minutes: s.duree_minutes,
-          heure_prevue: s.heure_preferee,
-          status: 'planifie'
-        }));
+        // Filter: skip expired ordonnances and banned patients
+        const _autoPatientIds = [...new Set(soins.map(s => s.patient_id))];
+        const { data: _bannedPts } = await db.from('ide_patients').select('id').eq('cabinet_id', cabinetId).eq('is_banned', true).in('id', _autoPatientIds);
+        const _bannedAutoSet = new Set((_bannedPts || []).map(p => p.id));
+        const today = new Date(dateStr + 'T00:00:00');
+        const filteredSoins = soins.filter(s => {
+          if (_bannedAutoSet.has(s.patient_id)) return false;
+          if (s.ordonnance_expire_at && new Date(s.ordonnance_expire_at) < today) return false;
+          return true;
+        });
+        const inserts = [];
+        for (const s of filteredSoins) {
+          const tourneesToGen = s.tournee === 'les_deux' ? ['matin', 'soir'] : [s.tournee];
+          for (const t of tourneesToGen) {
+            inserts.push({
+              cabinet_id: cabinetId,
+              patient_id: s.patient_id,
+              nurse_id: s.nurse_preferee_id,
+              soin_recurrent_id: s.id,
+              date_visite: dateStr,
+              tournee: t,
+              soins_type: s.soins_type,
+              duree_prevue_minutes: s.duree_minutes,
+              heure_prevue: s.heure_preferee,
+              status: 'planifie'
+            });
+          }
+        }
 
         const { data: inserted, error: insErr } = await db.from('ide_visites').insert(inserts).select();
         if (insErr) throw insErr;
@@ -7583,6 +7653,16 @@ app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
       .eq('cabinet_id', cabinetId).eq('is_active', true);
     if (!soins || soins.length === 0) return res.json({ ok: true, generated: 0 });
 
+    // DEDUP: Get existing visits for this period to avoid duplicates
+    const { data: existingVisites } = await db.from('ide_visites').select('soin_recurrent_id, date_visite, tournee')
+      .eq('cabinet_id', cabinetId).gte('date_visite', date_debut).lte('date_visite', date_fin);
+    const existingSet = new Set((existingVisites || []).map(v => `${v.soin_recurrent_id}_${v.date_visite}_${v.tournee}`));
+
+    // Filter out banned patients
+    const _genPatientIds = [...new Set(soins.map(s => s.patient_id))];
+    const { data: bannedPatients } = await db.from('ide_patients').select('id').eq('cabinet_id', cabinetId).eq('is_banned', true).in('id', _genPatientIds);
+    const bannedSet = new Set((bannedPatients || []).map(p => p.id));
+
     const inserts = [];
     const start = new Date(date_debut + 'T00:00:00');
     const end = new Date(date_fin + 'T00:00:00');
@@ -7596,19 +7676,27 @@ app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
         if (!jours.includes(dayOfWeek)) continue;
         // Skip if ordonnance expired
         if (s.ordonnance_expire_at && new Date(s.ordonnance_expire_at) < d) continue;
+        // Skip banned patients
+        if (bannedSet.has(s.patient_id)) continue;
 
-        inserts.push({
-          cabinet_id: cabinetId,
-          patient_id: s.patient_id,
-          nurse_id: s.nurse_preferee_id,
-          soin_recurrent_id: s.id,
-          date_visite: dateStr,
-          tournee: s.tournee,
-          soins_type: s.soins_type,
-          duree_prevue_minutes: s.duree_minutes,
-          heure_prevue: s.heure_preferee,
-          status: 'planifie'
-        });
+        // 'les_deux' generates 2 visits: one matin, one soir
+        const tourneesToGenerate = s.tournee === 'les_deux' ? ['matin', 'soir'] : [s.tournee];
+        for (const t of tourneesToGenerate) {
+          const dedupKey = `${s.id}_${dateStr}_${t}`;
+          if (existingSet.has(dedupKey)) continue;
+          inserts.push({
+            cabinet_id: cabinetId,
+            patient_id: s.patient_id,
+            nurse_id: s.nurse_preferee_id,
+            soin_recurrent_id: s.id,
+            date_visite: dateStr,
+            tournee: t,
+            soins_type: s.soins_type,
+            duree_prevue_minutes: s.duree_minutes,
+            heure_prevue: s.heure_preferee,
+            status: 'planifie'
+          });
+        }
       }
     }
 
@@ -7643,7 +7731,11 @@ app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
     const { nurse_id, date, tournee } = req.body;
     if (!nurse_id || !date || !tournee) return res.status(400).json({ error: 'nurse_id, date et tournee requis.' });
     if (!_ideValidDate(date)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
-    if (!IDE_VALID_TOURNEES.includes(tournee)) return res.status(400).json({ error: 'tournee invalide. Valeurs: matin, soir.' });
+    if (!['matin', 'soir'].includes(tournee)) return res.status(400).json({ error: 'tournee invalide pour optimisation. Valeurs: matin, soir.' });
+
+    // SECURITY: Verify nurse belongs to this cabinet (IDOR fix)
+    const { data: nurseCheck } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
+    if (!nurseCheck) return res.status(404).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
 
     // Get cabinet position
     const { data: cabinet } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
@@ -7668,27 +7760,32 @@ app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
     const ordered = [];
     let totalDistKm = 0;
 
-    while (remaining.length > 0) {
+    // Separate patients with and without GPS
+    const withGps = remaining.filter(v => { const p = patientMap[v.patient_id]; return p && p.latitude; });
+    const withoutGps = remaining.filter(v => { const p = patientMap[v.patient_id]; return !p || !p.latitude; });
+    remaining.length = 0; // clear
+    const gpsRemaining = [...withGps];
+
+    while (gpsRemaining.length > 0) {
       let bestIdx = 0;
       let bestDist = Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const p = patientMap[remaining[i].patient_id];
-        if (!p || !p.latitude) continue;
+      for (let i = 0; i < gpsRemaining.length; i++) {
+        const p = patientMap[gpsRemaining[i].patient_id];
         const dist = _sosHaversineKm(currentLat, currentLng, p.latitude, p.longitude);
         if (dist < bestDist) {
           bestDist = dist;
           bestIdx = i;
         }
       }
-      const chosen = remaining.splice(bestIdx, 1)[0];
+      const chosen = gpsRemaining.splice(bestIdx, 1)[0];
       const chosenPatient = patientMap[chosen.patient_id];
-      if (chosenPatient && chosenPatient.latitude) {
-        totalDistKm += bestDist;
-        currentLat = chosenPatient.latitude;
-        currentLng = chosenPatient.longitude;
-      }
+      totalDistKm += bestDist;
+      currentLat = chosenPatient.latitude;
+      currentLng = chosenPatient.longitude;
       ordered.push(chosen);
     }
+    // Append patients without GPS at end (cannot be optimized)
+    ordered.push(...withoutGps);
 
     // Save order
     for (let i = 0; i < ordered.length; i++) {
@@ -7844,8 +7941,16 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
     const { patient_id, nurse_id, date, tournee, position, soins_type, duree_minutes } = req.body;
     if (!patient_id || !nurse_id || !date || !tournee) return res.status(400).json({ error: 'patient_id, nurse_id, date et tournee requis.' });
     if (!_ideValidDate(date)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
-    if (!IDE_VALID_TOURNEES.includes(tournee)) return res.status(400).json({ error: 'tournee invalide.' });
+    if (!['matin', 'soir'].includes(tournee)) return res.status(400).json({ error: 'tournee invalide pour placement. Valeurs: matin, soir.' });
     if (soins_type && !IDE_VALID_SOINS_TYPES.includes(soins_type)) return res.status(400).json({ error: 'soins_type invalide.' });
+
+    // SECURITY: Verify patient belongs to this cabinet (IDOR fix)
+    const { data: patientCheck } = await db.from('ide_patients').select('id').eq('id', patient_id).eq('cabinet_id', cabinetId).single();
+    if (!patientCheck) return res.status(404).json({ error: 'Patient non trouve dans votre cabinet.' });
+
+    // SECURITY: Verify nurse belongs to this cabinet (IDOR fix)
+    const { data: nurseCheck } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
+    if (!nurseCheck) return res.status(404).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
 
     // Insert the visit
     const { data: visite, error } = await db.from('ide_visites').insert({
@@ -7866,7 +7971,7 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
     if (cabinetData && cabinetData.latitude) {
       const { data: allVisites } = await db.from('ide_visites').select('id, patient_id')
         .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date_visite', date).eq('tournee', tournee)
-        .neq('status', 'annule');
+        .in('status', ['planifie', 'reporte']);
       if (allVisites && allVisites.length > 0) {
         const pIds = allVisites.map(v => v.patient_id);
         const { data: pts } = await db.from('ide_patients').select('id, latitude, longitude').in('id', pIds);
@@ -7921,8 +8026,8 @@ app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
     if (status === 'en_route') {
       updates.heure_depart_precedent = new Date().toISOString();
     }
-    if (heure_arrivee) updates.heure_arrivee = heure_arrivee;
-    if (heure_depart) updates.heure_depart = heure_depart;
+    if (heure_arrivee) updates.heure_arrivee = _ideSanitize(heure_arrivee, 50);
+    if (heure_depart) updates.heure_depart = _ideSanitize(heure_depart, 50);
     if (soins_realises) updates.soins_realises = soins_realises;
     if (notes_visite) updates.notes_visite = _ideSanitize(notes_visite, 2000);
 
@@ -8004,6 +8109,8 @@ app.post('/api/ide/absence', requireAuth(), async (req, res) => {
     if (!nurse_id || !date_debut || !date_fin) return res.status(400).json({ error: 'nurse_id, date_debut et date_fin requis.' });
     if (!_ideValidDate(date_debut) || !_ideValidDate(date_fin)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
     if (new Date(date_fin) < new Date(date_debut)) return res.status(400).json({ error: 'date_fin doit etre apres date_debut.' });
+    const absenceDays = (new Date(date_fin) - new Date(date_debut)) / (1000 * 60 * 60 * 24);
+    if (absenceDays > 365) return res.status(400).json({ error: 'Absence maximale: 365 jours.' });
 
     // Verify nurse belongs to cabinet
     const { data: nurse } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
