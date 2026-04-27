@@ -68,7 +68,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=self, microphone=self, geolocation=self');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co; frame-src https://js.stripe.com;");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co; frame-src https://js.stripe.com http://localhost:3100;");
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   if (req.path.startsWith('/api/')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -242,7 +242,15 @@ app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaire
 app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
 // Servir /assets depuis /public/assets (pour les images landings)
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
-app.use('/docs', express.static(path.join(__dirname, 'docs')));
+// Serve /docs but BLOCK sensitive subdirectories (signed PDFs, audit trails, certificates)
+app.use('/docs', (req, res, next) => {
+  const blocked = ['/signed', '/audit', '/certificates'];
+  const lower = req.path.toLowerCase();
+  if (blocked.some(b => lower.startsWith(b))) {
+    return res.status(403).json({ error: 'Acces refuse' });
+  }
+  next();
+}, express.static(path.join(__dirname, 'docs')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Anthropic Claude client ---
@@ -2698,18 +2706,20 @@ app.get('/api/facturation/mandate/:token', async (req, res) => {
     const token = String(req.params.token || '').trim();
     if (!token || token.length < 10) return res.status(400).json({ error: 'Token invalide' });
 
-    const { data: mandate, error } = await supabase
+    const sbClient = supabaseAdmin || supabase;
+    const { data: mandate, error } = await sbClient
       .from('supplier_mandates')
-      .select('id, supplier_name, commission_percent, payment_delay_days, status, sent_at, signed_at')
+      .select('id, supplier_name, supplier_siret, supplier_ville, commission_percent, payment_delay_days, status, signed_at, created_at')
       .eq('signature_token', token)
       .maybeSingle();
     if (error || !mandate) return res.status(404).json({ error: 'Mandat introuvable' });
 
     // Update status to 'viewed' if still 'sent' (atomic: WHERE status = 'sent')
     if (mandate.status === 'sent') {
-      await supabase
+      const sbClient = supabaseAdmin || supabase;
+      await sbClient
         .from('supplier_mandates')
-        .update({ status: 'viewed', viewed_at: new Date().toISOString() })
+        .update({ status: 'viewed' })
         .eq('id', mandate.id)
         .eq('status', 'sent');
       mandate.status = 'viewed';
@@ -2719,10 +2729,12 @@ app.get('/api/facturation/mandate/:token', async (req, res) => {
     res.json({
       id: mandate.id,
       supplier_name: mandate.supplier_name,
+      supplier_siret: mandate.supplier_siret,
+      supplier_ville: mandate.supplier_ville,
       commission_percent: mandate.commission_percent,
       payment_delay_days: mandate.payment_delay_days,
       status: mandate.status,
-      sent_at: mandate.sent_at,
+      created_at: mandate.created_at,
       signed_at: mandate.signed_at
     });
   } catch (e) {
@@ -2737,12 +2749,14 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
     const token = String(req.params.token || '').trim();
     if (!token || token.length < 10) return res.status(400).json({ error: 'Token invalide' });
 
-    const { accepted, signer_name, signer_title } = req.body;
+    const { accepted, signer_name, signer_title, iban, bic, bank_name } = req.body;
     if (!accepted) return res.status(400).json({ error: 'Vous devez accepter les termes du mandat' });
     if (!signer_name || !String(signer_name).trim()) return res.status(400).json({ error: 'Nom du signataire requis' });
+    if (!iban || String(iban).replace(/\s/g, '').length < 15) return res.status(400).json({ error: 'IBAN requis pour le reversement des paiements' });
 
-    // Fetch mandate
-    const { data: mandate, error } = await supabase
+    // Fetch mandate (use service role to bypass RLS)
+    const sbClient2 = supabaseAdmin || supabase;
+    const { data: mandate, error } = await sbClient2
       .from('supplier_mandates')
       .select('id, supplier_name, supplier_email, commission_percent, payment_delay_days, status')
       .eq('signature_token', token)
@@ -2753,16 +2767,26 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
     }
 
     // Record signature — atomic: WHERE status IN ('sent','viewed') prevents double-sign race condition
+    const cleanIban = String(iban || '').replace(/\s/g, '').toUpperCase().substring(0, 34);
+    const cleanBic = bic ? String(bic).replace(/\s/g, '').toUpperCase().substring(0, 11) : null;
+
     const updateData = {
       status: 'signed',
       signed_at: new Date().toISOString(),
       signed_ip: req.ip || req.connection?.remoteAddress || 'unknown',
       signed_user_agent: String(req.headers['user-agent'] || '').substring(0, 500),
       signer_name: String(signer_name).trim().substring(0, 200),
-      signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null
+      signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null,
+      supplier_iban: cleanIban,
+      supplier_bic: cleanBic,
+      metadata: {
+        bank_name: bank_name ? String(bank_name).trim().substring(0, 100) : null,
+        signed_with_rib: true
+      }
     };
 
-    const { data: updated, error: uErr } = await supabase
+    const sbClient = supabaseAdmin || supabase;
+    const { data: updated, error: uErr } = await sbClient
       .from('supplier_mandates')
       .update(updateData)
       .eq('id', mandate.id)
@@ -2864,18 +2888,20 @@ app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
     if (!supplier_name || !supplier_email) return res.status(400).json({ error: 'Nom et email requis' });
 
     const signature_token = require('crypto').randomUUID();
+    const supplier_id = require('crypto').randomUUID(); // ID fournisseur auto-genere
     const insertData = {
+      supplier_id,
       supplier_name,
       supplier_email,
       commission_percent: commission_percent || 4,
       payment_delay_days: payment_delay_days || 30,
       signature_token,
-      status: 'sent',
-      sent_at: new Date().toISOString()
+      status: 'sent'
     };
     if (supplier_siret) insertData.supplier_siret = supplier_siret;
-    if (supplier_ville) insertData.supplier_city = supplier_ville;
-    const { data: mandate, error } = await supabase
+    if (supplier_ville) insertData.supplier_ville = supplier_ville;
+    const sbClient = supabaseAdmin || supabase;
+    const { data: mandate, error } = await sbClient
       .from('supplier_mandates')
       .insert(insertData)
       .select('id, signature_token, commission_percent, payment_delay_days')
@@ -4884,6 +4910,901 @@ app.get('/api/compta/export/:userId', requireAuth(), async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="JADOMI-Compta-${anneeVal}.csv"`);
     res.send('\ufeff' + csv);
   } catch (e) { res.status(500).json({ error: 'Erreur serveur' }); }
+});
+
+// ============================================================
+// DOCUMENTS SIGNES — DocuSeal Integration
+// ============================================================
+
+// Verify signature (PUBLIC - no auth required)
+app.get('/api/signatures/verify', async (req, res) => {
+  try {
+    const { id, token } = req.query;
+    if (!id || !token) return res.status(400).json({ valid: false, error: 'Identifiant et token requis' });
+
+    const jadomiSign = require('./lib/jadomi-sign');
+
+    // Verify HMAC token
+    let tokenValid = false;
+    try {
+      tokenValid = jadomiSign.verifySignatureToken(id, token);
+    } catch (e) {
+      return res.json({ valid: false, error: 'Code de verification invalide' });
+    }
+
+    if (!tokenValid) {
+      return res.json({ valid: false, error: 'Code de verification invalide' });
+    }
+
+    // Find the document
+    const { data: doc, error } = await supabase.from('signed_documents')
+      .select('id, title, category, signer_name, signer_email, signer_role, status, signed_at, created_at, metadata')
+      .eq('metadata->>signature_id', id)
+      .single();
+
+    if (error || !doc) {
+      return res.json({ valid: false, error: 'Document non trouve' });
+    }
+
+    // Read audit trail if exists
+    const auditPath = require('path').join(__dirname, 'docs', 'audit', `${id}_audit.json`);
+    let documentHash = null;
+    if (require('fs').existsSync(auditPath)) {
+      try {
+        const audit = JSON.parse(require('fs').readFileSync(auditPath, 'utf-8'));
+        documentHash = audit.document_hash_sha256;
+      } catch (e) { /* ignore */ }
+    }
+
+    res.json({
+      valid: true,
+      document: {
+        title: doc.title,
+        signer_name: doc.signer_name,
+        signer_email: doc.signer_email ? doc.signer_email.replace(/(.{2}).*(@.*)/, '$1***$2') : null, // Mask email partially
+        signer_role: doc.signer_role,
+        status: doc.status,
+        signed_at: doc.signed_at,
+        created_at: doc.created_at,
+        signature_id: id,
+        document_hash: documentHash
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ valid: false, error: 'Erreur serveur' });
+  }
+});
+
+// === OTP SMS — Verification signataire ===
+
+// Rate limit OTP sending: 5 SMS per 15 min per IP (prevent SMS spam/cost abuse)
+app.use('/api/signatures/send-otp', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes SMS, réessayez dans 15 minutes' }
+}));
+
+// Rate limit OTP verification: 10 attempts per 15 min per IP
+app.use('/api/signatures/verify-otp', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, réessayez dans 15 minutes' }
+}));
+
+// Send OTP code to signer's phone
+app.post('/api/signatures/send-otp', requireAuth(), async (req, res) => {
+  try {
+    const { phone, document_id } = req.body;
+    if (!phone || !document_id) {
+      return res.status(400).json({ error: 'Telephone et document_id requis' });
+    }
+
+    const otpSms = require('./lib/otp-sms');
+    const otp = otpSms.createOTP(phone, document_id);
+
+    // Send SMS
+    const smsResult = await otpSms.sendOTPSms(phone, otp.code);
+
+    if (!smsResult.sent) {
+      return res.status(500).json({ error: smsResult.error || 'Erreur envoi SMS' });
+    }
+
+    res.json({
+      ok: true,
+      expires_at: otp.expires_at,
+      ttl_seconds: otp.ttl_seconds,
+      simulated: smsResult.simulated || false
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Verify OTP code
+app.post('/api/signatures/verify-otp', requireAuth(), async (req, res) => {
+  try {
+    const { phone, document_id, code } = req.body;
+    if (!phone || !document_id || !code) {
+      return res.status(400).json({ error: 'Telephone, document_id et code requis' });
+    }
+
+    const otpSms = require('./lib/otp-sms');
+    const result = otpSms.verifyOTP(phone, document_id, code);
+
+    if (result.valid) {
+      // Update document metadata to record OTP verification
+      try {
+        const { data } = await supabase.from('signed_documents')
+          .select('metadata').eq('id', document_id).single();
+        if (data) {
+          const metadata = { ...(data.metadata || {}), otp_verified: true, otp_verified_at: new Date().toISOString(), otp_phone: phone.replace(/\d(?=\d{4})/g, '*') };
+          await supabase.from('signed_documents')
+            .update({ metadata }).eq('id', document_id);
+        }
+      } catch (dbErr) { /* non-blocking */ }
+    }
+
+    res.json({ ok: result.valid, error: result.error || undefined });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// === AES (Advanced Electronic Signature) — eIDAS Article 26 Flow ===
+
+// Step 1: Initialize AES signing session — generates a unique signing token
+// This token proves the signer has sole control (eIDAS Art. 26.3)
+app.post('/api/signatures/aes/init', requireAuth(), async (req, res) => {
+  try {
+    const { document_id } = req.body;
+    if (!document_id) return res.status(400).json({ error: 'document_id requis' });
+
+    // Generate unique signing token (valid 30 min)
+    const signingToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    // Fetch existing metadata and merge
+    const { data: doc } = await supabase.from('signed_documents')
+      .select('metadata').eq('id', document_id).single();
+
+    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+
+    const metadata = {
+      ...(doc.metadata || {}),
+      signing_token: signingToken,
+      signing_token_expires: expiresAt
+    };
+
+    await supabase.from('signed_documents')
+      .update({ metadata, updated_at: new Date().toISOString() })
+      .eq('id', document_id);
+
+    res.json({
+      ok: true,
+      signing_token: signingToken,
+      expires_at: expiresAt
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Step 2: Record signer identity + consent (eIDAS Art. 26.1 + 26.2)
+app.post('/api/signatures/aes/identity', requireAuth(), async (req, res) => {
+  try {
+    const { document_id, signing_token, full_name, email, phone, consent } = req.body;
+
+    if (!document_id || !signing_token || !full_name || !email || !consent) {
+      return res.status(400).json({ error: 'Tous les champs sont requis pour une signature AES' });
+    }
+
+    // Verify signing token
+    const { data: doc } = await supabase.from('signed_documents')
+      .select('metadata').eq('id', document_id).single();
+
+    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+
+    const meta = doc.metadata || {};
+    if (meta.signing_token !== signing_token) {
+      return res.status(403).json({ error: 'Token de signature invalide' });
+    }
+    if (new Date(meta.signing_token_expires) < new Date()) {
+      return res.status(403).json({ error: 'Session de signature expiree. Veuillez recommencer.' });
+    }
+
+    // Record identity and consent
+    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    const aesProof = {
+      ...(meta.aes_proof || {}),
+      signer_identity: {
+        full_name,
+        email,
+        phone: phone || null,
+        phone_verified: meta.otp_verified || false,
+        ip_address: ip,
+        user_agent: userAgent.substring(0, 200),
+        consent_given: true,
+        consent_timestamp: new Date().toISOString(),
+        consent_text: 'Je confirme avoir pris connaissance du document intitule ci-dessus et souhaite le signer electroniquement. Cette action a valeur de signature au sens de l\'article 1367 du Code civil.'
+      }
+    };
+
+    const updatedMeta = { ...meta, aes_proof: aesProof };
+
+    await supabase.from('signed_documents')
+      .update({ metadata: updatedMeta, updated_at: new Date().toISOString() })
+      .eq('id', document_id);
+
+    res.json({ ok: true, identity_recorded: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Step 3: Complete AES signature — validates all 4 conditions are met
+app.post('/api/signatures/aes/complete', requireAuth(), async (req, res) => {
+  try {
+    const { document_id, signing_token, signature_image } = req.body;
+
+    if (!document_id || !signing_token) {
+      return res.status(400).json({ error: 'document_id et signing_token requis' });
+    }
+
+    // Fetch document
+    const { data: doc } = await supabase.from('signed_documents')
+      .select('*').eq('id', document_id).single();
+
+    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+
+    const meta = doc.metadata || {};
+
+    // Validate signing token (sole control - Art. 26.3)
+    if (meta.signing_token !== signing_token) {
+      return res.status(403).json({ error: 'Token de signature invalide' });
+    }
+    if (new Date(meta.signing_token_expires) < new Date()) {
+      return res.status(403).json({ error: 'Session expiree' });
+    }
+
+    // Check all 4 AES conditions
+    const aesProof = meta.aes_proof || {};
+    const conditions = {
+      otp_verified: meta.otp_verified === true,
+      identity_recorded: !!(aesProof.signer_identity && aesProof.signer_identity.full_name),
+      consent_given: !!(aesProof.signer_identity && aesProof.signer_identity.consent_given),
+      token_valid: true // Already validated above
+    };
+
+    const allConditionsMet = conditions.otp_verified && conditions.identity_recorded && conditions.consent_given;
+
+    const signatureLevel = allConditionsMet ? 'aes' : 'ses';
+
+    // Record completion
+    const completionData = {
+      ...meta,
+      signature_level: signatureLevel,
+      aes_proof: {
+        ...aesProof,
+        otp_verified: meta.otp_verified || false,
+        otp_verified_at: meta.otp_verified_at || null,
+        otp_phone_masked: meta.otp_phone || null,
+        conditions_met: conditions,
+        all_conditions_met: allConditionsMet,
+        signing_token_used_at: new Date().toISOString(),
+        eidas_article: allConditionsMet ? 'Article 26 du reglement (UE) n 910/2014' : null
+      },
+      // Invalidate signing token after use
+      signing_token: null,
+      signing_token_expires: null
+    };
+
+    // If signature_image provided (base64 canvas), store it
+    if (signature_image) {
+      const fs = require('fs');
+      const sigDir = path.join(__dirname, 'docs', 'signatures');
+      if (!fs.existsSync(sigDir)) fs.mkdirSync(sigDir, { recursive: true });
+
+      const base64Data = signature_image.replace(/^data:image\/\w+;base64,/, '');
+      const sigPath = path.join(sigDir, `${document_id}.png`);
+      fs.writeFileSync(sigPath, Buffer.from(base64Data, 'base64'));
+      completionData.signature_image_path = `docs/signatures/${document_id}.png`;
+    }
+
+    await supabase.from('signed_documents')
+      .update({
+        metadata: completionData,
+        status: 'signed',
+        signed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', document_id);
+
+    res.json({
+      ok: true,
+      signature_level: signatureLevel,
+      conditions: conditions,
+      message: allConditionsMet
+        ? 'Signature AES (avancee) completee — conforme eIDAS Article 26'
+        : 'Signature SES (simple) completee — verification SMS manquante pour AES'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get AES status for a document
+app.get('/api/signatures/aes/status/:id', requireAuth(), async (req, res) => {
+  try {
+    const { data: doc } = await supabase.from('signed_documents')
+      .select('metadata, status').eq('id', req.params.id).single();
+
+    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+
+    const meta = doc.metadata || {};
+    const aesProof = meta.aes_proof || {};
+
+    res.json({
+      ok: true,
+      signature_level: meta.signature_level || 'ses',
+      status: doc.status,
+      conditions: {
+        otp_verified: meta.otp_verified === true,
+        identity_recorded: !!(aesProof.signer_identity),
+        consent_given: !!(aesProof.signer_identity && aesProof.signer_identity.consent_given),
+        token_used: !!aesProof.signing_token_used_at
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Helper: check if user can access a signed document (IDOR protection)
+function canAccessSignedDoc(user, doc) {
+  if (user.role === 'admin') return true;
+  if (user.societe_id && doc.societe_id === user.societe_id) return true;
+  if (doc.signer_email === user.email) return true;
+  if (doc.user_id === user.id) return true;
+  return false;
+}
+
+// Helper: escape special chars for PostgREST filter values
+function escapePostgrest(str) {
+  return String(str).replace(/[%_\\(),."]/g, c => '\\' + c);
+}
+
+// Helper: basic HTML entity escaping for email templates
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// List signed documents (with filters)
+app.get('/api/documents/signed', requireAuth(), async (req, res) => {
+  try {
+    const { category, subcategory, status, year, month, day, search, signer_email, page = 1, limit = 50 } = req.query;
+
+    // Validate pagination
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+
+    let query = supabase.from('signed_documents').select('*', { count: 'exact' }).order('created_at', { ascending: false });
+
+    // Admin sees all, users see their own societe or docs where they are signer
+    if (req.user.role !== 'admin') {
+      const societeId = req.user.societe_id;
+      if (societeId) {
+        query = query.or(`societe_id.eq.${escapePostgrest(societeId)},signer_email.eq.${escapePostgrest(req.user.email)}`);
+      } else {
+        query = query.eq('signer_email', req.user.email);
+      }
+    }
+
+    if (category) query = query.eq('category', category);
+    if (subcategory) query = query.eq('subcategory', subcategory);
+    if (status) query = query.eq('status', status);
+    if (signer_email) query = query.eq('signer_email', signer_email);
+
+    // Date filters with proper validation
+    const y = parseInt(year);
+    const m = parseInt(month);
+    const d = parseInt(day);
+    if (y && y >= 2020 && y <= 2100) {
+      if (m && m >= 1 && m <= 12) {
+        if (d && d >= 1 && d <= 31) {
+          // Specific day
+          const startDate = new Date(y, m - 1, d);
+          const endDate = new Date(y, m - 1, d + 1);
+          query = query.gte('created_at', startDate.toISOString()).lt('created_at', endDate.toISOString());
+        } else {
+          // Specific month
+          const startDate = new Date(y, m - 1, 1);
+          const endDate = new Date(y, m, 1);
+          query = query.gte('created_at', startDate.toISOString()).lt('created_at', endDate.toISOString());
+        }
+      } else {
+        // Specific year
+        query = query.gte('created_at', `${y}-01-01`).lt('created_at', `${y+1}-01-01`);
+      }
+    }
+
+    // Search — use safe .ilike per-column to avoid injection through .or() string interpolation
+    if (search) {
+      const safeSearch = escapePostgrest(search);
+      query = query.or(`title.ilike.%${safeSearch}%,signer_name.ilike.%${safeSearch}%,signer_email.ilike.%${safeSearch}%`);
+    }
+
+    const offset = (pageNum - 1) * limitNum;
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    // Get categories summary for sidebar (scoped to same user access)
+    let catQuery = supabase.from('signed_documents').select('category');
+    if (req.user.role !== 'admin') {
+      if (req.user.societe_id) {
+        catQuery = catQuery.or(`societe_id.eq.${escapePostgrest(req.user.societe_id)},signer_email.eq.${escapePostgrest(req.user.email)}`);
+      } else {
+        catQuery = catQuery.eq('signer_email', req.user.email);
+      }
+    }
+    const { data: cats } = await catQuery.order('category');
+    const categories = {};
+    (cats || []).forEach(c => { categories[c.category] = (categories[c.category] || 0) + 1; });
+
+    res.json({ ok: true, documents: data || [], categories, total: count || (data || []).length });
+  } catch (e) {
+    console.error('[GET /api/documents/signed]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get single signed document
+app.get('/api/documents/signed/:id', requireAuth(), async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('signed_documents').select('*').eq('id', req.params.id).single();
+    if (error || !data) return res.status(404).json({ error: 'Document non trouve' });
+    if (!canAccessSignedDoc(req.user, data)) return res.status(403).json({ error: 'Acces refuse' });
+    res.json({ ok: true, document: data });
+  } catch (e) {
+    console.error('[GET /api/documents/signed/:id]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Download signed PDF
+app.get('/api/documents/signed/:id/download', requireAuth(), async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('signed_documents').select('*').eq('id', req.params.id).single();
+    if (error || !data) return res.status(404).json({ error: 'Document non trouve' });
+    if (!canAccessSignedDoc(req.user, data)) return res.status(403).json({ error: 'Acces refuse' });
+
+    const fs = require('fs');
+    // Path traversal protection: resolve and ensure within __dirname
+    if (data.signed_pdf_path) {
+      const resolvedPath = path.resolve(__dirname, data.signed_pdf_path);
+      if (!resolvedPath.startsWith(path.resolve(__dirname)) || resolvedPath.includes('..')) {
+        return res.status(400).json({ error: 'Chemin PDF invalide' });
+      }
+      if (fs.existsSync(resolvedPath)) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${data.title.replace(/[^a-zA-Z0-9-_]/g, '_')}_signe.pdf"`);
+        return res.sendFile(resolvedPath);
+      }
+    }
+
+    // Fallback: fetch from DocuSeal if we have submission ID
+    if (data.docuseal_submission_id) {
+      const dsRes = await fetch(`http://localhost:3100/api/submissions/${data.docuseal_submission_id}`, {
+        headers: { 'X-Auth-Token': process.env.DOCUSEAL_API_KEY || '' }
+      });
+      const dsData = await dsRes.json();
+      if (dsData.documents && dsData.documents[0] && dsData.documents[0].url) {
+        return res.redirect(dsData.documents[0].url);
+      }
+    }
+
+    res.status(404).json({ error: 'PDF non disponible' });
+  } catch (e) {
+    console.error('[GET /api/documents/signed/:id/download]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Download certificate PDF for a signed document
+app.get('/api/documents/signed/:id/certificate', requireAuth(), async (req, res) => {
+  try {
+    const { data: doc, error } = await supabase.from('signed_documents')
+      .select('*').eq('id', req.params.id).single();
+    if (error || !doc) return res.status(404).json({ error: 'Document non trouve' });
+
+    const sigId = doc.metadata && doc.metadata.signature_id;
+    if (sigId) {
+      // Path traversal protection: sanitize signature ID
+      const safeSigId = String(sigId).replace(/[^a-zA-Z0-9\-_]/g, '');
+      if (!safeSigId) return res.status(400).json({ error: 'Identifiant signature invalide' });
+      const certPath = require('path').join(__dirname, 'docs', 'certificates', `${safeSigId}_certificate.pdf`);
+      const resolvedCert = require('path').resolve(certPath);
+      if (!resolvedCert.startsWith(require('path').resolve(__dirname, 'docs', 'certificates'))) {
+        return res.status(400).json({ error: 'Chemin certificat invalide' });
+      }
+      if (require('fs').existsSync(certPath)) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="certificat_${safeSigId}.pdf"`);
+        return res.sendFile(certPath);
+      }
+    }
+
+    // Generate on-the-fly if not cached
+    try {
+      const jadomiSign = require('./lib/jadomi-sign');
+      const certBuffer = await jadomiSign.generateCertificatePDF({
+        signature_id: sigId || doc.id,
+        title: doc.title,
+        category: doc.category,
+        signer_name: doc.signer_name,
+        signer_email: doc.signer_email,
+        signer_role: doc.signer_role,
+        status: doc.status,
+        signed_at: doc.signed_at,
+        created_at: doc.created_at,
+        document_hash: doc.metadata && doc.metadata.document_hash,
+        verification_url: doc.metadata && doc.metadata.verification_url
+      });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="certificat_${sigId || doc.id}.pdf"`);
+      return res.send(certBuffer);
+    } catch (genErr) {
+      return res.status(500).json({ error: 'Impossible de generer le certificat' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Resend signature request
+app.post('/api/documents/signed/:id/resend', requireAuth(), async (req, res) => {
+  try {
+    const { data: doc, error } = await supabase.from('signed_documents')
+      .select('*').eq('id', req.params.id).single();
+    if (error || !doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (doc.status === 'signed') return res.status(400).json({ error: 'Document deja signe' });
+
+    // Resend via DocuSeal if we have a submission ID
+    if (doc.docuseal_submission_id) {
+      try {
+        await fetch(`http://localhost:3100/api/submissions/${doc.docuseal_submission_id}/resend`, {
+          method: 'POST',
+          headers: { 'X-Auth-Token': process.env.DOCUSEAL_API_KEY || '' }
+        });
+      } catch (dsErr) { /* DocuSeal resend is best-effort */ }
+    }
+
+    // Update status
+    await supabase.from('signed_documents')
+      .update({ status: 'sent', sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', doc.id);
+
+    res.json({ ok: true, message: 'Demande de signature renvoyee' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Send signed documents by email (multi-select)
+app.post('/api/documents/signed/send-email', requireAuth(), async (req, res) => {
+  try {
+    const { document_ids, email } = req.body;
+    if (!email || !document_ids || !Array.isArray(document_ids) || !document_ids.length) {
+      return res.status(400).json({ error: 'Email et documents requis' });
+    }
+    // Cap to prevent abuse
+    if (document_ids.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 documents par envoi' });
+    }
+
+    const { data: docs, error } = await supabase.from('signed_documents')
+      .select('*').in('id', document_ids);
+    if (error) throw error;
+
+    // IDOR protection: filter to only docs the user can access
+    const accessibleDocs = (docs || []).filter(doc => canAccessSignedDoc(req.user, doc));
+    if (accessibleDocs.length === 0) {
+      return res.status(403).json({ error: 'Aucun document accessible' });
+    }
+
+    const fs = require('fs');
+    const attachments = [];
+    for (const doc of accessibleDocs) {
+      if (doc.signed_pdf_path) {
+        const resolvedPath = path.resolve(__dirname, doc.signed_pdf_path);
+        if (resolvedPath.startsWith(path.resolve(__dirname)) && fs.existsSync(resolvedPath)) {
+          attachments.push({
+            filename: `${doc.title.replace(/[^a-zA-Z0-9-_]/g, '_')}_signe.pdf`,
+            content: fs.readFileSync(resolvedPath)
+          });
+        }
+      }
+    }
+
+    if (attachments.length === 0) {
+      return res.status(400).json({ error: 'Aucun PDF disponible pour ces documents' });
+    }
+
+    const { sendMail } = require('./api/multiSocietes/mailer');
+    await sendMail({
+      to: email,
+      subject: `JADOMI — ${attachments.length} document(s) signe(s)`,
+      html: `<div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
+        <h2 style="color:#1e1b4b;">Vos documents signes</h2>
+        <p>Vous trouverez en piece jointe ${attachments.length} document(s) signe(s) electroniquement via JADOMI.</p>
+        <ul>${accessibleDocs.map(d => `<li><strong>${escapeHtml(d.title)}</strong> — signe le ${d.signed_at ? new Date(d.signed_at).toLocaleDateString('fr-FR') : 'N/A'}</li>`).join('')}</ul>
+        <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — Signature electronique securisee via DocuSeal</p>
+      </div>`,
+      attachments
+    });
+
+    res.json({ ok: true, sent: attachments.length });
+  } catch (e) {
+    console.error('[POST /api/documents/signed/send-email]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DocuSeal webhook — called when a document is signed or viewed
+// Secured via DOCUSEAL_WEBHOOK_SECRET env var (set in DocuSeal webhook config)
+app.post('/api/webhooks/docuseal', async (req, res) => {
+  try {
+    // Verify webhook secret if configured
+    const webhookSecret = process.env.DOCUSEAL_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const providedSecret = req.headers['x-docuseal-secret'] || req.query.secret;
+      if (providedSecret !== webhookSecret) {
+        console.warn('[DocuSeal webhook] Invalid secret — rejecting');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    }
+
+    const { event_type, data } = req.body;
+    if (!event_type || !data) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+
+    if (event_type === 'form.completed') {
+      const submissionId = data.submission_id || data.id;
+      if (!submissionId) return res.json({ ok: true, skipped: 'no submission_id' });
+
+      const signerName = data.name || (data.submitters && data.submitters[0] && data.submitters[0].name);
+
+      // Update document status
+      const { data: doc } = await supabase.from('signed_documents')
+        .update({
+          status: 'signed',
+          signed_at: new Date().toISOString(),
+          signer_name: signerName || undefined,
+          updated_at: new Date().toISOString()
+        })
+        .eq('docuseal_submission_id', submissionId)
+        .select()
+        .single();
+
+      if (doc) {
+        // Download and store signed PDF locally
+        const fs = require('fs');
+        try {
+          const dsRes = await fetch(`http://localhost:3100/api/submissions/${submissionId}`, {
+            headers: { 'X-Auth-Token': process.env.DOCUSEAL_API_KEY || '' }
+          });
+          const dsData = await dsRes.json();
+          if (dsData.documents && dsData.documents[0] && dsData.documents[0].url) {
+            const pdfRes = await fetch(dsData.documents[0].url);
+            const pdfBuffer = Buffer.from(await pdfRes.arrayBuffer());
+            const pdfDir = path.join(__dirname, 'docs', 'signed');
+            if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
+            const pdfPath = `docs/signed/${doc.id}.pdf`;
+            fs.writeFileSync(path.join(__dirname, pdfPath), pdfBuffer);
+
+            await supabase.from('signed_documents')
+              .update({ signed_pdf_path: pdfPath })
+              .eq('id', doc.id);
+
+            // JADOMI Sign: generate certificate + audit trail
+            try {
+              const jadomiSign = require('./lib/jadomi-sign');
+              const signatureId = (doc.metadata && doc.metadata.signature_id) || jadomiSign.generateSignatureId();
+              const archiveResult = await jadomiSign.archiveSignedDocument(signatureId, pdfBuffer, {
+                title: doc.title,
+                category: doc.category,
+                signer_name: doc.signer_name || signerName,
+                signer_email: doc.signer_email,
+                signer_role: doc.signer_role || 'Signataire',
+                signed_at: new Date().toISOString(),
+                created_at: doc.created_at,
+                status: 'signed'
+              });
+
+              // Store signature_id and verification_url in metadata
+              const updatedMetadata = { ...(doc.metadata || {}), signature_id: signatureId, verification_url: archiveResult.verification_url, document_hash: archiveResult.document_hash };
+              await supabase.from('signed_documents')
+                .update({ metadata: updatedMetadata })
+                .eq('id', doc.id);
+
+              console.log(`[JADOMI Sign] Certificate generated for ${signatureId}`);
+            } catch (certErr) { console.error('[JADOMI Sign] Certificate generation error:', certErr.message); }
+          }
+        } catch (pdfErr) { console.error('[DocuSeal] PDF download error:', pdfErr.message); }
+
+        // Send signed copy to signer by email
+        if (doc.signer_email) {
+          try {
+            const pdfFilePath = path.join(__dirname, 'docs', 'signed', `${doc.id}.pdf`);
+            const attachments = [];
+            if (fs.existsSync(pdfFilePath)) {
+              attachments.push({
+                filename: `${doc.title.replace(/[^a-zA-Z0-9-_]/g, '_')}_signe.pdf`,
+                content: fs.readFileSync(pdfFilePath)
+              });
+            }
+            const safeTitle = escapeHtml(doc.title);
+            const { sendMail } = require('./api/multiSocietes/mailer');
+            await sendMail({
+              to: doc.signer_email,
+              subject: `JADOMI — Votre document "${doc.title}" a ete signe`,
+              html: `<div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
+                <h2 style="color:#1e1b4b;">Document signe avec succes</h2>
+                <p>Le document <strong>"${safeTitle}"</strong> a ete signe electroniquement le ${new Date().toLocaleDateString('fr-FR')}.</p>
+                <p>Vous trouverez votre copie signee en piece jointe.</p>
+                ${attachments.length === 0 ? '<p>Le PDF signe sera disponible dans votre espace JADOMI sous peu.</p>' : ''}
+                <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — Signature electronique securisee via DocuSeal</p>
+              </div>`,
+              attachments
+            });
+          } catch (mailErr) { console.error('[DocuSeal] Signed doc email error:', mailErr.message); }
+        }
+      }
+    }
+
+    if (event_type === 'form.viewed') {
+      const submissionId = data.submission_id || data.id;
+      if (submissionId) {
+        await supabase.from('signed_documents')
+          .update({ status: 'viewed', viewed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq('docuseal_submission_id', submissionId)
+          .eq('status', 'sent');
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[DocuSeal webhook error]', e.message);
+    res.json({ ok: true }); // Always 200 for webhooks
+  }
+});
+
+// List DocuSeal templates (server-side proxy — avoids exposing API key to client)
+app.get('/api/docuseal/templates', requireAuth(), async (req, res) => {
+  try {
+    const dsRes = await fetch('http://localhost:3100/api/templates', {
+      headers: { 'X-Auth-Token': process.env.DOCUSEAL_API_KEY || '' }
+    });
+    if (!dsRes.ok) return res.status(dsRes.status).json({ error: 'Erreur DocuSeal templates' });
+    const data = await dsRes.json();
+    res.json(data);
+  } catch (e) {
+    console.error('[GET /api/docuseal/templates]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Create signature request via DocuSeal
+app.post('/api/documents/request-signature', requireAuth(), async (req, res) => {
+  try {
+    const { title, category, subcategory, signer_name, signer_email, signer_role, template_id, message } = req.body;
+    if (!signer_email || !template_id) {
+      return res.status(400).json({ error: 'Email signataire et template requis' });
+    }
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signer_email)) {
+      return res.status(400).json({ error: 'Email signataire invalide' });
+    }
+    // Validate template_id is a number
+    if (isNaN(parseInt(template_id))) {
+      return res.status(400).json({ error: 'template_id invalide' });
+    }
+
+    // Create submission in DocuSeal
+    const dsRes = await fetch('http://localhost:3100/api/submissions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': process.env.DOCUSEAL_API_KEY || ''
+      },
+      body: JSON.stringify({
+        template_id: parseInt(template_id),
+        send_email: true,
+        submitters: [{
+          email: signer_email,
+          name: signer_name || '',
+          role: 'Signataire',
+          message: message || `Vous etes invite(e) a signer le document "${title || 'Document JADOMI'}" via JADOMI.`
+        }]
+      })
+    });
+
+    const dsData = await dsRes.json();
+    if (!dsRes.ok) throw new Error(dsData.error || 'Erreur DocuSeal');
+
+    const submissionId = dsData.id || (dsData[0] && dsData[0].submission_id);
+
+    // Save in our database
+    const { data: doc, error } = await supabase.from('signed_documents').insert({
+      societe_id: req.user.societe_id || null,
+      user_id: req.user.id,
+      title: title || 'Document a signer',
+      category: category || 'contrat',
+      subcategory: subcategory || null,
+      docuseal_submission_id: submissionId,
+      docuseal_template_id: parseInt(template_id),
+      signer_name: signer_name || null,
+      signer_email,
+      signer_role: signer_role || 'signataire',
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+      metadata: {
+        pro_attestation: req.body.pro_attestation || false,
+        pro_attestation_at: req.body.pro_attestation_at || null,
+        pro_attestation_by: req.user.email
+      }
+    }).select().single();
+
+    if (error) throw error;
+
+    res.json({ ok: true, document: doc, docuseal_submission_id: submissionId });
+  } catch (e) {
+    console.error('[POST /api/documents/request-signature]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get categories/themes tree for sidebar
+app.get('/api/documents/categories', requireAuth(), async (req, res) => {
+  try {
+    let catQuery = supabase.from('signed_documents').select('category, subcategory, status');
+    // Scope to user's accessible docs (same logic as list endpoint)
+    if (req.user.role !== 'admin') {
+      if (req.user.societe_id) {
+        catQuery = catQuery.or(`societe_id.eq.${escapePostgrest(req.user.societe_id)},signer_email.eq.${escapePostgrest(req.user.email)}`);
+      } else {
+        catQuery = catQuery.eq('signer_email', req.user.email);
+      }
+    }
+    const { data, error } = await catQuery;
+    if (error) throw error;
+
+    const tree = {};
+    (data || []).forEach(d => {
+      if (!tree[d.category]) tree[d.category] = { total: 0, signed: 0, subcategories: {} };
+      tree[d.category].total++;
+      if (d.status === 'signed') tree[d.category].signed++;
+      if (d.subcategory) {
+        if (!tree[d.category].subcategories[d.subcategory]) tree[d.category].subcategories[d.subcategory] = { total: 0, signed: 0 };
+        tree[d.category].subcategories[d.subcategory].total++;
+        if (d.status === 'signed') tree[d.category].subcategories[d.subcategory].signed++;
+      }
+    });
+
+    res.json({ ok: true, categories: tree });
+  } catch (e) {
+    console.error('[GET /api/documents/categories]', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // =============================================

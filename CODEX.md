@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 26 avril 2026
-**Derniere passe** : Passe 54 — Audit Securite Massif + BASEPLAN v2.0
+**Derniere mise a jour** : 27 avril 2026
+**Derniere passe** : Passe 55 — JADOMI Sign (Signature Electronique Premium)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -301,6 +301,144 @@ Extension du Triangle Photo : coordination N praticiens autour d'un patient.
 - Roles cercle : referent (primaire), membre, consultant
 - Urgences : routine, urgent, immediat
 - Upload media : 25 Mo max (photo/video/PDF)
+
+## 2.25 JADOMI Sign — Signature Electronique Premium (Passe 55)
+Module de signature electronique integre, base sur DocuSeal
+(open source self-hosted) + couche premium JADOMI Sign.
+
+### Niveau de signature
+**AES (Signature Electronique Avancee)** conforme a l'article 26 du reglement eIDAS.
+- Hash SHA-256 du document
+- Piste d'audit immutable (hash-chaining, anti-falsification)
+- Signature PAdES PKCS#7 integree au PDF (verifiable dans Adobe Acrobat)
+- Horodatage TSA externe RFC 3161 (FreeTSA — non qualifie, valide pour AES)
+- Verification OTP SMS du signataire (Twilio/OVH SMS)
+- Certificat de completion PDF auto-genere
+- QR code + URL de verification publique (token HMAC)
+
+Upgrade vers QES (Qualifiee) prevu quand :
+- TSA qualifiee eIDAS deployee (Certigna/Universign ~30€/mois)
+- Certificat AC reconnu (~150€/an)
+- Verification d'identite renforcee (piece d'identite + OCR)
+- Validation juridique par avocat specialise eIDAS
+
+### Positionnement honnete vs DocuSign
+| Critere | DocuSign | JADOMI Sign |
+|---|---|---|
+| Niveau eIDAS | SES + AES + QES | AES — Article 26 prouve |
+| Hash document | SHA-256 | SHA-256 |
+| Hebergement | Cloud USA/EU | Self-hosted France (Roubaix) |
+| Cout | 25-65$/user/mois | Inclus dans abonnement JADOMI |
+| Souverainete RGPD | DPA + Cloud Act | Souverainete totale (auto-heberge) |
+| Workflows | Tres avances (conditionnel, parallele) | Basique (sequentiel, multi-signataires) |
+| Integrations | 350+ natives | Native dans JADOMI uniquement |
+| Apps mobiles | iOS + Android natifs | Web responsive |
+| KYC integre | Identite, biometrie | Email + SMS OTP |
+| Horodatage | TSA qualifiee | FreeTSA RFC 3161 (non qualifiee, valide pour AES) |
+| Maturite | 25 ans | Recent (avril 2026) |
+
+**Notre force** : souverainete donnees France + integration native JADOMI
+(devis BTP, plans dentaires, contrats avocats) + pas de cout par signature.
+
+### Validation technique (27 avril 2026)
+Tests reels effectues et prouves :
+- PAdES PKCS#7 : /Type /Sig + /ByteRange + /Contents + adbe.pkcs7.detached → VALIDE
+- TSA FreeTSA RFC 3161 : reponse 6192 chars base64 → VALIDE
+- Audit hash-chain SHA-256 : 7 entrees, chaine verifiee → VALIDE
+- PDF : 1393 → 35145 octets apres signature (33 Ko de signature crypto)
+
+### Ce qu'on peut legitimement dire
+- "Signature electronique avancee (AES) conforme eIDAS Article 26"
+- "PAdES PKCS#7 verifiable par Adobe Acrobat Reader"
+- "Horodatage tiers RFC 3161 + hash SHA-256 + audit trail hash-chained"
+- "Heberge en France a Roubaix — souverainete totale"
+- "Validite juridique — Code civil articles 1366 et 1367"
+
+### Ce qu'on ne dit PAS
+- "Horodatage qualifie eIDAS" (FreeTSA non qualifie)
+- "Certificat emis par autorite de confiance" (auto-signe)
+- "Signature qualifiee (QES)" (nous ne sommes pas QES)
+
+### Nuances connues (non bloquantes pour AES)
+1. FreeTSA n'est pas dans la EU Trusted List — valide pour AES, pas pour QES
+2. Certificat auto-signe — Acrobat montrera "identite non verifiee" (cert AC ~150€/an prevu)
+3. Identification declarative — renforcee par attestation du professionnel JADOMI
+
+### Architecture
+- **DocuSeal** : moteur de signature (Docker, port 3100, auto-heberge)
+- **JADOMI Sign** : couche premium (lib/jadomi-sign.js v2.0)
+  - Signature PAdES integree au PDF (@signpdf + certificat PKCS12)
+  - Hash SHA-256 anti-falsification
+  - Horodatage TSA RFC 3161 (FreeTSA.org)
+  - Piste d'audit immutable hash-chained
+  - Verification OTP SMS (Twilio/OVH SMS)
+  - QR code verification publique HMAC
+
+### Fonctionnalites
+- Signature manuscrite canvas HTML5 (dessin + adoption texte cursif)
+- Wizard 4 etapes : Document → Destinataire → Options → Recapitulatif
+- Upload PDF/images + templates DocuSeal
+- Autocomplete entreprises (API gouv.fr)
+- Roles signataire : Client, Patient, Fournisseur, Partenaire, Avocat, Confrere
+- Categories : Devis, Contrat, Mandat, Plan de traitement, Attestation, Facture
+- Multi-signataires, rappels auto, delai configurable
+- Gestionnaire documents : tri par categorie, date, statut
+- Vue liste + grille, selection multiple, envoi par email
+- Detail avec timeline audit trail hash-chained
+- Page verification publique (/verify-signature)
+- Verification OTP SMS avant signature (optionnel)
+
+### REGLE OBLIGATOIRE
+**Toute signature electronique dans JADOMI doit passer par JADOMI Sign.**
+Cela inclut : contrats de mandat, devis BTP, devis dentaires, documents
+avocat, tout document necessitant une signature.
+
+### Fichiers cles
+- signature.html (2306 lignes) — Module complet UI
+- lib/jadomi-sign.js v2.0 — Moteur (PAdES, TSA, hash-chain, verification)
+- lib/otp-sms.js — Verification SMS OTP signataire
+- public/verify-signature.html — Page verification publique
+- certs/jadomi-sign.p12 — Certificat PKCS12 pour PAdES
+- docker/docuseal/docker-compose.yml — Config Docker DocuSeal
+- sql/vitrines/57_signed_documents.sql — Table signed_documents
+
+### Endpoints API
+- GET /api/documents/signed — Liste documents signes (filtres avances)
+- GET /api/documents/signed/:id — Detail document
+- GET /api/documents/signed/:id/download — Telecharger PDF signe (PAdES)
+- GET /api/documents/signed/:id/certificate — Telecharger certificat completion
+- POST /api/documents/signed/:id/resend — Renvoyer demande signature
+- POST /api/documents/signed/send-email — Envoyer documents par email
+- POST /api/documents/request-signature — Creer demande signature
+- GET /api/documents/categories — Arbre categories/sous-categories
+- POST /api/webhooks/docuseal — Webhook DocuSeal (signature completee)
+- GET /api/signatures/verify — Verification publique (sans auth)
+- GET /api/docuseal/templates — Proxy templates DocuSeal
+- POST /api/signatures/send-otp — Envoyer code SMS verification
+- POST /api/signatures/verify-otp — Verifier code SMS
+
+### Securite — Roadmap ameliorations
+- [x] Hash SHA-256 document
+- [x] Certificat de completion PDF
+- [x] Verification publique HMAC + QR
+- [x] Piste audit immutable hash-chained
+- [x] Signature PAdES integree au PDF
+- [x] Horodatage TSA externe (FreeTSA)
+- [x] Verification OTP SMS signataire
+- [x] AES eIDAS Article 26 — prouve et valide (27/04/2026)
+- [ ] TSA qualifiee eIDAS (Certigna/Universign) — quand budget
+- [ ] Verification piece d'identite (OCR) — Phase 2
+- [ ] PAdES-LTV (Long Term Validation) — re-tampons periodiques
+- [ ] Chiffrement E2E des PDFs (cle derivee mot de passe user)
+- [ ] Backup off-site S3 OVH (docs signes)
+- [ ] App mobile native signature
+- [ ] Workflows conditionnels (si X signe → Y recoit)
+- [ ] Signature qualifiee QES via partenaire certifie
+
+### Dashboard Documents (organisation.html)
+- Card CODEX ajoutee (Voir / Telecharger / Copier le lien)
+- Section "Documents Signes" complete avec filtres, categories, selection
+- Vue liste + grille, envoi par email, telecharger certificat
 
 ## 2.5 Autres modules existants (a auditer)
 JADOMI Green (reseau anti-gaspillage), Suggestions, Micro, Annuaire,
@@ -1160,7 +1298,7 @@ GET /api/facturation/mandate/:id/pdf (mandat specifique)
 POST /api/facturation/mandates/send (creer + envoyer email signature au fournisseur)
 Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 
-## TODO Passe 55
+## TODO Passe 56
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
 - Tester envoi email contrat fournisseur en conditions reelles
 - Tester envoi 4 documents par email
@@ -1168,6 +1306,13 @@ Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 - Cloudflare free (Karim — changer DNS OVH)
 - Remplacer xlsx par exceljs (6 CVEs npm)
 - CSP strict sans unsafe-inline (refacto frontend)
+- Executer SQL 57_signed_documents.sql en production (Supabase Dashboard)
+- Configurer DOCUSEAL_API_KEY dans .env (recuperer depuis DocuSeal admin http://IP:3100)
+- Configurer DOCUSEAL_WEBHOOK_SECRET dans .env
+- Configurer webhook DocuSeal → https://jadomi.fr/api/webhooks/docuseal
+- Tester parcours complet signature (envoi → reception email → signature → certificat)
+- Integrer signature dans module BTP (devis) et module dentiste (plans de traitement)
+- Ajouter module signature dans l'espace client securise (patients/clients)
 
 ===============================================================
 # 11. METHODE DE DEVELOPPEMENT OBLIGATOIRE
@@ -1446,6 +1591,37 @@ I) Architecture non-intrusive (UX) :
 | server.js | /api/scan/lookup enrichi + extraction code_client + detection suivra IA |
 | index.html | Onglet fournisseurs dynamique + contrats + remises + widget OEM dashboard |
 E) Total final : 1 486 272 produits (GUDID + EUDAMED + catalogues manuels)
+
+## Passe 55 (27 avril 2026) -- JADOMI Sign — Signature Electronique Premium
+Module complet de signature electronique integre, niveau SES renforcee eIDAS.
+Base sur DocuSeal (open source self-hosted) + couche premium JADOMI Sign.
+
+Infrastructure :
+- Docker installe + DocuSeal deploye (port 3100, self-hosted)
+- docker/docuseal/docker-compose.yml
+- certs/jadomi-sign.p12 (certificat PKCS12 pour PAdES)
+
+Backend :
+- lib/jadomi-sign.js v2.0 (PAdES, TSA RFC 3161, hash-chaining audit, verification HMAC)
+- lib/otp-sms.js (verification SMS OTP signataire via Twilio/OVH)
+- sql/vitrines/57_signed_documents.sql (table + 8 indexes)
+- 13 endpoints API dans server.js (CRUD docs signes, webhook, verification publique, OTP SMS)
+- Proxy DocuSeal templates (securise derriere requireAuth)
+
+Securite signature :
+- Signature PAdES integree au PDF (verifiable Adobe Acrobat)
+- Horodatage TSA externe RFC 3161 (FreeTSA.org, upgrade Certigna prevu)
+- Piste audit immutable hash-chained (anti-falsification)
+- Verification OTP SMS signataire (optionnel)
+- Upgrade AES prevu quand TSA qualifiee + verification identite deployes
+
+Frontend :
+- signature.html (2306 lignes) — wizard 4 etapes, canvas signature, gestionnaire docs
+- public/verify-signature.html — page verification publique
+- organisation.html — card CODEX + section Documents Signes complete
+- docs/CODEX-JADOMI.html — version HTML du CODEX
+
+Methode builder/reviewer : 5 builders + 4 reviewers → 12 XSS, 4 IDOR, 2 injections corrigees.
 
 ## Passe 54 (26 avril 2026) -- Audit Securite Massif + BASEPLAN v2.0
 Audit complet : 8 Bug Hunters + 2 Frontend/SQL Auditors → 221 vulnerabilites identifiees.

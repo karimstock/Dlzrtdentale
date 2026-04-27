@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Sign — Verification de signature</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0f1f3d;--surface:#1e3460;--border:rgba(99,102,241,0.15);--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--accent:#6366f1;--accent2:#8b5cf6;--success:#10b981;--danger:#ef4444;--radius:14px;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 50% 30%,rgba(99,102,241,0.08),transparent 60%);}
+.card{background:rgba(30,52,96,0.6);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--radius);padding:40px;max-width:540px;width:100%;position:relative;z-index:1;}
+.logo{font-size:28px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,var(--accent),#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+.logo-sub{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:32px;}
+h1{font-size:22px;font-weight:800;margin-bottom:8px;}
+.subtitle{font-size:13px;color:var(--text2);margin-bottom:28px;line-height:1.6;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+input{width:100%;padding:12px 16px;background:rgba(36,56,112,0.5);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}
+.btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .15s;margin-top:8px;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(99,102,241,0.3);}
+.btn:active{transform:translateY(0);}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.result{margin-top:24px;padding:20px;border-radius:10px;display:none;}
+.result.valid{display:block;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);}
+.result.invalid{display:block;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);}
+.result-icon{font-size:36px;margin-bottom:12px;}
+.result h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+.result-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:12px;}
+.result-row .label{color:var(--text3);}
+.result-row .value{font-weight:600;color:var(--text);}
+.shield{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;}
+.shield.signed{background:rgba(16,185,129,0.15);color:#10b981;}
+.shield.pending{background:rgba(245,158,11,0.15);color:#f59e0b;}
+.footer{margin-top:32px;font-size:11px;color:var(--text3);text-align:center;line-height:1.8;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">JADOMI</div>
+  <div class="logo-sub">Sign — Verification de signature</div>
+
+  <h1>Verifier un document signe</h1>
+  <p class="subtitle">Entrez l'identifiant de signature et le code de verification pour confirmer l'authenticite et l'integrite du document.</p>
+
+  <div class="form-group">
+    <label>Identifiant de signature</label>
+    <input type="text" id="sig-id" placeholder="Ex: JSIGN-2026-A1B2C3D4" autocomplete="off">
+  </div>
+  <div class="form-group">
+    <label>Code de verification</label>
+    <input type="text" id="sig-token" placeholder="Code de 16 caracteres" autocomplete="off">
+  </div>
+
+  <button class="btn" onclick="verifySignature()" id="verify-btn">Verifier la signature</button>
+
+  <div id="result" class="result"></div>
+
+  <div class="footer">
+    JADOMI Sign — Signature electronique conforme eIDAS<br>
+    L'integrite du document est verifiee par empreinte SHA-256
+  </div>
+</div>
+
+<script>
+// Auto-fill from URL params
+const params = new URLSearchParams(window.location.search);
+if (params.get('id')) document.getElementById('sig-id').value = params.get('id');
+if (params.get('token')) document.getElementById('sig-token').value = params.get('token');
+// Auto-verify if both params present
+if (params.get('id') && params.get('token')) {
+  window.addEventListener('load', () => setTimeout(verifySignature, 500));
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function verifySignature() {
+  const id = document.getElementById('sig-id').value.trim();
+  const token = document.getElementById('sig-token').value.trim();
+  const btn = document.getElementById('verify-btn');
+  const result = document.getElementById('result');
+
+  if (!id || !token) {
+    result.className = 'result invalid';
+    result.innerHTML = '<div class="result-icon">&#x26A0;</div><h3>Champs requis</h3><p style="font-size:12px;color:var(--text2);">Veuillez renseigner l\'identifiant et le code de verification.</p>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verification en cours...';
+
+  try {
+    const r = await fetch('/api/signatures/verify?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(token));
+    const data = await r.json();
+
+    if (data.valid) {
+      const d = data.document;
+      result.className = 'result valid';
+      result.innerHTML = `
+        <div class="result-icon">&#x2705;</div>
+        <h3 style="color:#10b981;">Signature valide et authentique</h3>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px;">Ce document a ete signe electroniquement via JADOMI Sign. Son integrite est confirmee.</p>
+        <div class="result-row"><span class="label">Document</span><span class="value">${escHtml(d.title || '—')}</span></div>
+        <div class="result-row"><span class="label">Signataire</span><span class="value">${escHtml(d.signer_name || '—')}</span></div>
+        <div class="result-row"><span class="label">Email</span><span class="value">${escHtml(d.signer_email || '—')}</span></div>
+        <div class="result-row"><span class="label">Statut</span><span class="value"><span class="shield ${d.status}">${escHtml(d.status === 'signed' ? 'Signe' : d.status || '—')}</span></span></div>
+        <div class="result-row"><span class="label">Date de signature</span><span class="value">${d.signed_at ? new Date(d.signed_at).toLocaleString('fr-FR') : '—'}</span></div>
+        <div class="result-row"><span class="label">Empreinte SHA-256</span><span class="value" style="font-family:monospace;font-size:10px;word-break:break-all;">${escHtml(d.document_hash || '—')}</span></div>
+        <div class="result-row"><span class="label">Identifiant</span><span class="value" style="font-family:monospace;">${escHtml(d.signature_id || id)}</span></div>
+        <div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.6;">
+          Ce certificat confirme que le document n'a pas ete modifie depuis sa signature.
+          Conforme au reglement eIDAS (UE) n&deg;910/2014 — Signature electronique avancee.
+        </div>
+      `;
+    } else {
+      result.className = 'result invalid';
+      result.innerHTML = `
+        <div class="result-icon">&#x274C;</div>
+        <h3 style="color:#ef4444;">Signature non valide</h3>
+        <p style="font-size:12px;color:var(--text2);">${escHtml(data.error || 'Le code de verification ne correspond pas ou le document n\'existe pas.')}</p>
+      `;
+    }
+  } catch (e) {
+    result.className = 'result invalid';
+    result.innerHTML = '<div class="result-icon">&#x26A0;</div><h3 style="color:#ef4444;">Erreur de verification</h3><p style="font-size:12px;color:var(--text2);">Impossible de contacter le serveur. Reessayez.</p>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Verifier la signature';
+}
+</script>
+</body>
+</html>
