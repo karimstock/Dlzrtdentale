@@ -1354,6 +1354,7 @@ tbody tr:hover td{background:var(--surface2);}
         <button class="btn comm-subtab" data-ctab="patients" onclick="switchCommTab('patients')">🦷 Patients</button>
         <button class="btn comm-subtab" data-ctab="campagnes" onclick="switchCommTab('campagnes')">📊 Campagnes</button>
         <button class="btn comm-subtab" data-ctab="parametres" onclick="switchCommTab('parametres')">⚙️ Paramètres</button>
+        <button class="btn comm-subtab" data-ctab="bannis" onclick="switchCommTab('bannis')">🚫 Patients bannis</button>
       </div>
 
       <!-- STATS ROW -->
@@ -1451,6 +1452,50 @@ tbody tr:hover td{background:var(--surface2);}
       </div>
 
       <!-- ═══ SUB: PARAMÈTRES ═══ -->
+      <div id="comm-bannis" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <div class="card-title">Bannir un patient</div>
+          </div>
+          <div style="padding:16px;">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Un patient qui ne respecte pas ses rendez-vous peut etre banni. Il pourra etre debanni a tout moment. JADOMI peut aussi sanctionner les patients recidivistes sur le reseau.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div>
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:4px;">Nom du patient *</label>
+                <input type="text" id="ban-patient-name" placeholder="Ex: M. Dupont Jean" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:4px;">Telephone</label>
+                <input type="tel" id="ban-patient-phone" placeholder="06 12 34 56 78" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;">
+              </div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:4px;">Motif du bannissement *</label>
+              <select id="ban-reason" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+                <option value="no_show">Non-respect des rendez-vous (no-show)</option>
+                <option value="no_show_repeat">No-show repete (3+ fois)</option>
+                <option value="retard_chronique">Retards chroniques</option>
+                <option value="irrespect">Comportement irrespectueux</option>
+                <option value="impaye">Impayes</option>
+                <option value="autre">Autre</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-accent" onclick="banirPatient()" style="padding:10px 20px;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;border-radius:8px;font-weight:600;cursor:pointer;">Bannir ce patient</button>
+              <span id="ban-msg" style="font-size:12px;"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Patients bannis</div>
+            <button class="btn btn-ghost" onclick="chargerPatientsBannis()" style="font-size:11px;">Actualiser</button>
+          </div>
+          <div id="banned-list" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
+        </div>
+      </div>
+
       <div id="comm-parametres" style="display:none;">
         <div class="card" style="margin-bottom:16px;">
           <div class="card-title" style="margin-bottom:14px;">⚙️ Paramètres de communication</div>
@@ -8244,7 +8289,7 @@ function commFilterContacts(type) {
 
 // Sub-tab switching
 function switchCommTab(tab) {
-  ['confreres','patients','campagnes','parametres'].forEach(t => {
+  ['confreres','patients','campagnes','parametres','bannis'].forEach(t => {
     const el = document.getElementById('comm-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
   });
@@ -8252,6 +8297,65 @@ function switchCommTab(tab) {
     b.classList.toggle('btn-accent', b.dataset.ctab === tab);
     b.classList.toggle('active', b.dataset.ctab === tab);
   });
+}
+
+// Ban / Unban patients
+async function banirPatient(){
+  const name=(document.getElementById('ban-patient-name').value||'').trim();
+  const phone=(document.getElementById('ban-patient-phone').value||'').trim();
+  const reason=document.getElementById('ban-reason').value;
+  const msg=document.getElementById('ban-msg');
+  if(!name){msg.textContent='Nom requis';msg.style.color='#ef4444';return;}
+  msg.textContent='Bannissement...';msg.style.color='var(--muted)';
+  try{
+    const headers={...sosUrgAuthHeaders(),'Content-Type':'application/json'};
+    const res=await fetch('/api/patients/ban',{method:'POST',headers,body:JSON.stringify({patient_name:name,patient_phone:phone,reason})});
+    const data=await res.json();
+    if(data.ok){
+      msg.textContent='Patient banni. Il pourra etre debanni a tout moment.';msg.style.color='#10b981';
+      document.getElementById('ban-patient-name').value='';
+      document.getElementById('ban-patient-phone').value='';
+      chargerPatientsBannis();
+    } else { msg.textContent=data.error||'Erreur';msg.style.color='#ef4444'; }
+  }catch(e){msg.textContent='Erreur: '+e.message;msg.style.color='#ef4444';}
+}
+
+async function chargerPatientsBannis(){
+  const el=document.getElementById('banned-list');
+  if(!el) return;
+  try{
+    const res=await fetch('/api/patients/banned',{headers:sosUrgAuthHeaders()});
+    const data=await res.json();
+    const list=data.banned||[];
+    if(!list.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Aucun patient banni</div>';return;}
+    const reasonLabels={no_show:'No-show',no_show_repeat:'No-show repete',retard_chronique:'Retards',irrespect:'Irrespect',impaye:'Impaye',autre:'Autre'};
+    let html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    html+='<thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Patient</th><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Motif</th><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Statut</th><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Date</th><th style="text-align:right;padding:8px;color:var(--muted);font-weight:500;">Action</th></tr></thead><tbody>';
+    list.forEach(function(p){
+      const isActive=p.status==='active';
+      const badge=isActive?'<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">Banni</span>':'<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(16,185,129,0.15);color:#10b981;">Debanni</span>';
+      const date=p.banned_at?new Date(p.banned_at).toLocaleDateString('fr-FR'):'';
+      html+='<tr style="border-bottom:1px solid var(--border);">';
+      html+='<td style="padding:8px;"><strong>'+_escDoc(p.patient_name||'-')+'</strong>'+(p.patient_phone?'<div style="font-size:11px;color:var(--muted);">'+_escDoc(p.patient_phone)+'</div>':'')+'</td>';
+      html+='<td style="padding:8px;">'+_escDoc(reasonLabels[p.reason]||p.reason||'-')+'</td>';
+      html+='<td style="padding:8px;">'+badge+'</td>';
+      html+='<td style="padding:8px;color:var(--muted);">'+date+'</td>';
+      html+='<td style="padding:8px;text-align:right;">';
+      if(isActive) html+='<button onclick="debanirPatient(\''+_escDoc(p.id)+'\')" style="padding:4px 12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;color:#10b981;font-size:11px;cursor:pointer;">Debannir</button>';
+      html+='</td></tr>';
+    });
+    html+='</tbody></table></div>';
+    el.innerHTML=html;
+  }catch(e){el.innerHTML='<div style="color:#ef4444;font-size:13px;">Erreur: '+e.message+'</div>';}
+}
+
+async function debanirPatient(banId){
+  try{
+    const headers={...sosUrgAuthHeaders(),'Content-Type':'application/json'};
+    await fetch('/api/patients/unban',{method:'POST',headers,body:JSON.stringify({ban_id:banId})});
+    if(typeof showToast==='function') showToast('Patient debanni');
+    chargerPatientsBannis();
+  }catch(e){if(typeof showToast==='function') showToast('Erreur');}
 }
 
 // Segmentation patients

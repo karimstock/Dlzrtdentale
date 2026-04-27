@@ -6686,6 +6686,101 @@ app.patch('/api/equipment/proposals/:id/status', requireAuth(), async (req, res)
 });
 
 // ============================================================
+// GESTION PATIENTS — Ban / Deban
+// ============================================================
+
+// POST /api/patients/ban — Bannir un patient (no-show, irrespect RDV)
+app.post('/api/patients/ban', requireAuth(), async (req, res) => {
+  try {
+    const { patient_name, patient_phone, patient_email, reason } = req.body;
+    if (!patient_name || !String(patient_name).trim()) return res.status(400).json({ error: 'Nom du patient requis' });
+    const societeId = req.user.societe_id || req.user.id;
+    const db = supabaseAdmin || supabase;
+
+    // Stocker dans signed_documents avec category spéciale
+    const { data, error } = await db.from('signed_documents').insert({
+      societe_id: societeId,
+      user_id: req.user.id,
+      title: 'Patient banni — ' + String(patient_name).trim(),
+      category: 'patient_ban',
+      status: 'active',
+      metadata: {
+        patient_name: String(patient_name).trim(),
+        patient_phone: patient_phone || null,
+        patient_email: patient_email || null,
+        reason: reason || 'Non-respect des rendez-vous',
+        banned_at: new Date().toISOString(),
+        banned_by: req.user.email || req.user.id
+      }
+    }).select().single();
+
+    if (error) throw error;
+    res.json({ ok: true, ban_id: data.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/patients/unban — Debannir un patient
+app.post('/api/patients/unban', requireAuth(), async (req, res) => {
+  try {
+    const { ban_id } = req.body;
+    if (!ban_id) return res.status(400).json({ error: 'ban_id requis' });
+    const db = supabaseAdmin || supabase;
+    const { error } = await db.from('signed_documents')
+      .update({ status: 'inactive', metadata: db.rpc ? undefined : undefined })
+      .eq('id', ban_id)
+      .eq('category', 'patient_ban')
+      .eq('societe_id', req.user.societe_id || req.user.id);
+    // Update metadata to add unban info
+    await db.from('signed_documents').update({
+      status: 'inactive'
+    }).eq('id', ban_id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/patients/banned — Liste des patients bannis
+app.get('/api/patients/banned', requireAuth(), async (req, res) => {
+  try {
+    const db = supabaseAdmin || supabase;
+    const { data, error } = await db.from('signed_documents')
+      .select('id, title, metadata, status, created_at')
+      .eq('category', 'patient_ban')
+      .eq('societe_id', req.user.societe_id || req.user.id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ ok: true, banned: (data || []).map(d => ({ id: d.id, ...d.metadata, status: d.status, banned_at: d.metadata?.banned_at || d.created_at })) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/patients/check-ban?name=... — Verifier si un patient est banni
+app.get('/api/patients/check-ban', requireAuth(), async (req, res) => {
+  try {
+    const name = String(req.query.name || '').trim().toLowerCase();
+    if (!name || name.length < 2) return res.json({ ok: true, banned: false });
+    const db = supabaseAdmin || supabase;
+    const { data } = await db.from('signed_documents')
+      .select('id, metadata')
+      .eq('category', 'patient_ban')
+      .eq('status', 'active')
+      .eq('societe_id', req.user.societe_id || req.user.id);
+    const match = (data || []).find(d => {
+      const n = (d.metadata?.patient_name || '').toLowerCase();
+      return n === name || n.includes(name) || name.includes(n);
+    });
+    res.json({ ok: true, banned: !!match, ban_id: match?.id || null, reason: match?.metadata?.reason || null });
+  } catch (e) {
+    res.json({ ok: true, banned: false });
+  }
+});
+
+// ============================================================
 // JADOMI SOS URGENCE CONFRERES
 // ============================================================
 
