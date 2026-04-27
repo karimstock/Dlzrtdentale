@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#f59e0b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Podologue — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#18120a;--surface:#241c10;--surface2:#2e2414;--border:rgba(245,158,11,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#f59e0b;--accent-dark:#fbbf24;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* -- DESKTOP SIDEBAR LAYOUT -- */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #120e06 0%, #1c1508 50%, #120e06 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* -- SIDEBAR -- */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(245,158,11,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color 0.15s;border-radius:var(--radius-sm);}
+.nav-group-title:hover{color:var(--text);}
+.nav-group-arrow{font-size:8px;width:12px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);display:inline-block;}
+.nav-group-arrow.open{transform:rotate(90deg);}
+.nav-group-ico{font-size:14px;}
+.nav-group-items .nav-item{padding-left:40px;font-size:12px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* -- TOPBAR -- */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* -- BUTTONS -- */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#1a1200;}
+.btn-accent:hover{background:#d97706;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* -- CONTENT -- */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* -- KPI STATS -- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* -- CARDS -- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* -- TABLE -- */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* -- BADGES -- */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(96,208,144,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+.badge-accent{background:rgba(245,158,11,0.15);color:var(--accent);}
+
+/* -- PROGRESS BAR -- */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+.progress-fill-green{background:var(--green);}
+.progress-fill-amber{background:var(--amber);}
+.progress-fill-red{background:var(--red);}
+.progress-pct{font-size:12px;font-family:var(--mono);color:var(--muted);min-width:36px;text-align:right;}
+
+/* -- FILTERS -- */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* -- BAR WRAP (stock qty) -- */
+.bar-wrap{display:flex;align-items:center;gap:8px;}
+.bar{flex:1;height:4px;background:var(--border);border-radius:2px;max-width:70px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width 0.3s cubic-bezier(.16,1,.3,1);}
+.qty-num{font-size:12px;font-family:var(--mono);color:var(--muted);min-width:24px;text-align:right;}
+
+/* -- ACTION BUTTONS -- */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(245,158,11,0.1);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* -- PIPELINE -- */
+.pipeline{display:flex;gap:2px;align-items:center;flex-wrap:wrap;}
+.pip-step{padding:4px 10px;font-size:10px;font-weight:600;border-radius:4px;background:var(--surface2);color:var(--muted);transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.pip-step.done{background:rgba(16,185,129,0.15);color:var(--green);}
+.pip-step.current{background:rgba(245,158,11,0.2);color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+.pip-step.pending{background:var(--surface2);color:var(--muted);}
+.pip-arrow{color:var(--muted);font-size:10px;margin:0 2px;}
+
+/* -- TIMELINE -- */
+.timeline{position:relative;padding-left:28px;}
+.timeline::before{content:'';position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--border);}
+.tl-item{position:relative;padding:14px 0;}
+.tl-dot{position:absolute;left:-24px;top:18px;width:12px;height:12px;border-radius:50%;border:2px solid var(--accent);background:var(--bg);}
+.tl-dot.done{background:var(--green);border-color:var(--green);}
+.tl-dot.active{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px rgba(245,158,11,0.4);}
+.tl-time{font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:4px;}
+.tl-patient{font-weight:600;font-size:14px;}
+.tl-detail{font-size:12px;color:var(--muted);margin-top:2px;}
+.tl-badge{margin-left:8px;}
+
+/* -- BILAN CARD -- */
+.bilan-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px;}
+.bilan-title{font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:14px;color:var(--accent);}
+.bilan-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.bilan-row:last-child{border-bottom:none;}
+.bilan-label{color:var(--muted);}
+.bilan-value{font-weight:500;}
+
+/* -- MODAL -- */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* -- LOADING -- */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* -- EMPTY -- */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* -- TOAST -- */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* -- MOBILE NAV -- */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* -- RESPONSIVE -- */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+  .pipeline{flex-wrap:wrap;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Podologue</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <!-- Tableau de bord -->
+    <div class="nav-group" data-nav-group="tableau-de-bord">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">&#x1F4CA;</span> Tableau de bord
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="nav-item active" onclick="showPage('patients',this)"><span class="ni">&#x1F9D1;</span>Mes patients</div>
+        <div class="nav-item" onclick="showPage('consultations',this)"><span class="ni">&#x1F4C5;</span>Consultations du jour</div>
+        <div class="nav-item" onclick="showPage('planning',this)"><span class="ni">&#x1F5D3;</span>Planning</div>
+      </div>
+    </div>
+
+    <!-- Semelles orthopediques -->
+    <div class="nav-group" data-nav-group="semelles">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F45F;</span> Semelles orthopediques
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('semelles',this)"><span class="ni">&#x1F4CB;</span>Pipeline semelles<span class="nav-badge" id="semelles-badge">3</span></div>
+      </div>
+    </div>
+
+    <!-- Bilan podologique -->
+    <div class="nav-group" data-nav-group="bilan">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F9FE;</span> Bilan podologique
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('bilan',this)"><span class="ni">&#x1F9FE;</span>Bilans patients</div>
+      </div>
+    </div>
+
+    <!-- Stock -->
+    <div class="nav-group" data-nav-group="stock">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4E6;</span> Stock
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('stock',this)"><span class="ni">&#x1F4E6;</span>Materiaux et consommables</div>
+      </div>
+    </div>
+
+    <!-- Finances -->
+    <div class="nav-group" data-nav-group="finances">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4B0;</span> Finances
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+        <div class="nav-item" onclick="showPage('stats',this)"><span class="ni">&#x1F4CA;</span>Statistiques</div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Mon cabinet</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Podologue</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Mes patients</div>
+    <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>
+    </div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ================================================ -->
+    <!-- PAGE : PATIENTS                                  -->
+    <!-- ================================================ -->
+    <div class="page active" id="page-patients">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Patients actifs</div><div class="stat-value c-accent" id="kpi-patients">--</div><div class="stat-sub">en suivi podologique</div></div>
+        <div class="stat"><div class="stat-label">Consultations aujourd'hui</div><div class="stat-value c-green" id="kpi-consult">--</div><div class="stat-sub">rendez-vous programmes</div></div>
+        <div class="stat"><div class="stat-label">Semelles en fabrication</div><div class="stat-value c-amber" id="kpi-semelles">--</div><div class="stat-sub">en cours de production</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value" id="kpi-ca">--</div><div class="stat-sub">facturation courante</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un patient..." id="search-patients" oninput="filterPatients()" aria-label="Rechercher un patient">
+        </div>
+        <select class="filter-select" id="filter-patho" onchange="filterPatients()" aria-label="Filtrer par pathologie">
+          <option value="">Toutes pathologies</option>
+          <option value="hallux_valgus">Hallux valgus</option>
+          <option value="epine_calcan">Epine calcaneenne</option>
+          <option value="diabete">Pied diabetique</option>
+          <option value="sport">Podologie du sport</option>
+          <option value="enfant">Podologie enfant</option>
+          <option value="posture">Troubles posturaux</option>
+        </select>
+        <select class="filter-select" id="filter-semelle" onchange="filterPatients()" aria-label="Filtrer par semelles">
+          <option value="">Toutes semelles</option>
+          <option value="oui">Avec semelles actives</option>
+          <option value="non">Sans semelles</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des patients</div>
+          <div class="card-count" id="patients-count">0 patients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Pathologie</th>
+                <th>Derniere visite</th>
+                <th>Semelles actives</th>
+                <th>Prochaine consultation</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patients-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : CONSULTATIONS DU JOUR                     -->
+    <!-- ================================================ -->
+    <div class="page" id="page-consultations">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Consultations du jour</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="consult-date-label">--</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau rendez-vous</button>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="timeline" id="timeline-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : PLANNING                                  -->
+    <!-- ================================================ -->
+    <div class="page" id="page-planning">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Planning de la semaine</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Creneaux de 30 a 45 minutes</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="planningPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="planningToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="planningNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" id="planning-grid" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : SEMELLES ORTHOPEDIQUES (PIPELINE)         -->
+    <!-- ================================================ -->
+    <div class="page" id="page-semelles">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Pipeline semelles orthopediques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Suivi de la fabrication et livraison des semelles sur mesure</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalSemelle()">+ Nouvelle commande</button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">En commande</div><div class="stat-value c-accent" id="sem-commande">--</div></div>
+        <div class="stat"><div class="stat-label">En fabrication</div><div class="stat-value c-amber" id="sem-fabrication">--</div></div>
+        <div class="stat"><div class="stat-label">Pretes a livrer</div><div class="stat-value c-green" id="sem-pretes">--</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un patient..." id="search-semelles" oninput="filterSemelles()" aria-label="Rechercher">
+        </div>
+        <select class="filter-select" id="filter-sem-statut" onchange="filterSemelles()" aria-label="Filtrer par statut">
+          <option value="">Tous statuts</option>
+          <option value="commande">Commande</option>
+          <option value="fabrication">En fabrication</option>
+          <option value="livraison">Livraison</option>
+          <option value="essayage">Essayage</option>
+          <option value="ajustement">Ajustement</option>
+          <option value="valide">Valide</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Commandes de semelles</div>
+          <div class="card-count" id="semelles-count">0 semelles</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Ref.</th>
+                <th>Patient</th>
+                <th>Type</th>
+                <th>Pipeline</th>
+                <th>Date commande</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="semelles-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : BILAN PODOLOGIQUE                         -->
+    <!-- ================================================ -->
+    <div class="page" id="page-bilan">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Bilans podologiques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Examens statique, dynamique et plateforme de pression</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalBilan()">+ Nouveau bilan</button>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un patient..." id="search-bilan" oninput="filterBilans()" aria-label="Rechercher un bilan">
+        </div>
+      </div>
+
+      <div id="bilans-list"></div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : STOCK                                     -->
+    <!-- ================================================ -->
+    <div class="page" id="page-stock">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">References</div><div class="stat-value" id="stock-total">--</div><div class="stat-sub">produits en stock</div></div>
+        <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value c-red" id="stock-crit">--</div><div class="stat-sub">action requise</div></div>
+        <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stock-warn">--</div><div class="stat-sub">a surveiller</div></div>
+        <div class="stat"><div class="stat-label">Valeur stock</div><div class="stat-value c-accent" id="stock-valeur">--</div><div class="stat-sub">estimation</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un produit..." id="search-stock" oninput="filterStock()" aria-label="Rechercher un produit">
+        </div>
+        <select class="filter-select" id="filter-stock-cat" onchange="filterStock()" aria-label="Filtrer par categorie">
+          <option value="">Toutes categories</option>
+          <option value="moulage">Materiaux de moulage</option>
+          <option value="resine">Resines</option>
+          <option value="mousse">Mousses et revetements</option>
+          <option value="outils">Outils de fabrication</option>
+          <option value="consommables">Consommables cabinet</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Stock podologique</div>
+          <div class="card-count" id="stock-count">0 produits</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Categorie</th>
+                <th>Quantite</th>
+                <th>Seuil</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stock-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : COMPTABILITE                              -->
+    <!-- ================================================ -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese mensuelle de votre activite</div>
+        </div>
+        <select class="filter-select" id="compta-mois" onchange="renderCompta()" aria-label="Mois">
+          <option value="2026-04">Avril 2026</option>
+          <option value="2026-03">Mars 2026</option>
+          <option value="2026-02">Fevrier 2026</option>
+          <option value="2026-01">Janvier 2026</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Recettes</div><div class="stat-value c-green" id="compta-recettes">--</div><div class="stat-sub">facturation totale</div></div>
+        <div class="stat"><div class="stat-label">Depenses</div><div class="stat-value c-red" id="compta-depenses">--</div><div class="stat-sub">achats + charges</div></div>
+        <div class="stat"><div class="stat-label">Resultat net</div><div class="stat-value c-accent" id="compta-net">--</div><div class="stat-sub">benefice mensuel</div></div>
+        <div class="stat"><div class="stat-label">Marge</div><div class="stat-value" id="compta-marge">--</div><div class="stat-sub">pourcentage</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="compta-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par type</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Depenses par poste</div></div>
+          <div class="card-body" id="compta-depenses-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- PAGE : STATISTIQUES                              -->
+    <!-- ================================================ -->
+    <div class="page" id="page-stats">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Statistiques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Indicateurs d'activite de votre cabinet</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Consultations / mois</div><div class="stat-value c-accent" id="stat-consult-mois">--</div><div class="stat-sub">moyenne 3 derniers mois</div></div>
+        <div class="stat"><div class="stat-label">Taux de renouvellement</div><div class="stat-value c-green" id="stat-renouvellement">--</div><div class="stat-sub">patients fideles</div></div>
+        <div class="stat"><div class="stat-label">Semelles / mois</div><div class="stat-value c-amber" id="stat-semelles-mois">--</div><div class="stat-sub">commandes semelles</div></div>
+        <div class="stat"><div class="stat-label">Panier moyen</div><div class="stat-value" id="stat-panier">--</div><div class="stat-sub">par consultation</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Repartition par pathologie</div></div>
+          <div class="card-body" id="stats-patho-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Activite mensuelle</div></div>
+          <div class="card-body" id="stats-mensuel-detail"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('patients',this)" aria-label="Patients"><span class="mnav-icon">&#x1F9D1;</span>Patients</button>
+    <button class="mnav-item" onclick="showPage('consultations',this)" aria-label="Consultations"><span class="mnav-icon">&#x1F4C5;</span>Consult.</button>
+    <button class="mnav-item" onclick="showPage('semelles',this)" aria-label="Semelles"><span class="mnav-icon">&#x1F45F;</span>Semelles</button>
+    <button class="mnav-item" onclick="showPage('stock',this)" aria-label="Stock"><span class="mnav-icon">&#x1F4E6;</span>Stock</button>
+    <button class="mnav-item" onclick="showPage('compta',this)" aria-label="Comptabilite"><span class="mnav-icon">&#x1F4B0;</span>Compta</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouveau patient -->
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal">
+    <div class="modal-title">Nouveau patient</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom</label><input class="form-input" id="pat-nom" placeholder="Nom de famille"></div>
+      <div class="form-field"><label class="form-label">Prenom</label><input class="form-input" id="pat-prenom" placeholder="Prenom"></div>
+      <div class="form-field"><label class="form-label">Date de naissance</label><input class="form-input" id="pat-ddn" type="date"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="pat-tel" placeholder="06 ..."></div>
+      <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="pat-email" placeholder="email@exemple.fr"></div>
+      <div class="form-field">
+        <label class="form-label">Pathologie principale</label>
+        <select class="form-select" id="pat-patho">
+          <option value="hallux_valgus">Hallux valgus</option>
+          <option value="epine_calcan">Epine calcaneenne</option>
+          <option value="diabete">Pied diabetique</option>
+          <option value="sport">Podologie du sport</option>
+          <option value="enfant">Podologie enfant</option>
+          <option value="posture">Troubles posturaux</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="pat-notes" placeholder="Notes supplementaires..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-patient')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterPatient()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouvelle commande semelle -->
+<div class="modal-overlay" id="modal-semelle">
+  <div class="modal">
+    <div class="modal-title">Nouvelle commande de semelles</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="sem-patient" placeholder="Nom du patient"></div>
+      <div class="form-field">
+        <label class="form-label">Type de semelle</label>
+        <select class="form-select" id="sem-type">
+          <option value="thermoformee">Thermoformee</option>
+          <option value="resine">Resine sur mesure</option>
+          <option value="sport">Semelle sport</option>
+          <option value="diabetique">Semelle diabetique</option>
+          <option value="enfant">Semelle enfant</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Pointure</label>
+        <input class="form-input" id="sem-pointure" type="number" placeholder="42">
+      </div>
+      <div class="form-field full"><label class="form-label">Notes de fabrication</label><input class="form-input" id="sem-notes" placeholder="Corrections, materiaux, instructions..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-semelle')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerSemelle()">Commander</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau bilan -->
+<div class="modal-overlay" id="modal-bilan">
+  <div class="modal">
+    <div class="modal-title">Nouveau bilan podologique</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="bil-patient" placeholder="Nom du patient"></div>
+      <div class="form-field">
+        <label class="form-label">Examen statique</label>
+        <select class="form-select" id="bil-statique">
+          <option value="normal">Normal</option>
+          <option value="valgus">Valgus arriere-pied</option>
+          <option value="varus">Varus arriere-pied</option>
+          <option value="plat">Pied plat</option>
+          <option value="creux">Pied creux</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Examen dynamique</label>
+        <select class="form-select" id="bil-dynamique">
+          <option value="normal">Normal</option>
+          <option value="pronation">Hyper-pronation</option>
+          <option value="supination">Hyper-supination</option>
+          <option value="asymetrique">Asymetrique</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Plateforme de pression</label><input class="form-input" id="bil-pression" placeholder="Resultats baropodometrie..."></div>
+      <div class="form-field full"><label class="form-label">Recommandations</label><input class="form-input" id="bil-reco" placeholder="Semelles, exercices, orientation..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-bilan')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerBilan()">Enregistrer le bilan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ================================================
+// SUPABASE INIT
+// ================================================
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ================================================
+// AUTH CHECK
+// ================================================
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ================================================
+// PAGE NAVIGATION
+// ================================================
+const pageTitles = {
+  patients: 'Mes patients',
+  consultations: 'Consultations du jour',
+  planning: 'Planning',
+  semelles: 'Semelles orthopediques',
+  bilan: 'Bilan podologique',
+  stock: 'Stock',
+  compta: 'Comptabilite',
+  stats: 'Statistiques'
+};
+
+const pageActions = {
+  patients: '<button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>',
+  consultations: '<button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau rendez-vous</button>',
+  semelles: '<button class="btn btn-accent" onclick="ouvrirModalSemelle()">+ Nouvelle commande</button>',
+  bilan: '<button class="btn btn-accent" onclick="ouvrirModalBilan()">+ Nouveau bilan</button>',
+  stock: '',
+  planning: '',
+  compta: '',
+  stats: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) { el.classList.add('active'); openParentNavGroup(el); }
+  if (id === 'planning' && !planningRendered) renderPlanning();
+  if (id === 'compta') renderCompta();
+  if (id === 'stats') renderStats();
+  if (id === 'consultations') renderConsultations();
+}
+
+// ================================================
+// NAV GROUP ACCORDION
+// ================================================
+function toggleNavGroup(title) {
+  const items = title.nextElementSibling;
+  const arrow = title.querySelector('.nav-group-arrow');
+  if (!items) return;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+function openParentNavGroup(el) {
+  const group = el.closest('.nav-group-items');
+  if (group && group.style.display === 'none') {
+    group.style.display = 'block';
+    const arrow = group.previousElementSibling?.querySelector('.nav-group-arrow');
+    if (arrow) arrow.classList.add('open');
+  }
+}
+
+// ================================================
+// SIDEBAR TOGGLE (MOBILE)
+// ================================================
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ================================================
+// TOAST
+// ================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ================================================
+// MODAL HELPERS
+// ================================================
+function ouvrirModalPatient() { document.getElementById('modal-patient').classList.add('open'); }
+function ouvrirModalSemelle() { document.getElementById('modal-semelle').classList.add('open'); }
+function ouvrirModalBilan() { document.getElementById('modal-bilan').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ================================================
+// DEMO DATA : PATIENTS
+// ================================================
+const DEMO_PATIENTS = [
+  { id:1, nom:'Marchand', prenom:'Sophie', ddn:'1978-06-12', tel:'06 12 34 56 78', email:'marchand@email.fr', patho:'hallux_valgus', derniereVisite:'2026-04-22', semellesActives:true, semelleType:'thermoformee', prochaine:'2026-05-20', notes:'Hallux valgus bilateral, semelles correctrices depuis 2024' },
+  { id:2, nom:'Lefevre', prenom:'Pierre', ddn:'1965-02-28', tel:'06 98 76 54 32', email:'lefevre@email.fr', patho:'diabete', derniereVisite:'2026-04-25', semellesActives:true, semelleType:'diabetique', prochaine:'2026-05-09', notes:'Diabete type 2, grade 1, surveillance mensuelle obligatoire' },
+  { id:3, nom:'Rousseau', prenom:'Camille', ddn:'1992-11-03', tel:'06 11 22 33 44', email:'rousseau@email.fr', patho:'sport', derniereVisite:'2026-04-18', semellesActives:true, semelleType:'sport', prochaine:'2026-05-16', notes:'Marathonienne, tendinite achilleenne recurrente' },
+  { id:4, nom:'Garcia', prenom:'Antoine', ddn:'1955-09-14', tel:'06 55 66 77 88', email:'garcia@email.fr', patho:'epine_calcan', derniereVisite:'2026-04-20', semellesActives:true, semelleType:'thermoformee', prochaine:'2026-05-18', notes:'Epine calcaneenne bilaterale, talalgie matinale' },
+  { id:5, nom:'Petit', prenom:'Manon', ddn:'2018-04-07', tel:'06 44 33 22 11', email:'petit.parents@email.fr', patho:'enfant', derniereVisite:'2026-04-15', semellesActives:true, semelleType:'enfant', prochaine:'2026-07-15', notes:'Pieds plats valgus, controle croissance semestriel' },
+  { id:6, nom:'Dupont', prenom:'Marc', ddn:'1980-08-22', tel:'06 77 88 99 00', email:'dupont@email.fr', patho:'posture', derniereVisite:'2026-04-10', semellesActives:false, semelleType:null, prochaine:'2026-05-10', notes:'Lombalgies chroniques, bilan posturologique en cours' },
+  { id:7, nom:'Moreau', prenom:'Julie', ddn:'1988-01-30', tel:'06 22 11 33 55', email:'moreau@email.fr', patho:'hallux_valgus', derniereVisite:'2026-03-28', semellesActives:false, semelleType:null, prochaine:'2026-05-28', notes:'Consultation initiale, en attente bilan complet' },
+  { id:8, nom:'Lambert', prenom:'Luc', ddn:'1970-12-05', tel:'06 66 55 44 33', email:'lambert@email.fr', patho:'diabete', derniereVisite:'2026-04-24', semellesActives:true, semelleType:'diabetique', prochaine:'2026-05-08', notes:'Diabete type 1, grade 2, neuropathie debutante' },
+  { id:9, nom:'Bernard', prenom:'Claire', ddn:'1995-07-19', tel:'06 33 44 55 66', email:'bernard@email.fr', patho:'sport', derniereVisite:'2026-04-21', semellesActives:true, semelleType:'sport', prochaine:'2026-05-19', notes:'Trail runner, fasciite plantaire gauche' },
+  { id:10, nom:'Thomas', prenom:'Henri', ddn:'1948-03-11', tel:'06 99 88 77 66', email:'thomas@email.fr', patho:'epine_calcan', derniereVisite:'2026-04-12', semellesActives:true, semelleType:'thermoformee', prochaine:'2026-05-12', notes:'Epine calcaneenne droite + orteils en griffe' },
+];
+
+// ================================================
+// DEMO DATA : SEMELLES PIPELINE
+// ================================================
+const PIPELINE_STEPS = ['commande','fabrication','livraison','essayage','ajustement','valide'];
+const PIPELINE_LABELS = { commande:'Commande', fabrication:'Fabrication', livraison:'Livraison', essayage:'Essayage', ajustement:'Ajustement', valide:'Valide' };
+
+const DEMO_SEMELLES = [
+  { id:'SEM-2026-047', patient:'Marchand Sophie', type:'thermoformee', statut:'ajustement', dateCmd:'2026-04-05', pointure:38 },
+  { id:'SEM-2026-046', patient:'Lefevre Pierre', type:'diabetique', statut:'valide', dateCmd:'2026-03-28', pointure:43 },
+  { id:'SEM-2026-045', patient:'Rousseau Camille', type:'sport', statut:'fabrication', dateCmd:'2026-04-18', pointure:39 },
+  { id:'SEM-2026-044', patient:'Garcia Antoine', type:'thermoformee', statut:'livraison', dateCmd:'2026-04-10', pointure:44 },
+  { id:'SEM-2026-043', patient:'Petit Manon', type:'enfant', statut:'essayage', dateCmd:'2026-04-08', pointure:30 },
+  { id:'SEM-2026-042', patient:'Lambert Luc', type:'diabetique', statut:'fabrication', dateCmd:'2026-04-20', pointure:42 },
+  { id:'SEM-2026-041', patient:'Bernard Claire', type:'sport', statut:'commande', dateCmd:'2026-04-25', pointure:38 },
+  { id:'SEM-2026-040', patient:'Thomas Henri', type:'thermoformee', statut:'valide', dateCmd:'2026-03-15', pointure:41 },
+];
+
+// ================================================
+// DEMO DATA : CONSULTATIONS DU JOUR
+// ================================================
+const DEMO_CONSULTS = [
+  { heure:'08:30', duree:30, patient:'Lefevre Pierre', patho:'diabete', note:'Controle mensuel pied diabetique, grade 1', statut:'fait' },
+  { heure:'09:00', duree:45, patient:'Marchand Sophie', patho:'hallux_valgus', note:'Ajustement semelles, controle appui', statut:'fait' },
+  { heure:'09:45', duree:30, patient:'Garcia Antoine', patho:'epine_calcan', note:'Suivi talalgie, remise semelles', statut:'fait' },
+  { heure:'10:30', duree:45, patient:'Rousseau Camille', patho:'sport', note:'Bilan podologique sportif complet', statut:'en_cours' },
+  { heure:'11:15', duree:30, patient:'Petit Manon', patho:'enfant', note:'Essayage semelles enfant, controle croissance', statut:'a_venir' },
+  { heure:'14:00', duree:45, patient:'Lambert Luc', patho:'diabete', note:'Bilan annuel, test monofilament, gradation', statut:'a_venir' },
+  { heure:'14:45', duree:30, patient:'Bernard Claire', patho:'sport', note:'Consultation initiale, prise empreinte', statut:'a_venir' },
+  { heure:'15:30', duree:45, patient:'Moreau Julie', patho:'hallux_valgus', note:'Premiere consultation, bilan complet', statut:'a_venir' },
+  { heure:'16:15', duree:30, patient:'Thomas Henri', patho:'epine_calcan', note:'Controle semelles, reglage talon', statut:'a_venir' },
+];
+
+// ================================================
+// DEMO DATA : BILANS
+// ================================================
+const DEMO_BILANS = [
+  { id:1, patient:'Marchand Sophie', date:'2026-04-22', statique:'Hallux valgus bilateral (25 deg D / 20 deg G)', dynamique:'Hyper-pronation moderee a la marche', pression:'Surcharge metatarsienne M2-M3 bilaterale, appui talon correct', reco:'Semelles thermoformees avec barre retrocapitale et coin pronateur, chaussage adapte' },
+  { id:2, patient:'Lefevre Pierre', date:'2026-04-25', statique:'Pied plat bilateral, orteils en griffe debutants', dynamique:'Demarche ralentie, appui asymetrique', pression:'Hyperpression hallux droit, deficit sensitif zones plantaires', reco:'Semelles diabetiques decharge, controle mensuel, orientation diabetologue' },
+  { id:3, patient:'Rousseau Camille', date:'2026-04-18', statique:'Pied creux bilateral, retraction achilleenne', dynamique:'Supination excessive en phase propulsive', pression:'Surcharge calcaneum et M1, deficit medio-pied', reco:'Semelles sport avec correction supination, etirements quotidiens, adaptation progressif entrainement' },
+  { id:4, patient:'Garcia Antoine', date:'2026-04-20', statique:'Epine calcaneenne bilaterale, affaissement voute interne', dynamique:'Pronation compensatoire, attaque talon prononcee', pression:'Pic de pression talon posterieur bilateral (>350 kPa)', reco:'Semelles avec talonnette amortissante et soutien voute, ondes de choc recommandees' },
+  { id:5, patient:'Petit Manon', date:'2026-04-15', statique:'Pieds plats valgus physiologiques (age 8 ans)', dynamique:'Marche en rotation interne, genoux valgum', pression:'Appui medio-pied excessif, empreinte grade 2', reco:'Semelles enfant avec soutien voute, controle dans 6 mois, suivi croissance' },
+];
+
+// ================================================
+// DEMO DATA : STOCK
+// ================================================
+const DEMO_STOCK = [
+  { id:1, nom:'Mousse EVA haute densite (plaques)', cat:'mousse', qte:18, seuil:10, prix:22 },
+  { id:2, nom:'Mousse EVA basse densite', cat:'mousse', qte:12, seuil:8, prix:18 },
+  { id:3, nom:'Resine podologique transparente', cat:'resine', qte:6, seuil:5, prix:45 },
+  { id:4, nom:'Resine thermoformable rigide', cat:'resine', qte:8, seuil:5, prix:38 },
+  { id:5, nom:'Platre de moulage (sacs 5kg)', cat:'moulage', qte:4, seuil:3, prix:28 },
+  { id:6, nom:'Mousse phenolique empreinte', cat:'moulage', qte:25, seuil:15, prix:8 },
+  { id:7, nom:'Bandes platrees rapides', cat:'moulage', qte:30, seuil:20, prix:4.5 },
+  { id:8, nom:'Cuir de recouvrement (feuilles)', cat:'mousse', qte:15, seuil:10, prix:12 },
+  { id:9, nom:'Meuleuse a bande (abrasifs)', cat:'outils', qte:10, seuil:5, prix:6 },
+  { id:10, nom:'Fraises tungstene assorties', cat:'outils', qte:8, seuil:4, prix:15 },
+  { id:11, nom:'Colle neoprene (flacons)', cat:'outils', qte:5, seuil:3, prix:9 },
+  { id:12, nom:'Bistouris jetables', cat:'consommables', qte:40, seuil:20, prix:1.2 },
+  { id:13, nom:'Gants nitrile (boites 100)', cat:'consommables', qte:8, seuil:4, prix:14 },
+  { id:14, nom:'Desinfectant instruments (1L)', cat:'consommables', qte:3, seuil:2, prix:18 },
+  { id:15, nom:'Compresses steriles (paquets)', cat:'consommables', qte:20, seuil:10, prix:3.5 },
+];
+
+// ================================================
+// RENDER: PATIENTS
+// ================================================
+let patientsData = [...DEMO_PATIENTS];
+
+function renderPatients() {
+  const tbody = document.getElementById('patients-body');
+  const search = (document.getElementById('search-patients')?.value || '').toLowerCase();
+  const pathoFilter = document.getElementById('filter-patho')?.value || '';
+  const semelleFilter = document.getElementById('filter-semelle')?.value || '';
+
+  let filtered = patientsData.filter(p => {
+    if (search && !(p.nom + ' ' + p.prenom).toLowerCase().includes(search)) return false;
+    if (pathoFilter && p.patho !== pathoFilter) return false;
+    if (semelleFilter === 'oui' && !p.semellesActives) return false;
+    if (semelleFilter === 'non' && p.semellesActives) return false;
+    return true;
+  });
+
+  document.getElementById('patients-count').textContent = filtered.length + ' patient' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucun patient trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const pathoBadge = pathoLabel(p.patho);
+    const semelleBadge = p.semellesActives
+      ? '<span class="badge badge-ok">' + semelleTypeLabel(p.semelleType) + '</span>'
+      : '<span class="badge" style="background:var(--surface2);color:var(--muted);">Aucune</span>';
+    const derniereVisite = formatDate(p.derniereVisite);
+    const prochaine = p.prochaine ? formatDate(p.prochaine) : '<span style="color:var(--muted);">--</span>';
+    return '<tr>' +
+      '<td><div style="font-weight:500;">' + esc(p.nom) + ' ' + esc(p.prenom) + '</div><div style="font-size:11px;color:var(--muted);">' + esc(p.email) + '</div></td>' +
+      '<td>' + pathoBadge + '</td>' +
+      '<td>' + derniereVisite + '</td>' +
+      '<td>' + semelleBadge + '</td>' +
+      '<td>' + prochaine + '</td>' +
+      '<td><div class="action-btns">' +
+        '<button class="icon-btn cmd" title="Dossier patient" aria-label="Voir le dossier" onclick="showToast(\'Dossier patient -- a venir\')">&#x1F4C4;</button>' +
+        '<button class="icon-btn" title="Bilan podologique" aria-label="Bilan podologique" onclick="showToast(\'Bilan -- a venir\')">&#x1F9FE;</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filterPatients() { renderPatients(); }
+
+// ================================================
+// RENDER: CONSULTATIONS DU JOUR (TIMELINE)
+// ================================================
+function renderConsultations() {
+  const container = document.getElementById('timeline-body');
+  const today = new Date();
+  document.getElementById('consult-date-label').textContent = today.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  container.innerHTML = DEMO_CONSULTS.map(c => {
+    let dotClass = '';
+    let statutBadge = '';
+    if (c.statut === 'fait') { dotClass = 'done'; statutBadge = '<span class="badge badge-ok tl-badge">Termine</span>'; }
+    else if (c.statut === 'en_cours') { dotClass = 'active'; statutBadge = '<span class="badge badge-accent tl-badge">En cours</span>'; }
+    else { dotClass = ''; statutBadge = '<span class="badge tl-badge" style="background:var(--surface2);color:var(--muted);">A venir</span>'; }
+
+    return '<div class="tl-item">' +
+      '<div class="tl-dot ' + dotClass + '"></div>' +
+      '<div class="tl-time">' + esc(c.heure) + ' -- ' + c.duree + ' min</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+        '<span class="tl-patient">' + esc(c.patient) + '</span>' +
+        pathoLabel(c.patho) +
+        statutBadge +
+      '</div>' +
+      '<div class="tl-detail">' + esc(c.note) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ================================================
+// RENDER: PLANNING
+// ================================================
+let planningRendered = false;
+let planningWeekOffset = 0;
+
+function renderPlanning() {
+  planningRendered = true;
+  const container = document.getElementById('planning-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + planningWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+  const creneaux = ['08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+
+  var rdvs = [
+    { jour:0, heure:'08:30', duree:30, patient:'Lefevre Pierre', note:'Controle pied diabetique' },
+    { jour:0, heure:'09:00', duree:45, patient:'Marchand Sophie', note:'Ajustement semelles' },
+    { jour:0, heure:'10:30', duree:45, patient:'Rousseau Camille', note:'Bilan sportif complet' },
+    { jour:0, heure:'14:00', duree:45, patient:'Lambert Luc', note:'Bilan annuel diabete' },
+    { jour:0, heure:'15:30', duree:45, patient:'Moreau Julie', note:'Premiere consultation' },
+    { jour:1, heure:'09:00', duree:30, patient:'Garcia Antoine', note:'Remise semelles' },
+    { jour:1, heure:'10:00', duree:45, patient:'Bernard Claire', note:'Prise empreinte' },
+    { jour:1, heure:'14:30', duree:30, patient:'Thomas Henri', note:'Controle semelles' },
+    { jour:2, heure:'09:00', duree:30, patient:'Petit Manon', note:'Essayage semelles enfant' },
+    { jour:2, heure:'10:00', duree:45, patient:'Nouveau patient', note:'Premiere consultation' },
+    { jour:2, heure:'14:00', duree:30, patient:'Lefevre Pierre', note:'Soins pieds diabetiques' },
+    { jour:3, heure:'09:30', duree:45, patient:'Rousseau Camille', note:'Controle semelles sport' },
+    { jour:3, heure:'14:00', duree:30, patient:'Garcia Antoine', note:'Suivi talalgie' },
+    { jour:4, heure:'09:00', duree:45, patient:'Marchand Sophie', note:'Controle progression' },
+    { jour:4, heure:'10:00', duree:30, patient:'Dupont Marc', note:'Bilan posturologique' },
+    { jour:4, heure:'15:00', duree:45, patient:'Lambert Luc', note:'Soins et surveillance' },
+  ];
+
+  var html = '<table style="min-width:700px;">';
+  html += '<thead><tr><th style="width:80px;">Heure</th>';
+  for (var j = 0; j < 5; j++) {
+    var d = new Date(start);
+    d.setDate(d.getDate() + j);
+    var isToday = d.toDateString() === today.toDateString();
+    html += '<th style="' + (isToday ? 'color:var(--accent);' : '') + '">' + jours[j] + ' ' + d.getDate() + '/' + (d.getMonth()+1) + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  creneaux.forEach(function(h) {
+    html += '<tr><td style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 12px;">' + h + '</td>';
+    for (var j = 0; j < 5; j++) {
+      var rdv = rdvs.find(function(r) { return r.jour === j && r.heure === h; });
+      if (rdv) {
+        var color = rdv.duree === 45 ? 'var(--accent)' : 'var(--green)';
+        html += '<td style="padding:4px;">' +
+          '<div style="background:' + color + '15;border-left:3px solid ' + color + ';border-radius:6px;padding:8px 10px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'\'">' +
+            '<div style="font-size:12px;font-weight:600;">' + esc(rdv.patient) + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + rdv.duree + ' min -- ' + esc(rdv.note) + '</div>' +
+          '</div>' +
+        '</td>';
+      } else {
+        html += '<td style="padding:4px;"></td>';
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function planningPrev() { planningWeekOffset--; renderPlanning(); }
+function planningNext() { planningWeekOffset++; renderPlanning(); }
+function planningToday() { planningWeekOffset = 0; renderPlanning(); }
+
+// ================================================
+// RENDER: SEMELLES PIPELINE
+// ================================================
+let semellesData = [...DEMO_SEMELLES];
+
+function renderSemelles() {
+  var tbody = document.getElementById('semelles-body');
+  var search = (document.getElementById('search-semelles')?.value || '').toLowerCase();
+  var statutFilter = document.getElementById('filter-sem-statut')?.value || '';
+
+  var filtered = semellesData.filter(function(s) {
+    if (search && !s.patient.toLowerCase().includes(search)) return false;
+    if (statutFilter && s.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('semelles-count').textContent = filtered.length + ' semelle' + (filtered.length > 1 ? 's' : '');
+
+  // Pipeline KPIs
+  var nbCmd = semellesData.filter(function(s) { return s.statut === 'commande'; }).length;
+  var nbFab = semellesData.filter(function(s) { return s.statut === 'fabrication'; }).length;
+  var nbPretes = semellesData.filter(function(s) { return s.statut === 'livraison' || s.statut === 'essayage'; }).length;
+  document.getElementById('sem-commande').textContent = nbCmd;
+  document.getElementById('sem-fabrication').textContent = nbFab;
+  document.getElementById('sem-pretes').textContent = nbPretes;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucune semelle trouvee</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(s) {
+    var currentIdx = PIPELINE_STEPS.indexOf(s.statut);
+    var pipelineHtml = '<div class="pipeline">';
+    PIPELINE_STEPS.forEach(function(step, i) {
+      var cls = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'pending';
+      pipelineHtml += '<span class="pip-step ' + cls + '">' + PIPELINE_LABELS[step] + '</span>';
+      if (i < PIPELINE_STEPS.length - 1) pipelineHtml += '<span class="pip-arrow">&#9654;</span>';
+    });
+    pipelineHtml += '</div>';
+
+    return '<tr>' +
+      '<td style="font-family:var(--mono);font-size:12px;">' + esc(s.id) + '</td>' +
+      '<td><div style="font-weight:500;">' + esc(s.patient) + '</div><div style="font-size:11px;color:var(--muted);">Pointure ' + s.pointure + '</div></td>' +
+      '<td><span class="badge badge-accent">' + semelleTypeLabel(s.type) + '</span></td>' +
+      '<td>' + pipelineHtml + '</td>' +
+      '<td>' + formatDate(s.dateCmd) + '</td>' +
+      '<td><div class="action-btns">' +
+        '<button class="icon-btn cmd" title="Avancer etape" aria-label="Avancer etape" onclick="avancerSemelle(\'' + s.id + '\')">&#x27A1;</button>' +
+        '<button class="icon-btn" title="Voir detail" aria-label="Voir detail" onclick="showToast(\'Detail semelle -- a venir\')">&#x1F4C4;</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filterSemelles() { renderSemelles(); }
+
+function avancerSemelle(id) {
+  var sem = semellesData.find(function(s) { return s.id === id; });
+  if (!sem) return;
+  var idx = PIPELINE_STEPS.indexOf(sem.statut);
+  if (idx < PIPELINE_STEPS.length - 1) {
+    sem.statut = PIPELINE_STEPS[idx + 1];
+    renderSemelles();
+    showToast('Semelle ' + id + ' avancee : ' + PIPELINE_LABELS[sem.statut]);
+  } else {
+    showToast('Cette semelle est deja validee');
+  }
+}
+
+// ================================================
+// RENDER: BILANS PODOLOGIQUES
+// ================================================
+function renderBilans() {
+  var container = document.getElementById('bilans-list');
+  var search = (document.getElementById('search-bilan')?.value || '').toLowerCase();
+
+  var filtered = DEMO_BILANS.filter(function(b) {
+    if (search && !b.patient.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F9FE;</div><div class="empty-title">Aucun bilan trouve</div><div class="empty-sub">Vos bilans podologiques apparaitront ici.</div></div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(function(b) {
+    return '<div class="bilan-section">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+        '<div>' +
+          '<div style="font-family:var(--font-display);font-size:16px;font-weight:700;">' + esc(b.patient) + '</div>' +
+          '<div style="font-size:12px;color:var(--muted);margin-top:2px;">Bilan du ' + formatDate(b.date) + '</div>' +
+        '</div>' +
+        '<button class="btn btn-ghost" onclick="showToast(\'Export PDF -- a venir\')">Exporter PDF</button>' +
+      '</div>' +
+      '<div class="bilan-row"><span class="bilan-label">Examen statique</span><span class="bilan-value">' + esc(b.statique) + '</span></div>' +
+      '<div class="bilan-row"><span class="bilan-label">Examen dynamique</span><span class="bilan-value">' + esc(b.dynamique) + '</span></div>' +
+      '<div class="bilan-row"><span class="bilan-label">Plateforme de pression</span><span class="bilan-value">' + esc(b.pression) + '</span></div>' +
+      '<div class="bilan-row"><span class="bilan-label">Recommandations</span><span class="bilan-value" style="color:var(--accent);">' + esc(b.reco) + '</span></div>' +
+    '</div>';
+  }).join('');
+}
+
+function filterBilans() { renderBilans(); }
+
+// ================================================
+// RENDER: STOCK
+// ================================================
+let stockData = [...DEMO_STOCK];
+
+function renderStock() {
+  var tbody = document.getElementById('stock-body');
+  var search = (document.getElementById('search-stock')?.value || '').toLowerCase();
+  var catFilter = document.getElementById('filter-stock-cat')?.value || '';
+
+  var filtered = stockData.filter(function(s) {
+    if (search && !s.nom.toLowerCase().includes(search)) return false;
+    if (catFilter && s.cat !== catFilter) return false;
+    return true;
+  });
+
+  document.getElementById('stock-count').textContent = filtered.length + ' produit' + (filtered.length > 1 ? 's' : '');
+
+  var total = stockData.length, crit = 0, warn = 0, valeur = 0;
+  stockData.forEach(function(s) {
+    if (s.qte <= s.seuil * 0.5) crit++;
+    else if (s.qte <= s.seuil) warn++;
+    valeur += s.qte * s.prix;
+  });
+  document.getElementById('stock-total').textContent = total;
+  document.getElementById('stock-crit').textContent = crit;
+  document.getElementById('stock-warn').textContent = warn;
+  document.getElementById('stock-valeur').textContent = fmtEur(valeur);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucun produit trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(s) {
+    var ratio = s.qte / s.seuil;
+    var badge, barColor;
+    if (ratio <= 0.5) { badge = '<span class="badge badge-crit">Critique</span>'; barColor = 'var(--red)'; }
+    else if (ratio <= 1) { badge = '<span class="badge badge-warn">Faible</span>'; barColor = 'var(--amber)'; }
+    else { badge = '<span class="badge badge-ok">OK</span>'; barColor = 'var(--green)'; }
+    var barPct = Math.min(100, Math.round((s.qte / (s.seuil * 2)) * 100));
+    var catLabel = stockCatLabel(s.cat);
+    return '<tr>' +
+      '<td><div style="font-weight:500;">' + esc(s.nom) + '</div></td>' +
+      '<td><span class="badge badge-blue">' + catLabel + '</span></td>' +
+      '<td><div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:' + barPct + '%;background:' + barColor + ';"></div></div><span class="qty-num">' + s.qte + '</span></div></td>' +
+      '<td style="font-size:12px;font-family:var(--mono);color:var(--muted);">' + s.seuil + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td><div class="action-btns"><button class="icon-btn cmd" title="Commander" aria-label="Commander" onclick="showToast(\'Commande rapide -- a venir\')">&#x1F6D2;</button></div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filterStock() { renderStock(); }
+
+// ================================================
+// RENDER: COMPTABILITE
+// ================================================
+function renderCompta() {
+  var recettes = 8650;
+  var depenses = 2180;
+  var net = recettes - depenses;
+  var marge = Math.round((net / recettes) * 100);
+
+  document.getElementById('compta-recettes').textContent = fmtEur(recettes);
+  document.getElementById('compta-depenses').textContent = fmtEur(depenses);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+  document.getElementById('compta-marge').textContent = marge + '%';
+
+  var recDetail = [
+    { label: 'Consultations podologiques', montant: 3200 },
+    { label: 'Semelles orthopediques', montant: 3800 },
+    { label: 'Soins pieds diabetiques', montant: 850 },
+    { label: 'Bilans podologiques', montant: 520 },
+    { label: 'Soins de pedicurie', montant: 280 },
+  ];
+  document.getElementById('compta-recettes-detail').innerHTML = recDetail.map(function(r) {
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+      '<span>' + r.label + '</span><span style="font-family:var(--mono);font-weight:500;">' + fmtEur(r.montant) + '</span>' +
+    '</div>';
+  }).join('');
+
+  var depDetail = [
+    { label: 'Materiaux fabrication semelles', montant: 980 },
+    { label: 'Consommables cabinet', montant: 420 },
+    { label: 'Outils et equipement', montant: 350 },
+    { label: 'Charges fixes', montant: 430 },
+  ];
+  document.getElementById('compta-depenses-detail').innerHTML = depDetail.map(function(r) {
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+      '<span>' + r.label + '</span><span style="font-family:var(--mono);font-weight:500;color:var(--red);">' + fmtEur(r.montant) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// ================================================
+// RENDER: STATISTIQUES
+// ================================================
+function renderStats() {
+  document.getElementById('stat-consult-mois').textContent = '142';
+  document.getElementById('stat-renouvellement').textContent = '78%';
+  document.getElementById('stat-semelles-mois').textContent = '18';
+  document.getElementById('stat-panier').textContent = '61 EUR';
+
+  var pathoStats = [
+    { label: 'Hallux valgus', pct: 25, color: 'var(--accent)' },
+    { label: 'Epine calcaneenne', pct: 18, color: 'var(--amber)' },
+    { label: 'Pied diabetique', pct: 20, color: 'var(--red)' },
+    { label: 'Podologie du sport', pct: 22, color: 'var(--green)' },
+    { label: 'Podologie enfant', pct: 8, color: 'var(--blue)' },
+    { label: 'Troubles posturaux', pct: 7, color: 'var(--purple)' },
+  ];
+  document.getElementById('stats-patho-detail').innerHTML = pathoStats.map(function(p) {
+    return '<div style="margin-bottom:12px;">' +
+      '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>' + p.label + '</span><span style="font-family:var(--mono);color:var(--muted);">' + p.pct + '%</span></div>' +
+      '<div class="progress-bar" style="height:6px;"><div class="progress-fill" style="width:' + p.pct + '%;background:' + p.color + ';height:100%;"></div></div>' +
+    '</div>';
+  }).join('');
+
+  var mensuelStats = [
+    { mois: 'Janvier', consult: 128, semelles: 14 },
+    { mois: 'Fevrier', consult: 135, semelles: 16 },
+    { mois: 'Mars', consult: 148, semelles: 19 },
+    { mois: 'Avril', consult: 142, semelles: 18 },
+  ];
+  document.getElementById('stats-mensuel-detail').innerHTML = mensuelStats.map(function(m) {
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+      '<span>' + m.mois + '</span>' +
+      '<span style="color:var(--muted);">' + m.consult + ' consult.</span>' +
+      '<span style="font-family:var(--mono);font-weight:500;color:var(--accent);">' + m.semelles + ' semelles</span>' +
+    '</div>';
+  }).join('');
+}
+
+// ================================================
+// KPI UPDATE
+// ================================================
+function updateKPIs() {
+  var actifs = patientsData.length;
+  var consultAujourdhui = DEMO_CONSULTS.length;
+  var semellesFab = semellesData.filter(function(s) { return s.statut === 'fabrication'; }).length;
+  var caMois = 8650;
+
+  document.getElementById('kpi-patients').textContent = actifs;
+  document.getElementById('kpi-consult').textContent = consultAujourdhui;
+  document.getElementById('kpi-semelles').textContent = semellesFab;
+  document.getElementById('kpi-ca').textContent = fmtEur(caMois);
+}
+
+// ================================================
+// FORM ACTIONS (DEMO)
+// ================================================
+function ajouterPatient() {
+  var nom = document.getElementById('pat-nom').value.trim();
+  var prenom = document.getElementById('pat-prenom').value.trim();
+  if (!nom || !prenom) { showToast('Veuillez renseigner le nom et le prenom'); return; }
+
+  patientsData.push({
+    id: Date.now(),
+    nom: nom,
+    prenom: prenom,
+    ddn: document.getElementById('pat-ddn').value || '1990-01-01',
+    tel: document.getElementById('pat-tel').value,
+    email: document.getElementById('pat-email').value,
+    patho: document.getElementById('pat-patho').value,
+    derniereVisite: new Date().toISOString().slice(0,10),
+    semellesActives: false,
+    semelleType: null,
+    prochaine: null,
+    notes: document.getElementById('pat-notes').value
+  });
+
+  fermerModal('modal-patient');
+  renderPatients();
+  updateKPIs();
+  showToast('Patient ajoute avec succes');
+  ['pat-nom','pat-prenom','pat-ddn','pat-tel','pat-email','pat-notes'].forEach(function(id) { document.getElementById(id).value = ''; });
+}
+
+function creerSemelle() {
+  var patient = document.getElementById('sem-patient').value.trim();
+  if (!patient) { showToast('Veuillez renseigner le nom du patient'); return; }
+
+  semellesData.unshift({
+    id: 'SEM-2026-' + String(48 + semellesData.length).padStart(3,'0'),
+    patient: patient,
+    type: document.getElementById('sem-type').value,
+    statut: 'commande',
+    dateCmd: new Date().toISOString().slice(0,10),
+    pointure: parseInt(document.getElementById('sem-pointure').value) || 40
+  });
+
+  fermerModal('modal-semelle');
+  renderSemelles();
+  updateKPIs();
+  showToast('Commande de semelles enregistree');
+  ['sem-patient','sem-pointure','sem-notes'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+}
+
+function creerBilan() {
+  showToast('Bilan podologique enregistre (demo)');
+  fermerModal('modal-bilan');
+}
+
+// ================================================
+// HELPERS
+// ================================================
+function esc(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtEur(n) {
+  if (n == null || isNaN(n)) return '--';
+  return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' EUR';
+}
+
+function formatDate(str) {
+  if (!str) return '--';
+  var d = new Date(str);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function pathoLabel(patho) {
+  var map = {
+    hallux_valgus: { label: 'Hallux valgus', cls: 'badge-accent' },
+    epine_calcan: { label: 'Epine calcan.', cls: 'badge-warn' },
+    diabete: { label: 'Pied diabetique', cls: 'badge-crit' },
+    sport: { label: 'Sport', cls: 'badge-ok' },
+    enfant: { label: 'Enfant', cls: 'badge-blue' },
+    posture: { label: 'Posture', cls: 'badge-purple' },
+  };
+  var m = map[patho] || { label: patho || '--', cls: 'badge-ok' };
+  return '<span class="badge ' + m.cls + '">' + m.label + '</span>';
+}
+
+function semelleTypeLabel(type) {
+  var map = {
+    thermoformee: 'Thermoformee',
+    resine: 'Resine',
+    sport: 'Sport',
+    diabetique: 'Diabetique',
+    enfant: 'Enfant'
+  };
+  return map[type] || type || '--';
+}
+
+function stockCatLabel(cat) {
+  var map = {
+    moulage: 'Moulage', resine: 'Resine', mousse: 'Mousse / Revetement',
+    outils: 'Outils', consommables: 'Consommables'
+  };
+  return map[cat] || cat;
+}
+
+// ================================================
+// INIT
+// ================================================
+document.addEventListener('DOMContentLoaded', async function() {
+  var session = await checkAuth();
+  updateKPIs();
+  renderPatients();
+  renderConsultations();
+  renderSemelles();
+  renderBilans();
+  renderStock();
+  renderCompta();
+  renderStats();
+});
+</script>
+</body>
+</html>

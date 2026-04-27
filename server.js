@@ -3221,6 +3221,16 @@ app.get('/ide/', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/das
 app.get('/orthodontiste', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
 app.get('/orthodontiste/', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
 
+// Route module Medecin generaliste
+app.get('/medecin', (req, res) => res.sendFile(path.join(__dirname, 'public/medecin/dashboard.html')));
+app.get('/medecin/', (req, res) => res.sendFile(path.join(__dirname, 'public/medecin/dashboard.html')));
+app.get('/kine', (req, res) => res.sendFile(path.join(__dirname, 'public/kine/dashboard.html')));
+app.get('/kine/', (req, res) => res.sendFile(path.join(__dirname, 'public/kine/dashboard.html')));
+app.get('/sage-femme', (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
+app.get('/sage-femme/', (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
+app.get('/podologue', (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
+app.get('/podologue/', (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
+
 // GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
 app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
   try {
