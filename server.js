@@ -6115,6 +6115,157 @@ app.get('/api/documents/categories', requireAuth(), async (req, res) => {
 });
 
 // ============================================================
+// DOCUMENT UPLOAD & DELETE (Passe upload)
+// ============================================================
+
+const multer = require('multer');
+
+// Multer config: 20MB max, PDF/JPG/PNG/DOCX only (MIME validated)
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.docx'];
+
+const uploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'docs', 'uploads');
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(uploadDir)) fsMod.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+
+const uploadMiddleware = multer({
+  storage: uploadStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype) || !ALLOWED_EXTENSIONS.includes(ext)) {
+      return cb(new Error('Type de fichier non autorise. Formats acceptes : PDF, JPG, PNG, DOCX.'));
+    }
+    cb(null, true);
+  }
+}).single('file');
+
+// POST /api/documents/upload — Upload a document (PDF, JPG, PNG, DOCX)
+app.post('/api/documents/upload', requireAuth(), (req, res) => {
+  uploadMiddleware(req, res, async (multerErr) => {
+    try {
+      if (multerErr) {
+        const status = multerErr.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        return res.status(status).json({ error: multerErr.message });
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'Aucun fichier fourni.' });
+      }
+
+      const { title, category, subcategory } = req.body;
+      if (!title || !title.trim()) {
+        return res.status(400).json({ error: 'Le champ title est obligatoire.' });
+      }
+
+      const validCategories = ['contrat', 'facture', 'devis', 'avocat', 'juridique', 'administratif', 'mandat', 'autre'];
+      const cat = (category || 'autre').toLowerCase();
+      if (!validCategories.includes(cat)) {
+        return res.status(400).json({ error: `Categorie invalide. Valeurs acceptees : ${validCategories.join(', ')}` });
+      }
+
+      const filePath = `docs/uploads/${req.file.filename}`;
+
+      const { data: doc, error } = await supabase.from('signed_documents').insert({
+        societe_id: req.user.societe_id || null,
+        user_id: req.user.id,
+        title: title.trim(),
+        category: cat,
+        subcategory: subcategory ? subcategory.trim() : null,
+        status: 'uploaded',
+        file_path: filePath
+      }).select().single();
+
+      if (error) {
+        // Clean up uploaded file if DB insert failed
+        const fsMod = require('fs');
+        const fullPath = path.join(__dirname, filePath);
+        if (fsMod.existsSync(fullPath)) fsMod.unlinkSync(fullPath);
+        throw error;
+      }
+
+      console.log(`[POST /api/documents/upload] Document uploaded: ${doc.id} by user ${req.user.id}`);
+      res.status(201).json({ ok: true, document: doc });
+    } catch (e) {
+      // Clean up uploaded file on any unexpected error
+      if (req.file) {
+        const fsMod = require('fs');
+        const fullPath = path.join(__dirname, 'docs', 'uploads', req.file.filename);
+        try { if (fsMod.existsSync(fullPath)) fsMod.unlinkSync(fullPath); } catch (_) { /* ignore cleanup error */ }
+      }
+      console.error('[POST /api/documents/upload]', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+});
+
+// DELETE /api/documents/signed/:id — Supprimer un document
+app.delete('/api/documents/signed/:id', requireAuth(), async (req, res) => {
+  try {
+    const docId = req.params.id;
+
+    // Validate UUID format to prevent log injection
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(docId)) {
+      return res.status(400).json({ error: 'ID invalide.' });
+    }
+
+    // Verify ownership
+    const { data: doc, error: fetchErr } = await supabase.from('signed_documents')
+      .select('id, societe_id, user_id, file_path')
+      .eq('id', docId)
+      .single();
+
+    if (fetchErr || !doc) {
+      return res.status(404).json({ error: 'Document introuvable.' });
+    }
+
+    // Check permission: owner OR same societe (both non-null)
+    const isOwner = doc.user_id === req.user.id;
+    const sameSociete = doc.societe_id != null && req.user.societe_id != null && doc.societe_id === req.user.societe_id;
+    if (!isOwner && !sameSociete) {
+      return res.status(403).json({ error: 'Acces refuse.' });
+    }
+
+    // Delete file from disk if it exists (with path containment check)
+    if (doc.file_path) {
+      const fsMod = require('fs');
+      const fullPath = path.resolve(__dirname, doc.file_path);
+      const uploadsDir = path.resolve(__dirname, 'docs', 'uploads');
+      if (fullPath.startsWith(uploadsDir + path.sep) && fsMod.existsSync(fullPath)) {
+        fsMod.unlinkSync(fullPath);
+      }
+    }
+
+    // Hard delete from database
+    const { error: delErr } = await supabase.from('signed_documents')
+      .delete()
+      .eq('id', docId);
+
+    if (delErr) throw delErr;
+
+    console.log(`[DELETE /api/documents/signed/${docId}] Deleted by user ${req.user.id}`);
+    res.json({ ok: true, deleted: docId });
+  } catch (e) {
+    console.error('[DELETE /api/documents/signed]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
 // JADOMI COMMERCE — Checkout Amazon-like + Stripe Connect
 // ============================================================
 

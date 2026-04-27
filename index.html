@@ -297,6 +297,8 @@ tbody tr:hover td{background:var(--surface2);}
 <style>
 @keyframes msFadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes msSlideUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
 .ms-obx{max-width:720px;margin:0 auto;padding:60px 24px;animation:msSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) both;}
 .ms-obx h1{font-family:'Syne',sans-serif;font-size:clamp(28px,4.5vw,38px);font-weight:800;letter-spacing:-1.5px;margin-bottom:10px;color:#f0ede8;line-height:1.15;}
 .ms-obx .ms-wave{display:inline-block;animation:msWave 1.6s ease-in-out infinite;transform-origin:70% 70%;}
@@ -1096,24 +1098,71 @@ tbody tr:hover td{background:var(--surface2);}
 
     <!-- MES DOCUMENTS -->
     <div class="page" id="page-documents">
+
+      <!-- BARRE D'ACTIONS -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:20px;">
+        <button onclick="ouvrirModalUploadDoc()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s cubic-bezier(.16,1,.3,1);font-family:var(--font);" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importer un document
+        </button>
+        <div style="flex:1;min-width:180px;max-width:320px;position:relative;">
+          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="doc-search-input" type="text" placeholder="Rechercher un document..." oninput="filtrerDocumentsUI()" style="width:100%;padding:10px 12px 10px 36px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+        </div>
+        <select id="filter-doc-category" onchange="filtrerDocumentsUI()" style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;cursor:pointer;">
+          <option value="">Toutes catégories</option>
+          <option value="contrat">Contrats</option>
+          <option value="facture">Factures</option>
+          <option value="devis">Devis</option>
+          <option value="juridique">Juridique</option>
+          <option value="avocat">Avocat</option>
+          <option value="administratif">Administratif</option>
+          <option value="autre">Autre</option>
+        </select>
+        <select id="filter-doc-status" onchange="filtrerDocumentsUI()" style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;cursor:pointer;">
+          <option value="">Tous statuts</option>
+          <option value="signe">Signé</option>
+          <option value="uploaded">Uploadé</option>
+          <option value="en_attente">En attente</option>
+          <option value="expire">Expiré</option>
+        </select>
+      </div>
+
+      <!-- CONTRATS ACTIFS -->
       <div class="card" style="margin-bottom:16px;">
         <div class="card-head"><div class="card-title">Contrats actifs</div></div>
         <div id="contrats-actifs" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
       </div>
+
+      <!-- VUE DOSSIERS (grille catégories) -->
+      <div id="doc-folders-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;"></div>
+
+      <!-- LISTE DES DOCUMENTS -->
       <div class="card">
         <div class="card-head">
-          <div class="card-title">Tous mes documents</div>
-          <div style="display:flex;gap:6px;">
-            <select id="filter-doc-type" class="filter-select" onchange="chargerDocuments()" style="font-size:11px;padding:5px 8px;">
-              <option value="">Tous types</option>
-              <option value="contrat_abonnement">Contrats</option>
-              <option value="resiliation">Résiliations</option>
-              <option value="devis">Devis</option>
-              <option value="facture">Factures</option>
-            </select>
-          </div>
+          <div class="card-title" id="doc-list-title">Tous mes documents</div>
+          <div id="doc-active-folder-badge" style="display:none;"></div>
         </div>
-        <div id="documents-liste" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
+        <div style="overflow-x:auto;">
+          <table id="documents-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);">
+                <th style="text-align:left;padding:12px 16px;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Nom</th>
+                <th style="text-align:left;padding:12px 16px;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Catégorie</th>
+                <th style="text-align:left;padding:12px 16px;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Statut</th>
+                <th style="text-align:left;padding:12px 16px;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Date</th>
+                <th style="text-align:right;padding:12px 16px;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="documents-liste"></tbody>
+          </table>
+        </div>
+        <div id="doc-empty-state" style="display:none;padding:40px 16px;text-align:center;">
+          <svg style="margin:0 auto 12px;opacity:.5;" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div style="color:var(--muted);font-size:13px;">Aucun document trouvé</div>
+        </div>
+        <!-- Pagination -->
+        <div id="doc-pagination" style="display:none;padding:12px 16px;border-top:1px solid var(--border);align-items:center;justify-content:center;gap:8px;"></div>
       </div>
     </div>
 
@@ -5405,16 +5454,100 @@ Donne: Top 5 themes recurrents, Recommandations roadmap prioritaires, Tendance g
 // ═══════════════════════════════════
 let mesContrats=JSON.parse(localStorage.getItem('jadomi_contrats')||'[]');
 let mesDocuments=JSON.parse(localStorage.getItem('jadomi_documents')||'[]');
+let _docSignedList=[];
+let _docCategories=[];
+let _docCurrentPage=1;
+let _docActiveFolder='';
+const _DOC_PER_PAGE=20;
+
+function _escDoc(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+const _docCategoryMeta={
+  contrat:{label:'Contrats',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'},
+  facture:{label:'Factures',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'},
+  devis:{label:'Devis',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'},
+  juridique:{label:'Juridique',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f472b6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'},
+  avocat:{label:'Avocat',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>'},
+  administratif:{label:'Administratif',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'},
+  autre:{label:'Autre',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>'}
+};
+
+function _docStatusBadge(status){
+  const map={
+    signe:{bg:'rgba(16,185,129,0.15)',color:'#10b981',label:'Signé'},
+    uploaded:{bg:'rgba(56,189,248,0.15)',color:'#38bdf8',label:'Uploadé'},
+    uploade:{bg:'rgba(56,189,248,0.15)',color:'#38bdf8',label:'Uploadé'},
+    en_attente:{bg:'rgba(251,191,36,0.15)',color:'#fbbf24',label:'En attente'},
+    expire:{bg:'rgba(240,80,80,0.15)',color:'#f05050',label:'Expiré'}
+  };
+  const s=map[status]||map.en_attente;
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${s.bg};color:${s.color};">${s.label}</span>`;
+}
+
+function _normalizeDocStatus(d){
+  if(d.status) return d.status;
+  if(d.signe) return 'signe';
+  if(d.statut==='actif') return 'signe';
+  if(d.statut==='expire') return 'expire';
+  return 'en_attente';
+}
+
+function _normalizeDocCategory(d){
+  if(d.category) return d.category;
+  const t=(d.type||'').toLowerCase();
+  if(t.includes('contrat')) return 'contrat';
+  if(t.includes('facture')) return 'facture';
+  if(t.includes('devis')) return 'devis';
+  if(t.includes('resiliation')) return 'juridique';
+  return 'autre';
+}
 
 async function chargerDocuments() {
-  const typeFilter=document.getElementById('filter-doc-type')?.value||'';
-  // Try server
   const userId=window.userInfo?.id;
   if(!userId) return;
-  try {
-    const resp=await fetch('/api/documents/'+userId);
-    if(resp.ok){const data=await resp.json();if(data.contrats)mesContrats=data.contrats;if(data.documents)mesDocuments=data.documents;}
-  }catch(e){}
+
+  // Parallel fetch: signed docs, categories, legacy docs
+  const [signedRes, catRes, legacyRes] = await Promise.allSettled([
+    fetch('/api/documents/signed').then(r=>r.ok?r.json():{documents:[],total:0}).catch(()=>({documents:[],total:0})),
+    fetch('/api/documents/categories').then(r=>r.ok?r.json():[]).catch(()=>[]),
+    fetch('/api/documents/'+userId).then(r=>r.ok?r.json():{}).catch(()=>({}))
+  ]);
+
+  const signedData=signedRes.status==='fulfilled'?signedRes.value:{documents:[],total:0};
+  const catData=catRes.status==='fulfilled'?catRes.value:[];
+  const legacyData=legacyRes.status==='fulfilled'?legacyRes.value:{};
+
+  // Update legacy data
+  if(legacyData.contrats) mesContrats=legacyData.contrats;
+  if(legacyData.documents) mesDocuments=legacyData.documents;
+
+  // Merge: signed docs + legacy docs (deduplicated by id)
+  const signedDocs=(signedData.documents||[]).map(d=>({...d, _source:'signed', _status:_normalizeDocStatus(d), _category:_normalizeDocCategory(d)}));
+  const legacyDocs=(mesDocuments||[]).map(d=>({...d, _source:'legacy', _status:_normalizeDocStatus(d), _category:_normalizeDocCategory(d)}));
+  const seen=new Set();
+  _docSignedList=[];
+  for(const d of [...signedDocs,...legacyDocs]){
+    const key=d.id?'id_'+d.id:(d.nom||d.title||Math.random());
+    if(!seen.has(key)){seen.add(key);_docSignedList.push(d);}
+  }
+
+  // Build categories with counts
+  const catCounts={};
+  for(const d of _docSignedList){
+    const c=d._category;
+    catCounts[c]=(catCounts[c]||0)+1;
+  }
+  // Also merge server categories
+  if(Array.isArray(catData)){
+    for(const c of catData){
+      const k=(c.name||c.category||'').toLowerCase();
+      if(k && !catCounts[k]) catCounts[k]=c.count||0;
+    }
+  }
+  _docCategories=Object.entries(catCounts).sort((a,b)=>b[1]-a[1]);
 
   // Render contrats actifs
   const actifs=mesContrats.filter(c=>c.statut==='actif'||c.statut==='en_attente_signature');
@@ -5422,45 +5555,401 @@ async function chargerDocuments() {
   if(elActifs){
     if(!actifs.length) elActifs.innerHTML='<div style="color:var(--muted);font-size:13px;">Aucun contrat actif</div>';
     else elActifs.innerHTML=actifs.map(c=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
         <div>
-          <div style="font-weight:600;font-size:13px;">${c.cabinet_nom||'Mon cabinet'} · ${(c.plan||'solo').charAt(0).toUpperCase()+(c.plan||'solo').slice(1)} · ${c.prix_mensuel||29}€/mois</div>
-          <div style="font-size:11px;color:var(--muted);">Depuis le ${c.date_debut?new Date(c.date_debut).toLocaleDateString('fr-FR'):''} · ${c.statut==='actif'?'✅ Signé':'⏳ En attente signature'}</div>
+          <div style="font-weight:600;font-size:13px;">${_escDoc(c.cabinet_nom||'Mon cabinet')} · ${_escDoc((c.plan||'solo').charAt(0).toUpperCase()+(c.plan||'solo').slice(1))} · ${_escDoc(c.prix_mensuel||29)}€/mois</div>
+          <div style="font-size:11px;color:var(--muted);">Depuis le ${c.date_debut?new Date(c.date_debut).toLocaleDateString('fr-FR'):''} · ${c.statut==='actif'?'Signé':'En attente signature'}</div>
         </div>
         <div style="display:flex;gap:6px;">
-          ${c.signature_contrat?`<button onclick="window.open('/api/signature/${c.signature_contrat}','_blank')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">Voir</button>`:''}
-          ${c.statut==='actif'?`<button onclick="ouvrirResiliation('${c.id||''}','${(c.cabinet_nom||'').replace(/'/g,"\\'")}','${c.plan||'solo'}',${c.prix_mensuel||29})" style="padding:5px 10px;background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.3);border-radius:6px;color:#f05050;font-size:11px;cursor:pointer;">Résilier</button>`:''}
+          ${c.signature_contrat?`<button onclick="window.open('/api/signature/'+encodeURIComponent('${_escDoc(c.signature_contrat)}'),'_blank')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">Voir</button>`:''}
+          ${c.statut==='actif'?`<button onclick="ouvrirResiliation('${_escDoc(c.id||'')}','${_escDoc((c.cabinet_nom||'').replace(/'/g,""))}','${_escDoc(c.plan||'solo')}',${parseInt(c.prix_mensuel)||29})" style="padding:5px 10px;background:rgba(240,80,80,0.1);border:1px solid rgba(240,80,80,0.3);border-radius:6px;color:#f05050;font-size:11px;cursor:pointer;">Résilier</button>`:''}
         </div>
       </div>`).join('');
   }
 
-  // Render all documents
-  let docs=mesDocuments;
-  if(typeFilter) docs=docs.filter(d=>d.type===typeFilter);
-  const elDocs=document.getElementById('documents-liste');
-  if(elDocs){
-    if(!docs.length) elDocs.innerHTML='<div style="color:var(--muted);font-size:13px;">Aucun document</div>';
-    else elDocs.innerHTML=docs.map(d=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border);">
-        <div>
-          <div style="font-weight:500;font-size:13px;">📄 ${d.nom||d.type}</div>
-          <div style="font-size:11px;color:var(--muted);">${d.created_at?new Date(d.created_at).toLocaleDateString('fr-FR'):''} · ${d.signe?'✅ Signé':'⏳ Non signé'}</div>
-        </div>
-        <div style="display:flex;gap:6px;">
-          ${d.token_signature?`<button onclick="window.open('/api/signature/${d.token_signature}','_blank')" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">Voir</button>`:''}
-          ${d.contenu_html?`<button onclick="telechargerDocPDF(${d.id||0})" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;">PDF</button>`:''}
-        </div>
-      </div>`).join('');
+  // Render folders grid
+  _renderDocFolders();
+
+  // Render documents list
+  _docCurrentPage=1;
+  _renderDocList();
+}
+
+function _renderDocFolders(){
+  const grid=document.getElementById('doc-folders-grid');
+  if(!grid) return;
+  const allCategories=['contrat','facture','devis','juridique','avocat','administratif','autre'];
+  const countMap=Object.fromEntries(_docCategories);
+
+  grid.innerHTML=allCategories.map(key=>{
+    const meta=_docCategoryMeta[key]||_docCategoryMeta.autre;
+    const count=countMap[key]||0;
+    const isActive=_docActiveFolder===key;
+    return `<div onclick="_docSelectFolder('${key}')" style="background:${isActive?'var(--surface2)':'var(--surface)'};border:1px solid ${isActive?'var(--accent)':'var(--border)'};border-radius:14px;padding:18px 16px;cursor:pointer;transition:all .25s cubic-bezier(.16,1,.3,1);text-align:center;${isActive?'box-shadow:0 0 0 2px rgba(99,102,241,0.2);':''}" onmouseover="if(!this.dataset.active)this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="if(!this.dataset.active)this.style.borderColor='${isActive?'var(--accent)':'var(--border)'}';this.style.transform=''" ${isActive?'data-active="1"':''}>
+      <div style="margin-bottom:8px;">${meta.icon}</div>
+      <div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:2px;">${meta.label}</div>
+      <div style="font-size:11px;color:var(--muted);">${count} document${count!==1?'s':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function _docSelectFolder(key){
+  _docActiveFolder=(_docActiveFolder===key)?'':key;
+  _docCurrentPage=1;
+  // Update category dropdown to match
+  const sel=document.getElementById('filter-doc-category');
+  if(sel) sel.value=_docActiveFolder;
+  _renderDocFolders();
+  _renderDocList();
+}
+
+function filtrerDocumentsUI(){
+  const sel=document.getElementById('filter-doc-category');
+  _docActiveFolder=sel?sel.value:'';
+  _docCurrentPage=1;
+  _renderDocFolders();
+  _renderDocList();
+}
+
+function _renderDocList(){
+  const searchVal=(document.getElementById('doc-search-input')?.value||'').toLowerCase().trim();
+  const catFilter=_docActiveFolder;
+  const statusFilter=document.getElementById('filter-doc-status')?.value||'';
+
+  let docs=_docSignedList.filter(d=>{
+    if(catFilter && d._category!==catFilter) return false;
+    if(statusFilter && d._status!==statusFilter) return false;
+    if(searchVal){
+      const name=(d.title||d.nom||d.type||'').toLowerCase();
+      const cat=(d._category||'').toLowerCase();
+      if(!name.includes(searchVal)&&!cat.includes(searchVal)) return false;
+    }
+    return true;
+  });
+
+  // Title
+  const titleEl=document.getElementById('doc-list-title');
+  if(titleEl){
+    if(catFilter){
+      const meta=_docCategoryMeta[catFilter]||_docCategoryMeta.autre;
+      titleEl.textContent=meta.label+' ('+docs.length+')';
+    } else {
+      titleEl.textContent='Tous mes documents ('+docs.length+')';
+    }
+  }
+
+  // Active folder badge
+  const badge=document.getElementById('doc-active-folder-badge');
+  if(badge){
+    if(catFilter){
+      badge.style.display='inline-flex';
+      badge.innerHTML=`<span onclick="_docSelectFolder('')" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--muted);cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">Effacer filtre <span style="font-size:14px;line-height:1;">×</span></span>`;
+    } else {
+      badge.style.display='none';
+    }
+  }
+
+  // Paginate
+  const total=docs.length;
+  const totalPages=Math.max(1,Math.ceil(total/_DOC_PER_PAGE));
+  if(_docCurrentPage>totalPages) _docCurrentPage=totalPages;
+  const start=(_docCurrentPage-1)*_DOC_PER_PAGE;
+  const pageDocs=docs.slice(start,start+_DOC_PER_PAGE);
+
+  // Render rows
+  const tbody=document.getElementById('documents-liste');
+  const emptyEl=document.getElementById('doc-empty-state');
+  if(!tbody) return;
+
+  if(!pageDocs.length){
+    tbody.innerHTML='';
+    if(emptyEl) emptyEl.style.display='block';
+  } else {
+    if(emptyEl) emptyEl.style.display='none';
+    tbody.innerHTML=pageDocs.map(d=>{
+      const name=d.title||d.nom||d.type||'Document';
+      const safeName=_escDoc(name);
+      const safeId=_escDoc(d.id||'');
+      const cat=d._category;
+      const meta=_docCategoryMeta[cat]||_docCategoryMeta.autre;
+      const date=d.created_at?new Date(d.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'--';
+      const statusHtml=_docStatusBadge(d._status);
+
+      // Action buttons
+      let actions='';
+      if(d._source==='signed'&&d.id){
+        actions+=`<button onclick="telechargerDocPDF('${safeId}','signed')" title="Télécharger" style="padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>`;
+      }
+      if(d.token_signature){
+        actions+=`<button onclick="window.open('/api/signature/'+encodeURIComponent('${_escDoc(d.token_signature)}'),'_blank')" title="Voir" style="padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
+      } else if(d.contenu_html){
+        actions+=`<button onclick="telechargerDocPDF(${parseInt(d.id)||0},'legacy')" title="Voir PDF" style="padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></button>`;
+      }
+      if(d._source==='signed'&&d.id){
+        actions+=`<button onclick="_docConfirmDelete('${safeId}')" title="Supprimer" style="padding:5px 8px;background:rgba(240,80,80,0.08);border:1px solid rgba(240,80,80,0.2);border-radius:6px;color:#f05050;font-size:11px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#f05050'" onmouseout="this.style.borderColor='rgba(240,80,80,0.2)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`;
+      }
+
+      return `<tr style="border-bottom:1px solid var(--border);transition:background .15s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+        <td style="padding:12px 16px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${meta.icon.replace(/width="20"/g,'width="16"').replace(/height="20"/g,'height="16"')}</div>
+            <span style="font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;" title="${safeName}">${safeName}</span>
+          </div>
+        </td>
+        <td style="padding:12px 16px;color:var(--muted);font-size:12px;">${meta.label}</td>
+        <td style="padding:12px 16px;">${statusHtml}</td>
+        <td style="padding:12px 16px;color:var(--muted);font-size:12px;white-space:nowrap;">${date}</td>
+        <td style="padding:12px 16px;text-align:right;"><div style="display:flex;gap:4px;justify-content:flex-end;">${actions}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Pagination
+  const pagEl=document.getElementById('doc-pagination');
+  if(pagEl){
+    if(totalPages<=1){
+      pagEl.style.display='none';
+    } else {
+      pagEl.style.display='flex';
+      let pagHtml='';
+      const btnStyle='padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--font);';
+      const btnActiveStyle='padding:6px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:12px;cursor:default;font-weight:600;font-family:var(--font);';
+      if(_docCurrentPage>1) pagHtml+=`<button onclick="_docGoPage(${_docCurrentPage-1})" style="${btnStyle}">Précédent</button>`;
+      for(let i=1;i<=totalPages;i++){
+        if(totalPages>7&&Math.abs(i-_docCurrentPage)>2&&i!==1&&i!==totalPages){
+          if(i===2||i===totalPages-1) pagHtml+=`<span style="color:var(--muted);font-size:12px;padding:0 4px;">...</span>`;
+          continue;
+        }
+        pagHtml+=`<button onclick="_docGoPage(${i})" style="${i===_docCurrentPage?btnActiveStyle:btnStyle}">${i}</button>`;
+      }
+      if(_docCurrentPage<totalPages) pagHtml+=`<button onclick="_docGoPage(${_docCurrentPage+1})" style="${btnStyle}">Suivant</button>`;
+      pagEl.innerHTML=pagHtml;
+    }
   }
 }
 
-function telechargerDocPDF(docId) {
+function _docGoPage(p){
+  _docCurrentPage=p;
+  _renderDocList();
+  document.getElementById('documents-table')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function telechargerDocPDF(docId,source) {
+  if(source==='signed'){
+    // Download from signed endpoint
+    window.open('/api/documents/signed/'+docId+'/download','_blank');
+    return;
+  }
+  // Legacy: open HTML content
   const doc=mesDocuments.find(d=>d.id===docId);
   if(!doc||!doc.contenu_html) return;
   const win=window.open('','_blank');
   win.document.write(doc.contenu_html);
   win.document.close();
   setTimeout(()=>win.print(),500);
+}
+
+function _docConfirmDelete(docId){
+  const safeDocId=_escDoc(docId);
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s cubic-bezier(.16,1,.3,1);';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:400px;width:100%;text-align:center;">
+    <svg style="margin:0 auto 16px;" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#f05050" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    <div style="font-family:var(--font-display);font-size:17px;font-weight:700;margin-bottom:8px;color:var(--text);">Supprimer ce document ?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">Cette action est irréversible. Le document sera définitivement supprimé.</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="this.closest('[style*=fixed]').remove()" style="padding:10px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;cursor:pointer;font-family:var(--font);">Annuler</button>
+      <button onclick="_docDoDelete('${safeDocId}',this)" style="padding:10px 20px;background:#f05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">Supprimer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function _docDoDelete(docId,btn){
+  btn.textContent='Suppression...';
+  btn.disabled=true;
+  try{
+    const resp=await fetch('/api/documents/signed/'+docId,{method:'DELETE'});
+    if(!resp.ok) throw new Error('Erreur suppression');
+    btn.closest('[style*=fixed]').remove();
+    await chargerDocuments();
+  }catch(e){
+    btn.textContent='Erreur';
+    setTimeout(()=>{btn.textContent='Supprimer';btn.disabled=false;},2000);
+  }
+}
+
+function ouvrirModalUploadDoc(){
+  const modal=document.createElement('div');
+  modal.id='modal-upload-doc';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s cubic-bezier(.16,1,.3,1);';
+  modal.onclick=e=>{if(e.target===modal)modal.remove();};
+
+  modal.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;max-width:520px;width:100%;animation:slideUp .35s cubic-bezier(.16,1,.3,1);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <div style="font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--text);">Importer un document</div>
+      <button onclick="this.closest('#modal-upload-doc').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:4px 8px;line-height:1;">×</button>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="upload-drop-zone" style="border:2px dashed var(--border);border-radius:14px;padding:40px 20px;text-align:center;transition:all .25s cubic-bezier(.16,1,.3,1);cursor:pointer;margin-bottom:20px;" onclick="document.getElementById('upload-file-input').click()">
+      <svg style="margin:0 auto 12px;" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div style="font-size:14px;color:var(--text);font-weight:500;margin-bottom:4px;">Glissez votre fichier ici</div>
+      <div style="font-size:12px;color:var(--muted);">ou cliquez pour parcourir</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">PDF, JPG, PNG, DOCX — Max 20 Mo</div>
+      <input type="file" id="upload-file-input" accept=".pdf,.jpg,.jpeg,.png,.docx" style="display:none;" onchange="_docFileSelected(this)"/>
+    </div>
+
+    <!-- File preview (hidden initially) -->
+    <div id="upload-file-preview" style="display:none;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div id="upload-file-name" style="font-size:13px;font-weight:500;color:var(--text);"></div>
+          <div id="upload-file-meta" style="font-size:11px;color:var(--muted);margin-top:2px;"></div>
+        </div>
+        <button onclick="_docClearFile()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">×</button>
+      </div>
+    </div>
+
+    <!-- Fields -->
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Titre du document</label>
+      <input id="upload-doc-title" type="text" placeholder="Ex: Contrat de prestation" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:20px;">
+      <div style="flex:1;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Catégorie</label>
+        <select id="upload-doc-category" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;">
+          <option value="contrat">Contrats</option>
+          <option value="facture">Factures</option>
+          <option value="devis">Devis</option>
+          <option value="juridique">Juridique</option>
+          <option value="avocat">Avocat</option>
+          <option value="administratif">Administratif</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;">Sous-dossier (optionnel)</label>
+        <input id="upload-doc-subcategory" type="text" placeholder="Ex: 2026" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <button id="upload-doc-submit" onclick="_docDoUpload()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .2s cubic-bezier(.16,1,.3,1);" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Importer</button>
+    <div id="upload-doc-msg" style="margin-top:12px;text-align:center;font-size:13px;display:none;"></div>
+  </div>`;
+
+  document.body.appendChild(modal);
+
+  // Setup drag & drop
+  const zone=document.getElementById('upload-drop-zone');
+  if(zone){
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.style.borderColor='var(--accent)';zone.style.background='rgba(99,102,241,0.06)';});
+    zone.addEventListener('dragleave',e=>{e.preventDefault();zone.style.borderColor='var(--border)';zone.style.background='transparent';});
+    zone.addEventListener('drop',e=>{
+      e.preventDefault();zone.style.borderColor='var(--border)';zone.style.background='transparent';
+      if(e.dataTransfer.files.length){
+        document.getElementById('upload-file-input').files=e.dataTransfer.files;
+        _docFileSelected(document.getElementById('upload-file-input'));
+      }
+    });
+  }
+}
+
+function _docFileSelected(input){
+  const file=input.files[0];
+  if(!file) return;
+  const maxSize=20*1024*1024;
+  const allowed=['application/pdf','image/jpeg','image/png','application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  if(!allowed.includes(file.type)){
+    _docUploadMsg('Type de fichier non supporté. Acceptés : PDF, JPG, PNG, DOCX','#f05050');
+    input.value='';return;
+  }
+  if(file.size>maxSize){
+    _docUploadMsg('Le fichier dépasse la taille maximale de 20 Mo','#f05050');
+    input.value='';return;
+  }
+  const preview=document.getElementById('upload-file-preview');
+  const zone=document.getElementById('upload-drop-zone');
+  if(preview){
+    preview.style.display='block';
+    document.getElementById('upload-file-name').textContent=file.name;
+    const sizeMB=(file.size/1024/1024).toFixed(2);
+    const ext=file.name.split('.').pop().toUpperCase();
+    document.getElementById('upload-file-meta').textContent=ext+' · '+sizeMB+' Mo';
+  }
+  if(zone) zone.style.display='none';
+  // Auto-fill title if empty
+  const titleEl=document.getElementById('upload-doc-title');
+  if(titleEl&&!titleEl.value){
+    titleEl.value=file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' ');
+  }
+}
+
+function _docClearFile(){
+  const input=document.getElementById('upload-file-input');
+  const preview=document.getElementById('upload-file-preview');
+  const zone=document.getElementById('upload-drop-zone');
+  if(input) input.value='';
+  if(preview) preview.style.display='none';
+  if(zone) zone.style.display='block';
+}
+
+function _docUploadMsg(msg,color){
+  const el=document.getElementById('upload-doc-msg');
+  if(!el) return;
+  el.style.display='block';
+  el.style.color=color||'var(--text)';
+  el.textContent=msg;
+}
+
+async function _docDoUpload(){
+  const btn=document.getElementById('upload-doc-submit');
+  if(btn.disabled) return; // prevent double-click
+
+  const fileInput=document.getElementById('upload-file-input');
+  const file=fileInput?.files[0];
+  if(!file){_docUploadMsg('Veuillez sélectionner un fichier','#f05050');return;}
+
+  const title=document.getElementById('upload-doc-title')?.value?.trim();
+  if(!title){_docUploadMsg('Veuillez saisir un titre','#f05050');return;}
+
+  const category=document.getElementById('upload-doc-category')?.value||'autre';
+  const subcategory=document.getElementById('upload-doc-subcategory')?.value?.trim()||'';
+
+  btn.textContent='Importation en cours...';
+  btn.disabled=true;
+  btn.style.opacity='0.6';
+
+  try{
+    const fd=new FormData();
+    fd.append('file',file);
+    fd.append('title',title);
+    fd.append('category',category);
+    if(subcategory) fd.append('subcategory',subcategory);
+
+    const resp=await fetch('/api/documents/upload',{method:'POST',body:fd});
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({}));
+      throw new Error(err.error||'Erreur lors de l\'upload');
+    }
+
+    _docUploadMsg('Document importé avec succès','var(--green)');
+    btn.textContent='Importé !';
+    btn.style.background='var(--green)';
+
+    setTimeout(()=>{
+      document.getElementById('modal-upload-doc')?.remove();
+      chargerDocuments();
+    },1200);
+  }catch(e){
+    _docUploadMsg(e.message||'Erreur lors de l\'upload','#f05050');
+    btn.textContent='Importer';
+    btn.disabled=false;
+    btn.style.opacity='1';
+  }
 }
 
 // ═══════════════════════════════════
