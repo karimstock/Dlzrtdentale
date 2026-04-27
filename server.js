@@ -243,6 +243,8 @@ app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaire
 app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
 // Servir /assets depuis /public/assets (pour les images landings)
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+// Servir les fichiers SQL pour copier-coller dans Supabase Dashboard
+app.use('/sql/vitrines', express.static(path.join(__dirname, 'sql/vitrines')));
 // Serve /docs but BLOCK sensitive subdirectories (signed PDFs, audit trails, certificates)
 app.use('/docs', (req, res, next) => {
   const blocked = ['/signed', '/audit', '/certificates'];
@@ -7129,6 +7131,19 @@ function _ideValidDate(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00'));
 }
 
+// Sanitize filename for Content-Disposition header (strip path separators, quotes, control chars)
+function _ideSafeFilename(name) {
+  if (!name) return 'download';
+  return String(name).replace(/[/\\:"*?<>|\r\n\x00-\x1f]/g, '_').substring(0, 255);
+}
+
+// Validate resolved file path stays within expected directory (prevent path traversal)
+function _ideCheckPathTraversal(resolvedPath, expectedDir) {
+  const normalizedPath = path.resolve(resolvedPath);
+  const normalizedDir = path.resolve(expectedDir);
+  return normalizedPath.startsWith(normalizedDir + path.sep) || normalizedPath === normalizedDir;
+}
+
 function _ideValidUuid(s) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
@@ -8202,6 +8217,573 @@ app.get('/api/ide/dashboard', requireAuth(), async (req, res) => {
     });
   } catch (e) {
     console.error('[IDE Dashboard] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// --- IDE Ordonnances & Compta: Multer storages ---
+const IDE_ORDONNANCE_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
+const IDE_ORDONNANCE_EXT = ['.pdf', '.jpg', '.jpeg', '.png'];
+
+const ordonnanceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'docs', 'uploads', 'ordonnances');
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(dir)) fsMod.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`);
+  }
+});
+const ordonnanceUpload = multer({
+  storage: ordonnanceStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!IDE_ORDONNANCE_MIME.includes(file.mimetype) || !IDE_ORDONNANCE_EXT.includes(ext)) {
+      return cb(new Error('Type de fichier non autorise. Formats acceptes : PDF, JPG, PNG.'));
+    }
+    cb(null, true);
+  }
+}).single('file');
+
+const comptaIdeStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'docs', 'uploads', 'compta-ide');
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(dir)) fsMod.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`);
+  }
+});
+const comptaIdeUpload = multer({
+  storage: comptaIdeStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!IDE_ORDONNANCE_MIME.includes(file.mimetype) || !IDE_ORDONNANCE_EXT.includes(ext)) {
+      return cb(new Error('Type de fichier non autorise. Formats acceptes : PDF, JPG, PNG.'));
+    }
+    cb(null, true);
+  }
+}).single('file');
+
+const IDE_VALID_ORDONNANCE_STATUS = ['active', 'terminee', 'expiree', 'annulee'];
+const IDE_VALID_COMPTA_TYPE = ['recette', 'depense', 'retrocession'];
+const IDE_VALID_COMPTA_STATUS = ['a_traiter', 'envoyee_cpam', 'payee', 'rejetee'];
+
+// --- ORDONNANCES ENDPOINTS ---
+
+// 1. POST /api/ide/ordonnances/upload — Upload une ordonnance scannee
+app.post('/api/ide/ordonnances/upload', requireAuth(), (req, res) => {
+  ordonnanceUpload(req, res, async (multerErr) => {
+    try {
+      if (multerErr) {
+        const status = multerErr.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        return res.status(status).json({ error: multerErr.message });
+      }
+      if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni.' });
+
+      const db = supaAdminOrThrow();
+      const societeId = req.user.societe_id;
+      if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+      const cabinetId = await _ideGetCabinetId(db, societeId);
+      if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+      const patient_id = _ideSanitize(req.body.patient_id, 100);
+      if (!patient_id) return res.status(400).json({ error: 'patient_id requis.' });
+
+      // Verify patient belongs to this cabinet
+      const { data: patient } = await db.from('ide_patients').select('id')
+        .eq('id', patient_id).eq('cabinet_id', cabinetId).single();
+      if (!patient) return res.status(403).json({ error: 'Patient non trouve dans votre cabinet.' });
+
+      const medecin_nom = _ideSanitize(req.body.medecin_nom, 200);
+      const medecin_rpps = _ideSanitize(req.body.medecin_rpps, 20);
+      const date_prescription = _ideSanitize(req.body.date_prescription, 10);
+      const date_expiration = _ideSanitize(req.body.date_expiration, 10);
+      const nb_seances_prescrites = parseInt(req.body.nb_seances_prescrites, 10) || 0;
+      if (nb_seances_prescrites < 0 || nb_seances_prescrites > 9999) return res.status(400).json({ error: 'nb_seances_prescrites invalide (0-9999).' });
+      const soins_type = IDE_VALID_SOINS_TYPES.includes(req.body.soins_type) ? req.body.soins_type : 'soins';
+      const description = _ideSanitize(req.body.description, 1000);
+
+      if (!date_prescription || !_ideValidDate(date_prescription)) {
+        return res.status(400).json({ error: 'date_prescription invalide (YYYY-MM-DD).' });
+      }
+      if (date_expiration && !_ideValidDate(date_expiration)) {
+        return res.status(400).json({ error: 'date_expiration invalide (YYYY-MM-DD).' });
+      }
+
+      const mois = date_prescription.substring(0, 7); // YYYY-MM
+
+      const { data: ordonnance, error } = await db.from('ide_ordonnances').insert({
+        cabinet_id: cabinetId,
+        patient_id,
+        medecin_nom,
+        medecin_rpps,
+        date_prescription,
+        date_expiration: date_expiration || null,
+        nb_seances_prescrites,
+        nb_seances_realisees: 0,
+        soins_type,
+        description,
+        mois,
+        status: 'active',
+        fichier_nom: _ideSafeFilename(req.file.originalname),
+        fichier_path: req.file.filename,
+        fichier_mimetype: req.file.mimetype
+      }).select().single();
+      if (error) throw error;
+
+      res.json({ ok: true, ordonnance });
+    } catch (e) {
+      // Clean up orphaned file if DB insert failed
+      if (req.file && req.file.path) {
+        try { require('fs').unlinkSync(req.file.path); } catch (_) {}
+      }
+      console.error('[IDE Ordonnances Upload] Error:', e.message);
+      res.status(500).json({ error: 'Erreur serveur.' });
+    }
+  });
+});
+
+// 2. GET /api/ide/ordonnances — Lister les ordonnances
+app.get('/api/ide/ordonnances', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    let query = db.from('ide_ordonnances').select('*, ide_patients(nom, prenom)')
+      .eq('cabinet_id', cabinetId);
+
+    if (req.query.patient_id) query = query.eq('patient_id', req.query.patient_id);
+    if (req.query.mois) query = query.eq('mois', _ideSanitize(req.query.mois, 7));
+    if (req.query.status && IDE_VALID_ORDONNANCE_STATUS.includes(req.query.status)) {
+      query = query.eq('status', req.query.status);
+    }
+    if (req.query.q) {
+      const search = _ideSanitize(req.query.q, 100).replace(/[%_\\]/g, c => '\\' + c);
+      query = query.or(`medecin_nom.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    query = query.order('date_prescription', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Flatten patient name into response
+    const ordonnances = (data || []).map(o => {
+      const p = o.ide_patients;
+      return { ...o, patient_nom: p ? `${p.prenom} ${p.nom}` : '', ide_patients: undefined };
+    });
+
+    res.json({ ok: true, ordonnances });
+  } catch (e) {
+    console.error('[IDE Ordonnances GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 3. GET /api/ide/ordonnances/:id/download — Telecharger le scan
+app.get('/api/ide/ordonnances/:id/download', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data: ord } = await db.from('ide_ordonnances').select('fichier_path, fichier_nom, fichier_mimetype')
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).single();
+    if (!ord || !ord.fichier_path) return res.status(404).json({ error: 'Ordonnance non trouvee.' });
+
+    const uploadDir = path.join(__dirname, 'docs', 'uploads', 'ordonnances');
+    const filePath = path.join(uploadDir, ord.fichier_path);
+    if (!_ideCheckPathTraversal(filePath, uploadDir)) {
+      return res.status(403).json({ error: 'Chemin de fichier invalide.' });
+    }
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable sur le serveur.' });
+
+    const safeName = _ideSafeFilename(ord.fichier_nom || ord.fichier_path);
+    res.setHeader('Content-Type', ord.fichier_mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    fsMod.createReadStream(filePath).pipe(res);
+  } catch (e) {
+    console.error('[IDE Ordonnances Download] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 4. PATCH /api/ide/ordonnances/:id — Mettre a jour une ordonnance
+app.patch('/api/ide/ordonnances/:id', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const updates = {};
+    if (req.body.nb_seances_realisees !== undefined) {
+      const nbSeances = parseInt(req.body.nb_seances_realisees, 10) || 0;
+      if (nbSeances < 0 || nbSeances > 9999) return res.status(400).json({ error: 'nb_seances_realisees invalide (0-9999).' });
+      updates.nb_seances_realisees = nbSeances;
+    }
+    if (req.body.status && IDE_VALID_ORDONNANCE_STATUS.includes(req.body.status)) {
+      updates.status = req.body.status;
+    }
+    if (req.body.medecin_nom !== undefined) updates.medecin_nom = _ideSanitize(req.body.medecin_nom, 200);
+    if (req.body.medecin_rpps !== undefined) updates.medecin_rpps = _ideSanitize(req.body.medecin_rpps, 20);
+    if (req.body.date_expiration !== undefined) {
+      if (req.body.date_expiration && !_ideValidDate(req.body.date_expiration)) {
+        return res.status(400).json({ error: 'date_expiration invalide.' });
+      }
+      updates.date_expiration = req.body.date_expiration || null;
+    }
+    if (req.body.description !== undefined) updates.description = _ideSanitize(req.body.description, 1000);
+    if (req.body.soins_type && IDE_VALID_SOINS_TYPES.includes(req.body.soins_type)) {
+      updates.soins_type = req.body.soins_type;
+    }
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await db.from('ide_ordonnances').update(updates)
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Ordonnance non trouvee.' });
+    res.json({ ok: true, ordonnance: data });
+  } catch (e) {
+    console.error('[IDE Ordonnances PATCH] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 5. POST /api/ide/ordonnances/:id/email — Envoyer l'ordonnance par email
+app.post('/api/ide/ordonnances/:id/email', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const to_email = _ideSanitize(req.body.to_email, 200);
+    if (!to_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to_email)) {
+      return res.status(400).json({ error: 'to_email invalide.' });
+    }
+
+    const { data: ord } = await db.from('ide_ordonnances').select('*, ide_patients(nom, prenom)')
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).single();
+    if (!ord) return res.status(404).json({ error: 'Ordonnance non trouvee.' });
+
+    const patientName = ord.ide_patients ? `${ord.ide_patients.prenom} ${ord.ide_patients.nom}` : 'Patient';
+    const subject = (_ideSanitize(req.body.subject, 200) || `Ordonnance — ${patientName} — ${ord.date_prescription}`).replace(/[\r\n]/g, ' ');
+
+    const fsMod = require('fs');
+    const filePath = path.join(__dirname, 'docs', 'uploads', 'ordonnances', ord.fichier_path);
+    if (!ord.fichier_path || !fsMod.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier ordonnance introuvable.' });
+    }
+
+    const { sendMail } = require('./api/multiSocietes/mailer');
+    await sendMail({
+      to: to_email,
+      subject,
+      html: `<div style="font-family:system-ui;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="text-align:center;margin-bottom:24px;"><div style="font-size:28px;font-weight:800;color:#10b981;">JADOMI</div></div>
+        <p>Bonjour,</p>
+        <p>Veuillez trouver ci-joint l'ordonnance de <strong>${patientName}</strong> en date du ${ord.date_prescription}.</p>
+        <p>Type de soins : ${ord.soins_type || 'Non precise'}</p>
+        <p>Seances prescrites : ${ord.nb_seances_prescrites || 0}</p>
+        ${ord.description ? `<p>Description : ${ord.description}</p>` : ''}
+        <div style="text-align:center;margin-top:24px;font-size:11px;color:#94a3b8;">JADOMI — Plateforme pour professionnels de sante</div>
+      </div>`,
+      attachments: [{
+        filename: ord.fichier_nom || ord.fichier_path,
+        content: fsMod.readFileSync(filePath),
+        contentType: ord.fichier_mimetype || 'application/octet-stream'
+      }]
+    });
+
+    res.json({ ok: true, message: `Ordonnance envoyee a ${to_email}.` });
+  } catch (e) {
+    console.error('[IDE Ordonnances Email] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// --- COMPTABILITE IDE ENDPOINTS ---
+
+// 6. POST /api/ide/compta/upload — Upload une facture/recu
+app.post('/api/ide/compta/upload', requireAuth(), (req, res) => {
+  comptaIdeUpload(req, res, async (multerErr) => {
+    try {
+      if (multerErr) {
+        const status = multerErr.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        return res.status(status).json({ error: multerErr.message });
+      }
+      const db = supaAdminOrThrow();
+      const societeId = req.user.societe_id;
+      if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+      const cabinetId = await _ideGetCabinetId(db, societeId);
+      if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+      const nurse_id = _ideSanitize(req.body.nurse_id, 100);
+      const type = IDE_VALID_COMPTA_TYPE.includes(req.body.type) ? req.body.type : null;
+      if (!type) return res.status(400).json({ error: 'type requis (recette, depense, retrocession).' });
+
+      const categorie = _ideSanitize(req.body.categorie, 200);
+      const description = _ideSanitize(req.body.description, 1000);
+      const montant = parseFloat(req.body.montant);
+      if (isNaN(montant) || montant < 0 || montant > 999999.99) return res.status(400).json({ error: 'montant invalide (0-999999.99).' });
+
+      const date_facture = _ideSanitize(req.body.date_facture, 10);
+      if (!date_facture || !_ideValidDate(date_facture)) {
+        return res.status(400).json({ error: 'date_facture invalide (YYYY-MM-DD).' });
+      }
+
+      const patient_id = req.body.patient_id ? _ideSanitize(req.body.patient_id, 100) : null;
+      const ordonnance_id = req.body.ordonnance_id ? _ideSanitize(req.body.ordonnance_id, 100) : null;
+      const mois = date_facture.substring(0, 7);
+
+      // Verify nurse belongs to cabinet if provided
+      if (nurse_id) {
+        const { data: nurse } = await db.from('ide_nurses').select('id')
+          .eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
+        if (!nurse) return res.status(403).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
+      }
+
+      // Verify patient belongs to cabinet if provided
+      if (patient_id) {
+        const { data: pat } = await db.from('ide_patients').select('id')
+          .eq('id', patient_id).eq('cabinet_id', cabinetId).single();
+        if (!pat) return res.status(403).json({ error: 'Patient non trouve dans votre cabinet.' });
+      }
+
+      // Verify ordonnance belongs to cabinet if provided
+      if (ordonnance_id) {
+        const { data: ord } = await db.from('ide_ordonnances').select('id')
+          .eq('id', ordonnance_id).eq('cabinet_id', cabinetId).single();
+        if (!ord) return res.status(403).json({ error: 'Ordonnance non trouvee dans votre cabinet.' });
+      }
+
+      const insertData = {
+        cabinet_id: cabinetId,
+        nurse_id: nurse_id || null,
+        type,
+        categorie,
+        description,
+        montant,
+        date_facture,
+        mois,
+        patient_id,
+        ordonnance_id,
+        status: 'a_traiter'
+      };
+      if (req.file) {
+        insertData.fichier_nom = _ideSafeFilename(req.file.originalname);
+        insertData.fichier_path = req.file.filename;
+        insertData.fichier_mimetype = req.file.mimetype;
+      }
+
+      const { data: ecriture, error } = await db.from('ide_compta').insert(insertData).select().single();
+      if (error) throw error;
+
+      res.json({ ok: true, ecriture });
+    } catch (e) {
+      // Clean up orphaned file if DB insert failed
+      if (req.file && req.file.path) {
+        try { require('fs').unlinkSync(req.file.path); } catch (_) {}
+      }
+      console.error('[IDE Compta Upload] Error:', e.message);
+      res.status(500).json({ error: 'Erreur serveur.' });
+    }
+  });
+});
+
+// 7. GET /api/ide/compta — Lister les ecritures comptables
+app.get('/api/ide/compta', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    let query = db.from('ide_compta').select('*').eq('cabinet_id', cabinetId);
+
+    if (req.query.mois) query = query.eq('mois', _ideSanitize(req.query.mois, 7));
+    if (req.query.type && IDE_VALID_COMPTA_TYPE.includes(req.query.type)) {
+      query = query.eq('type', req.query.type);
+    }
+    if (req.query.nurse_id) query = query.eq('nurse_id', req.query.nurse_id);
+    if (req.query.categorie) query = query.eq('categorie', _ideSanitize(req.query.categorie, 200));
+
+    query = query.order('date_facture', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const ecritures = data || [];
+    const total_recettes = ecritures.filter(e => e.type === 'recette').reduce((s, e) => s + (e.montant || 0), 0);
+    const total_depenses = ecritures.filter(e => e.type === 'depense').reduce((s, e) => s + (e.montant || 0), 0);
+    const total_retrocessions = ecritures.filter(e => e.type === 'retrocession').reduce((s, e) => s + (e.montant || 0), 0);
+    const solde = Math.round((total_recettes - total_depenses - total_retrocessions) * 100) / 100;
+
+    res.json({
+      ok: true,
+      ecritures,
+      total_recettes: Math.round(total_recettes * 100) / 100,
+      total_depenses: Math.round(total_depenses * 100) / 100,
+      total_retrocessions: Math.round(total_retrocessions * 100) / 100,
+      solde
+    });
+  } catch (e) {
+    console.error('[IDE Compta GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 8. GET /api/ide/compta/:id/download — Telecharger le justificatif
+app.get('/api/ide/compta/:id/download', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data: ecriture } = await db.from('ide_compta').select('fichier_path, fichier_nom, fichier_mimetype')
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).single();
+    if (!ecriture || !ecriture.fichier_path) return res.status(404).json({ error: 'Ecriture non trouvee.' });
+
+    const uploadDir = path.join(__dirname, 'docs', 'uploads', 'compta-ide');
+    const filePath = path.join(uploadDir, ecriture.fichier_path);
+    if (!_ideCheckPathTraversal(filePath, uploadDir)) {
+      return res.status(403).json({ error: 'Chemin de fichier invalide.' });
+    }
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable sur le serveur.' });
+
+    const safeName = _ideSafeFilename(ecriture.fichier_nom || ecriture.fichier_path);
+    res.setHeader('Content-Type', ecriture.fichier_mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    fsMod.createReadStream(filePath).pipe(res);
+  } catch (e) {
+    console.error('[IDE Compta Download] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 9. GET /api/ide/compta/bilan/:mois — Bilan mensuel
+app.get('/api/ide/compta/bilan/:mois', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const mois = _ideSanitize(req.params.mois, 7);
+    if (!/^\d{4}-\d{2}$/.test(mois)) return res.status(400).json({ error: 'Format mois invalide (YYYY-MM).' });
+
+    let query = db.from('ide_compta').select('*').eq('cabinet_id', cabinetId).eq('mois', mois);
+    if (req.query.nurse_id) query = query.eq('nurse_id', req.query.nurse_id);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const ecritures = data || [];
+
+    // Group by categorie per type
+    const recettes_par_categorie = {};
+    const depenses_par_categorie = {};
+    const retrocessions_par_categorie = {};
+    let total_recettes = 0;
+    let total_depenses = 0;
+    let total_retrocessions = 0;
+
+    for (const e of ecritures) {
+      const cat = e.categorie || 'non_classee';
+      if (e.type === 'recette') {
+        recettes_par_categorie[cat] = (recettes_par_categorie[cat] || 0) + (e.montant || 0);
+        total_recettes += e.montant || 0;
+      } else if (e.type === 'depense') {
+        depenses_par_categorie[cat] = (depenses_par_categorie[cat] || 0) + (e.montant || 0);
+        total_depenses += e.montant || 0;
+      } else if (e.type === 'retrocession') {
+        retrocessions_par_categorie[cat] = (retrocessions_par_categorie[cat] || 0) + (e.montant || 0);
+        total_retrocessions += e.montant || 0;
+      }
+    }
+
+    const solde = Math.round((total_recettes - total_depenses - total_retrocessions) * 100) / 100;
+
+    res.json({
+      ok: true,
+      mois,
+      recettes_par_categorie,
+      depenses_par_categorie,
+      retrocessions_par_categorie,
+      total_recettes: Math.round(total_recettes * 100) / 100,
+      total_depenses: Math.round(total_depenses * 100) / 100,
+      total_retrocessions: Math.round(total_retrocessions * 100) / 100,
+      solde,
+      nb_factures: ecritures.length
+    });
+  } catch (e) {
+    console.error('[IDE Compta Bilan] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 10. PATCH /api/ide/compta/:id — Mettre a jour statut comptable
+app.patch('/api/ide/compta/:id', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const updates = {};
+    if (req.body.status && IDE_VALID_COMPTA_STATUS.includes(req.body.status)) {
+      updates.status = req.body.status;
+    }
+    if (req.body.categorie !== undefined) updates.categorie = _ideSanitize(req.body.categorie, 200);
+    if (req.body.description !== undefined) updates.description = _ideSanitize(req.body.description, 1000);
+    if (req.body.montant !== undefined) {
+      const m = parseFloat(req.body.montant);
+      if (isNaN(m) || m < 0 || m > 999999.99) return res.status(400).json({ error: 'montant invalide (0-999999.99).' });
+      updates.montant = m;
+    }
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await db.from('ide_compta').update(updates)
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Ecriture non trouvee.' });
+    res.json({ ok: true, ecriture: data });
+  } catch (e) {
+    console.error('[IDE Compta PATCH] Error:', e.message);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

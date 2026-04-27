@@ -548,6 +548,136 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       </div>
     </div>
   </div>
+
+  <!-- SQL A EXECUTER EN PRODUCTION -->
+  <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div>
+        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0;">SQL a executer en production</h3>
+        <p style="font-size:12px;color:var(--text3);margin:4px 0 0;">Copier-coller dans Supabase Dashboard > SQL Editor</p>
+      </div>
+      <span style="font-size:11px;color:var(--text3);background:var(--surface);padding:4px 10px;border-radius:6px;border:1px solid var(--border);" id="sql-count-badge">Chargement...</span>
+    </div>
+    <p style="font-size:12px;color:#f59e0b;margin-bottom:16px;padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;">
+      ⚠ Les SQL doivent etre executes dans l'ORDRE (par numero). <strong>Vert</strong> = probablement deja execute. <strong>Orange</strong> = recent, a verifier.
+    </p>
+    <div id="sql-files-list" style="display:grid;grid-template-columns:1fr;gap:8px;max-height:600px;overflow-y:auto;padding-right:4px;">
+      <div style="text-align:center;padding:30px;color:var(--text3);font-size:13px;">Chargement des fichiers SQL...</div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const sqlFiles = [
+      {name:"01_vitrines_module.sql",lines:129,recent:false},
+      {name:"02_competitors_analytics.sql",lines:36,recent:false},
+      {name:"03_edits_quotas.sql",lines:41,recent:false},
+      {name:"04_rls.sql",lines:313,recent:false},
+      {name:"05_add_media_type.sql",lines:7,recent:false},
+      {name:"06_site_meta.sql",lines:21,recent:false},
+      {name:"07_photos_auto_categorization.sql",lines:9,recent:false},
+      {name:"08_contact_requests.sql",lines:23,recent:false},
+      {name:"09_ai_propositions.sql",lines:8,recent:false},
+      {name:"10_reanalyze_jobs.sql",lines:15,recent:false},
+      {name:"11_societes_infos_legales.sql",lines:39,recent:false},
+      {name:"12_file_hash.sql",lines:7,recent:false},
+      {name:"14_video_poster.sql",lines:9,recent:false},
+      {name:"15_custom_sections.sql",lines:15,recent:false},
+      {name:"16_dashboard_modulable.sql",lines:42,recent:false},
+      {name:"17_upsell.sql",lines:45,recent:false},
+      {name:"18_themes.sql",lines:157,recent:false},
+      {name:"19_schema_fix.sql",lines:26,recent:false},
+      {name:"20_onboarding_sessions.sql",lines:18,recent:false},
+      {name:"21_sites_primary.sql",lines:18,recent:false},
+      {name:"22_gpo_smart_queue.sql",lines:175,recent:false},
+      {name:"23_notifications_gpo_types.sql",lines:16,recent:false},
+      {name:"24_logistics_and_groupage.sql",lines:169,recent:false},
+      {name:"25_cleanup_test_data.sql",lines:11,recent:false},
+      {name:"26_chatbot_config.sql",lines:37,recent:false},
+      {name:"27_client_portal.sql",lines:57,recent:false},
+      {name:"28_appointments.sql",lines:62,recent:false},
+      {name:"29_user_onboarding_state.sql",lines:26,recent:false},
+      {name:"30_timeline.sql",lines:81,recent:false},
+      {name:"31_timeline_fix_site_id.sql",lines:24,recent:false},
+      {name:"32_tour_guide.sql",lines:15,recent:false},
+      {name:"33_passe33_modules_analysis.sql",lines:87,recent:false},
+      {name:"34_jadomi_ads.sql",lines:271,recent:false},
+      {name:"35_jadomi_studio.sql",lines:76,recent:false},
+      {name:"38_coins_wallet_structure.sql",lines:109,recent:true},
+      {name:"39_cms_formules.sql",lines:302,recent:true},
+      {name:"40_studio_nouveau_pricing.sql",lines:211,recent:true},
+      {name:"41_interventions_ia.sql",lines:133,recent:true},
+      {name:"42_sites_crees_jadomi.sql",lines:188,recent:true},
+      {name:"43_60_themes_premium.sql",lines:314,recent:true},
+      {name:"44_chatbot_v3_formules.sql",lines:15,recent:true},
+      {name:"45_photos_categories.sql",lines:23,recent:true},
+      {name:"46_pages_sections_enrichies.sql",lines:44,recent:true},
+      {name:"47_staging_sites.sql",lines:48,recent:true},
+      {name:"48_avocat_expert_coffre.sql",lines:131,recent:true},
+      {name:"49_otp_verification.sql",lines:31,recent:true},
+      {name:"54_gpo_orders.sql",lines:141,recent:true},
+      {name:"55_facturation_mandats.sql",lines:258,recent:true},
+      {name:"56_security_reports.sql",lines:52,recent:true},
+      {name:"57_signed_documents.sql",lines:40,recent:true},
+      {name:"58_commerce_orders.sql",lines:72,recent:true},
+      {name:"58_sos_urgence_confreres.sql",lines:180,recent:true},
+      {name:"59_disputes_scoring.sql",lines:86,recent:true},
+      {name:"59_ide_tournees.sql",lines:403,recent:true},
+      {name:"60_ide_ordonnances_compta.sql",lines:177,recent:true}
+    ];
+    const container = document.getElementById('sql-files-list');
+    const countBadge = document.getElementById('sql-count-badge');
+    const recentCount = sqlFiles.filter(f=>f.recent).length;
+    countBadge.textContent = sqlFiles.length+' fichiers ('+recentCount+' recents)';
+    countBadge.style.color = '#f59e0b';
+
+    let html = '';
+    sqlFiles.forEach(function(f, i){
+      const badgeColor = f.recent ? '#f59e0b' : '#10b981';
+      const badgeText = f.recent ? 'RECENT' : 'ANCIEN';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">'
+        + '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;color:#fff;background:'+badgeColor+';min-width:60px;text-align:center;">'+badgeText+'</span>'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+f.name+'</div>'
+        + '<div style="font-size:11px;color:var(--text3);">'+f.lines+' lignes</div>'
+        + '</div>'
+        + '<button onclick="window.open(\'/sql/vitrines/'+f.name+'\',\'_blank\')" style="padding:6px 14px;border:1px solid var(--border);border-radius:7px;font-size:11px;font-weight:600;background:transparent;color:var(--text);cursor:pointer;white-space:nowrap;">Voir</button>'
+        + '<button onclick="copySqlFile(\''+f.name+'\',this)" style="padding:6px 14px;background:var(--accent,#6366f1);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Copier</button>'
+        + '</div>';
+    });
+    container.innerHTML = html;
+  })();
+
+  function copySqlFile(filename, btn){
+    const orig = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+    fetch('/sql/vitrines/'+filename)
+      .then(function(r){ return r.text(); })
+      .then(function(t){
+        return navigator.clipboard.writeText(t);
+      })
+      .then(function(){
+        btn.textContent = 'Copie !';
+        btn.style.background = '#10b981';
+        setTimeout(function(){
+          btn.textContent = orig;
+          btn.style.background = '';
+          btn.disabled = false;
+        }, 1500);
+      })
+      .catch(function(){
+        btn.textContent = 'Erreur';
+        btn.style.background = '#ef4444';
+        setTimeout(function(){
+          btn.textContent = orig;
+          btn.style.background = '';
+          btn.disabled = false;
+        }, 1500);
+      });
+  }
+  </script>
+
 </div>
 
 <!-- SIGNATURE ELECTRONIQUE -->
