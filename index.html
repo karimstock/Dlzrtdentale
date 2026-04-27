@@ -150,6 +150,8 @@ tbody tr:hover td{background:var(--surface2);}
 .vocal-fab:hover{transform:scale(1.05);box-shadow:0 6px 28px rgba(16,185,129,0.5);}
 .vocal-fab.listening{background:var(--red);box-shadow:0 4px 20px rgba(240,80,80,0.5);animation:pulse-red 1s infinite;}
 @keyframes pulse-red{0%,100%{box-shadow:0 4px 20px rgba(240,80,80,0.5);}50%{box-shadow:0 4px 32px rgba(240,80,80,0.8);}}
+@keyframes sos-pulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.15);opacity:0.85;}}
+.sos-badge-pulse{animation:sos-pulse 1.2s cubic-bezier(.16,1,.3,1) infinite;}
 
 /* ── VOCAL MODAL ── */
 .vocal-modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);}
@@ -406,6 +408,7 @@ tbody tr:hover td{background:var(--surface2);}
         <div class="nav-item" onclick="showPage('marche',this)"><span class="ni">🏪</span>Marché dentaire</div>
         <div class="nav-item" onclick="showPage('sos',this)"><span class="ni">🆘</span>SOS Stock</div>
         <div class="nav-item" onclick="showPage('green',this)"><span class="ni">🌱</span>JADOMI Green</div>
+        <div class="nav-item" onclick="showPage('sos-urgence',this)"><span class="ni">🚨</span>SOS Urgence<span class="nav-badge" id="sos-urgence-badge" style="display:none;background:#ef4444;">0</span></div>
         <div class="nav-item" onclick="showPage('suggestions',this)"><span class="ni">💡</span>Suggestions</div>
         <div class="nav-item" onclick="location.href='/public/annuaire/index.html'"><span class="ni">🌐</span>Annuaire</div>
       </div>
@@ -1085,6 +1088,41 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="card">
         <div class="card-head"><div class="card-title">Historique échanges</div></div>
         <div id="green-historique" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Aucun échange réalisé</div></div>
+      </div>
+    </div>
+
+    <!-- SOS URGENCE CONFRERES -->
+    <div class="page" id="page-sos-urgence">
+      <div style="background:linear-gradient(135deg,#1a0a0a,#1f0f0f);border:1px solid rgba(239,68,68,0.2);border-radius:16px;padding:24px;margin-bottom:20px;">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:#ef4444;margin-bottom:6px;">🚨 SOS Urgence Confreres</div>
+        <div style="color:#6b6760;font-size:13px;line-height:1.6;">Transmettez une urgence patient a un confrere disponible dans votre zone. Solidarite entre professionnels.</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats" style="margin-bottom:20px;">
+        <div class="stat" style="border-color:rgba(239,68,68,0.2);"><div class="stat-label">Urgences envoyees (ce mois)</div><div class="stat-value" style="color:#ef4444;" id="sos-urg-sent">0</div></div>
+        <div class="stat" style="border-color:rgba(34,197,94,0.2);"><div class="stat-label">Acceptees par confreres</div><div class="stat-value" style="color:#22c55e;" id="sos-urg-accepted">0</div></div>
+        <div class="stat" style="border-color:rgba(59,130,246,0.2);"><div class="stat-label">Recues de confreres</div><div class="stat-value" style="color:#3b82f6;" id="sos-urg-received">0</div></div>
+      </div>
+
+      <!-- Bouton gros rouge -->
+      <div style="text-align:center;margin-bottom:24px;">
+        <button onclick="ouvrirSOSUrgenceModal()" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;padding:20px 40px;border-radius:16px;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 8px 32px rgba(239,68,68,0.3);transition:all .3s cubic-bezier(.16,1,.3,1);font-family:var(--font-display);" onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='0 12px 40px rgba(239,68,68,0.4)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 8px 32px rgba(239,68,68,0.3)'">🚨 J'ai une urgence a transmettre</button>
+      </div>
+
+      <!-- Urgences recues -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+          <div class="card-title">Urgences recues</div>
+          <button class="btn btn-ghost" style="font-size:11px;" onclick="chargerSOSUrgence()">🔄 Actualiser</button>
+        </div>
+        <div id="sos-urg-incoming" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
+      </div>
+
+      <!-- Mes demandes -->
+      <div class="card">
+        <div class="card-head"><div class="card-title">Mes demandes</div></div>
+        <div id="sos-urg-requests" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
       </div>
     </div>
 
@@ -3500,7 +3538,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',compta:'Comptabilit\u00e9',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupages:'Paniers group\u00e9s',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'March\u00e9 dentaire',sos:'SOS Stock',green:'JADOMI Green',suggestions:'Suggestions',documents:'Mes documents',signature:'Signature electronique',admin:'Admin JADOMI',communication:'Communication',economies:'\u00c9conomies JADOMI'};
+const titles = {stock:'Stock',compta:'Comptabilit\u00e9',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupages:'Paniers group\u00e9s',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'March\u00e9 dentaire',sos:'SOS Stock',green:'JADOMI Green','sos-urgence':'SOS Urgence Confreres',suggestions:'Suggestions',documents:'Mes documents',signature:'Signature electronique',admin:'Admin JADOMI',communication:'Communication',economies:'\u00c9conomies JADOMI'};
 const actions = {
   stock:`<button class="btn btn-accent" onclick="ouvrirCommandeUnifiee()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🛒 Commander</button><button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupages:`<button class="btn btn-accent" onclick="openGroupageModal()" style="font-size:12px;">+ Nouveau panier</button>`,groupe:``,fournisseurs:``,green:``,suggestions:``,documents:``,economies:``
@@ -3591,6 +3629,7 @@ function showPage(id, el) {
   if(id==='devis') chargerAppelsOffres();
   if(id==='groupages') loadGroupagesPage();
   if(id==='economies') ecoInit();
+  if(id==='sos-urgence') chargerSOSUrgence();
 }
 
 // ═══════════════════════════════════
@@ -6677,6 +6716,254 @@ async function confirmerResiliation(contratId,cabinetNom,plan,prixMensuel) {
 // ═══════════════════════════════════
 // START
 // ═════════════════��═════════════════
+// ═══════════════════════════════════
+// SOS URGENCE CONFRERES
+// ═══════════════════════════════════
+function sosUrgAuthHeaders(){
+  return {'Authorization':'Bearer '+(window.jadomiMultiSocietes?.token||JSON.parse(localStorage.getItem('jadomi_session')||'{}').access_token||''),'Content-Type':'application/json'};
+}
+
+function sosUrgTempsRelatif(dateStr){
+  const diff=Math.floor((Date.now()-new Date(dateStr).getTime())/1000);
+  if(diff<60) return 'A l\'instant';
+  if(diff<3600) return 'Il y a '+Math.floor(diff/60)+' min';
+  if(diff<86400) return 'Il y a '+Math.floor(diff/3600)+' h';
+  return 'Il y a '+Math.floor(diff/86400)+' j';
+}
+
+function sosUrgTypeBadge(type){
+  const map={'Douleur aiguë':{bg:'rgba(239,68,68,0.15)',color:'#ef4444'},'Traumatisme dentaire':{bg:'rgba(249,115,22,0.15)',color:'#f97316'},'Infection/abcès':{bg:'rgba(239,68,68,0.15)',color:'#ef4444'},'Prothèse cassée':{bg:'rgba(234,179,8,0.15)',color:'#eab308'},'Autre':{bg:'rgba(107,114,128,0.15)',color:'#6b7280'}};
+  const s=map[type]||map['Autre'];
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${s.bg};color:${s.color};">${type}</span>`;
+}
+
+async function chargerSOSUrgence(){
+  try{
+    const headers=sosUrgAuthHeaders();
+    const [incRes,reqRes]=await Promise.all([
+      fetch('/api/sos-urgence/incoming',{headers}).then(r=>r.ok?r.json():{urgences:[]}),
+      fetch('/api/sos-urgence/my-requests',{headers}).then(r=>r.ok?r.json():{requests:[]})
+    ]);
+    const incoming=incRes.urgences||[];
+    const requests=reqRes.requests||[];
+
+    // Stats
+    const now=new Date();const moisActuel=now.getMonth();const anneeActuelle=now.getFullYear();
+    const sentThisMonth=requests.filter(r=>{const d=new Date(r.created_at);return d.getMonth()===moisActuel&&d.getFullYear()===anneeActuelle;}).length;
+    const acceptedCount=requests.filter(r=>r.status==='accepted').length;
+    document.getElementById('sos-urg-sent').textContent=sentThisMonth;
+    document.getElementById('sos-urg-accepted').textContent=acceptedCount;
+    document.getElementById('sos-urg-received').textContent=incoming.length;
+
+    // Badge sidebar
+    const openIncoming=incoming.filter(u=>u.status==='open').length;
+    const badge=document.getElementById('sos-urgence-badge');
+    if(badge){
+      if(openIncoming>0){badge.textContent=openIncoming;badge.style.display='inline-block';badge.classList.add('sos-badge-pulse');}
+      else{badge.style.display='none';badge.classList.remove('sos-badge-pulse');}
+    }
+
+    // Incoming
+    const elInc=document.getElementById('sos-urg-incoming');
+    if(elInc){
+      if(!incoming.length){
+        elInc.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Aucune urgence en cours dans votre zone</div>';
+      } else {
+        elInc.innerHTML=incoming.map(u=>`
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;animation:slideUp .4s cubic-bezier(.16,1,.3,1);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              ${sosUrgTypeBadge(u.type)}
+              <span style="color:var(--muted);font-size:11px;margin-left:auto;">${sosUrgTempsRelatif(u.created_at)}</span>
+            </div>
+            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:4px;">Dr ${u.doctor_name||'Anonyme'} — ${u.quartier||'Zone non precisee'}</div>
+            <div style="color:var(--muted);font-size:13px;margin-bottom:4px;">Patient: ${u.initiales||'?'} — ${u.description||''}</div>
+            <div style="color:var(--muted);font-size:12px;margin-bottom:12px;">Delai: ${u.delai||'Non precise'}</div>
+            <div id="sos-urg-actions-${u.id}" style="display:flex;gap:8px;">
+              ${u.status==='open'?`
+              <button onclick="sosUrgAccepter('${u.id}')" style="flex:1;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-weight:600;font-size:13px;cursor:pointer;transition:all .3s cubic-bezier(.16,1,.3,1);">J'accepte</button>
+              <button onclick="sosUrgDecliner('${u.id}')" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer;transition:all .3s cubic-bezier(.16,1,.3,1);">Pas dispo</button>
+              `:`<div style="color:#22c55e;font-size:13px;font-weight:600;">Vous avez accepte cette urgence</div>`}
+            </div>
+            <div id="sos-urg-contact-${u.id}" style="display:none;margin-top:12px;padding:12px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:10px;">
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // My requests
+    const elReq=document.getElementById('sos-urg-requests');
+    if(elReq){
+      if(!requests.length){
+        elReq.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Aucune demande envoyee</div>';
+      } else {
+        let html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">';
+        html+='<thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Date</th><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Type</th><th style="text-align:left;padding:8px;color:var(--muted);font-weight:500;">Statut</th><th style="text-align:right;padding:8px;color:var(--muted);font-weight:500;">Action</th></tr></thead><tbody>';
+        requests.forEach(r=>{
+          const statusMap={open:{label:'En attente',bg:'rgba(249,115,22,0.15)',color:'#f97316'},accepted:{label:'Accepte'+(r.accepted_by_name?' par Dr '+r.accepted_by_name:''),bg:'rgba(34,197,94,0.15)',color:'#22c55e'},expired:{label:'Expire',bg:'rgba(107,114,128,0.15)',color:'#6b7280'},cancelled:{label:'Annule',bg:'rgba(107,114,128,0.15)',color:'#6b7280'}};
+          const s=statusMap[r.status]||statusMap.open;
+          const d=new Date(r.created_at);
+          const dateStr=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+          html+=`<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;color:var(--text);">${dateStr}</td>
+            <td style="padding:8px;">${sosUrgTypeBadge(r.type)}</td>
+            <td style="padding:8px;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${s.bg};color:${s.color};">${s.label}</span></td>
+            <td style="padding:8px;text-align:right;">${r.status==='open'?`<button onclick="sosUrgAnnuler('${r.id}')" style="padding:4px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;">Annuler</button>`:''}</td>
+          </tr>`;
+        });
+        html+='</tbody></table></div>';
+        elReq.innerHTML=html;
+      }
+    }
+  }catch(e){
+    console.error('[SOS Urgence] Erreur chargement:',e);
+    const elInc=document.getElementById('sos-urg-incoming');
+    if(elInc) elInc.innerHTML='<div style="color:var(--muted);font-size:13px;">Erreur de chargement. Reessayez.</div>';
+  }
+}
+
+function ouvrirSOSUrgenceModal(){
+  const overlay=document.createElement('div');
+  overlay.id='sos-urgence-modal-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .3s cubic-bezier(.16,1,.3,1);';
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  overlay.innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;width:90%;max-width:480px;max-height:90vh;overflow-y:auto;animation:slideUp .4s cubic-bezier(.16,1,.3,1);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:#ef4444;">🚨 Nouvelle urgence</div>
+        <button onclick="document.getElementById('sos-urgence-modal-overlay').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Type d'urgence</label>
+          <select id="sos-urg-type" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;">
+            <option>Douleur aiguë</option>
+            <option>Traumatisme dentaire</option>
+            <option>Infection/abcès</option>
+            <option>Prothèse cassée</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Initiales patient (ex: M.D.)</label>
+          <input id="sos-urg-initiales" type="text" maxlength="5" placeholder="M.D." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Description courte</label>
+          <textarea id="sos-urg-desc" maxlength="200" rows="3" placeholder="Decrivez brievement la situation..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;resize:none;font-family:inherit;box-sizing:border-box;"></textarea>
+          <div style="text-align:right;font-size:11px;color:var(--muted);margin-top:2px;"><span id="sos-urg-desc-count">0</span>/200</div>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Quartier / Zone</label>
+          <input id="sos-urg-quartier" type="text" placeholder="Ex: Bab Ezzouar, Alger Centre..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Delai souhaite</label>
+          <select id="sos-urg-delai" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px;">
+            <option>Dans l'heure</option>
+            <option>Avant ce soir</option>
+            <option>Demain matin</option>
+          </select>
+        </div>
+        <button id="sos-urg-send-btn" onclick="sosUrgEnvoyer()" style="margin-top:6px;width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s cubic-bezier(.16,1,.3,1);font-family:var(--font-display);" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">Envoyer l'alerte aux confreres</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const ta=document.getElementById('sos-urg-desc');
+  if(ta) ta.addEventListener('input',()=>{document.getElementById('sos-urg-desc-count').textContent=ta.value.length;});
+}
+
+async function sosUrgEnvoyer(){
+  const btn=document.getElementById('sos-urg-send-btn');
+  if(!btn)return;
+  const type=document.getElementById('sos-urg-type').value;
+  const initiales=document.getElementById('sos-urg-initiales').value.trim();
+  const description=document.getElementById('sos-urg-desc').value.trim();
+  const quartier=document.getElementById('sos-urg-quartier').value.trim();
+  const delai=document.getElementById('sos-urg-delai').value;
+  if(!initiales||!description||!quartier){
+    btn.textContent='Veuillez remplir tous les champs';btn.style.background='#6b7280';
+    setTimeout(()=>{btn.textContent='Envoyer l\'alerte aux confreres';btn.style.background='linear-gradient(135deg,#ef4444,#dc2626)';},2000);
+    return;
+  }
+  btn.disabled=true;btn.textContent='Envoi en cours...';btn.style.opacity='0.7';
+  try{
+    const res=await fetch('/api/sos-urgence/create',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({type,initiales,description,quartier,delai})});
+    const data=await res.json();
+    if(res.ok){
+      btn.style.background='linear-gradient(135deg,#22c55e,#16a34a)';
+      btn.textContent='Alerte envoyee a '+(data.notified_count||'vos')+' confreres dans votre zone';
+      setTimeout(()=>{document.getElementById('sos-urgence-modal-overlay')?.remove();chargerSOSUrgence();},2500);
+    } else {
+      btn.textContent=data.error||'Erreur lors de l\'envoi';btn.style.background='#6b7280';
+      setTimeout(()=>{btn.disabled=false;btn.style.opacity='1';btn.textContent='Envoyer l\'alerte aux confreres';btn.style.background='linear-gradient(135deg,#ef4444,#dc2626)';},2500);
+    }
+  }catch(e){
+    console.error('[SOS Urgence] Erreur envoi:',e);
+    btn.textContent='Erreur reseau';btn.style.background='#6b7280';
+    setTimeout(()=>{btn.disabled=false;btn.style.opacity='1';btn.textContent='Envoyer l\'alerte aux confreres';btn.style.background='linear-gradient(135deg,#ef4444,#dc2626)';},2500);
+  }
+}
+
+async function sosUrgAccepter(id){
+  const el=document.getElementById('sos-urg-actions-'+id);
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--muted);font-size:13px;">Envoi en cours...</div>';
+  try{
+    const res=await fetch('/api/sos-urgence/accept',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({urgence_id:id})});
+    const data=await res.json();
+    if(res.ok){
+      el.innerHTML='<div style="color:#22c55e;font-size:13px;font-weight:600;">Vous avez accepte cette urgence</div>';
+      const contactEl=document.getElementById('sos-urg-contact-'+id);
+      if(contactEl&&data.cabinet){
+        contactEl.style.display='block';
+        contactEl.innerHTML=`
+          <div style="font-size:12px;font-weight:600;color:#22c55e;margin-bottom:6px;">Coordonnees du cabinet :</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6;">
+            ${data.cabinet.nom?'<div><strong>'+data.cabinet.nom+'</strong></div>':''}
+            ${data.cabinet.adresse?'<div>'+data.cabinet.adresse+'</div>':''}
+            ${data.cabinet.telephone?'<div>Tel: <a href="tel:'+data.cabinet.telephone+'" style="color:#3b82f6;">'+data.cabinet.telephone+'</a></div>':''}
+            ${data.cabinet.email?'<div>Email: <a href="mailto:'+data.cabinet.email+'" style="color:#3b82f6;">'+data.cabinet.email+'</a></div>':''}
+          </div>
+        `;
+      }
+      const badge=document.getElementById('sos-urgence-badge');
+      if(badge){const c=parseInt(badge.textContent)||0;if(c>1){badge.textContent=c-1;}else{badge.style.display='none';badge.classList.remove('sos-badge-pulse');}}
+    } else {
+      el.innerHTML='<div style="color:#ef4444;font-size:13px;">'+(data.error||'Erreur')+'</div>';
+      setTimeout(()=>chargerSOSUrgence(),2000);
+    }
+  }catch(e){
+    console.error('[SOS Urgence] Erreur accept:',e);
+    el.innerHTML='<div style="color:#ef4444;font-size:13px;">Erreur reseau</div>';
+  }
+}
+
+async function sosUrgDecliner(id){
+  const el=document.getElementById('sos-urg-actions-'+id);
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--muted);font-size:13px;">...</div>';
+  try{
+    await fetch('/api/sos-urgence/decline',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({urgence_id:id})});
+    el.closest('div[style*="border-radius:12px"]').style.opacity='0.4';
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;">Non disponible</div>';
+  }catch(e){
+    console.error('[SOS Urgence] Erreur decline:',e);
+    el.innerHTML='<div style="color:#ef4444;font-size:13px;">Erreur</div>';
+  }
+}
+
+async function sosUrgAnnuler(id){
+  if(!confirm('Annuler cette demande d\'urgence ?'))return;
+  try{
+    await fetch('/api/sos-urgence/cancel',{method:'POST',headers:sosUrgAuthHeaders(),body:JSON.stringify({urgence_id:id})});
+    chargerSOSUrgence();
+  }catch(e){
+    console.error('[SOS Urgence] Erreur annulation:',e);
+  }
+}
+
 setTimeout(()=>{chargerGreenDormants();chargerGreenStats();},500);
 init();
 </script>

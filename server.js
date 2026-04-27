@@ -6686,6 +6686,284 @@ app.patch('/api/equipment/proposals/:id/status', requireAuth(), async (req, res)
 });
 
 // ============================================================
+// JADOMI SOS URGENCE CONFRERES
+// ============================================================
+
+// Haversine distance (km)
+function _sosHaversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// POST /api/sos-urgence/create — Creer une demande d'urgence
+app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const userId = req.user.id;
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee a votre compte.' });
+
+    const { patient_initials, urgency_type, description, quartier, deadline, latitude, longitude } = req.body;
+    if (!patient_initials || !urgency_type) {
+      return res.status(400).json({ error: 'patient_initials et urgency_type requis.' });
+    }
+
+    // Recuperer la societe de l'envoyeur (pour GPS + ville)
+    const { data: senderSociete } = await db.from('societes').select('*').eq('id', societeId).single();
+    const senderLat = latitude || senderSociete?.lat || senderSociete?.latitude || null;
+    const senderLng = longitude || senderSociete?.lng || senderSociete?.longitude || null;
+    const senderCity = senderSociete?.city || senderSociete?.ville || null;
+    const senderRegion = senderSociete?.region || null;
+
+    // Inserer la demande
+    const { data: request, error: insertErr } = await db.from('sos_urgence_requests').insert({
+      sender_societe_id: societeId,
+      sender_user_id: userId,
+      patient_initials,
+      urgency_type,
+      description: description || null,
+      quartier: quartier || null,
+      deadline: deadline || null,
+      latitude: senderLat,
+      longitude: senderLng,
+      status: 'open'
+    }).select().single();
+
+    if (insertErr) throw insertErr;
+
+    // Trouver les cabinets dentaires a proximite
+    const { data: cabinets } = await db.from('societes')
+      .select('id, nom, lat, lng, latitude, longitude, city, ville, region')
+      .in('type', ['cabinet_dentaire', 'chirurgien_dentiste'])
+      .neq('id', societeId);
+
+    let targets = cabinets || [];
+
+    // Filtrer par distance si GPS disponible (rayon 30 km par defaut)
+    if (senderLat && senderLng) {
+      targets = targets.filter(c => {
+        const cLat = c.lat || c.latitude;
+        const cLng = c.lng || c.longitude;
+        if (!cLat || !cLng) return false;
+        return _sosHaversineKm(senderLat, senderLng, cLat, cLng) <= 30;
+      });
+      // Fallback: si aucun cabinet GPS dans le rayon, prendre meme ville/region
+      if (targets.length === 0 && (senderCity || senderRegion)) {
+        targets = (cabinets || []).filter(c => {
+          const cCity = c.city || c.ville;
+          const cRegion = c.region;
+          return (senderCity && cCity && cCity.toLowerCase() === senderCity.toLowerCase()) ||
+                 (senderRegion && cRegion && cRegion.toLowerCase() === senderRegion.toLowerCase());
+        });
+      }
+    } else if (senderCity || senderRegion) {
+      // Pas de GPS → filtrer par ville/region
+      targets = targets.filter(c => {
+        const cCity = c.city || c.ville;
+        const cRegion = c.region;
+        return (senderCity && cCity && cCity.toLowerCase() === senderCity.toLowerCase()) ||
+               (senderRegion && cRegion && cRegion.toLowerCase() === senderRegion.toLowerCase());
+      });
+    }
+
+    // Creer une notification pour chaque cabinet cible
+    if (targets.length > 0) {
+      const notifications = targets.map(c => ({
+        request_id: request.id,
+        target_societe_id: c.id,
+        status: 'pending'
+      }));
+      const { error: notifErr } = await db.from('sos_urgence_notifications').insert(notifications);
+      if (notifErr) console.error('[SOS Urgence] Erreur insertion notifications:', notifErr.message);
+    }
+
+    res.json({ ok: true, request_id: request.id, notified_count: targets.length });
+  } catch (e) {
+    console.error('[SOS Urgence Create] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// GET /api/sos-urgence/incoming — Urgences recues par MON cabinet
+app.get('/api/sos-urgence/incoming', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const { data, error } = await db.from('sos_urgence_notifications')
+      .select('*, sos_urgence_requests(*)')
+      .eq('target_societe_id', societeId)
+      .eq('sos_urgence_requests.status', 'open')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Filtrer celles dont la request est bien open (le filtre nested peut laisser passer des nulls)
+    const urgences = (data || []).filter(n => n.sos_urgence_requests && n.sos_urgence_requests.status === 'open');
+
+    res.json({ ok: true, urgences });
+  } catch (e) {
+    console.error('[SOS Urgence Incoming] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// GET /api/sos-urgence/my-requests — Mes demandes envoyees
+app.get('/api/sos-urgence/my-requests', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const { data, error } = await db.from('sos_urgence_requests')
+      .select('*')
+      .eq('sender_societe_id', societeId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ ok: true, requests: data || [] });
+  } catch (e) {
+    console.error('[SOS Urgence My Requests] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// POST /api/sos-urgence/:id/accept — Accepter une urgence
+app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const requestId = req.params.id;
+    const userId = req.user.id;
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    // Verifier que la request est encore open
+    const { data: sosReq, error: fetchErr } = await db.from('sos_urgence_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (fetchErr || !sosReq) return res.status(404).json({ error: 'Demande introuvable.' });
+    if (sosReq.status !== 'open') return res.status(409).json({ error: 'Cette demande n\'est plus disponible.' });
+
+    // Mettre a jour la request
+    const { error: updateErr } = await db.from('sos_urgence_requests')
+      .update({
+        status: 'accepted',
+        accepted_by_societe_id: societeId,
+        accepted_by_user_id: userId,
+        accepted_at: new Date().toISOString()
+      })
+      .eq('id', requestId);
+
+    if (updateErr) throw updateErr;
+
+    // Mettre a jour la notification correspondante
+    await db.from('sos_urgence_notifications')
+      .update({ status: 'accepted' })
+      .eq('request_id', requestId)
+      .eq('target_societe_id', societeId);
+
+    // Recuperer les infos de l'envoyeur pour l'email
+    const { data: senderSociete } = await db.from('societes').select('nom').eq('id', sosReq.sender_societe_id).single();
+    const { data: senderUser } = await db.from('auth_users_view').select('email').eq('id', sosReq.sender_user_id).maybeSingle();
+    // Fallback: chercher dans profiles
+    let senderEmail = senderUser?.email;
+    if (!senderEmail) {
+      const { data: profile } = await db.from('profiles').select('email').eq('id', sosReq.sender_user_id).maybeSingle();
+      senderEmail = profile?.email;
+    }
+
+    // Recuperer le nom du confrere qui accepte
+    const { data: acceptorSociete } = await db.from('societes').select('nom').eq('id', societeId).single();
+    const acceptorName = acceptorSociete?.nom || 'Un confrere';
+
+    // Envoyer un email a l'envoyeur
+    if (senderEmail) {
+      try {
+        const { sendMail } = require('./api/multiSocietes/mailer');
+        await sendMail({
+          to: senderEmail,
+          subject: `JADOMI SOS Urgence — ${acceptorName} a accepte votre demande`,
+          html: `<div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
+            <h2 style="color:#1e1b4b;">Votre demande SOS Urgence a ete acceptee</h2>
+            <p><strong>${acceptorName}</strong> a accepte de prendre en charge votre urgence pour le patient <strong>${sosReq.patient_initials}</strong>.</p>
+            <p>Type d'urgence : <strong>${sosReq.urgency_type}</strong></p>
+            ${sosReq.description ? `<p>Description : ${sosReq.description}</p>` : ''}
+            <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — SOS Urgence Confreres</p>
+          </div>`
+        });
+      } catch (mailErr) {
+        console.error('[SOS Urgence Accept] Erreur envoi email:', mailErr.message);
+      }
+    }
+
+    res.json({ ok: true, sender_name: senderSociete?.nom || null, sender_email: senderEmail || null });
+  } catch (e) {
+    console.error('[SOS Urgence Accept] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// POST /api/sos-urgence/:id/decline — Decliner une urgence
+app.post('/api/sos-urgence/:id/decline', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const requestId = req.params.id;
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const { error } = await db.from('sos_urgence_notifications')
+      .update({ status: 'declined' })
+      .eq('request_id', requestId)
+      .eq('target_societe_id', societeId);
+
+    if (error) throw error;
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[SOS Urgence Decline] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// POST /api/sos-urgence/:id/cancel — Annuler sa propre demande
+app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const requestId = req.params.id;
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    // Verifier que c'est bien MA demande
+    const { data: sosReq, error: fetchErr } = await db.from('sos_urgence_requests')
+      .select('sender_societe_id')
+      .eq('id', requestId)
+      .single();
+
+    if (fetchErr || !sosReq) return res.status(404).json({ error: 'Demande introuvable.' });
+    if (sosReq.sender_societe_id !== societeId) return res.status(403).json({ error: 'Vous ne pouvez annuler que vos propres demandes.' });
+
+    const { error } = await db.from('sos_urgence_requests')
+      .update({ status: 'cancelled' })
+      .eq('id', requestId);
+
+    if (error) throw error;
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[SOS Urgence Cancel] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ============================================================
 // JADOMI COMMERCE — Checkout Amazon-like + Stripe Connect
 // ============================================================
 
