@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 58 — Documents + Signature + Sidebar + Equipment Groupon + Dossier Avocat v3.0
+**Derniere passe** : Passe 59 — JADOMI Tournees (module infirmieres liberales)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1491,7 +1491,60 @@ transport, calcul haversine frais port, garantie A-to-Z, scoring 100 points.
 Mise a jour dossier avocat : questions 25-26 actualisees, checklist nettoyee.
 CODEX.md enrichi avec section Architecture Marketplace Finale.
 
-## TODO Passe 59 (prochaine session)
+## Passe 59 (27 avril 2026) -- JADOMI Tournees — Module Infirmieres Liberales
+
+Module complet pour infirmieres liberales : agenda intelligent avec tournees
+optimisees GPS, split matin/soir, multi-IDE, placement auto patient.
+
+### SQL (59_ide_tournees.sql)
+- 7 tables: ide_cabinets, ide_nurses, ide_patients, ide_soins_recurrents,
+  ide_visites (pipeline planifie→en_route→en_cours→termine), ide_tournees
+  (UNIQUE nurse+date+tournee), ide_absences
+- 20+ index, RLS complet, trigger updated_at
+
+### API (23 endpoints /api/ide/*)
+- CRUD cabinet/nurses/patients avec geocodage Nominatim automatique
+- Soins recurrents (type, jours semaine, tournee matin/soir, nurse preferee)
+- GET /api/ide/planning/:date — planning jour auto-genere depuis soins recurrents
+- POST /api/ide/tournee/optimize — nearest-neighbor haversine
+- POST /api/ide/patient/place — KILLER: placement auto patient optimal (top 3 options)
+- PATCH /api/ide/visite/:id/status — tracking status pipeline
+- GET /api/ide/visite/:id/tracking — tracking live public (token-based)
+- POST /api/ide/absence + GET /api/ide/dashboard stats
+
+### Frontend (public/ide/dashboard.html — 1033 lignes)
+- Dashboard premium dark mode, mobile-first PWA-ready
+- 5 onglets: Ma tournee, Patients, Planning semaine, Absences, Stats
+- Timeline visites avec badges soins colores + Navigation GPS Google Maps
+- Modal placement auto avec autocomplete + affichage 3 options detour minimal
+- Grille planning 7j x 2 tournees matin/soir
+- Toggle matin/soir, selecteur IDE, date picker
+
+### Integration
+- Routes /ide dans server.js
+- Type infirmiere_liberale dans onboarding organisation.html
+- Card Infirmiere dans section Acces rapide Sante
+
+### Securite (15 corrections par reviewers)
+- PostgREST filter injection corrigee
+- XSS: sanitize inputs + escHtml 5 chars + escAttr
+- Input validation whitelists (soins_type, status, tournee, couleur, dates)
+- Rate limit geocoding Nominatim (20/min)
+- Tracking public: donnees minimales (prenom seulement, pas de GPS live)
+- Generate limite a 90 jours max
+
+## TODO Passe 60 (prochaine session)
+### JADOMI Tournees (ameliorer)
+- Tester le dashboard IDE sur mobile reel
+- Implementer confirmPlacement() et editPatient() (TODO dans le frontend)
+- Fermeture auto sidebar mobile au clic item
+- Dictee vocale IA pour notes de soin
+- Confirmation auto patient la veille (CRON 19h)
+- SOS Remplacement: contrat auto JADOMI Sign + envoi Conseil de l'Ordre
+- Pharmacie connectee: commande compresses/gants en 1 clic
+- Alerte ordonnance expirante (push patient + notification IDE)
+- Tracking Uber live (partage position GPS temps reel)
+
 ### Equipment Groupon (ameliorer)
 - Ameliorer design onglet Equipment (plus immersif)
 - Integrer les propositions fabricants dans le module Groupage existant
