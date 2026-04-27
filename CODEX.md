@@ -1525,6 +1525,11 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
 - Boucle virale: IDE pousse patient a telecharger → patient pousse ses autres pros
 - Abonnement 9EUR/mois sans SMS, l'IDE est libre. SMS = packs tokens (100/500/2000)
 - Integration JADOMI Coins pour les tokens SMS
+- SOS Tournee IDE: si IDE malade, JADOMI redistribue ses patients aux collegues/IDE
+  a proximite + genere le contrat de remplacement via JADOMI Sign en 30s
+  2 modeles: remplacement classique (RPPS titulaire, retrocession 60-70%)
+  ou depannage ponctuel (chacune facture ses patients)
+- Ban/deban patients: no-show, retard, irrespect → banni du reseau, deblocable
 - REGLE ABSOLUE: le patient ne paye JAMAIS. Tout gratuit pour le patient. Toujours.
 - Le patient = carburant viral (comme Doctolib/WhatsApp)
 - Qui paye: le pro de sante (abo), la pharmacie (commission), les tokens SMS (optionnel)
