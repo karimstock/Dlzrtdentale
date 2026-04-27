@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 59 — JADOMI Tournees (module infirmieres liberales)
+**Derniere passe** : Passe 60 — Equipment Groupon + Audit securite + IDE ameliorations
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1548,29 +1548,70 @@ optimisees GPS, split matin/soir, multi-IDE, placement auto patient.
 3. feat(ide): Ordonnances + Comptabilite IDE + Card SQL + Audit 20 corrections
 4. chore(codex): update Passe 59
 
-## TODO Passe 60 (prochaine session)
+## Passe 60 (27 avril 2026) -- Equipment Groupon + Audit securite + IDE ameliorations
+
+### Equipment Groupon (5 endpoints + 2 pages frontend)
+- GET /api/equipment/offres — offres approuvees avec compteurs enrollments
+- POST /api/equipment/join — inscription dentiste (anti-IDOR, tier price, acompte auto)
+- GET /api/equipment/mes-achats — achats groupe du dentiste
+- POST /api/equipment/acompte — enregistrer versement acompte
+- POST /api/equipment/propose — soumission fabricant (multer multipart)
+- Pages: public/equipment/offres.html (catalogue dark mode) + propose.html (formulaire fournisseur)
+- SQL 61: equipment_enrollments + equipment_notifications (RLS, triggers, FK)
+
+### SOS Remplacement IDE (7 endpoints)
+- search, request, accept, decline, contrat, envoyer-ordre, list
+- Generation contrat HTML avec RPPS + retrocession configurable
+- Envoi auto Conseil de l'Ordre departemental + tracking statut email
+- SQL 61: ide_remplacement_requests (RLS, triggers, CHECK constraints)
+
+### Audit securite (22 corrections)
+- IDOR accept/decline remplacement (verifiait sender au lieu de target)
+- Path traversal signature image + audit trail (sanitize IDs)
+- PostgREST injection /api/eco/check (raw produit → escaped)
+- XSS javascript: URL dans email equipment
+- Auth manquante POST /api/admin/security-report
+- Admin check manquant POST /api/admin/security-scan
+- Rate limit 20/h sur 6 endpoints SOS remplacement
+- NaN retrocession_pct, sanitize order, silent catches
+- computeTierPrice sort tiers ascending
+- UUID validation GET /remplacement/requests
+- contrat_envoye_ordre = false si email echoue
+
+### Fix navigation (bug user-reported)
+- 11 cards professions pointaient vers index.html (404) → liens absolus corriges
+- Retour dashboard ajoute sur 4 sous-dashboards (IDE, Vitrines, Labo, Services)
+- portfolio-slider.js route API corrigee (/api/timeline/public/portfolio/)
+- staging.js lien /public/ prefix supprime
+- Path rewrite /public/ → / sur 90+ fichiers HTML/JS
+
+### IDE ameliorations (Passe 60b)
+- Dictee vocale IA: Web Speech API fr-FR sur notes visite, patient, ordonnance
+  Bouton micro pulse rouge, interim results temps reel, append au texte
+- CRON confirmation patient: job 19h Europe/Paris, marque visites J+1 confirmees
+  Endpoint manuel POST /api/ide/cron/confirm-patients (admin, rate limited)
+- Alertes ordonnance expirante: GET /api/ide/ordonnances/expiring (7 jours)
+  Banniere orange + badge compteur sidebar/nav
+- Sidebar SVG icons: 19 icones Lucide-style remplacent les emoji
+
+### Commits Passe 60 (5 commits)
+1. feat(passe60): Equipment Groupon + SOS Remplacement + Audit securite + Fix navigation
+2. fix(sql): RLS policy uses societes table instead of non-existent user_societes
+3. fix(sql): RLS policy societes.owner_id instead of user_id
+4. feat(passe60b): Dictee vocale + CRON confirmation + Alertes ordonnances + SVG icons
+5. chore(codex): update Passe 60
+
+## TODO Passe 61 (prochaine session)
 ### JADOMI Tournees (ameliorer)
 - Tester le dashboard IDE sur mobile reel
-- Implementer confirmPlacement() et editPatient() (TODO dans le frontend)
-- Fermeture auto sidebar mobile au clic item
-- Dictee vocale IA pour notes de soin
-- Confirmation auto patient la veille (CRON 19h)
-- SOS Remplacement: contrat auto JADOMI Sign + envoi Conseil de l'Ordre
 - Pharmacie connectee: commande compresses/gants en 1 clic
-- Alerte ordonnance expirante (push patient + notification IDE)
 - Tracking Uber live (partage position GPS temps reel)
+- SMS confirmation patient via tokens JADOMI Coins (integration future)
 
 ### Equipment Groupon (ameliorer)
-- Ameliorer design onglet Equipment (plus immersif)
-- Integrer les propositions fabricants dans le module Groupage existant
-- Page cote dentiste: voir les deals equipment en cours, s'inscrire, voir prix baisser
-- Systeme acompte/engagement ferme pour les dentistes
-- Notification push quand un nouveau palier est atteint
 - Envoyer le premier email commercial a 3Shape (TRIOS 6)
-
-### Sidebar accordeon (ameliorer)
-- Animations plus fluides, icones SVG au lieu d'emoji
-- Tester toggle sur mobile
+- Notification push navigateur quand un nouveau palier est atteint
+- Integrer Stripe pour les acomptes (actuellement marque mais pas collecte)
 
 ### Signature & Documents
 - Integrer signature dans module BTP (devis)
