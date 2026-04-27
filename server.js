@@ -6372,6 +6372,320 @@ app.post('/api/clients/save', requireAuth(), async (req, res) => {
 });
 
 // ============================================================
+// JADOMI EQUIPMENT — Propositions fabricants/revendeurs
+// ============================================================
+
+// Rate limit: 5 propositions / heure / IP
+app.use('/api/equipment/propose', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de soumissions, veuillez reessayer dans 1 heure.' }
+}));
+
+// Multer config for equipment product images
+const equipmentUploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'docs', 'uploads', 'equipment');
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(uploadDir)) fsMod.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+const equipmentUpload = multer({
+  storage: equipmentUploadStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const allowedExt = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+    if (!allowedMime.includes(file.mimetype) || !allowedExt.includes(ext)) {
+      return cb(new Error('Type de fichier non autorise. Formats acceptes : JPG, PNG, WebP, PDF.'));
+    }
+    cb(null, true);
+  }
+}).single('product_image');
+
+// POST /api/equipment/propose — Public: fabricant/revendeur soumet une proposition
+app.post('/api/equipment/propose', (req, res) => {
+  equipmentUpload(req, res, async (multerErr) => {
+    try {
+      if (multerErr) {
+        const status = multerErr.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        return res.status(status).json({ error: multerErr.message });
+      }
+
+      const {
+        company_name, contact_name, email, phone,
+        product_name, product_description, catalog_price,
+        tiers, supplier_type, website, notes
+      } = req.body;
+
+      // --- Validation ---
+      if (!company_name || !company_name.trim()) return res.status(400).json({ error: 'company_name est requis.' });
+      if (!contact_name || !contact_name.trim()) return res.status(400).json({ error: 'contact_name est requis.' });
+      if (!email || !email.trim()) return res.status(400).json({ error: 'email est requis.' });
+      if (!product_name || !product_name.trim()) return res.status(400).json({ error: 'product_name est requis.' });
+      if (!catalog_price) return res.status(400).json({ error: 'catalog_price est requis.' });
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) return res.status(400).json({ error: 'Format email invalide.' });
+
+      // Parse tiers
+      let parsedTiers;
+      try {
+        parsedTiers = typeof tiers === 'string' ? JSON.parse(tiers) : tiers;
+      } catch (e) {
+        return res.status(400).json({ error: 'Format tiers invalide (JSON attendu).' });
+      }
+      if (!Array.isArray(parsedTiers) || parsedTiers.length === 0) {
+        return res.status(400).json({ error: 'tiers est requis (au moins 1 palier).' });
+      }
+
+      // Sanitize inputs (strip HTML tags)
+      const sanitize = (s) => s ? String(s).replace(/<[^>]*>/g, '').trim().substring(0, 2000) : '';
+      const cleanData = {
+        company_name: sanitize(company_name),
+        contact_name: sanitize(contact_name),
+        email: email.trim().toLowerCase().substring(0, 255),
+        phone: sanitize(phone || ''),
+        product_name: sanitize(product_name),
+        product_description: sanitize(product_description || ''),
+        catalog_price: parseFloat(catalog_price) || 0,
+        tiers: parsedTiers,
+        supplier_type: sanitize(supplier_type || 'fabricant'),
+        website: sanitize(website || ''),
+        notes: sanitize(notes || ''),
+        submitted_at: new Date().toISOString(),
+        ip: req.ip
+      };
+
+      // Handle uploaded image
+      if (req.file) {
+        cleanData.product_image = `/docs/uploads/equipment/${req.file.filename}`;
+      }
+
+      // Generate reference
+      const year = new Date().getFullYear();
+      const refId = crypto.randomBytes(4).toString('hex').toUpperCase().substring(0, 4);
+      const reference = `EQ-${year}-${refId}`;
+      cleanData.reference = reference;
+
+      // Store in signed_documents
+      const sbClient = supabaseAdmin || supabase;
+      const { error: insertError } = await sbClient.from('signed_documents').insert({
+        title: `${cleanData.product_name} — ${cleanData.company_name}`,
+        category: 'equipment_proposal',
+        status: 'pending',
+        signer_name: cleanData.contact_name,
+        signer_email: cleanData.email,
+        metadata: cleanData,
+        created_at: new Date().toISOString()
+      });
+
+      if (insertError) {
+        console.error('[Equipment Propose] Insert error:', insertError.message);
+        return res.status(500).json({ error: 'Erreur lors de l\'enregistrement de la proposition.' });
+      }
+
+      // --- Send emails ---
+      try {
+        const { sendMail } = require('./api/multiSocietes/mailer');
+        const adminEmail = process.env.EMAIL_CONTACT || 'contact@jadomi.fr';
+
+        // Tiers summary for email
+        const tiersSummary = parsedTiers.map((t, i) =>
+          `<tr><td style="padding:6px 12px;border:1px solid #e2e8f0;">${t.label || ('Palier ' + (i + 1))}</td>`
+          + `<td style="padding:6px 12px;border:1px solid #e2e8f0;">${t.min_qty || '-'} - ${t.max_qty || '+'}</td>`
+          + `<td style="padding:6px 12px;border:1px solid #e2e8f0;font-weight:600;">${t.price ? t.price + ' EUR' : '-'}</td>`
+          + `<td style="padding:6px 12px;border:1px solid #e2e8f0;">${t.discount ? t.discount + '%' : '-'}</td></tr>`
+        ).join('');
+
+        const dashboardLink = (process.env.APP_URL || 'https://jadomi.fr') + '/admin/organisation.html#documents';
+
+        // 1. Notification to admin (contact@jadomi.fr + karim)
+        const adminHtml = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;">
+  <div style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:24px 32px;text-align:center;">
+    <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">JADOMI</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Nouvelle proposition equipement</div>
+  </div>
+  <div style="padding:28px 32px;">
+    <h2 style="color:#0f172a;font-size:18px;margin:0 0 16px;">Nouvelle proposition recue</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      <tr><td style="padding:8px 0;color:#64748b;width:140px;">Reference</td><td style="padding:8px 0;font-weight:600;">${reference}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Societe</td><td style="padding:8px 0;font-weight:600;">${cleanData.company_name}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Contact</td><td style="padding:8px 0;">${cleanData.contact_name}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Email</td><td style="padding:8px 0;"><a href="mailto:${cleanData.email}" style="color:#10b981;">${cleanData.email}</a></td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Telephone</td><td style="padding:8px 0;">${cleanData.phone || 'Non renseigne'}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Type</td><td style="padding:8px 0;"><span style="background:${cleanData.supplier_type === 'revendeur' ? '#f59e0b' : '#3b82f6'};color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;">${cleanData.supplier_type}</span></td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Produit</td><td style="padding:8px 0;font-weight:600;font-size:16px;">${cleanData.product_name}</td></tr>
+      <tr><td style="padding:8px 0;color:#64748b;">Prix catalogue</td><td style="padding:8px 0;font-weight:700;color:#10b981;font-size:16px;">${cleanData.catalog_price} EUR</td></tr>
+      ${cleanData.product_description ? `<tr><td style="padding:8px 0;color:#64748b;">Description</td><td style="padding:8px 0;">${cleanData.product_description}</td></tr>` : ''}
+      ${cleanData.website ? `<tr><td style="padding:8px 0;color:#64748b;">Site web</td><td style="padding:8px 0;"><a href="${cleanData.website}" style="color:#10b981;">${cleanData.website}</a></td></tr>` : ''}
+      ${cleanData.notes ? `<tr><td style="padding:8px 0;color:#64748b;">Notes</td><td style="padding:8px 0;">${cleanData.notes}</td></tr>` : ''}
+    </table>
+
+    <h3 style="color:#0f172a;font-size:15px;margin:20px 0 8px;">Paliers de prix proposes</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#f1f5f9;">
+          <th style="padding:8px 12px;text-align:left;border:1px solid #e2e8f0;">Palier</th>
+          <th style="padding:8px 12px;text-align:left;border:1px solid #e2e8f0;">Quantite</th>
+          <th style="padding:8px 12px;text-align:left;border:1px solid #e2e8f0;">Prix</th>
+          <th style="padding:8px 12px;text-align:left;border:1px solid #e2e8f0;">Remise</th>
+        </tr>
+      </thead>
+      <tbody>${tiersSummary}</tbody>
+    </table>
+
+    <div style="text-align:center;margin-top:24px;">
+      <a href="${dashboardLink}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Voir dans le dashboard</a>
+    </div>
+  </div>
+  <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;">
+    JADOMI — Plateforme d'achats groupes pour professionnels de sante
+  </div>
+</div>`;
+
+        await sendMail({
+          to: adminEmail,
+          subject: `[Equipment] Nouvelle proposition : ${cleanData.product_name} — ${cleanData.company_name}`,
+          html: adminHtml
+        }).catch(e => console.error('[Equipment] Admin email error:', e.message));
+
+        // Also notify karim
+        if (adminEmail !== 'karim_bahmed@yahoo.fr') {
+          await sendMail({
+            to: 'karim_bahmed@yahoo.fr',
+            subject: `[Equipment] Nouvelle proposition : ${cleanData.product_name} — ${cleanData.company_name}`,
+            html: adminHtml
+          }).catch(e => console.error('[Equipment] Karim email error:', e.message));
+        }
+
+        // 2. Confirmation email to the supplier
+        const supplierHtml = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;">
+  <div style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:24px 32px;text-align:center;">
+    <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">JADOMI</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Confirmation de votre proposition</div>
+  </div>
+  <div style="padding:28px 32px;">
+    <h2 style="color:#0f172a;font-size:18px;margin:0 0 16px;">Merci pour votre proposition, ${cleanData.contact_name}</h2>
+    <p style="color:#334155;line-height:1.6;">Nous avons bien recu votre proposition pour le produit <strong>${cleanData.product_name}</strong>.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0;color:#166534;font-weight:600;">Reference : ${reference}</p>
+      <p style="margin:4px 0 0;color:#166534;font-size:13px;">Conservez cette reference pour le suivi de votre dossier.</p>
+    </div>
+    <p style="color:#334155;line-height:1.6;">Notre equipe va etudier votre offre avec attention. Nous vous recontacterons sous <strong>48 heures ouvrables</strong> pour la suite.</p>
+    <p style="color:#334155;line-height:1.6;">Si vous avez des questions entre-temps, n'hesitez pas a nous contacter a <a href="mailto:contact@jadomi.fr" style="color:#10b981;">contact@jadomi.fr</a>.</p>
+    <p style="color:#334155;margin-top:20px;">Cordialement,<br><strong>L'equipe JADOMI</strong></p>
+  </div>
+  <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;">
+    JADOMI — Plateforme d'achats groupes pour professionnels de sante
+  </div>
+</div>`;
+
+        await sendMail({
+          to: cleanData.email,
+          subject: `JADOMI — Confirmation de votre proposition (${reference})`,
+          html: supplierHtml
+        }).catch(e => console.error('[Equipment] Supplier confirmation email error:', e.message));
+
+      } catch (emailErr) {
+        console.error('[Equipment] Email sending failed:', emailErr.message);
+        // Don't fail the request if emails fail — the proposal is already saved
+      }
+
+      res.json({ ok: true, reference });
+
+    } catch (e) {
+      console.error('[Equipment Propose] Error:', e.message);
+      res.status(500).json({ error: 'Erreur serveur lors de la soumission.' });
+    }
+  });
+});
+
+// GET /api/equipment/proposals — Admin: liste toutes les propositions equipment
+app.get('/api/equipment/proposals', requireAuth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acces reserve aux administrateurs.' });
+    }
+
+    const sbClient = supabaseAdmin || supabase;
+    const { data, error } = await sbClient.from('signed_documents')
+      .select('*')
+      .eq('category', 'equipment_proposal')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[Equipment Proposals] Query error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la recuperation des propositions.' });
+    }
+
+    res.json({ ok: true, proposals: data || [] });
+  } catch (e) {
+    console.error('[Equipment Proposals] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// PATCH /api/equipment/proposals/:id/status — Admin: changer le statut d'une proposition
+app.patch('/api/equipment/proposals/:id/status', requireAuth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acces reserve aux administrateurs.' });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['pending', 'approved', 'rejected', 'negotiating'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Statut invalide. Valeurs acceptees : ${validStatuses.join(', ')}` });
+    }
+
+    const sbClient = supabaseAdmin || supabase;
+
+    // Verify the document exists and is an equipment proposal
+    const { data: doc, error: fetchError } = await sbClient.from('signed_documents')
+      .select('id, category, status')
+      .eq('id', id)
+      .eq('category', 'equipment_proposal')
+      .single();
+
+    if (fetchError || !doc) {
+      return res.status(404).json({ error: 'Proposition non trouvee.' });
+    }
+
+    const { error: updateError } = await sbClient.from('signed_documents')
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('[Equipment Status] Update error:', updateError.message);
+      return res.status(500).json({ error: 'Erreur lors de la mise a jour du statut.' });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[Equipment Status] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ============================================================
 // JADOMI COMMERCE — Checkout Amazon-like + Stripe Connect
 // ============================================================
 

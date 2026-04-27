@@ -849,6 +849,43 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       <div id="equip-send-msg" style="margin-top:8px;font-size:12px;"></div>
     </div>
   </div>
+
+  <!-- Lien formulaire fabricant -->
+  <div class="card" style="margin-top:16px;padding:20px;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(99,102,241,0.08));border:1px solid rgba(16,185,129,0.2);">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <div class="ct" style="margin-bottom:4px;">Lien formulaire fabricant</div>
+        <p style="font-size:12px;color:var(--text3);margin:0;">Envoyez ce lien aux fabricants/revendeurs pour qu'ils proposent leurs produits au groupage JADOMI.</p>
+        <div style="margin-top:8px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;color:var(--accent);word-break:break-all;" id="equip-link">https://jadomi.fr/equipment/propose</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn bp bs" onclick="navigator.clipboard.writeText('https://jadomi.fr/equipment/propose');this.textContent='Copie !';setTimeout(()=>this.textContent='Copier le lien',1500);">Copier le lien</button>
+        <button class="btn bg bs" onclick="window.open('/equipment/propose','_blank')">Voir la page</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email commercial -->
+  <div class="card" style="margin-top:16px;padding:20px;">
+    <div class="ct" style="margin-bottom:8px;">Email commercial a envoyer</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Template email premium pret a copier/coller. Personnalisez [NOM] et [PRODUIT] avant envoi.</p>
+    <button class="btn bp bs" onclick="window.open('/docs/email-commercial-equipment.html','_blank')">Voir l'email commercial</button>
+  </div>
+
+  <!-- Propositions recues -->
+  <div class="card" style="margin-top:16px;">
+    <div class="ct" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <span>Propositions recues</span>
+      <button class="btn bg bs" onclick="loadEquipmentProposals()" style="font-size:11px;">Rafraichir</button>
+    </div>
+    <div id="equip-proposals" style="padding:16px;"><div style="color:var(--text3);font-size:13px;">Cliquez sur "Rafraichir" pour charger...</div></div>
+  </div>
+
+  <!-- Benefices estimes -->
+  <div class="card" style="margin-top:16px;padding:20px;">
+    <div class="ct" style="margin-bottom:12px;">Benefices estimes (commission 10%)</div>
+    <div id="equip-benefices" style="color:var(--text3);font-size:13px;">Aucune proposition validee pour le moment.</div>
+  </div>
 </div>
 
 <div class="tp" id="t-rapide">
@@ -1070,7 +1107,7 @@ async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'applic
 function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
   const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Securite JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature electronique',equipment:'JADOMI Equipment','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
-  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();}
+  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();}
 function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
   el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
 function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
@@ -1180,6 +1217,74 @@ async function sendDocuments() {
     if (r.success) { msg.textContent = 'Documents envoyes a ' + email; msg.style.color = '#10b981'; }
     else { msg.textContent = r.error || 'Erreur envoi'; msg.style.color = '#ef4444'; }
   } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
+}
+
+async function loadEquipmentProposals() {
+  const el = document.getElementById('equip-proposals');
+  const benEl = document.getElementById('equip-benefices');
+  el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Chargement...</div>';
+  try {
+    const res = await fetch('/api/equipment/proposals', { headers: { 'Authorization': 'Bearer ' + tk } });
+    const data = await res.json();
+    const proposals = data.proposals || [];
+    if (!proposals.length) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Aucune proposition recue. Envoyez le lien du formulaire aux fabricants !</div>'; return; }
+
+    const statusBadge = function(s) {
+      const m = { pending: { bg: 'rgba(251,191,36,0.15)', c: '#fbbf24', l: 'En attente' }, approved: { bg: 'rgba(16,185,129,0.15)', c: '#10b981', l: 'Approuve' }, rejected: { bg: 'rgba(240,80,80,0.15)', c: '#f05050', l: 'Refuse' }, negotiating: { bg: 'rgba(99,102,241,0.15)', c: '#818cf8', l: 'Negociation' } };
+      const v = m[s] || m.pending;
+      return '<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:' + v.bg + ';color:' + v.c + ';">' + v.l + '</span>';
+    };
+
+    let html = '<div style="overflow-x:auto;"><table class="tbl" style="width:100%;"><thead><tr><th>Produit</th><th>Societe</th><th>Type</th><th>Prix catalogue</th><th>Meilleur palier</th><th>Commission 10%</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+    let totalBenef = 0;
+    proposals.forEach(function(p) {
+      const meta = p.metadata || {};
+      const tiers = meta.tiers || [];
+      const bestTier = tiers.length ? tiers[tiers.length - 1] : null;
+      const bestPrice = bestTier ? (bestTier.price || bestTier.unit_price || 0) : meta.catalog_price;
+      const bestQty = bestTier ? (bestTier.min_quantity || bestTier.quantity || 0) : 0;
+      const commission = bestPrice * bestQty * 0.10;
+      if (p.status === 'approved') totalBenef += commission;
+      const date = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '';
+
+      html += '<tr>';
+      html += '<td><strong>' + esc(meta.product_name || p.title || '-') + '</strong></td>';
+      html += '<td>' + esc(meta.company_name || '-') + '</td>';
+      html += '<td>' + esc(meta.company_type || '-') + '</td>';
+      html += '<td>' + (meta.catalog_price ? Number(meta.catalog_price).toLocaleString('fr-FR') + ' EUR' : '-') + '</td>';
+      html += '<td>' + (bestTier ? bestQty + ' unites → ' + Number(bestPrice).toLocaleString('fr-FR') + ' EUR' : '-') + '</td>';
+      html += '<td style="font-weight:700;color:#10b981;">' + (commission > 0 ? Number(commission).toLocaleString('fr-FR') + ' EUR' : '-') + '</td>';
+      html += '<td>' + statusBadge(p.status) + '</td>';
+      html += '<td style="font-size:11px;color:var(--text3);">' + date + '</td>';
+      html += '<td><select onchange="updateEquipStatus(\'' + esc(p.id) + '\',this.value)" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;">';
+      html += '<option value="pending"' + (p.status === 'pending' ? ' selected' : '') + '>En attente</option>';
+      html += '<option value="negotiating"' + (p.status === 'negotiating' ? ' selected' : '') + '>Negociation</option>';
+      html += '<option value="approved"' + (p.status === 'approved' ? ' selected' : '') + '>Approuve</option>';
+      html += '<option value="rejected"' + (p.status === 'rejected' ? ' selected' : '') + '>Refuse</option>';
+      html += '</select></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+
+    if (totalBenef > 0) {
+      benEl.innerHTML = '<div style="font-size:24px;font-weight:800;color:#10b981;">' + Number(totalBenef).toLocaleString('fr-FR') + ' EUR</div><div style="font-size:12px;color:var(--text3);">Commission estimee sur les offres approuvees (10% du meilleur palier x volume)</div>';
+    }
+  } catch (e) {
+    el.innerHTML = '<div style="color:#ef4444;font-size:13px;">Erreur: ' + esc(e.message) + '</div>';
+  }
+}
+
+async function updateEquipStatus(id, status) {
+  try {
+    await fetch('/api/equipment/proposals/' + id + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk },
+      body: JSON.stringify({ status: status })
+    });
+    toast('Statut mis a jour');
+    loadEquipmentProposals();
+  } catch (e) { toast('Erreur: ' + e.message); }
 }
 
 async function sendEquipDocs() {
