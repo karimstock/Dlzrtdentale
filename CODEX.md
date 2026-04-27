@@ -1518,6 +1518,9 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
 - Planning 7j/7 avec roulement, gestion absences/remplacements
 - Patients recurrents : planning auto-genere (pas de re-saisie quotidienne)
 - PWA mobile : feuille de route du jour, navigation GPS en 1 clic vers prochain patient
+- KILLER FEATURE : patient appelle → tape nom/adresse → le systeme le place
+  automatiquement dans le creneau optimal du trajet (gain de temps phenomenal)
+- SMS patient automatique "votre infirmiere arrive dans 12 minutes"
 - Connexion modules JADOMI : stock consommables IDE (compresses, gants), messagerie medecins
 - Concurrent principal : Agathe You (~15EUR/mois) — mais PAS d'optimisation GPS tournees
 - Avantage JADOMI : ecosysteme sante complet (stock + comm + signature + groupage)
