@@ -1422,13 +1422,23 @@ Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 - Auto-ouverture du groupe parent a la navigation
 - Style premium visible : titres #b0b8c8, hover blanc, badges accent
 
-### Commits Passe 58 (6 commits)
+### Autocomplete Patients / Clients
+- GET /api/clients/autocomplete?q= — recherche dans 3 sources (signed_documents metadata,
+  avocat_clients, jadomi_clients_autocomplete)
+- POST /api/clients/save — sauvegarde automatique du nom au submit
+- Composant autocomplete sur les champs patient dans index.html et organisation.html
+- Dropdown avec badges (Enregistre/Client), debounce 250ms, navigation clavier
+- Le nom est sauvegarde automatiquement apres chaque envoi de document
+
+### Commits Passe 58 (8 commits)
 1. fix(sign): OTP timer 60s + resend + PDF contrat 11 articles
 2. feat(docs): Gestionnaire documents complet — upload, dossiers, tri
 3. feat(docs): Signature electronique integree + coffre-fort + champ patient
 4. feat(sign): Onglet Signature electronique dans hub dentiste
 5. feat(ui): Sidebar accordeon premium — categories cliquables
 6. fix(ui): Sidebar accordeon — visibilite + toggle fonctionnel
+7. feat(ux): Autocomplete patients/clients — 3 sources, sauvegarde auto
+8. chore(codex): update after Passe 58
 
 ## Passe 57 (27 avril 2026) -- JADOMI Sign AES integre au mandat fournisseur
 Integration complete de JADOMI Sign dans la page de signature du mandat.

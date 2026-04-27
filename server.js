@@ -6279,6 +6279,98 @@ app.delete('/api/documents/signed/:id', requireAuth(), async (req, res) => {
 });
 
 // ============================================================
+// AUTOCOMPLETE PATIENTS / CLIENTS
+// ============================================================
+
+// GET /api/clients/autocomplete?q=dup — recherche noms patients/clients
+app.get('/api/clients/autocomplete', requireAuth(), async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) return res.json({ ok: true, results: [] });
+    const safeQ = q.replace(/[%_\\]/g, '\\$&');
+    const results = new Map();
+
+    // Source 1: metadata.patient_name dans signed_documents
+    const { data: docs } = await supabase
+      .from('signed_documents')
+      .select('metadata')
+      .or(`societe_id.eq.${escapePostgrest(req.user.societe_id || '')},user_id.eq.${escapePostgrest(req.user.id)}`)
+      .not('metadata', 'is', null)
+      .limit(200);
+    if (docs) {
+      docs.forEach(d => {
+        const name = d.metadata?.patient_name;
+        if (name && name.toLowerCase().includes(q.toLowerCase())) {
+          results.set(name.toLowerCase(), { name, source: 'document' });
+        }
+      });
+    }
+
+    // Source 2: avocat_clients (si la table existe)
+    try {
+      const { data: clients } = await supabase
+        .from('avocat_clients')
+        .select('nom, prenom, email')
+        .or(`nom.ilike.%${safeQ}%,prenom.ilike.%${safeQ}%`)
+        .limit(20);
+      if (clients) {
+        clients.forEach(c => {
+          const fullName = [c.prenom, c.nom].filter(Boolean).join(' ');
+          if (fullName) results.set(fullName.toLowerCase(), { name: fullName, email: c.email, source: 'client' });
+        });
+      }
+    } catch (_) { /* table may not exist */ }
+
+    // Source 3: jadomi_clients_autocomplete (table dediee, si elle existe)
+    try {
+      const { data: ac } = await supabase
+        .from('jadomi_clients_autocomplete')
+        .select('name, email, category')
+        .ilike('name', `%${safeQ}%`)
+        .eq('societe_id', req.user.societe_id || '')
+        .limit(20);
+      if (ac) {
+        ac.forEach(c => {
+          results.set(c.name.toLowerCase(), { name: c.name, email: c.email, category: c.category, source: 'saved' });
+        });
+      }
+    } catch (_) { /* table may not exist yet */ }
+
+    const arr = Array.from(results.values()).slice(0, 15);
+    res.json({ ok: true, results: arr });
+  } catch (e) {
+    console.error('[GET /api/clients/autocomplete]', e.message);
+    res.json({ ok: true, results: [] });
+  }
+});
+
+// POST /api/clients/save — sauvegarder un nom de client/patient pour autocomplete futur
+app.post('/api/clients/save', requireAuth(), async (req, res) => {
+  try {
+    const { name, email, category } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Nom requis' });
+    const cleanName = String(name).trim();
+
+    // Try dedicated table first
+    try {
+      await supabase.from('jadomi_clients_autocomplete').upsert({
+        societe_id: req.user.societe_id || req.user.id,
+        name: cleanName,
+        email: email || null,
+        category: category || 'patient',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'societe_id,name' });
+    } catch (_) {
+      // Table doesn't exist yet — silently succeed (data still saved in document metadata)
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
 // JADOMI COMMERCE — Checkout Amazon-like + Stripe Connect
 // ============================================================
 

@@ -1721,9 +1721,53 @@ function _sigToken() {
   return window.jadomiMultiSocietes?.token || JSON.parse(localStorage.getItem('jadomi_session') || '{}').access_token || tk;
 }
 
+// Autocomplete patients/clients
+function initPatientAutocomplete(inputId){
+  var input=document.getElementById(inputId);
+  if(!input||input._acInit) return;
+  input._acInit=true;
+  var wrap=input.parentElement;
+  if(wrap) wrap.style.position='relative';
+  var dd=document.createElement('div');
+  dd.id=inputId+'-ac-dd';
+  dd.style.cssText='position:absolute;top:100%;left:0;right:0;background:#1a1f2e;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:9999;display:none;max-height:200px;overflow-y:auto;margin-top:4px;';
+  if(wrap) wrap.appendChild(dd);
+  input.setAttribute('autocomplete','off');
+  var timer=null;
+  input.addEventListener('input',function(){
+    var val=input.value.trim();
+    if(val.length<2){dd.style.display='none';return;}
+    clearTimeout(timer);
+    timer=setTimeout(function(){_fetchAC(val,inputId,dd);},250);
+  });
+  input.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},200);});
+  input.addEventListener('keydown',function(e){if(e.key==='Escape')dd.style.display='none';});
+}
+async function _fetchAC(q,inputId,dd){
+  try{
+    var res=await fetch('/api/clients/autocomplete?q='+encodeURIComponent(q),{headers:{'Authorization':'Bearer '+_sigToken()}});
+    var data=await res.json();
+    if(!data.ok||!data.results||!data.results.length){dd.style.display='none';return;}
+    dd.innerHTML=data.results.map(function(r){
+      return '<div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;border-bottom:1px solid rgba(255,255,255,0.04);" '+
+        'onmousedown="document.getElementById(\''+inputId+'\').value=\''+esc(r.name).replace(/'/g,"\\'")+'\';this.parentElement.style.display=\'none\';" '+
+        'onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'transparent\'">'+
+        '<div style="flex:1;font-size:13px;font-weight:500;color:var(--text);">'+esc(r.name)+'</div>'+
+        (r.source==='saved'?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(99,102,241,0.15);color:#818cf8;">Enregistre</span>':'')+
+        '</div>';
+    }).join('');
+    dd.style.display='block';
+  }catch(e){dd.style.display='none';}
+}
+function _savePatientName(name,cat){
+  if(!name||name.trim().length<2)return;
+  fetch('/api/clients/save',{method:'POST',headers:{'Authorization':'Bearer '+_sigToken(),'Content-Type':'application/json'},body:JSON.stringify({name:name.trim(),category:cat||'patient'})}).catch(function(){});
+}
+
 // Drag & drop
 (function initSigDropzone() {
   document.addEventListener('DOMContentLoaded', function() {
+    initPatientAutocomplete('sig-patient-name');
     const dz = document.getElementById('sig-dropzone');
     const fi = document.getElementById('sig-file-input');
     if (!dz || !fi) return;
@@ -1779,6 +1823,7 @@ async function sendSignatureRequest() {
       msg.style.color = '#10b981';
       msg.textContent = 'Document envoye pour signature avec succes.';
       toast('Document envoye pour signature');
+      if (patient) _savePatientName(patient, 'patient');
       // Reset form
       document.getElementById('sig-dest-name').value = '';
       document.getElementById('sig-dest-email').value = '';

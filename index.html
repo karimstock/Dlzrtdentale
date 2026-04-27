@@ -3569,7 +3569,12 @@ function openParentNavGroup(el) {
   if (arrow) arrow.classList.add('open');
   saveNavGroupState();
 }
-document.addEventListener('DOMContentLoaded', restoreNavGroupState);
+document.addEventListener('DOMContentLoaded', function(){
+  restoreNavGroupState();
+  // Init autocomplete on patient name fields
+  initPatientAutocomplete('sig-patient-name');
+  initPatientAutocomplete('upload-doc-patient-name');
+});
 
 function showPage(id, el) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -6088,6 +6093,93 @@ async function _docDoDelete(docId,btn){
 }
 
 // ═══════════════════════════════════
+// AUTOCOMPLETE PATIENTS / CLIENTS
+// ═══════════════════════════════════
+var _acTimer=null;
+var _acActive=null; // currently active autocomplete input id
+
+function initPatientAutocomplete(inputId){
+  var input=document.getElementById(inputId);
+  if(!input||input._acInit) return;
+  input._acInit=true;
+
+  // Create dropdown container
+  var wrap=input.parentElement;
+  if(wrap) wrap.style.position='relative';
+  var dropdown=document.createElement('div');
+  dropdown.id=inputId+'-ac-dropdown';
+  dropdown.style.cssText='position:absolute;top:100%;left:0;right:0;background:#1a1f2e;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:9999;display:none;max-height:200px;overflow-y:auto;margin-top:4px;';
+  if(wrap) wrap.appendChild(dropdown);
+
+  input.setAttribute('autocomplete','off');
+  input.addEventListener('input',function(){
+    var val=input.value.trim();
+    if(val.length<2){dropdown.style.display='none';return;}
+    clearTimeout(_acTimer);
+    _acActive=inputId;
+    _acTimer=setTimeout(function(){_fetchAutocomplete(val,inputId,dropdown);},250);
+  });
+
+  input.addEventListener('blur',function(){
+    setTimeout(function(){dropdown.style.display='none';},200);
+  });
+
+  input.addEventListener('keydown',function(e){
+    if(e.key==='Escape') dropdown.style.display='none';
+    if(e.key==='ArrowDown'&&dropdown.style.display!=='none'){
+      var first=dropdown.querySelector('.ac-item');
+      if(first) first.focus();
+      e.preventDefault();
+    }
+  });
+}
+
+async function _fetchAutocomplete(q,inputId,dropdown){
+  try{
+    var headers=_sigAuthHeaders ? _sigAuthHeaders() : {'Authorization':'Bearer '+(window.jadomiMultiSocietes?.token||'')};
+    var res=await fetch('/api/clients/autocomplete?q='+encodeURIComponent(q),{headers:headers});
+    var data=await res.json();
+    if(!data.ok||!data.results||!data.results.length){dropdown.style.display='none';return;}
+
+    var html='';
+    data.results.forEach(function(r){
+      var srcBadge=r.source==='saved'?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(99,102,241,0.15);color:#818cf8;margin-left:auto;">Enregistre</span>':
+        r.source==='client'?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(16,185,129,0.15);color:#10b981;margin-left:auto;">Client</span>':'';
+      var emailLine=r.email?'<div style="font-size:11px;color:var(--muted);">'+_escDoc(r.email)+'</div>':'';
+      html+='<div class="ac-item" tabindex="0" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;border-bottom:1px solid rgba(255,255,255,0.04);" '+
+        'onmousedown="_acSelect(\''+inputId+'\',\''+_escDoc(r.name).replace(/'/g,"\\'")+'\',\''+(r.email?_escDoc(r.email).replace(/'/g,"\\'"):'')+'\');" '+
+        'onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'transparent\'"'+
+        'onkeydown="if(event.key===\'Enter\'){_acSelect(\''+inputId+'\',\''+_escDoc(r.name).replace(/'/g,"\\'")+'\');}">';
+      html+='<div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--text);">'+_escDoc(r.name)+'</div>'+emailLine+'</div>';
+      html+=srcBadge+'</div>';
+    });
+    dropdown.innerHTML=html;
+    dropdown.style.display='block';
+  }catch(e){dropdown.style.display='none';}
+}
+
+function _acSelect(inputId,name,email){
+  var input=document.getElementById(inputId);
+  if(input) input.value=name;
+  var dropdown=document.getElementById(inputId+'-ac-dropdown');
+  if(dropdown) dropdown.style.display='none';
+  // Si il y a un champ email a cote, le remplir
+  if(email){
+    var emailInput=document.getElementById(inputId.replace('patient','email').replace('name','email'));
+    if(emailInput&&!emailInput.value) emailInput.value=email;
+  }
+}
+
+function _savePatientName(name,category){
+  if(!name||name.trim().length<2) return;
+  try{
+    var headers=_sigAuthHeaders ? _sigAuthHeaders() : {};
+    headers['Content-Type']='application/json';
+    fetch('/api/clients/save',{method:'POST',headers:headers,body:JSON.stringify({name:name.trim(),category:category||'patient'})}).catch(function(){});
+  }catch(e){}
+}
+
+// ═══════════════════════════════════
 // SIGNATURE ELECTRONIQUE
 // ═══════════════════════════════════
 var _sigFile=null;
@@ -6132,6 +6224,7 @@ async function envoyerPourSignature(){
     const data=await res.json();
     if(data.ok||data.id){
       msg.textContent='Document envoye pour signature !';msg.style.color='#10b981';
+      if(patient) _savePatientName(patient,'patient');
       document.getElementById('sig-dest-name').value='';
       document.getElementById('sig-dest-email').value='';
       document.getElementById('sig-patient-name').value='';
@@ -6437,6 +6530,9 @@ async function _docDoUpload(){
     _docUploadMsg(isCoffre?'Document chiffre et stocke dans le coffre-fort':'Document importe avec succes','var(--green)');
     btn.textContent=isCoffre?'Stocke dans le coffre-fort !':'Importe !';
     btn.style.background='var(--green)';
+    // Sauvegarder le nom du patient pour autocomplete futur
+    var savedPatient=document.getElementById('upload-doc-patient-name')?.value?.trim();
+    if(savedPatient) _savePatientName(savedPatient,'patient');
 
     setTimeout(()=>{
       document.getElementById('modal-upload-doc')?.remove();
