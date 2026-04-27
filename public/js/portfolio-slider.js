@@ -3,7 +3,7 @@
  * Self-contained component for public portfolio display.
  *
  * Usage:
- *   <script src="/public/js/portfolio-slider.js"></script>
+ *   <script src="/js/portfolio-slider.js"></script>
  *   <script>JadomiPortfolio.init('site-id-here', '#portfolio-container');</script>
  */
 (function () {

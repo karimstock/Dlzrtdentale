@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JADOMI — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/public/css/jadomi-theme.css">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/ms-switcher.js" defer></script>
-<script src="/public/js/jadomi-legal-widget.js" defer></script>
-<script src="/public/js/jadomi-network-widget.js" defer></script>
-<script src="/public/js/jadomi-conformite-badge.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -48,6 +48,14 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 .sb-logo p{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:1px;text-transform:uppercase;}
 .sb-nav{padding:10px 8px;flex:1;}
 .sb-section{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:14px 12px 4px;}
+.nav-group{padding:2px 0;margin:0 4px;}
+.nav-group-title{cursor:pointer;padding:10px 12px;font-size:11px;font-weight:700;color:#b0b8c8;letter-spacing:0.5px;display:flex;align-items:center;gap:7px;transition:all 0.2s ease;user-select:none;border-radius:6px;margin:1px 0;text-transform:uppercase;}
+.nav-group-title:hover{color:#fff;background:rgba(99,102,241,0.1);}
+.nav-group-arrow{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:8px;color:#8892a4;transition:transform 0.25s cubic-bezier(.16,1,.3,1);flex-shrink:0;background:rgba(255,255,255,0.08);border-radius:4px;}
+.nav-group-title:hover .nav-group-arrow{color:#fff;background:rgba(99,102,241,0.2);}
+.nav-group-arrow.open{transform:rotate(90deg);color:var(--accent);background:rgba(99,102,241,0.2);}
+.nav-group-items{overflow:hidden;padding:0 0 4px 0;}
+.nav-group-ico{font-size:12px;}
 .sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--rs);
   font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .2s;border-left:2px solid transparent;margin:1px 0;}
 .sb-item:hover{background:rgba(99,102,241,0.06);color:var(--text);}
@@ -195,6 +203,9 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   .sg{grid-template-columns:1fr 1fr;}
   .two,.plans,.ig{grid-template-columns:1fr;}
   .soc-grid{grid-template-columns:1fr;}
+  #sd-categories-tree{display:none!important;}
+  #t-documents [style*="200px 1fr"]{grid-template-columns:1fr!important;}
+  .sd-row{grid-template-columns:30px 1fr 90px!important;}
 }
 </style>
 </head>
@@ -216,26 +227,50 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><h1>JADOMI</h1><p>Plateforme SaaS</p></div>
   <div class="sb-nav" id="aN">
-    <div class="sb-section">Administration</div>
-    <div class="sb-item active" onclick="sT('overview',this)"><span class="ico">📊</span>Vue d'ensemble</div>
-    <div class="sb-item" onclick="sT('compta',this)"><span class="ico">💰</span>Comptabilite</div>
-    <div class="sb-item" onclick="sT('users',this)"><span class="ico">👥</span>Clients & Users</div>
-    <div class="sb-item" onclick="sT('messages',this)"><span class="ico">📧</span>Messages</div>
-    <div class="sb-item" onclick="sT('analytics',this)"><span class="ico">📈</span>Analytics</div>
-    <div class="sb-item" onclick="sT('sectors',this)"><span class="ico">🏢</span>Secteurs</div>
-    <div class="sb-item" onclick="sT('plans',this)"><span class="ico">💳</span>Abonnements</div>
-    <div class="sb-item" onclick="sT('settings',this)"><span class="ico">⚙️</span>Paramètres</div>
-    <div class="sb-item" onclick="sT('securite',this)"><span class="ico">🛡️</span>Securite</div>
-    <div class="sb-item" onclick="sT('documents',this)"><span class="ico">📄</span>Documents</div>
-    <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Acces rapide</div>
-  </div>
-  <div class="sb-nav">
-    <div class="sb-section">JADOMI Studio</div>
-    <div class="sb-item" onclick="sT('studio-home',this)"><span class="ico">✨</span>Vue d'ensemble</div>
-    <div class="sb-item" onclick="window.location.href='/studio/cms/'"><span class="ico">🌐</span>Mon site</div>
-    <div class="sb-item" onclick="window.location.href='/studio/onboarding/'"><span class="ico">🔍</span>Creer / analyser</div>
-    <div class="sb-item" onclick="window.location.href='/dashboard-annonceur.html'"><span class="ico">📢</span>Mes pubs</div>
-    <div class="sb-item" onclick="sT('studio-abo',this)"><span class="ico">💎</span>Mon abonnement</div>
+    <!-- ACCORDEON 1: Administration (ouvert par defaut) -->
+    <div class="nav-group" data-nav-group="administration">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">🏢</span> Administration
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="sb-item active" onclick="sT('overview',this)"><span class="ico">📊</span>Vue d'ensemble</div>
+        <div class="sb-item" onclick="sT('compta',this)"><span class="ico">💰</span>Comptabilite</div>
+        <div class="sb-item" onclick="sT('users',this)"><span class="ico">👥</span>Clients & Users</div>
+        <div class="sb-item" onclick="sT('messages',this)"><span class="ico">📧</span>Messages</div>
+        <div class="sb-item" onclick="sT('analytics',this)"><span class="ico">📈</span>Analytics</div>
+        <div class="sb-item" onclick="sT('sectors',this)"><span class="ico">🏢</span>Secteurs</div>
+        <div class="sb-item" onclick="sT('plans',this)"><span class="ico">💳</span>Abonnements</div>
+        <div class="sb-item" onclick="sT('settings',this)"><span class="ico">⚙️</span>Paramètres</div>
+        <div class="sb-item" onclick="sT('securite',this)"><span class="ico">🛡️</span>Securite</div>
+      </div>
+    </div>
+
+    <!-- ACCORDEON 2: Documents & Signature -->
+    <div class="nav-group" data-nav-group="documents-signature">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">📁</span> Documents & Signature
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="sb-item" onclick="sT('documents',this)"><span class="ico">📄</span>Documents</div>
+        <div class="sb-item" onclick="sT('signature',this)"><span class="ico">✍️</span>Signature electronique</div>
+        <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Acces rapide</div>
+        <div class="sb-item" onclick="sT('equipment',this)"><span class="ico">🏭</span>Equipment</div>
+      </div>
+    </div>
+
+    <!-- ACCORDEON 3: JADOMI Studio -->
+    <div class="nav-group" data-nav-group="jadomi-studio">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">✨</span> JADOMI Studio
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="sb-item" onclick="sT('studio-home',this)"><span class="ico">✨</span>Vue d'ensemble</div>
+        <div class="sb-item" onclick="window.location.href='/studio/cms/'"><span class="ico">🌐</span>Mon site</div>
+        <div class="sb-item" onclick="window.location.href='/studio/onboarding/'"><span class="ico">🔍</span>Creer / analyser</div>
+        <div class="sb-item" onclick="window.location.href='/dashboard-annonceur.html'"><span class="ico">📢</span>Mes pubs</div>
+        <div class="sb-item" onclick="sT('studio-abo',this)"><span class="ico">💎</span>Mon abonnement</div>
+      </div>
+    </div>
   </div>
   <div class="sb-nav"><div class="sb-section">Mes societes</div><div class="sb-soc" id="sbS"></div></div>
   <div class="sb-nav" id="sbModules" style="display:none;"><div class="sb-section">Modules</div><div class="sb-soc" id="sbModuleLinks"></div></div>
@@ -300,7 +335,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   </div>
   <div id="mInbox" class="card"><div id="inL" style="font-size:12px;color:var(--text2);">Chargement...</div></div>
   <div id="mSug" class="card hide"><div id="sgL" style="font-size:12px;color:var(--text2);">Chargement...</div></div>
-  <div id="mCamp" class="card hide"><a href="/public/admin-email.html" class="btn bp bs" style="margin-bottom:14px;display:inline-flex;">📧 Editeur campagnes</a><div id="cpL" style="font-size:12px;color:var(--text2);">Aucune</div></div>
+  <div id="mCamp" class="card hide"><a href="/admin-email.html" class="btn bp bs" style="margin-bottom:14px;display:inline-flex;">📧 Editeur campagnes</a><div id="cpL" style="font-size:12px;color:var(--text2);">Aucune</div></div>
 </div>
 
 <!-- ANALYTICS -->
@@ -386,6 +421,17 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       </div>
     </div>
 
+    <div class="ar-card" style="padding:28px;" onclick="event.stopPropagation();">
+      <div style="font-size:36px;margin-bottom:14px;">📖</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">CODEX JADOMI</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:16px;">Document de reference maitre — Vision, modules, historique, roadmap, architecture</div>
+      <div style="display:flex;gap:8px;">
+        <a href="/docs/CODEX-JADOMI.html" target="_blank" style="padding:8px 16px;background:#8b5cf6;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">Voir</a>
+        <a href="/docs/CODEX-JADOMI.html" download style="padding:8px 16px;border:1px solid var(--border,#e2e8f0);border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:var(--text);">Telecharger</a>
+        <button onclick="copyCodexLink()" style="padding:8px 16px;border:1px solid var(--border,#e2e8f0);border-radius:8px;font-size:12px;font-weight:600;background:transparent;color:var(--text);cursor:pointer;" id="codex-copy-btn">Copier le lien</button>
+      </div>
+    </div>
+
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -412,9 +458,309 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="email" id="mandate-supplier-email" placeholder="Email du fournisseur" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:#fff;">
         <button class="btn bp bs" onclick="sendMandateToSupplier()">Envoyer</button>
+        <button class="btn bp" onclick="previewMandate()" style="background:transparent;border:1px solid var(--border);color:var(--text);">Previsualiser</button>
       </div>
       <div id="mandate-send-msg" style="margin-top:8px;font-size:12px;"></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;">Le fournisseur recevra un lien securise pour consulter et signer le mandat.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div>
+        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0;">Documents Signes</h3>
+        <p style="font-size:12px;color:var(--text3);margin:4px 0 0;">Tous les documents signes electroniquement via DocuSeal</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn bp" onclick="sendSelectedDocs()" id="btn-send-selected" style="display:none;">Envoyer par email</button>
+        <button class="btn bp" onclick="downloadSelectedDocs()" id="btn-dl-selected" style="display:none;">Telecharger</button>
+      </div>
+    </div>
+
+    <!-- Filters bar -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <select id="sd-filter-category" onchange="loadSignedDocs()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Toutes categories</option>
+        <option value="contrat">Contrats</option>
+        <option value="mandat">Mandats</option>
+        <option value="avocat">Avocat</option>
+        <option value="juridique">Juridique</option>
+        <option value="administratif">Administratif</option>
+        <option value="autre">Autre</option>
+      </select>
+      <select id="sd-filter-status" onchange="loadSignedDocs()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Tous statuts</option>
+        <option value="pending">En attente</option>
+        <option value="sent">Envoye</option>
+        <option value="viewed">Consulte</option>
+        <option value="signed">Signe</option>
+        <option value="expired">Expire</option>
+        <option value="rejected">Refuse</option>
+      </select>
+      <select id="sd-filter-year" onchange="loadSignedDocs()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Toutes annees</option>
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+      <select id="sd-filter-month" onchange="loadSignedDocs()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Tous mois</option>
+        <option value="1">Janvier</option><option value="2">Fevrier</option><option value="3">Mars</option>
+        <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+        <option value="7">Juillet</option><option value="8">Aout</option><option value="9">Septembre</option>
+        <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Decembre</option>
+      </select>
+      <input type="text" id="sd-search" placeholder="Rechercher..." oninput="debounceLoadSignedDocs()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);flex:1;min-width:150px;">
+    </div>
+
+    <!-- Categories sidebar + documents list -->
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:16px;">
+      <!-- Categories tree sidebar -->
+      <div id="sd-categories-tree" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:12px;"></div>
+
+      <!-- Documents table/grid -->
+      <div>
+        <div id="sd-view-toggle" style="display:flex;gap:4px;margin-bottom:12px;">
+          <button onclick="setDocView('table')" class="sd-view-btn active" data-view="table" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--accent);color:#fff;cursor:pointer;">Liste</button>
+          <button onclick="setDocView('grid')" class="sd-view-btn" data-view="grid" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--text);cursor:pointer;">Grille</button>
+        </div>
+
+        <!-- Select all -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:var(--text3);">
+          <input type="checkbox" id="sd-select-all" onchange="toggleSelectAllDocs()">
+          <label for="sd-select-all">Tout selectionner</label>
+          <span id="sd-count" style="margin-left:auto;"></span>
+        </div>
+
+        <div id="sd-documents-list" style="min-height:200px;"></div>
+      </div>
+    </div>
+
+    <!-- Send email modal -->
+    <div id="sd-email-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);justify-content:center;align-items:center;">
+      <div style="background:var(--bg,#0f0f23);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:90%;">
+        <h4 style="color:var(--text);margin:0 0 16px;">Envoyer les documents selectionnes</h4>
+        <input type="email" id="sd-send-email" placeholder="Email destinataire" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:#fff;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button onclick="closeEmailModal()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:transparent;color:var(--text);cursor:pointer;">Annuler</button>
+          <button onclick="confirmSendDocs()" class="btn bp bs">Envoyer</button>
+        </div>
+        <div id="sd-send-msg" style="margin-top:8px;font-size:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQL A EXECUTER EN PRODUCTION -->
+  <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div>
+        <h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0;">SQL a executer en production</h3>
+        <p style="font-size:12px;color:var(--text3);margin:4px 0 0;">Copier-coller dans Supabase Dashboard > SQL Editor</p>
+      </div>
+      <span style="font-size:11px;color:var(--text3);background:var(--surface);padding:4px 10px;border-radius:6px;border:1px solid var(--border);" id="sql-count-badge">Chargement...</span>
+    </div>
+    <p style="font-size:12px;color:#f59e0b;margin-bottom:16px;padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;">
+      ⚠ Les SQL doivent etre executes dans l'ORDRE (par numero). <strong>Vert</strong> = probablement deja execute. <strong>Orange</strong> = recent, a verifier.
+    </p>
+    <div id="sql-files-list" style="display:grid;grid-template-columns:1fr;gap:8px;max-height:600px;overflow-y:auto;padding-right:4px;">
+      <div style="text-align:center;padding:30px;color:var(--text3);font-size:13px;">Chargement des fichiers SQL...</div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const sqlFiles = [
+      {name:"01_vitrines_module.sql",lines:129,recent:false},
+      {name:"02_competitors_analytics.sql",lines:36,recent:false},
+      {name:"03_edits_quotas.sql",lines:41,recent:false},
+      {name:"04_rls.sql",lines:313,recent:false},
+      {name:"05_add_media_type.sql",lines:7,recent:false},
+      {name:"06_site_meta.sql",lines:21,recent:false},
+      {name:"07_photos_auto_categorization.sql",lines:9,recent:false},
+      {name:"08_contact_requests.sql",lines:23,recent:false},
+      {name:"09_ai_propositions.sql",lines:8,recent:false},
+      {name:"10_reanalyze_jobs.sql",lines:15,recent:false},
+      {name:"11_societes_infos_legales.sql",lines:39,recent:false},
+      {name:"12_file_hash.sql",lines:7,recent:false},
+      {name:"14_video_poster.sql",lines:9,recent:false},
+      {name:"15_custom_sections.sql",lines:15,recent:false},
+      {name:"16_dashboard_modulable.sql",lines:42,recent:false},
+      {name:"17_upsell.sql",lines:45,recent:false},
+      {name:"18_themes.sql",lines:157,recent:false},
+      {name:"19_schema_fix.sql",lines:26,recent:false},
+      {name:"20_onboarding_sessions.sql",lines:18,recent:false},
+      {name:"21_sites_primary.sql",lines:18,recent:false},
+      {name:"22_gpo_smart_queue.sql",lines:175,recent:false},
+      {name:"23_notifications_gpo_types.sql",lines:16,recent:false},
+      {name:"24_logistics_and_groupage.sql",lines:169,recent:false},
+      {name:"25_cleanup_test_data.sql",lines:11,recent:false},
+      {name:"26_chatbot_config.sql",lines:37,recent:false},
+      {name:"27_client_portal.sql",lines:57,recent:false},
+      {name:"28_appointments.sql",lines:62,recent:false},
+      {name:"29_user_onboarding_state.sql",lines:26,recent:false},
+      {name:"30_timeline.sql",lines:81,recent:false},
+      {name:"31_timeline_fix_site_id.sql",lines:24,recent:false},
+      {name:"32_tour_guide.sql",lines:15,recent:false},
+      {name:"33_passe33_modules_analysis.sql",lines:87,recent:false},
+      {name:"34_jadomi_ads.sql",lines:271,recent:false},
+      {name:"35_jadomi_studio.sql",lines:76,recent:false},
+      {name:"38_coins_wallet_structure.sql",lines:109,recent:true},
+      {name:"39_cms_formules.sql",lines:302,recent:true},
+      {name:"40_studio_nouveau_pricing.sql",lines:211,recent:true},
+      {name:"41_interventions_ia.sql",lines:133,recent:true},
+      {name:"42_sites_crees_jadomi.sql",lines:188,recent:true},
+      {name:"43_60_themes_premium.sql",lines:314,recent:true},
+      {name:"44_chatbot_v3_formules.sql",lines:15,recent:true},
+      {name:"45_photos_categories.sql",lines:23,recent:true},
+      {name:"46_pages_sections_enrichies.sql",lines:44,recent:true},
+      {name:"47_staging_sites.sql",lines:48,recent:true},
+      {name:"48_avocat_expert_coffre.sql",lines:131,recent:true},
+      {name:"49_otp_verification.sql",lines:31,recent:true},
+      {name:"54_gpo_orders.sql",lines:141,recent:true},
+      {name:"55_facturation_mandats.sql",lines:258,recent:true},
+      {name:"56_security_reports.sql",lines:52,recent:true},
+      {name:"57_signed_documents.sql",lines:40,recent:true},
+      {name:"58_commerce_orders.sql",lines:72,recent:true},
+      {name:"58_sos_urgence_confreres.sql",lines:180,recent:true},
+      {name:"59_disputes_scoring.sql",lines:86,recent:true},
+      {name:"59_ide_tournees.sql",lines:403,recent:true},
+      {name:"60_ide_ordonnances_compta.sql",lines:177,recent:true}
+    ];
+    const container = document.getElementById('sql-files-list');
+    const countBadge = document.getElementById('sql-count-badge');
+    const recentCount = sqlFiles.filter(f=>f.recent).length;
+    countBadge.textContent = sqlFiles.length+' fichiers ('+recentCount+' recents)';
+    countBadge.style.color = '#f59e0b';
+
+    let html = '';
+    sqlFiles.forEach(function(f, i){
+      const badgeColor = f.recent ? '#f59e0b' : '#10b981';
+      const badgeText = f.recent ? 'RECENT' : 'ANCIEN';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">'
+        + '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;color:#fff;background:'+badgeColor+';min-width:60px;text-align:center;">'+badgeText+'</span>'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+f.name+'</div>'
+        + '<div style="font-size:11px;color:var(--text3);">'+f.lines+' lignes</div>'
+        + '</div>'
+        + '<button onclick="window.open(\'/sql/vitrines/'+f.name+'\',\'_blank\')" style="padding:6px 14px;border:1px solid var(--border);border-radius:7px;font-size:11px;font-weight:600;background:transparent;color:var(--text);cursor:pointer;white-space:nowrap;">Voir</button>'
+        + '<button onclick="copySqlFile(\''+f.name+'\',this)" style="padding:6px 14px;background:var(--accent,#6366f1);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">Copier</button>'
+        + '</div>';
+    });
+    container.innerHTML = html;
+  })();
+
+  function copySqlFile(filename, btn){
+    const orig = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+    fetch('/sql/vitrines/'+filename)
+      .then(function(r){ return r.text(); })
+      .then(function(t){
+        return navigator.clipboard.writeText(t);
+      })
+      .then(function(){
+        btn.textContent = 'Copie !';
+        btn.style.background = '#10b981';
+        setTimeout(function(){
+          btn.textContent = orig;
+          btn.style.background = '';
+          btn.disabled = false;
+        }, 1500);
+      })
+      .catch(function(){
+        btn.textContent = 'Erreur';
+        btn.style.background = '#ef4444';
+        setTimeout(function(){
+          btn.textContent = orig;
+          btn.style.background = '';
+          btn.disabled = false;
+        }, 1500);
+      });
+  }
+  </script>
+
+</div>
+
+<!-- SIGNATURE ELECTRONIQUE -->
+<div class="tp" id="t-signature">
+  <style>
+    .sig-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+    .sig-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs,12px);padding:24px;text-align:center;}
+    .sig-stat-val{font-size:36px;font-weight:800;color:var(--text);margin-bottom:4px;}
+    .sig-stat-lbl{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+    .sig-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+    .sig-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;}
+    .sig-input:focus{outline:none;border-color:var(--accent,#6366f1);box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+    .sig-input::placeholder{color:var(--text3);}
+    .sig-dropzone{border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface);margin-bottom:16px;}
+    .sig-dropzone:hover,.sig-dropzone.dragover{border-color:var(--accent,#6366f1);background:rgba(99,102,241,.05);}
+    .sig-dropzone-icon{font-size:36px;margin-bottom:8px;}
+    .sig-dropzone-text{font-size:13px;color:var(--text3);}
+    .sig-dropzone-file{font-size:12px;color:var(--accent,#6366f1);margin-top:8px;font-weight:600;}
+    .sig-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;line-height:1.4;}
+    .sig-badge-signed{background:rgba(16,185,129,.15);color:#10b981;}
+    .sig-badge-pending{background:rgba(245,158,11,.15);color:#f59e0b;}
+    .sig-badge-expired{background:rgba(239,68,68,.15);color:#ef4444;}
+    .sig-badge-viewed{background:rgba(59,130,246,.15);color:#3b82f6;}
+    .sig-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .sig-table th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-bottom:2px solid var(--border);}
+    .sig-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+    .sig-table tr:hover td{background:rgba(99,102,241,.03);}
+    .sig-action{padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--text);cursor:pointer;transition:all .2s;}
+    .sig-action:hover{border-color:var(--accent,#6366f1);color:var(--accent,#6366f1);}
+    @media(max-width:768px){
+      .sig-stats{grid-template-columns:1fr;}
+      .sig-form-grid{grid-template-columns:1fr;}
+      .sig-table-wrap{overflow-x:auto;}
+    }
+  </style>
+
+  <!-- Stats -->
+  <div class="sig-stats">
+    <div class="sig-stat"><div class="sig-stat-val" id="sig-total">0</div><div class="sig-stat-lbl">Documents signes</div></div>
+    <div class="sig-stat"><div class="sig-stat-val" id="sig-pending" style="color:#f59e0b;">0</div><div class="sig-stat-lbl">En attente</div></div>
+    <div class="sig-stat"><div class="sig-stat-val" id="sig-rate" style="color:#10b981;">0%</div><div class="sig-stat-lbl">Taux de signature</div></div>
+  </div>
+
+  <!-- Formulaire envoi -->
+  <div class="card" style="padding:24px;margin-bottom:24px;">
+    <div class="ct" style="margin-bottom:16px;">Envoyer un document a signer</div>
+    <div class="sig-form-grid">
+      <input class="sig-input" type="text" id="sig-dest-name" placeholder="Nom du destinataire" required>
+      <input class="sig-input" type="email" id="sig-dest-email" placeholder="Email du destinataire" required>
+      <input class="sig-input" type="text" id="sig-patient-name" placeholder="Nom du patient (optionnel)">
+      <select class="sig-input" id="sig-doc-type">
+        <option value="">Type de document...</option>
+        <option value="devis">Devis</option>
+        <option value="contrat">Contrat</option>
+        <option value="plan_traitement">Plan de traitement</option>
+        <option value="mandat">Mandat</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="sig-dropzone" id="sig-dropzone" onclick="document.getElementById('sig-file-input').click()">
+      <div class="sig-dropzone-icon">📎</div>
+      <div class="sig-dropzone-text">Glissez un fichier PDF ou image ici, ou cliquez pour parcourir</div>
+      <div class="sig-dropzone-file" id="sig-file-name"></div>
+      <input type="file" id="sig-file-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none;">
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="btn bp" onclick="sendSignatureRequest()" id="sig-send-btn">Envoyer pour signature</button>
+      <span id="sig-send-msg" style="font-size:12px;"></span>
+    </div>
+  </div>
+
+  <!-- Tableau documents signes -->
+  <div class="card" style="padding:24px;">
+    <div class="ct" style="margin-bottom:16px;">Documents signes</div>
+    <div class="sig-table-wrap">
+      <table class="sig-table">
+        <thead><tr>
+          <th>Document</th><th>Destinataire</th><th>Patient</th><th>Statut</th><th>Date</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="sig-docs-body">
+          <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Chargement...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -570,6 +916,169 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 </div>
 
 <!-- ACCÈS RAPIDE -->
+<!-- EQUIPMENT — Achat groupe equipement -->
+<div class="tp" id="t-equipment">
+  <p style="color:var(--text3);font-size:12px;margin-bottom:20px;">JADOMI Equipment — Achat groupe equipement dentaire haut de gamme</p>
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:24px;">
+    <div class="card" style="padding:20px;text-align:center;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px;">Potentiel / Deal</div>
+      <div style="font-size:28px;font-weight:800;color:var(--accent);">100K</div>
+      <div style="font-size:11px;color:var(--text3);">50 unites x 20K x 10%</div>
+    </div>
+    <div class="card" style="padding:20px;text-align:center;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px;">Objectif annuel</div>
+      <div style="font-size:28px;font-weight:800;color:#10b981;">400K</div>
+      <div style="font-size:11px;color:var(--text3);">4 operations / an</div>
+    </div>
+    <div class="card" style="padding:20px;text-align:center;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px;">Fabricants cibles</div>
+      <div style="font-size:28px;font-weight:800;color:#f59e0b;">12</div>
+      <div style="font-size:11px;color:var(--text3);">3 HOT / 5 WARM / 4 COLD</div>
+    </div>
+  </div>
+
+  <!-- Sub-tabs Dispositifs / Consommables -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;">
+    <button class="btn bp bs equip-tab active" onclick="switchEquipTab('dispositifs',this)" style="padding:8px 16px;font-size:12px;">Dispositifs medicaux</button>
+    <button class="btn bg bs equip-tab" onclick="switchEquipTab('consommables',this)" style="padding:8px 16px;font-size:12px;">Consommables</button>
+  </div>
+
+  <!-- DISPOSITIFS MEDICAUX -->
+  <div id="equip-tab-dispositifs">
+    <div class="card" style="margin-bottom:16px;border-left:3px solid #6366f1;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;background:rgba(99,102,241,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;">🔬</div>
+        <div>
+          <div class="ct" style="margin:0;">Dispositifs medicaux & Equipement lourd</div>
+          <div style="font-size:11px;color:var(--text3);">Cameras, fauteuils, autoclaves, radios — Deals unitaires 3 000 a 40 000 EUR</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl" style="width:100%;">
+          <thead><tr><th>Fabricant</th><th>Equipement</th><th>Gamme prix</th><th>Priorite</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr style="background:rgba(99,102,241,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Imagerie & Empreintes numeriques</td></tr>
+            <tr><td><strong>3Shape</strong></td><td>TRIOS 6 — Camera intra-orale</td><td style="font-weight:600;">~20 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">HOT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Dentsply Sirona</strong></td><td>CEREC Primescan + Primemill</td><td style="font-weight:600;">~25-40 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">HOT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Planmeca</strong></td><td>Emerald S + ProMax 3D</td><td style="font-weight:600;">~15-35 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">HOT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Vatech</strong></td><td>Green X — Radio panoramique</td><td style="font-weight:600;">~20-30 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">WARM</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Acteon/Satelec</strong></td><td>X-Mind Unity + Piezon</td><td style="font-weight:600;">~10-25 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">WARM</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(99,102,241,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Fauteuils & Mobilier</td></tr>
+            <tr><td><strong>KaVo Kerr</strong></td><td>Fauteuil ESTETICA E80</td><td style="font-weight:600;">~15-25 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">WARM</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>A-dec</strong></td><td>Fauteuil A-dec 500</td><td style="font-weight:600;">~15-30 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">WARM</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(99,102,241,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Sterilisation & Hygiene</td></tr>
+            <tr><td><strong>W&H</strong></td><td>Assistina + Autoclaves Lisa</td><td style="font-weight:600;">~3-8 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">WARM</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Euronda</strong></td><td>Autoclaves E10 / E9</td><td style="font-weight:600;">~4-7 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(37,99,235,0.15);color:#2563eb;">COLD</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Melag</strong></td><td>Autoclave Premium Class</td><td style="font-weight:600;">~5-9 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(37,99,235,0.15);color:#2563eb;">COLD</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(99,102,241,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Chirurgie & Implanto</td></tr>
+            <tr><td><strong>NSK</strong></td><td>Surgic Pro2 — Moteur implantologie</td><td style="font-weight:600;">~3-5 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(37,99,235,0.15);color:#2563eb;">COLD</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Bien-Air</strong></td><td>Chiropro Plus — Moteur implanto</td><td style="font-weight:600;">~4-6 000 EUR</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(37,99,235,0.15);color:#2563eb;">COLD</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONSOMMABLES -->
+  <div id="equip-tab-consommables" style="display:none;">
+    <div class="card" style="margin-bottom:16px;border-left:3px solid #10b981;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;background:rgba(16,185,129,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;">📦</div>
+        <div>
+          <div class="ct" style="margin:0;">Consommables & Petit materiel</div>
+          <div style="font-size:11px;color:var(--text3);">Achats recurrents, volumes importants — Gants, composites, anesthesiques, fraises, ciments</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl" style="width:100%;">
+          <thead><tr><th>Fournisseur</th><th>Gamme</th><th>Volume mensuel estime</th><th>Potentiel groupage</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr style="background:rgba(16,185,129,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Composites & Restauration</td></tr>
+            <tr><td><strong>Ivoclar Vivadent</strong></td><td>IPS e.max, Tetric, Adhese</td><td>~500-2 000 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">FORT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>3M ESPE</strong></td><td>Filtek, RelyX, Scotchbond</td><td>~400-1 500 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">FORT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>GC Europe</strong></td><td>G-aenial, Fuji, Gradia</td><td>~300-1 000 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">MOYEN</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(16,185,129,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Anesthesie & Aiguilles</td></tr>
+            <tr><td><strong>Septodont</strong></td><td>Articaine, Scandonest, Septoject</td><td>~200-800 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">FORT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(16,185,129,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Hygiene & Protection</td></tr>
+            <tr><td><strong>Henry Schein</strong></td><td>Gants, masques, desinfectants</td><td>~300-1 000 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">FORT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Medicom</strong></td><td>Gants nitrile, masques FFP2</td><td>~200-600 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">MOYEN</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(16,185,129,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Implantologie</td></tr>
+            <tr><td><strong>Straumann</strong></td><td>Implants BLT/BLX, piliers, membranes</td><td>~1 000-5 000 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">FORT</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Nobel Biocare</strong></td><td>Implants NobelActive, All-on-4</td><td>~1 000-4 000 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">MOYEN</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>Zimmer Biomet</strong></td><td>Implants T3, regeneration</td><td>~800-3 000 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(37,99,235,0.15);color:#2563eb;">COLD</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+
+            <tr style="background:rgba(16,185,129,0.03);"><td colspan="5" style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:1px;text-transform:uppercase;padding:8px 12px;">Endodontie & Fraises</td></tr>
+            <tr><td><strong>Dentsply Maillefer</strong></td><td>ProTaper, WaveOne, fraises Endo</td><td>~300-1 200 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">MOYEN</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+            <tr><td><strong>KOMET</strong></td><td>Fraises diamantees, carbure, polissage</td><td>~200-800 EUR/mois</td><td><span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(234,88,12,0.15);color:#ea580c;">MOYEN</span></td><td><button class="btn bg bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')" style="font-size:11px;">Email</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emails fabricants -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card" style="padding:20px;">
+      <div class="ct" style="margin-bottom:12px;">Emails type fabricants</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">5 modeles prets a envoyer : premier contact, relance, post-RDV, annonce dentistes, argumentaire.</p>
+      <button class="btn bp bs" onclick="window.open('/docs/emails-fabricants-equipment.html','_blank')">Voir les emails type</button>
+    </div>
+    <div class="card" style="padding:20px;">
+      <div class="ct" style="margin-bottom:12px;">Envoyer par email</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input type="email" id="equip-email" value="karim_bahmed@yahoo.fr" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:#fff;">
+        <button class="btn bp bs" onclick="sendEquipDocs()">Envoyer</button>
+      </div>
+      <div id="equip-send-msg" style="margin-top:8px;font-size:12px;"></div>
+    </div>
+  </div>
+
+  <!-- Lien formulaire fabricant -->
+  <div class="card" style="margin-top:16px;padding:20px;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(99,102,241,0.08));border:1px solid rgba(16,185,129,0.2);">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <div class="ct" style="margin-bottom:4px;">Lien formulaire fabricant</div>
+        <p style="font-size:12px;color:var(--text3);margin:0;">Envoyez ce lien aux fabricants/revendeurs pour qu'ils proposent leurs produits au groupage JADOMI.</p>
+        <div style="margin-top:8px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;color:var(--accent);word-break:break-all;" id="equip-link">https://jadomi.fr/equipment/propose</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn bp bs" onclick="navigator.clipboard.writeText('https://jadomi.fr/equipment/propose');this.textContent='Copie !';setTimeout(()=>this.textContent='Copier le lien',1500);">Copier le lien</button>
+        <button class="btn bg bs" onclick="window.open('/equipment/propose','_blank')">Voir la page</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email commercial -->
+  <div class="card" style="margin-top:16px;padding:20px;">
+    <div class="ct" style="margin-bottom:8px;">Email commercial a envoyer</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">Template email premium pret a copier/coller. Personnalisez [NOM] et [PRODUIT] avant envoi.</p>
+    <button class="btn bp bs" onclick="window.open('/docs/email-commercial-equipment.html','_blank')">Voir l'email commercial</button>
+  </div>
+
+  <!-- Propositions recues -->
+  <div class="card" style="margin-top:16px;">
+    <div class="ct" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <span>Propositions recues</span>
+      <button class="btn bg bs" onclick="loadEquipmentProposals()" style="font-size:11px;">Rafraichir</button>
+    </div>
+    <div id="equip-proposals" style="padding:16px;"><div style="color:var(--text3);font-size:13px;">Cliquez sur "Rafraichir" pour charger...</div></div>
+  </div>
+
+  <!-- Benefices estimes -->
+  <div class="card" style="margin-top:16px;padding:20px;">
+    <div class="ct" style="margin-bottom:12px;">Benefices estimes (commission 10%)</div>
+    <div id="equip-benefices" style="color:var(--text3);font-size:13px;">Aucune proposition validee pour le moment.</div>
+  </div>
+</div>
+
 <div class="tp" id="t-rapide">
   <style>
     .ar-section{margin-bottom:24px;}
@@ -606,71 +1115,92 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div class="ar-section" data-cat="sante">
     <div class="ar-section-title">🦷 Sante</div>
     <div class="ar-grid">
-      <a class="ar-card" href="index.html" data-kw="cabinet dentaire stock commandes sos"><div class="ar-ico">🦷</div><div class="ar-name">Cabinet dentaire</div><div class="ar-desc">Dashboard principal</div></a>
-      <a class="ar-card" href="/public/labo/dashboard.html" data-kw="labo prothesiste bons livraison"><div class="ar-ico">🔬</div><div class="ar-name">Labo prothesiste</div><div class="ar-desc">Dashboard labo</div></a>
-      <a class="ar-card" href="/public/labo/facturation.html" data-kw="facture facturation labo"><div class="ar-ico">💰</div><div class="ar-name">Facturation Labo</div><div class="ar-desc">Factures labo</div></a>
-      <a class="ar-card" href="/public/labo/stock.html" data-kw="stock materiaux scanner labo"><div class="ar-ico">📦</div><div class="ar-name">Stock Labo</div><div class="ar-desc">Materiaux &amp; fournitures</div></a>
-      <a class="ar-card" href="/public/labo/dentistes.html" data-kw="dentistes clients labo"><div class="ar-ico">👥</div><div class="ar-name">Mes dentistes</div><div class="ar-desc">Clients du labo</div></a>
+      <a class="ar-card" href="/chirurgiens-dentistes" data-kw="cabinet dentaire stock commandes sos"><div class="ar-ico">🦷</div><div class="ar-name">Cabinet dentaire</div><div class="ar-desc">Dashboard principal</div></a>
+      <a class="ar-card" href="/labo/dashboard.html" data-kw="labo prothesiste bons livraison"><div class="ar-ico">🔬</div><div class="ar-name">Labo prothesiste</div><div class="ar-desc">Dashboard labo</div></a>
+      <a class="ar-card" href="/labo/facturation.html" data-kw="facture facturation labo"><div class="ar-ico">💰</div><div class="ar-name">Facturation Labo</div><div class="ar-desc">Factures labo</div></a>
+      <a class="ar-card" href="/labo/stock.html" data-kw="stock materiaux scanner labo"><div class="ar-ico">📦</div><div class="ar-name">Stock Labo</div><div class="ar-desc">Materiaux &amp; fournitures</div></a>
+      <a class="ar-card" href="/labo/dentistes.html" data-kw="dentistes clients labo"><div class="ar-ico">👥</div><div class="ar-name">Mes dentistes</div><div class="ar-desc">Clients du labo</div></a>
+      <a class="ar-card" href="/orthodontistes" data-kw="orthodontiste orthodontie aligneurs bagues"><div class="ar-ico">🦴</div><div class="ar-name">Orthodontiste</div><div class="ar-desc">Dashboard orthodontie</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="medecin generaliste consultation cabinet medical"><div class="ar-ico">🩺</div><div class="ar-name">Medecin generaliste</div><div class="ar-desc">Cabinet medical</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="dermatologue dermatologie peau"><div class="ar-ico">🔬</div><div class="ar-name">Dermatologue</div><div class="ar-desc">Cabinet dermatologie</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="ophtalmologue ophtalmologie yeux vision"><div class="ar-ico">👁️</div><div class="ar-name">Ophtalmologue</div><div class="ar-desc">Cabinet ophtalmologie</div></a>
+      <a class="ar-card" href="/ide" data-kw="infirmiere tournee agenda planning patient ide"><div class="ar-ico">🏥</div><div class="ar-name">Infirmiere liberale</div><div class="ar-desc">Tournees &amp; Planning IDE</div></a>
+      <a class="ar-card" href="/equipment/offres" data-kw="equipment equipement groupe achat fabricant"><div class="ar-ico">🏭</div><div class="ar-name">Equipment groupe</div><div class="ar-desc">Achat groupe equipement</div></a>
+    </div>
+  </div>
+
+  <div class="ar-section" data-cat="paramedical">
+    <div class="ar-section-title">🩺 Paramedical</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/ide" data-kw="infirmiere liberale idel tournee planning soins"><div class="ar-ico">🏥</div><div class="ar-name">Infirmiere (IDEL)</div><div class="ar-desc">Tournees, patients, soins</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="kinesitherapeute kine reeducation"><div class="ar-ico">🦴</div><div class="ar-name">Kinesitherapeute</div><div class="ar-desc">Cabinet kine</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="osteopathe osteo"><div class="ar-ico">🤲</div><div class="ar-name">Osteopathe</div><div class="ar-desc">Cabinet osteo</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="podologue pedicure semelle"><div class="ar-ico">🦶</div><div class="ar-name">Podologue</div><div class="ar-desc">Cabinet podologie</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="orthophoniste langage"><div class="ar-ico">🗣️</div><div class="ar-name">Orthophoniste</div><div class="ar-desc">Cabinet orthophonie</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="sage-femme maternite"><div class="ar-ico">👶</div><div class="ar-name">Sage-femme</div><div class="ar-desc">Cabinet sage-femme</div></a>
+      <a class="ar-card" href="/professions-paramedicales" data-kw="dieteticien nutrition"><div class="ar-ico">🥗</div><div class="ar-name">Dieteticien</div><div class="ar-desc">Cabinet dietetique</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="btp">
     <div class="ar-section-title">🔧 BTP &amp; Artisans</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/public/btp/dashboard.html" data-kw="btp artisan chantier"><div class="ar-ico">🔧</div><div class="ar-name">Artisan BTP</div><div class="ar-desc">Dashboard BTP</div></a>
-      <a class="ar-card" href="/public/btp/stock.html" data-kw="stock materiaux btp scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock BTP</div><div class="ar-desc">Materiaux chantier</div></a>
-      <a class="ar-card" href="/public/btp/factures.html" data-kw="facture btp artisan"><div class="ar-ico">📄</div><div class="ar-name">Factures BTP</div><div class="ar-desc">Facturation artisan</div></a>
-      <a class="ar-card" href="/public/btp/chantiers.html" data-kw="chantier btp"><div class="ar-ico">🏗️</div><div class="ar-name">Chantiers</div><div class="ar-desc">Gestion chantiers</div></a>
+      <a class="ar-card" href="/btp/dashboard.html" data-kw="btp artisan chantier"><div class="ar-ico">🔧</div><div class="ar-name">Artisan BTP</div><div class="ar-desc">Dashboard BTP</div></a>
+      <a class="ar-card" href="/btp/stock.html" data-kw="stock materiaux btp scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock BTP</div><div class="ar-desc">Materiaux chantier</div></a>
+      <a class="ar-card" href="/btp/factures.html" data-kw="facture btp artisan"><div class="ar-ico">📄</div><div class="ar-name">Factures BTP</div><div class="ar-desc">Facturation artisan</div></a>
+      <a class="ar-card" href="/btp/chantiers.html" data-kw="chantier btp"><div class="ar-ico">🏗️</div><div class="ar-name">Chantiers</div><div class="ar-desc">Gestion chantiers</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="services">
     <div class="ar-section-title">🛍️ Services &amp; Bien-etre</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/public/services/dashboard.html" data-kw="services coiffeur esthetique"><div class="ar-ico">🛍️</div><div class="ar-name">Services</div><div class="ar-desc">Dashboard services</div></a>
-      <a class="ar-card" href="/public/services/stock.html" data-kw="stock produits capillaires services scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock Services</div><div class="ar-desc">Produits &amp; consommables</div></a>
-      <a class="ar-card" href="/public/services/prestations.html" data-kw="prestations services"><div class="ar-ico">🛒</div><div class="ar-name">Prestations</div><div class="ar-desc">Catalogue prestations</div></a>
+      <a class="ar-card" href="/services/dashboard.html" data-kw="services coiffeur esthetique"><div class="ar-ico">🛍️</div><div class="ar-name">Services</div><div class="ar-desc">Dashboard services</div></a>
+      <a class="ar-card" href="/services/stock.html" data-kw="stock produits capillaires services scanner"><div class="ar-ico">📦</div><div class="ar-name">Stock Services</div><div class="ar-desc">Produits &amp; consommables</div></a>
+      <a class="ar-card" href="/services/prestations.html" data-kw="prestations services"><div class="ar-ico">🛒</div><div class="ar-name">Prestations</div><div class="ar-desc">Catalogue prestations</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="juridique">
     <div class="ar-section-title">⚖️ Juridique</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/public/juridique/dashboard.html" data-kw="juridique avocat droit"><div class="ar-ico">⚖️</div><div class="ar-name">Juridique</div><div class="ar-desc">Dashboard juridique</div></a>
-      <a class="ar-card" href="/public/juridique/clients.html" data-kw="clients juridique"><div class="ar-ico">👥</div><div class="ar-name">Clients Juridique</div><div class="ar-desc">Gestion clients</div></a>
+      <a class="ar-card" href="/juridique/dashboard.html" data-kw="juridique avocat droit"><div class="ar-ico">⚖️</div><div class="ar-name">Juridique</div><div class="ar-desc">Dashboard juridique</div></a>
+      <a class="ar-card" href="/juridique/clients.html" data-kw="clients juridique"><div class="ar-ico">👥</div><div class="ar-name">Clients Juridique</div><div class="ar-desc">Gestion clients</div></a>
+      <a class="ar-card" href="/avocat/coffre" data-kw="avocat coffre fort documents chiffre securise"><div class="ar-ico">🔐</div><div class="ar-name">Coffre-fort Avocat</div><div class="ar-desc">Documents chiffres AES-256</div></a>
+      <a class="ar-card" href="/juridique/agenda.html" data-kw="agenda avocat rendez-vous"><div class="ar-ico">📅</div><div class="ar-name">Agenda Juridique</div><div class="ar-desc">Rendez-vous &amp; planning</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="createurs">
     <div class="ar-section-title">✨ Createurs</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/public/showroom/dashboard.html" data-kw="showroom createur vitrine"><div class="ar-ico">✨</div><div class="ar-name">Showroom</div><div class="ar-desc">Dashboard createur</div></a>
+      <a class="ar-card" href="/showroom/dashboard.html" data-kw="showroom createur vitrine"><div class="ar-ico">✨</div><div class="ar-name">Showroom</div><div class="ar-desc">Dashboard createur</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="immobilier">
     <div class="ar-section-title">🏠 Immobilier</div>
     <div class="ar-grid">
-      <a class="ar-card" href="sci.html" data-kw="sci immobilier biens locataires quittances"><div class="ar-ico">🏠</div><div class="ar-name">SCI</div><div class="ar-desc">Dashboard immobilier</div></a>
+      <a class="ar-card" href="/sci" data-kw="sci immobilier biens locataires quittances"><div class="ar-ico">🏠</div><div class="ar-name">SCI</div><div class="ar-desc">Dashboard immobilier</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="commerce">
     <div class="ar-section-title">🏢 Commerce</div>
     <div class="ar-grid">
-      <a class="ar-card" href="commerce.html" data-kw="commerce stock facture devis"><div class="ar-ico">🏢</div><div class="ar-name">Commerce</div><div class="ar-desc">Dashboard commerce</div></a>
+      <a class="ar-card" href="/commerce.html" data-kw="commerce stock facture devis"><div class="ar-ico">🏢</div><div class="ar-name">Commerce</div><div class="ar-desc">Dashboard commerce</div></a>
     </div>
   </div>
 
   <div class="ar-section" data-cat="outils">
     <div class="ar-section-title">⚡ Outils JADOMI</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/public/rush/nouvelle-demande.html" data-kw="rush urgence sous-traitance"><div class="ar-ico">⚡</div><div class="ar-name">Rush</div><div class="ar-desc">Demande urgente</div></a>
-      <a class="ar-card" href="/public/admin-email.html" data-kw="admin email campagne"><div class="ar-ico">📧</div><div class="ar-name">Admin Email</div><div class="ar-desc">Gestion emails</div></a>
-      <a class="ar-card" href="/public/annuaire/index.html" data-kw="annuaire professionnels recherche"><div class="ar-ico">🌐</div><div class="ar-name">Annuaire</div><div class="ar-desc">Annuaire pros</div></a>
-      <a class="ar-card" href="/public/deals/index.html" data-kw="deals promotions offres"><div class="ar-ico">🤝</div><div class="ar-name">Deals</div><div class="ar-desc">Offres exclusives</div></a>
-      <a class="ar-card" href="membres-societe.html" data-kw="membres equipe roles"><div class="ar-ico">👥</div><div class="ar-name">Membres</div><div class="ar-desc">Equipe &amp; roles</div></a>
-      <a class="ar-card" href="settings-societe.html" data-kw="parametres configuration societe"><div class="ar-ico">⚙️</div><div class="ar-name">Paramètres</div><div class="ar-desc">Configuration société</div></a>
+      <a class="ar-card" href="/rush/nouvelle-demande.html" data-kw="rush urgence sous-traitance"><div class="ar-ico">⚡</div><div class="ar-name">Rush</div><div class="ar-desc">Demande urgente</div></a>
+      <a class="ar-card" href="/admin-email.html" data-kw="admin email campagne"><div class="ar-ico">📧</div><div class="ar-name">Admin Email</div><div class="ar-desc">Gestion emails</div></a>
+      <a class="ar-card" href="/annuaire/index.html" data-kw="annuaire professionnels recherche"><div class="ar-ico">🌐</div><div class="ar-name">Annuaire</div><div class="ar-desc">Annuaire pros</div></a>
+      <a class="ar-card" href="/deals/index.html" data-kw="deals promotions offres"><div class="ar-ico">🤝</div><div class="ar-name">Deals</div><div class="ar-desc">Offres exclusives</div></a>
+      <a class="ar-card" href="/membres-societe.html" data-kw="membres equipe roles"><div class="ar-ico">👥</div><div class="ar-name">Membres</div><div class="ar-desc">Equipe &amp; roles</div></a>
+      <a class="ar-card" href="/settings-societe.html" data-kw="parametres configuration societe"><div class="ar-ico">⚙️</div><div class="ar-name">Paramètres</div><div class="ar-desc">Configuration société</div></a>
     </div>
   </div>
   </div>
@@ -734,7 +1264,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 
 <script>
 const SU='https://vsbomwjzehnfinfjvhqp.supabase.co',SK='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF',AE='karim_bahmed@yahoo.fr';
-const MR={cabinet_dentaire:'index.html',veterinaire:'index.html',prothesiste:'/public/labo/dashboard.html',orthodontiste:'/public/labo/dashboard.html',sci:'sci.html',juridique:'/public/juridique/dashboard.html',services:'/public/services/dashboard.html',artisan_btp:'/public/btp/dashboard.html',createur:'/public/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
+const MR={cabinet_dentaire:'index.html',veterinaire:'index.html',prothesiste:'/labo/dashboard.html',orthodontiste:'/labo/dashboard.html',sci:'sci.html',juridique:'/juridique/dashboard.html',services:'/services/dashboard.html',artisan_btp:'/btp/dashboard.html',createur:'/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
 const TM={cabinet_dentaire:{i:'🦷',l:'Cabinet dentaire'},prothesiste:{i:'🔬',l:'Labo prothese'},orthodontiste:{i:'🦴',l:'Orthodontie'},veterinaire:{i:'🐾',l:'Veterinaire'},sci:{i:'🏠',l:'SCI'},societe_commerciale:{i:'🏢',l:'Societe commerciale'},sas:{i:'🏢',l:'SAS'},sarl:{i:'🏢',l:'SARL'},eurl:{i:'🏢',l:'EURL'},ei:{i:'👤',l:'EI'},auto_entrepreneur:{i:'📊',l:'Auto-entrepreneur'},autre:{i:'🏷️',l:'Autre'}};
 const CT=['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
 const ME=[{k:'chirurgien_dentiste',i:'🦷',l:'Dentiste'},{k:'orthodontiste',i:'🦴',l:'Orthodontiste'},{k:'prothesiste',i:'🔬',l:'Prothesiste'},{k:'veterinaire',i:'🐾',l:'Veterinaire'},{k:'dirigeant',i:'🏢',l:'Dirigeant'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
@@ -743,6 +1273,43 @@ let db,tk,ss,socs=[],pf=null,isA=false,aU=[],at='';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m){const t=$('toast');t.textContent=m;t.className='toast show';setTimeout(()=>t.className='toast',3000);}
+
+/* --- Accordeon sidebar --- */
+function toggleNavGroup(el){
+  const items=el.nextElementSibling;
+  const arrow=el.querySelector('.nav-group-arrow');
+  const isOpen=items.style.display!=='none';
+  items.style.display=isOpen?'none':'block';
+  if(arrow){isOpen?arrow.classList.remove('open'):arrow.classList.add('open');}
+  saveNavGroupState();
+}
+function saveNavGroupState(){
+  const state={};
+  document.querySelectorAll('.nav-group[data-nav-group]').forEach(g=>{
+    const k=g.getAttribute('data-nav-group');
+    const items=g.querySelector('.nav-group-items');
+    state[k]=items&&items.style.display!=='none';
+  });
+  try{localStorage.setItem('jadomi_org_nav_groups',JSON.stringify(state));}catch(e){}
+}
+function restoreNavGroupState(){
+  try{
+    const raw=localStorage.getItem('jadomi_org_nav_groups');
+    if(!raw)return;
+    const state=JSON.parse(raw);
+    document.querySelectorAll('.nav-group[data-nav-group]').forEach(g=>{
+      const k=g.getAttribute('data-nav-group');
+      if(k in state){
+        const items=g.querySelector('.nav-group-items');
+        const arrow=g.querySelector('.nav-group-arrow');
+        if(items)items.style.display=state[k]?'block':'none';
+        if(arrow){state[k]?arrow.classList.add('open'):arrow.classList.remove('open');}
+      }
+    });
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded',restoreNavGroupState);
+
 function lo(){db?.auth.signOut();localStorage.clear();location.href='login.html';}
 try{db=supabase.createClient(SU,SK);}catch(e){}
 
@@ -751,8 +1318,8 @@ async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'applic
 
 function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
-  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Securite JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
-  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();}
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Securite JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature electronique',equipment:'JADOMI Equipment','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
+  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();}
 function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
   el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
 function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
@@ -785,7 +1352,7 @@ function rSB(){const c=$('sbS');c.innerHTML='';const cl={cabinet_dentaire:'#6366
   // TODO: remettre s.plan==='illimite' quand la facturation est en place
   const vitrineSoc=socs.find(s=>VT.includes(s.type));
   const sbMod=$('sbModules');const sbML=$('sbModuleLinks');
-  if(vitrineSoc&&sbMod&&sbML){sbMod.style.display='block';sbML.innerHTML=`<div class="sb-soc-item" onclick="localStorage.setItem('societe_active_id','${vitrineSoc.id}');location.href='/public/vitrines/dashboard.html'"><span class="dot" style="background:#6366f1;"></span>🌐 Mon site internet</div>`;}}
+  if(vitrineSoc&&sbMod&&sbML){sbMod.style.display='block';sbML.innerHTML=`<div class="sb-soc-item" onclick="localStorage.setItem('societe_active_id','${vitrineSoc.id}');location.href='/vitrines/dashboard.html'"><span class="dot" style="background:#6366f1;"></span>🌐 Mon site internet</div>`;}}
 function rSG(){const g=$('sG');g.innerHTML='';
   socs.forEach(s=>{const m=TM[s.type]||TM.autre;const tc=s.type==='cabinet_dentaire'||s.type==='veterinaire'?'tc':s.type==='sci'?'ts':s.type==='prothesiste'||s.type==='orthodontiste'?'tl':'to';
     g.innerHTML+=`<div class="soc-card ${tc}" onclick="oS('${s.id}','${s.type}')"><div class="sh"><div class="sico">${m.i}</div><div><div class="sn">${esc(s.nom)}</div><div class="st">${m.l}</div></div></div><div style="margin-bottom:12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">${(s.role||'membre')}</div><div class="sbtn">Acceder →</div></div>`;});
@@ -798,7 +1365,7 @@ async function loadAdmin(){
   segs.forEach(s=>{(s.emails||[]).forEach(e=>aU.push({email:e,prof:s.segment,lbl:s.label,ico:s.icon}));});
   $('xU').textContent=tu;$('xS').textContent=socs.length;$('uT').textContent=tu;$('uA').textContent=tu;$('uR').textContent=tu>0?'100%':'0%';
   let sh='<table class="tbl"><thead><tr><th></th><th>Profession</th><th>Users</th><th>Actions</th></tr></thead><tbody>';
-  segs.forEach(s=>{sh+=`<tr><td>${s.icon}</td><td>${esc(s.label)}</td><td><strong>${s.count}</strong></td><td><a href="/public/admin-email.html" class="btn bg bs" style="margin-right:4px;">📧</a><a href="/api/admin/email/export/${s.segment}" class="btn bg bs" target="_blank">📥 CSV</a></td></tr>`;});
+  segs.forEach(s=>{sh+=`<tr><td>${s.icon}</td><td>${esc(s.label)}</td><td><strong>${s.count}</strong></td><td><a href="/admin-email.html" class="btn bg bs" style="margin-right:4px;">📧</a><a href="/api/admin/email/export/${s.segment}" class="btn bg bs" target="_blank">📥 CSV</a></td></tr>`;});
   sh+=`<tr style="font-weight:700;"><td>👥</td><td>TOTAL</td><td>${tu}</td><td></td></tr></tbody></table>`;$('segT').innerHTML=sh;
   rUT();lIn();
   const camps=camp?.campagnes||[];if(camps.length){let ch='<table class="tbl"><thead><tr><th>Date</th><th>Sujet</th><th>Envoyes</th></tr></thead><tbody>';
@@ -815,7 +1382,7 @@ async function loadAdmin(){
 }
 function rUT(){const q=($('uSrch')?.value||'').toLowerCase();const f=aU.filter(u=>!q||u.email.toLowerCase().includes(q)||(u.lbl||'').toLowerCase().includes(q));
   const pc={chirurgien_dentiste:'pi',orthodontiste:'pc',prothesiste:'pi',veterinaire:'pe',dirigeant:'po',auto_entrepreneur:'po',autre:'pg'};
-  let h='';f.slice(0,50).forEach(u=>{h+=`<tr><td>${esc(u.email)}</td><td><span class="pill ${pc[u.prof]||'pg'}">${u.ico||''} ${esc(u.lbl||u.prof)}</span></td><td><a href="/public/admin-email.html" class="btn bg bs">📧</a></td></tr>`;});
+  let h='';f.slice(0,50).forEach(u=>{h+=`<tr><td>${esc(u.email)}</td><td><span class="pill ${pc[u.prof]||'pg'}">${u.ico||''} ${esc(u.lbl||u.prof)}</span></td><td><a href="/admin-email.html" class="btn bg bs">📧</a></td></tr>`;});
   $('uBod').innerHTML=h||'<tr><td colspan="3" style="color:var(--text3);text-align:center;">Aucun</td></tr>';}
 function fU(){rUT();}
 async function lIn(){try{const r=await aApi('/api/admin/email/inbox?limit=15');const ms=r?.messages||[];
@@ -860,6 +1427,96 @@ async function sendDocuments() {
       body: JSON.stringify({ email })
     }).then(r => r.json());
     if (r.success) { msg.textContent = 'Documents envoyes a ' + email; msg.style.color = '#10b981'; }
+    else { msg.textContent = r.error || 'Erreur envoi'; msg.style.color = '#ef4444'; }
+  } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
+}
+
+function switchEquipTab(tab, btn) {
+  document.getElementById('equip-tab-dispositifs').style.display = tab === 'dispositifs' ? 'block' : 'none';
+  document.getElementById('equip-tab-consommables').style.display = tab === 'consommables' ? 'block' : 'none';
+  document.querySelectorAll('.equip-tab').forEach(function(b) { b.classList.remove('active'); b.classList.remove('bp'); b.classList.add('bg'); });
+  if (btn) { btn.classList.add('active'); btn.classList.add('bp'); btn.classList.remove('bg'); }
+}
+
+async function loadEquipmentProposals() {
+  const el = document.getElementById('equip-proposals');
+  const benEl = document.getElementById('equip-benefices');
+  el.innerHTML = '<div style="color:var(--text3);font-size:13px;">Chargement...</div>';
+  try {
+    const res = await fetch('/api/equipment/proposals', { headers: { 'Authorization': 'Bearer ' + tk } });
+    const data = await res.json();
+    const proposals = data.proposals || [];
+    if (!proposals.length) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Aucune proposition recue. Envoyez le lien du formulaire aux fabricants !</div>'; return; }
+
+    const statusBadge = function(s) {
+      const m = { pending: { bg: 'rgba(251,191,36,0.15)', c: '#fbbf24', l: 'En attente' }, approved: { bg: 'rgba(16,185,129,0.15)', c: '#10b981', l: 'Approuve' }, rejected: { bg: 'rgba(240,80,80,0.15)', c: '#f05050', l: 'Refuse' }, negotiating: { bg: 'rgba(99,102,241,0.15)', c: '#818cf8', l: 'Negociation' } };
+      const v = m[s] || m.pending;
+      return '<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:' + v.bg + ';color:' + v.c + ';">' + v.l + '</span>';
+    };
+
+    let html = '<div style="overflow-x:auto;"><table class="tbl" style="width:100%;"><thead><tr><th>Produit</th><th>Societe</th><th>Type</th><th>Prix catalogue</th><th>Meilleur palier</th><th>Commission 10%</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+    let totalBenef = 0;
+    proposals.forEach(function(p) {
+      const meta = p.metadata || {};
+      const tiers = meta.tiers || [];
+      const bestTier = tiers.length ? tiers[tiers.length - 1] : null;
+      const bestPrice = bestTier ? (bestTier.price || bestTier.unit_price || 0) : meta.catalog_price;
+      const bestQty = bestTier ? (bestTier.min_quantity || bestTier.quantity || 0) : 0;
+      const commission = bestPrice * bestQty * 0.10;
+      if (p.status === 'approved') totalBenef += commission;
+      const date = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '';
+
+      html += '<tr>';
+      html += '<td><strong>' + esc(meta.product_name || p.title || '-') + '</strong></td>';
+      html += '<td>' + esc(meta.company_name || '-') + '</td>';
+      html += '<td>' + esc(meta.company_type || '-') + '</td>';
+      html += '<td>' + (meta.catalog_price ? Number(meta.catalog_price).toLocaleString('fr-FR') + ' EUR' : '-') + '</td>';
+      html += '<td>' + (bestTier ? bestQty + ' unites → ' + Number(bestPrice).toLocaleString('fr-FR') + ' EUR' : '-') + '</td>';
+      html += '<td style="font-weight:700;color:#10b981;">' + (commission > 0 ? Number(commission).toLocaleString('fr-FR') + ' EUR' : '-') + '</td>';
+      html += '<td>' + statusBadge(p.status) + '</td>';
+      html += '<td style="font-size:11px;color:var(--text3);">' + date + '</td>';
+      html += '<td><select onchange="updateEquipStatus(\'' + esc(p.id) + '\',this.value)" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;">';
+      html += '<option value="pending"' + (p.status === 'pending' ? ' selected' : '') + '>En attente</option>';
+      html += '<option value="negotiating"' + (p.status === 'negotiating' ? ' selected' : '') + '>Negociation</option>';
+      html += '<option value="approved"' + (p.status === 'approved' ? ' selected' : '') + '>Approuve</option>';
+      html += '<option value="rejected"' + (p.status === 'rejected' ? ' selected' : '') + '>Refuse</option>';
+      html += '</select></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+
+    if (totalBenef > 0) {
+      benEl.innerHTML = '<div style="font-size:24px;font-weight:800;color:#10b981;">' + Number(totalBenef).toLocaleString('fr-FR') + ' EUR</div><div style="font-size:12px;color:var(--text3);">Commission estimee sur les offres approuvees (10% du meilleur palier x volume)</div>';
+    }
+  } catch (e) {
+    el.innerHTML = '<div style="color:#ef4444;font-size:13px;">Erreur: ' + esc(e.message) + '</div>';
+  }
+}
+
+async function updateEquipStatus(id, status) {
+  try {
+    await fetch('/api/equipment/proposals/' + id + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk },
+      body: JSON.stringify({ status: status })
+    });
+    toast('Statut mis a jour');
+    loadEquipmentProposals();
+  } catch (e) { toast('Erreur: ' + e.message); }
+}
+
+async function sendEquipDocs() {
+  const email = document.getElementById('equip-email').value;
+  const msg = document.getElementById('equip-send-msg');
+  if (!email) { msg.textContent = 'Email requis'; msg.style.color = '#ef4444'; return; }
+  msg.textContent = 'Envoi en cours...'; msg.style.color = '#64748b';
+  try {
+    const r = await fetch('/api/admin/send-documents', {
+      method: 'POST', headers: {'Content-Type':'application/json','Authorization':'Bearer '+tk},
+      body: JSON.stringify({ email })
+    }).then(r => r.json());
+    if (r.success||r.ok) { msg.textContent = 'Documents envoyes a ' + email; msg.style.color = '#10b981'; }
     else { msg.textContent = r.error || 'Erreur envoi'; msg.style.color = '#ef4444'; }
   } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
 }
@@ -1009,7 +1666,7 @@ async function sendMandateToSupplier() {
     const ville = (document.getElementById('mandate-supplier-ville')?.value || '').trim();
     const r = await api('/api/facturation/mandates/send', {
       method: 'POST',
-      body: JSON.stringify({ supplier_name: name, supplier_email: email, supplier_siret: siret, supplier_ville: ville, commission_percent: 4, payment_delay_days: 30 })
+      body: JSON.stringify({ supplier_name: name, supplier_email: email, supplier_siret: siret, supplier_ville: ville, commission_percent: 10, payment_delay_days: 30 })
     });
     if (r.ok || r.success) {
       msg.textContent = 'Contrat envoye a ' + email; msg.style.color = '#10b981';
@@ -1017,6 +1674,20 @@ async function sendMandateToSupplier() {
       document.getElementById('mandate-supplier-email').value = '';
     } else { msg.textContent = r.error || 'Erreur envoi'; msg.style.color = '#ef4444'; }
   } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
+}
+
+function previewMandate() {
+  const name = (document.getElementById('mandate-supplier-name')?.value || '').trim();
+  const siret = (document.getElementById('mandate-supplier-siret')?.value || '').trim();
+  const ville = (document.getElementById('mandate-supplier-ville')?.value || '').trim();
+  const params = new URLSearchParams();
+  params.set('preview', '1');
+  if (name) params.set('name', name);
+  if (siret) params.set('siret', siret);
+  if (ville) params.set('ville', ville);
+  params.set('commission', '10');
+  params.set('delay', '30');
+  window.open('/mandate-sign.html?' + params.toString(), '_blank');
 }
 
 async function downloadMandateTemplate() {
@@ -1115,82 +1786,6 @@ async function launchManualScan() {
     btn.textContent = '🛡️ Lancer un scan manuel';
   }
 }
-
-// ============ DOCUMENTS BASEPLAN ============
-async function sendDocuments() {
-  const email = document.getElementById('doc-email').value;
-  const msg = document.getElementById('doc-send-msg');
-  if (!email) { msg.textContent = 'Email requis'; msg.style.color = '#ef4444'; return; }
-  msg.textContent = 'Envoi en cours...'; msg.style.color = '#64748b';
-  try {
-    const r = await api('/api/admin/send-documents', { method: 'POST', body: JSON.stringify({ email }) });
-    if (r.ok) { msg.textContent = 'Documents envoyes a ' + email + (r.simulated ? ' (simule — SMTP test)' : ''); msg.style.color = '#10b981'; }
-    else { msg.textContent = r.error || 'Erreur envoi'; msg.style.color = '#ef4444'; }
-  } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
-}
-
-
-// ============ SECURITE JADOMI ============
-async function loadSecurityDashboard() {
-  try {
-    const tok = tk;
-    const h = {'Authorization':'Bearer '+tok};
-    const r = await fetch('/api/admin/security-report', {headers:h}).then(r=>r.json());
-    const rpt = r.report;
-    if (rpt) {
-      const score = rpt.security_score || 0;
-      const el = document.getElementById('sec-score');
-      el.textContent = score;
-      el.style.color = score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
-      document.getElementById('sec-score-card').style.borderTop = '3px solid ' + (score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444');
-      const avOk = rpt.antivirus_status === 'clean';
-      document.getElementById('sec-av-icon').textContent = avOk ? '✅' : '🚨';
-      document.getElementById('sec-av-status').textContent = avOk ? rpt.antivirus_scanned + ' fichiers scannes' : rpt.antivirus_infected + ' infecte(s)!';
-      document.getElementById('sec-av-status').style.color = avOk ? '#10b981' : '#ef4444';
-      const intOk = rpt.integrity_status === 'clean';
-      document.getElementById('sec-int-icon').textContent = intOk ? '✅' : '⚠️';
-      document.getElementById('sec-int-status').textContent = intOk ? 'Aucune modification' : rpt.integrity_changes + ' changement(s)';
-      const netOk = (rpt.network_suspicious_ports||0)===0 && (rpt.network_suspicious_procs||0)===0;
-      document.getElementById('sec-net-icon').textContent = netOk ? '✅' : '🚨';
-      document.getElementById('sec-net-status').textContent = netOk ? 'RAS' : 'Activite suspecte!';
-      document.getElementById('sec-mem').textContent = rpt.memory_pct + '%';
-      document.getElementById('sec-mem-bar').style.width = rpt.memory_pct + '%';
-      document.getElementById('sec-mem-bar').style.background = rpt.memory_pct > 90 ? '#ef4444' : rpt.memory_pct > 70 ? '#f59e0b' : '#10b981';
-      document.getElementById('sec-disk').textContent = rpt.disk_pct + '%';
-      document.getElementById('sec-disk-bar').style.width = rpt.disk_pct + '%';
-      document.getElementById('sec-disk-bar').style.background = rpt.disk_pct > 85 ? '#ef4444' : rpt.disk_pct > 70 ? '#f59e0b' : '#10b981';
-      document.getElementById('sec-last-scan').textContent = 'Dernier scan: ' + new Date(rpt.report_date).toLocaleString('fr-FR');
-    } else {
-      document.getElementById('sec-score').textContent = '?';
-      document.getElementById('sec-score').style.color = '#94a3b8';
-      document.getElementById('sec-last-scan').textContent = 'Aucun scan effectue. Lancez un scan manuel.';
-    }
-    const hist = await fetch('/api/admin/security-reports', {headers:h}).then(r=>r.json());
-    const tbody = document.getElementById('sec-history-body');
-    if (hist.reports && hist.reports.length > 0) {
-      tbody.innerHTML = hist.reports.map(r => {
-        const sc = r.security_score||0;
-        const scColor = sc >= 80 ? '#10b981' : sc >= 50 ? '#f59e0b' : '#ef4444';
-        return '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 8px;">'+new Date(r.report_date).toLocaleDateString('fr-FR')+'</td><td style="font-weight:700;color:'+scColor+';">'+sc+'/100</td><td>'+(r.antivirus_status==='clean'?'✅':'🚨 '+r.antivirus_infected)+'</td><td>'+(r.integrity_status==='clean'?'✅':'⚠️')+'</td><td>'+(r.rootkit_status==='clean'?'✅':'⚠️')+'</td><td>'+(r.memory_pct||0)+'%</td><td>'+(r.disk_pct||0)+'%</td></tr>';
-      }).join('');
-    } else {
-      tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#94a3b8;">Aucun rapport. Lancez un premier scan.</td></tr>';
-    }
-  } catch(e) { console.error('[securite]', e); }
-}
-
-async function launchManualScan() {
-  const btn = document.getElementById('sec-scan-btn');
-  const msg = document.getElementById('sec-scan-msg');
-  btn.disabled = true; btn.textContent = '⏳ Scan en cours...'; msg.textContent = '';
-  try {
-    const tok = tk;
-    const r = await fetch('/api/admin/security-scan', {method:'POST', headers:{'Authorization':'Bearer '+tok}}).then(r=>r.json());
-    msg.textContent = r.message || 'Scan lance!'; msg.style.color = '#10b981';
-    setTimeout(() => { btn.disabled = false; btn.textContent = '🛡️ Lancer un scan manuel'; loadSecurityDashboard(); }, 300000);
-  } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; btn.disabled = false; btn.textContent = '🛡️ Lancer un scan manuel'; }
-}
-
 // ============ PARAMETRES PLATEFORME ============
 const CFG_KEYS = {
   commissions: ['commission_rush','commission_services','commission_showroom','commission_juridique','commission_btp'],
@@ -1237,11 +1832,12 @@ function toggleMaintenance() {
     .then(() => toast(isOn ? 'Maintenance desactivee' : 'Maintenance activee'));
 }
 
-// Load settings when admin section is shown
+// Load settings/docs when admin section is shown
 const origST = sT;
 sT = function(t, el) {
   origST(t, el);
   if (t === 'settings') loadSettings();
+  if (t === 'documents') loadSignedDocs();
 };
 
 // ============ ACCÈS RAPIDE SEARCH & FILTER ============
@@ -1265,6 +1861,497 @@ function filterARCat(cat, btn) {
   document.querySelectorAll('.ar-filter').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   filterAR();
+}
+
+// === DOCUMENTS SIGNES ===
+let sdSelectedIds = [];
+let sdCurrentView = 'table';
+let sdDebounceTimer = null;
+
+function debounceLoadSignedDocs() {
+  clearTimeout(sdDebounceTimer);
+  sdDebounceTimer = setTimeout(loadSignedDocs, 300);
+}
+
+async function loadSignedDocs() {
+  const cat = document.getElementById('sd-filter-category')?.value || '';
+  const status = document.getElementById('sd-filter-status')?.value || '';
+  const year = document.getElementById('sd-filter-year')?.value || '';
+  const month = document.getElementById('sd-filter-month')?.value || '';
+  const search = document.getElementById('sd-search')?.value || '';
+
+  const params = new URLSearchParams();
+  if (cat) params.set('category', cat);
+  if (status) params.set('status', status);
+  if (year) params.set('year', year);
+  if (month) params.set('month', month);
+  if (search) params.set('search', search);
+
+  try {
+    const r = await api('/api/documents/signed?' + params.toString());
+    const docs = r.documents || [];
+
+    document.getElementById('sd-count').textContent = docs.length + ' document(s)';
+
+    renderDocsList(docs);
+    loadCategoriesTree();
+  } catch (e) {
+    document.getElementById('sd-documents-list').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);">Erreur de chargement</div>';
+  }
+}
+
+async function loadCategoriesTree() {
+  try {
+    const r = await api('/api/documents/categories');
+    const tree = r.categories || {};
+    const container = document.getElementById('sd-categories-tree');
+    if (!container) return;
+
+    const catLabels = { contrat: 'Contrats', mandat: 'Mandats', avocat: 'Avocat', juridique: 'Juridique', administratif: 'Administratif', autre: 'Autre' };
+    const catIcons = { contrat: '📄', mandat: '📜', avocat: '⚖️', juridique: '📋', administratif: '🏢', autre: '📁' };
+
+    let html = '<div style="font-weight:700;margin-bottom:10px;color:var(--text);">Categories</div>';
+    html += '<div onclick="document.getElementById(\'sd-filter-category\').value=\'\';loadSignedDocs()" style="padding:6px 8px;border-radius:6px;cursor:pointer;margin-bottom:2px;color:var(--text2);">Tous</div>';
+
+    for (const [cat, info] of Object.entries(tree)) {
+      html += '<div onclick="document.getElementById(\'sd-filter-category\').value=\'' + cat + '\';loadSignedDocs()" style="padding:6px 8px;border-radius:6px;cursor:pointer;margin-bottom:2px;display:flex;justify-content:space-between;color:var(--text2);">' +
+        '<span>' + (catIcons[cat] || '📁') + ' ' + (catLabels[cat] || cat) + '</span>' +
+        '<span style="background:var(--border);padding:1px 6px;border-radius:4px;font-size:10px;">' + info.total + '</span>' +
+      '</div>';
+
+      for (const [sub, subInfo] of Object.entries(info.subcategories || {})) {
+        html += '<div onclick="document.getElementById(\'sd-filter-category\').value=\'' + cat + '\';loadSignedDocs()" style="padding:4px 8px 4px 24px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--text3);display:flex;justify-content:space-between;">' +
+          '<span>' + sub + '</span>' +
+          '<span style="font-size:10px;">' + subInfo.total + '</span>' +
+        '</div>';
+      }
+    }
+
+    container.innerHTML = html;
+  } catch (e) { /* silent */ }
+}
+
+function renderDocsList(docs) {
+  const container = document.getElementById('sd-documents-list');
+  if (!docs.length) {
+    container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3);"><div style="font-size:48px;margin-bottom:12px;">📝</div><div>Aucun document signe pour le moment</div><div style="font-size:11px;margin-top:8px;">Les documents signes via DocuSeal apparaitront ici automatiquement.</div></div>';
+    return;
+  }
+
+  const statusColors = { pending: '#f59e0b', sent: '#3b82f6', viewed: '#8b5cf6', signed: '#10b981', expired: '#ef4444', rejected: '#ef4444' };
+  const statusLabels = { pending: 'En attente', sent: 'Envoye', viewed: 'Consulte', signed: 'Signe', expired: 'Expire', rejected: 'Refuse' };
+  const catIcons = { contrat: '📄', mandat: '📜', avocat: '⚖️', juridique: '📋', administratif: '🏢', autre: '📁' };
+
+  if (sdCurrentView === 'table') {
+    let html = '<div style="display:flex;flex-direction:column;gap:4px;">';
+    docs.forEach(d => {
+      const date = d.signed_at ? new Date(d.signed_at).toLocaleDateString('fr-FR') : (d.created_at ? new Date(d.created_at).toLocaleDateString('fr-FR') : '—');
+      const checked = sdSelectedIds.includes(d.id) ? 'checked' : '';
+      const safeId = esc(d.id);
+      html += '<div style="display:grid;grid-template-columns:30px 1fr 120px 100px 90px 140px;align-items:center;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12px;gap:8px;" class="sd-row" onmouseenter="this.style.borderColor=\'rgba(99,102,241,.4)\'" onmouseleave="this.style.borderColor=\'var(--border)\'">' +
+        '<input type="checkbox" ' + checked + ' onchange="toggleDocSelect(\'' + safeId + '\')">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span>' + (catIcons[d.category] || '📁') + '</span>' +
+          '<div>' +
+            '<div style="font-weight:600;color:var(--text);">' + esc(d.title) + '</div>' +
+            '<div style="font-size:11px;color:var(--text3);">' + esc(d.subcategory || d.category) + (d.signer_role ? ' — ' + esc(d.signer_role) : '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="color:var(--text2);">' + esc(d.signer_name || d.signer_email || '—') + '</div>' +
+        '<div><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:' + (statusColors[d.status] || '#64748b') + '20;color:' + (statusColors[d.status] || '#64748b') + ';">' + (statusLabels[d.status] || d.status) + '</span></div>' +
+        '<div style="color:var(--text3);">' + date + '</div>' +
+        '<div style="display:flex;gap:4px;">' +
+          (d.status === 'signed' ? '<a href="/api/documents/signed/' + encodeURIComponent(d.id) + '/download" style="padding:4px 10px;background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;">PDF</a>' : '') +
+          '<button onclick="viewSignedDoc(\'' + safeId + '\')" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--text);cursor:pointer;">Voir</button>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } else {
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">';
+    docs.forEach(d => {
+      const date = d.signed_at ? new Date(d.signed_at).toLocaleDateString('fr-FR') : (d.created_at ? new Date(d.created_at).toLocaleDateString('fr-FR') : '—');
+      const checked = sdSelectedIds.includes(d.id) ? 'checked' : '';
+      const safeId = esc(d.id);
+      html += '<div class="ar-card" style="padding:20px;position:relative;">' +
+        '<input type="checkbox" ' + checked + ' onchange="toggleDocSelect(\'' + safeId + '\')" style="position:absolute;top:12px;right:12px;">' +
+        '<div style="font-size:28px;margin-bottom:10px;">' + (catIcons[d.category] || '📁') + '</div>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">' + esc(d.title) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">' + esc(d.signer_name || d.signer_email || '—') + ' — ' + date + '</div>' +
+        '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:' + (statusColors[d.status] || '#64748b') + '20;color:' + (statusColors[d.status] || '#64748b') + ';margin-bottom:12px;">' + (statusLabels[d.status] || d.status) + '</span>' +
+        '<div style="display:flex;gap:6px;">' +
+          (d.status === 'signed' ? '<a href="/api/documents/signed/' + encodeURIComponent(d.id) + '/download" style="padding:6px 12px;background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;">PDF</a>' : '') +
+          '<button onclick="viewSignedDoc(\'' + safeId + '\')" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--text);cursor:pointer;">Voir</button>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+}
+
+function setDocView(view) {
+  sdCurrentView = view;
+  document.querySelectorAll('.sd-view-btn').forEach(b => {
+    b.style.background = b.dataset.view === view ? 'var(--accent)' : 'transparent';
+    b.style.color = b.dataset.view === view ? '#fff' : 'var(--text)';
+  });
+  loadSignedDocs();
+}
+
+function toggleDocSelect(id) {
+  const idx = sdSelectedIds.indexOf(id);
+  if (idx >= 0) sdSelectedIds.splice(idx, 1);
+  else sdSelectedIds.push(id);
+  updateSelectionUI();
+}
+
+function toggleSelectAllDocs() {
+  const all = document.getElementById('sd-select-all').checked;
+  const checkboxes = document.querySelectorAll('.sd-row input[type="checkbox"], .ar-card input[type="checkbox"]');
+  sdSelectedIds = [];
+  checkboxes.forEach(cb => {
+    cb.checked = all;
+    if (all) {
+      const onChange = cb.getAttribute('onchange');
+      if (onChange) {
+        const match = onChange.match(/toggleDocSelect\('(.+?)'\)/);
+        if (match) sdSelectedIds.push(match[1]);
+      }
+    }
+  });
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  const sendBtn = document.getElementById('btn-send-selected');
+  const dlBtn = document.getElementById('btn-dl-selected');
+  if (sendBtn) sendBtn.style.display = sdSelectedIds.length > 0 ? 'inline-block' : 'none';
+  if (dlBtn) dlBtn.style.display = sdSelectedIds.length > 0 ? 'inline-block' : 'none';
+}
+
+function sendSelectedDocs() {
+  if (!sdSelectedIds.length) return;
+  document.getElementById('sd-email-modal').style.display = 'flex';
+}
+
+function closeEmailModal() {
+  document.getElementById('sd-email-modal').style.display = 'none';
+}
+
+async function confirmSendDocs() {
+  const email = document.getElementById('sd-send-email').value.trim();
+  const msg = document.getElementById('sd-send-msg');
+  if (!email) { msg.textContent = 'Email requis'; msg.style.color = '#ef4444'; return; }
+  msg.textContent = 'Envoi en cours...'; msg.style.color = 'var(--text3)';
+  try {
+    const r = await api('/api/documents/signed/send-email', {
+      method: 'POST',
+      body: JSON.stringify({ document_ids: sdSelectedIds, email })
+    });
+    if (r.ok) {
+      msg.textContent = r.sent + ' document(s) envoye(s) a ' + email;
+      msg.style.color = '#10b981';
+      setTimeout(closeEmailModal, 2000);
+    } else {
+      msg.textContent = r.error || 'Erreur';
+      msg.style.color = '#ef4444';
+    }
+  } catch (e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
+}
+
+async function downloadSelectedDocs() {
+  for (const id of sdSelectedIds) {
+    const a = document.createElement('a');
+    a.href = '/api/documents/signed/' + encodeURIComponent(id) + '/download';
+    a.download = '';
+    a.click();
+  }
+}
+
+async function viewSignedDoc(id) {
+  try {
+    const r = await api('/api/documents/signed/' + encodeURIComponent(id));
+    const d = r.document;
+    if (!d) return;
+
+    const statusColors = { pending: '#f59e0b', sent: '#3b82f6', viewed: '#8b5cf6', signed: '#10b981', expired: '#ef4444', rejected: '#ef4444' };
+    const statusLabels = { pending: 'En attente', sent: 'Envoye', viewed: 'Consulte', signed: 'Signe', expired: 'Expire', rejected: 'Refuse' };
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = '<div style="background:var(--bg,#0f0f23);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:500px;width:90%;">' +
+      '<h3 style="color:var(--text);margin:0 0 16px;">' + esc(d.title) + '</h3>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;margin-bottom:20px;">' +
+        '<div><span style="color:var(--text3);">Categorie:</span> <span style="color:var(--text);">' + esc(d.category) + (d.subcategory ? ' / ' + esc(d.subcategory) : '') + '</span></div>' +
+        '<div><span style="color:var(--text3);">Statut:</span> <span style="color:' + statusColors[d.status] + ';font-weight:600;">' + statusLabels[d.status] + '</span></div>' +
+        '<div><span style="color:var(--text3);">Signataire:</span> <span style="color:var(--text);">' + esc(d.signer_name || '—') + '</span></div>' +
+        '<div><span style="color:var(--text3);">Email:</span> <span style="color:var(--text);">' + esc(d.signer_email || '—') + '</span></div>' +
+        '<div><span style="color:var(--text3);">Role:</span> <span style="color:var(--text);">' + esc(d.signer_role || '—') + '</span></div>' +
+        '<div><span style="color:var(--text3);">Signe le:</span> <span style="color:var(--text);">' + (d.signed_at ? new Date(d.signed_at).toLocaleString('fr-FR') : '—') + '</span></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        (d.status === 'signed' ? '<a href="/api/documents/signed/' + encodeURIComponent(d.id) + '/download" class="btn bp bs" style="text-decoration:none;">Telecharger PDF</a>' : '') +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:transparent;color:var(--text);cursor:pointer;">Fermer</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(overlay);
+  } catch (e) { console.error(e); }
+}
+
+function copyCodexLink() {
+  const url = window.location.origin + '/docs/CODEX-JADOMI.html';
+  const btn = document.getElementById('codex-copy-btn');
+  const onSuccess = () => { btn.textContent = 'Copie !'; setTimeout(() => { btn.textContent = 'Copier le lien'; }, 2000); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(onSuccess).catch(() => {
+      // Fallback for non-HTTPS contexts
+      const ta = document.createElement('textarea'); ta.value = url; ta.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); onSuccess();
+    });
+  } else {
+    const ta = document.createElement('textarea'); ta.value = url; ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); onSuccess();
+  }
+}
+
+// Auto-load signed docs is handled by the sT wrapper above
+
+// ===================== SIGNATURE ELECTRONIQUE =====================
+let _sigFileData = null;
+
+function _sigToken() {
+  return window.jadomiMultiSocietes?.token || JSON.parse(localStorage.getItem('jadomi_session') || '{}').access_token || tk;
+}
+
+// Autocomplete patients/clients
+function initPatientAutocomplete(inputId){
+  var input=document.getElementById(inputId);
+  if(!input||input._acInit) return;
+  input._acInit=true;
+  var wrap=input.parentElement;
+  if(wrap) wrap.style.position='relative';
+  var dd=document.createElement('div');
+  dd.id=inputId+'-ac-dd';
+  dd.style.cssText='position:absolute;top:100%;left:0;right:0;background:#1a1f2e;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:9999;display:none;max-height:200px;overflow-y:auto;margin-top:4px;';
+  if(wrap) wrap.appendChild(dd);
+  input.setAttribute('autocomplete','off');
+  var timer=null;
+  input.addEventListener('input',function(){
+    var val=input.value.trim();
+    if(val.length<2){dd.style.display='none';return;}
+    clearTimeout(timer);
+    timer=setTimeout(function(){_fetchAC(val,inputId,dd);},250);
+  });
+  input.addEventListener('blur',function(){setTimeout(function(){dd.style.display='none';},200);});
+  input.addEventListener('keydown',function(e){if(e.key==='Escape')dd.style.display='none';});
+}
+async function _fetchAC(q,inputId,dd){
+  try{
+    var res=await fetch('/api/clients/autocomplete?q='+encodeURIComponent(q),{headers:{'Authorization':'Bearer '+_sigToken()}});
+    var data=await res.json();
+    if(!data.ok||!data.results||!data.results.length){dd.style.display='none';return;}
+    dd.innerHTML=data.results.map(function(r){
+      return '<div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;border-bottom:1px solid rgba(255,255,255,0.04);" '+
+        'onmousedown="document.getElementById(\''+inputId+'\').value=\''+esc(r.name).replace(/'/g,"\\'")+'\';this.parentElement.style.display=\'none\';" '+
+        'onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'transparent\'">'+
+        '<div style="flex:1;font-size:13px;font-weight:500;color:var(--text);">'+esc(r.name)+'</div>'+
+        (r.source==='saved'?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(99,102,241,0.15);color:#818cf8;">Enregistre</span>':'')+
+        '</div>';
+    }).join('');
+    dd.style.display='block';
+  }catch(e){dd.style.display='none';}
+}
+function _savePatientName(name,cat){
+  if(!name||name.trim().length<2)return;
+  fetch('/api/clients/save',{method:'POST',headers:{'Authorization':'Bearer '+_sigToken(),'Content-Type':'application/json'},body:JSON.stringify({name:name.trim(),category:cat||'patient'})}).catch(function(){});
+}
+
+// Drag & drop
+(function initSigDropzone() {
+  document.addEventListener('DOMContentLoaded', function() {
+    initPatientAutocomplete('sig-patient-name');
+    const dz = document.getElementById('sig-dropzone');
+    const fi = document.getElementById('sig-file-input');
+    if (!dz || !fi) return;
+    ['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop', ev => { if (ev.dataTransfer.files.length) handleSigFile(ev.dataTransfer.files[0]); });
+    fi.addEventListener('change', () => { if (fi.files.length) handleSigFile(fi.files[0]); });
+  });
+})();
+
+function handleSigFile(file) {
+  const allowed = ['application/pdf','image/png','image/jpeg','image/jpg'];
+  if (!allowed.includes(file.type)) { toast('Format non supporte. PDF, PNG ou JPG uniquement.'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('Fichier trop volumineux (max 10 Mo).'); return; }
+  _sigFileData = file;
+  const fn = document.getElementById('sig-file-name');
+  if (fn) fn.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' Ko)';
+}
+
+async function sendSignatureRequest() {
+  const name = document.getElementById('sig-dest-name').value.trim();
+  const email = document.getElementById('sig-dest-email').value.trim();
+  const patient = document.getElementById('sig-patient-name').value.trim();
+  const docType = document.getElementById('sig-doc-type').value;
+  const msg = document.getElementById('sig-send-msg');
+  const btn = document.getElementById('sig-send-btn');
+
+  if (!name || !email) { msg.style.color = '#ef4444'; msg.textContent = 'Nom et email du destinataire requis.'; return; }
+  if (!docType) { msg.style.color = '#ef4444'; msg.textContent = 'Selectionnez un type de document.'; return; }
+  if (!_sigFileData) { msg.style.color = '#ef4444'; msg.textContent = 'Veuillez ajouter un fichier a signer.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+  msg.textContent = '';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', _sigFileData);
+    formData.append('recipient_name', name);
+    formData.append('recipient_email', email);
+    if (patient) formData.append('patient_name', patient);
+    formData.append('document_type', docType);
+
+    const token = _sigToken();
+    const res = await fetch('/api/documents/request-signature', {
+      method: 'POST',
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+      body: formData
+    });
+    const data = await res.json();
+
+    if (res.ok && !data.error) {
+      msg.style.color = '#10b981';
+      msg.textContent = 'Document envoye pour signature avec succes.';
+      toast('Document envoye pour signature');
+      if (patient) _savePatientName(patient, 'patient');
+      // Reset form
+      document.getElementById('sig-dest-name').value = '';
+      document.getElementById('sig-dest-email').value = '';
+      document.getElementById('sig-patient-name').value = '';
+      document.getElementById('sig-doc-type').value = '';
+      document.getElementById('sig-file-name').textContent = '';
+      document.getElementById('sig-file-input').value = '';
+      _sigFileData = null;
+      // Refresh list
+      loadSignedDocsTab();
+    } else {
+      msg.style.color = '#ef4444';
+      msg.textContent = data.error || data.message || 'Erreur lors de l\'envoi.';
+    }
+  } catch (e) {
+    msg.style.color = '#ef4444';
+    msg.textContent = 'Erreur reseau. Veuillez reessayer.';
+    console.error('sendSignatureRequest error:', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Envoyer pour signature';
+  }
+}
+
+async function loadSignatureTab() {
+  loadSignedDocsTab();
+}
+
+async function loadSignedDocsTab() {
+  const tbody = document.getElementById('sig-docs-body');
+  const token = _sigToken();
+
+  try {
+    const res = await fetch('/api/documents/signed', {
+      headers: token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    const docs = data.documents || data.data || data || [];
+
+    // Stats
+    const signed = Array.isArray(docs) ? docs.filter(d => (d.status || '').toLowerCase() === 'signed' || (d.status || '').toLowerCase() === 'completed') : [];
+    const pending = Array.isArray(docs) ? docs.filter(d => (d.status || '').toLowerCase() === 'pending' || (d.status || '').toLowerCase() === 'sent') : [];
+    const total = Array.isArray(docs) ? docs.length : 0;
+
+    document.getElementById('sig-total').textContent = signed.length;
+    document.getElementById('sig-pending').textContent = pending.length;
+    document.getElementById('sig-rate').textContent = total > 0 ? Math.round((signed.length / total) * 100) + '%' : '0%';
+
+    if (!Array.isArray(docs) || docs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Aucun document pour le moment</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = docs.map(d => {
+      const status = (d.status || 'pending').toLowerCase();
+      const badgeMap = {
+        signed: 'sig-badge-signed', completed: 'sig-badge-signed',
+        pending: 'sig-badge-pending', sent: 'sig-badge-pending',
+        expired: 'sig-badge-expired',
+        viewed: 'sig-badge-viewed', opened: 'sig-badge-viewed'
+      };
+      const labelMap = {
+        signed: 'Signe', completed: 'Signe',
+        pending: 'En attente', sent: 'En attente',
+        expired: 'Expire',
+        viewed: 'Vu', opened: 'Vu'
+      };
+      const cls = badgeMap[status] || 'sig-badge-pending';
+      const label = labelMap[status] || status;
+      const date = d.created_at || d.date || d.updated_at || '';
+      const fDate = date ? new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+      const docName = d.name || d.document_name || d.title || d.document_type || 'Document';
+      const recipient = d.recipient_name || d.recipient_email || d.signer_name || '-';
+      const patient = d.patient_name || '-';
+      const docId = d.id || '';
+
+      let actions = '';
+      if (d.download_url || d.pdf_url) {
+        actions += '<a href="' + (d.download_url || d.pdf_url) + '" target="_blank" class="sig-action" title="Telecharger">PDF</a> ';
+      }
+      if (status === 'pending' || status === 'sent') {
+        actions += '<button class="sig-action" onclick="resendSignature(\'' + docId + '\')" title="Renvoyer">Renvoyer</button> ';
+      }
+      if (d.certificate_url) {
+        actions += '<a href="' + d.certificate_url + '" target="_blank" class="sig-action" title="Certificat">Certificat</a>';
+      }
+      if (!actions) actions = '<span style="color:var(--text3);font-size:11px;">-</span>';
+
+      return '<tr>' +
+        '<td style="font-weight:600;">' + esc(docName) + '</td>' +
+        '<td>' + esc(recipient) + '</td>' +
+        '<td>' + esc(patient) + '</td>' +
+        '<td><span class="sig-badge ' + cls + '">' + label + '</span></td>' +
+        '<td style="font-size:12px;color:var(--text3);">' + fDate + '</td>' +
+        '<td style="white-space:nowrap;">' + actions + '</td>' +
+      '</tr>';
+    }).join('');
+
+  } catch (e) {
+    console.error('loadSignedDocsTab error:', e);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Erreur de chargement</td></tr>';
+  }
+}
+
+async function resendSignature(docId) {
+  if (!docId) return;
+  try {
+    const token = _sigToken();
+    const res = await fetch('/api/documents/resend-signature', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+      body: JSON.stringify({ document_id: docId })
+    });
+    const data = await res.json();
+    if (res.ok && !data.error) {
+      toast('Relance envoyee avec succes');
+    } else {
+      toast(data.error || 'Erreur lors de la relance');
+    }
+  } catch (e) {
+    toast('Erreur reseau lors de la relance');
+    console.error('resendSignature error:', e);
+  }
 }
 </script>
 </body>

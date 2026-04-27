@@ -2,7 +2,7 @@
  * JADOMI — Widget "Conseil juridique"
  * Icone discrete dans le header, modal par-dessus la page.
  * Inclure sur toutes les pages dashboard :
- * <script src="/public/js/jadomi-legal-widget.js" defer></script>
+ * <script src="/js/jadomi-legal-widget.js" defer></script>
  * ============================================================== */
 (function() {
   const API = '/api/juridique/public';
@@ -226,7 +226,7 @@
       }
 
       html += '</div>';
-      html += `<a class="jlw-all" href="/public/experts/index.html?specialite=${specialite}" target="_blank">Voir tous les professionnels \u2192</a>`;
+      html += `<a class="jlw-all" href="/experts/index.html?specialite=${specialite}" target="_blank">Voir tous les professionnels \u2192</a>`;
       content.innerHTML = html;
     } catch(e) {
       content.innerHTML = '<div class="jlw-empty">Erreur de chargement. R\u00e9essayez.</div>';

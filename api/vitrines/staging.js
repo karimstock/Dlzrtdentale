@@ -170,7 +170,7 @@ async function scrapeForStaging(stagingId, url, stagingPath, slug) {
     const badge = `<div id="jadomi-staging-badge" style="position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#C9A961,#D4AF37);color:#0A1628;padding:8px 16px;z-index:999999;font-family:Inter,sans-serif;font-size:13px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.1);display:flex;justify-content:center;gap:16px;align-items:center;">
       <span>STAGING JADOMI — Version en cours d'amelioration</span>
       <a href="${url}" target="_blank" style="color:#0A1628;text-decoration:underline;">Voir l'original</a>
-      <a href="/public/vitrines/staging-modifier.html?slug=${slug}" style="color:#0A1628;font-weight:bold;">Modifier avec l'IA &rarr;</a>
+      <a href="/vitrines/staging-modifier.html?slug=${slug}" style="color:#0A1628;font-weight:bold;">Modifier avec l'IA &rarr;</a>
     </div><style>body{padding-top:42px!important;}</style>`;
     processedHtml = processedHtml.replace(/<body[^>]*>/i, (match) => match + badge);
 

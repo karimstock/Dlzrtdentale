@@ -1184,7 +1184,7 @@
     if (this.siteId) {
       try {
         var token = await getToken();
-        var res = await fetch('/api/vitrines/public/site/' + this.siteId, {
+        var res = await fetch('/api/vitrines/site/' + this.siteId, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         var data = await res.json();
@@ -1221,7 +1221,7 @@
     btnAdjust.textContent = 'Ajuster quelques details';
     btnAdjust.addEventListener('click', function() {
       // Go to dashboard for fine-tuning
-      window.location.href = '/public/vitrines/mon-site-v2.html' + (self.siteId ? '?siteId=' + self.siteId : '');
+      window.location.href = '/vitrines/mon-site-v2.html' + (self.siteId ? '?siteId=' + self.siteId : '');
     });
 
     actions.appendChild(btnOk);
@@ -1263,7 +1263,7 @@
 
     var btnDash = document.createElement('a');
     btnDash.className = 'ob-cta-secondary';
-    btnDash.href = '/public/vitrines/mon-site-v2.html' + (self.siteId ? '?siteId=' + self.siteId : '');
+    btnDash.href = '/vitrines/mon-site-v2.html' + (self.siteId ? '?siteId=' + self.siteId : '');
     btnDash.textContent = 'Acceder au dashboard';
     btnDash.style.textDecoration = 'none';
     btnDash.style.display = 'inline-block';

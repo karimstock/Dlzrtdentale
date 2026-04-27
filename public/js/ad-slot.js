@@ -4,7 +4,7 @@
  *
  * Usage:
  *   <div id="my-ad" data-jadomi-ad="sidebar-card"></div>
- *   <script src="/public/js/ad-slot.js" defer></script>
+ *   <script src="/js/ad-slot.js" defer></script>
  *
  * Or programmatically:
  *   const slot = new JadomiAdSlot('my-ad', 'banner-top', { refreshInterval: 45000 });

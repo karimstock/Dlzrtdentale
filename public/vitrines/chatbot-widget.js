@@ -4,8 +4,8 @@
  * Include on any public site and call:
  *   window.JadomiChatbot.init('your-site-id');
  *
- * Config is loaded from /api/vitrines/public/chatbot/config/{siteId}
- * Messages are sent to /api/vitrines/public/chatbot/message
+ * Config is loaded from /api/vitrines/chatbot/config/{siteId}
+ * Messages are sent to /api/vitrines/chatbot/message
  */
 (function () {
   'use strict';
@@ -268,7 +268,7 @@
     };
 
     function loadConfig() {
-      fetch('/api/vitrines/public/chatbot/config/' + encodeURIComponent(siteId))
+      fetch('/api/vitrines/chatbot/config/' + encodeURIComponent(siteId))
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data && data.success !== false) {
@@ -363,7 +363,7 @@
         message:    text
       };
 
-      fetch('/api/vitrines/public/chatbot/message', {
+      fetch('/api/vitrines/chatbot/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

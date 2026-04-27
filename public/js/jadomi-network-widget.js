@@ -1,7 +1,7 @@
 /* ==============================================================
  * JADOMI — Widget "Annuaire & Réseau"
  * Inclure sur toutes les pages dashboard :
- * <script src="/public/js/jadomi-network-widget.js" defer></script>
+ * <script src="/js/jadomi-network-widget.js" defer></script>
  * ============================================================== */
 (function() {
   const API = '/api/network/annuaire';

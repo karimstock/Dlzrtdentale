@@ -200,6 +200,9 @@ app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'p
 app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
+// JADOMI Equipment — Offres groupees (Passe 59)
+app.get('/equipment/offres', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/offres.html')));
+app.get('/equipment/propose', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/propose.html')));
 // JADOMI Avocat Expert - Coffre-fort (Passe 44C)
 app.get('/avocat/coffre', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/coffre.html')));
 app.get('/espace-client', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
@@ -237,6 +240,10 @@ app.get('/index-v2.html', (req, res) => res.sendFile(path.join(__dirname, 'publi
 // Homepage v3 Awwwards (Passe 38b)
 app.get('/index-v3', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v3.html')));
 app.get('/index-v3.html', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v3.html')));
+// Dashboards organisation (root-level HTML files)
+app.get('/commerce.html', (req, res) => res.sendFile(path.join(__dirname, 'commerce.html')));
+app.get('/membres-societe.html', (req, res) => res.sendFile(path.join(__dirname, 'membres-societe.html')));
+app.get('/settings-societe.html', (req, res) => res.sendFile(path.join(__dirname, 'settings-societe.html')));
 // 301 redirects for old URLs
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
@@ -922,7 +929,7 @@ app.get('/api/eco/check', requireAuth(), async (req, res) => {
     let ecoQuery = supabase
       .from('eco_matching')
       .select('*')
-      .ilike('produit_nom', `%${produit}%`);
+      .ilike('produit_nom', `%${escaped}%`);
 
     if (cabinet) {
       ecoQuery = ecoQuery.eq('cabinet_besoin', cabinet);
@@ -3262,7 +3269,7 @@ app.get('/api/facturation/mandate-template/pdf', requireAuth(), async (req, res)
 // ===== JADOMI SECURITE — API Rapports + Scan manuel =====
 
 // POST /api/admin/security-report — Recevoir rapport scan nocturne
-app.post('/api/admin/security-report', async (req, res) => {
+app.post('/api/admin/security-report', requireAuth(), async (req, res) => {
   try {
     const report = req.body;
     if (!report || !report.date) return res.status(400).json({ error: 'Rapport invalide' });
@@ -3319,6 +3326,9 @@ app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
 // POST /api/admin/security-scan — Lancer un scan manuel
 app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acces reserve aux administrateurs JADOMI' });
+    }
     const { exec } = require('child_process');
     exec('/home/ubuntu/jadomi/scripts/security-scan.sh', { timeout: 300000 }, (err, stdout, stderr) => {
       if (err) console.error('[manual-scan]', err.message);
@@ -5238,7 +5248,8 @@ app.get('/api/signatures/verify', async (req, res) => {
     }
 
     // Read audit trail if exists
-    const auditPath = require('path').join(__dirname, 'docs', 'audit', `${id}_audit.json`);
+    const safeId = String(id).replace(/[^a-zA-Z0-9-_]/g, '');
+    const auditPath = require('path').join(__dirname, 'docs', 'audit', `${safeId}_audit.json`);
     let documentHash = null;
     if (require('fs').existsSync(auditPath)) {
       try {
@@ -5521,13 +5532,14 @@ app.post('/api/signatures/aes/complete', requireAuth(), async (req, res) => {
     // If signature_image provided (base64 canvas), store it
     if (signature_image) {
       const fs = require('fs');
+      const safeDocId = String(document_id).replace(/[^a-zA-Z0-9-_]/g, '');
       const sigDir = path.join(__dirname, 'docs', 'signatures');
       if (!fs.existsSync(sigDir)) fs.mkdirSync(sigDir, { recursive: true });
 
       const base64Data = signature_image.replace(/^data:image\/\w+;base64,/, '');
-      const sigPath = path.join(sigDir, `${document_id}.png`);
+      const sigPath = path.join(sigDir, `${safeDocId}.png`);
       fs.writeFileSync(sigPath, Buffer.from(base64Data, 'base64'));
-      completionData.signature_image_path = `docs/signatures/${document_id}.png`;
+      completionData.signature_image_path = `docs/signatures/${safeDocId}.png`;
     }
 
     await supabase.from('signed_documents')
@@ -6535,7 +6547,7 @@ app.post('/api/equipment/propose', (req, res) => {
       <tr><td style="padding:8px 0;color:#64748b;">Produit</td><td style="padding:8px 0;font-weight:600;font-size:16px;">${cleanData.product_name}</td></tr>
       <tr><td style="padding:8px 0;color:#64748b;">Prix catalogue</td><td style="padding:8px 0;font-weight:700;color:#10b981;font-size:16px;">${cleanData.catalog_price} EUR</td></tr>
       ${cleanData.product_description ? `<tr><td style="padding:8px 0;color:#64748b;">Description</td><td style="padding:8px 0;">${cleanData.product_description}</td></tr>` : ''}
-      ${cleanData.website ? `<tr><td style="padding:8px 0;color:#64748b;">Site web</td><td style="padding:8px 0;"><a href="${cleanData.website}" style="color:#10b981;">${cleanData.website}</a></td></tr>` : ''}
+      ${cleanData.website && /^https?:\/\//i.test(cleanData.website) ? `<tr><td style="padding:8px 0;color:#64748b;">Site web</td><td style="padding:8px 0;"><a href="${cleanData.website}" style="color:#10b981;">${cleanData.website}</a></td></tr>` : ''}
       ${cleanData.notes ? `<tr><td style="padding:8px 0;color:#64748b;">Notes</td><td style="padding:8px 0;">${cleanData.notes}</td></tr>` : ''}
     </table>
 
@@ -6690,6 +6702,409 @@ app.patch('/api/equipment/proposals/:id/status', requireAuth(), async (req, res)
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
+
+// GET /api/equipment/offres — Public/auth: offres equipement approuvees avec compteurs
+app.get('/api/equipment/offres', async (req, res) => {
+  try {
+    const sbClient = supabaseAdmin || supabase;
+    if (!sbClient) return res.status(503).json({ error: 'Service indisponible.' });
+
+    // Fetch approved equipment proposals
+    const { data: proposals, error: pErr } = await sbClient.from('signed_documents')
+      .select('id, title, metadata, status, created_at')
+      .eq('category', 'equipment_proposal')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+
+    if (pErr) {
+      console.error('[Equipment Offres] Query error:', pErr.message);
+      return res.status(500).json({ error: 'Erreur lors du chargement des offres.' });
+    }
+
+    if (!proposals || proposals.length === 0) {
+      return res.json({ ok: true, offres: [] });
+    }
+
+    // Fetch enrollment counts per proposal
+    let enrollCounts = {};
+    try {
+      const proposalIds = proposals.map(p => p.id);
+      const { data: enrolls } = await sbClient.from('equipment_enrollments')
+        .select('proposal_id, id')
+        .in('proposal_id', proposalIds)
+        .eq('status', 'active');
+
+      if (enrolls) {
+        for (const e of enrolls) {
+          enrollCounts[e.proposal_id] = (enrollCounts[e.proposal_id] || 0) + 1;
+        }
+      }
+    } catch (_) {
+      // Table may not exist yet — graceful fallback
+    }
+
+    const offres = proposals.map(p => ({
+      id: p.id,
+      title: p.title,
+      metadata: p.metadata || {},
+      created_at: p.created_at,
+      enrollment_count: enrollCounts[p.id] || 0
+    }));
+
+    res.json({ ok: true, offres });
+  } catch (e) {
+    console.error('[Equipment Offres] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Rate limit: 10 join / heure / IP (anti-spam)
+app.use('/api/equipment/join', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, veuillez reessayer dans 1 heure.' }
+}));
+
+// POST /api/equipment/join — Auth: dentiste rejoint un groupe d'achat
+app.post('/api/equipment/join', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const userId = req.user.id;
+    const { proposal_id, societe_id } = req.body;
+
+    if (!proposal_id || !societe_id) {
+      return res.status(400).json({ error: 'proposal_id et societe_id sont requis.' });
+    }
+
+    // Sanitize UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(proposal_id) || !uuidRegex.test(societe_id)) {
+      return res.status(400).json({ error: 'Format identifiant invalide.' });
+    }
+
+    // SECURITY: Verify societe_id belongs to the authenticated user (anti-IDOR)
+    const { data: societeCheck } = await db.from('societes')
+      .select('id')
+      .eq('id', societe_id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!societeCheck) {
+      // Fallback: check user_societes join table
+      const { data: memberCheck } = await db.from('user_societes')
+        .select('id')
+        .eq('societe_id', societe_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!memberCheck) {
+        return res.status(403).json({ error: 'Vous n\'etes pas autorise a inscrire ce cabinet.' });
+      }
+    }
+
+    // Verify proposal exists and is approved
+    const { data: proposal, error: pErr } = await db.from('signed_documents')
+      .select('id, metadata, status')
+      .eq('id', proposal_id)
+      .eq('category', 'equipment_proposal')
+      .eq('status', 'approved')
+      .single();
+
+    if (pErr || !proposal) {
+      return res.status(404).json({ error: 'Offre non trouvee ou non disponible.' });
+    }
+
+    // Check if already enrolled (any status — to handle reactivation of cancelled)
+    const { data: existing } = await db.from('equipment_enrollments')
+      .select('id, status')
+      .eq('proposal_id', proposal_id)
+      .eq('societe_id', societe_id)
+      .maybeSingle();
+
+    if (existing && existing.status === 'active') {
+      return res.status(409).json({ error: 'Vous etes deja inscrit a cette offre.' });
+    }
+
+    const isReactivation = !!(existing && (existing.status === 'cancelled' || existing.status === 'refunded'));
+
+    // Count current enrollments to determine tier price
+    const { count: enrollCount } = await db.from('equipment_enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('proposal_id', proposal_id)
+      .eq('status', 'active');
+
+    const newCount = (enrollCount || 0) + 1;
+    const tiers = (proposal.metadata || {}).tiers || [];
+    let tierPrice = computeTierPrice(tiers, newCount);
+
+    // Fallback: if no tiers defined, use catalog_price
+    if (tierPrice === 0 && (proposal.metadata || {}).catalog_price) {
+      tierPrice = parseFloat(proposal.metadata.catalog_price) || 0;
+    }
+
+    if (tierPrice <= 0) {
+      return res.status(400).json({ error: 'Prix indisponible pour cette offre. Veuillez contacter le support.' });
+    }
+
+    const acompteAmount = Math.round(tierPrice * 0.1 * 100) / 100;
+
+    // Insert or reactivate enrollment
+    let insertErr;
+    if (isReactivation) {
+      // Reactivate previously cancelled enrollment (UNIQUE constraint prevents new insert)
+      const { error } = await db.from('equipment_enrollments')
+        .update({
+          status: 'active',
+          user_id: userId,
+          tier_price: tierPrice,
+          acompte_amount: acompteAmount,
+          acompte_paid: false,
+          acompte_paid_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+      insertErr = error;
+    } else {
+      const { error } = await db.from('equipment_enrollments').insert({
+        proposal_id,
+        societe_id,
+        user_id: userId,
+        tier_price: tierPrice,
+        acompte_amount: acompteAmount,
+        acompte_paid: false,
+        status: 'active'
+      });
+      insertErr = error;
+    }
+
+    if (insertErr) {
+      console.error('[Equipment Join] Insert/update error:', insertErr.message);
+      if (insertErr.message.includes('unique') || insertErr.message.includes('duplicate')) {
+        return res.status(409).json({ error: 'Vous etes deja inscrit a cette offre.' });
+      }
+      return res.status(500).json({ error: 'Erreur lors de l\'inscription.' });
+    }
+
+    // Check if we crossed a tier threshold
+    let tierReached = false;
+    let newPrice = tierPrice;
+    const previousTierPrice = computeTierPrice(tiers, newCount - 1);
+
+    if (tierPrice < previousTierPrice || checkTierThreshold(tiers, newCount)) {
+      tierReached = true;
+      newPrice = tierPrice;
+
+      // Create notification for tier milestone
+      try {
+        const productName = (proposal.metadata || {}).product_name || 'Equipement';
+        const notifMessage = 'Nouveau palier atteint pour ' + productName + ' ! '
+          + 'Avec ' + newCount + ' cabinets inscrits, le prix passe de '
+          + previousTierPrice + ' EUR a ' + tierPrice + ' EUR.';
+
+        await db.from('equipment_notifications').insert({
+          proposal_id,
+          type: 'tier_reached',
+          message: notifMessage,
+          metadata: {
+            enrollment_count: newCount,
+            old_price: previousTierPrice,
+            new_price: tierPrice,
+            product_name: productName
+          }
+        });
+      } catch (notifErr) {
+        console.error('[Equipment Join] Notification error:', notifErr.message);
+      }
+
+      // Send email notifications to all enrolled dentists
+      try {
+        const { data: enrolled } = await db.from('equipment_enrollments')
+          .select('user_id')
+          .eq('proposal_id', proposal_id)
+          .eq('status', 'active');
+
+        if (enrolled && enrolled.length > 0) {
+          const userIds = enrolled.map(e => e.user_id);
+          // Paginated user fetch — only fetch enrolled user IDs, not all users
+          const { data: users } = await db.auth.admin.listUsers({ perPage: 1000 });
+          const enrolledUsers = (users?.users || []).filter(u => userIds.includes(u.id) && u.email);
+
+          const { sendMail } = require('./api/multiSocietes/mailer');
+          const rawProductName = (proposal.metadata || {}).product_name || 'Equipement';
+          // Escape HTML to prevent XSS in email
+          const productName = rawProductName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+          for (const u of enrolledUsers) {
+            sendMail({
+              to: u.email,
+              subject: '[JADOMI Equipment] Nouveau palier atteint — ' + productName,
+              html: '<div style="font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;background:#fff;">'
+                + '<div style="background:linear-gradient(135deg,#10b981,#059669);padding:24px 32px;text-align:center;">'
+                + '<div style="font-size:24px;font-weight:800;color:#fff;">JADOMI</div>'
+                + '<div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:4px;">Equipement a prix groupe</div></div>'
+                + '<div style="padding:28px 32px;">'
+                + '<h2 style="color:#0f172a;font-size:18px;margin:0 0 16px;">Bonne nouvelle !</h2>'
+                + '<p style="color:#334155;line-height:1.6;">Un nouveau palier a ete atteint pour <strong>' + productName + '</strong>.</p>'
+                + '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">'
+                + '<div style="font-size:14px;color:#166534;">Le prix passe de <strong>' + previousTierPrice + ' EUR</strong> a</div>'
+                + '<div style="font-size:28px;font-weight:800;color:#059669;margin-top:4px;">' + tierPrice + ' EUR</div>'
+                + '<div style="font-size:12px;color:#166534;margin-top:4px;">' + newCount + ' cabinets inscrits</div></div>'
+                + '<p style="color:#334155;line-height:1.6;">Plus nous serons nombreux, plus le prix baissera. N\'hesitez pas a en parler a vos confreres.</p>'
+                + '<div style="text-align:center;margin-top:20px;">'
+                + '<a href="' + (process.env.APP_URL || 'https://jadomi.fr') + '/equipment/offres" style="display:inline-block;background:#10b981;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Voir les offres</a></div>'
+                + '</div></div>'
+            }).catch(e => console.error('[Equipment Tier Email] Error:', e.message));
+          }
+        }
+      } catch (emailErr) {
+        console.error('[Equipment Join] Tier email batch error:', emailErr.message);
+      }
+    }
+
+    res.json({ ok: true, tier_reached: tierReached, new_price: newPrice, enrollment_count: newCount });
+  } catch (e) {
+    console.error('[Equipment Join] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// GET /api/equipment/mes-achats — Auth: achats groupe du dentiste
+app.get('/api/equipment/mes-achats', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const userId = req.user.id;
+
+    const { data: enrollments, error: eErr } = await db.from('equipment_enrollments')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (eErr) {
+      console.error('[Equipment MesAchats] Query error:', eErr.message);
+      return res.status(500).json({ error: 'Erreur lors du chargement.' });
+    }
+
+    // Enrich with proposal details (batched query instead of N+1)
+    const proposalIds = [...new Set((enrollments || []).map(e => e.proposal_id))];
+    let proposalsMap = {};
+    if (proposalIds.length > 0) {
+      const { data: proposals } = await db.from('signed_documents')
+        .select('id, title, metadata')
+        .in('id', proposalIds);
+      if (proposals) {
+        for (const p of proposals) proposalsMap[p.id] = p;
+      }
+    }
+
+    const result = (enrollments || []).map(enrollment => {
+      const proposal = proposalsMap[enrollment.proposal_id];
+      return {
+        ...enrollment,
+        product_name: proposal ? (proposal.metadata || {}).product_name || proposal.title : 'Equipement',
+        company_name: proposal ? (proposal.metadata || {}).company_name : ''
+      };
+    });
+
+    res.json({ ok: true, enrollments: result });
+  } catch (e) {
+    console.error('[Equipment MesAchats] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Rate limit: 10 acompte / heure / IP
+app.use('/api/equipment/acompte', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, veuillez reessayer dans 1 heure.' }
+}));
+
+// POST /api/equipment/acompte — Auth: enregistrer intention de versement d'acompte
+app.post('/api/equipment/acompte', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const userId = req.user.id;
+    const { enrollment_id } = req.body;
+
+    if (!enrollment_id) {
+      return res.status(400).json({ error: 'enrollment_id est requis.' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(enrollment_id)) {
+      return res.status(400).json({ error: 'Format identifiant invalide.' });
+    }
+
+    // Verify enrollment belongs to user
+    const { data: enrollment, error: eErr } = await db.from('equipment_enrollments')
+      .select('*')
+      .eq('id', enrollment_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (eErr || !enrollment) {
+      return res.status(404).json({ error: 'Inscription non trouvee.' });
+    }
+
+    if (enrollment.acompte_paid) {
+      return res.status(409).json({ error: 'L\'acompte a deja ete enregistre.' });
+    }
+
+    // Mark acompte as paid
+    const { error: updateErr } = await db.from('equipment_enrollments')
+      .update({
+        acompte_paid: true,
+        acompte_paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', enrollment_id);
+
+    if (updateErr) {
+      console.error('[Equipment Acompte] Update error:', updateErr.message);
+      return res.status(500).json({ error: 'Erreur lors de l\'enregistrement.' });
+    }
+
+    // Create notification
+    try {
+      await db.from('equipment_notifications').insert({
+        proposal_id: enrollment.proposal_id,
+        type: 'acompte_confirmed',
+        message: 'Acompte de ' + enrollment.acompte_amount + ' EUR confirme.',
+        metadata: { enrollment_id, user_id: userId, amount: enrollment.acompte_amount }
+      });
+    } catch (notifErr) { console.error('[Equipment Acompte] Notification error:', notifErr.message); }
+
+    res.json({ ok: true, amount: enrollment.acompte_amount });
+  } catch (e) {
+    console.error('[Equipment Acompte] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Helper: compute tier price based on enrollment count
+function computeTierPrice(tiers, count) {
+  if (!tiers || tiers.length === 0) return 0;
+  // Sort by min_qty ascending to ensure correct tier selection
+  const sorted = [...tiers].sort((a, b) => (parseInt(a.min_qty) || 0) - (parseInt(b.min_qty) || 0));
+  let price = parseFloat(sorted[0].price) || 0;
+  for (const t of sorted) {
+    const minQty = parseInt(t.min_qty) || 0;
+    if (count >= minQty) {
+      price = parseFloat(t.price) || price;
+    }
+  }
+  return price;
+}
+
+// Helper: check if count exactly matches a tier threshold
+function checkTierThreshold(tiers, count) {
+  if (!tiers || tiers.length === 0) return false;
+  return tiers.some(t => parseInt(t.min_qty) === count);
+}
 
 // ============================================================
 // GESTION PATIENTS — Ban / Deban
@@ -7124,7 +7539,9 @@ const IDE_VALID_TOURNEES = ['matin', 'soir', 'les_deux'];
 
 function _ideSanitize(s, maxLen = 500) {
   if (!s) return '';
-  return String(s).replace(/<[^>]*>/g, '').trim().substring(0, maxLen);
+  // Trim and truncate FIRST on raw text, THEN encode HTML entities
+  const raw = String(s).replace(/<[^>]*>/g, '').trim().substring(0, maxLen);
+  return raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function _ideValidDate(s) {
@@ -8158,6 +8575,21 @@ app.get('/api/ide/absences', requireAuth(), async (req, res) => {
 
     const { data, error } = await db.from('ide_absences').select('*').eq('cabinet_id', cabinetId).order('date_debut', { ascending: false });
     if (error) throw error;
+
+    // Enrich absences that have a contract with the contrat_url from signed_documents
+    const absWithContract = (data || []).filter(a => a.contrat_document_id);
+    if (absWithContract.length > 0) {
+      const docIds = absWithContract.map(a => a.contrat_document_id);
+      const { data: docs } = await db.from('signed_documents').select('id, original_document_url').in('id', docIds);
+      const docMap = {};
+      (docs || []).forEach(d => { docMap[d.id] = d.original_document_url; });
+      (data || []).forEach(a => {
+        if (a.contrat_document_id && docMap[a.contrat_document_id]) {
+          a.contrat_url = docMap[a.contrat_document_id];
+        }
+      });
+    }
+
     res.json({ ok: true, absences: data || [] });
   } catch (e) {
     console.error('[IDE Absences GET] Error:', e.message);
@@ -9337,6 +9769,627 @@ app.get('/api/suppliers/:id/score', requireAuth(), async (req, res) => {
 // =============================================
 // Global error handler — catch toutes les erreurs non gerees par les routes
 // =============================================
+// =============================================
+// SOS REMPLACEMENT IDE — Passe 59
+// =============================================
+
+// Helper: generate remplacement contract HTML
+function _ideContratRemplacementHtml(titulaire, remplacant, absence, retrocessionPct) {
+  const dateDebut = new Date(absence.date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateFin = new Date(absence.date_fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>Contrat de Remplacement Infirmier</title>
+<style>
+  body{font-family:'Times New Roman',Times,serif;max-width:800px;margin:40px auto;padding:0 40px;color:#1a1a1a;line-height:1.6;font-size:14px;}
+  h1{text-align:center;font-size:20px;margin-bottom:30px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1a1a1a;padding-bottom:15px;}
+  h2{font-size:15px;margin-top:25px;margin-bottom:10px;text-transform:uppercase;color:#333;}
+  .parties{display:flex;gap:40px;margin:20px 0 30px;}
+  .party{flex:1;padding:15px;border:1px solid #ccc;border-radius:4px;}
+  .party h3{font-size:13px;margin:0 0 8px;color:#555;text-transform:uppercase;letter-spacing:0.5px;}
+  .party p{margin:3px 0;font-size:13px;}
+  .article{margin:15px 0;}
+  .article-title{font-weight:bold;margin-bottom:5px;}
+  .signatures{display:flex;gap:60px;margin-top:50px;}
+  .sig-block{flex:1;text-align:center;padding-top:60px;border-top:1px solid #999;}
+  .sig-block p{margin:4px 0;font-size:12px;}
+  .footer{margin-top:40px;font-size:10px;color:#666;text-align:center;border-top:1px solid #ddd;padding-top:15px;}
+  .legal-ref{font-style:italic;color:#555;font-size:12px;margin:10px 0;}
+</style></head><body>
+<h1>Contrat de Remplacement<br>Infirmier Liberal</h1>
+<p class="legal-ref">Etabli conformement a l'Article R.4312-86 du Code de la sante publique<br>
+et aux dispositions de la Convention Nationale des Infirmiers Liberaux</p>
+
+<div class="parties">
+  <div class="party">
+    <h3>Titulaire (remplace)</h3>
+    <p><strong>${_ideSanitize(titulaire.prenom + ' ' + titulaire.nom, 200)}</strong></p>
+    <p>RPPS : ${_ideSanitize(titulaire.rpps || 'Non renseigne', 20)}</p>
+    <p>Cabinet : ${_ideSanitize(titulaire.cabinet_nom || '', 200)}</p>
+    <p>Adresse : ${_ideSanitize(titulaire.cabinet_adresse || '', 500)}</p>
+    <p>${_ideSanitize((titulaire.cabinet_cp || '') + ' ' + (titulaire.cabinet_ville || ''), 200)}</p>
+  </div>
+  <div class="party">
+    <h3>Remplacant(e)</h3>
+    <p><strong>${_ideSanitize(remplacant.prenom + ' ' + remplacant.nom, 200)}</strong></p>
+    <p>RPPS : ${_ideSanitize(remplacant.rpps || 'Non renseigne', 20)}</p>
+    <p>Cabinet : ${_ideSanitize(remplacant.cabinet_nom || '', 200)}</p>
+    <p>Adresse : ${_ideSanitize(remplacant.cabinet_adresse || '', 500)}</p>
+    <p>${_ideSanitize((remplacant.cabinet_cp || '') + ' ' + (remplacant.cabinet_ville || ''), 200)}</p>
+  </div>
+</div>
+
+<h2>Article 1 — Objet du contrat</h2>
+<div class="article">
+  <p>Le/la titulaire confie au/a la remplacant(e) le remplacement de son activite d'infirmier(e) liberal(e)
+  pendant la periode definie ci-dessous, dans le respect des regles deontologiques et professionnelles en vigueur.</p>
+</div>
+
+<h2>Article 2 — Duree du remplacement</h2>
+<div class="article">
+  <p><strong>Date de debut :</strong> ${dateDebut}</p>
+  <p><strong>Date de fin :</strong> ${dateFin}</p>
+  <p>Motif du remplacement : ${_ideSanitize(absence.motif || 'Non precise', 500)}</p>
+</div>
+
+<h2>Article 3 — Conditions financieres</h2>
+<div class="article">
+  <p>Le/la remplacant(e) percevra <strong>${retrocessionPct}%</strong> des honoraires encaisses pendant la periode de remplacement.</p>
+  <p>Le/la titulaire percevra les ${100 - retrocessionPct}% restants au titre de la mise a disposition du cabinet,
+  de la patientele et du materiel professionnel.</p>
+</div>
+
+<h2>Article 4 — Obligations du remplacant</h2>
+<div class="article">
+  <p>Le/la remplacant(e) s'engage a :</p>
+  <ul>
+    <li>Exercer dans le strict respect des regles deontologiques (Code de la sante publique, Livre III, Titre Ier)</li>
+    <li>Assurer la continuite des soins aupres de la patientele du/de la titulaire</li>
+    <li>Ne pas detourner la patientele du/de la titulaire</li>
+    <li>Restituer l'integralite des dossiers et documents professionnels a l'issue du remplacement</li>
+    <li>Souscrire une assurance en responsabilite civile professionnelle</li>
+  </ul>
+</div>
+
+<h2>Article 5 — Obligations du titulaire</h2>
+<div class="article">
+  <p>Le/la titulaire s'engage a :</p>
+  <ul>
+    <li>Mettre a disposition du/de la remplacant(e) son cabinet et le materiel necessaire a l'exercice</li>
+    <li>Informer la patientele du remplacement</li>
+    <li>Cesser toute activite liberale pendant la duree du remplacement (sauf accord ecrit contraire)</li>
+  </ul>
+</div>
+
+<h2>Article 6 — Assurances</h2>
+<div class="article">
+  <p>Chacune des parties declare etre couverte par une assurance en responsabilite civile professionnelle
+  aupres d'un organisme agree.</p>
+</div>
+
+<h2>Article 7 — Dispositions legales</h2>
+<div class="article">
+  <p>Le present contrat est soumis aux dispositions de l'Article R.4312-86 du Code de la sante publique
+  et doit etre communique au Conseil departemental de l'Ordre des Infirmiers dans un delai de 48 heures.</p>
+  <p>En cas de litige, les parties conviennent de saisir le Conseil departemental de l'Ordre des Infirmiers
+  avant toute action judiciaire.</p>
+</div>
+
+<div class="signatures">
+  <div class="sig-block">
+    <p><strong>Le/la titulaire</strong></p>
+    <p>${_ideSanitize(titulaire.prenom + ' ' + titulaire.nom, 200)}</p>
+    <p>Date : ${today}</p>
+    <p style="margin-top:20px;color:#999;">Signature</p>
+  </div>
+  <div class="sig-block">
+    <p><strong>Le/la remplacant(e)</strong></p>
+    <p>${_ideSanitize(remplacant.prenom + ' ' + remplacant.nom, 200)}</p>
+    <p>Date : ${today}</p>
+    <p style="margin-top:20px;color:#999;">Signature</p>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Contrat genere via la plateforme JADOMI — www.jadomi.fr</p>
+  <p>Ce document doit etre transmis au Conseil departemental de l'Ordre des Infirmiers sous 48h.</p>
+</div>
+</body></html>`;
+}
+
+// Rate limit: 20 requetes / heure / IP sur endpoints SOS remplacement
+const _ideRemplacementLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, veuillez reessayer dans 1 heure.' }
+});
+app.use('/api/ide/remplacement', _ideRemplacementLimiter);
+
+// 30. POST /api/ide/remplacement/search — Rechercher des remplacants disponibles
+app.post('/api/ide/remplacement/search', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { date_debut, date_fin } = req.body;
+    if (!date_debut || !date_fin) return res.status(400).json({ error: 'date_debut et date_fin requis.' });
+    if (!_ideValidDate(date_debut) || !_ideValidDate(date_fin)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+
+    // Get current cabinet info for region matching
+    const { data: myCabinet } = await db.from('ide_cabinets').select('id, ville, code_postal').eq('id', cabinetId).single();
+    if (!myCabinet) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const cpPrefix = (myCabinet.code_postal || '').substring(0, 2);
+
+    // Find other cabinets in the same region (same department = same 2-digit CP prefix)
+    let query = db.from('ide_cabinets').select('id, nom, ville, code_postal, adresse, telephone')
+      .neq('id', cabinetId);
+    if (cpPrefix) {
+      query = query.like('code_postal', cpPrefix + '%');
+    }
+    const { data: nearCabinets, error: cabError } = await query.limit(50);
+    if (cabError) throw cabError;
+
+    if (!nearCabinets || nearCabinets.length === 0) {
+      return res.json({ ok: true, remplacants: [], message: 'Aucun cabinet trouve dans votre departement.' });
+    }
+
+    const cabinetIds = nearCabinets.map(c => c.id);
+    const cabinetMap = {};
+    nearCabinets.forEach(c => { cabinetMap[c.id] = c; });
+
+    // Get nurses from those cabinets
+    const { data: nurses, error: nurseError } = await db.from('ide_nurses')
+      .select('id, nom, prenom, rpps, telephone, email, cabinet_id')
+      .in('cabinet_id', cabinetIds);
+    if (nurseError) throw nurseError;
+
+    if (!nurses || nurses.length === 0) {
+      return res.json({ ok: true, remplacants: [], message: 'Aucune infirmiere disponible dans votre departement.' });
+    }
+
+    const nurseIds = nurses.map(n => n.id);
+
+    // Exclude nurses who already have absences overlapping the requested period
+    const { data: busyAbsences } = await db.from('ide_absences')
+      .select('nurse_id')
+      .in('nurse_id', nurseIds)
+      .lte('date_debut', date_fin)
+      .gte('date_fin', date_debut);
+
+    const busyNurseIds = new Set((busyAbsences || []).map(a => a.nurse_id));
+
+    const available = nurses
+      .filter(n => !busyNurseIds.has(n.id))
+      .map(n => {
+        const cab = cabinetMap[n.cabinet_id] || {};
+        return {
+          nurse_id: n.id,
+          nom: n.nom,
+          prenom: n.prenom,
+          rpps: n.rpps,
+          telephone: n.telephone,
+          email: n.email,
+          cabinet_nom: cab.nom || '',
+          cabinet_ville: cab.ville || '',
+          cabinet_code_postal: cab.code_postal || ''
+        };
+      });
+
+    res.json({ ok: true, remplacants: available });
+  } catch (e) {
+    console.error('[IDE Remplacement Search] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 31. POST /api/ide/remplacement/request — Envoyer une demande de remplacement
+app.post('/api/ide/remplacement/request', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { absence_id, remplacant_nurse_id } = req.body;
+    const message = _ideSanitize(req.body.message, 1000);
+    const retrocession_pct = parseFloat(req.body.retrocession_pct) || 70;
+
+    if (!absence_id || !remplacant_nurse_id) return res.status(400).json({ error: 'absence_id et remplacant_nurse_id requis.' });
+    if (!_ideValidUuid(absence_id) || !_ideValidUuid(remplacant_nurse_id)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
+    if (retrocession_pct < 0 || retrocession_pct > 100) return res.status(400).json({ error: 'Retrocession doit etre entre 0 et 100.' });
+
+    // Verify absence belongs to this cabinet
+    const { data: absence } = await db.from('ide_absences').select('id, cabinet_id, status')
+      .eq('id', absence_id).eq('cabinet_id', cabinetId).single();
+    if (!absence) return res.status(404).json({ error: 'Absence non trouvee dans votre cabinet.' });
+    if (absence.status === 'pourvu') return res.status(400).json({ error: 'Cette absence a deja un remplacant.' });
+
+    // Verify target nurse exists and belongs to another cabinet
+    const { data: targetNurse } = await db.from('ide_nurses').select('id, cabinet_id, nom, prenom, email')
+      .eq('id', remplacant_nurse_id).single();
+    if (!targetNurse) return res.status(404).json({ error: 'Infirmier(e) remplacant(e) non trouve(e).' });
+    if (targetNurse.cabinet_id === cabinetId) return res.status(400).json({ error: 'Vous ne pouvez pas demander un remplacement a un(e) infirmier(e) de votre propre cabinet.' });
+
+    // Check no duplicate pending request
+    const { data: existing } = await db.from('ide_remplacement_requests')
+      .select('id').eq('absence_id', absence_id).eq('target_nurse_id', remplacant_nurse_id).eq('status', 'pending').single();
+    if (existing) return res.status(400).json({ error: 'Une demande est deja en cours pour cette infirmiere.' });
+
+    const { data: request, error } = await db.from('ide_remplacement_requests').insert({
+      absence_id,
+      sender_cabinet_id: cabinetId,
+      target_nurse_id: remplacant_nurse_id,
+      message: message || null,
+      retrocession_pct,
+      status: 'pending'
+    }).select().single();
+    if (error) throw error;
+
+    // Update absence status to reflect an ongoing search
+    await db.from('ide_absences').update({ status: 'recherche', updated_at: new Date().toISOString() }).eq('id', absence_id);
+
+    res.json({ ok: true, request });
+  } catch (e) {
+    console.error('[IDE Remplacement Request] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 32. POST /api/ide/remplacement/accept — Accepter une demande de remplacement
+app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { request_id } = req.body;
+    if (!request_id) return res.status(400).json({ error: 'request_id requis.' });
+    if (!_ideValidUuid(request_id)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
+
+    // Get the request — verify the TARGET nurse belongs to this cabinet (IDOR protection)
+    // Accept/decline is done by the remplacant (target), not the sender
+    const { data: rReq } = await db.from('ide_remplacement_requests')
+      .select('*, ide_absences(*)')
+      .eq('id', request_id).eq('status', 'pending').single();
+    if (!rReq) return res.status(404).json({ error: 'Demande non trouvee ou deja traitee.' });
+
+    // Verify that the target nurse belongs to the current user's cabinet
+    const { data: targetNurse } = await db.from('ide_nurses')
+      .select('cabinet_id').eq('id', rReq.target_nurse_id).single();
+    if (!targetNurse || targetNurse.cabinet_id !== cabinetId) {
+      return res.status(403).json({ error: 'Vous n\'etes pas autorise a repondre a cette demande.' });
+    }
+
+    // Race condition guard: check absence is not already pourvu
+    if (rReq.ide_absences && rReq.ide_absences.status === 'pourvu') {
+      return res.status(400).json({ error: 'Cette absence a deja un remplacant assigne.' });
+    }
+
+    // Update request to accepted — optimistic lock on status=pending to prevent double-accept
+    const { data: updated, error: updateReqErr } = await db.from('ide_remplacement_requests').update({
+      status: 'accepted',
+      responded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq('id', request_id).eq('status', 'pending').select().single();
+    if (updateReqErr || !updated) {
+      return res.status(409).json({ error: 'Demande deja traitee par un autre utilisateur.' });
+    }
+
+    // Update absence with remplacant and status
+    const { error: updateAbsErr } = await db.from('ide_absences').update({
+      remplacant_id: rReq.target_nurse_id,
+      status: 'pourvu',
+      updated_at: new Date().toISOString()
+    }).eq('id', rReq.absence_id);
+    if (updateAbsErr) throw updateAbsErr;
+
+    // Cancel other pending requests for the same absence
+    await db.from('ide_remplacement_requests').update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString()
+    }).eq('absence_id', rReq.absence_id).eq('status', 'pending').neq('id', request_id);
+
+    res.json({ ok: true, message: 'Remplacement accepte.' });
+  } catch (e) {
+    console.error('[IDE Remplacement Accept] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 33. POST /api/ide/remplacement/decline — Decliner une demande
+app.post('/api/ide/remplacement/decline', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { request_id } = req.body;
+    if (!request_id) return res.status(400).json({ error: 'request_id requis.' });
+    if (!_ideValidUuid(request_id)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
+
+    // IDOR protection: verify the TARGET nurse belongs to this cabinet (decline = remplacant's action)
+    const { data: rReq } = await db.from('ide_remplacement_requests')
+      .select('id, absence_id, status, target_nurse_id')
+      .eq('id', request_id).eq('status', 'pending').single();
+    if (!rReq) return res.status(404).json({ error: 'Demande non trouvee ou deja traitee.' });
+
+    const { data: targetNurse } = await db.from('ide_nurses')
+      .select('cabinet_id').eq('id', rReq.target_nurse_id).single();
+    if (!targetNurse || targetNurse.cabinet_id !== cabinetId) {
+      return res.status(403).json({ error: 'Vous n\'etes pas autorise a repondre a cette demande.' });
+    }
+
+    const { error } = await db.from('ide_remplacement_requests').update({
+      status: 'declined',
+      responded_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq('id', request_id);
+    if (error) throw error;
+
+    // Check if there are other pending requests for this absence
+    const { count } = await db.from('ide_remplacement_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('absence_id', rReq.absence_id).eq('status', 'pending');
+    if (count === 0) {
+      await db.from('ide_absences').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', rReq.absence_id);
+    }
+
+    res.json({ ok: true, message: 'Demande declinee.' });
+  } catch (e) {
+    console.error('[IDE Remplacement Decline] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 34. POST /api/ide/remplacement/contrat — Generer le contrat de remplacement
+app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { absence_id } = req.body;
+    const retrocession_pct = parseFloat(req.body.retrocession_pct);
+    if (!absence_id) return res.status(400).json({ error: 'absence_id requis.' });
+    if (!_ideValidUuid(absence_id)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
+    if (isNaN(retrocession_pct) || retrocession_pct < 0 || retrocession_pct > 100) return res.status(400).json({ error: 'Retrocession invalide (0-100).' });
+
+    // Get absence with remplacant
+    const { data: absence } = await db.from('ide_absences')
+      .select('*')
+      .eq('id', absence_id).eq('cabinet_id', cabinetId).single();
+    if (!absence) return res.status(404).json({ error: 'Absence non trouvee.' });
+    if (!absence.remplacant_id) return res.status(400).json({ error: 'Aucun remplacant assigne a cette absence.' });
+
+    // Get titulaire nurse info
+    const { data: titulaire } = await db.from('ide_nurses').select('id, nom, prenom, rpps, telephone, email, cabinet_id')
+      .eq('id', absence.nurse_id).single();
+    if (!titulaire) return res.status(404).json({ error: 'Infirmier(e) titulaire non trouve(e).' });
+
+    // Get remplacant nurse info
+    const { data: remplacant } = await db.from('ide_nurses').select('id, nom, prenom, rpps, telephone, email, cabinet_id')
+      .eq('id', absence.remplacant_id).single();
+    if (!remplacant) return res.status(404).json({ error: 'Infirmier(e) remplacant(e) non trouve(e).' });
+
+    // Get cabinet info for both
+    const { data: cabTitulaire } = await db.from('ide_cabinets').select('nom, adresse, ville, code_postal').eq('id', titulaire.cabinet_id).single();
+    const { data: cabRemplacant } = await db.from('ide_cabinets').select('nom, adresse, ville, code_postal').eq('id', remplacant.cabinet_id).single();
+
+    titulaire.cabinet_nom = cabTitulaire?.nom || '';
+    titulaire.cabinet_adresse = cabTitulaire?.adresse || '';
+    titulaire.cabinet_ville = cabTitulaire?.ville || '';
+    titulaire.cabinet_cp = cabTitulaire?.code_postal || '';
+
+    remplacant.cabinet_nom = cabRemplacant?.nom || '';
+    remplacant.cabinet_adresse = cabRemplacant?.adresse || '';
+    remplacant.cabinet_ville = cabRemplacant?.ville || '';
+    remplacant.cabinet_cp = cabRemplacant?.code_postal || '';
+
+    // Generate HTML contract
+    const htmlContent = _ideContratRemplacementHtml(titulaire, remplacant, absence, retrocession_pct);
+
+    // Save HTML contract file
+    const contratDir = path.join(__dirname, 'docs', 'uploads', 'contrats-remplacement');
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(contratDir)) fsMod.mkdirSync(contratDir, { recursive: true });
+    const filename = `contrat-remplacement-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.html`;
+    const filepath = path.join(contratDir, filename);
+    fsMod.writeFileSync(filepath, htmlContent, 'utf-8');
+
+    // Store in signed_documents
+    const { data: doc, error: docError } = await db.from('signed_documents').insert({
+      societe_id: societeId,
+      user_id: req.user.id,
+      title: `Contrat de remplacement — ${titulaire.prenom} ${titulaire.nom} / ${remplacant.prenom} ${remplacant.nom}`,
+      category: 'contrat',
+      subcategory: 'remplacement_ide',
+      signer_name: `${remplacant.prenom} ${remplacant.nom}`,
+      signer_email: remplacant.email || null,
+      signer_role: 'remplacant',
+      status: 'pending',
+      signed_pdf_path: filepath,
+      original_document_url: `/docs/uploads/contrats-remplacement/${filename}`,
+      metadata: {
+        absence_id: absence.id,
+        titulaire_id: titulaire.id,
+        remplacant_id: remplacant.id,
+        retrocession_pct,
+        date_debut: absence.date_debut,
+        date_fin: absence.date_fin
+      }
+    }).select().single();
+    if (docError) throw docError;
+
+    // Update absence with contract info
+    await db.from('ide_absences').update({
+      contrat_document_id: doc.id,
+      contrat_signe: false,
+      updated_at: new Date().toISOString()
+    }).eq('id', absence_id);
+
+    res.json({
+      ok: true,
+      document: doc,
+      contrat_url: `/docs/uploads/contrats-remplacement/${filename}`
+    });
+  } catch (e) {
+    console.error('[IDE Remplacement Contrat] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 35. POST /api/ide/remplacement/envoyer-ordre — Envoyer le contrat a l'Ordre des Infirmiers
+app.post('/api/ide/remplacement/envoyer-ordre', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { absence_id } = req.body;
+    if (!absence_id) return res.status(400).json({ error: 'absence_id requis.' });
+    if (!_ideValidUuid(absence_id)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
+
+    // Get absence
+    const { data: absence } = await db.from('ide_absences')
+      .select('*')
+      .eq('id', absence_id).eq('cabinet_id', cabinetId).single();
+    if (!absence) return res.status(404).json({ error: 'Absence non trouvee.' });
+    if (!absence.contrat_document_id) return res.status(400).json({ error: 'Aucun contrat genere pour cette absence. Generez le contrat d\'abord.' });
+    if (absence.contrat_envoye_ordre) return res.status(400).json({ error: 'Le contrat a deja ete envoye a l\'Ordre.' });
+
+    // Get contract document
+    const { data: doc } = await db.from('signed_documents').select('*').eq('id', absence.contrat_document_id).single();
+    if (!doc) return res.status(404).json({ error: 'Document contrat non trouve.' });
+
+    // Get cabinet info for the email
+    const { data: cabinet } = await db.from('ide_cabinets').select('nom, ville, code_postal').eq('id', cabinetId).single();
+    const deptCode = (cabinet?.code_postal || '00').substring(0, 2);
+
+    // Get nurse info
+    const { data: titulaire } = await db.from('ide_nurses').select('nom, prenom').eq('id', absence.nurse_id).single();
+    const { data: remplacant } = await db.from('ide_nurses').select('nom, prenom').eq('id', absence.remplacant_id).single();
+
+    // Send email to Ordre des Infirmiers (placeholder departmental email)
+    const ordreEmail = `cdoi${deptCode}@ordre-infirmiers.fr`;
+    let mailSent = false;
+    try {
+      const { sendMail } = require('./api/multiSocietes/mailer');
+      const fsMod = require('fs');
+      const attachments = [];
+      if (doc.signed_pdf_path && fsMod.existsSync(doc.signed_pdf_path)) {
+        attachments.push({
+          filename: `contrat-remplacement-${titulaire?.nom || 'IDE'}-${remplacant?.nom || 'IDE'}.html`,
+          path: doc.signed_pdf_path
+        });
+      }
+      await sendMail({
+        to: ordreEmail,
+        subject: `Contrat de remplacement — ${titulaire?.prenom || ''} ${titulaire?.nom || ''} / ${remplacant?.prenom || ''} ${remplacant?.nom || ''}`,
+        html: `<p>Madame, Monsieur,</p>
+<p>Veuillez trouver ci-joint le contrat de remplacement etabli entre :</p>
+<ul>
+  <li><strong>Titulaire :</strong> ${_ideSanitize((titulaire?.prenom || '') + ' ' + (titulaire?.nom || ''), 200)}</li>
+  <li><strong>Remplacant(e) :</strong> ${_ideSanitize((remplacant?.prenom || '') + ' ' + (remplacant?.nom || ''), 200)}</li>
+</ul>
+<p><strong>Periode :</strong> du ${absence.date_debut} au ${absence.date_fin}</p>
+<p>Ce contrat est transmis conformement a l'Article R.4312-86 du Code de la sante publique.</p>
+<p>Nous vous prions d'agreer, Madame, Monsieur, l'expression de nos salutations distinguees.</p>
+<p><em>Cabinet ${_ideSanitize(cabinet?.nom || '', 200)} — ${_ideSanitize((cabinet?.code_postal || '') + ' ' + (cabinet?.ville || ''), 200)}</em></p>
+<p style="font-size:11px;color:#888;">Envoye via la plateforme JADOMI — www.jadomi.fr</p>`,
+        attachments
+      });
+      mailSent = true;
+    } catch (mailErr) {
+      console.error('[IDE Remplacement Ordre Mail] Mail send error:', mailErr.message);
+      mailSent = false;
+    }
+
+    // Update absence — track actual send status
+    await db.from('ide_absences').update({
+      contrat_envoye_ordre: mailSent,
+      updated_at: new Date().toISOString()
+    }).eq('id', absence_id);
+
+    // Update signed_documents
+    await db.from('signed_documents').update({
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+      metadata: { ...doc.metadata, sent_to_ordre: true, ordre_email: ordreEmail, sent_at: new Date().toISOString() }
+    }).eq('id', doc.id);
+
+    const msg = mailSent
+      ? `Contrat envoye au Conseil departemental de l'Ordre (${ordreEmail}).`
+      : `Contrat marque comme en attente d'envoi. L'email a ${ordreEmail} n'a pas pu etre envoye — reessayez ou envoyez manuellement.`;
+    res.json({ ok: mailSent, warning: !mailSent, message: msg, ordre_email: ordreEmail });
+  } catch (e) {
+    console.error('[IDE Remplacement Envoyer Ordre] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 36. GET /api/ide/remplacement/requests — Lister les demandes de remplacement pour une absence
+app.get('/api/ide/remplacement/requests', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const absenceId = req.query.absence_id;
+    if (absenceId && !_ideValidUuid(absenceId)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
+
+    let query = db.from('ide_remplacement_requests').select('*').eq('sender_cabinet_id', cabinetId).order('created_at', { ascending: false });
+    if (absenceId) query = query.eq('absence_id', absenceId);
+
+    const { data, error } = await query.limit(100);
+    if (error) throw error;
+
+    // Enrich with nurse info
+    const nurseIds = [...new Set((data || []).map(r => r.target_nurse_id))];
+    let nurseMap = {};
+    if (nurseIds.length > 0) {
+      const { data: nurses } = await db.from('ide_nurses').select('id, nom, prenom, rpps, telephone, email, cabinet_id').in('id', nurseIds);
+      (nurses || []).forEach(n => { nurseMap[n.id] = n; });
+    }
+
+    const enriched = (data || []).map(r => ({
+      ...r,
+      remplacant_nom: nurseMap[r.target_nurse_id]?.nom || '',
+      remplacant_prenom: nurseMap[r.target_nurse_id]?.prenom || '',
+      remplacant_rpps: nurseMap[r.target_nurse_id]?.rpps || '',
+      remplacant_tel: nurseMap[r.target_nurse_id]?.telephone || ''
+    }));
+
+    res.json({ ok: true, requests: enriched });
+  } catch (e) {
+    console.error('[IDE Remplacement Requests GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 app.use((err, req, res, _next) => {
   console.error(`[GLOBAL ERROR] ${req.method} ${req.originalUrl}:`, err.message);
   if (!res.headersSent) {

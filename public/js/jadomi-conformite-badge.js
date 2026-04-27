@@ -1,7 +1,7 @@
 /* ==============================================================
  * JADOMI — Ticker conformite facturation electronique
  * Inclure sur toutes les pages dashboard :
- * <script src="/public/js/jadomi-conformite-badge.js" defer></script>
+ * <script src="/js/jadomi-conformite-badge.js" defer></script>
  * ============================================================== */
 (function() {
   'use strict';

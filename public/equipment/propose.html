@@ -770,49 +770,54 @@
       });
     }
 
-    const body = {
-      societe: document.getElementById('societe').value.trim(),
-      type_societe: document.querySelector('input[name="type_societe"]:checked').value,
-      contact_nom: document.getElementById('contact_nom').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      telephone: document.getElementById('telephone').value.trim(),
-      site_web: document.getElementById('site_web').value.trim(),
-      produit_nom: document.getElementById('produit_nom').value.trim(),
-      categorie: document.getElementById('categorie').value,
-      description: document.getElementById('description').value.trim(),
-      prix_catalogue: parseFloat(document.getElementById('prix_catalogue').value),
-      paliers: paliers,
-      delai_livraison: document.getElementById('delai_livraison').value,
-      garantie: document.getElementById('garantie').value,
-      zone_livraison: document.getElementById('zone_livraison').value,
-      installation_incluse: document.getElementById('toggleInstallation').dataset.value === 'true',
-      formation_incluse: document.getElementById('toggleFormation').dataset.value === 'true'
-    };
+    // Build FormData for multipart upload (server uses multer)
+    const formData = new FormData();
+    formData.append('company_name', document.getElementById('societe').value.trim());
+    formData.append('supplier_type', document.querySelector('input[name="type_societe"]:checked').value);
+    formData.append('contact_name', document.getElementById('contact_nom').value.trim());
+    formData.append('email', document.getElementById('email').value.trim());
+    formData.append('phone', document.getElementById('telephone').value.trim());
+    formData.append('website', document.getElementById('site_web').value.trim());
+    formData.append('product_name', document.getElementById('produit_nom').value.trim());
+    formData.append('product_description', document.getElementById('description').value.trim());
+    formData.append('catalog_price', document.getElementById('prix_catalogue').value);
+    // Tiers: rename prix_unitaire → price for server compatibility
+    const tiersForServer = paliers.map(p => ({ min_qty: p.min_qty, price: p.prix_unitaire }));
+    formData.append('tiers', JSON.stringify(tiersForServer));
+
+    // Optional fields as notes
+    const notes = [];
+    const categorie = document.getElementById('categorie').value;
+    if (categorie) notes.push('Categorie: ' + categorie);
+    const delai = document.getElementById('delai_livraison').value;
+    if (delai) notes.push('Delai livraison: ' + delai);
+    const garantie = document.getElementById('garantie').value;
+    if (garantie) notes.push('Garantie: ' + garantie);
+    const zone = document.getElementById('zone_livraison').value;
+    if (zone) notes.push('Zone livraison: ' + zone);
+    if (document.getElementById('toggleInstallation').dataset.value === 'true') notes.push('Installation incluse');
+    if (document.getElementById('toggleFormation').dataset.value === 'true') notes.push('Formation incluse');
 
     // Panier type
     const showPanier = document.getElementById('panierCard').style.display !== 'none'
       && document.getElementById('togglePanier').dataset.value === 'true';
     if (showPanier && panierProduits.length > 0) {
-      body.panier = {
-        nom: document.getElementById('panier_nom').value.trim(),
-        produits: panierProduits,
-        prix_total: parseFloat(document.getElementById('panier_total').value) || 0,
-        prix_groupage: parseFloat(document.getElementById('panier_prix_groupage').value) || 0
-      };
+      notes.push('Panier: ' + document.getElementById('panier_nom').value.trim());
+      notes.push('Panier produits: ' + JSON.stringify(panierProduits));
+      notes.push('Panier prix total: ' + (parseFloat(document.getElementById('panier_total').value) || 0));
+      notes.push('Panier prix groupage: ' + (parseFloat(document.getElementById('panier_prix_groupage').value) || 0));
+    }
+    if (notes.length > 0) formData.append('notes', notes.join(' | '));
+
+    // File upload via FormData (multipart)
+    if (selectedFile) {
+      formData.append('product_image', selectedFile);
     }
 
     try {
-      // Handle file upload: convert to base64 if present
-      if (selectedFile) {
-        body.photo = await fileToBase64(selectedFile);
-        body.photo_name = selectedFile.name;
-        body.photo_type = selectedFile.type;
-      }
-
       const res = await fetch('/api/equipment/propose', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: formData
       });
 
       const data = await res.json();
@@ -837,15 +842,6 @@
       btn.disabled = false;
     }
   });
-
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
 
   function escapeHtml(str) {
     const d = document.createElement('div');

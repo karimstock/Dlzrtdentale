@@ -1,7 +1,7 @@
 // =============================================
 // JADOMI — Coach Bootstrap
 // Auto-loads tour guide + help button on all dashboard pages
-// Include via <script src="/public/js/coach-bootstrap.js" defer></script>
+// Include via <script src="/js/coach-bootstrap.js" defer></script>
 // =============================================
 (function() {
   'use strict';
