@@ -1520,7 +1520,8 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
 - PWA mobile : feuille de route du jour, navigation GPS en 1 clic vers prochain patient
 - KILLER FEATURE : patient appelle → tape nom/adresse → le systeme le place
   automatiquement dans le creneau optimal du trajet (gain de temps phenomenal)
-- Notifications patient: push app GRATUIT par defaut, SMS en option (packs tokens)
+- Notifications patient PUSH GRATUITES type Uber: "Marie arrive dans 8 min" + trajet live
+  Le patient voit l'infirmiere approcher en temps reel. SMS en option (packs tokens)
 - Boucle virale: IDE pousse patient a telecharger → patient pousse ses autres pros
 - Abonnement 9EUR/mois sans SMS, l'IDE est libre. SMS = packs tokens (100/500/2000)
 - Integration JADOMI Coins pour les tokens SMS
