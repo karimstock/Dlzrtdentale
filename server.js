@@ -3217,6 +3217,10 @@ app.get('/mandate-sign', (req, res) => res.sendFile(path.join(__dirname, 'public
 app.get('/ide', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
 app.get('/ide/', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
 
+// Route module Orthodontiste
+app.get('/orthodontiste', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
+app.get('/orthodontiste/', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
+
 // GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
 app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
   try {
