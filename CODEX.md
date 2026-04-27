@@ -1529,6 +1529,8 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
   a proximite + genere le contrat de remplacement via JADOMI Sign en 30s
   2 modeles: remplacement classique (RPPS titulaire, retrocession 60-70%)
   ou depannage ponctuel (chacune facture ses patients)
+  Envoi AUTOMATIQUE du contrat au Conseil de l'Ordre departemental apres
+  signature des 2 parties. Zero demarche pour l'IDE.
 - Ban/deban patients: no-show, retard, irrespect → banni du reseau, deblocable
 - REGLE ABSOLUE: le patient ne paye JAMAIS. Tout gratuit pour le patient. Toujours.
 - Le patient = carburant viral (comme Doctolib/WhatsApp)
