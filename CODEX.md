@@ -1509,6 +1509,19 @@ CODEX.md enrichi avec section Architecture Marketplace Finale.
 - Ajouter module signature dans l'espace client securise (patients/clients)
 - Tester envoi 4 documents par email depuis dashboard
 
+### JADOMI Tournees — Agenda Infirmiere Intelligent (NOUVEAU MODULE)
+Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
+- Feuille de route optimisee GPS (algorithme plus court chemin entre adresses patients)
+- Dissociation tournee MATIN (6h-12h) / SOIR (16h-20h)
+- Patient vu 2x/jour = apparait automatiquement dans les 2 tournees
+- Multi-IDE partage : 2-3+ infirmieres sur le meme planning, chacune voit SA tournee
+- Planning 7j/7 avec roulement, gestion absences/remplacements
+- Patients recurrents : planning auto-genere (pas de re-saisie quotidienne)
+- PWA mobile : feuille de route du jour, navigation GPS en 1 clic vers prochain patient
+- Connexion modules JADOMI : stock consommables IDE (compresses, gants), messagerie medecins
+- Concurrent principal : Agathe You (~15EUR/mois) — mais PAS d'optimisation GPS tournees
+- Avantage JADOMI : ecosysteme sante complet (stock + comm + signature + groupage)
+
 ### Infrastructure & Securite
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
 - Fail2ban configurer
