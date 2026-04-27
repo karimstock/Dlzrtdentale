@@ -3204,6 +3204,10 @@ app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
 // Route statique page signature mandat
 app.get('/mandate-sign', (req, res) => res.sendFile(path.join(__dirname, 'public/mandate-sign.html')));
 
+// Route module IDE (Infirmiere)
+app.get('/ide', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
+app.get('/ide/', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
+
 // GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
 app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
   try {
@@ -7064,6 +7068,1033 @@ app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('[SOS Urgence Cancel] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ============================================================
+// JADOMI TOURNEES — Agenda Intelligent Infirmieres
+// ============================================================
+
+// --- IDE Security helpers ---
+const IDE_VALID_SOINS_TYPES = ['soins', 'pansement', 'injection', 'perfusion', 'prelevements', 'toilette', 'nursing', 'chimio', 'surveillance', 'autre'];
+const IDE_VALID_STATUS = ['planifie', 'en_route', 'arrive', 'en_cours', 'termine', 'annule', 'reporte'];
+const IDE_VALID_TOURNEES = ['matin', 'soir'];
+
+function _ideSanitize(s, maxLen = 500) {
+  if (!s) return '';
+  return String(s).replace(/<[^>]*>/g, '').trim().substring(0, maxLen);
+}
+
+function _ideValidDate(s) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00'));
+}
+
+// Rate limiter for geocoding-heavy endpoints (prevent Nominatim abuse)
+const _ideGeocodeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Trop de requetes geocoding. Reessayez dans 1 minute.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Helper: geocode an address via Nominatim
+async function _ideGeocode(adresse) {
+  try {
+    const resp = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(adresse) + '&format=json&limit=1', {
+      headers: { 'User-Agent': 'JADOMI/1.0' }
+    });
+    const data = await resp.json();
+    if (data && data.length > 0) {
+      return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+    }
+    return { latitude: null, longitude: null };
+  } catch (e) {
+    console.error('[IDE Geocode] Error:', e.message);
+    return { latitude: null, longitude: null };
+  }
+}
+
+// 1. POST /api/ide/cabinet — Creer/mettre a jour le cabinet IDE
+app.post('/api/ide/cabinet', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const nom = _ideSanitize(req.body.nom, 200);
+    const adresse = _ideSanitize(req.body.adresse, 500);
+    const ville = _ideSanitize(req.body.ville, 200);
+    const code_postal = _ideSanitize(req.body.code_postal, 10);
+    const telephone = _ideSanitize(req.body.telephone, 20);
+    if (!nom) return res.status(400).json({ error: 'nom requis.' });
+
+    const fullAddress = [adresse, code_postal, ville].filter(Boolean).join(' ');
+    const geo = await _ideGeocode(fullAddress);
+
+    // Upsert: check if cabinet exists for this societe
+    const { data: existing } = await db.from('ide_cabinets').select('id').eq('societe_id', societeId).single();
+
+    if (existing) {
+      const { data, error } = await db.from('ide_cabinets').update({
+        nom, adresse, ville, code_postal, telephone,
+        latitude: geo.latitude, longitude: geo.longitude,
+        updated_at: new Date().toISOString()
+      }).eq('id', existing.id).select().single();
+      if (error) throw error;
+      return res.json({ ok: true, cabinet: data });
+    }
+
+    const { data, error } = await db.from('ide_cabinets').insert({
+      societe_id: societeId,
+      user_id: req.user.id,
+      nom, adresse, ville, code_postal, telephone,
+      latitude: geo.latitude, longitude: geo.longitude
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, cabinet: data });
+  } catch (e) {
+    console.error('[IDE Cabinet POST] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 2. GET /api/ide/cabinet — Recuperer le cabinet de l'user connecte
+app.get('/api/ide/cabinet', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const { data, error } = await db.from('ide_cabinets').select('*').eq('societe_id', societeId).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    res.json({ ok: true, cabinet: data || null });
+  } catch (e) {
+    console.error('[IDE Cabinet GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Helper: get cabinet_id for the current user
+async function _ideGetCabinetId(db, societeId) {
+  const { data } = await db.from('ide_cabinets').select('id').eq('societe_id', societeId).single();
+  return data?.id || null;
+}
+
+// 3. POST /api/ide/nurses — Ajouter une infirmiere au cabinet
+app.post('/api/ide/nurses', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve. Creez votre cabinet d\'abord.' });
+
+    const nom = _ideSanitize(req.body.nom, 200);
+    const prenom = _ideSanitize(req.body.prenom, 200);
+    const telephone = _ideSanitize(req.body.telephone, 20);
+    const email = _ideSanitize(req.body.email, 200);
+    const rpps = _ideSanitize(req.body.rpps, 20);
+    const couleur = /^#[0-9A-Fa-f]{6}$/.test(req.body.couleur) ? req.body.couleur : '#3B82F6';
+    const is_titulaire = req.body.is_titulaire;
+    if (!nom || !prenom) return res.status(400).json({ error: 'nom et prenom requis.' });
+
+    const { data, error } = await db.from('ide_nurses').insert({
+      cabinet_id: cabinetId,
+      nom, prenom, telephone, email, rpps,
+      couleur,
+      is_titulaire: is_titulaire !== false
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, nurse: data });
+  } catch (e) {
+    console.error('[IDE Nurses POST] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 4. GET /api/ide/nurses — Lister les infirmieres du cabinet
+app.get('/api/ide/nurses', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data, error } = await db.from('ide_nurses').select('*').eq('cabinet_id', cabinetId).order('nom');
+    if (error) throw error;
+    res.json({ ok: true, nurses: data || [] });
+  } catch (e) {
+    console.error('[IDE Nurses GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 5. PATCH /api/ide/nurses/:id — Modifier une infirmiere
+app.patch('/api/ide/nurses/:id', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const updates = {};
+    if (req.body.nom !== undefined) updates.nom = _ideSanitize(req.body.nom, 200);
+    if (req.body.prenom !== undefined) updates.prenom = _ideSanitize(req.body.prenom, 200);
+    if (req.body.telephone !== undefined) updates.telephone = _ideSanitize(req.body.telephone, 20);
+    if (req.body.email !== undefined) updates.email = _ideSanitize(req.body.email, 200);
+    if (req.body.rpps !== undefined) updates.rpps = _ideSanitize(req.body.rpps, 20);
+    if (req.body.couleur !== undefined) updates.couleur = /^#[0-9A-Fa-f]{6}$/.test(req.body.couleur) ? req.body.couleur : '#3B82F6';
+    if (req.body.is_titulaire !== undefined) updates.is_titulaire = req.body.is_titulaire;
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await db.from('ide_nurses').update(updates)
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Infirmiere non trouvee.' });
+    res.json({ ok: true, nurse: data });
+  } catch (e) {
+    console.error('[IDE Nurses PATCH] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 6. POST /api/ide/patients — Ajouter un patient
+app.post('/api/ide/patients', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const nom = _ideSanitize(req.body.nom, 200);
+    const prenom = _ideSanitize(req.body.prenom, 200);
+    const adresse = _ideSanitize(req.body.adresse, 500);
+    const ville = _ideSanitize(req.body.ville, 200);
+    const code_postal = _ideSanitize(req.body.code_postal, 10);
+    const telephone = _ideSanitize(req.body.telephone, 20);
+    const telephone_famille = _ideSanitize(req.body.telephone_famille, 20);
+    const notes = _ideSanitize(req.body.notes, 2000);
+    const medecin_traitant = _ideSanitize(req.body.medecin_traitant, 200);
+    if (!nom || !prenom) return res.status(400).json({ error: 'nom et prenom requis.' });
+
+    const fullAddress = [adresse, code_postal, ville].filter(Boolean).join(' ');
+    const geo = fullAddress.trim() ? await _ideGeocode(fullAddress) : { latitude: null, longitude: null };
+
+    const { data, error } = await db.from('ide_patients').insert({
+      cabinet_id: cabinetId,
+      nom, prenom, adresse, ville, code_postal, telephone,
+      telephone_famille, notes, medecin_traitant,
+      latitude: geo.latitude, longitude: geo.longitude
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, patient: data });
+  } catch (e) {
+    console.error('[IDE Patients POST] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 7. GET /api/ide/patients — Lister les patients du cabinet (avec recherche ?q=)
+app.get('/api/ide/patients', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    let query = db.from('ide_patients').select('*').eq('cabinet_id', cabinetId);
+    const qRaw = req.query.q;
+    if (qRaw) {
+      // Sanitize: strip PostgREST special chars to prevent filter injection
+      const q = String(qRaw).replace(/[%_().,]/g, '').trim().substring(0, 100);
+      if (q) {
+        query = query.or(`nom.ilike.%${q}%,prenom.ilike.%${q}%`);
+      }
+    }
+    query = query.order('nom');
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ ok: true, patients: data || [] });
+  } catch (e) {
+    console.error('[IDE Patients GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 8. PATCH /api/ide/patients/:id — Modifier un patient
+app.patch('/api/ide/patients/:id', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const updates = {};
+    if (req.body.nom !== undefined) updates.nom = _ideSanitize(req.body.nom, 200);
+    if (req.body.prenom !== undefined) updates.prenom = _ideSanitize(req.body.prenom, 200);
+    if (req.body.adresse !== undefined) updates.adresse = _ideSanitize(req.body.adresse, 500);
+    if (req.body.ville !== undefined) updates.ville = _ideSanitize(req.body.ville, 200);
+    if (req.body.code_postal !== undefined) updates.code_postal = _ideSanitize(req.body.code_postal, 10);
+    if (req.body.telephone !== undefined) updates.telephone = _ideSanitize(req.body.telephone, 20);
+    if (req.body.telephone_famille !== undefined) updates.telephone_famille = _ideSanitize(req.body.telephone_famille, 20);
+    if (req.body.notes !== undefined) updates.notes = _ideSanitize(req.body.notes, 2000);
+    if (req.body.medecin_traitant !== undefined) updates.medecin_traitant = _ideSanitize(req.body.medecin_traitant, 200);
+    updates.updated_at = new Date().toISOString();
+
+    // Re-geocode if address changed
+    if (updates.adresse !== undefined || updates.ville !== undefined || updates.code_postal !== undefined) {
+      const fullAddr = [updates.adresse || '', updates.code_postal || '', updates.ville || ''].filter(Boolean).join(' ');
+      if (fullAddr.trim()) {
+        const geo = await _ideGeocode(fullAddr);
+        updates.latitude = geo.latitude;
+        updates.longitude = geo.longitude;
+      }
+    }
+
+    const { data, error } = await db.from('ide_patients').update(updates)
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Patient non trouve.' });
+    res.json({ ok: true, patient: data });
+  } catch (e) {
+    console.error('[IDE Patients PATCH] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 9. POST /api/ide/patients/:id/ban — Bannir un patient
+app.post('/api/ide/patients/:id/ban', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data, error } = await db.from('ide_patients').update({ is_banned: true, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Patient non trouve.' });
+    res.json({ ok: true, patient: data });
+  } catch (e) {
+    console.error('[IDE Patient Ban] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 10. POST /api/ide/patients/:id/unban — Debannir un patient
+app.post('/api/ide/patients/:id/unban', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data, error } = await db.from('ide_patients').update({ is_banned: false, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Patient non trouve.' });
+    res.json({ ok: true, patient: data });
+  } catch (e) {
+    console.error('[IDE Patient Unban] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 11. POST /api/ide/soins — Ajouter un soin recurrent pour un patient
+app.post('/api/ide/soins', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { patient_id, soins_type, duree_minutes, tournee, jours_semaine, nurse_preferee_id, heure_preferee, ordonnance_expire_at } = req.body;
+    if (!patient_id || !soins_type) return res.status(400).json({ error: 'patient_id et soins_type requis.' });
+    if (!IDE_VALID_SOINS_TYPES.includes(soins_type)) return res.status(400).json({ error: 'soins_type invalide. Valeurs: ' + IDE_VALID_SOINS_TYPES.join(', ') });
+    if (tournee && !IDE_VALID_TOURNEES.includes(tournee)) return res.status(400).json({ error: 'tournee invalide. Valeurs: matin, soir.' });
+    if (duree_minutes !== undefined && (isNaN(duree_minutes) || duree_minutes < 1 || duree_minutes > 480)) return res.status(400).json({ error: 'duree_minutes doit etre entre 1 et 480.' });
+    if (jours_semaine && (!Array.isArray(jours_semaine) || jours_semaine.some(j => ![0,1,2,3,4,5,6].includes(j)))) return res.status(400).json({ error: 'jours_semaine invalide.' });
+    if (ordonnance_expire_at && !_ideValidDate(ordonnance_expire_at)) return res.status(400).json({ error: 'ordonnance_expire_at format invalide (YYYY-MM-DD).' });
+
+    // Verify patient belongs to this cabinet
+    const { data: patient } = await db.from('ide_patients').select('id').eq('id', patient_id).eq('cabinet_id', cabinetId).single();
+    if (!patient) return res.status(404).json({ error: 'Patient non trouve dans votre cabinet.' });
+
+    const { data, error } = await db.from('ide_soins_recurrents').insert({
+      cabinet_id: cabinetId,
+      patient_id,
+      soins_type,
+      duree_minutes: duree_minutes || 15,
+      tournee: tournee || 'matin',
+      jours_semaine: jours_semaine || [1, 2, 3, 4, 5],
+      nurse_preferee_id: nurse_preferee_id || null,
+      heure_preferee: heure_preferee || null,
+      ordonnance_expire_at: ordonnance_expire_at || null,
+      is_active: true
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, soin: data });
+  } catch (e) {
+    console.error('[IDE Soins POST] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 12. GET /api/ide/soins/:patient_id — Lister les soins recurrents d'un patient
+app.get('/api/ide/soins/:patient_id', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data, error } = await db.from('ide_soins_recurrents').select('*')
+      .eq('cabinet_id', cabinetId).eq('patient_id', req.params.patient_id).order('created_at');
+    if (error) throw error;
+    res.json({ ok: true, soins: data || [] });
+  } catch (e) {
+    console.error('[IDE Soins GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 13. DELETE /api/ide/soins/:id — Supprimer un soin recurrent
+app.delete('/api/ide/soins/:id', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { error } = await db.from('ide_soins_recurrents').delete()
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[IDE Soins DELETE] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 14. GET /api/ide/planning/:date — Planning complet d'une journee
+app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const dateStr = req.params.date; // YYYY-MM-DD
+    if (!_ideValidDate(dateStr)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+
+    // Check if visits exist for this date
+    let { data: visites, error } = await db.from('ide_visites').select('*')
+      .eq('cabinet_id', cabinetId).eq('date_visite', dateStr).order('ordre_dans_tournee');
+    if (error) throw error;
+
+    // If no visits, auto-generate from recurring soins
+    if (!visites || visites.length === 0) {
+      const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay(); // 0=Sun, 1=Mon...
+      const { data: soins } = await db.from('ide_soins_recurrents').select('*')
+        .eq('cabinet_id', cabinetId).eq('is_active', true).contains('jours_semaine', [dayOfWeek]);
+
+      if (soins && soins.length > 0) {
+        const inserts = soins.map(s => ({
+          cabinet_id: cabinetId,
+          patient_id: s.patient_id,
+          nurse_id: s.nurse_preferee_id,
+          soin_recurrent_id: s.id,
+          date_visite: dateStr,
+          tournee: s.tournee,
+          soins_type: s.soins_type,
+          duree_prevue_minutes: s.duree_minutes,
+          heure_prevue: s.heure_preferee,
+          status: 'planifie'
+        }));
+
+        const { data: inserted, error: insErr } = await db.from('ide_visites').insert(inserts).select();
+        if (insErr) throw insErr;
+        visites = inserted || [];
+      }
+    }
+
+    // Group by nurse and tournee
+    const grouped = {};
+    for (const v of (visites || [])) {
+      const nurseKey = v.nurse_id || 'non_assigne';
+      if (!grouped[nurseKey]) grouped[nurseKey] = { matin: [], soir: [] };
+      const t = v.tournee || 'matin';
+      if (!grouped[nurseKey][t]) grouped[nurseKey][t] = [];
+      grouped[nurseKey][t].push(v);
+    }
+
+    res.json({ ok: true, date: dateStr, planning: grouped, total_visites: (visites || []).length });
+  } catch (e) {
+    console.error('[IDE Planning GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 15. POST /api/ide/planning/generate — Generer les visites pour une periode
+app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { date_debut, date_fin } = req.body;
+    if (!date_debut || !date_fin) return res.status(400).json({ error: 'date_debut et date_fin requis.' });
+    if (!_ideValidDate(date_debut) || !_ideValidDate(date_fin)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+    // Limit generation to 90 days max to prevent abuse
+    const daysDiff = (new Date(date_fin) - new Date(date_debut)) / (1000 * 60 * 60 * 24);
+    if (daysDiff < 0) return res.status(400).json({ error: 'date_fin doit etre apres date_debut.' });
+    if (daysDiff > 90) return res.status(400).json({ error: 'Plage maximale: 90 jours.' });
+
+    const { data: soins } = await db.from('ide_soins_recurrents').select('*')
+      .eq('cabinet_id', cabinetId).eq('is_active', true);
+    if (!soins || soins.length === 0) return res.json({ ok: true, generated: 0 });
+
+    const inserts = [];
+    const start = new Date(date_debut + 'T00:00:00');
+    const end = new Date(date_fin + 'T00:00:00');
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay();
+      const dateStr = d.toISOString().slice(0, 10);
+
+      for (const s of soins) {
+        const jours = s.jours_semaine || [];
+        if (!jours.includes(dayOfWeek)) continue;
+        // Skip if ordonnance expired
+        if (s.ordonnance_expire_at && new Date(s.ordonnance_expire_at) < d) continue;
+
+        inserts.push({
+          cabinet_id: cabinetId,
+          patient_id: s.patient_id,
+          nurse_id: s.nurse_preferee_id,
+          soin_recurrent_id: s.id,
+          date_visite: dateStr,
+          tournee: s.tournee,
+          soins_type: s.soins_type,
+          duree_prevue_minutes: s.duree_minutes,
+          heure_prevue: s.heure_preferee,
+          status: 'planifie'
+        });
+      }
+    }
+
+    if (inserts.length === 0) return res.json({ ok: true, generated: 0 });
+
+    // Insert in batches of 500
+    let totalInserted = 0;
+    for (let i = 0; i < inserts.length; i += 500) {
+      const batch = inserts.slice(i, i + 500);
+      const { data, error } = await db.from('ide_visites').insert(batch).select();
+      if (error) throw error;
+      totalInserted += (data || []).length;
+    }
+
+    res.json({ ok: true, generated: totalInserted });
+  } catch (e) {
+    console.error('[IDE Planning Generate] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 16. POST /api/ide/tournee/optimize — Optimiser l'ordre d'une tournee (nearest-neighbor)
+app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { nurse_id, date, tournee } = req.body;
+    if (!nurse_id || !date || !tournee) return res.status(400).json({ error: 'nurse_id, date et tournee requis.' });
+    if (!_ideValidDate(date)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+    if (!IDE_VALID_TOURNEES.includes(tournee)) return res.status(400).json({ error: 'tournee invalide. Valeurs: matin, soir.' });
+
+    // Get cabinet position
+    const { data: cabinet } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
+    if (!cabinet || !cabinet.latitude) return res.status(400).json({ error: 'Cabinet sans coordonnees GPS.' });
+
+    // Get visits for this nurse/date/tournee with patient coords
+    const { data: visites } = await db.from('ide_visites').select('id, patient_id')
+      .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date_visite', date).eq('tournee', tournee)
+      .eq('status', 'planifie');
+    if (!visites || visites.length === 0) return res.json({ ok: true, message: 'Aucune visite a optimiser.', ordre: [] });
+
+    // Get patient coordinates
+    const patientIds = visites.map(v => v.patient_id);
+    const { data: patients } = await db.from('ide_patients').select('id, nom, prenom, latitude, longitude').in('id', patientIds);
+    const patientMap = {};
+    for (const p of (patients || [])) patientMap[p.id] = p;
+
+    // Nearest-neighbor algorithm
+    let currentLat = cabinet.latitude;
+    let currentLng = cabinet.longitude;
+    const remaining = [...visites];
+    const ordered = [];
+    let totalDistKm = 0;
+
+    while (remaining.length > 0) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const p = patientMap[remaining[i].patient_id];
+        if (!p || !p.latitude) continue;
+        const dist = _sosHaversineKm(currentLat, currentLng, p.latitude, p.longitude);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = i;
+        }
+      }
+      const chosen = remaining.splice(bestIdx, 1)[0];
+      const chosenPatient = patientMap[chosen.patient_id];
+      if (chosenPatient && chosenPatient.latitude) {
+        totalDistKm += bestDist;
+        currentLat = chosenPatient.latitude;
+        currentLng = chosenPatient.longitude;
+      }
+      ordered.push(chosen);
+    }
+
+    // Save order
+    for (let i = 0; i < ordered.length; i++) {
+      await db.from('ide_visites').update({ ordre_dans_tournee: i + 1 }).eq('id', ordered[i].id);
+    }
+
+    // Upsert tournee record
+    const { data: existingTournee } = await db.from('ide_tournees').select('id')
+      .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date', date).eq('tournee', tournee).single();
+
+    const tourneeData = {
+      cabinet_id: cabinetId,
+      nurse_id,
+      date,
+      tournee,
+      distance_totale_km: Math.round(totalDistKm * 100) / 100,
+      nb_patients: ordered.length,
+      is_optimized: true,
+      optimized_at: new Date().toISOString()
+    };
+
+    if (existingTournee) {
+      await db.from('ide_tournees').update(tourneeData).eq('id', existingTournee.id);
+    } else {
+      await db.from('ide_tournees').insert(tourneeData);
+    }
+
+    const ordreResult = ordered.map((v, i) => ({
+      ordre: i + 1,
+      visite_id: v.id,
+      patient: patientMap[v.patient_id] ? `${patientMap[v.patient_id].prenom} ${patientMap[v.patient_id].nom}` : v.patient_id
+    }));
+
+    res.json({ ok: true, distance_totale_km: Math.round(totalDistKm * 100) / 100, nb_patients: ordered.length, ordre: ordreResult });
+  } catch (e) {
+    console.error('[IDE Tournee Optimize] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 17. POST /api/ide/patient/place — KILLER FEATURE: Placement auto d'un nouveau patient
+app.post('/api/ide/patient/place', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { patient_name, address, soins_type, duree_minutes, date, tournee_pref } = req.body;
+    if (!address || !date) return res.status(400).json({ error: 'address et date requis.' });
+    if (!_ideValidDate(date)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+    if (tournee_pref && !IDE_VALID_TOURNEES.includes(tournee_pref)) return res.status(400).json({ error: 'tournee_pref invalide. Valeurs: matin, soir.' });
+    if (soins_type && !IDE_VALID_SOINS_TYPES.includes(soins_type)) return res.status(400).json({ error: 'soins_type invalide.' });
+
+    // 1. Geocode the new patient address
+    const geo = await _ideGeocode(address);
+    if (!geo.latitude) return res.status(400).json({ error: 'Impossible de geocoder l\'adresse.' });
+
+    // 2. Get all nurses
+    const { data: nurses } = await db.from('ide_nurses').select('id, nom, prenom').eq('cabinet_id', cabinetId);
+    if (!nurses || nurses.length === 0) return res.status(400).json({ error: 'Aucune infirmiere dans le cabinet.' });
+
+    // Get cabinet position
+    const { data: cabinet } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
+
+    const options = [];
+
+    // 3. For each nurse, get their tournee for this date
+    for (const nurse of nurses) {
+      const tournees = tournee_pref ? [tournee_pref] : ['matin', 'soir'];
+
+      for (const tournee of tournees) {
+        // Check absence
+        const { data: absences } = await db.from('ide_absences').select('id')
+          .eq('cabinet_id', cabinetId).eq('nurse_id', nurse.id)
+          .lte('date_debut', date).gte('date_fin', date).limit(1);
+        if (absences && absences.length > 0) continue;
+
+        const { data: visites } = await db.from('ide_visites').select('id, patient_id, ordre_dans_tournee')
+          .eq('cabinet_id', cabinetId).eq('nurse_id', nurse.id).eq('date_visite', date).eq('tournee', tournee)
+          .order('ordre_dans_tournee');
+
+        // Get patient coordinates for this tournee
+        const patientIds = (visites || []).map(v => v.patient_id);
+        let patientMap = {};
+        if (patientIds.length > 0) {
+          const { data: patients } = await db.from('ide_patients').select('id, latitude, longitude').in('id', patientIds);
+          for (const p of (patients || [])) patientMap[p.id] = p;
+        }
+
+        // Build ordered list of positions (start=cabinet, then patients in order)
+        const positions = [];
+        positions.push({ lat: cabinet?.latitude || 0, lng: cabinet?.longitude || 0 }); // start: cabinet
+        for (const v of (visites || [])) {
+          const p = patientMap[v.patient_id];
+          if (p && p.latitude) positions.push({ lat: p.latitude, lng: p.longitude });
+          else positions.push({ lat: 0, lng: 0 });
+        }
+        positions.push({ lat: cabinet?.latitude || 0, lng: cabinet?.longitude || 0 }); // end: cabinet
+
+        // Try inserting at each possible position
+        for (let pos = 1; pos < positions.length; pos++) {
+          const prev = positions[pos - 1];
+          const next = positions[pos];
+          if (!prev.lat || !next.lat) continue;
+
+          const distPrevNew = _sosHaversineKm(prev.lat, prev.lng, geo.latitude, geo.longitude);
+          const distNewNext = _sosHaversineKm(geo.latitude, geo.longitude, next.lat, next.lng);
+          const distPrevNext = _sosHaversineKm(prev.lat, prev.lng, next.lat, next.lng);
+          const detour = distPrevNew + distNewNext - distPrevNext;
+
+          // Estimate time based on position in tournee
+          const baseHour = tournee === 'matin' ? 7 : 14;
+          const minutesOffset = (pos - 1) * ((duree_minutes || 15) + 10); // soin + travel
+          const heureEstimee = `${String(baseHour + Math.floor(minutesOffset / 60)).padStart(2, '0')}:${String(minutesOffset % 60).padStart(2, '0')}`;
+
+          options.push({
+            nurse_id: nurse.id,
+            nurse_name: `${nurse.prenom} ${nurse.nom}`,
+            tournee,
+            position: pos,
+            detour_km: Math.round(detour * 100) / 100,
+            heure_estimee: heureEstimee,
+            nb_visites_existantes: (visites || []).length
+          });
+        }
+      }
+    }
+
+    // Sort by detour and return top 3
+    options.sort((a, b) => a.detour_km - b.detour_km);
+    const best3 = options.slice(0, 3);
+
+    res.json({ ok: true, patient_name, address, coordinates: geo, options: best3 });
+  } catch (e) {
+    console.error('[IDE Patient Place] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 18. POST /api/ide/patient/place/confirm — Confirmer le placement
+app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { patient_id, nurse_id, date, tournee, position, soins_type, duree_minutes } = req.body;
+    if (!patient_id || !nurse_id || !date || !tournee) return res.status(400).json({ error: 'patient_id, nurse_id, date et tournee requis.' });
+    if (!_ideValidDate(date)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+    if (!IDE_VALID_TOURNEES.includes(tournee)) return res.status(400).json({ error: 'tournee invalide.' });
+    if (soins_type && !IDE_VALID_SOINS_TYPES.includes(soins_type)) return res.status(400).json({ error: 'soins_type invalide.' });
+
+    // Insert the visit
+    const { data: visite, error } = await db.from('ide_visites').insert({
+      cabinet_id: cabinetId,
+      patient_id,
+      nurse_id,
+      date_visite: date,
+      tournee,
+      soins_type: soins_type || 'soins',
+      duree_prevue_minutes: duree_minutes || 15,
+      ordre_dans_tournee: position || 999,
+      status: 'planifie'
+    }).select().single();
+    if (error) throw error;
+
+    // Re-optimize the tournee (inline nearest-neighbor)
+    const { data: cabinetData } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
+    if (cabinetData && cabinetData.latitude) {
+      const { data: allVisites } = await db.from('ide_visites').select('id, patient_id')
+        .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date_visite', date).eq('tournee', tournee)
+        .neq('status', 'annule');
+      if (allVisites && allVisites.length > 0) {
+        const pIds = allVisites.map(v => v.patient_id);
+        const { data: pts } = await db.from('ide_patients').select('id, latitude, longitude').in('id', pIds);
+        const pMap = {};
+        for (const p of (pts || [])) pMap[p.id] = p;
+
+        let cLat = cabinetData.latitude, cLng = cabinetData.longitude;
+        const rem = [...allVisites];
+        const ord = [];
+        while (rem.length > 0) {
+          let bi = 0, bd = Infinity;
+          for (let i = 0; i < rem.length; i++) {
+            const pp = pMap[rem[i].patient_id];
+            if (!pp || !pp.latitude) continue;
+            const dd = _sosHaversineKm(cLat, cLng, pp.latitude, pp.longitude);
+            if (dd < bd) { bd = dd; bi = i; }
+          }
+          const ch = rem.splice(bi, 1)[0];
+          const cp = pMap[ch.patient_id];
+          if (cp && cp.latitude) { cLat = cp.latitude; cLng = cp.longitude; }
+          ord.push(ch);
+        }
+        for (let i = 0; i < ord.length; i++) {
+          await db.from('ide_visites').update({ ordre_dans_tournee: i + 1 }).eq('id', ord[i].id);
+        }
+      }
+    }
+
+    res.json({ ok: true, visite });
+  } catch (e) {
+    console.error('[IDE Patient Place Confirm] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 19. PATCH /api/ide/visite/:id/status — Changer le statut d'une visite
+app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { status, heure_arrivee, heure_depart, notes_visite } = req.body;
+    const soins_realises = _ideSanitize(req.body.soins_realises, 2000);
+    if (!status) return res.status(400).json({ error: 'status requis.' });
+    if (!IDE_VALID_STATUS.includes(status)) return res.status(400).json({ error: 'status invalide. Valeurs: ' + IDE_VALID_STATUS.join(', ') });
+
+    const updates = { status, updated_at: new Date().toISOString() };
+    if (status === 'en_route') {
+      updates.heure_depart_precedent = new Date().toISOString();
+    }
+    if (heure_arrivee) updates.heure_arrivee = heure_arrivee;
+    if (heure_depart) updates.heure_depart = heure_depart;
+    if (soins_realises) updates.soins_realises = soins_realises;
+    if (notes_visite) updates.notes_visite = _ideSanitize(notes_visite, 2000);
+
+    if (status === 'termine') {
+      if (heure_arrivee && heure_depart) {
+        const arrive = new Date(heure_arrivee);
+        const depart = new Date(heure_depart);
+        updates.duree_reelle_minutes = Math.round((depart - arrive) / 60000);
+      }
+    }
+
+    const { data, error } = await db.from('ide_visites').update(updates)
+      .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Visite non trouvee.' });
+    res.json({ ok: true, visite: data });
+  } catch (e) {
+    console.error('[IDE Visite Status] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 20. GET /api/ide/visite/:id/tracking — Position live (pas d'auth, acces via token unique)
+// Rate limit: 30 req/min per IP to prevent polling abuse
+app.get('/api/ide/visite/:id/tracking', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const visiteId = req.params.id;
+    const token = req.query.token;
+    if (!token || typeof token !== 'string' || token.length > 200) return res.status(401).json({ error: 'Token requis.' });
+
+    // Validate visiteId format (UUID)
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(visiteId)) {
+      return res.status(400).json({ error: 'ID visite invalide.' });
+    }
+
+    // Verify the tracking token
+    const { data: visite, error } = await db.from('ide_visites').select('id, nurse_id, status, tracking_token')
+      .eq('id', visiteId).single();
+    if (error || !visite) return res.status(404).json({ error: 'Visite non trouvee.' });
+
+    // Timing-safe token comparison to prevent timing attacks
+    if (!visite.tracking_token || token.length !== visite.tracking_token.length) return res.status(403).json({ error: 'Token invalide.' });
+    if (!crypto.timingSafeEqual(Buffer.from(token), Buffer.from(visite.tracking_token))) {
+      return res.status(403).json({ error: 'Token invalide.' });
+    }
+
+    // Get nurse first name only (privacy: no full name for public endpoint)
+    const { data: nurse } = await db.from('ide_nurses').select('prenom').eq('id', visite.nurse_id).single();
+
+    // Only expose status and ETA, NOT nurse GPS coordinates (privacy risk)
+    // Patients should know status + estimated time, not track nurse in real-time
+    let etaMinutes = null;
+
+    res.json({
+      ok: true,
+      nurse_name: nurse ? nurse.prenom : 'Votre infirmiere',
+      status: visite.status,
+      eta_minutes: etaMinutes
+    });
+  } catch (e) {
+    console.error('[IDE Visite Tracking] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 21. POST /api/ide/absence — Declarer une absence
+app.post('/api/ide/absence', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { nurse_id, date_debut, date_fin } = req.body;
+    const motif = _ideSanitize(req.body.motif, 500);
+    if (!nurse_id || !date_debut || !date_fin) return res.status(400).json({ error: 'nurse_id, date_debut et date_fin requis.' });
+    if (!_ideValidDate(date_debut) || !_ideValidDate(date_fin)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
+    if (new Date(date_fin) < new Date(date_debut)) return res.status(400).json({ error: 'date_fin doit etre apres date_debut.' });
+
+    // Verify nurse belongs to cabinet
+    const { data: nurse } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
+    if (!nurse) return res.status(404).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
+
+    const { data, error } = await db.from('ide_absences').insert({
+      cabinet_id: cabinetId,
+      nurse_id,
+      date_debut,
+      date_fin,
+      motif: motif || null
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, absence: data });
+  } catch (e) {
+    console.error('[IDE Absence POST] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 22. GET /api/ide/absences — Lister les absences du cabinet
+app.get('/api/ide/absences', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const { data, error } = await db.from('ide_absences').select('*').eq('cabinet_id', cabinetId).order('date_debut', { ascending: false });
+    if (error) throw error;
+    res.json({ ok: true, absences: data || [] });
+  } catch (e) {
+    console.error('[IDE Absences GET] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 23. GET /api/ide/dashboard — Stats du cabinet
+app.get('/api/ide/dashboard', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+    // Total patients
+    const { count: totalPatients } = await db.from('ide_patients').select('id', { count: 'exact', head: true })
+      .eq('cabinet_id', cabinetId).eq('is_banned', false);
+
+    // Total nurses
+    const { count: totalNurses } = await db.from('ide_nurses').select('id', { count: 'exact', head: true })
+      .eq('cabinet_id', cabinetId);
+
+    // Visits today
+    const { count: visitesToday } = await db.from('ide_visites').select('id', { count: 'exact', head: true })
+      .eq('cabinet_id', cabinetId).eq('date_visite', today);
+
+    // Visits this week
+    const { count: visitesWeek } = await db.from('ide_visites').select('id', { count: 'exact', head: true })
+      .eq('cabinet_id', cabinetId).gte('date_visite', weekStartStr).lte('date_visite', today);
+
+    // KM today
+    const { data: tourneesToday } = await db.from('ide_tournees').select('distance_totale_km')
+      .eq('cabinet_id', cabinetId).eq('date', today);
+    const kmToday = (tourneesToday || []).reduce((sum, t) => sum + (t.distance_totale_km || 0), 0);
+
+    // KM this week
+    const { data: tourneesWeek } = await db.from('ide_tournees').select('distance_totale_km')
+      .eq('cabinet_id', cabinetId).gte('date', weekStartStr).lte('date', today);
+    const kmWeek = (tourneesWeek || []).reduce((sum, t) => sum + (t.distance_totale_km || 0), 0);
+
+    res.json({
+      ok: true,
+      total_patients: totalPatients || 0,
+      total_nurses: totalNurses || 0,
+      visites_today: visitesToday || 0,
+      visites_week: visitesWeek || 0,
+      km_today: Math.round(kmToday * 100) / 100,
+      km_week: Math.round(kmWeek * 100) / 100
+    });
+  } catch (e) {
+    console.error('[IDE Dashboard] Error:', e.message);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

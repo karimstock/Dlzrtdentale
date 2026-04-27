@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1f3d">
+<title>JADOMI Tournees — Dashboard IDE</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.15);--border2:rgba(99,102,241,0.08);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --glow:0 0 20px rgba(99,102,241,0.3);--glow2:0 0 30px rgba(99,102,241,0.15);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --radius:14px;--rs:10px;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --soin-insuline:#3b82f6;--soin-pansement:#10b981;--soin-perfusion:#8b5cf6;
+  --soin-toilette:#f59e0b;--soin-prise_sang:#ef4444;--soin-autre:#6b7280;
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 15% 15%,rgba(99,102,241,0.07) 0%,transparent 50%),
+             radial-gradient(circle at 85% 80%,rgba(139,92,246,0.05) 0%,transparent 50%),
+             radial-gradient(circle at 50% 50%,rgba(6,182,212,0.03) 0%,transparent 40%);}
+a{color:var(--accent3);text-decoration:none;}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;background:none;color:var(--text);}
+input,select,textarea{font-family:'Inter',sans-serif;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:10px 14px;font-size:14px;outline:none;transition:border-color .3s var(--ease);}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.2);border-radius:3px;}
+
+/* ===== LAYOUT ===== */
+.app{display:flex;height:100vh;width:100%;position:relative;z-index:1;}
+
+/* SIDEBAR desktop */
+.sidebar{width:240px;height:100vh;background:linear-gradient(180deg,var(--bg2) 0%,#110a28 100%);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:10;overflow-y:auto;}
+.sidebar::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;
+  background:linear-gradient(180deg,var(--accent),var(--accent2),var(--success),transparent);}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.sb-logo h1{font-size:22px;font-weight:900;letter-spacing:-1px;
+  background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sb-logo p{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:1px;text-transform:uppercase;}
+.sb-nav{padding:10px 8px;flex:1;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--rs);
+  font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .3s var(--ease);border-left:2px solid transparent;margin:2px 0;min-height:44px;}
+.sb-item:hover{background:rgba(99,102,241,0.06);color:var(--text);}
+.sb-item.active{background:rgba(16,185,129,0.1);color:var(--success);border-left-color:var(--success);font-weight:600;}
+.sb-item .ico{font-size:16px;width:20px;text-align:center;}
+.sb-user{padding:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sb-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--success),var(--accent));
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+.sb-uname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-urole{font-size:10px;color:var(--text3);}
+.sb-out{padding:5px 9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#f87171;font-size:10px;font-weight:600;min-height:44px;display:flex;align-items:center;}
+.sb-out:hover{background:rgba(239,68,68,0.2);}
+
+/* MAIN */
+.main{flex:1;height:100vh;overflow-y:auto;position:relative;}
+.mi{max-width:900px;margin:0 auto;padding:20px 24px 100px;}
+
+/* HEADER mobile */
+.header-mobile{display:none;position:fixed;top:0;left:0;right:0;z-index:50;
+  background:rgba(15,31,61,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+  padding:12px 16px;height:56px;align-items:center;justify-content:space-between;}
+.header-mobile h1{font-size:18px;font-weight:900;letter-spacing:-0.5px;
+  background:linear-gradient(135deg,var(--accent),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.header-mobile span{font-size:11px;color:var(--text3);font-weight:500;}
+.burger{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:var(--rs);font-size:20px;}
+.burger:hover{background:rgba(99,102,241,0.1);}
+
+/* BOTTOM NAV mobile */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;
+  background:rgba(15,31,61,0.97);backdrop-filter:blur(12px);border-top:1px solid var(--border);
+  padding:6px 8px;padding-bottom:max(6px,env(safe-area-inset-bottom));}
+.bottom-nav-inner{display:flex;justify-content:space-around;align-items:center;}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;
+  border-radius:8px;font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;transition:all .2s;min-width:56px;min-height:44px;justify-content:center;}
+.bn-item.active{color:var(--success);}
+.bn-item .ico{font-size:18px;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.topbar h2{font-size:20px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+/* TAB PANELS */
+.tab-panel{display:none;animation:fadeUp .4s var(--ease);}
+.tab-panel.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* ===== MA TOURNEE ===== */
+.selector-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center;}
+.selector-bar input[type=date]{width:160px;}
+.selector-bar select{min-width:140px;}
+.toggle-group{display:flex;border-radius:var(--rs);overflow:hidden;border:1px solid var(--border);}
+.toggle-btn{padding:8px 18px;font-size:13px;font-weight:600;background:var(--surface);color:var(--text2);transition:all .3s var(--ease);min-height:44px;display:flex;align-items:center;}
+.toggle-btn.active{background:var(--success);color:#fff;}
+.toggle-btn:first-child{border-radius:var(--rs) 0 0 var(--rs);}
+.toggle-btn:last-child{border-radius:0 var(--rs) var(--rs) 0;}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{padding:16px;border-radius:var(--radius);text-align:center;position:relative;overflow:hidden;transition:all .3s var(--ease);}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--glow);}
+.stat-card.s1{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(20,184,166,.08));border:1px solid rgba(16,185,129,.2);}
+.stat-card.s2{background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.08));border:1px solid rgba(99,102,241,.2);}
+.stat-card.s3{background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(59,130,246,.08));border:1px solid rgba(6,182,212,.2);}
+.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px;}
+.stat-lbl{font-size:11px;color:var(--text2);margin-top:3px;}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:28px;}
+.timeline::before{content:'';position:absolute;left:13px;top:0;bottom:0;width:2px;background:var(--border);border-radius:1px;}
+.visit-card{position:relative;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .3s var(--ease);}
+.visit-card:hover{border-color:rgba(99,102,241,.3);transform:translateX(4px);}
+.visit-card.done{opacity:.5;}
+.visit-card.done::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:var(--radius);pointer-events:none;}
+.visit-badge{position:absolute;left:-28px;top:16px;width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;z-index:2;}
+.visit-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.visit-time{font-size:16px;font-weight:700;}
+.visit-patient{font-size:14px;font-weight:600;flex:1;min-width:0;}
+.visit-address{font-size:12px;color:var(--text2);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.visit-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.soin-badge{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+.soin-insuline{background:rgba(59,130,246,.15);color:#60a5fa;}
+.soin-pansement{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.soin-perfusion{background:rgba(139,92,246,.15);color:#c4b5fd;}
+.soin-toilette{background:rgba(245,158,11,.15);color:#fcd34d;}
+.soin-prise_sang{background:rgba(239,68,68,.15);color:#fca5a5;}
+.soin-autre{background:rgba(107,114,128,.15);color:#d1d5db;}
+.visit-duration{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;}
+.visit-done-check{color:var(--success);font-size:16px;font-weight:700;margin-left:auto;}
+.visit-actions{display:flex;gap:8px;margin-top:10px;}
+.btn-nav{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;min-height:44px;
+  background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);color:var(--accent3);display:flex;align-items:center;gap:6px;transition:all .2s var(--ease);}
+.btn-nav:hover{background:var(--accent3);color:#fff;}
+.btn-status{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;min-height:44px;
+  display:flex;align-items:center;gap:6px;transition:all .3s var(--ease);flex:1;justify-content:center;}
+.btn-status.st-pending{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);color:var(--accent);}
+.btn-status.st-enroute{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:var(--warning);}
+.btn-status.st-arrived{background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);color:var(--accent2);}
+.btn-status.st-done{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:var(--success);}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,var(--success),var(--accent));color:#fff;font-size:24px;font-weight:300;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(16,185,129,0.4);
+  z-index:40;transition:all .3s var(--ease);}
+.fab:hover{transform:scale(1.1);box-shadow:0 6px 30px rgba(16,185,129,0.5);}
+
+/* ===== PATIENTS ===== */
+.search-bar{position:relative;margin-bottom:18px;}
+.search-bar input{width:100%;padding-left:40px;}
+.search-bar .search-ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none;}
+.patient-list{display:flex;flex-direction:column;gap:10px;}
+.patient-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .3s var(--ease);cursor:pointer;}
+.patient-card:hover{border-color:rgba(99,102,241,.3);transform:translateX(4px);}
+.patient-name{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.patient-addr{font-size:12px;color:var(--text2);margin-bottom:6px;}
+.patient-soins{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+.patient-tel{font-size:12px;color:var(--accent3);}
+.badge-banned{background:rgba(239,68,68,.15);color:#fca5a5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+
+/* ===== PLANNING ===== */
+.planning-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px;}
+.planning-header{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;text-align:center;padding:8px 4px;}
+.planning-cell{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px 8px;min-height:80px;cursor:pointer;transition:all .3s var(--ease);text-align:center;}
+.planning-cell:hover{border-color:rgba(99,102,241,.3);transform:scale(1.02);}
+.planning-cell .pc-label{font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;font-weight:600;}
+.planning-cell .pc-count{font-size:22px;font-weight:800;margin-bottom:4px;}
+.planning-cell .pc-ides{font-size:10px;color:var(--text2);line-height:1.4;}
+.ide-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+
+/* ===== ABSENCES ===== */
+.absence-list{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+.absence-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px;}
+.absence-card .abs-dates{font-size:14px;font-weight:700;}
+.absence-card .abs-motif{font-size:12px;color:var(--text2);}
+.absence-card .abs-ide{font-size:12px;color:var(--accent3);}
+.absence-status{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;}
+.abs-active{background:rgba(245,158,11,.15);color:#fcd34d;}
+.abs-past{background:rgba(107,114,128,.15);color:#d1d5db;}
+
+/* ===== STATS ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;}
+.stat-big{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;}
+.stat-big .sb-val{font-size:34px;font-weight:900;letter-spacing:-1.5px;margin-bottom:4px;}
+.stat-big .sb-lbl{font-size:12px;color:var(--text2);}
+.alert-list{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
+.alert-card{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:var(--rs);padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;}
+.alert-card .alert-ico{color:var(--danger);font-size:16px;}
+
+/* ===== MODAL ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:100;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;animation:modalUp .4s var(--ease);}
+@keyframes modalUp{from{opacity:0;transform:translateY(20px) scale(.97);}to{opacity:1;transform:none;}}
+.modal-header{padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;}
+.modal-header h3{font-size:16px;font-weight:700;}
+.modal-close{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text3);transition:all .2s;}
+.modal-close:hover{background:rgba(239,68,68,.1);color:var(--danger);}
+.modal-body{padding:20px;}
+.modal-body .field{margin-bottom:14px;}
+.modal-body .field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.modal-body .field input,.modal-body .field select,.modal-body .field textarea{width:100%;}
+.btn-primary{width:100%;padding:12px;border-radius:var(--rs);font-size:14px;font-weight:700;min-height:48px;
+  background:linear-gradient(135deg,var(--success),var(--accent));color:#fff;transition:all .3s var(--ease);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(16,185,129,.3);}
+.btn-secondary{width:100%;padding:10px;border-radius:var(--rs);font-size:13px;font-weight:600;min-height:44px;
+  background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);color:var(--accent);transition:all .2s var(--ease);}
+.btn-secondary:hover{background:var(--accent);color:#fff;}
+.placement-results{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.placement-option{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .3s var(--ease);}
+.placement-option:hover{border-color:var(--success);transform:translateX(4px);}
+.placement-info{font-size:13px;font-weight:600;}
+.placement-detail{font-size:11px;color:var(--text2);margin-top:2px;}
+.placement-confirm{padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;min-height:40px;
+  background:var(--success);color:#fff;flex-shrink:0;transition:all .2s var(--ease);}
+.placement-confirm:hover{background:#059669;}
+
+/* AUTOCOMPLETE */
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:0 0 var(--rs) var(--rs);max-height:180px;overflow-y:auto;z-index:10;display:none;}
+.autocomplete-list.show{display:block;}
+.autocomplete-item{padding:10px 14px;font-size:13px;cursor:pointer;transition:background .15s;min-height:44px;display:flex;align-items:center;}
+.autocomplete-item:hover{background:rgba(99,102,241,.08);}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .header-mobile{display:flex;}
+  .bottom-nav{display:block;}
+  .main{padding-top:56px;padding-bottom:70px;}
+  .mi{padding:16px 14px 100px;}
+  .stats-row{grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .stat-val{font-size:22px;}
+  .planning-grid{grid-template-columns:repeat(7,1fr);gap:4px;overflow-x:auto;}
+  .planning-cell{min-height:60px;padding:8px 4px;}
+  .planning-cell .pc-count{font-size:18px;}
+  .stats-grid{grid-template-columns:1fr;}
+  .selector-bar{flex-direction:column;align-items:stretch;}
+  .selector-bar input[type=date],.selector-bar select{width:100%;}
+  .fab{bottom:80px;right:16px;}
+  .topbar h2{font-size:17px;}
+  .visit-actions{flex-direction:column;}
+}
+@media(max-width:420px){
+  .stats-row{grid-template-columns:1fr 1fr 1fr;}
+  .stat-card{padding:10px 6px;}
+  .stat-val{font-size:18px;}
+  .stat-lbl{font-size:9px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== MOBILE HEADER ===== -->
+<div class="header-mobile">
+  <div>
+    <h1>JADOMI</h1>
+    <span id="headerIdeName">Tournees</span>
+  </div>
+  <button class="burger" onclick="toggleMobileMenu()" aria-label="Menu">&#9776;</button>
+</div>
+
+<div class="app">
+
+<!-- ===== SIDEBAR DESKTOP ===== -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <h1>JADOMI</h1>
+    <p>Tournees IDE</p>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-item active" data-tab="tournee" onclick="switchTab('tournee')">
+      <span class="ico">&#128652;</span> Ma tournee
+    </div>
+    <div class="sb-item" data-tab="patients" onclick="switchTab('patients')">
+      <span class="ico">&#128101;</span> Patients
+    </div>
+    <div class="sb-item" data-tab="planning" onclick="switchTab('planning')">
+      <span class="ico">&#128197;</span> Planning semaine
+    </div>
+    <div class="sb-item" data-tab="absences" onclick="switchTab('absences')">
+      <span class="ico">&#128683;</span> Absences
+    </div>
+    <div class="sb-item" data-tab="stats" onclick="switchTab('stats')">
+      <span class="ico">&#128200;</span> Statistiques
+    </div>
+  </div>
+  <div class="sb-user">
+    <div class="sb-av" id="sbAvatar">?</div>
+    <div style="flex:1;min-width:0;">
+      <div class="sb-uname" id="sbName">Chargement...</div>
+      <div class="sb-urole">Infirmiere liberale</div>
+    </div>
+    <button class="sb-out" onclick="logout()" aria-label="Deconnexion">&#x2716;</button>
+  </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="main">
+<div class="mi">
+
+<!-- ==================== TAB: MA TOURNEE ==================== -->
+<div class="tab-panel active" id="tab-tournee">
+  <div class="topbar">
+    <h2>&#128652; Ma tournee du jour</h2>
+  </div>
+
+  <!-- Selector -->
+  <div class="selector-bar">
+    <input type="date" id="tourDate" onchange="loadTournee()">
+    <div class="toggle-group">
+      <button class="toggle-btn active" id="btnMatin" onclick="setTourType('matin')">Matin</button>
+      <button class="toggle-btn" id="btnSoir" onclick="setTourType('soir')">Soir</button>
+    </div>
+    <select id="ideSelect" onchange="loadTournee()" style="display:none;">
+      <option value="">Toutes les IDE</option>
+    </select>
+  </div>
+
+  <!-- Stats du jour -->
+  <div class="stats-row">
+    <div class="stat-card s1">
+      <div class="stat-val" id="stPatients">0</div>
+      <div class="stat-lbl">Patients a voir</div>
+    </div>
+    <div class="stat-card s2">
+      <div class="stat-val" id="stKm">0</div>
+      <div class="stat-lbl">km estimes</div>
+    </div>
+    <div class="stat-card s3">
+      <div class="stat-val" id="stDuree">0h</div>
+      <div class="stat-lbl">Duree estimee</div>
+    </div>
+  </div>
+
+  <!-- Timeline visites -->
+  <div class="timeline" id="visitList">
+    <div style="text-align:center;padding:40px 0;color:var(--text3);font-size:14px;">Chargement des visites...</div>
+  </div>
+</div>
+
+<!-- ==================== TAB: PATIENTS ==================== -->
+<div class="tab-panel" id="tab-patients">
+  <div class="topbar">
+    <h2>&#128101; Patients</h2>
+    <button class="btn-secondary" style="width:auto;padding:8px 16px;" onclick="openPatientModal()">+ Ajouter</button>
+  </div>
+  <div class="search-bar">
+    <span class="search-ico">&#128269;</span>
+    <input type="text" id="patientSearch" placeholder="Rechercher un patient..." oninput="filterPatients()">
+  </div>
+  <div class="patient-list" id="patientList">
+    <div style="text-align:center;padding:40px 0;color:var(--text3);font-size:14px;">Chargement...</div>
+  </div>
+</div>
+
+<!-- ==================== TAB: PLANNING SEMAINE ==================== -->
+<div class="tab-panel" id="tab-planning">
+  <div class="topbar">
+    <h2>&#128197; Planning semaine</h2>
+  </div>
+  <div id="planningWeekLabel" style="font-size:14px;color:var(--text2);margin-bottom:12px;font-weight:600;"></div>
+  <div class="planning-grid" id="planningGrid"></div>
+</div>
+
+<!-- ==================== TAB: ABSENCES ==================== -->
+<div class="tab-panel" id="tab-absences">
+  <div class="topbar">
+    <h2>&#128683; Absences</h2>
+    <button class="btn-secondary" style="width:auto;padding:8px 16px;" onclick="openAbsenceModal()">+ Declarer</button>
+  </div>
+  <div class="absence-list" id="absenceList">
+    <div style="text-align:center;padding:40px 0;color:var(--text3);font-size:14px;">Chargement...</div>
+  </div>
+</div>
+
+<!-- ==================== TAB: STATISTIQUES ==================== -->
+<div class="tab-panel" id="tab-stats">
+  <div class="topbar">
+    <h2>&#128200; Statistiques du mois</h2>
+  </div>
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-big"><div class="sb-val" id="statPatientsVus">0</div><div class="sb-lbl">Patients vus</div></div>
+    <div class="stat-big"><div class="sb-val" id="statKm">0 km</div><div class="sb-lbl">km parcourus</div></div>
+    <div class="stat-big"><div class="sb-val" id="statHeures">0h</div><div class="sb-lbl">Heures de route</div></div>
+    <div class="stat-big"><div class="sb-val" id="statMoyenne">0</div><div class="sb-lbl">Patients / jour</div></div>
+  </div>
+  <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">&#9888; Ordonnances qui expirent</h3>
+  <div class="alert-list" id="alertOrdonnances">
+    <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px;">Aucune alerte</div>
+  </div>
+</div>
+
+</div><!-- .mi -->
+</div><!-- .main -->
+
+</div><!-- .app -->
+
+<!-- BOTTOM NAV MOBILE -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bn-item active" data-tab="tournee" onclick="switchTab('tournee')">
+      <span class="ico">&#128652;</span>
+      <span>Tournee</span>
+    </div>
+    <div class="bn-item" data-tab="patients" onclick="switchTab('patients')">
+      <span class="ico">&#128101;</span>
+      <span>Patients</span>
+    </div>
+    <div class="bn-item" data-tab="planning" onclick="switchTab('planning')">
+      <span class="ico">&#128197;</span>
+      <span>Planning</span>
+    </div>
+    <div class="bn-item" data-tab="absences" onclick="switchTab('absences')">
+      <span class="ico">&#128683;</span>
+      <span>Absences</span>
+    </div>
+    <div class="bn-item" data-tab="stats" onclick="switchTab('stats')">
+      <span class="ico">&#128200;</span>
+      <span>Stats</span>
+    </div>
+  </div>
+</nav>
+
+<!-- FAB -->
+<button class="fab" id="fabAdd" onclick="openPlacementModal()" aria-label="Ajouter un patient">+</button>
+
+<!-- ===== MODAL: PLACEMENT AUTO ===== -->
+<div class="modal-overlay" id="modalPlacement">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Placement automatique</h3>
+      <button class="modal-close" onclick="closePlacementModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field" style="position:relative;">
+        <label>Nom du patient</label>
+        <input type="text" id="placePatientName" placeholder="Rechercher un patient..." oninput="autocompletePatient(this.value)" autocomplete="off">
+        <div class="autocomplete-list" id="placeAutocomplete"></div>
+        <input type="hidden" id="placePatientId">
+      </div>
+      <div class="field">
+        <label>Adresse</label>
+        <input type="text" id="placeAddress" placeholder="Adresse du patient">
+      </div>
+      <div class="field">
+        <label>Type de soin</label>
+        <select id="placeSoinType">
+          <option value="insuline">Insuline</option>
+          <option value="pansement">Pansement</option>
+          <option value="perfusion">Perfusion</option>
+          <option value="toilette">Toilette</option>
+          <option value="prise_sang">Prise de sang</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Duree estimee (minutes)</label>
+        <input type="number" id="placeDuration" value="15" min="5" max="120">
+      </div>
+      <button class="btn-primary" onclick="findBestSlot()">Trouver le meilleur creneau</button>
+      <div class="placement-results" id="placementResults" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: AJOUTER PATIENT ===== -->
+<div class="modal-overlay" id="modalPatient">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Nouveau patient</h3>
+      <button class="modal-close" onclick="closePatientModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>Nom</label><input type="text" id="pNom" placeholder="Nom"></div>
+        <div class="field"><label>Prenom</label><input type="text" id="pPrenom" placeholder="Prenom"></div>
+      </div>
+      <div class="field"><label>Adresse</label><input type="text" id="pAdresse" placeholder="Adresse"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+        <div class="field"><label>Ville</label><input type="text" id="pVille" placeholder="Ville"></div>
+        <div class="field"><label>Code postal</label><input type="text" id="pCP" placeholder="CP"></div>
+      </div>
+      <div class="field"><label>Telephone</label><input type="tel" id="pTel" placeholder="06..."></div>
+      <div class="field"><label>Telephone famille</label><input type="tel" id="pTelFam" placeholder="06..."></div>
+      <div class="field"><label>Medecin traitant</label><input type="text" id="pMedecin" placeholder="Dr..."></div>
+      <div class="field"><label>Notes</label><textarea id="pNotes" rows="3" placeholder="Notes particulieres..."></textarea></div>
+      <button class="btn-primary" onclick="savePatient()">Enregistrer le patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: ABSENCE ===== -->
+<div class="modal-overlay" id="modalAbsence">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Declarer une absence</h3>
+      <button class="modal-close" onclick="closeAbsenceModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>IDE</label>
+        <select id="absIde"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>Date debut</label><input type="date" id="absStart"></div>
+        <div class="field"><label>Date fin</label><input type="date" id="absEnd"></div>
+      </div>
+      <div class="field"><label>Motif</label><input type="text" id="absMotif" placeholder="Motif de l'absence"></div>
+      <button class="btn-primary" onclick="saveAbsence()">Declarer l'absence</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== AUTH ===== */
+let session=null, token=null, currentUser=null;
+function getSession(){
+  try{const raw=localStorage.getItem('jadomi_session');if(raw){session=JSON.parse(raw);token=session.token||session.access_token;currentUser=session.user||session;return true;}}catch(e){}
+  return false;
+}
+function logout(){localStorage.removeItem('jadomi_session');location.href='/login.html';}
+function headers(){return{'Content-Type':'application/json','Authorization':'Bearer '+token};}
+
+/* ===== INIT ===== */
+let tourType='matin';
+let allPatients=[];
+let allVisits=[];
+
+document.addEventListener('DOMContentLoaded',function(){
+  if(!getSession()){location.href='/login.html';return;}
+  // User info
+  const name=currentUser.prenom?currentUser.prenom+' '+currentUser.nom:(currentUser.email||'IDE');
+  document.getElementById('sbName').textContent=name;
+  document.getElementById('sbAvatar').textContent=(name[0]||'?').toUpperCase();
+  document.getElementById('headerIdeName').textContent=name;
+  // Date default
+  document.getElementById('tourDate').value=todayStr();
+  document.getElementById('absStart').value=todayStr();
+  document.getElementById('absEnd').value=todayStr();
+  // Load data
+  loadTournee();
+  loadPatients();
+  loadPlanning();
+  loadAbsences();
+  loadStats();
+});
+
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* ===== TAB SWITCHING ===== */
+function switchTab(tab){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.toggle('active',i.dataset.tab===tab));
+  document.querySelectorAll('.bn-item').forEach(i=>i.classList.toggle('active',i.dataset.tab===tab));
+  // FAB visible only on tournee
+  document.getElementById('fabAdd').style.display=(tab==='tournee')?'flex':'none';
+}
+
+function toggleMobileMenu(){
+  const sb=document.getElementById('sidebar');
+  if(sb.style.display==='flex'){sb.style.display='none';}
+  else{sb.style.display='flex';sb.style.position='fixed';sb.style.top='0';sb.style.left='0';sb.style.zIndex='100';sb.style.height='100vh';}
+}
+
+/* ===== TOUR TYPE TOGGLE ===== */
+function setTourType(t){
+  tourType=t;
+  document.getElementById('btnMatin').classList.toggle('active',t==='matin');
+  document.getElementById('btnSoir').classList.toggle('active',t==='soir');
+  loadTournee();
+}
+
+/* ===== LOAD TOURNEE ===== */
+async function loadTournee(){
+  const date=document.getElementById('tourDate').value||todayStr();
+  try{
+    const res=await fetch('/api/ide/tournee/'+date+'/'+tourType,{headers:headers()});
+    if(!res.ok)throw new Error('API error');
+    const data=await res.json();
+    allVisits=data.visits||data.visites||[];
+    renderTournee(data);
+  }catch(e){
+    // Demo data fallback
+    renderTourneDemo();
+  }
+}
+
+function renderTournee(data){
+  const visits=data.visits||data.visites||[];
+  document.getElementById('stPatients').textContent=visits.length;
+  document.getElementById('stKm').textContent=(data.km_total||data.km_estimes||0).toFixed?Number(data.km_total||data.km_estimes||0).toFixed(1):data.km_total||0;
+  const mins=data.duree_totale||data.duree_estimee||0;
+  document.getElementById('stDuree').textContent=mins>=60?Math.floor(mins/60)+'h'+String(mins%60).padStart(2,'0'):mins+'min';
+  renderVisitList(visits);
+}
+
+function renderTourneDemo(){
+  const demo=[
+    {id:1,ordre:1,heure:'07:30',patient_nom:'Mme Dupont Jeanne',adresse:'12 rue des Lilas, Toulouse',type_soin:'insuline',duree:10,status:'termine'},
+    {id:2,ordre:2,heure:'08:00',patient_nom:'M. Martin Robert',adresse:'45 av Jean Jaures, Toulouse',type_soin:'pansement',duree:20,status:'en_cours'},
+    {id:3,ordre:3,heure:'08:30',patient_nom:'Mme Garcia Maria',adresse:'8 place Wilson, Toulouse',type_soin:'perfusion',duree:30,status:'en_route'},
+    {id:4,ordre:4,heure:'09:15',patient_nom:'M. Bernard Pierre',adresse:'23 rue Alsace, Toulouse',type_soin:'toilette',duree:25,status:'pending'},
+    {id:5,ordre:5,heure:'09:50',patient_nom:'Mme Petit Sophie',adresse:'67 bd Carnot, Toulouse',type_soin:'prise_sang',duree:15,status:'pending'},
+    {id:6,ordre:6,heure:'10:15',patient_nom:'M. Moreau Jacques',adresse:'3 rue du Taur, Toulouse',type_soin:'insuline',duree:10,status:'pending'},
+  ];
+  allVisits=demo;
+  document.getElementById('stPatients').textContent=demo.length;
+  document.getElementById('stKm').textContent='18.4';
+  document.getElementById('stDuree').textContent='2h45';
+  renderVisitList(demo);
+}
+
+const soinColors={insuline:'#3b82f6',pansement:'#10b981',perfusion:'#8b5cf6',toilette:'#f59e0b',prise_sang:'#ef4444',autre:'#6b7280'};
+const soinLabels={insuline:'Insuline',pansement:'Pansement',perfusion:'Perfusion',toilette:'Toilette',prise_sang:'Prise de sang',autre:'Autre'};
+const statusLabels={pending:'En route',en_route:'Arrivee',en_cours:'Termine',termine:'Termine',arrived:'Termine'};
+const statusClasses={pending:'st-pending',en_route:'st-enroute',en_cours:'st-arrived',termine:'st-done',arrived:'st-done'};
+const statusNext={pending:'en_route',en_route:'en_cours',en_cours:'termine'};
+
+function renderVisitList(visits){
+  const c=document.getElementById('visitList');
+  if(!visits.length){c.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--text3);font-size:14px;">Aucune visite prevue pour cette periode.</div>';return;}
+  c.innerHTML=visits.map(v=>{
+    const soin=(v.type_soin||'autre').replace(/[^a-z_]/g,'');
+    const isDone=v.status==='termine';
+    const color=soinColors[soin]||soinColors.autre;
+    const safeId=parseInt(v.id)||0;
+    const safeOrdre=parseInt(v.ordre)||0;
+    const safeDuree=parseInt(v.duree)||0;
+    const safeStatus=escAttr(v.status||'pending');
+    return '<div class="visit-card'+(isDone?' done':'')+'" id="visit-'+safeId+'">'+
+      '<div class="visit-badge" style="background:'+color+';">'+safeOrdre+'</div>'+
+      '<div class="visit-top">'+
+        '<span class="visit-time">'+escHtml(v.heure)+'</span>'+
+        '<span class="visit-patient">'+escHtml(v.patient_nom)+'</span>'+
+        (isDone?'<span class="visit-done-check">&#10003;</span>':'')+
+      '</div>'+
+      '<div class="visit-address">'+escHtml(v.adresse)+'</div>'+
+      '<div class="visit-meta">'+
+        '<span class="soin-badge soin-'+soin+'">'+(soinLabels[soin]||escHtml(soin))+'</span>'+
+        '<span class="visit-duration">&#9201; '+safeDuree+' min</span>'+
+      '</div>'+
+      '<div class="visit-actions">'+
+        '<button class="btn-nav" onclick="navigate(\''+escAttr(v.adresse)+'\')">&#128204; Navigation</button>'+
+        (isDone?'':
+        '<button class="btn-status '+statusClasses[v.status||'pending']+'" onclick="advanceStatus('+safeId+',\''+safeStatus+'\')">'+
+          (v.status==='en_route'?'&#127937; Arrivee':v.status==='en_cours'?'&#10003; Termine':'&#128663; En route')+
+        '</button>')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function escAttr(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function navigate(addr){window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(addr));}
+
+async function advanceStatus(id,current){
+  const next=statusNext[current||'pending']||'en_route';
+  try{
+    await fetch('/api/ide/visit/'+id+'/status',{method:'PATCH',headers:headers(),body:JSON.stringify({status:next})});
+  }catch(e){}
+  // Update locally
+  const v=allVisits.find(x=>x.id===id);
+  if(v){v.status=next;renderVisitList(allVisits);}
+}
+
+/* ===== PATIENTS ===== */
+async function loadPatients(){
+  try{
+    const res=await fetch('/api/ide/patients',{headers:headers()});
+    if(!res.ok)throw new Error();
+    allPatients=await res.json();
+  }catch(e){
+    allPatients=[
+      {id:1,nom:'Dupont',prenom:'Jeanne',adresse:'12 rue des Lilas',ville:'Toulouse',cp:'31000',tel:'06 12 34 56 78',soins:['insuline','pansement'],is_banned:false},
+      {id:2,nom:'Martin',prenom:'Robert',adresse:'45 av Jean Jaures',ville:'Toulouse',cp:'31000',tel:'06 98 76 54 32',soins:['pansement'],is_banned:false},
+      {id:3,nom:'Garcia',prenom:'Maria',adresse:'8 place Wilson',ville:'Toulouse',cp:'31000',tel:'06 11 22 33 44',soins:['perfusion'],is_banned:false},
+      {id:4,nom:'Bernard',prenom:'Pierre',adresse:'23 rue Alsace',ville:'Toulouse',cp:'31000',tel:'06 55 66 77 88',soins:['toilette'],is_banned:true},
+      {id:5,nom:'Petit',prenom:'Sophie',adresse:'67 bd Carnot',ville:'Toulouse',cp:'31000',tel:'06 99 88 77 66',soins:['prise_sang','insuline'],is_banned:false},
+    ];
+  }
+  renderPatients(allPatients);
+}
+
+function renderPatients(list){
+  const c=document.getElementById('patientList');
+  if(!list.length){c.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--text3);">Aucun patient trouve.</div>';return;}
+  c.innerHTML=list.map(p=>{
+    const soins=(p.soins||[]).map(s=>{const safe=s.replace(/[^a-z_]/g,'');return '<span class="soin-badge soin-'+safe+'">'+(soinLabels[safe]||escHtml(s))+'</span>';}).join('');
+    const safeId=parseInt(p.id)||0;
+    return '<div class="patient-card" onclick="editPatient('+safeId+')">'+
+      '<div class="patient-name">'+escHtml(p.nom)+' '+escHtml(p.prenom)+(p.is_banned?' <span class="badge-banned">Banni</span>':'')+'</div>'+
+      '<div class="patient-addr">'+escHtml(p.adresse)+', '+escHtml(p.cp)+' '+escHtml(p.ville)+'</div>'+
+      '<div class="patient-soins">'+soins+'</div>'+
+      '<div class="patient-tel">&#128222; '+escHtml(p.tel)+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function filterPatients(){
+  const q=document.getElementById('patientSearch').value.toLowerCase();
+  if(!q){renderPatients(allPatients);return;}
+  const filtered=allPatients.filter(p=>(p.nom+' '+p.prenom+' '+p.adresse+' '+p.ville).toLowerCase().includes(q));
+  renderPatients(filtered);
+}
+
+function editPatient(id){/* TODO: open edit modal */}
+
+/* ===== PATIENT MODAL ===== */
+function openPatientModal(){document.getElementById('modalPatient').classList.add('open');}
+function closePatientModal(){document.getElementById('modalPatient').classList.remove('open');}
+
+async function savePatient(){
+  const data={
+    nom:document.getElementById('pNom').value,
+    prenom:document.getElementById('pPrenom').value,
+    adresse:document.getElementById('pAdresse').value,
+    ville:document.getElementById('pVille').value,
+    cp:document.getElementById('pCP').value,
+    tel:document.getElementById('pTel').value,
+    tel_famille:document.getElementById('pTelFam').value,
+    medecin:document.getElementById('pMedecin').value,
+    notes:document.getElementById('pNotes').value
+  };
+  if(!data.nom||!data.prenom){alert('Nom et prenom obligatoires.');return;}
+  try{
+    const res=await fetch('/api/ide/patients',{method:'POST',headers:headers(),body:JSON.stringify(data)});
+    if(!res.ok)throw new Error();
+    closePatientModal();
+    loadPatients();
+  }catch(e){
+    // Demo: add locally
+    data.id=Date.now();data.soins=[];data.is_banned=false;
+    allPatients.unshift(data);
+    renderPatients(allPatients);
+    closePatientModal();
+  }
+}
+
+/* ===== PLANNING SEMAINE ===== */
+const jourNoms=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const ideColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+
+async function loadPlanning(){
+  const grid=document.getElementById('planningGrid');
+  const label=document.getElementById('planningWeekLabel');
+  const now=new Date();
+  const day=now.getDay()||7;
+  const monday=new Date(now);monday.setDate(now.getDate()-(day-1));
+  const sunday=new Date(monday);sunday.setDate(monday.getDate()+6);
+  label.textContent='Semaine du '+formatDateShort(monday)+' au '+formatDateShort(sunday);
+
+  let planData=null;
+  try{
+    const res=await fetch('/api/ide/planning/semaine?start='+dateStr(monday),{headers:headers()});
+    if(!res.ok)throw new Error();
+    planData=await res.json();
+  }catch(e){
+    // Demo
+    planData=generateDemoPlanning(monday);
+  }
+
+  let html='';
+  // Headers
+  for(let i=0;i<7;i++){html+='<div class="planning-header">'+jourNoms[i]+'</div>';}
+  // Matin row
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);d.setDate(monday.getDate()+i);
+    const key=dateStr(d)+'_matin';
+    const cell=planData[key]||{count:0,ides:[]};
+    html+=renderPlanningCell(d,'Matin',cell);
+  }
+  // Soir row
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);d.setDate(monday.getDate()+i);
+    const key=dateStr(d)+'_soir';
+    const cell=planData[key]||{count:0,ides:[]};
+    html+=renderPlanningCell(d,'Soir',cell);
+  }
+  grid.innerHTML=html;
+}
+
+function renderPlanningCell(date,period,cell){
+  const safeCount=parseInt(cell.count)||0;
+  const ides=(cell.ides||[]).map((ide,i)=>'<span class="ide-dot" style="background:'+ideColors[i%ideColors.length]+'"></span>'+escHtml(ide)).join('<br>');
+  return '<div class="planning-cell" onclick="goToDay(\''+dateStr(date)+'\',\''+(period==='Matin'?'matin':'soir')+'\')">'+
+    '<div class="pc-label">'+escHtml(period)+'</div>'+
+    '<div class="pc-count">'+safeCount+'</div>'+
+    '<div class="pc-ides">'+ides+'</div>'+
+  '</div>';
+}
+
+function goToDay(date,type){
+  document.getElementById('tourDate').value=date;
+  setTourType(type);
+  switchTab('tournee');
+}
+
+function generateDemoPlanning(monday){
+  const data={};
+  const noms=['Marie','Sophie','Claire'];
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);d.setDate(monday.getDate()+i);
+    const ds=dateStr(d);
+    const isWeekend=i>=5;
+    data[ds+'_matin']={count:isWeekend?Math.floor(Math.random()*3):Math.floor(Math.random()*6)+3,ides:isWeekend?[noms[0]]:[noms[0],noms[1]]};
+    data[ds+'_soir']={count:isWeekend?Math.floor(Math.random()*2):Math.floor(Math.random()*4)+1,ides:isWeekend?[noms[2]]:[noms[1],noms[2]]};
+  }
+  return data;
+}
+
+/* ===== ABSENCES ===== */
+async function loadAbsences(){
+  let absences=[];
+  try{
+    const res=await fetch('/api/ide/absences',{headers:headers()});
+    if(!res.ok)throw new Error();
+    absences=await res.json();
+  }catch(e){
+    absences=[
+      {id:1,ide_nom:'Sophie Lefebvre',date_debut:'2026-04-28',date_fin:'2026-04-30',motif:'Formation continue',active:true},
+      {id:2,ide_nom:'Claire Moreau',date_debut:'2026-04-20',date_fin:'2026-04-22',motif:'Conge personnel',active:false},
+    ];
+  }
+  renderAbsences(absences);
+}
+
+function renderAbsences(list){
+  const c=document.getElementById('absenceList');
+  if(!list.length){c.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--text3);">Aucune absence declaree.</div>';return;}
+  c.innerHTML=list.map(a=>{
+    const isActive=a.active!==false&&new Date(a.date_fin)>=new Date();
+    return '<div class="absence-card">'+
+      '<div style="flex:1;">'+
+        '<div class="abs-ide">'+escHtml(a.ide_nom)+'</div>'+
+        '<div class="abs-dates">'+formatDateShort(new Date(a.date_debut))+' &rarr; '+formatDateShort(new Date(a.date_fin))+'</div>'+
+        '<div class="abs-motif">'+escHtml(a.motif)+'</div>'+
+      '</div>'+
+      '<span class="absence-status '+(isActive?'abs-active':'abs-past')+'">'+(isActive?'En cours':'Passee')+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+function openAbsenceModal(){document.getElementById('modalAbsence').classList.add('open');loadIdeSelect('absIde');}
+function closeAbsenceModal(){document.getElementById('modalAbsence').classList.remove('open');}
+
+async function saveAbsence(){
+  const data={
+    ide_id:document.getElementById('absIde').value,
+    date_debut:document.getElementById('absStart').value,
+    date_fin:document.getElementById('absEnd').value,
+    motif:document.getElementById('absMotif').value
+  };
+  if(!data.date_debut||!data.date_fin){alert('Dates obligatoires.');return;}
+  try{
+    await fetch('/api/ide/absence',{method:'POST',headers:headers(),body:JSON.stringify(data)});
+    closeAbsenceModal();
+    loadAbsences();
+  }catch(e){
+    closeAbsenceModal();
+    loadAbsences();
+  }
+}
+
+/* ===== STATS ===== */
+async function loadStats(){
+  try{
+    const res=await fetch('/api/ide/dashboard',{headers:headers()});
+    if(!res.ok)throw new Error();
+    const data=await res.json();
+    document.getElementById('statPatientsVus').textContent=data.patients_vus||0;
+    document.getElementById('statKm').textContent=(data.km_parcourus||0)+' km';
+    document.getElementById('statHeures').textContent=(data.heures_route||0)+'h';
+    document.getElementById('statMoyenne').textContent=(data.moyenne_jour||0);
+    if(data.ordonnances_expirantes&&data.ordonnances_expirantes.length){
+      renderOrdonnanceAlerts(data.ordonnances_expirantes);
+    }
+  }catch(e){
+    // Demo
+    document.getElementById('statPatientsVus').textContent='127';
+    document.getElementById('statKm').textContent='482 km';
+    document.getElementById('statHeures').textContent='38h';
+    document.getElementById('statMoyenne').textContent='6.4';
+    renderOrdonnanceAlerts([
+      {patient:'Mme Dupont Jeanne',expire:'2026-05-02',type:'Pansement quotidien'},
+      {patient:'M. Bernard Pierre',expire:'2026-05-05',type:'Injections insuline'},
+    ]);
+  }
+}
+
+function renderOrdonnanceAlerts(list){
+  const c=document.getElementById('alertOrdonnances');
+  c.innerHTML=list.map(a=>
+    '<div class="alert-card">'+
+      '<span class="alert-ico">&#9888;</span>'+
+      '<div><strong>'+escHtml(a.patient)+'</strong> &mdash; '+escHtml(a.type)+' &mdash; Expire le '+formatDateShort(new Date(a.expire))+'</div>'+
+    '</div>'
+  ).join('');
+}
+
+/* ===== PLACEMENT AUTO ===== */
+function openPlacementModal(){document.getElementById('modalPlacement').classList.add('open');document.getElementById('placementResults').style.display='none';}
+function closePlacementModal(){document.getElementById('modalPlacement').classList.remove('open');}
+
+let acTimeout=null;
+async function autocompletePatient(q){
+  clearTimeout(acTimeout);
+  const list=document.getElementById('placeAutocomplete');
+  if(q.length<2){list.classList.remove('show');return;}
+  acTimeout=setTimeout(async()=>{
+    try{
+      const res=await fetch('/api/clients/autocomplete?q='+encodeURIComponent(q),{headers:headers()});
+      if(!res.ok)throw new Error();
+      const data=await res.json();
+      renderAutocomplete(data);
+    }catch(e){
+      // Demo
+      const demo=allPatients.filter(p=>(p.nom+' '+p.prenom).toLowerCase().includes(q.toLowerCase())).slice(0,5);
+      renderAutocomplete(demo.map(p=>({id:p.id,label:p.nom+' '+p.prenom,adresse:p.adresse+', '+p.cp+' '+p.ville})));
+    }
+  },300);
+}
+
+function renderAutocomplete(items){
+  const list=document.getElementById('placeAutocomplete');
+  if(!items.length){list.classList.remove('show');return;}
+  list.innerHTML=items.map(i=>{
+    const safeId=parseInt(i.id)||0;
+    const displayName=escHtml(i.label||((i.nom||'')+' '+(i.prenom||'')));
+    const displayAddr=escHtml((i.adresse||'').substring(0,30));
+    return '<div class="autocomplete-item" onclick="selectPatient('+safeId+',\''+escAttr(i.label||((i.nom||'')+' '+(i.prenom||'')))+'\',\''+escAttr(i.adresse||'')+'\')">'+
+      displayName+'<span style="margin-left:auto;font-size:11px;color:var(--text3);">'+displayAddr+'</span>'+
+    '</div>';
+  }).join('');
+  list.classList.add('show');
+}
+
+function selectPatient(id,name,addr){
+  document.getElementById('placePatientName').value=name;
+  document.getElementById('placePatientId').value=id;
+  document.getElementById('placeAddress').value=addr;
+  document.getElementById('placeAutocomplete').classList.remove('show');
+}
+
+async function findBestSlot(){
+  const data={
+    patient_id:document.getElementById('placePatientId').value,
+    patient_nom:document.getElementById('placePatientName').value,
+    adresse:document.getElementById('placeAddress').value,
+    type_soin:document.getElementById('placeSoinType').value,
+    duree:parseInt(document.getElementById('placeDuration').value)||15,
+    date:document.getElementById('tourDate').value||todayStr(),
+    type:tourType
+  };
+  if(!data.patient_nom||!data.adresse){alert('Veuillez renseigner le patient et l\'adresse.');return;}
+
+  const rDiv=document.getElementById('placementResults');
+  rDiv.style.display='flex';
+  rDiv.innerHTML='<div style="text-align:center;padding:16px;color:var(--text3);">Recherche du meilleur creneau...</div>';
+
+  try{
+    const res=await fetch('/api/ide/patient/place',{method:'POST',headers:headers(),body:JSON.stringify(data)});
+    if(!res.ok)throw new Error();
+    const options=await res.json();
+    renderPlacementOptions(options);
+  }catch(e){
+    // Demo options
+    const noms=['Marie','Sophie','Claire'];
+    const options=[
+      {heure:'10h15',ide:noms[0],detour_km:0.8,position:4},
+      {heure:'11h00',ide:noms[1],detour_km:1.2,position:5},
+      {heure:'14h30',ide:noms[0],detour_km:2.1,position:3},
+    ];
+    renderPlacementOptions(options);
+  }
+}
+
+function renderPlacementOptions(options){
+  const rDiv=document.getElementById('placementResults');
+  if(!options.length){rDiv.innerHTML='<div style="text-align:center;padding:16px;color:var(--text3);">Aucun creneau disponible.</div>';return;}
+  rDiv.innerHTML=options.map((o,i)=>
+    '<div class="placement-option">'+
+      '<div>'+
+        '<div class="placement-info">'+escHtml(o.heure)+' avec '+escHtml(o.ide)+'</div>'+
+        '<div class="placement-detail">Detour : '+escHtml(String(o.detour_km))+' km &mdash; Position #'+escHtml(String(o.position))+'</div>'+
+      '</div>'+
+      '<button class="placement-confirm" onclick="confirmPlacement('+parseInt(i)+')">Confirmer</button>'+
+    '</div>'
+  ).join('');
+}
+
+async function confirmPlacement(idx){
+  // TODO: call API to confirm
+  closePlacementModal();
+  loadTournee();
+}
+
+/* ===== IDE SELECT ===== */
+async function loadIdeSelect(targetId){
+  const sel=document.getElementById(targetId);
+  if(sel.options.length>1)return;
+  try{
+    const res=await fetch('/api/ide/equipe',{headers:headers()});
+    if(!res.ok)throw new Error();
+    const ides=await res.json();
+    ides.forEach(ide=>{const o=document.createElement('option');o.value=ide.id;o.textContent=ide.prenom+' '+ide.nom;sel.appendChild(o);});
+  }catch(e){
+    ['Marie Laurent','Sophie Lefebvre','Claire Moreau'].forEach((n,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=n;sel.appendChild(o);});
+  }
+}
+
+/* ===== UTILS ===== */
+function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function formatDateShort(d){if(typeof d==='string')d=new Date(d);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
+
+/* Close modals on overlay click */
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+});
+
+/* Close autocomplete on outside click */
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.field'))document.querySelectorAll('.autocomplete-list').forEach(l=>l.classList.remove('show'));
+});
+</script>
+
+</body>
+</html>
