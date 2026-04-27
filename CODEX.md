@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 57 — JADOMI Sign AES integre au mandat fournisseur
+**Derniere passe** : Passe 58 — Gestionnaire documents + Signature electronique integree + Sidebar accordeon
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1383,6 +1383,53 @@ GET /api/facturation/mandate/:id/pdf (mandat specifique)
 POST /api/facturation/mandates/send (creer + envoyer email signature au fournisseur)
 Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 
+## Passe 58 (27 avril 2026) -- Gestionnaire documents + Signature electronique + Sidebar accordeon
+
+### OTP Fix (3 bugs critiques)
+- Fix code OTP incorrect : normalisation phone (E.164) avant cle store
+- Timer 60s countdown live avec barre progression (bleu→orange→rouge)
+- Bouton "Renvoyer le code" avec cooldown 30s anti-spam + feedback visuel
+- TTL aligne serveur/front a 60 secondes
+
+### PDF Contrat Complet
+- PDF mandat passe de 5 lignes a 11 articles complets (juridiquement valide)
+- Nom complet signataire + titre + IBAN masque + mentions eIDAS
+- Plus de "SIRET : N/A"
+
+### Gestionnaire Documents (index.html + server.js)
+- POST /api/documents/upload (multer, PDF/JPG/PNG/DOCX, 20MB max)
+- DELETE /api/documents/signed/:id (verification permissions)
+- Vue dossiers par categorie (Contrats, Factures, Devis, Juridique, Avocat, Administratif)
+- Modal upload drag & drop + filtres categorie/statut/recherche + pagination
+- Champ "Nom du patient" pour devis dentaires (stocke dans metadata JSONB)
+- Methode Builder/Reviewer : 12 corrections dont 1 IDOR critique, 5 XSS, path traversal
+
+### Coffre-fort chiffre (categories sensibles)
+- Categories Avocat/Juridique redirigees vers coffre-fort AES-256-GCM
+- Badge cadenas sur dossiers sensibles, upload chiffre automatique
+- Endpoint POST /api/avocat/coffre/dossiers ajoute
+
+### Signature Electronique integree
+- Onglet Signature dans index.html ET organisation.html (plus de redirect casse)
+- Envoi documents a signer (destinataire, email, patient, type, upload)
+- Tableau documents signes avec stats, badges statut, actions (PDF, certificat, renvoyer)
+
+### Sidebar Accordeon Premium
+- 7 categories cliquables dans index.html (hub dentiste)
+- 3 categories dans organisation.html
+- Fleche animee dans badge arrondi, hover glow subtil
+- Etat ouvert/ferme persiste en localStorage
+- Auto-ouverture du groupe parent a la navigation
+- Style premium visible : titres #b0b8c8, hover blanc, badges accent
+
+### Commits Passe 58 (6 commits)
+1. fix(sign): OTP timer 60s + resend + PDF contrat 11 articles
+2. feat(docs): Gestionnaire documents complet — upload, dossiers, tri
+3. feat(docs): Signature electronique integree + coffre-fort + champ patient
+4. feat(sign): Onglet Signature electronique dans hub dentiste
+5. feat(ui): Sidebar accordeon premium — categories cliquables
+6. fix(ui): Sidebar accordeon — visibilite + toggle fonctionnel
+
 ## Passe 57 (27 avril 2026) -- JADOMI Sign AES integre au mandat fournisseur
 Integration complete de JADOMI Sign dans la page de signature du mandat.
 Avant : simple checkbox + nom. Maintenant : flux AES complet.
@@ -1412,21 +1459,21 @@ transport, calcul haversine frais port, garantie A-to-Z, scoring 100 points.
 Mise a jour dossier avocat : questions 25-26 actualisees, checklist nettoyee.
 CODEX.md enrichi avec section Architecture Marketplace Finale.
 
-## TODO Passe 57
+## TODO Passe 58
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
-- Tester envoi email contrat fournisseur en conditions reelles
+- ~~Tester envoi email contrat fournisseur en conditions reelles~~ [FAIT Passe 58]
+- ~~Tester parcours complet signature (envoi → reception email → signature → certificat)~~ [FAIT Passe 58]
+- ~~Integrer signature dans module dentiste (plans de traitement)~~ [FAIT Passe 58 — onglet Signature dans hub]
 - Tester envoi 4 documents par email
 - Fail2ban configurer (apt-get ClamAV bloquait le lock)
 - Cloudflare free (Karim — changer DNS OVH)
 - Remplacer xlsx par exceljs (6 CVEs npm)
 - CSP strict sans unsafe-inline (refacto frontend)
 - Executer SQL 57_signed_documents.sql en production (Supabase Dashboard)
-- Configurer DOCUSEAL_API_KEY dans .env (recuperer depuis DocuSeal admin http://IP:3100)
-- Configurer DOCUSEAL_WEBHOOK_SECRET dans .env
-- Configurer webhook DocuSeal → https://jadomi.fr/api/webhooks/docuseal
-- Tester parcours complet signature (envoi → reception email → signature → certificat)
-- Integrer signature dans module BTP (devis) et module dentiste (plans de traitement)
+- Configurer DOCUSEAL_API_KEY dans .env
+- Integrer signature dans module BTP (devis)
 - Ajouter module signature dans l'espace client securise (patients/clients)
+- Ameliorer esthetique sidebar accordeon (animations plus fluides, icones SVG)
 
 ===============================================================
 # 11. METHODE DE DEVELOPPEMENT OBLIGATOIRE
