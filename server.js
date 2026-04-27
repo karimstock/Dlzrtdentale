@@ -3336,6 +3336,7 @@ app.post('/api/admin/send-documents', requireAuth(), async (req, res) => {
       { path: 'docs/business-plan-jadomi.html', name: 'BUSINESS-PLAN-JADOMI.html', label: 'Business Plan' },
       { path: 'docs/dossier-avocat-jadomi.html', name: 'Dossier-Juridique-Complet.html', label: 'Dossier Juridique Complet' },
       { path: 'docs/Modele-Mandat-Facturation-JADOMI.pdf', name: 'Contrat-Mandat-Facturation-JADOMI.pdf', label: 'Contrat Mandat Facturation (PDF)' },
+      { path: 'docs/emails-fabricants-equipment.html', name: 'Emails-Fabricants-Equipment-JADOMI.html', label: 'Emails type fabricants equipement' },
     ];
 
     for (const doc of docFiles) {
