@@ -78,10 +78,9 @@ Vue d'ensemble / Comptabilite / Clients & Users / Messages / Analytics
   (Rapide / JADOMI Optimise / Groupe regional)
 - Groupon dentaire : paniers groupes 48h max, 5 cabinets min,
   double trigger (5 atteints ou 48h ecoulees)
-- Module logistique : entrepots fournisseurs, tarifs transport
-  negocies, etiquettes PDF auto, regle 150EUR (gratuit si >=)
-- Anonymat maintenu naturellement par la chaine logistique
-- Generation PDF etiquettes via pdfkit
+- Module logistique : entrepots fournisseurs, regle 150EUR (gratuit si >=)
+- Fournisseur expedie avec son propre transporteur
+- Frais de port proposes par le fournisseur (< 150EUR), valides par le client
 - API Adresse gouv.fr pour geocodage entrepots
 - Backend: /api/logistics/* + /api/groupage/*
 
@@ -536,6 +535,46 @@ JADOMI propose 3 niveaux de partenariat fournisseur :
 3. Fournisseur livre
 4. Apres confirmation livraison + 14 jours : JADOMI reverse
 5. Reversement = montant commande - commission (selon palier) - frais port si applicable
+
+## Architecture Marketplace Finale (Passe 56)
+
+### Principe : JADOMI = Infrastructure, pas intermediaire
+JADOMI est l'OS du B2B dentaire. Comme Doctolib pour les RDV,
+JADOMI pour les achats : mise en relation + paiement + facturation.
+
+### Ce que JADOMI gere
+- Prise de commande (catalogue, panier, paiement CB/PayPal)
+- Facturation electronique au nom du fournisseur (mandat art. 289 CGI)
+- Encaissement + reversement J+14 apres livraison (Stripe Connect)
+- Mise en relation client-fournisseur (messagerie integree)
+- Signature electronique des mandats (JADOMI Sign AES eIDAS)
+
+### Ce que JADOMI ne gere PAS
+- Logistique (le fournisseur expedie avec son propre transporteur)
+- SAV produit (le fournisseur gere directement avec le client)
+- Calcul frais de port (le fournisseur propose, le client valide)
+- Etiquettes transport (le fournisseur genere les siennes)
+
+### Flux de commande
+1. Dentiste commande + paye par CB
+2. Fournisseur recoit notification anonyme (produits + region)
+3. Fournisseur accepte → identite client revelee
+4. Si < 150€ HT → fournisseur propose frais port → client valide
+5. Fournisseur expedie + saisit tracking
+6. Livraison confirmee → J+14 → JADOMI reverse (minus commission)
+7. SAV = entre fournisseur et client via messagerie JADOMI
+
+### Protection anti-demarchage (contractuelle, pas technique)
+- Identite client revelee seulement apres acceptation commande
+- Clause de non-demarchage dans le mandat (12 mois post-resiliation)
+- Interdiction de marketing dans les colis
+- Penalite 5 000€ par infraction
+- Vrai lock-in = prix GPO + facilite + multi-fournisseur + facture auto
+
+### Frais de port
+- >= 150€ HT : livraison gratuite (fournisseur paye son transport)
+- < 150€ HT : fournisseur propose ses frais → client valide ou refuse
+- Pas de forfait JADOMI, le fournisseur connait ses propres tarifs
 
 ## Revenus regie JADOMI Ads (annonceurs)
 | Tier | Prix/mois | Campagnes | Cible |
@@ -1333,24 +1372,31 @@ Utilise dans le dashboard Documents pour autocompletion fournisseurs.
 PDF genere par lib/mandate-contract-pdf.js — 11 articles simplifies (Passe 56) :
 Art.1 Objet (289-I-2 CGI), Art.2 Obligations JADOMI, Art.3 Obligations Fournisseur,
 Art.4 Conditions financieres (3 paliers Bronze/Silver/Gold), Art.4b Frais livraison,
-Art.4c Anonymat logistique, Art.5 Coordonnees bancaires, Art.6 Duree/Resiliation,
+Art.4c Non-demarchage et protection commerciale (12 mois, penalite 5 000EUR),
+Art.5 Coordonnees bancaires, Art.6 Duree/Resiliation,
 Art.7 Acceptation electronique, Art.8 Loi applicable,
 Art.9 SAV (fournisseur responsable, 48h, suspension apres 3 non-reponses),
 Art.10 Paiement/Reversement (3 paliers, J+14 apres livraison),
-Art.11 Expedition/Suivi (48h, etiquettes anonymes).
+Art.11 Expedition/Suivi (48h, fournisseur expedie avec son transporteur).
 Endpoints : GET /api/facturation/mandate-template/pdf (modele vierge)
 GET /api/facturation/mandate/:id/pdf (mandat specifique)
 POST /api/facturation/mandates/send (creer + envoyer email signature au fournisseur)
 Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 
-## Passe 56 (27 avril 2026) -- Modele Fournisseurs 3 Paliers + Simplification Contrat
+## Passe 56 (27 avril 2026) -- Architecture Marketplace Finale "Doctolib du B2B dentaire"
 Refonte du modele economique fournisseur : 3 paliers Bronze/Silver/Gold.
 Simplification drastique du contrat de mandat (mandate-sign.html) : suppression
 des articles complexes (escrow, penalites J+2/J+4/J+7, garantie JADOMI 500EUR,
 scoring 100 points) et remplacement par 3 articles simples (SAV, Paiement, Expedition).
-Mise a jour dossier avocat (DOSSIER-AVOCAT-JADOMI.html) : question 23 enrichie
-avec les 3 paliers, checklist documents completee.
-CODEX.md enrichi avec section Modele Fournisseurs 3 Paliers dans le modele economique.
+Architecture marketplace finalisee : JADOMI = infrastructure (paiement + facturation +
+mise en relation), PAS intermediaire logistique. Le fournisseur expedie lui-meme,
+propose ses frais de port, gere son SAV. Protection anti-demarchage contractuelle
+(clause 12 mois post-resiliation, penalite 5 000EUR, pas de marketing dans colis).
+Flux commande : notification anonyme → acceptation → identite revelee → expedition →
+tracking → J+14 reversement. Suppression : etiquettes anonymes JADOMI, marge 15%
+transport, calcul haversine frais port, garantie A-to-Z, scoring 100 points.
+Mise a jour dossier avocat : questions 25-26 actualisees, checklist nettoyee.
+CODEX.md enrichi avec section Architecture Marketplace Finale.
 
 ## TODO Passe 57
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee

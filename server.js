@@ -154,11 +154,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Middleware : strip .html extension et rediriger vers URL propre
+// Middleware : strip .html extension et rediriger vers URL propre (conserve les query params)
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !req.path.startsWith('/public/') && !req.path.startsWith('/api/')) {
     const cleanPath = req.path.replace(/\.html$/, '');
-    return res.redirect(301, cleanPath);
+    const qs = req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : '';
+    return res.redirect(301, cleanPath + qs);
   }
   next();
 });
@@ -2836,14 +2837,11 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       signed_at: new Date().toISOString(),
       signed_ip: req.ip || req.connection?.remoteAddress || 'unknown',
       signed_user_agent: String(req.headers['user-agent'] || '').substring(0, 500),
-      signer_name: String(signer_name).trim().substring(0, 200),
-      signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null,
-      supplier_iban: cleanIban,
-      supplier_bic: cleanBic,
-      supplier_adresse: warehouse_address ? String(warehouse_address).trim().substring(0, 300) : null,
-      supplier_code_postal: warehouse_postal_code ? String(warehouse_postal_code).trim().substring(0, 10) : null,
-      supplier_ville: warehouse_city ? String(warehouse_city).trim().substring(0, 100) : null,
       metadata: {
+        signer_name: String(signer_name).trim().substring(0, 200),
+        signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null,
+        iban: cleanIban,
+        bic: cleanBic,
         bank_name: bank_name ? String(bank_name).trim().substring(0, 100) : null,
         signed_with_rib: true,
         warehouse: {
