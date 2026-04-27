@@ -269,10 +269,12 @@
     }
 
     #sig-canvas { touch-action: none; }
+    #sig-typed-preview { font-family: 'Brush Script MT','Segoe Script','Dancing Script',cursive; }
     @media (max-width: 520px) {
       .summary-box { grid-template-columns: 1fr; }
       .card-body, .sign-form { padding: 20px; }
-      #sig-canvas { height: 140px; }
+      #sig-canvas { height: 200px; }
+      #sig-typed-preview { font-size: 32px !important; }
     }
   </style>
 </head>
@@ -463,11 +465,46 @@
         </div>
         <div class="form-row">
           <label for="signer_phone">Telephone portable * (pour verification SMS)</label>
-          <input type="tel" id="signer_phone" placeholder="06 12 34 56 78" autocomplete="tel" style="letter-spacing:1px;">
+          <div style="display:flex;gap:8px;">
+            <select id="phone_prefix" style="width:130px;padding:10px 8px;border:1px solid #d4d4de;border-radius:8px;font-size:13px;font-family:inherit;color:#1a1a2e;background:#fff;">
+              <optgroup label="Europe">
+              <option value="+33">🇫🇷 +33 France</option>
+              <option value="+32">🇧🇪 +32 Belgique</option>
+              <option value="+41">🇨🇭 +41 Suisse</option>
+              <option value="+352">🇱🇺 +352 Luxembourg</option>
+              <option value="+49">🇩🇪 +49 Allemagne</option>
+              <option value="+34">🇪🇸 +34 Espagne</option>
+              <option value="+39">🇮🇹 +39 Italie</option>
+              <option value="+44">🇬🇧 +44 Royaume-Uni</option>
+              <option value="+351">🇵🇹 +351 Portugal</option>
+              <option value="+31">🇳🇱 +31 Pays-Bas</option>
+              <option value="+43">🇦🇹 +43 Autriche</option>
+              <option value="+48">🇵🇱 +48 Pologne</option>
+              <option value="+46">🇸🇪 +46 Suede</option>
+              <option value="+45">🇩🇰 +45 Danemark</option>
+              <option value="+358">🇫🇮 +358 Finlande</option>
+              <option value="+353">🇮🇪 +353 Irlande</option>
+              <option value="+30">🇬🇷 +30 Grece</option>
+              <option value="+40">🇷🇴 +40 Roumanie</option>
+              </optgroup>
+              <optgroup label="Maghreb">
+              <option value="+212">🇲🇦 +212 Maroc</option>
+              <option value="+213">🇩🇿 +213 Algerie</option>
+              <option value="+216">🇹🇳 +216 Tunisie</option>
+              </optgroup>
+              <optgroup label="Autres">
+              <option value="+1">🇺🇸 +1 USA/Canada</option>
+              <option value="+90">🇹🇷 +90 Turquie</option>
+              <option value="+966">🇸🇦 +966 Arabie Saoudite</option>
+              <option value="+971">🇦🇪 +971 Emirats</option>
+              </optgroup>
+            </select>
+            <input type="tel" id="signer_phone" placeholder="6 12 34 56 78" autocomplete="tel" style="flex:1;letter-spacing:1px;">
+          </div>
         </div>
 
-        <h3 style="margin-top:28px;">Adresse de l'entrepot principal</h3>
-        <p style="font-size:12px;color:#8888a0;margin-bottom:16px;">Adresse d'expedition de vos colis. Utilisee pour le calcul des frais de livraison.</p>
+        <h3 style="margin-top:28px;">Adresse du siege / entrepot principal</h3>
+        <p style="font-size:12px;color:#8888a0;margin-bottom:16px;">Adresse figurant sur le contrat de mandat.</p>
         <div class="form-row">
           <label for="warehouse_address">Adresse *</label>
           <input type="text" id="warehouse_address" placeholder="Ex. 15 rue des Acacias" autocomplete="street-address">
@@ -508,41 +545,114 @@
           <label for="accept_terms">J'ai lu et j'accepte les termes du mandat de facturation ci-dessus. Je confirme avoir l'autorite necessaire pour engager ma societe et j'autorise JADOMI a emettre des factures en mon nom.</label>
         </div>
 
-        <!-- Step 2: Canvas signature -->
+        <!-- Step 2: Signature electronique premium -->
         <div id="signature-area" style="display:none;">
-          <p style="font-size:12px;color:#6c6c80;margin-bottom:12px;">Signez dans le cadre ci-dessous (souris ou doigt sur mobile) :</p>
-          <div style="position:relative;border:2px dashed #d4d4de;border-radius:10px;background:#fafafe;margin-bottom:12px;">
-            <canvas id="sig-canvas" width="660" height="180" style="width:100%;height:180px;cursor:crosshair;display:block;border-radius:8px;"></canvas>
-            <div id="sig-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:#c4c4d4;font-size:14px;font-style:italic;">Dessinez votre signature ici</div>
+
+          <!-- Tabs: Dessiner / Taper -->
+          <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid #e8e8f0;">
+            <button type="button" id="tab-draw" onclick="switchSigTab('draw')" style="flex:1;padding:12px 16px;font-size:13px;font-weight:600;color:#4F5BD5;background:transparent;border:none;border-bottom:2px solid #4F5BD5;margin-bottom:-2px;cursor:pointer;">Dessiner</button>
+            <button type="button" id="tab-type" onclick="switchSigTab('type')" style="flex:1;padding:12px 16px;font-size:13px;font-weight:600;color:#8888a0;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">Taper votre nom</button>
           </div>
-          <div style="display:flex;gap:8px;margin-bottom:16px;">
-            <button type="button" onclick="clearSignature()" style="padding:8px 16px;border:1px solid #d4d4de;border-radius:6px;font-size:12px;background:#fff;color:#3c3c50;cursor:pointer;">Effacer</button>
-            <button type="button" onclick="adoptSignature()" style="padding:8px 16px;border:1px solid #d4d4de;border-radius:6px;font-size:12px;background:#fff;color:#3c3c50;cursor:pointer;">Adopter (taper votre nom)</button>
+
+          <!-- Draw mode -->
+          <div id="sig-draw-mode" style="padding:20px 0;">
+            <div style="position:relative;border:3px solid #1a1a2e;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08);">
+              <!-- Decorative corner marks -->
+              <div style="position:absolute;top:12px;left:12px;width:20px;height:20px;border-top:2px solid #4F5BD5;border-left:2px solid #4F5BD5;border-radius:3px 0 0 0;"></div>
+              <div style="position:absolute;top:12px;right:12px;width:20px;height:20px;border-top:2px solid #4F5BD5;border-right:2px solid #4F5BD5;border-radius:0 3px 0 0;"></div>
+              <div style="position:absolute;bottom:50px;left:12px;width:20px;height:20px;border-bottom:2px solid #4F5BD5;border-left:2px solid #4F5BD5;border-radius:0 0 0 3px;"></div>
+              <div style="position:absolute;bottom:50px;right:12px;width:20px;height:20px;border-bottom:2px solid #4F5BD5;border-right:2px solid #4F5BD5;border-radius:0 0 3px 0;"></div>
+              <!-- Signature line -->
+              <div style="position:absolute;bottom:70px;left:50px;right:50px;border-bottom:2px solid #e2e2ee;"></div>
+              <div style="position:absolute;bottom:52px;right:50px;font-size:9px;color:#b0b0c0;letter-spacing:1px;text-transform:uppercase;">Signature</div>
+              <!-- X mark -->
+              <div style="position:absolute;bottom:72px;left:35px;font-size:18px;color:#d4d4de;font-weight:300;">×</div>
+              <canvas id="sig-canvas" width="660" height="320" style="width:100%;height:320px;cursor:crosshair;display:block;"></canvas>
+              <div id="sig-hint" style="position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);pointer-events:none;text-align:center;">
+                <div style="font-size:48px;margin-bottom:12px;opacity:.2;">✍️</div>
+                <div style="color:#c4c4d4;font-size:15px;font-weight:500;">Signez ici</div>
+                <div style="color:#d4d4de;font-size:12px;margin-top:4px;">Dessinez avec votre souris ou doigt</div>
+              </div>
+              <!-- Footer bar -->
+              <div style="background:#f8f8fc;border-top:1px solid #e8e8f0;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:#b0b0c0;">JADOMI Sign — Signature manuscrite electronique</span>
+                <button type="button" onclick="clearSignature()" style="padding:6px 16px;border:1px solid #e2e2ee;border-radius:6px;font-size:11px;font-weight:500;background:#fff;color:#6c6c80;cursor:pointer;">Effacer</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Type mode -->
+          <div id="sig-type-mode" style="display:none;padding:20px 0;">
+            <div style="position:relative;border:3px solid #1a1a2e;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08);">
+              <!-- Decorative corner marks -->
+              <div style="position:absolute;top:12px;left:12px;width:20px;height:20px;border-top:2px solid #4F5BD5;border-left:2px solid #4F5BD5;border-radius:3px 0 0 0;"></div>
+              <div style="position:absolute;top:12px;right:12px;width:20px;height:20px;border-top:2px solid #4F5BD5;border-right:2px solid #4F5BD5;border-radius:0 3px 0 0;"></div>
+              <div style="padding:50px 40px 20px;">
+                <!-- Signature line -->
+                <div style="border-bottom:2px solid #e2e2ee;padding-bottom:15px;margin-bottom:10px;min-height:80px;display:flex;align-items:flex-end;justify-content:center;">
+                  <div id="sig-typed-preview" style="font-size:52px;color:#1a1a2e;line-height:1;"></div>
+                </div>
+                <div style="text-align:right;font-size:9px;color:#b0b0c0;letter-spacing:1px;text-transform:uppercase;">Signature</div>
+              </div>
+              <div style="padding:0 40px 20px;">
+                <input type="text" id="sig-type-input" placeholder="Tapez votre nom complet ici" oninput="updateTypedSig()" style="text-align:center;font-size:16px;padding:12px;border:2px solid #e2e2ee;border-radius:10px;width:100%;font-family:inherit;">
+              </div>
+              <!-- Footer bar -->
+              <div style="background:#f8f8fc;border-top:1px solid #e8e8f0;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:#b0b0c0;">JADOMI Sign — Signature adoptee</span>
+                <span style="font-size:10px;color:#4F5BD5;font-weight:600;">Police cursive officielle</span>
+              </div>
+            </div>
           </div>
 
           <!-- OTP SMS verification -->
-          <div id="otp-section" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:16px;">
-            <p style="font-size:13px;font-weight:600;color:#1e40af;margin-bottom:8px;">Verification d'identite par SMS</p>
-            <p style="font-size:12px;color:#6c6c80;margin-bottom:12px;">Un code de verification sera envoye au numero renseigne ci-dessus.</p>
+          <div id="otp-section" style="background:linear-gradient(135deg,#f0f7ff,#f5f0ff);border:1px solid #c7d2fe;border-radius:10px;padding:20px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <div style="width:36px;height:36px;background:#4F5BD5;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;">📱</div>
+              <div>
+                <p style="font-size:14px;font-weight:600;color:#1e1b4b;margin:0;">Verification d'identite par SMS</p>
+                <p style="font-size:11px;color:#6c6c80;margin:2px 0 0;">Requis pour la signature electronique avancee (AES)</p>
+              </div>
+            </div>
             <div id="otp-send-area">
-              <button type="button" id="btn-send-otp" onclick="sendOTP()" style="padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Envoyer le code SMS</button>
+              <button type="button" id="btn-send-otp" onclick="sendOTP()" style="width:100%;padding:12px 20px;background:linear-gradient(135deg,#4F5BD5,#6366f1);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 2px 8px rgba(79,91,213,.3);">Recevoir mon code par SMS</button>
             </div>
             <div id="otp-verify-area" style="display:none;">
               <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" id="otp-code" placeholder="Code a 6 chiffres" maxlength="6" style="width:160px;padding:10px 14px;border:1px solid #bfdbfe;border-radius:8px;font-size:16px;font-family:'Courier New',monospace;letter-spacing:4px;text-align:center;">
-                <button type="button" onclick="verifyOTP()" style="padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Verifier</button>
+                <input type="text" id="otp-code" placeholder="• • • • • •" maxlength="6" style="flex:1;padding:14px;border:2px solid #c7d2fe;border-radius:10px;font-size:24px;font-family:'Courier New',monospace;letter-spacing:8px;text-align:center;background:#fff;">
+                <button type="button" id="btn-verify-otp" onclick="verifyOTP()" style="padding:14px 24px;background:linear-gradient(135deg,#4F5BD5,#6366f1);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">Verifier</button>
+              </div>
+              <!-- Timer countdown -->
+              <div id="otp-timer-bar" style="margin-top:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <span style="font-size:12px;color:#6c6c80;">Temps restant</span>
+                  <span id="otp-timer-text" style="font-size:14px;font-weight:700;color:#4F5BD5;font-family:'Courier New',monospace;">01:00</span>
+                </div>
+                <div style="width:100%;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+                  <div id="otp-timer-progress" style="width:100%;height:100%;background:linear-gradient(90deg,#4F5BD5,#6366f1);border-radius:3px;transition:width 1s linear;"></div>
+                </div>
               </div>
               <p id="otp-msg" style="font-size:12px;margin-top:8px;"></p>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <button type="button" id="btn-resend-otp" onclick="resendOTP()" style="padding:0;background:none;border:none;color:#4F5BD5;font-size:12px;cursor:pointer;text-decoration:underline;">Renvoyer le code</button>
+                <span id="resend-cooldown" style="font-size:11px;color:#9ca3af;display:none;"></span>
+              </div>
             </div>
-            <div id="otp-success" style="display:none;color:#059669;font-size:13px;font-weight:600;">
-              ✓ Identite verifiee par SMS
+            <div id="otp-success" style="display:none;padding:12px 16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;margin-top:8px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:20px;">✅</span>
+                <span style="color:#065f46;font-size:14px;font-weight:600;">Identite verifiee avec succes</span>
+              </div>
             </div>
           </div>
 
           <!-- eIDAS badge -->
-          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px;">
-            <span style="font-size:16px;">🔒</span>
-            <span style="font-size:11px;color:#065f46;">Signature Electronique Avancee (AES) — conforme eIDAS Article 26 — PAdES PKCS#7</span>
+          <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #a7f3d0;border-radius:10px;margin-bottom:16px;">
+            <div style="width:32px;height:32px;background:#059669;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;">🔒</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#065f46;">Signature Electronique Avancee (AES)</div>
+              <div style="font-size:10px;color:#059669;">Conforme eIDAS Article 26 — PAdES PKCS#7 — Certificat SHA-256</div>
+            </div>
           </div>
         </div>
 
@@ -676,65 +786,212 @@
 
   // === SIGNATURE CANVAS ===
   var canvas = document.getElementById('sig-canvas');
-  var ctx = canvas ? canvas.getContext('2d') : null;
+  var ctx = null;
   var drawing = false;
   var hasDrawn = false;
+  var canvasInitialized = false;
 
-  if (canvas && ctx) {
-    // High DPI
-    var dpr = window.devicePixelRatio || 1;
-    var rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    ctx.strokeStyle = '#1a1a2e';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+  function initCanvas() {
+    if (canvasInitialized || !canvas) return;
+    ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Wait a frame so the canvas is visible and has dimensions
+    requestAnimationFrame(function() {
+      var dpr = window.devicePixelRatio || 1;
+      var rect = canvas.getBoundingClientRect();
+      // Fallback if still hidden
+      var w = rect.width || 660;
+      var h = rect.height || 320;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      canvasInitialized = true;
+    });
 
     function getPos(e) {
       var r = canvas.getBoundingClientRect();
       var t = e.touches ? e.touches[0] : e;
       return { x: t.clientX - r.left, y: t.clientY - r.top };
     }
-    canvas.addEventListener('mousedown', function(e) { drawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); });
-    canvas.addEventListener('mousemove', function(e) { if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; document.getElementById('sig-hint').style.display = 'none'; updateBtn(); });
+
+    canvas.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      drawing = true;
+      ctx.beginPath();
+      var p = getPos(e);
+      ctx.moveTo(p.x, p.y);
+    });
+    canvas.addEventListener('mousemove', function(e) {
+      if (!drawing) return;
+      var p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      hasDrawn = true;
+      var hint = document.getElementById('sig-hint');
+      if (hint) hint.style.display = 'none';
+      updateBtn();
+    });
     canvas.addEventListener('mouseup', function() { drawing = false; });
     canvas.addEventListener('mouseleave', function() { drawing = false; });
-    canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); }, { passive: false });
-    canvas.addEventListener('touchmove', function(e) { e.preventDefault(); if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; document.getElementById('sig-hint').style.display = 'none'; updateBtn(); }, { passive: false });
+
+    canvas.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      drawing = true;
+      ctx.beginPath();
+      var p = getPos(e);
+      ctx.moveTo(p.x, p.y);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+      if (!drawing) return;
+      var p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      hasDrawn = true;
+      var hint = document.getElementById('sig-hint');
+      if (hint) hint.style.display = 'none';
+      updateBtn();
+    }, { passive: false });
     canvas.addEventListener('touchend', function() { drawing = false; });
   }
 
+  var currentSigTab = 'draw';
+
+  function switchSigTab(tab) {
+    currentSigTab = tab;
+    document.getElementById('sig-draw-mode').style.display = tab === 'draw' ? 'block' : 'none';
+    document.getElementById('sig-type-mode').style.display = tab === 'type' ? 'block' : 'none';
+    document.getElementById('tab-draw').style.color = tab === 'draw' ? '#4F5BD5' : '#8888a0';
+    document.getElementById('tab-draw').style.borderBottomColor = tab === 'draw' ? '#4F5BD5' : 'transparent';
+    document.getElementById('tab-type').style.color = tab === 'type' ? '#4F5BD5' : '#8888a0';
+    document.getElementById('tab-type').style.borderBottomColor = tab === 'type' ? '#4F5BD5' : 'transparent';
+    if (tab === 'type') {
+      var nameVal = inputName ? inputName.value.trim() : '';
+      document.getElementById('sig-type-input').value = nameVal;
+      updateTypedSig();
+    }
+    updateBtn();
+  }
+
+  function updateTypedSig() {
+    var val = document.getElementById('sig-type-input').value.trim();
+    document.getElementById('sig-typed-preview').textContent = val || '';
+    if (val.length >= 2) { hasDrawn = true; } else { hasDrawn = false; }
+    updateBtn();
+  }
+
   function clearSignature() {
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
     var dpr = window.devicePixelRatio || 1;
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    // Reset stroke style after clear
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     hasDrawn = false;
-    document.getElementById('sig-hint').style.display = 'flex';
+    var hint = document.getElementById('sig-hint');
+    if (hint) hint.style.display = '';
     signatureData = null;
     updateBtn();
   }
 
+  // Not needed anymore (replaced by type tab) but keep for compat
   function adoptSignature() {
+    switchSigTab('type');
     var name = (inputName ? inputName.value.trim() : '') || 'Signature';
-    if (!ctx) return;
-    clearSignature();
-    hasDrawn = true;
-    document.getElementById('sig-hint').style.display = 'none';
-    var dpr = window.devicePixelRatio || 1;
-    ctx.font = 'italic 36px "Brush Script MT", "Segoe Script", cursive';
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillText(name, 30, 110);
+    document.getElementById('sig-type-input').value = name;
+    updateTypedSig();
     updateBtn();
   }
 
   // === OTP SMS ===
+  var otpTimerInterval = null;
+  var otpSecondsLeft = 0;
+  var resendCooldown = 0;
+  var resendInterval = null;
+
+  function getFullPhone() {
+    var prefix = document.getElementById('phone_prefix')?.value || '+33';
+    var num = (inputPhone ? inputPhone.value.trim().replace(/^0+/, '') : '');
+    return prefix + num.replace(/\s/g, '');
+  }
+
+  function startOtpTimer(seconds) {
+    otpSecondsLeft = seconds;
+    var timerText = document.getElementById('otp-timer-text');
+    var timerProgress = document.getElementById('otp-timer-progress');
+    var timerBar = document.getElementById('otp-timer-bar');
+    var totalSeconds = seconds;
+    timerBar.style.display = 'block';
+
+    if (otpTimerInterval) clearInterval(otpTimerInterval);
+    otpTimerInterval = setInterval(function() {
+      otpSecondsLeft--;
+      var m = Math.floor(otpSecondsLeft / 60);
+      var s = otpSecondsLeft % 60;
+      timerText.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+      timerProgress.style.width = Math.max(0, (otpSecondsLeft / totalSeconds) * 100) + '%';
+
+      // Couleur selon le temps restant
+      if (otpSecondsLeft <= 10) {
+        timerText.style.color = '#dc2626';
+        timerProgress.style.background = '#dc2626';
+      } else if (otpSecondsLeft <= 20) {
+        timerText.style.color = '#f59e0b';
+        timerProgress.style.background = '#f59e0b';
+      } else {
+        timerText.style.color = '#4F5BD5';
+        timerProgress.style.background = 'linear-gradient(90deg,#4F5BD5,#6366f1)';
+      }
+
+      if (otpSecondsLeft <= 0) {
+        clearInterval(otpTimerInterval);
+        otpTimerInterval = null;
+        timerText.textContent = '00:00';
+        timerProgress.style.width = '0%';
+        var msg = document.getElementById('otp-msg');
+        msg.textContent = 'Code expire. Cliquez sur "Renvoyer le code".';
+        msg.style.color = '#dc2626';
+      }
+    }, 1000);
+  }
+
+  function startResendCooldown() {
+    resendCooldown = 30;
+    var btnResend = document.getElementById('btn-resend-otp');
+    var cooldownSpan = document.getElementById('resend-cooldown');
+    btnResend.style.display = 'none';
+    cooldownSpan.style.display = 'inline';
+    cooldownSpan.textContent = 'Renvoyer dans 30s...';
+
+    if (resendInterval) clearInterval(resendInterval);
+    resendInterval = setInterval(function() {
+      resendCooldown--;
+      cooldownSpan.textContent = 'Renvoyer dans ' + resendCooldown + 's...';
+      if (resendCooldown <= 0) {
+        clearInterval(resendInterval);
+        resendInterval = null;
+        btnResend.style.display = 'inline';
+        cooldownSpan.style.display = 'none';
+      }
+    }, 1000);
+  }
+
   function sendOTP() {
-    var phone = (inputPhone ? inputPhone.value.trim() : '');
-    if (!phone || phone.replace(/\s/g, '').length < 8) {
+    var phone = getFullPhone();
+    if (!phone || phone.replace(/[+\s]/g, '').length < 9) {
       alert('Veuillez saisir un numero de telephone valide.');
       return;
     }
@@ -752,22 +1009,69 @@
       if (data.ok) {
         document.getElementById('otp-send-area').style.display = 'none';
         document.getElementById('otp-verify-area').style.display = 'block';
+        document.getElementById('otp-code').value = '';
         var msg = document.getElementById('otp-msg');
-        msg.textContent = data.simulated ? 'Mode test — code: verifiez la console serveur' : 'Code envoye au ' + phone;
+        msg.textContent = data.simulated ? 'Mode test — code envoye (voir console serveur)' : 'Code envoye au ' + phone;
         msg.style.color = '#3b82f6';
+        startOtpTimer(60);
+        startResendCooldown();
       } else {
-        btn.textContent = 'Envoyer le code SMS';
+        btn.textContent = 'Recevoir mon code par SMS';
         btn.disabled = false;
         alert(data.error || 'Erreur envoi SMS');
       }
     })
-    .catch(function(e) { btn.textContent = 'Envoyer le code SMS'; btn.disabled = false; alert('Erreur: ' + e.message); });
+    .catch(function(e) { btn.textContent = 'Recevoir mon code par SMS'; btn.disabled = false; alert('Erreur: ' + e.message); });
+  }
+
+  function resendOTP() {
+    var phone = getFullPhone();
+    if (!phone || phone.replace(/[+\s]/g, '').length < 9) {
+      alert('Veuillez saisir un numero de telephone valide.');
+      return;
+    }
+    var btnResend = document.getElementById('btn-resend-otp');
+    btnResend.textContent = 'Envoi en cours...';
+    btnResend.style.pointerEvents = 'none';
+
+    fetch('/api/signatures/send-otp-public', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone, document_id: token })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btnResend.textContent = 'Renvoyer le code';
+      btnResend.style.pointerEvents = '';
+      if (data.ok) {
+        document.getElementById('otp-code').value = '';
+        var msg = document.getElementById('otp-msg');
+        msg.textContent = 'Nouveau code envoye !';
+        msg.style.color = '#059669';
+        startOtpTimer(60);
+        startResendCooldown();
+      } else {
+        var msg = document.getElementById('otp-msg');
+        msg.textContent = data.error || 'Erreur envoi SMS';
+        msg.style.color = '#dc2626';
+      }
+    })
+    .catch(function(e) {
+      btnResend.textContent = 'Renvoyer le code';
+      btnResend.style.pointerEvents = '';
+      document.getElementById('otp-msg').textContent = 'Erreur: ' + e.message;
+      document.getElementById('otp-msg').style.color = '#dc2626';
+    });
   }
 
   function verifyOTP() {
     var code = (document.getElementById('otp-code').value || '').trim();
-    var phone = (inputPhone ? inputPhone.value.trim() : '');
+    var phone = getFullPhone();
     if (!code || code.length < 6) { document.getElementById('otp-msg').textContent = 'Entrez le code a 6 chiffres'; document.getElementById('otp-msg').style.color = '#dc2626'; return; }
+
+    var btnVerify = document.getElementById('btn-verify-otp');
+    btnVerify.textContent = 'Verification...';
+    btnVerify.disabled = true;
 
     fetch('/api/signatures/verify-otp-public', {
       method: 'POST',
@@ -777,16 +1081,25 @@
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.ok) {
+        if (otpTimerInterval) { clearInterval(otpTimerInterval); otpTimerInterval = null; }
+        if (resendInterval) { clearInterval(resendInterval); resendInterval = null; }
         otpVerified = true;
         document.getElementById('otp-verify-area').style.display = 'none';
         document.getElementById('otp-success').style.display = 'block';
         updateBtn();
       } else {
+        btnVerify.textContent = 'Verifier';
+        btnVerify.disabled = false;
         document.getElementById('otp-msg').textContent = data.error || 'Code incorrect';
         document.getElementById('otp-msg').style.color = '#dc2626';
       }
     })
-    .catch(function(e) { document.getElementById('otp-msg').textContent = 'Erreur: ' + e.message; document.getElementById('otp-msg').style.color = '#dc2626'; });
+    .catch(function(e) {
+      btnVerify.textContent = 'Verifier';
+      btnVerify.disabled = false;
+      document.getElementById('otp-msg').textContent = 'Erreur: ' + e.message;
+      document.getElementById('otp-msg').style.color = '#dc2626';
+    });
   }
 
   // === FORM VALIDATION ===
@@ -801,9 +1114,15 @@
     var signed = hasDrawn;
     var otpOk = otpVerified;
 
-    // Show signature area when basic fields are filled + terms accepted
-    if (nameOk && phoneOk && ibanOk && warehouseOk && accepted) {
-      if (sigArea) sigArea.style.display = 'block';
+    // Show signature area as soon as checkbox is checked
+    if (accepted) {
+      if (sigArea) {
+        sigArea.style.display = 'block';
+        // Init canvas when it becomes visible for the first time
+        if (!canvasInitialized) initCanvas();
+      }
+    } else {
+      if (sigArea) sigArea.style.display = 'none';
     }
 
     btnSign.disabled = !(nameOk && phoneOk && ibanOk && warehouseOk && accepted && signed && otpOk);
@@ -837,7 +1156,7 @@
     if (btnSign.disabled) return;
     var name  = inputName.value.trim();
     var title = document.getElementById('signer_title').value.trim();
-    var phone = (inputPhone ? inputPhone.value.trim() : '');
+    var phone = getFullPhone();
     var iban  = (document.getElementById('signer_iban').value || '').replace(/\s/g, '').toUpperCase();
     var bic   = (document.getElementById('signer_bic').value || '').replace(/\s/g, '').toUpperCase();
     var bank  = (document.getElementById('signer_bank').value || '').trim();
@@ -846,7 +1165,22 @@
     var whCity = (document.getElementById('warehouse_city').value || '').trim();
 
     // Get signature image from canvas
-    var sigImage = canvas ? canvas.toDataURL('image/png') : null;
+    var sigImage = null;
+    if (currentSigTab === 'draw' && canvas) {
+      sigImage = canvas.toDataURL('image/png');
+    } else if (currentSigTab === 'type') {
+      // For typed signature, generate a canvas image from the text
+      var tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = 660; tmpCanvas.height = 200;
+      var tmpCtx = tmpCanvas.getContext('2d');
+      tmpCtx.fillStyle = '#ffffff';
+      tmpCtx.fillRect(0, 0, 660, 200);
+      tmpCtx.font = 'italic 48px "Brush Script MT","Segoe Script","Dancing Script",cursive';
+      tmpCtx.fillStyle = '#1a1a2e';
+      var typedName = document.getElementById('sig-type-input')?.value || name;
+      tmpCtx.fillText(typedName, 40, 120);
+      sigImage = tmpCanvas.toDataURL('image/png');
+    }
 
     if (iban.length < 15) { formError.textContent = 'Veuillez saisir un IBAN valide.'; formError.style.display = 'block'; return; }
     if (!whAddr || !whPostal || !whCity) { formError.textContent = 'Veuillez renseigner l\'adresse de votre entrepot.'; formError.style.display = 'block'; return; }
@@ -890,6 +1224,15 @@
         btnSign.textContent = 'Signer le mandat (AES eIDAS)';
       });
   });
+
+  // Expose functions for onclick handlers in HTML
+  window.switchSigTab = switchSigTab;
+  window.updateTypedSig = updateTypedSig;
+  window.clearSignature = clearSignature;
+  window.adoptSignature = adoptSignature;
+  window.sendOTP = sendOTP;
+  window.resendOTP = resendOTP;
+  window.verifyOTP = verifyOTP;
 
 })();
 </script>

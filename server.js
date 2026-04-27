@@ -2927,28 +2927,139 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       console.log('[mandate/sign] PDF generation skipped (lib not ready):', _pdfErr.message);
     }
 
-    // Generate PAdES-signed mandate PDF
+    // Generate PAdES-signed mandate PDF — contrat complet
     try {
       const jadomiSign = require('./lib/jadomi-sign');
       const PDFDocument = require('pdfkit');
-      // Generate a simple PDF of the mandate text
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const chunks = [];
       doc.on('data', c => chunks.push(c));
+
+      const supplierName = mandate.supplier_name || 'le Fournisseur';
+      const signerFullName = String(signer_name).trim();
+      const signerTitleStr = signer_title ? String(signer_title).trim() : '';
+      const commissionPct = mandate.commission_percent || 10;
+      const delayDays = mandate.payment_delay_days || 30;
+      const signDate = new Date().toLocaleDateString('fr-FR');
+      const ibanMasked = iban ? String(iban).replace(/\s/g, '').replace(/.(?=.{4})/g, '*') : 'Non communique';
+
       await new Promise((resolve) => {
         doc.on('end', resolve);
-        doc.fontSize(20).font('Helvetica-Bold').text('JADOMI — Mandat de facturation', { align: 'center' });
+
+        // --- EN-TETE ---
+        doc.fontSize(22).font('Helvetica-Bold').text('JADOMI', { align: 'center' });
+        doc.fontSize(14).font('Helvetica').text('Mandat de facturation', { align: 'center' });
+        doc.moveDown(0.5);
+        doc.fontSize(10).fillColor('#666').text('Article 289 I-2 du Code General des Impots', { align: 'center' });
+        doc.fillColor('#000');
         doc.moveDown();
-        doc.fontSize(11).font('Helvetica').text('Entre JADOMI SAS et ' + (mandate.supplier_name || 'le fournisseur'));
-        doc.text('SIRET : ' + (mandate.supplier_siret || 'N/A'));
-        doc.text('Date de signature : ' + new Date().toLocaleDateString('fr-FR'));
-        doc.text('Signe par : ' + String(signer_name).trim());
+
+        // --- PARTIES ---
+        doc.fontSize(10).font('Helvetica-Bold').text('ENTRE :');
+        doc.font('Helvetica').text('JADOMI SAS — Plateforme marketplace B2B');
+        doc.text('(ci-apres « le Mandataire »)');
+        doc.moveDown(0.5);
+        doc.font('Helvetica-Bold').text('ET :');
+        doc.font('Helvetica').text(supplierName);
+        doc.text('(ci-apres « le Mandant »)');
+        doc.moveDown(0.5);
+        doc.font('Helvetica-Bold').text('Date de signature : ' + signDate);
+        doc.text('Signe par : ' + signerFullName + (signerTitleStr ? ' — ' + signerTitleStr : ''));
         doc.moveDown();
-        doc.text('Commission : ' + (mandate.commission_percent || 10) + '% du montant HT');
-        doc.text('Delai reversement : ' + (mandate.payment_delay_days || 30) + ' jours');
+
+        // --- Ligne separatrice ---
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
         doc.moveDown();
-        doc.fontSize(9).fillColor('#666').text('Signature electronique AES conforme eIDAS Article 26');
-        doc.text('PAdES PKCS#7 — JADOMI Sign v2.0');
+
+        // --- ARTICLES ---
+        function articleTitle(t) { doc.moveDown(0.5); doc.fontSize(11).font('Helvetica-Bold').text(t); doc.fontSize(10).font('Helvetica'); }
+        function para(t) { doc.text(t, { lineGap: 3 }); }
+        function bullet(t) { doc.text('  •  ' + t, { lineGap: 2 }); }
+
+        articleTitle('Article 1 — Objet du mandat');
+        para('Par le present mandat, la societe ' + supplierName + ' (le Mandant) autorise JADOMI SAS (le Mandataire) a etablir, en son nom et pour son compte, les factures relatives aux commandes realisees par les professionnels de sante via la plateforme JADOMI.');
+        para('Ce mandat est conclu dans le cadre de l\'article 289 I-2 du Code General des Impots, autorisant un tiers a emettre des factures au nom et pour le compte d\'un assujetti.');
+
+        articleTitle('Article 2 — Obligations du mandataire (JADOMI)');
+        para('JADOMI s\'engage a :');
+        bullet('Emettre les factures conformement aux dispositions legales et reglementaires en vigueur (articles 289 et 242 nonies A du CGI).');
+        bullet('Transmettre une copie de chaque facture emise au Mandant dans un delai raisonnable.');
+        bullet('Assurer la numerotation sequentielle et unique des factures.');
+        bullet('Conserver les factures emises pendant la duree legale (10 ans).');
+        bullet('Respecter les obligations de facturation electronique (reforme 2026).');
+
+        articleTitle('Article 3 — Obligations du mandant (Fournisseur)');
+        para('Le Mandant s\'engage a :');
+        bullet('Ne pas emettre de factures pour les operations couvertes par le present mandat.');
+        bullet('Informer JADOMI de toute modification de ses informations legales.');
+        bullet('Verifier les factures emises et signaler toute anomalie sous 15 jours.');
+        bullet('Fournir les informations necessaires a l\'emission correcte des factures.');
+
+        articleTitle('Article 4 — Conditions financieres');
+        para('Commission JADOMI : ' + commissionPct + '% du montant HT de chaque commande facturee via la plateforme.');
+        para('Delai de reversement : ' + delayDays + ' jours a compter de la date de facture.');
+        para('Mode de paiement : Virement bancaire sur le compte communique par le Mandant.');
+        para('La commission est deduite automatiquement du montant encaisse. Un releve detaille accompagne chaque virement.');
+
+        articleTitle('Article 4b — Frais de livraison');
+        para('Commande >= 150EUR HT : livraison gratuite pour le client. Frais de transport a la charge du Mandant.');
+        para('Commande < 150EUR HT : le Mandant propose ses frais de livraison au client via JADOMI. Le client valide ou refuse.');
+        para('Le Mandant assure l\'expedition avec le transporteur de son choix et a ses frais.');
+
+        articleTitle('Article 4c — Non-demarchage et protection commerciale');
+        para('Le Mandant reconnait que les clients mis en relation via JADOMI constituent un actif commercial de la plateforme.');
+        bullet('Interdiction de demarcher directement les clients acquis via JADOMI pendant la duree du mandat et 12 mois apres resiliation.');
+        bullet('Interdiction d\'inclure dans les colis tout document commercial invitant a commander en direct.');
+        bullet('En cas de violation : suspension immediate et penalite forfaitaire de 5 000EUR par infraction.');
+
+        articleTitle('Article 5 — Coordonnees bancaires du Mandant');
+        para('IBAN : ' + ibanMasked);
+        para('Toute modification de RIB devra etre signalee par ecrit a JADOMI avec un delai de 5 jours ouvrables.');
+
+        // Saut de page si besoin
+        if (doc.y > 650) doc.addPage();
+
+        articleTitle('Article 6 — Duree et resiliation');
+        para('Le present mandat est conclu pour une duree indeterminee. Il entre en vigueur a la date de signature electronique.');
+        para('Chaque partie peut resilier a tout moment par notification ecrite, sous reserve d\'un preavis de 30 jours.');
+
+        articleTitle('Article 7 — Acceptation electronique');
+        para('Conformement aux articles 1366 et 1367 du Code civil, la signature electronique du present mandat a la meme valeur juridique qu\'une signature manuscrite.');
+        para('Signature realisee via JADOMI Sign (AES conforme eIDAS Article 26).');
+
+        articleTitle('Article 8 — Loi applicable et juridiction');
+        para('Le present mandat est regi par le droit francais. Tout litige sera soumis aux tribunaux competents du siege social de JADOMI SAS.');
+
+        articleTitle('Article 9 — Service apres-vente');
+        para('Le Mandant assure l\'integralite du SAV des produits vendus via JADOMI.');
+        para('Le Mandant s\'engage a repondre aux demandes transmises par JADOMI sous 48 heures ouvrees.');
+        para('En cas de non-reponse repetee (3 demandes consecutives sans reponse sous 48h), JADOMI se reserve le droit de suspendre le mandat.');
+
+        articleTitle('Article 10 — Paiement et reversement');
+        para('Le client paye par carte bancaire ou PayPal via JADOMI (prestataire : Stripe).');
+        para('Palier Bronze : 0EUR/mois — commission 12% HT');
+        para('Palier Silver : 299EUR/mois — commission 5% HT');
+        para('Palier Gold : 799EUR/mois — commission 0%');
+        para('Reversement sous 14 jours apres confirmation de livraison.');
+
+        articleTitle('Article 11 — Expedition et suivi');
+        para('Le Mandant s\'engage a expedier chaque commande sous 48 heures ouvrees.');
+        para('Le Mandant saisit le numero de suivi du transporteur dans son espace JADOMI des l\'expedition.');
+
+        // --- SIGNATURE ---
+        doc.moveDown();
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
+        doc.moveDown();
+        doc.fontSize(10).font('Helvetica-Bold').text('Signature electronique');
+        doc.font('Helvetica');
+        doc.text('Signe par : ' + signerFullName + (signerTitleStr ? ', ' + signerTitleStr : ''));
+        doc.text('Date : ' + signDate);
+        doc.text('Verification d\'identite : OTP SMS verifie');
+        doc.moveDown();
+        doc.fontSize(8).fillColor('#666');
+        doc.text('Signature electronique avancee (AES) conforme a l\'article 26 du reglement eIDAS (UE) n°910/2014.');
+        doc.text('Format PAdES PKCS#7 — JADOMI Sign v2.0 — Document verifiable dans Adobe Acrobat Reader.');
+        doc.text('Reference : ' + (mandate.id || ''));
         doc.end();
       });
       const pdfBuffer = Buffer.concat(chunks);
