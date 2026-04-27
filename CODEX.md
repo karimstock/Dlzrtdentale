@@ -1525,6 +1525,13 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
 - Boucle virale: IDE pousse patient a telecharger → patient pousse ses autres pros
 - Abonnement 9EUR/mois sans SMS, l'IDE est libre. SMS = packs tokens (100/500/2000)
 - Integration JADOMI Coins pour les tokens SMS
+- REGLE ABSOLUE: le patient ne paye JAMAIS. Tout gratuit pour le patient. Toujours.
+- Le patient = carburant viral (comme Doctolib/WhatsApp)
+- Qui paye: le pro de sante (abo), la pharmacie (commission), les tokens SMS (optionnel)
+- Ideas Passe 58: tableau de bord famille (GRATUIT), dictee vocale soin IA,
+  confirmation auto patient le soir pour le lendemain + reoptimisation nuit,
+  pharmacie connectee (commande compresses en 1 clic), remplacement instantane
+  type Uber si IDE absente, alerte ordonnance qui expire
 - Connexion modules JADOMI : stock consommables IDE (compresses, gants), messagerie medecins
 - Concurrent principal : Agathe You (~15EUR/mois) — mais PAS d'optimisation GPS tournees
 - Avantage JADOMI : ecosysteme sante complet (stock + comm + signature + groupage)
