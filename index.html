@@ -47,17 +47,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav-item.active{color:var(--accent);background:rgba(16,185,129,0.06);border-left-color:var(--accent);}
 .nav-item .ni{font-size:16px;width:20px;text-align:center;}
 .nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
-.nav-group{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
-.nav-group:last-child{border-bottom:none;}
-.nav-group-title{cursor:pointer;padding:8px 20px;margin:2px 10px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1.2px;text-transform:uppercase;display:flex;align-items:center;gap:8px;transition:all 0.25s cubic-bezier(.16,1,.3,1);user-select:none;border-radius:8px;}
-.nav-group-title:hover{color:rgba(255,255,255,0.7);background:rgba(99,102,241,0.06);}
-.nav-group-title.active-group{color:var(--accent);background:rgba(99,102,241,0.08);}
-.nav-group-arrow{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;font-size:8px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);flex-shrink:0;opacity:0.5;background:rgba(255,255,255,0.06);border-radius:4px;}
-.nav-group-title:hover .nav-group-arrow{opacity:0.8;}
-.nav-group-arrow.open{transform:rotate(90deg);opacity:0.9;background:rgba(99,102,241,0.15);}
-.nav-group-items{overflow:hidden;transition:opacity 0.25s ease;padding-bottom:2px;}
-.nav-group-items[style*="display: none"],.nav-group-items[style*="display:none"]{opacity:0;}
-.nav-group-ico{font-size:13px;width:16px;text-align:center;opacity:0.7;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{cursor:pointer;padding:10px 14px;font-size:12px;font-weight:700;color:#b0b8c8;letter-spacing:0.5px;display:flex;align-items:center;gap:8px;transition:all 0.2s ease;user-select:none;border-radius:8px;margin:1px 0;}
+.nav-group-title:hover{color:#fff;background:rgba(99,102,241,0.1);}
+.nav-group-arrow{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:9px;color:#8892a4;transition:transform 0.25s cubic-bezier(.16,1,.3,1);flex-shrink:0;background:rgba(255,255,255,0.08);border-radius:5px;}
+.nav-group-title:hover .nav-group-arrow{color:#fff;background:rgba(99,102,241,0.2);}
+.nav-group-arrow.open{transform:rotate(90deg);color:var(--accent);background:rgba(99,102,241,0.2);}
+.nav-group-items{overflow:hidden;padding:0 0 4px 0;}
+.nav-group-ico{font-size:14px;}
 
 .sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
 .cabinet-card{background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);}
@@ -3513,39 +3510,55 @@ const actions = {
 // SIDEBAR ACCORDION
 // ═══════════════════════════════════
 function toggleNavGroup(titleEl) {
+  if (!titleEl) return;
   var items = titleEl.nextElementSibling;
+  if (!items) return;
   var arrow = titleEl.querySelector('.nav-group-arrow');
   var isOpen = items.style.display !== 'none';
-  items.style.display = isOpen ? 'none' : 'block';
-  if (arrow) { isOpen ? arrow.classList.remove('open') : arrow.classList.add('open'); }
+  // Toggle
+  if (isOpen) {
+    items.style.display = 'none';
+    if (arrow) arrow.classList.remove('open');
+  } else {
+    items.style.display = 'block';
+    if (arrow) arrow.classList.add('open');
+  }
   saveNavGroupState();
 }
 function saveNavGroupState() {
-  var state = {};
-  document.querySelectorAll('.nav-group').forEach(function(g) {
-    var key = g.getAttribute('data-nav-group');
-    var items = g.querySelector('.nav-group-items');
-    if (key && items) state[key] = items.style.display !== 'none';
-  });
-  try { localStorage.setItem('jadomi_nav_groups', JSON.stringify(state)); } catch(e) {}
+  try {
+    var state = {};
+    document.querySelectorAll('.nav-group[data-nav-group]').forEach(function(g) {
+      var key = g.getAttribute('data-nav-group');
+      var items = g.querySelector('.nav-group-items');
+      if (key && items) state[key] = items.style.display !== 'none';
+    });
+    localStorage.setItem('jadomi_nav_groups', JSON.stringify(state));
+  } catch(e) {}
 }
 function restoreNavGroupState() {
   try {
     var raw = localStorage.getItem('jadomi_nav_groups');
     if (!raw) return;
     var state = JSON.parse(raw);
-    document.querySelectorAll('.nav-group').forEach(function(g) {
+    if (!state || typeof state !== 'object') return;
+    document.querySelectorAll('.nav-group[data-nav-group]').forEach(function(g) {
       var key = g.getAttribute('data-nav-group');
-      if (key && typeof state[key] !== 'undefined') {
+      if (key && typeof state[key] === 'boolean') {
         var items = g.querySelector('.nav-group-items');
         var arrow = g.querySelector('.nav-group-arrow');
         if (items) items.style.display = state[key] ? 'block' : 'none';
-        if (arrow) { state[key] ? arrow.classList.add('open') : arrow.classList.remove('open'); }
+        if (arrow) {
+          if (state[key]) arrow.classList.add('open');
+          else arrow.classList.remove('open');
+        }
       }
     });
-  } catch(e) {}
+  } catch(e) {
+    // Si le state est corrompu, le supprimer
+    try { localStorage.removeItem('jadomi_nav_groups'); } catch(_) {}
+  }
 }
-// Auto-open the accordion group containing the active nav-item when showPage is called
 function openParentNavGroup(el) {
   if (!el) return;
   var group = el.closest('.nav-group');
@@ -3556,7 +3569,6 @@ function openParentNavGroup(el) {
   if (arrow) arrow.classList.add('open');
   saveNavGroupState();
 }
-// Restore on load
 document.addEventListener('DOMContentLoaded', restoreNavGroupState);
 
 function showPage(id, el) {
