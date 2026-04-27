@@ -383,9 +383,11 @@ tbody tr:hover td{background:var(--surface2);}
     <div class="nav-item" onclick="location.href='/studio/onboarding/'"><span class="ni">🔍</span>Creer / analyser</div>
     <div class="nav-item" onclick="location.href='/studio/mes-sites/'"><span class="ni">🔗</span>Mes sites</div>
     <div class="nav-item" onclick="location.href='/dashboard-annonceur.html'"><span class="ni">📢</span>Mes pubs</div>
+    <div class="nav-section">Documents & Signature</div>
+    <div class="nav-item" onclick="showPage('documents',this)"><span class="ni">📄</span>Mes documents</div>
+    <div class="nav-item" onclick="showPage('signature',this)"><span class="ni">✍️</span>Signature electronique</div>
     <div class="nav-section">Paramètres</div>
     <div class="nav-item" onclick="location.href='/public/conformite/index.html'"><span class="ni">📋</span>Conforme facture</div>
-    <div class="nav-item" onclick="showPage('documents',this)"><span class="ni">📄</span>Mes documents</div>
     <div class="nav-item" onclick="showPage('fournisseurs',this)"><span class="ni">🏭</span>Fournisseurs</div>
     <div class="nav-item" onclick="showPage('admin',this)" id="nav-admin" style="display:none;"><span class="ni">⚙️</span>Admin</div>
   </nav>
@@ -1163,6 +1165,79 @@ tbody tr:hover td{background:var(--surface2);}
         </div>
         <!-- Pagination -->
         <div id="doc-pagination" style="display:none;padding:12px 16px;border-top:1px solid var(--border);align-items:center;justify-content:center;gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE ELECTRONIQUE -->
+    <div class="page" id="page-signature">
+      <!-- Stats -->
+      <div class="stats" style="margin-bottom:18px;">
+        <div class="stat"><div class="stat-label">Documents signes</div><div class="stat-value c-accent" id="sig-stat-signed">0</div></div>
+        <div class="stat"><div class="stat-label">En attente</div><div class="stat-value" id="sig-stat-pending" style="color:#fbbf24;">0</div></div>
+        <div class="stat"><div class="stat-label">Taux signature</div><div class="stat-value" id="sig-stat-rate" style="color:#10b981;">-</div></div>
+      </div>
+
+      <!-- Envoyer un document a signer -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><div class="card-title">Envoyer un document a signer</div></div>
+        <div style="padding:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">Nom du destinataire *</label>
+              <input type="text" id="sig-dest-name" placeholder="Ex: Dr Martin" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">Email du destinataire *</label>
+              <input type="email" id="sig-dest-email" placeholder="email@exemple.com" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">Nom du patient (optionnel)</label>
+              <input type="text" id="sig-patient-name" placeholder="Ex: M. Dupont Jean" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;">Type de document *</label>
+              <select id="sig-doc-type" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+                <option value="devis">Devis</option>
+                <option value="contrat">Contrat</option>
+                <option value="plan_traitement">Plan de traitement</option>
+                <option value="mandat">Mandat</option>
+                <option value="autre">Autre</option>
+              </select>
+            </div>
+          </div>
+          <div id="sig-upload-zone" style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px;"
+               ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.05)';"
+               ondragleave="this.style.borderColor='var(--border)';this.style.background='transparent';"
+               ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='transparent';_sigFileSelected(event.dataTransfer.files[0]);"
+               onclick="document.getElementById('sig-file-input').click();">
+            <input type="file" id="sig-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="_sigFileSelected(this.files[0]);">
+            <div id="sig-upload-label" style="color:var(--muted);font-size:13px;">Glissez un fichier PDF ou image ici, ou cliquez pour parcourir</div>
+            <div id="sig-file-preview" style="display:none;color:var(--text);font-size:13px;font-weight:600;"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-accent" id="btn-send-signature" onclick="envoyerPourSignature()" style="padding:10px 20px;">Envoyer pour signature</button>
+            <span id="sig-send-msg" style="font-size:12px;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Documents signes -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Documents signes</div>
+          <div style="display:flex;gap:6px;">
+            <select id="sig-filter-status" onchange="chargerSignature()" style="font-size:11px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+              <option value="">Tous</option>
+              <option value="signed">Signes</option>
+              <option value="pending">En attente</option>
+              <option value="sent">Envoyes</option>
+              <option value="expired">Expires</option>
+            </select>
+          </div>
+        </div>
+        <div id="sig-documents-list" style="padding:16px;"><div style="color:var(--muted);font-size:13px;">Chargement...</div></div>
       </div>
     </div>
 
@@ -3359,7 +3434,7 @@ function fermerModalSiOverlay(e){if(e.target.id==='modal-overlay')fermerModal();
 // ═══════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════
-const titles = {stock:'Stock',compta:'Comptabilit\u00e9',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupages:'Paniers group\u00e9s',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'March\u00e9 dentaire',sos:'SOS Stock',green:'JADOMI Green',suggestions:'Suggestions',documents:'Mes documents',admin:'Admin JADOMI',communication:'Communication',economies:'\u00c9conomies JADOMI'};
+const titles = {stock:'Stock',compta:'Comptabilit\u00e9',analytics:'Analytics',deals:'Flash Deals',devis:'Commandes',groupages:'Paniers group\u00e9s',groupe:'Import stock',fournisseurs:'Fournisseurs',factures:'Factures',marche:'March\u00e9 dentaire',sos:'SOS Stock',green:'JADOMI Green',suggestions:'Suggestions',documents:'Mes documents',signature:'Signature electronique',admin:'Admin JADOMI',communication:'Communication',economies:'\u00c9conomies JADOMI'};
 const actions = {
   stock:`<button class="btn btn-accent" onclick="ouvrirCommandeUnifiee()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🛒 Commander</button><button class="btn btn-ghost" onclick="demarrerCamera()">📷 Scanner</button><button class="btn btn-ghost" onclick="ouvrirPhoto()">📸 Photo</button><button class="btn btn-accent" onclick="ouvrirModal()">+ Ajouter</button>`,
   analytics:``,deals:``,devis:``,groupages:`<button class="btn btn-accent" onclick="openGroupageModal()" style="font-size:12px;">+ Nouveau panier</button>`,groupe:``,fournisseurs:``,green:``,suggestions:``,documents:``,economies:``
@@ -3373,6 +3448,7 @@ function showPage(id, el) {
   document.getElementById('topbar-actions').innerHTML=actions[id]||'';
   if(el) el.classList.add('active');
   if(id==='documents') chargerDocuments();
+  if(id==='signature') chargerSignature();
   if(id==='compta') pcComptaLoadDocs();
   if(id==='suggestions') { chargerMesSuggestions(); verifierAdminSuggestions(); }
   if(id==='communication') commInit();
@@ -5878,6 +5954,134 @@ async function _docDoDelete(docId,btn){
     btn.textContent='Erreur';
     setTimeout(()=>{btn.textContent='Supprimer';btn.disabled=false;},2000);
   }
+}
+
+// ═══════════════════════════════════
+// SIGNATURE ELECTRONIQUE
+// ═══════════════════════════════════
+var _sigFile=null;
+function _sigAuthHeaders(){
+  return {'Authorization':'Bearer '+(window.jadomiMultiSocietes?.token||JSON.parse(localStorage.getItem('jadomi_session')||'{}').access_token||'')};
+}
+function _sigFileSelected(file){
+  if(!file) return;
+  const ok=['application/pdf','image/jpeg','image/png'];
+  if(!ok.includes(file.type)){alert('Format accepte : PDF, JPG, PNG');return;}
+  if(file.size>10*1024*1024){alert('Fichier trop volumineux (max 10 Mo)');return;}
+  _sigFile=file;
+  document.getElementById('sig-upload-label').style.display='none';
+  const prev=document.getElementById('sig-file-preview');
+  prev.style.display='block';
+  prev.textContent=file.name+' ('+Math.round(file.size/1024)+' Ko)';
+}
+
+async function envoyerPourSignature(){
+  const name=(document.getElementById('sig-dest-name').value||'').trim();
+  const email=(document.getElementById('sig-dest-email').value||'').trim();
+  const patient=(document.getElementById('sig-patient-name').value||'').trim();
+  const docType=document.getElementById('sig-doc-type').value;
+  const msg=document.getElementById('sig-send-msg');
+  const btn=document.getElementById('btn-send-signature');
+
+  if(!name){msg.textContent='Nom du destinataire requis';msg.style.color='#f05050';return;}
+  if(!email||!email.includes('@')){msg.textContent='Email invalide';msg.style.color='#f05050';return;}
+  if(!_sigFile){msg.textContent='Veuillez selectionner un fichier';msg.style.color='#f05050';return;}
+
+  btn.disabled=true;btn.textContent='Envoi en cours...';msg.textContent='';
+  try{
+    const fd=new FormData();
+    fd.append('file',_sigFile);
+    fd.append('signer_name',name);
+    fd.append('signer_email',email);
+    fd.append('category',docType);
+    fd.append('title',docType+' — '+name+(patient?' (Patient: '+patient+')':''));
+    if(patient) fd.append('patient_name',patient);
+
+    const res=await fetch('/api/documents/request-signature',{method:'POST',headers:_sigAuthHeaders(),body:fd});
+    const data=await res.json();
+    if(data.ok||data.id){
+      msg.textContent='Document envoye pour signature !';msg.style.color='#10b981';
+      document.getElementById('sig-dest-name').value='';
+      document.getElementById('sig-dest-email').value='';
+      document.getElementById('sig-patient-name').value='';
+      _sigFile=null;
+      document.getElementById('sig-upload-label').style.display='block';
+      document.getElementById('sig-file-preview').style.display='none';
+      chargerSignature();
+    } else {
+      msg.textContent=data.error||'Erreur lors de l\'envoi';msg.style.color='#f05050';
+    }
+  }catch(e){msg.textContent='Erreur: '+e.message;msg.style.color='#f05050';}
+  btn.disabled=false;btn.textContent='Envoyer pour signature';
+}
+
+async function chargerSignature(){
+  const statusFilter=document.getElementById('sig-filter-status')?.value||'';
+  try{
+    let url='/api/documents/signed?limit=50';
+    if(statusFilter) url+='&status='+statusFilter;
+    const res=await fetch(url,{headers:_sigAuthHeaders()});
+    const data=await res.json();
+    const docs=data.documents||[];
+
+    // Stats
+    const signed=docs.filter(d=>d.status==='signed').length;
+    const pending=docs.filter(d=>['pending','sent','viewed'].includes(d.status)).length;
+    const total=docs.length;
+    document.getElementById('sig-stat-signed').textContent=signed;
+    document.getElementById('sig-stat-pending').textContent=pending;
+    document.getElementById('sig-stat-rate').textContent=total>0?Math.round(signed/total*100)+'%':'-';
+
+    // List
+    const el=document.getElementById('sig-documents-list');
+    if(!docs.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Aucun document</div>';return;}
+
+    const statusBadge=function(s){
+      const m={signed:{bg:'rgba(16,185,129,0.15)',c:'#10b981',l:'Signe'},pending:{bg:'rgba(251,191,36,0.15)',c:'#fbbf24',l:'En attente'},sent:{bg:'rgba(56,189,248,0.15)',c:'#38bdf8',l:'Envoye'},viewed:{bg:'rgba(99,102,241,0.15)',c:'#818cf8',l:'Vu'},expired:{bg:'rgba(240,80,80,0.15)',c:'#f05050',l:'Expire'}};
+      const v=m[s]||m.pending;
+      return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+v.bg+';color:'+v.c+';">'+v.l+'</span>';
+    };
+
+    let html='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
+    html+='<th style="text-align:left;padding:10px;color:var(--muted);font-weight:600;font-size:11px;">Document</th>';
+    html+='<th style="text-align:left;padding:10px;color:var(--muted);font-weight:600;font-size:11px;">Destinataire</th>';
+    html+='<th style="text-align:left;padding:10px;color:var(--muted);font-weight:600;font-size:11px;">Statut</th>';
+    html+='<th style="text-align:left;padding:10px;color:var(--muted);font-weight:600;font-size:11px;">Date</th>';
+    html+='<th style="text-align:right;padding:10px;color:var(--muted);font-weight:600;font-size:11px;">Actions</th>';
+    html+='</tr></thead><tbody>';
+
+    docs.forEach(function(d){
+      const title=_escDoc(d.title||d.category||'Document');
+      const signer=_escDoc(d.signer_name||d.signer_email||'-');
+      const patient=d.metadata?.patient_name?'<div style="font-size:11px;color:var(--muted);">Patient: '+_escDoc(d.metadata.patient_name)+'</div>':'';
+      const date=d.created_at?new Date(d.created_at).toLocaleDateString('fr-FR'):'';
+      const safeId=_escDoc(d.id);
+
+      html+='<tr style="border-bottom:1px solid var(--border);transition:background .15s;" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'transparent\'">';
+      html+='<td style="padding:10px;"><div style="font-weight:500;">'+title+'</div>'+patient+'</td>';
+      html+='<td style="padding:10px;">'+signer+'</td>';
+      html+='<td style="padding:10px;">'+statusBadge(d.status)+'</td>';
+      html+='<td style="padding:10px;color:var(--muted);">'+date+'</td>';
+      html+='<td style="padding:10px;text-align:right;"><div style="display:flex;gap:4px;justify-content:flex-end;">';
+      if(d.status==='signed'&&d.signed_pdf_path) html+='<button onclick="window.open(\'/api/documents/signed/'+safeId+'/download\',\'_blank\')" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;" title="Telecharger PDF">PDF</button>';
+      if(d.status==='signed') html+='<button onclick="window.open(\'/api/documents/signed/'+safeId+'/certificate\',\'_blank\')" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer;" title="Certificat">Certif</button>';
+      if(['pending','sent'].includes(d.status)) html+='<button onclick="_resendSignature(\''+safeId+'\')" style="padding:4px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:6px;color:var(--accent);font-size:11px;cursor:pointer;">Renvoyer</button>';
+      html+='</div></td></tr>';
+    });
+    html+='</tbody></table></div>';
+    el.innerHTML=html;
+  }catch(e){
+    document.getElementById('sig-documents-list').innerHTML='<div style="color:#f05050;font-size:13px;padding:16px;">Erreur: '+_escDoc(e.message)+'</div>';
+  }
+}
+
+async function _resendSignature(docId){
+  try{
+    const res=await fetch('/api/documents/signed/'+encodeURIComponent(docId)+'/resend',{method:'POST',headers:_sigAuthHeaders()});
+    const data=await res.json();
+    if(data.ok) showToast('Document renvoye pour signature');
+    else showToast(data.error||'Erreur');
+  }catch(e){showToast('Erreur: '+e.message);}
 }
 
 function ouvrirModalUploadDoc(){
