@@ -1536,6 +1536,18 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
 - Concurrent principal : Agathe You (~15EUR/mois) — mais PAS d'optimisation GPS tournees
 - Avantage JADOMI : ecosysteme sante complet (stock + comm + signature + groupage)
 
+### SOS Urgence Confreres (idee Karim 27/04 — module dentiste)
+Un dentiste deborde appuie sur "Urgence dispo" → les confreres JADOMI a proximite
+recoivent une notification push → le premier qui accepte recoit le patient.
+- Le dentiste deborde est soulage (moins de stress, meilleur soin)
+- Le confrere en galere de patients remplit son agenda
+- Le patient est vu dans l'heure au lieu d'attendre 3 jours
+- JADOMI prend ZERO commission — c'est le service qui fait adopter la plateforme
+- Geolocalisation: seuls les confreres dans un rayon de X km recoivent l'alerte
+- Anonymise: le patient ne voit pas les details avant d'accepter le transfert
+- Historique des transferts dans le dashboard (stats: combien envoyes/recus)
+- Extension possible: kines, medecins generalistes, ophtalmos, etc.
+
 ### Infrastructure & Securite
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
 - Fail2ban configurer
