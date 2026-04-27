@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI — Architecture Modules Sante (Dentistes + Infirmieres)</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11pt; line-height: 1.55; color: #1e293b; background: #fff; max-width: 210mm; margin: 0 auto; padding: 20mm 18mm; }
+  h1 { font-size: 18pt; color: #0f172a; border-bottom: 2px solid #10b981; padding-bottom: 6px; margin: 30px 0 16px; }
+  h2 { font-size: 13pt; color: #10b981; margin: 22px 0 10px; }
+  h3 { font-size: 11pt; color: #334155; margin: 16px 0 8px; }
+  p { margin: 6px 0; text-align: justify; }
+  ul, ol { margin: 6px 0 10px 20px; }
+  li { margin: 3px 0; }
+  .box { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #10b981; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .box-blue { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .box-red { background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #ef4444; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .box-purple { background: #faf5ff; border: 1px solid #e9d5ff; border-left: 4px solid #8b5cf6; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+  .box-title { font-weight: 700; font-size: 10pt; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }
+  th { background: #0f172a; color: #fff; padding: 8px 10px; text-align: left; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9pt; font-weight: 600; }
+  .tag-done { background: #dcfce7; color: #166534; }
+  .tag-wip { background: #fef3c7; color: #92400e; }
+  .tag-plan { background: #eff6ff; color: #1e40af; }
+  .flow { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 12px 0; font-family: monospace; font-size: 10pt; line-height: 1.8; white-space: pre-wrap; }
+  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 90vh; text-align: center; }
+  .cover .logo { font-size: 48pt; font-weight: 800; color: #10b981; letter-spacing: -2px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">JADOMI</div>
+  <div style="font-size:16pt;color:#64748b;margin-bottom:40px;">Architecture Modules Sante</div>
+  <div style="font-size:22pt;font-weight:700;color:#0f172a;border-bottom:3px solid #10b981;padding-bottom:12px;display:inline-block;">
+    Dentistes + Infirmieres
+  </div>
+  <div style="font-size:12pt;color:#64748b;margin-top:12px;margin-bottom:60px;">Document technique et vision produit</div>
+  <div style="font-size:10pt;color:#94a3b8;">
+    <strong>Version :</strong> 1.0 — 27 avril 2026<br>
+    <strong>Passe :</strong> 58<br>
+    <strong>Auteur :</strong> Dr Karim Bahmed
+  </div>
+</div>
+
+<!-- ============================================ -->
+<h1>1. Vue d'ensemble — Ecosysteme JADOMI Sante</h1>
+<!-- ============================================ -->
+
+<div class="box">
+  <div class="box-title">Principe fondamental</div>
+  Le patient ne paye JAMAIS. Tout est gratuit pour le patient. Toujours. Zero exception.<br>
+  Le professionnel de sante paye un abonnement mensuel. JADOMI est l'infrastructure.
+</div>
+
+<h2>1.1 Les 3 couches de l'ecosysteme</h2>
+
+<div class="flow">COUCHE 1 — LE PRO (paye)
+  Dentiste (9-49 EUR/mois) | Infirmiere (9-49 EUR/mois) | Kine | Medecin | ...
+  → Stock, Documents, Signature, Facturation, Communication, Analytics
+
+COUCHE 2 — LE PATIENT (gratuit)
+  App PWA jadomi.fr/patient
+  → Voit ses RDV, recoit les notifications push, ajoute ses pros de sante
+  → Le patient pousse ses autres pros a rejoindre (boucle virale)
+
+COUCHE 3 — LES FOURNISSEURS (commission)
+  Fabricants + Revendeurs + Pharmacies
+  → Proposent produits/equipement au groupage
+  → JADOMI prend 10% de commission
+</div>
+
+<h2>1.2 La boucle virale</h2>
+<div class="flow">IDE s'abonne → dit au patient "telecharger JADOMI"
+  → Patient telecharge (GRATUIT)
+  → Patient voit: "ajoutez votre dentiste, kine, medecin..."
+  → Patient pousse ses autres pros
+  → Nouveaux pros s'abonnent
+  → Ils poussent LEURS patients...
+  → Croissance exponentielle sans pub</div>
+
+<!-- ============================================ -->
+<h1>2. Module Dentiste — Architecture</h1>
+<!-- ============================================ -->
+
+<h2>2.1 Ce qui est CONSTRUIT (Passe 58)</h2>
+
+<table>
+  <tr><th>Module</th><th>Statut</th><th>Fichiers cles</th></tr>
+  <tr><td>Stock intelligent</td><td><span class="tag tag-done">LIVE</span></td><td>index.html, server.js</td></tr>
+  <tr><td>Scanner IA factures</td><td><span class="tag tag-done">LIVE</span></td><td>server.js (Claude Vision)</td></tr>
+  <tr><td>OEM Intelligence</td><td><span class="tag tag-done">LIVE</span></td><td>services/oem-intelligence.js</td></tr>
+  <tr><td>GPO Smart Queue</td><td><span class="tag tag-done">LIVE</span></td><td>lib/gpo-queue.js, lib/gpo-scheduler.js</td></tr>
+  <tr><td>Paniers groupes</td><td><span class="tag tag-done">LIVE</span></td><td>server.js /api/groupage/*</td></tr>
+  <tr><td>JADOMI Sign AES</td><td><span class="tag tag-done">LIVE</span></td><td>lib/jadomi-sign.js, mandate-sign.html</td></tr>
+  <tr><td>Gestionnaire documents</td><td><span class="tag tag-done">LIVE</span></td><td>index.html, server.js /api/documents/*</td></tr>
+  <tr><td>Coffre-fort chiffre</td><td><span class="tag tag-done">LIVE</span></td><td>api/avocat/coffre.js</td></tr>
+  <tr><td>Communication patients</td><td><span class="tag tag-done">LIVE</span></td><td>index.html (onglet Communication)</td></tr>
+  <tr><td>JADOMI Equipment Groupon</td><td><span class="tag tag-done">LIVE</span></td><td>public/equipment/propose.html, server.js</td></tr>
+  <tr><td>SOS Urgence Confreres</td><td><span class="tag tag-done">LIVE</span></td><td>index.html, server.js /api/sos-urgence/*</td></tr>
+  <tr><td>Sidebar accordeon</td><td><span class="tag tag-done">LIVE</span></td><td>index.html, organisation.html</td></tr>
+  <tr><td>Autocomplete patients</td><td><span class="tag tag-done">LIVE</span></td><td>server.js /api/clients/autocomplete</td></tr>
+</table>
+
+<h2>2.2 SOS Urgence Confreres — Architecture</h2>
+
+<div class="box-red">
+  <div class="box-title">SOS Urgence — Zero commission, adoption virale</div>
+  Le dentiste deborde appuie sur un bouton → les confreres a proximite (30km) recoivent une notification push → le premier qui accepte recoit le patient. JADOMI ne prend ZERO commission. C'est le service gratuit qui fait adopter la plateforme par tous les dentistes de la zone.
+</div>
+
+<h3>Flux technique</h3>
+<div class="flow">1. Dr Bahmed → POST /api/sos-urgence/create
+   { type: "douleur_aigue", initiales: "M.D.", quartier: "Roubaix centre" }
+
+2. Server → SELECT societes WHERE type='cabinet_dentaire' AND distance < 30km
+   → Trouve 8 cabinets dans le rayon
+
+3. Server → INSERT sos_urgence_notifications (1 par cabinet)
+   → Push notification a chaque cabinet
+
+4. Dr Leroy recoit notification → voit dans son onglet SOS Urgence
+   → Clique "J'accepte"
+
+5. Server → PATCH request.status = 'accepted'
+   → Email a Dr Bahmed: "Dr Leroy a accepte votre urgence"
+   → Coordonnees echangees</div>
+
+<h3>Tables SQL</h3>
+<table>
+  <tr><th>Table</th><th>Champs cles</th></tr>
+  <tr><td>sos_urgence_requests</td><td>sender_societe_id, urgency_type (5 types), latitude/longitude, radius_km, status (open/accepted/expired/cancelled), deadline</td></tr>
+  <tr><td>sos_urgence_notifications</td><td>request_id FK, target_societe_id, status (sent/seen/accepted/declined)</td></tr>
+</table>
+
+<h3>Endpoints API</h3>
+<table>
+  <tr><th>Methode</th><th>Route</th><th>Description</th></tr>
+  <tr><td>POST</td><td>/api/sos-urgence/create</td><td>Creer une urgence + notifier confreres 30km</td></tr>
+  <tr><td>GET</td><td>/api/sos-urgence/incoming</td><td>Urgences recues (pour mon cabinet)</td></tr>
+  <tr><td>GET</td><td>/api/sos-urgence/my-requests</td><td>Mes demandes envoyees</td></tr>
+  <tr><td>POST</td><td>/api/sos-urgence/:id/accept</td><td>Accepter + email au demandeur</td></tr>
+  <tr><td>POST</td><td>/api/sos-urgence/:id/decline</td><td>Decliner</td></tr>
+  <tr><td>POST</td><td>/api/sos-urgence/:id/cancel</td><td>Annuler ma demande</td></tr>
+</table>
+
+<h2>2.3 Equipment Groupon — Architecture</h2>
+
+<div class="box">
+  <div class="box-title">Principe Groupon — 50 TRIOS 6 = 100K de commission</div>
+  JADOMI contacte le fabricant → negocie des paliers volume → les dentistes s'inscrivent → plus ils sont nombreux, plus le prix baisse. JADOMI prend 10%.
+</div>
+
+<h3>Flux</h3>
+<div class="flow">1. Fabricant recoit email commercial JADOMI
+2. Fabricant remplit formulaire: jadomi.fr/equipment/propose
+   → Produit, prix catalogue, 3 paliers volume, conditions
+3. JADOMI recoit notification + email
+4. Admin valide dans dashboard (onglet Equipment)
+5. L'offre apparait dans le hub dentiste (Achats groupes)
+6. Les dentistes rejoignent → prix baisse en live
+7. Seuil atteint → commande ferme au fabricant
+8. JADOMI facture 10% de commission</div>
+
+<h3>Dissociation Dispositifs / Consommables</h3>
+<table>
+  <tr><th>Categorie</th><th>Exemples</th><th>Prix unitaire</th><th>Commission/deal</th></tr>
+  <tr><td><strong>Dispositifs medicaux</strong></td><td>TRIOS 6, CEREC, fauteuils, autoclaves, radios</td><td>3 000 - 40 000 EUR</td><td>15 000 - 200 000 EUR</td></tr>
+  <tr><td><strong>Consommables</strong></td><td>Composites, anesthesiques, gants, implants, fraises</td><td>10 - 500 EUR</td><td>500 - 5 000 EUR/mois recurrent</td></tr>
+</table>
+
+<!-- ============================================ -->
+<h1>3. Module Infirmiere — Architecture</h1>
+<!-- ============================================ -->
+
+<div class="box-purple">
+  <div class="box-title">JADOMI Tournees — Le module qui n'existe nulle part</div>
+  Aucune solution au monde ne combine: optimisation GPS des tournees + split matin/soir + multi-IDE + placement auto patient + push type Uber. Marche: 145 000 IDE liberales en France.
+</div>
+
+<h2>3.1 Architecture technique</h2>
+
+<h3>Tables SQL</h3>
+<table>
+  <tr><th>Table</th><th>Description</th><th>Champs cles</th></tr>
+  <tr><td>ide_cabinets</td><td>Cabinets d'infirmieres</td><td>id, nom, adresse, latitude, longitude, societe_id</td></tr>
+  <tr><td>ide_nurses</td><td>Infirmieres du cabinet</td><td>id, cabinet_id, nom, prenom, telephone, couleur (pour le planning)</td></tr>
+  <tr><td>ide_patients</td><td>Patients suivis</td><td>id, cabinet_id, nom, prenom, adresse, latitude, longitude, telephone, notes, soins_type, frequence (quotidien/hebdo/ponctuel)</td></tr>
+  <tr><td>ide_visits</td><td>Visites planifiees</td><td>id, patient_id, nurse_id, date, tournee (matin/soir), heure_estimee, heure_reelle, duree_minutes, soins_realises, status (planifie/en_route/en_cours/termine/annule)</td></tr>
+  <tr><td>ide_tournees</td><td>Tournees optimisees</td><td>id, nurse_id, date, type (matin/soir), ordre_visite (JSON array d'IDs patients), distance_totale_km, duree_totale_min, optimized_at</td></tr>
+  <tr><td>ide_recurrences</td><td>Soins recurrents</td><td>id, patient_id, soins_type, frequence, jours_semaine, tournee_pref (matin/soir), nurse_pref_id</td></tr>
+  <tr><td>ide_remplacements</td><td>Absences et remplacements</td><td>id, nurse_id, date_debut, date_fin, motif, remplacant_id, status</td></tr>
+</table>
+
+<h3>Endpoints API</h3>
+<table>
+  <tr><th>Methode</th><th>Route</th><th>Description</th></tr>
+  <tr><td>GET</td><td>/api/ide/tournee/:date/:type</td><td>Tournee du jour (matin ou soir) pour l'IDE connectee</td></tr>
+  <tr><td>POST</td><td>/api/ide/tournee/optimize</td><td>Optimiser l'ordre des visites (algorithme TSP)</td></tr>
+  <tr><td>POST</td><td>/api/ide/patient/place</td><td>KILLER: patient appelle → placement auto optimal</td></tr>
+  <tr><td>PATCH</td><td>/api/ide/visit/:id/status</td><td>Mettre a jour le statut (en_route/en_cours/termine)</td></tr>
+  <tr><td>GET</td><td>/api/ide/patient/:id/tracking</td><td>Position live de l'IDE pour le patient (type Uber)</td></tr>
+  <tr><td>POST</td><td>/api/ide/absence</td><td>Declarer une absence → redistribution auto</td></tr>
+  <tr><td>GET</td><td>/api/ide/dashboard</td><td>Stats cabinet: patients, km, CA, efficacite</td></tr>
+  <tr><td>POST</td><td>/api/ide/voice-note</td><td>Dictee vocale → transcription IA → dossier patient</td></tr>
+</table>
+
+<h2>3.2 Feature 1 — Placement automatique patient</h2>
+
+<div class="box-red">
+  <div class="box-title">KILLER FEATURE — Le patient appelle, le systeme le place</div>
+  Un patient appelle pour un soin. L'IDE tape son nom + adresse. Le systeme calcule instantanement le meilleur creneau dans la tournee du jour pour minimiser le detour. "Mme Dupont, 12 rue Voltaire ? Je vous propose 10h15, c'est entre mes 2 patients de votre quartier."
+</div>
+
+<h3>Algorithme</h3>
+<div class="flow">POST /api/ide/patient/place
+  { patient_name: "Dupont", address: "12 rue Voltaire, Roubaix", soins: "pansement" }
+
+1. Geocoder l'adresse → latitude/longitude (API Nominatim/Google)
+
+2. Pour chaque creneau possible dans la tournee du jour:
+   a. Inserer le patient entre visite[i] et visite[i+1]
+   b. Calculer le detour: distance(visite[i] → nouveau) + distance(nouveau → visite[i+1]) - distance(visite[i] → visite[i+1])
+   c. Ajouter la duree estimee du soin
+
+3. Trier par detour minimal
+
+4. Retourner les 3 meilleurs creneaux:
+   → "10h15 — detour 0.8 km (entre M. Martin et Mme Legrand)"
+   → "11h30 — detour 1.2 km (entre Mme Petit et M. Robert)"
+   → "14h00 — tournee soir, detour 0.3 km (optimal)"
+
+5. L'IDE choisit → le patient est insere → tournee recalculee</div>
+
+<h2>3.3 Feature 2 — Split Matin/Soir</h2>
+
+<div class="box-blue">
+  <div class="box-title">Deux tournees, un patient vu 2 fois</div>
+  Mme Dupont a besoin d'insuline le matin ET d'un pansement le soir. Elle apparait dans les 2 tournees automatiquement. Chaque tournee est optimisee independamment.
+</div>
+
+<h3>Modele de donnees</h3>
+<div class="flow">ide_recurrences:
+  patient: Mme Dupont
+  soins_type: "insuline"
+  tournee_pref: "matin"
+  jours_semaine: [lun, mar, mer, jeu, ven, sam, dim]
+
+ide_recurrences:
+  patient: Mme Dupont
+  soins_type: "pansement mollet"
+  tournee_pref: "soir"
+  jours_semaine: [lun, mer, ven]
+
+→ Genere automatiquement les visites dans les 2 tournees
+→ Chaque tournee optimisee separement
+→ Possibilite: matin = Alice, soir = Bob (multi-IDE)</div>
+
+<h2>3.4 Feature 3 — Multi-IDE collaboratif</h2>
+
+<div class="flow">Cabinet "IDE Roubaix Sud" — 3 infirmieres:
+  Alice (couleur: bleu)   → 18 patients matin + 12 patients soir
+  Bob (couleur: vert)     → 15 patients matin + 14 patients soir
+  Claire (couleur: orange) → 20 patients matin + 10 patients soir
+
+Vue admin (la titulaire):
+  → Voit les 3 tournees superposees sur une carte
+  → Drag & drop un patient d'Alice vers Bob → recalcul instantane
+  → Equilibrage automatique: "Alice a 8 km de plus que Bob, deplacer M. Martin?"
+
+Vue individuelle (chaque IDE):
+  → Voit SA tournee du jour uniquement
+  → Navigation GPS en 1 clic vers le prochain patient
+  → Bouton "Je suis arrivee" → push au patient + horodatage</div>
+
+<h2>3.5 Feature 4 — Tracking Uber</h2>
+
+<div class="box">
+  <div class="box-title">Le patient voit l'infirmiere approcher en temps reel</div>
+  Push gratuit: "Marie arrive dans 8 minutes" avec position sur la carte. La personne agee ne guette plus a la fenetre. Les aidants/famille peuvent aussi suivre.
+</div>
+
+<h3>Architecture technique</h3>
+<div class="flow">1. L'IDE appuie "En route" sur sa PWA
+   → PATCH /api/ide/visit/:id/status { status: 'en_route' }
+   → Sa position GPS est partagee (navigator.geolocation.watchPosition)
+
+2. Le serveur recoit la position toutes les 30 secondes
+   → Calcule ETA via distance restante / vitesse moyenne
+
+3. Push notification au patient:
+   → "Marie arrive dans 8 minutes"
+   → Mise a jour toutes les 2 minutes
+
+4. L'IDE arrive → appuie "Arrivee"
+   → Push: "Marie est arrivee"
+   → Horodatage automatique dans le dossier
+
+Cout: ZERO (push PWA gratuit, GPS natif navigateur)</div>
+
+<h2>3.6 Feature 5 — Confirmation automatique veille</h2>
+
+<div class="flow">Chaque soir a 19h, CRON automatique:
+
+1. Pour chaque patient du lendemain:
+   → Push app: "Votre infirmiere Marie passe demain vers 8h15. OK ? / Annuler"
+
+2. Le patient repond:
+   → OK → rien a faire
+   → Annuler → la visite est supprimee
+
+3. A 22h, reoptimisation automatique:
+   → Les annulations sont retirees
+   → La tournee est recalculee
+   → Nouvelle tournee prete pour le lendemain matin
+
+4. L'IDE se reveille → ouvre l'app → tournee a jour, zero coup de fil</div>
+
+<h2>3.7 Feature 6 — Dictee vocale IA</h2>
+
+<div class="flow">L'IDE a les mains occupees (pansement, perfusion).
+Elle appuie sur le micro:
+
+  "Pansement mollet gauche change, exsudat modere, bonne
+   cicatrisation, prochaine refection mercredi"
+
+→ Web Speech API (gratuit, natif navigateur)
+→ Transcription texte
+→ Claude IA structure les donnees:
+   { soin: "pansement", localisation: "mollet gauche",
+     observation: "exsudat modere, bonne cicatrisation",
+     prochain_rdv: "mercredi" }
+→ Insert dans le dossier patient
+
+Gain estime: 45 min/jour de saisie en moins</div>
+
+<h2>3.8 Feature 7 — Remplacement instantane</h2>
+
+<div class="flow">Alice est malade lundi matin:
+
+1. Alice appuie "Je suis absente" dans l'app
+   → POST /api/ide/absence { date_debut: lundi, date_fin: lundi }
+
+2. Le systeme redistribue ses 18 patients:
+   a. D'abord aux collegues du cabinet (Bob, Claire)
+   b. Recalcule les 2 tournees avec les patients en plus
+   c. Si surcharge → diffuse aux IDE JADOMI a proximite (comme Uber)
+
+3. Push notifications:
+   → Aux collegues: "Alice est absente, 6 patients ajoutes a votre tournee"
+   → Aux patients d'Alice: "Votre infirmiere de remplacement est Bob"
+   → A Alice: "Vos patients sont pris en charge par Bob et Claire"
+
+4. Tout est automatique. Zero coup de fil.</div>
+
+<h2>3.9 Feature 8 — Pharmacie connectee</h2>
+
+<div class="flow">L'IDE voit que Mme Dupont n'a plus de compresses:
+
+1. Dans l'app, bouton "Commander a la pharmacie"
+   → Selectionne les produits necessaires
+   → Envoie la commande a la pharmacie du quartier du patient
+
+2. La pharmacie recoit la notification
+   → Prepare la commande
+   → "Pret dans 2h"
+
+3. L'IDE repasse ou le patient va chercher
+
+Revenue JADOMI: commission sur chaque commande pharmacie
+→ Nouveau canal de revenus sans effort</div>
+
+<h2>3.10 Feature 9 — Alerte ordonnance</h2>
+
+<div class="flow">Le systeme detecte automatiquement:
+
+  "L'ordonnance de M. Martin expire dans 3 jours.
+   0 seance restante sur la prescription de 30 seances."
+
+→ Push au patient: "Prenez RDV chez votre medecin pour le renouvellement"
+→ Notification a l'IDE: "M. Martin — ordonnance expire le 02/05"
+
+L'IDE ne perd plus de patients par oubli d'ordonnance.
+Le medecin prescripteur recoit un rappel (si inscrit sur JADOMI).</div>
+
+<!-- ============================================ -->
+<h1>4. Modele economique</h1>
+<!-- ============================================ -->
+
+<h2>4.1 Grille tarifaire</h2>
+
+<table>
+  <tr><th>Formule</th><th>Prix</th><th>Dentiste</th><th>Infirmiere</th></tr>
+  <tr><td><strong>Gratuit</strong></td><td>0 EUR</td><td>Stock basique, 50 refs</td><td>1 IDE, 15 patients, pas d'opti GPS</td></tr>
+  <tr><td><strong>Pro</strong></td><td>9 EUR/mois</td><td>Stock illimite, scanner IA</td><td>1 IDE, patients illimites, GPS, push</td></tr>
+  <tr><td><strong>Cabinet</strong></td><td>29 EUR/mois</td><td>+ SOS Urgence, groupage</td><td>3-5 IDE, multi-tournee, split M/S, dashboard</td></tr>
+  <tr><td><strong>Groupe</strong></td><td>49 EUR/mois</td><td>+ Analytics, API</td><td>10 IDE, IA placement, voice, analytics</td></tr>
+</table>
+
+<h2>4.2 Revenus additionnels</h2>
+
+<table>
+  <tr><th>Source</th><th>Modele</th><th>Estimation</th></tr>
+  <tr><td>Tokens SMS</td><td>Packs optionnels (100=4.90, 500=19.90)</td><td>~2 EUR/IDE/mois</td></tr>
+  <tr><td>Equipment Groupon</td><td>10% commission fabricant</td><td>100K-400K EUR/an</td></tr>
+  <tr><td>Consommables groupage</td><td>3-5% commission</td><td>Variable</td></tr>
+  <tr><td>Pharmacie connectee</td><td>Commission par commande</td><td>A definir</td></tr>
+  <tr><td>JADOMI Studio</td><td>Site vitrine 19-99 EUR/mois</td><td>Existant</td></tr>
+</table>
+
+<h2>4.3 Projections</h2>
+
+<table>
+  <tr><th></th><th>An 1</th><th>An 2</th><th>An 3</th></tr>
+  <tr><td>Dentistes abonnes</td><td>500</td><td>2 000</td><td>5 000</td></tr>
+  <tr><td>IDE abonnees</td><td>1 000</td><td>5 000</td><td>15 000</td></tr>
+  <tr><td>Patients sur l'app</td><td>10 000</td><td>80 000</td><td>300 000</td></tr>
+  <tr><td>CA abonnements</td><td>180K EUR</td><td>840K EUR</td><td>2.4M EUR</td></tr>
+  <tr><td>CA Equipment</td><td>100K EUR</td><td>300K EUR</td><td>500K EUR</td></tr>
+  <tr><td><strong>CA total</strong></td><td><strong>280K EUR</strong></td><td><strong>1.14M EUR</strong></td><td><strong>2.9M EUR</strong></td></tr>
+</table>
+
+<!-- ============================================ -->
+<h1>5. Roadmap technique</h1>
+<!-- ============================================ -->
+
+<table>
+  <tr><th>Phase</th><th>Contenu</th><th>Timeline</th></tr>
+  <tr><td><span class="tag tag-done">FAIT</span> Passe 58</td><td>SOS Urgence, Equipment Groupon, Documents, Signature, Sidebar</td><td>27 avril 2026</td></tr>
+  <tr><td><span class="tag tag-wip">NEXT</span> Passe 59-60</td><td>Ameliorer Equipment + SOS Urgence, premier email 3Shape</td><td>Mai 2026</td></tr>
+  <tr><td><span class="tag tag-plan">PLAN</span> Passe 61-65</td><td>Module IDE: tournees, split M/S, multi-IDE, placement auto</td><td>Juin 2026</td></tr>
+  <tr><td><span class="tag tag-plan">PLAN</span> Passe 66-70</td><td>Tracking Uber, dictee vocale, confirmation auto, pharmacie</td><td>Juillet 2026</td></tr>
+  <tr><td><span class="tag tag-plan">PLAN</span> Passe 71+</td><td>App patient PWA, boucle virale, remplacement instantane</td><td>Aout 2026</td></tr>
+</table>
+
+<p style="color:#94a3b8;font-size:9pt;margin-top:40px;text-align:center;">JADOMI — Document interne confidentiel — 27 avril 2026</p>
+
+</body>
+</html>
