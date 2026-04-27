@@ -53,6 +53,6 @@ CREATE POLICY "service_role_full_access" ON ide_remplacement_requests
 -- Authenticated users can see requests they sent or that target their nurses
 CREATE POLICY "auth_select_own" ON ide_remplacement_requests
   FOR SELECT TO authenticated USING (
-    sender_cabinet_id IN (SELECT id FROM ide_cabinets WHERE societe_id IN (SELECT societe_id FROM user_societes WHERE user_id = auth.uid()))
-    OR target_nurse_id IN (SELECT id FROM ide_nurses WHERE cabinet_id IN (SELECT id FROM ide_cabinets WHERE societe_id IN (SELECT societe_id FROM user_societes WHERE user_id = auth.uid())))
+    sender_cabinet_id IN (SELECT id FROM ide_cabinets WHERE societe_id IN (SELECT id FROM societes WHERE user_id = auth.uid()))
+    OR target_nurse_id IN (SELECT id FROM ide_nurses WHERE cabinet_id IN (SELECT id FROM ide_cabinets WHERE societe_id IN (SELECT id FROM societes WHERE user_id = auth.uid())))
   );
