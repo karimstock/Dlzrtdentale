@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 55 — JADOMI Sign (Signature Electronique Premium)
+**Derniere passe** : Passe 56 — Modele Fournisseurs 3 Paliers + Simplification Contrat
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -486,13 +486,56 @@ Societe immobiliere de Karim. Module Immobilier JADOMI.
 
 Upsell : Generation logo IA one-shot +59EUR
 
-## Revenus marketplace GPO (fournisseurs)
+## Revenus marketplace GPO — Slots fournisseurs (historique)
 | Tier | Prix/mois | Slots | Cible |
 |---|---|---|---|
 | Bronze | 0EUR | 1 | PME locales |
 | Silver | 500EUR | 3 | Distributeurs regionaux |
 | Gold | 1 500EUR | 8 | Distributeurs nationaux |
 | Platinum | 4 000EUR | 20 | Henry Schein, DPI, GACD |
+
+## Modele Fournisseurs — 3 Paliers (Passe 56)
+JADOMI propose 3 niveaux de partenariat fournisseur :
+
+### Bronze (gratuit) — pour tester
+- Abonnement : 0EUR/mois
+- Commission : 12% par vente (deduite du reversement)
+- Visibilite : standard dans le catalogue
+- Frais port >= 150EUR HT : a charge du fournisseur
+- Ideal : petit fournisseur, < 20 commandes/mois
+
+### Silver (pro) — le plus courant
+- Abonnement : 299EUR/mois
+- Commission : 5% par vente
+- Visibilite accrue + badge Silver
+- Priorite GPO : +1 position dans la file
+- Acces stats avancees
+- Rentable des 5 980EUR/mois de ventes
+- Ideal : moyen fournisseur, 20-100 commandes/mois
+
+### Gold (premium) — les gros
+- Abonnement : 799EUR/mois
+- Commission : 0%
+- Visibilite maximale + badge Gold + 1ere position
+- Priorite GPO : +3 positions
+- Account manager dedie (quand equipe)
+- Analytics premium
+- Rentable des 6 658EUR/mois de ventes
+- Ideal : gros fournisseur, 100+ commandes/mois
+
+### Logique SAV simplifiee
+- JADOMI = infrastructure (paiement, facturation, logistique)
+- SAV produit = le fournisseur gere directement
+- JADOMI met en contact client <-> fournisseur via messagerie
+- Si fournisseur ne repond pas sous 48h : relance + score baisse
+- Modele Doctolib : mise en relation, pas intermediation SAV
+
+### Flux de paiement
+1. Client paye par CB/PayPal via Stripe
+2. JADOMI encaisse
+3. Fournisseur livre
+4. Apres confirmation livraison + 14 jours : JADOMI reverse
+5. Reversement = montant commande - commission (selon palier) - frais port si applicable
 
 ## Revenus regie JADOMI Ads (annonceurs)
 | Tier | Prix/mois | Campagnes | Cible |
@@ -1287,18 +1330,29 @@ Gratuit, sans cle, retourne nom/siren/siret/adresse/ville/activite.
 Utilise dans le dashboard Documents pour autocompletion fournisseurs.
 
 ## Contrat Mandat Facturation (Passe 54)
-PDF genere par lib/mandate-contract-pdf.js — 12 articles niveau avocat d'affaires :
-Preambule, Art.1 Objet (289-I-2 CGI + 1984 C.civil), Art.2 Perimetre (GPO + mentions 242 nonies),
-Art.3 Obligations JADOMI (7 obligations + Factur-X EN16931 + PDP), Art.4 Obligations Fournisseur (5),
-Art.5 Acceptation (tacite + rectificative 5j), Art.6 Conditions financieres (commission + SEPA),
-Art.7 Duree/Resiliation (ordinaire 30j + faute 15j), Art.8 Confidentialite (2 ans),
-Art.9 Responsabilite/Assurance RC Pro, Art.10 RGPD, Art.11 Dispositions generales, Art.12 Loi/Juridiction.
+PDF genere par lib/mandate-contract-pdf.js — 11 articles simplifies (Passe 56) :
+Art.1 Objet (289-I-2 CGI), Art.2 Obligations JADOMI, Art.3 Obligations Fournisseur,
+Art.4 Conditions financieres (3 paliers Bronze/Silver/Gold), Art.4b Frais livraison,
+Art.4c Anonymat logistique, Art.5 Coordonnees bancaires, Art.6 Duree/Resiliation,
+Art.7 Acceptation electronique, Art.8 Loi applicable,
+Art.9 SAV (fournisseur responsable, 48h, suspension apres 3 non-reponses),
+Art.10 Paiement/Reversement (3 paliers, J+14 apres livraison),
+Art.11 Expedition/Suivi (48h, etiquettes anonymes).
 Endpoints : GET /api/facturation/mandate-template/pdf (modele vierge)
 GET /api/facturation/mandate/:id/pdf (mandat specifique)
 POST /api/facturation/mandates/send (creer + envoyer email signature au fournisseur)
 Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 
-## TODO Passe 56
+## Passe 56 (27 avril 2026) -- Modele Fournisseurs 3 Paliers + Simplification Contrat
+Refonte du modele economique fournisseur : 3 paliers Bronze/Silver/Gold.
+Simplification drastique du contrat de mandat (mandate-sign.html) : suppression
+des articles complexes (escrow, penalites J+2/J+4/J+7, garantie JADOMI 500EUR,
+scoring 100 points) et remplacement par 3 articles simples (SAV, Paiement, Expedition).
+Mise a jour dossier avocat (DOSSIER-AVOCAT-JADOMI.html) : question 23 enrichie
+avec les 3 paliers, checklist documents completee.
+CODEX.md enrichi avec section Modele Fournisseurs 3 Paliers dans le modele economique.
+
+## TODO Passe 57
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
 - Tester envoi email contrat fournisseur en conditions reelles
 - Tester envoi 4 documents par email

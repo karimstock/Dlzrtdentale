@@ -306,6 +306,66 @@ try {
   console.warn('[JADOMI] Webhook Commerce non monté:', e.message);
 }
 
+// === Webhook Stripe Checkout Commerce (raw body requis — mount AVANT express.json) ===
+app.post('/api/commerce/checkout/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const Stripe = require('stripe');
+    const stripeInstance = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+    if (!stripeInstance) return res.status(503).send('Stripe not configured');
+
+    let event;
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET_CHECKOUT;
+
+    if (webhookSecret && sig) {
+      event = stripeInstance.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } else {
+      event = JSON.parse(req.body.toString());
+    }
+
+    const sbClient = supabaseAdmin || supabase;
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      if (session.metadata?.jadomi_order_type !== 'commerce') return res.json({ ok: true });
+
+      // Update order status
+      const { data: order } = await sbClient.from('jadomi_orders')
+        .update({
+          status: 'paid',
+          payment_method: session.payment_method_types?.[0] || 'card',
+          stripe_payment_intent_id: session.payment_intent,
+          paid_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('stripe_checkout_session_id', session.id)
+        .select()
+        .single();
+
+      if (order) {
+        console.log('[Commerce] Order paid:', order.id, '—', order.total_ttc, 'EUR');
+        // TODO: Generate Factur-X invoice
+        // TODO: Send confirmation emails (client + supplier)
+        // TODO: Schedule supplier payout (J+30)
+        // TODO: Notify supplier of new order
+      }
+    }
+
+    if (event.type === 'checkout.session.expired') {
+      const session = event.data.object;
+      await sbClient.from('jadomi_orders')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('stripe_checkout_session_id', session.id)
+        .eq('status', 'pending_payment');
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[Checkout webhook]', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
 app.use(express.json());
 
 // === Middleware authSupabase pour routes legacy (sécurité) ===
@@ -2749,10 +2809,11 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
     const token = String(req.params.token || '').trim();
     if (!token || token.length < 10) return res.status(400).json({ error: 'Token invalide' });
 
-    const { accepted, signer_name, signer_title, iban, bic, bank_name } = req.body;
+    const { accepted, signer_name, signer_title, iban, bic, bank_name, warehouse_address, warehouse_postal_code, warehouse_city } = req.body;
     if (!accepted) return res.status(400).json({ error: 'Vous devez accepter les termes du mandat' });
     if (!signer_name || !String(signer_name).trim()) return res.status(400).json({ error: 'Nom du signataire requis' });
     if (!iban || String(iban).replace(/\s/g, '').length < 15) return res.status(400).json({ error: 'IBAN requis pour le reversement des paiements' });
+    if (!warehouse_address || !warehouse_city) return res.status(400).json({ error: 'Adresse entrepot requise pour le calcul des frais de livraison' });
 
     // Fetch mandate (use service role to bypass RLS)
     const sbClient2 = supabaseAdmin || supabase;
@@ -2779,9 +2840,17 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       signer_title: signer_title ? String(signer_title).trim().substring(0, 200) : null,
       supplier_iban: cleanIban,
       supplier_bic: cleanBic,
+      supplier_adresse: warehouse_address ? String(warehouse_address).trim().substring(0, 300) : null,
+      supplier_code_postal: warehouse_postal_code ? String(warehouse_postal_code).trim().substring(0, 10) : null,
+      supplier_ville: warehouse_city ? String(warehouse_city).trim().substring(0, 100) : null,
       metadata: {
         bank_name: bank_name ? String(bank_name).trim().substring(0, 100) : null,
-        signed_with_rib: true
+        signed_with_rib: true,
+        warehouse: {
+          address: warehouse_address ? String(warehouse_address).trim() : null,
+          postal_code: warehouse_postal_code ? String(warehouse_postal_code).trim() : null,
+          city: warehouse_city ? String(warehouse_city).trim() : null
+        }
       }
     };
 
@@ -5803,6 +5872,552 @@ app.get('/api/documents/categories', requireAuth(), async (req, res) => {
     res.json({ ok: true, categories: tree });
   } catch (e) {
     console.error('[GET /api/documents/categories]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// JADOMI COMMERCE — Checkout Amazon-like + Stripe Connect
+// ============================================================
+
+// Create Stripe Connect account for supplier (called after mandate signed)
+app.post('/api/commerce/connect/onboard-supplier', requireAuth(), async (req, res) => {
+  try {
+    const { mandate_id } = req.body;
+    if (!mandate_id) return res.status(400).json({ error: 'mandate_id requis' });
+    if (!stripe) return res.status(503).json({ error: 'Stripe non configure' });
+
+    const sbClient = supabaseAdmin || supabase;
+    const { data: mandate } = await sbClient.from('supplier_mandates')
+      .select('*').eq('id', mandate_id).single();
+    if (!mandate) return res.status(404).json({ error: 'Mandat non trouve' });
+    if (mandate.status !== 'signed' && mandate.status !== 'active') {
+      return res.status(400).json({ error: 'Le mandat doit etre signe' });
+    }
+
+    // Check if already has a connected account
+    if (mandate.metadata?.stripe_connect_id) {
+      return res.json({ ok: true, account_id: mandate.metadata.stripe_connect_id, already_exists: true });
+    }
+
+    // Create Custom Connect account
+    const account = await stripe.accounts.create({
+      type: 'custom',
+      country: 'FR',
+      email: mandate.supplier_email,
+      business_type: 'company',
+      company: {
+        name: mandate.supplier_name,
+        tax_id: mandate.supplier_siret || undefined
+      },
+      capabilities: {
+        transfers: { requested: true }
+      },
+      external_account: mandate.supplier_iban ? {
+        object: 'bank_account',
+        country: 'FR',
+        currency: 'eur',
+        account_number: mandate.supplier_iban
+      } : undefined,
+      metadata: {
+        jadomi_mandate_id: mandate_id,
+        supplier_name: mandate.supplier_name
+      }
+    });
+
+    // Store account ID in mandate metadata
+    const meta = { ...(mandate.metadata || {}), stripe_connect_id: account.id };
+    await sbClient.from('supplier_mandates')
+      .update({ metadata: meta, updated_at: new Date().toISOString() })
+      .eq('id', mandate_id);
+
+    res.json({ ok: true, account_id: account.id });
+  } catch (e) {
+    console.error('[Connect onboard]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Save/update cart (stored per user in jadomi_carts table)
+app.post('/api/commerce/cart/save', requireAuth(), async (req, res) => {
+  try {
+    const { items } = req.body; // [{product_id, name, ref, quantity, unit_price_ht, supplier_id, supplier_name, weight_kg}]
+    if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'items requis (array)' });
+
+    const sbClient = supabaseAdmin || supabase;
+    const userId = req.user.id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id;
+
+    const cartData = {
+      user_id: userId,
+      societe_id: societeId || null,
+      items: items,
+      items_count: items.reduce((s, i) => s + (i.quantity || 1), 0),
+      subtotal_ht: items.reduce((s, i) => s + (i.unit_price_ht || 0) * (i.quantity || 1), 0),
+      updated_at: new Date().toISOString()
+    };
+
+    // Try upsert
+    const { data: existing } = await sbClient.from('jadomi_carts')
+      .select('id').eq('user_id', userId).maybeSingle();
+
+    if (existing) {
+      await sbClient.from('jadomi_carts').update(cartData).eq('id', existing.id);
+    } else {
+      cartData.created_at = new Date().toISOString();
+      await sbClient.from('jadomi_carts').insert(cartData);
+    }
+
+    res.json({ ok: true, items_count: cartData.items_count, subtotal_ht: cartData.subtotal_ht });
+  } catch (e) {
+    console.error('[Cart save]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get cart
+app.get('/api/commerce/cart', requireAuth(), async (req, res) => {
+  try {
+    const sbClient = supabaseAdmin || supabase;
+    const { data: cart } = await sbClient.from('jadomi_carts')
+      .select('*').eq('user_id', req.user.id).maybeSingle();
+
+    if (!cart) return res.json({ ok: true, items: [], subtotal_ht: 0, items_count: 0 });
+
+    res.json({ ok: true, ...cart });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Calculate full order: products + shipping + taxes + commission breakdown
+app.post('/api/commerce/calculate-order', requireAuth(), async (req, res) => {
+  try {
+    const { items, societe_id } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items requis' });
+    }
+
+    const sId = societe_id || req.user.user_metadata?.societe_id || req.user.societe_id;
+    const sbClient = supabaseAdmin || supabase;
+
+    // Get societe address for shipping calculation
+    let societe = null;
+    if (sId) {
+      const { data } = await sbClient.from('societes').select('nom, address, city, postal_code, lat, lng').eq('id', sId).maybeSingle();
+      societe = data;
+    }
+
+    // Group items by supplier
+    const bySupplier = {};
+    for (const item of items) {
+      const sid = item.supplier_id || 'unknown';
+      if (!bySupplier[sid]) bySupplier[sid] = { supplier_id: sid, supplier_name: item.supplier_name || 'Fournisseur', items: [], total_ht: 0, total_weight: 0 };
+      bySupplier[sid].items.push(item);
+      bySupplier[sid].total_ht += (item.unit_price_ht || 0) * (item.quantity || 1);
+      bySupplier[sid].total_weight += (item.weight_kg || 0.1) * (item.quantity || 1);
+    }
+
+    const FREE_SHIPPING_THRESHOLD = 150; // per supplier
+    const JADOMI_SHIPPING_MARGIN_PCT = 15;
+    const JADOMI_COMMISSION_PCT = 10;
+    const TVA_PCT = 20;
+
+    let subtotal_products_ht = 0;
+    let total_shipping_ht = 0;
+    let total_jadomi_shipping_margin = 0;
+    let total_jadomi_commission = 0;
+    const shipments = [];
+
+    for (const [supplierId, group] of Object.entries(bySupplier)) {
+      subtotal_products_ht += group.total_ht;
+
+      // Calculate shipping for this supplier
+      let shippingBase = 0;
+      let shippingFree = group.total_ht >= FREE_SHIPPING_THRESHOLD;
+      let carrier = 'chronopost';
+      let deliveryHours = 48;
+      let distanceKm = 200;
+
+      // Try to get warehouse for this supplier
+      try {
+        const { data: warehouse } = await sbClient.from('supplier_warehouses')
+          .select('*').eq('supplier_id', supplierId).eq('is_primary', true).maybeSingle();
+
+        if (warehouse && societe && warehouse.lat && warehouse.lng && societe.lat && societe.lng) {
+          // Haversine
+          const toRad = (d) => d * Math.PI / 180;
+          const R = 6371;
+          const dLat = toRad(societe.lat - warehouse.lat);
+          const dLng = toRad(societe.lng - warehouse.lng);
+          const a = Math.sin(dLat/2)**2 + Math.cos(toRad(warehouse.lat)) * Math.cos(toRad(societe.lat)) * Math.sin(dLng/2)**2;
+          distanceKm = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+
+        // Get transport rate
+        const { data: rates } = await sbClient.from('transport_rates')
+          .select('*').eq('is_active', true)
+          .gte('distance_km_max', distanceKm).gte('weight_kg_max', group.total_weight)
+          .order('price_negotiated_eur', { ascending: true }).limit(1);
+
+        if (rates && rates[0]) {
+          shippingBase = rates[0].price_negotiated_eur;
+          carrier = rates[0].carrier || 'chronopost';
+          deliveryHours = rates[0].delivery_hours || 48;
+        } else {
+          // Default: estimate based on distance and weight
+          shippingBase = Math.max(5.90, Math.min(25, distanceKm * 0.03 + group.total_weight * 1.2));
+        }
+      } catch (logErr) {
+        // Fallback
+        shippingBase = 8.50;
+      }
+
+      const jadomiShippingMargin = shippingFree ? 0 : Math.round(shippingBase * JADOMI_SHIPPING_MARGIN_PCT / 100 * 100) / 100;
+      const shippingTotal = shippingFree ? 0 : Math.round((shippingBase + jadomiShippingMargin) * 100) / 100;
+      const commission = Math.round(group.total_ht * JADOMI_COMMISSION_PCT / 100 * 100) / 100;
+      const missingToFree = shippingFree ? 0 : Math.round((FREE_SHIPPING_THRESHOLD - group.total_ht) * 100) / 100;
+
+      total_shipping_ht += shippingTotal;
+      total_jadomi_shipping_margin += jadomiShippingMargin;
+      total_jadomi_commission += commission;
+
+      shipments.push({
+        supplier_id: supplierId,
+        supplier_name: group.supplier_name,
+        items_count: group.items.length,
+        products_ht: Math.round(group.total_ht * 100) / 100,
+        weight_kg: Math.round(group.total_weight * 100) / 100,
+        distance_km: distanceKm,
+        carrier,
+        delivery_hours: deliveryHours,
+        shipping_base_ht: Math.round(shippingBase * 100) / 100,
+        jadomi_shipping_margin_ht: jadomiShippingMargin,
+        shipping_total_ht: shippingTotal,
+        shipping_free: shippingFree,
+        missing_to_free_shipping: missingToFree,
+        commission_ht: commission,
+        commission_pct: JADOMI_COMMISSION_PCT,
+        net_supplier_ht: Math.round((group.total_ht - commission) * 100) / 100
+      });
+    }
+
+    const totalHt = Math.round((subtotal_products_ht + total_shipping_ht) * 100) / 100;
+    const totalTva = Math.round(totalHt * TVA_PCT / 100 * 100) / 100;
+    const totalTtc = Math.round((totalHt + totalTva) * 100) / 100;
+
+    res.json({
+      ok: true,
+      subtotal_products_ht: Math.round(subtotal_products_ht * 100) / 100,
+      total_shipping_ht: Math.round(total_shipping_ht * 100) / 100,
+      total_ht: totalHt,
+      tva_pct: TVA_PCT,
+      tva_amount: totalTva,
+      total_ttc: totalTtc,
+      jadomi_revenue: {
+        commission_ht: Math.round(total_jadomi_commission * 100) / 100,
+        commission_pct: JADOMI_COMMISSION_PCT,
+        shipping_margin_ht: Math.round(total_jadomi_shipping_margin * 100) / 100,
+        shipping_margin_pct: JADOMI_SHIPPING_MARGIN_PCT,
+        total_jadomi_ht: Math.round((total_jadomi_commission + total_jadomi_shipping_margin) * 100) / 100
+      },
+      shipments,
+      free_shipping_threshold: FREE_SHIPPING_THRESHOLD
+    });
+  } catch (e) {
+    console.error('[Calculate order]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Create Stripe Checkout Session for order payment
+app.post('/api/commerce/checkout', requireAuth(), async (req, res) => {
+  try {
+    const { items, shipping_info } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Panier vide' });
+    }
+    if (!stripe) return res.status(503).json({ error: 'Stripe non configure. Contactez le support.' });
+
+    const userId = req.user.id;
+    const userEmail = req.user.email;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id;
+
+    const FREE_SHIPPING_THRESHOLD = 150;
+    const JADOMI_SHIPPING_MARGIN_PCT = 15;
+    const JADOMI_COMMISSION_PCT = 10;
+
+    let subtotalHt = 0;
+    for (const item of items) {
+      subtotalHt += (item.unit_price_ht || 0) * (item.quantity || 1);
+    }
+
+    // Estimate shipping (simplified for checkout — full calc done in calculate-order)
+    let shippingHt = subtotalHt >= FREE_SHIPPING_THRESHOLD ? 0 : 9.90;
+
+    const totalHt = subtotalHt + shippingHt;
+    const tvaPct = 20;
+    const tvaAmount = Math.round(totalHt * tvaPct / 100 * 100) / 100;
+    const totalTtc = Math.round((totalHt + tvaAmount) * 100) / 100;
+
+    // Build line items for Stripe
+    const lineItems = items.map(item => ({
+      price_data: {
+        currency: 'eur',
+        product_data: {
+          name: item.name || item.ref || 'Produit',
+          description: item.supplier_name ? ('Fournisseur: ' + item.supplier_name) : undefined,
+          metadata: {
+            product_id: item.product_id || '',
+            supplier_id: item.supplier_id || ''
+          }
+        },
+        unit_amount: Math.round((item.unit_price_ht || 0) * 1.20 * 100), // TTC in cents
+      },
+      quantity: item.quantity || 1
+    }));
+
+    // Add shipping as line item if applicable
+    if (shippingHt > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'eur',
+          product_data: { name: 'Frais de livraison (Chronopost 48h)' },
+          unit_amount: Math.round(shippingHt * 1.20 * 100), // TTC
+        },
+        quantity: 1
+      });
+    }
+
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card', 'paypal'],
+      customer_email: userEmail,
+      line_items: lineItems,
+      metadata: {
+        jadomi_user_id: userId,
+        jadomi_societe_id: societeId || '',
+        jadomi_order_type: 'commerce',
+        items_json: JSON.stringify(items.map(i => ({ id: i.product_id, qty: i.quantity, supplier: i.supplier_id }))).substring(0, 500)
+      },
+      shipping_options: subtotalHt >= FREE_SHIPPING_THRESHOLD ? [{
+        shipping_rate_data: {
+          type: 'fixed_amount',
+          fixed_amount: { amount: 0, currency: 'eur' },
+          display_name: 'Livraison gratuite (JADOMI Express)',
+          delivery_estimate: { minimum: { unit: 'business_day', value: 1 }, maximum: { unit: 'business_day', value: 2 } }
+        }
+      }] : [
+        {
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            fixed_amount: { amount: Math.round(shippingHt * 1.20 * 100), currency: 'eur' },
+            display_name: 'Chronopost 48h',
+            delivery_estimate: { minimum: { unit: 'business_day', value: 1 }, maximum: { unit: 'business_day', value: 3 } }
+          }
+        }
+      ],
+      success_url: (process.env.JADOMI_PUBLIC_URL || 'https://jadomi.fr') + '/checkout-success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: (process.env.JADOMI_PUBLIC_URL || 'https://jadomi.fr') + '/checkout-cancel',
+      locale: 'fr',
+      expires_after: 30 * 60, // 30 minutes
+    });
+
+    // Save pending order
+    const sbClient = supabaseAdmin || supabase;
+    await sbClient.from('jadomi_orders').insert({
+      user_id: userId,
+      societe_id: societeId || null,
+      stripe_checkout_session_id: session.id,
+      items: items,
+      subtotal_products_ht: Math.round(subtotalHt * 100) / 100,
+      shipping_ht: Math.round(shippingHt * 100) / 100,
+      total_ht: Math.round(totalHt * 100) / 100,
+      tva_amount: tvaAmount,
+      total_ttc: totalTtc,
+      jadomi_commission_ht: Math.round(subtotalHt * JADOMI_COMMISSION_PCT / 100 * 100) / 100,
+      jadomi_shipping_margin_ht: Math.round(shippingHt * JADOMI_SHIPPING_MARGIN_PCT / 100 * 100) / 100,
+      status: 'pending_payment',
+      payment_method: null,
+      metadata: { shipping_info: shipping_info || null }
+    });
+
+    res.json({
+      ok: true,
+      checkout_url: session.url,
+      session_id: session.id,
+      total_ttc: totalTtc
+    });
+  } catch (e) {
+    console.error('[Checkout]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Schedule supplier payout (J+30)
+app.post('/api/commerce/payout/schedule', requireAuth(), async (req, res) => {
+  try {
+    const { order_id } = req.body;
+    if (!order_id || !stripe) return res.status(400).json({ error: 'order_id requis et Stripe configure' });
+
+    const sbClient = supabaseAdmin || supabase;
+    const { data: order } = await sbClient.from('jadomi_orders')
+      .select('*').eq('id', order_id).eq('status', 'paid').single();
+    if (!order) return res.status(404).json({ error: 'Commande non trouvee ou non payee' });
+
+    // Group by supplier and transfer
+    const items = order.items || [];
+    const bySupplier = {};
+    for (const item of items) {
+      const sid = item.supplier_id || 'unknown';
+      if (!bySupplier[sid]) bySupplier[sid] = { total_ht: 0 };
+      bySupplier[sid].total_ht += (item.unit_price_ht || 0) * (item.quantity || 1);
+    }
+
+    const transfers = [];
+    for (const [supplierId, group] of Object.entries(bySupplier)) {
+      // Find mandate with Stripe Connect ID
+      const { data: mandate } = await sbClient.from('supplier_mandates')
+        .select('metadata').eq('supplier_id', supplierId).eq('status', 'signed').maybeSingle();
+
+      const connectId = mandate?.metadata?.stripe_connect_id;
+      if (!connectId) {
+        transfers.push({ supplier_id: supplierId, status: 'skipped', reason: 'no_connect_account' });
+        continue;
+      }
+
+      const netSupplier = Math.round(group.total_ht * 0.90 * 100); // 90% in cents (after 10% commission)
+
+      try {
+        const transfer = await stripe.transfers.create({
+          amount: netSupplier,
+          currency: 'eur',
+          destination: connectId,
+          description: `JADOMI reversement commande ${order.id}`,
+          metadata: { jadomi_order_id: order.id, supplier_id: supplierId }
+        });
+        transfers.push({ supplier_id: supplierId, status: 'transferred', transfer_id: transfer.id, amount_eur: netSupplier / 100 });
+      } catch (tErr) {
+        transfers.push({ supplier_id: supplierId, status: 'failed', error: tErr.message });
+      }
+    }
+
+    // Update order
+    await sbClient.from('jadomi_orders')
+      .update({ status: 'payout_scheduled', metadata: { ...order.metadata, transfers }, updated_at: new Date().toISOString() })
+      .eq('id', order_id);
+
+    res.json({ ok: true, transfers });
+  } catch (e) {
+    console.error('[Payout]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// DISPUTES — Litiges automatises (Amazon A-to-Z style)
+// ============================================================
+
+// Client opens a dispute
+app.post('/api/disputes', requireAuth(), async (req, res) => {
+  try {
+    const { order_id, type, description, photo_urls } = req.body;
+    if (!order_id || !type) return res.status(400).json({ error: 'order_id et type requis' });
+
+    const validTypes = ['not_received', 'damaged', 'wrong_product', 'expired', 'quality', 'other'];
+    if (!validTypes.includes(type)) return res.status(400).json({ error: 'Type invalide: ' + validTypes.join(', ') });
+
+    const sbClient = supabaseAdmin || supabase;
+
+    // Create dispute
+    const { data: dispute, error } = await sbClient.from('jadomi_disputes').insert({
+      order_id,
+      societe_id: req.user.user_metadata?.societe_id || null,
+      supplier_id: null, // will be filled from order
+      type,
+      description: description ? String(description).substring(0, 2000) : null,
+      photo_urls: Array.isArray(photo_urls) ? photo_urls.slice(0, 10) : [],
+      status: 'opened'
+    }).select().single();
+
+    if (error) throw error;
+
+    // Auto-process the dispute
+    const disputeEngine = require('./lib/dispute-engine');
+    const result = await disputeEngine.processDispute(dispute, sbClient);
+
+    // Update dispute with resolution
+    const updateData = { updated_at: new Date().toISOString() };
+    if (result.auto_resolved) {
+      updateData.status = 'auto_resolved';
+      updateData.auto_resolved = true;
+      updateData.auto_resolution_reason = result.reason;
+      updateData.resolution = result.resolution;
+      updateData.refund_amount = result.refund_amount;
+      updateData.resolved_at = new Date().toISOString();
+      updateData.resolved_by = 'auto';
+    } else if (result.escalate) {
+      updateData.status = 'investigating';
+      updateData.escalation_level = 2;
+    } else {
+      updateData.status = 'investigating';
+    }
+    updateData.metadata = { auto_result: result };
+
+    await sbClient.from('jadomi_disputes').update(updateData).eq('id', dispute.id);
+
+    // Update supplier score if resolved
+    if (result.auto_resolved && dispute.supplier_id) {
+      await disputeEngine.updateSupplierScore(dispute.supplier_id, sbClient);
+    }
+
+    res.json({
+      ok: true,
+      dispute_id: dispute.id,
+      auto_resolved: result.auto_resolved,
+      resolution: result.resolution,
+      reason: result.reason,
+      actions: result.actions,
+      message: result.auto_resolved
+        ? 'Litige resolu automatiquement. ' + (result.resolution === 'full_refund' ? 'Remboursement en cours.' : 'Remplacement en cours.')
+        : 'Litige enregistre. Notre equipe examine votre demande sous 48h.'
+    });
+  } catch (e) {
+    console.error('[Disputes]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get disputes for current user
+app.get('/api/disputes', requireAuth(), async (req, res) => {
+  try {
+    const sbClient = supabaseAdmin || supabase;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id;
+
+    let query = sbClient.from('jadomi_disputes').select('*').order('created_at', { ascending: false });
+    if (req.user.role !== 'admin') {
+      query = query.eq('societe_id', societeId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ ok: true, disputes: data || [] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get supplier score
+app.get('/api/suppliers/:id/score', requireAuth(), async (req, res) => {
+  try {
+    const sbClient = supabaseAdmin || supabase;
+    const { data } = await sbClient.from('supplier_scores')
+      .select('*').eq('supplier_id', req.params.id).maybeSingle();
+
+    res.json({ ok: true, score: data || { score_total: 100, badge: 'new' } });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });

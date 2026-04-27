@@ -427,6 +427,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       <div style="display:flex;gap:10px;align-items:center;">
         <input type="email" id="mandate-supplier-email" placeholder="Email du fournisseur" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:#fff;">
         <button class="btn bp bs" onclick="sendMandateToSupplier()">Envoyer</button>
+        <button class="btn bp" onclick="previewMandate()" style="background:transparent;border:1px solid var(--border);color:var(--text);">Previsualiser</button>
       </div>
       <div id="mandate-send-msg" style="margin-top:8px;font-size:12px;"></div>
       <div style="font-size:11px;color:var(--text3);margin-top:8px;">Le fournisseur recevra un lien securise pour consulter et signer le mandat.</div>
@@ -1108,7 +1109,7 @@ async function sendMandateToSupplier() {
     const ville = (document.getElementById('mandate-supplier-ville')?.value || '').trim();
     const r = await api('/api/facturation/mandates/send', {
       method: 'POST',
-      body: JSON.stringify({ supplier_name: name, supplier_email: email, supplier_siret: siret, supplier_ville: ville, commission_percent: 4, payment_delay_days: 30 })
+      body: JSON.stringify({ supplier_name: name, supplier_email: email, supplier_siret: siret, supplier_ville: ville, commission_percent: 10, payment_delay_days: 30 })
     });
     if (r.ok || r.success) {
       msg.textContent = 'Contrat envoye a ' + email; msg.style.color = '#10b981';
@@ -1116,6 +1117,20 @@ async function sendMandateToSupplier() {
       document.getElementById('mandate-supplier-email').value = '';
     } else { msg.textContent = r.error || 'Erreur envoi'; msg.style.color = '#ef4444'; }
   } catch(e) { msg.textContent = 'Erreur: ' + e.message; msg.style.color = '#ef4444'; }
+}
+
+function previewMandate() {
+  const name = (document.getElementById('mandate-supplier-name')?.value || '').trim();
+  const siret = (document.getElementById('mandate-supplier-siret')?.value || '').trim();
+  const ville = (document.getElementById('mandate-supplier-ville')?.value || '').trim();
+  const params = new URLSearchParams();
+  params.set('preview', '1');
+  if (name) params.set('name', name);
+  if (siret) params.set('siret', siret);
+  if (ville) params.set('ville', ville);
+  params.set('commission', '10');
+  params.set('delay', '30');
+  window.open('/mandate-sign.html?' + params.toString(), '_blank');
 }
 
 async function downloadMandateTemplate() {
