@@ -1520,7 +1520,10 @@ Cible : 120 000 IDE liberales en France. Abonnement 9-19EUR/mois.
 - PWA mobile : feuille de route du jour, navigation GPS en 1 clic vers prochain patient
 - KILLER FEATURE : patient appelle → tape nom/adresse → le systeme le place
   automatiquement dans le creneau optimal du trajet (gain de temps phenomenal)
-- SMS patient automatique "votre infirmiere arrive dans 12 minutes"
+- Notifications patient: push app GRATUIT par defaut, SMS en option (packs tokens)
+- Boucle virale: IDE pousse patient a telecharger → patient pousse ses autres pros
+- Abonnement 9EUR/mois sans SMS, l'IDE est libre. SMS = packs tokens (100/500/2000)
+- Integration JADOMI Coins pour les tokens SMS
 - Connexion modules JADOMI : stock consommables IDE (compresses, gants), messagerie medecins
 - Concurrent principal : Agathe You (~15EUR/mois) — mais PAS d'optimisation GPS tournees
 - Avantage JADOMI : ecosysteme sante complet (stock + comm + signature + groupage)
