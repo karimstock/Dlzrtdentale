@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 58 — Gestionnaire documents + Signature electronique integree + Sidebar accordeon
+**Derniere passe** : Passe 58 — Documents + Signature + Sidebar + Equipment Groupon + Dossier Avocat v3.0
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1430,7 +1430,25 @@ Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 - Dropdown avec badges (Enregistre/Client), debounce 250ms, navigation clavier
 - Le nom est sauvegarde automatiquement apres chaque envoi de document
 
-### Commits Passe 58 (8 commits)
+### Dossier Avocat v3.0
+- Rewrite complet: 12 sections, 45 questions (au lieu de 33), 15 articles CGV
+- Nouvelles sections: Architecture Marketplace B2B, JADOMI Sign eIDAS, Coffre-fort Avocat, Finances/TVA
+- 27 modules documentes, 33 documents a produire classes par priorite
+
+### JADOMI Equipment — Systeme Groupon Equipement Dentaire
+- Page formulaire fabricant/revendeur publique: /equipment/propose
+  Design premium glassmorphism, paliers de prix dynamiques, upload photo, panier type revendeur
+- API: POST /api/equipment/propose (public, rate limited)
+  GET /api/equipment/proposals + PATCH status (admin)
+  Notification email admin + confirmation fabricant automatique
+- Onglet Equipment dans organisation.html: dissociation Dispositifs / Consommables
+  Dispositifs: 12 fabricants (3Shape, Dentsply, Planmeca, KaVo, etc.) en 4 sous-categories
+  Consommables: 12 fournisseurs (Ivoclar, 3M, Septodont, Straumann, etc.) en 5 sous-categories
+- Email commercial HTML premium pret a envoyer aux fabricants
+- Dashboard: tableau propositions recues, calcul benefices commission 10%, changement statut
+- Lien formulaire copiable, email type, envoi par mail
+
+### Commits Passe 58 (12 commits)
 1. fix(sign): OTP timer 60s + resend + PDF contrat 11 articles
 2. feat(docs): Gestionnaire documents complet — upload, dossiers, tri
 3. feat(docs): Signature electronique integree + coffre-fort + champ patient
@@ -1438,7 +1456,11 @@ Fichier PDF statique : docs/Modele-Mandat-Facturation-JADOMI.pdf
 5. feat(ui): Sidebar accordeon premium — categories cliquables
 6. fix(ui): Sidebar accordeon — visibilite + toggle fonctionnel
 7. feat(ux): Autocomplete patients/clients — 3 sources, sauvegarde auto
-8. chore(codex): update after Passe 58
+8. feat(legal): Dossier Avocat v3.0 — 12 sections, 45 questions, CGV v3.0
+9. feat(equipment): JADOMI Equipment — onglet dashboard + emails fabricants
+10. feat(equipment): Systeme complet — formulaire public + API + notifications
+11. feat(equipment): Dissocier dispositifs medicaux / consommables
+12. chore(codex): update final Passe 58
 
 ## Passe 57 (27 avril 2026) -- JADOMI Sign AES integre au mandat fournisseur
 Integration complete de JADOMI Sign dans la page de signature du mandat.
@@ -1469,21 +1491,31 @@ transport, calcul haversine frais port, garantie A-to-Z, scoring 100 points.
 Mise a jour dossier avocat : questions 25-26 actualisees, checklist nettoyee.
 CODEX.md enrichi avec section Architecture Marketplace Finale.
 
-## TODO Passe 58
+## TODO Passe 59 (prochaine session)
+### Equipment Groupon (ameliorer)
+- Ameliorer design onglet Equipment (plus immersif)
+- Integrer les propositions fabricants dans le module Groupage existant
+- Page cote dentiste: voir les deals equipment en cours, s'inscrire, voir prix baisser
+- Systeme acompte/engagement ferme pour les dentistes
+- Notification push quand un nouveau palier est atteint
+- Envoyer le premier email commercial a 3Shape (TRIOS 6)
+
+### Sidebar accordeon (ameliorer)
+- Animations plus fluides, icones SVG au lieu d'emoji
+- Tester toggle sur mobile
+
+### Signature & Documents
+- Integrer signature dans module BTP (devis)
+- Ajouter module signature dans l'espace client securise (patients/clients)
+- Tester envoi 4 documents par email depuis dashboard
+
+### Infrastructure & Securite
 - Remplir les infos JADOMI dans le contrat PDF (SIRET, adresse) quand societe creee
-- ~~Tester envoi email contrat fournisseur en conditions reelles~~ [FAIT Passe 58]
-- ~~Tester parcours complet signature (envoi → reception email → signature → certificat)~~ [FAIT Passe 58]
-- ~~Integrer signature dans module dentiste (plans de traitement)~~ [FAIT Passe 58 — onglet Signature dans hub]
-- Tester envoi 4 documents par email
-- Fail2ban configurer (apt-get ClamAV bloquait le lock)
+- Fail2ban configurer
 - Cloudflare free (Karim — changer DNS OVH)
 - Remplacer xlsx par exceljs (6 CVEs npm)
 - CSP strict sans unsafe-inline (refacto frontend)
 - Executer SQL 57_signed_documents.sql en production (Supabase Dashboard)
-- Configurer DOCUSEAL_API_KEY dans .env
-- Integrer signature dans module BTP (devis)
-- Ajouter module signature dans l'espace client securise (patients/clients)
-- Ameliorer esthetique sidebar accordeon (animations plus fluides, icones SVG)
 
 ===============================================================
 # 11. METHODE DE DEVELOPPEMENT OBLIGATOIRE
