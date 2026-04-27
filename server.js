@@ -8826,6 +8826,50 @@ app.get('/api/ide/ordonnances', requireAuth(), async (req, res) => {
   }
 });
 
+// 2b. GET /api/ide/ordonnances/expiring — Ordonnances expirant dans les 7 prochains jours
+app.get('/api/ide/ordonnances/expiring', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+
+    const now = new Date();
+    const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const nowISO = now.toISOString().slice(0, 10);
+    const in7ISO = in7days.toISOString().slice(0, 10);
+
+    const { data, error } = await db.from('ide_ordonnances')
+      .select('id, date_expiration, type_soins, medecin_nom, description, ide_patients(nom, prenom)')
+      .eq('cabinet_id', cabinetId)
+      .gte('date_expiration', nowISO)
+      .lte('date_expiration', in7ISO)
+      .order('date_expiration', { ascending: true });
+
+    if (error) throw error;
+
+    const ordonnances = (data || []).map(o => {
+      const p = o.ide_patients;
+      const exp = new Date(o.date_expiration);
+      const daysRemaining = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+      return {
+        id: o.id,
+        patient_nom: p ? `${p.prenom} ${p.nom}` : '',
+        titre: o.description || o.type_soins || 'Ordonnance',
+        date_expiration: o.date_expiration,
+        days_remaining: daysRemaining
+      };
+    });
+
+    res.json({ ok: true, count: ordonnances.length, ordonnances });
+  } catch (e) {
+    console.error('[IDE Ordonnances Expiring] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // 3. GET /api/ide/ordonnances/:id/download — Telecharger le scan
 app.get('/api/ide/ordonnances/:id/download', requireAuth(), async (req, res) => {
   try {
@@ -10387,6 +10431,165 @@ app.get('/api/ide/remplacement/requests', requireAuth(), async (req, res) => {
   } catch (e) {
     console.error('[IDE Remplacement Requests GET] Error:', e.message);
     res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// =============================================
+// CRON IDE — Confirmation automatique patients J-1 (19h Europe/Paris)
+// =============================================
+
+/**
+ * Fonction principale : interroge ide_visites pour demain (status='planifie'),
+ * recupere les patients, logue la confirmation et marque confirmation_envoyee.
+ * Utilise supabaseAdmin (service_role) car pas de contexte utilisateur.
+ */
+async function cronConfirmPatientsIDE() {
+  const tag = '[IDE CRON Confirm]';
+  try {
+    const adminDb = supaAdminOrThrow();
+
+    // Calculer la date de demain en Europe/Paris
+    const nowParis = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+    const tomorrow = new Date(nowParis);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // 1. Recuperer les visites planifiees pour demain, non encore confirmees
+    const { data: visites, error: vErr } = await adminDb
+      .from('ide_visites')
+      .select('id, patient_id, cabinet_id, nurse_id, date_visite, tournee, soins_type')
+      .eq('date_visite', dateStr)
+      .eq('status', 'planifie')
+      .is('confirmation_envoyee', null); // pas encore traitees
+
+    if (vErr) {
+      // Fallback: si la colonne confirmation_envoyee n'existe pas, reessayer sans filtre
+      if (vErr.message && vErr.message.includes('confirmation_envoyee')) {
+        console.warn(`${tag} Colonne confirmation_envoyee absente, query sans filtre...`);
+        const { data: v2, error: v2Err } = await adminDb
+          .from('ide_visites')
+          .select('id, patient_id, cabinet_id, nurse_id, date_visite, tournee, soins_type')
+          .eq('date_visite', dateStr)
+          .eq('status', 'planifie');
+        if (v2Err) throw v2Err;
+        if (!v2 || v2.length === 0) {
+          console.log(`${tag} Aucune visite planifiee pour ${dateStr}`);
+          return { date: dateStr, processed: 0 };
+        }
+        return await _processConfirmations(adminDb, v2, dateStr, tag);
+      }
+      throw vErr;
+    }
+
+    if (!visites || visites.length === 0) {
+      console.log(`${tag} Aucune visite planifiee pour ${dateStr}`);
+      return { date: dateStr, processed: 0 };
+    }
+
+    return await _processConfirmations(adminDb, visites, dateStr, tag);
+  } catch (err) {
+    console.error(`${tag} Erreur:`, err.message);
+    return { error: err.message };
+  }
+}
+
+async function _processConfirmations(adminDb, visites, dateStr, tag) {
+  console.log(`${tag} Processing ${visites.length} visits for ${dateStr}`);
+
+  // 2. Recuperer les patients concernes (batch unique)
+  const patientIds = [...new Set(visites.map(v => v.patient_id))];
+  const { data: patients, error: pErr } = await adminDb
+    .from('ide_patients')
+    .select('id, nom, prenom, tel')
+    .in('id', patientIds);
+  if (pErr) throw pErr;
+
+  const patientMap = {};
+  for (const p of (patients || [])) {
+    patientMap[p.id] = p;
+  }
+
+  let confirmed = 0;
+  let skippedNoPhone = 0;
+
+  for (const visite of visites) {
+    try {
+      const patient = patientMap[visite.patient_id];
+      if (!patient) continue;
+
+      if (!patient.tel || patient.tel.trim() === '') {
+        skippedNoPhone++;
+        continue;
+      }
+
+      // 3. Loguer la confirmation (future: envoi SMS)
+      // SECURITE: pas de donnees patient dans les logs, juste l'ID visite
+      console.log(`${tag} Confirmation logged for visit ${visite.id} (date: ${dateStr})`);
+
+      // 4. Marquer la visite comme confirmee
+      // Tenter d'abord avec confirmation_envoyee (boolean), fallback sur metadata JSONB
+      const { error: uErr } = await adminDb
+        .from('ide_visites')
+        .update({ confirmation_envoyee: true })
+        .eq('id', visite.id);
+
+      if (uErr && uErr.message && uErr.message.includes('confirmation_envoyee')) {
+        // Fallback: stocker dans metadata JSONB si la colonne n'existe pas
+        const { data: current } = await adminDb.from('ide_visites').select('metadata').eq('id', visite.id).single();
+        const meta = (current && current.metadata) || {};
+        meta.confirmation_envoyee = true;
+        meta.confirmation_date = new Date().toISOString();
+        await adminDb.from('ide_visites').update({ metadata: meta }).eq('id', visite.id);
+      }
+
+      confirmed++;
+    } catch (visitErr) {
+      console.error(`${tag} Erreur visite ${visite.id}:`, visitErr.message);
+    }
+  }
+
+  console.log(`${tag} Termine: ${confirmed} confirmes, ${skippedNoPhone} sans telephone, sur ${visites.length} visites (${dateStr})`);
+  return { date: dateStr, processed: visites.length, confirmed, skippedNoPhone };
+}
+
+// --- CRON schedule: tous les jours a 19h00 Europe/Paris ---
+try {
+  const cronConfirm = require('node-cron');
+  cronConfirm.schedule('0 19 * * *', cronConfirmPatientsIDE, { timezone: 'Europe/Paris' });
+  console.log('[JADOMI] CRON IDE confirmation patients programme (19h00 Europe/Paris)');
+} catch (cronConfirmErr) {
+  // Fallback setInterval si node-cron indisponible : toutes les 5 min, check si 19h Paris
+  console.warn('[JADOMI] node-cron indisponible pour IDE confirm, fallback setInterval:', cronConfirmErr.message);
+  setInterval(async () => {
+    try {
+      const nowParis = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+      if (nowParis.getHours() === 19 && nowParis.getMinutes() < 5) {
+        await cronConfirmPatientsIDE();
+      }
+    } catch (e) { console.error('[IDE CRON Confirm fallback]', e.message); }
+  }, 5 * 60 * 1000); // check toutes les 5 min
+  console.log('[JADOMI] CRON IDE confirm fallback setInterval actif (check /5min)');
+}
+
+// --- Endpoint manuel : POST /api/ide/cron/confirm-patients ---
+const _ideCronConfirmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de declenchements manuels, reessayez dans 15 minutes' }
+});
+app.post('/api/ide/cron/confirm-patients', requireAuth(), _ideCronConfirmLimiter, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acces reserve aux administrateurs.' });
+    }
+    console.log('[IDE CRON Confirm] Declenchement manuel par', req.user.id);
+    const result = await cronConfirmPatientsIDE();
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    console.error('[IDE CRON Confirm Manual] Error:', e.message);
+    res.status(500).json({ error: 'Erreur lors du declenchement.' });
   }
 });
 
