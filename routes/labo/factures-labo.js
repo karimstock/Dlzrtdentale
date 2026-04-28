@@ -9,6 +9,7 @@ const { admin } = require('../../api/multiSocietes/middleware');
 const { calculerTotaux } = require('../../services/tva-calculator');
 const { genererFacturePdf } = require('../../services/pdf-generator');
 const { envoyerFacture, envoyerFacturesBatch } = require('../../services/email-sender');
+const { genererFacturXml, getFacturXMetadata, mentionsFactureElectronique } = require('../../services/facturx-generator');
 
 // GET /api/labo/factures — Liste factures
 router.get('/', async (req, res) => {
@@ -401,6 +402,60 @@ router.get('/:id/pdf', async (req, res) => {
   } catch (e) {
     console.error('[LABO facture pdf]', e.message);
     res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// GET /api/labo/factures/:id/facturx — Telecharger XML Factur-X (conformite 2026)
+router.get('/:id/facturx', async (req, res) => {
+  try {
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
+
+    const { data: facture } = await admin().from('factures_labo')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('prothesiste_id', req.prothesisteId)
+      .single();
+    if (!facture) return res.status(404).json({ error: 'Facture non trouvee' });
+
+    const { data: proth } = await admin().from('labo_prothesistes')
+      .select('*').eq('id', req.prothesisteId).single();
+    const { data: dentiste } = await admin().from('dentistes_clients')
+      .select('*').eq('id', facture.dentiste_id).single();
+
+    // Recuperer les BL + lignes de cette facture
+    const { data: bls } = await admin().from('bons_livraison')
+      .select('*, lignes_bl(*)')
+      .eq('facture_id', facture.id);
+
+    const lignes = [];
+    for (const bl of (bls || [])) {
+      for (const l of (bl.lignes_bl || [])) {
+        lignes.push(l);
+      }
+    }
+
+    const xml = genererFacturXml({ facture, prothesiste: proth, dentiste, lignes });
+    const mentions = mentionsFactureElectronique(proth);
+
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent('factur-x_' + facture.numero_facture + '.xml')}`);
+    res.send(xml);
+  } catch (e) {
+    console.error('[LABO facturx]', e.message);
+    res.status(500).json({ error: 'Erreur generation Factur-X' });
+  }
+});
+
+// GET /api/labo/factures/:id/mentions — Mentions legales facture electronique
+router.get('/:id/mentions', async (req, res) => {
+  try {
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
+    const { data: proth } = await admin().from('labo_prothesistes')
+      .select('*').eq('id', req.prothesisteId).single();
+    const mentions = mentionsFactureElectronique(proth);
+    res.json({ ok: true, mentions });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur' });
   }
 });
 
