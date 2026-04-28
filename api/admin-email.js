@@ -152,6 +152,16 @@ async function setFlags(uid, flags, add = true) {
 
 // ===== MOUNT ROUTES =====
 function mountAdminEmail(app, supabase) {
+  // ------- AUTH -------
+  // POST /api/admin/auth — Verify admin password and return token
+  app.post('/api/admin/auth', (req, res) => {
+    const { password } = req.body || {};
+    if (password && password === ADMIN_TOKEN) {
+      return res.json({ ok: true, token: ADMIN_TOKEN });
+    }
+    res.status(401).json({ error: 'Mot de passe incorrect' });
+  });
+
   // ------- BOITE RECEPTION -------
 
   // GET /api/admin/email/inbox — Lire boite reception

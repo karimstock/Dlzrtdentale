@@ -494,6 +494,18 @@ try {
   console.warn('[JADOMI] Module vitrines non chargé:', e.message);
 }
 
+// Alias routes vitrines publics (frontend appelle /api/vitrines/site/* mais backend = /api/vitrines/public/site/*)
+app.use('/api/vitrines/site', (req, res) => {
+  const newUrl = '/api/vitrines/public/site' + req.url;
+  req.url = newUrl;
+  req.app.handle(req, res);
+});
+app.use('/api/vitrines/chatbot', (req, res) => {
+  const newUrl = '/api/vitrines/public/chatbot' + req.url;
+  req.url = newUrl;
+  req.app.handle(req, res);
+});
+
 // === JADOMI Site Analysis (Passe 33 — import site existant) ===
 try {
   app.use('/api/site-analysis', require('./api/site-analysis'));
@@ -518,6 +530,19 @@ try {
 } catch (e) {
   console.warn('[JADOMI] Module Ads non chargé:', e.message);
 }
+
+// GET /api/ads/me — Retourner infos utilisateur connecte pour dashboard annonceur
+app.get('/api/ads/me', authSupabase(), async (req, res) => {
+  try {
+    const sb = supabaseAdmin || supabase;
+    const { data } = await sb.from('societes')
+      .select('id, nom, email, secteur')
+      .eq('owner_id', req.user.id)
+      .limit(1)
+      .maybeSingle();
+    res.json({ name: data?.nom || req.user.email, email: req.user.email, societe: data || null });
+  } catch (e) { res.json({ name: req.user.email, email: req.user.email }); }
+});
 
 // === JADOMI Studio — Hub IA creation publicitaire (Passe 34.2) ===
 try {

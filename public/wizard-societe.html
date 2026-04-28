@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Nouvelle société</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.25);--text:#f1f5f9;--muted:#94a3b8;
+  --accent:#6366f1;--accent-soft:rgba(99,102,241,0.12);
+  --red:#ef4444;--green:#10b981;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  --trans:cubic-bezier(0.16,1,0.3,1);
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,0.08) 0%,transparent 55%);
+  transition:background-image 0.6s var(--trans);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;}
+button{font-family:var(--font);cursor:pointer;}
+::placeholder{color:#8a857c;}
+
+.topbar{padding:18px 28px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:var(--display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.back-link{color:var(--muted);font-size:13px;transition:color 0.2s;}
+.back-link:hover{color:var(--text);}
+
+.wrap{max-width:760px;margin:28px auto;padding:0 24px 80px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:32px 30px;}
+
+.progress{display:flex;gap:8px;margin-bottom:22px;}
+.progress span{flex:1;height:4px;border-radius:4px;background:var(--surface3);transition:background 0.4s;}
+.progress span.done,.progress span.active{background:var(--accent);}
+
+h1{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-1.2px;margin-bottom:8px;}
+.sub{color:var(--muted);font-size:14px;margin-bottom:26px;}
+
+.types-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px;}
+.t-card{
+  position:relative;background:var(--surface2);border:2px solid var(--border);border-radius:14px;
+  padding:20px 14px;cursor:pointer;transition:all 0.25s var(--trans);
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;
+}
+.t-card:hover{transform:translateY(-3px);border-color:var(--accent);}
+.t-card.selected{border-color:var(--accent);background:var(--accent-soft);}
+.t-ico{font-size:30px;}
+.t-name{font-size:13px;font-weight:600;}
+.t-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+.t-check{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#0f0e0d;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.t-card.selected .t-check{display:flex;}
+.t-badge-gold{display:inline-block;padding:2px 8px;border-radius:6px;background:rgba(201,169,97,0.15);color:#c9a961;font-size:10px;font-weight:700;margin-top:4px;letter-spacing:0.3px;}
+.t-card .t-ico-svg{width:30px;height:30px;color:var(--muted);flex-shrink:0;}
+.t-card.selected .t-ico-svg{color:#c9a961;}
+.t-examples{font-size:10px;color:var(--muted);font-style:italic;margin-top:2px;line-height:1.3;}
+
+.formateur-toggle-card{
+  background:var(--surface2);border:2px solid var(--border);border-radius:14px;
+  padding:20px;cursor:pointer;transition:all 0.25s var(--trans);margin-bottom:18px;
+}
+.formateur-toggle-card:hover{border-color:rgba(201,169,97,0.5);transform:translateY(-2px);}
+.formateur-toggle-card.active{border-color:#c9a961;background:rgba(201,169,97,0.08);}
+.formateur-toggle-row{display:flex;align-items:center;gap:14px;}
+.formateur-toggle-switch{
+  width:48px;height:26px;border-radius:13px;background:var(--surface3);
+  position:relative;transition:background 0.3s var(--trans);flex-shrink:0;
+}
+.formateur-toggle-switch::after{
+  content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:50%;background:var(--muted);transition:all 0.3s var(--trans);
+}
+.formateur-toggle-card.active .formateur-toggle-switch{background:#c9a961;}
+.formateur-toggle-card.active .formateur-toggle-switch::after{left:25px;background:#1a1a1a;}
+.formateur-msg{
+  margin-top:14px;padding:14px 16px;border-radius:10px;font-size:13px;line-height:1.6;
+  animation:fadeSlide 0.3s var(--trans);
+}
+.formateur-msg-yes{background:rgba(201,169,97,0.1);border:1px solid rgba(201,169,97,0.25);color:#e8c77b;}
+.formateur-msg-no{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.full{grid-column:1/-1;}
+.field label{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color 0.2s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px;}
+.optional{color:var(--muted);font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;margin-left:6px;}
+
+.modules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:22px;}
+.mod{
+  position:relative;background:var(--surface2);border:2px solid var(--border);border-radius:12px;
+  padding:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:12px;
+}
+.mod:hover{border-color:var(--accent);}
+.mod.selected{border-color:var(--accent);background:var(--accent-soft);}
+.mod-ico{font-size:22px;}
+.mod-txt{flex:1;}
+.mod-name{font-weight:700;font-size:13px;}
+.mod-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+.mod-check{width:18px;height:18px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;}
+.mod.selected .mod-check{background:var(--accent);color:#0f0e0d;}
+
+.summary{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;}
+.summary-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.summary-row:last-child{border-bottom:none;}
+.summary-row span:first-child{color:var(--muted);}
+.pricing-box{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;text-align:center;}
+.price-big{font-family:var(--display);font-size:42px;font-weight:800;color:var(--accent);letter-spacing:-2px;}
+.price-note{font-size:12px;color:var(--muted);margin-top:4px;}
+
+.actions{display:flex;justify-content:space-between;gap:12px;margin-top:20px;}
+.btn{padding:13px 24px;border:none;border-radius:12px;font-size:14px;font-weight:700;transition:all 0.2s var(--trans);}
+.btn-primary{background:var(--accent);color:#0f0e0d;}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 30%,transparent);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--text);}
+
+.hide{display:none !important;}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;
+  font-size:13px;opacity:0;pointer-events:none;transition:all 0.3s var(--trans);z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:var(--red);color:#f08080;}
+
+@media(max-width:640px){
+  .wrap{padding:0 14px 60px;}
+  .card{padding:22px 18px;}
+  .form-grid{grid-template-columns:1fr;}
+}
+
+/* ===== LAWYER PREMIUM WIZARD ===== */
+.chip-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px;}
+.chip{
+  padding:10px 20px;background:var(--surface2);border:2px solid var(--border);border-radius:99px;
+  cursor:pointer;transition:all 0.25s var(--trans);font-size:13px;font-weight:600;user-select:none;
+}
+.chip:hover{transform:translateY(-2px);border-color:rgba(99,102,241,0.5);}
+.chip.selected{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 20px color-mix(in srgb,var(--accent) 20%,transparent);}
+.chip-count{font-size:12px;color:var(--muted);margin-top:8px;}
+
+.video-dropzone{
+  border:2px dashed var(--border);border-radius:16px;padding:40px 20px;text-align:center;
+  cursor:pointer;transition:all 0.3s var(--trans);background:var(--surface2);
+}
+.video-dropzone:hover,.video-dropzone.dragover{border-color:var(--accent);background:var(--accent-soft);}
+.video-dropzone .dz-icon{font-size:40px;margin-bottom:12px;opacity:0.6;}
+.video-dropzone .dz-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.video-dropzone .dz-hint{font-size:12px;color:var(--muted);}
+
+.video-preview-box{display:none;margin-top:16px;border-radius:14px;overflow:hidden;position:relative;background:#000;}
+.video-preview-box video{width:100%;max-height:300px;object-fit:cover;}
+.video-preview-box.active{display:block;}
+.video-actions{display:flex;gap:8px;padding:10px;background:rgba(0,0,0,0.5);position:absolute;bottom:0;left:0;right:0;}
+.video-actions button{padding:6px 14px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;border-radius:8px;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);}
+.video-actions button:hover{background:rgba(255,255,255,0.2);}
+
+.slogan-input{
+  width:100%;padding:18px 20px;background:var(--surface2);border:2px solid var(--border);border-radius:14px;
+  color:var(--text);font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-0.5px;
+  outline:none;transition:border-color 0.3s;text-align:center;
+}
+.slogan-input:focus{border-color:var(--accent);}
+.slogan-input::placeholder{color:rgba(255,255,255,0.2);font-weight:400;}
+
+.ai-suggestions{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.ai-suggestion{
+  padding:14px 18px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  cursor:pointer;transition:all 0.2s var(--trans);font-size:14px;
+}
+.ai-suggestion:hover{border-color:var(--accent);transform:translateX(4px);}
+.ai-suggestion .as-text{font-weight:700;font-family:var(--display);font-size:16px;}
+.ai-suggestion .as-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+
+.btn-ai{
+  display:inline-flex;align-items:center;gap:6px;padding:10px 18px;
+  background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(168,85,247,0.2));
+  border:1px solid rgba(99,102,241,0.3);border-radius:10px;color:var(--accent);
+  font-size:13px;font-weight:600;cursor:pointer;transition:all 0.3s;
+}
+.btn-ai:hover{background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(168,85,247,0.3));transform:translateY(-1px);}
+
+.theme-carousel{display:flex;gap:14px;overflow-x:auto;padding:10px 0 20px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;}
+.theme-carousel::-webkit-scrollbar{height:4px;}
+.theme-carousel::-webkit-scrollbar-thumb{background:var(--accent);border-radius:4px;}
+.theme-card{
+  flex-shrink:0;width:200px;border:2px solid var(--border);border-radius:16px;overflow:hidden;
+  cursor:pointer;transition:all 0.3s var(--trans);scroll-snap-align:start;background:var(--surface2);
+}
+.theme-card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,0.2);}
+.theme-card.selected{border-color:var(--accent);box-shadow:0 0 30px color-mix(in srgb,var(--accent) 25%,transparent);}
+.theme-card.recommended{position:relative;}
+.theme-card.recommended::after{content:'Recommandé';position:absolute;top:8px;right:8px;background:var(--accent);color:#0f0e0d;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;}
+.theme-preview{height:100px;position:relative;}
+.theme-info{padding:10px 12px;}
+.theme-name{font-size:13px;font-weight:700;margin-bottom:2px;}
+.theme-desc{font-size:11px;color:var(--muted);}
+
+.section-toggle{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all 0.2s;}
+.section-toggle:hover{border-color:rgba(255,255,255,0.2);}
+.section-toggle.active{border-color:var(--accent);background:var(--accent-soft);}
+.section-toggle .st-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;transition:all 0.2s;flex-shrink:0;}
+.section-toggle.active .st-check{background:var(--accent);border-color:var(--accent);color:#0f0e0d;}
+.section-toggle .st-info{flex:1;}
+.section-toggle .st-name{font-weight:700;font-size:14px;}
+.section-toggle .st-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+.section-toggle .st-badge{font-size:10px;padding:2px 8px;border-radius:6px;background:rgba(99,102,241,0.15);color:var(--accent);font-weight:600;}
+.sections-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+
+.domain-wrap{display:flex;gap:8px;margin:16px 0;background:var(--surface2);border:2px solid var(--border);border-radius:14px;padding:8px;transition:all 0.3s;}
+.domain-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 12%,transparent);}
+.domain-input{flex:1;background:transparent;border:none;padding:12px 14px;color:var(--text);font-size:18px;font-family:'SF Mono',monospace,var(--font);outline:none;}
+.domain-select{background:var(--accent-soft);border:none;padding:0 14px;color:var(--text);font-size:14px;border-radius:10px;cursor:pointer;font-family:'SF Mono',monospace;}
+.domain-status{margin-top:10px;min-height:32px;font-size:13px;}
+.domain-status .avail{color:var(--green);}
+.domain-status .unavail{color:var(--red);}
+.domain-status .pending{color:#f59e0b;}
+.domain-status .degraded{color:var(--muted);}
+
+.free-domain-card{background:linear-gradient(135deg,var(--accent-soft),rgba(16,185,129,0.05));border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;margin-top:20px;}
+.free-domain-card h3{font-family:var(--display);font-size:18px;margin-bottom:6px;}
+.free-domain-card .fd-sub{color:var(--accent);font-family:'SF Mono',monospace;font-size:14px;font-weight:700;}
+.free-domain-card small{color:var(--muted);font-size:12px;display:block;margin:6px 0 14px;}
+
+.suggestions-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:12px;}
+.sug-card{padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;transition:all 0.2s;}
+.sug-card.avail{border-color:rgba(16,185,129,0.3);}
+.sug-card:hover{transform:translateY(-2px);}
+.sug-card .sc-name{font-family:'SF Mono',monospace;font-size:13px;font-weight:600;margin-bottom:4px;}
+.sug-card .sc-status{font-size:12px;}
+.sug-card .btn-pick{width:100%;margin-top:6px;padding:6px;background:var(--accent);color:#0f0e0d;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;}
+
+.or-divider{text-align:center;margin:20px 0;position:relative;}
+.or-divider::before,.or-divider::after{content:'';position:absolute;top:50%;width:35%;height:1px;background:var(--border);}
+.or-divider::before{left:0;}
+.or-divider::after{right:0;}
+.or-divider span{background:var(--surface);padding:0 16px;color:var(--muted);font-size:12px;letter-spacing:0.1em;}
+
+.confetti-overlay{position:fixed;inset:0;pointer-events:none;z-index:9999;}
+
+/* Guidance panel */
+.wizard-with-panel{display:flex;gap:24px;max-width:1200px;}
+.wizard-main{flex:1;min-width:0;}
+.wizard-panel{width:320px;flex-shrink:0;position:sticky;top:20px;align-self:flex-start;}
+.panel-card{background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;}
+.panel-card h4{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.panel-tip{font-size:12px;color:var(--muted);line-height:1.6;padding:10px;background:rgba(99,102,241,0.06);border-radius:8px;}
+.panel-progress .pp-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;color:var(--muted);}
+.panel-progress .pp-item.done{color:var(--green);}
+.panel-progress .pp-item.current{color:var(--accent);font-weight:700;}
+.panel-progress .pp-dot{width:8px;height:8px;border-radius:50%;background:var(--surface3);flex-shrink:0;}
+.panel-progress .pp-item.done .pp-dot{background:var(--green);}
+.panel-progress .pp-item.current .pp-dot{background:var(--accent);box-shadow:0 0 8px var(--accent);}
+
+@media(max-width:900px){
+  .wizard-with-panel{flex-direction:column-reverse;}
+  .wizard-panel{width:100%;position:static;}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">JADOMI</div>
+  <a href="organisation.html" class="back-link">← Retour</a>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="progress">
+      <span id="p1" class="active"></span>
+      <span id="p2"></span>
+      <span id="pSect"></span>
+      <span id="p3"></span>
+      <span id="p4"></span>
+    </div>
+
+    <!-- STEP 1 : type -->
+    <div id="s1">
+      <h1>Quel type de structure ?</h1>
+      <div class="sub">Sélectionnez le type juridique — JADOMI adaptera les champs, mentions légales et comptabilité.</div>
+      <div class="types-grid" id="types-grid"></div>
+      <div class="actions">
+        <a href="organisation.html"><button class="btn btn-ghost">Annuler</button></a>
+        <button class="btn btn-primary" id="btn-1" onclick="go(2)" disabled>Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 : infos -->
+    <div id="s2" class="hide">
+      <h1 id="s2-title">Informations</h1>
+      <div class="sub" id="s2-sub">Renseignez les données de votre structure.</div>
+      <div class="form-grid" id="fields-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(1)">← Retour</button>
+        <button class="btn btn-primary" id="btn-2" onclick="validateStep2()">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP SECTEURS : à qui vendez-vous ? (sociétés commerciales uniquement) -->
+    <div id="sSect" class="hide">
+      <h1>À qui vendez-vous ?</h1>
+      <div class="sub">Sélectionnez les secteurs professionnels que vous ciblez. JADOMI n'enverra vos campagnes mailing qu'aux professionnels de ces secteurs — jamais en dehors.</div>
+      <div class="types-grid" id="secteurs-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(2)">← Retour</button>
+        <button class="btn btn-primary" id="btn-sect" onclick="continueFromSecteurs()">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 : modules -->
+    <div id="s3" class="hide">
+      <h1>Quels modules voulez-vous activer ?</h1>
+      <div class="sub">Vous pourrez les ajouter ou retirer plus tard. Les modules inclus dépendent du type.</div>
+      <div class="modules-grid" id="modules-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goPrevFromModules()">← Retour</button>
+        <button class="btn btn-primary" onclick="go(4)">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP FORMATEUR : question formation pour cabinets dentaires -->
+    <div id="sFormateur" class="hide">
+      <h1>Dispensez-vous des formations ?</h1>
+      <div class="sub">Cette information nous permet de vous proposer des outils adaptés.</div>
+      <div class="formateur-toggle-card" id="formateur-toggle" onclick="toggleFormateur()">
+        <div class="formateur-toggle-row">
+          <div class="formateur-toggle-switch"></div>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;">Dispensez-vous des formations DPC, workshops, cours ou conférences pour vos confrères ?</div>
+          </div>
+        </div>
+        <div id="formateur-msg"></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(3)">← Retour</button>
+        <button class="btn btn-primary" onclick="continueFromFormateur()">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 : récap + paiement -->
+    <div id="s4" class="hide">
+      <h1>Récapitulatif</h1>
+      <div class="sub">Vérifiez les informations puis validez. Aucun prélèvement immédiat — vous confirmerez en prochaine étape.</div>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;">
+        <div id="wz-logo-preview" style="width:70px;height:70px;border-radius:16px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:22px;color:var(--accent);overflow:hidden;flex-shrink:0;">—</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;margin-bottom:4px;">Logo de la société</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Recommandé — apparaît sur vos factures, devis, avoirs et quittances.</div>
+          <input type="file" id="wz-logo-file" accept="image/jpeg,image/png,image/svg+xml,image/webp" style="display:none;" onchange="wzStageLogo(this.files[0])">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('wz-logo-file').click()">📷 Choisir un logo (optionnel)</button>
+        </div>
+      </div>
+
+      <div class="summary" id="summary"></div>
+      <div class="pricing-box">
+        <div class="price-big">29€<span style="font-size:16px;color:var(--muted);"> /mois</span></div>
+        <div class="price-note">Par société — dégressif à partir de la 2<sup>e</sup> (à confirmer).<br>Premier mois offert · Résiliable à tout moment.</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goBackFromRecap()">← Retour</button>
+        <button class="btn btn-primary" id="btn-finish" onclick="createSociete()">Créer ma société →</button>
+      </div>
+    </div>
+
+    <!-- ===== LAWYER PREMIUM PATH ===== -->
+
+    <!-- STEP EXPERTISES : domaines de droit -->
+    <div id="sExpertises" class="hide">
+      <h1>Vos domaines d'expertise</h1>
+      <div class="sub">Sélectionnez vos domaines de droit et types d'intervention (1 à 12). JADOMI les mettra en avant sur votre profil.</div>
+      <div style="margin-bottom:18px;">
+        <h3 style="font-family:var(--display);font-size:16px;margin-bottom:10px;">Domaines de droit</h3>
+        <div class="chip-grid" id="expertises-grid"></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <h3 style="font-family:var(--display);font-size:16px;margin-bottom:10px;">Types d'intervention</h3>
+        <div class="chip-grid" id="interventions-grid"></div>
+      </div>
+      <div class="chip-count" id="expertises-count">0 sélectionné(s) — minimum 1</div>
+      <p style="font-size:12px;color:var(--muted);margin-top:6px;">Choisissez 1 ou plusieurs spécialités. Les avocats ultra-spécialisés (ex : droit fiscal uniquement) peuvent n'en cocher qu'une.</p>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goLawyer('info')">← Retour</button>
+        <button class="btn btn-primary" id="btn-exp" onclick="goLawyer('recap')" disabled>Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP VISUAL : video + slogan + theme -->
+    <div id="sVisual" class="hide">
+      <h1>Identité visuelle</h1>
+      <div class="sub">Créez l'univers visuel de votre cabinet — chaque détail compte.</div>
+
+      <div style="margin-bottom:28px;">
+        <h3 style="font-family:var(--display);font-size:18px;margin-bottom:12px;">Vidéo hero plein écran</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">La vidéo qui tournera en boucle en fond de votre page d'accueil. Format idéal : 1920x1080, 10-30 secondes, sans son.</p>
+        <div class="video-dropzone" id="video-dropzone">
+          <div class="dz-icon">🎬</div>
+          <div class="dz-title">Glissez votre vidéo ici</div>
+          <div class="dz-hint">MP4, WebM, MOV — max 100 MB</div>
+          <input type="file" id="video-file" accept="video/mp4,video/webm,video/quicktime" style="display:none;">
+        </div>
+        <div class="video-preview-box" id="video-preview-box">
+          <video id="video-preview" muted loop playsinline></video>
+          <div class="video-actions">
+            <button onclick="changeVideo()">Changer</button>
+            <button onclick="toggleOverlay()">Overlay sombre</button>
+          </div>
+        </div>
+        <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;" onclick="skipVideo()">Je n'ai pas de vidéo — utiliser une image</button>
+      </div>
+
+      <div style="margin-bottom:28px;">
+        <h3 style="font-family:var(--display);font-size:18px;margin-bottom:12px;">Slogan principal</h3>
+        <input class="slogan-input" id="slogan-input" placeholder="DES SOLUTIONS CRÉATIVES" maxlength="60">
+        <button class="btn-ai" onclick="generateSlogans()" style="margin-top:10px;">✨ Laisser l'IA rédiger</button>
+        <div class="ai-suggestions" id="slogan-suggestions"></div>
+      </div>
+
+      <div style="margin-bottom:28px;">
+        <h3 style="font-family:var(--display);font-size:18px;margin-bottom:12px;">Sous-titre</h3>
+        <input class="field" style="width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;outline:none;" id="subtitle-input" placeholder="Avocate au Barreau de Lille — Droit social & Famille" maxlength="80">
+        <button class="btn-ai" onclick="generateSubtitle()" style="margin-top:8px;">✨ Suggestion IA</button>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <h3 style="font-family:var(--display);font-size:18px;margin-bottom:12px;">Thème couleur</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Les thèmes avec ⭐ sont recommandés pour les cabinets d'avocats.</p>
+        <div class="theme-carousel" id="theme-carousel"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goLawyer('expertises')">← Retour</button>
+        <button class="btn btn-primary" onclick="goLawyer('structure')">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP STRUCTURE : sections du site -->
+    <div id="sStructure" class="hide">
+      <h1>Structure de votre site</h1>
+      <div class="sub">Activez les sections que vous souhaitez. Vous pourrez les modifier plus tard.</div>
+      <div class="sections-grid" id="sections-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goLawyer('visual')">← Retour</button>
+        <button class="btn btn-primary" onclick="goLawyer('domain')">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP DOMAIN : nom de domaine -->
+    <div id="sDomain" class="hide">
+      <h1>Votre nom de domaine</h1>
+      <div class="sub">Choisissez l'adresse web de votre site. C'est votre identité numérique.</div>
+      <div class="domain-wrap">
+        <input class="domain-input" id="domain-name" placeholder="cabinet-martin" autocomplete="off">
+        <select class="domain-select" id="domain-ext">
+          <option value=".fr">.fr</option>
+          <option value=".com">.com</option>
+          <option value=".avocat">.avocat</option>
+          <option value=".legal">.legal</option>
+          <option value=".eu">.eu</option>
+          <option value=".net">.net</option>
+          <option value=".paris">.paris</option>
+          <option value=".pro">.pro</option>
+        </select>
+      </div>
+      <div class="domain-status" id="domain-status"></div>
+      <div id="domain-suggestions" class="hide">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Suggestions alternatives</div>
+        <div class="suggestions-grid" id="suggestions-grid"></div>
+      </div>
+      <div class="or-divider"><span>OU</span></div>
+      <div class="free-domain-card">
+        <div style="font-size:24px;margin-bottom:8px;">🎁</div>
+        <h3>Commencez gratuitement</h3>
+        <div class="fd-sub" id="free-subdomain">votrecabinet.jadomi.fr</div>
+        <small>Vous pourrez ajouter un vrai domaine plus tard depuis votre espace.</small>
+        <button class="btn btn-primary" onclick="useFreeSubdomain()">Utiliser ce domaine gratuit</button>
+      </div>
+      <div class="actions" style="margin-top:20px;">
+        <button class="btn btn-ghost" onclick="goLawyer('structure')">← Retour</button>
+        <button class="btn btn-primary" id="btn-domain-next" onclick="goLawyer('optional')">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- STEP OPTIONAL : chatbot + espace client + rdv -->
+    <div id="sOptional" class="hide">
+      <h1>Modules avancés</h1>
+      <div class="sub">Activez les fonctionnalités premium. Vous pourrez les configurer après le lancement.</div>
+      <div class="sections-grid" id="optional-grid"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goLawyer('domain')">← Retour</button>
+        <button class="btn btn-primary" onclick="goLawyer('preview')">Aperçu et publication →</button>
+      </div>
+    </div>
+
+    <!-- STEP PREVIEW : aperçu final + publish -->
+    <div id="sPreview" class="hide">
+      <h1>Votre site est prêt</h1>
+      <div class="sub">Vérifiez l'aperçu puis publiez en 1 clic.</div>
+      <div style="background:#000;border-radius:16px;overflow:hidden;margin-bottom:20px;aspect-ratio:16/9;position:relative;">
+        <div id="preview-frame" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;">
+          Chargement de l'aperçu...
+        </div>
+      </div>
+      <div class="summary" id="lawyer-summary"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goLawyer('optional')">← Retour</button>
+        <button class="btn btn-primary" id="btn-publish" onclick="publishLawyerSite()" style="background:linear-gradient(135deg,#c9a961,#e8c77b);color:#1a1a1a;font-size:16px;padding:16px 32px;">Publier mon site maintenant</button>
+      </div>
+    </div>
+
+    <!-- STEP LAWYER RECAP (simplified Passe 33) -->
+    <div id="sLawyerRecap" class="hide">
+      <h1>Récapitulatif</h1>
+      <div class="sub">Vérifiez vos informations puis validez. Vous accéderez ensuite à votre tableau de bord.</div>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;">
+        <div id="wz-logo-preview-lawyer" style="width:70px;height:70px;border-radius:16px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:22px;color:var(--accent);overflow:hidden;flex-shrink:0;">—</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;margin-bottom:4px;">Logo du cabinet</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Optionnel — vous pourrez l'ajouter plus tard depuis votre tableau de bord.</div>
+          <input type="file" id="wz-logo-file-lawyer" accept="image/jpeg,image/png,image/svg+xml,image/webp" style="display:none;" onchange="wzStageLogo(this.files[0]); document.getElementById('wz-logo-preview-lawyer').innerHTML=document.getElementById('wz-logo-preview').innerHTML;">
+          <button type="button" class="btn btn-ghost" onclick="document.getElementById('wz-logo-file-lawyer').click()">📷 Choisir un logo (optionnel)</button>
+        </div>
+      </div>
+
+      <div class="summary" id="lawyer-recap-summary"></div>
+      <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.05));border:1px solid rgba(16,185,129,0.2);border-radius:14px;padding:20px;margin-bottom:18px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:8px;">🎁</div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px;">Compte gratuit</div>
+        <div style="font-size:13px;color:var(--muted);">Votre espace cabinet est gratuit. Les modules premium (site internet, etc.) sont disponibles en option depuis votre tableau de bord.</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="goLawyer('expertises')">← Retour</button>
+        <button class="btn btn-primary" id="btn-create-lawyer" onclick="createLawyerSociete()" style="background:linear-gradient(135deg,#c9a961,#e8c77b);color:#1a1a1a;font-size:16px;padding:16px 32px;">Créer mon espace cabinet →</button>
+      </div>
+    </div>
+
+    <!-- DONE -->
+    <div id="done" class="hide" style="text-align:center;padding:30px 10px;">
+      <div style="font-size:60px;margin-bottom:12px;">🎉</div>
+      <h1>Société créée</h1>
+      <div class="sub" id="done-msg">Redirection…</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TYPES = [
+  { k:'cabinet_dentaire',    ico:'🦷', label:'Cabinet de chirurgie dentaire', desc:'Chirurgien-dentiste · Orthodontiste · Prothésiste dentaire', accent:'#10b981' },
+  { k:'paramedical',         ico:'🩺', label:'Cabinet paramédical',  desc:'Kiné · Ostéo · Podologue · Orthophoniste · IDEL', accent:'#0d9488' },
+  { k:'juridique',           ico:'⚖️', label:'Professions juridiques', desc:'Avocat · Notaire · Expert-comptable', accent:'#6366f1' },
+  { k:'services',            ico:'💆', label:'Services & Bien-être', desc:'Coiffure · Esthétique · Onglerie · Massage', accent:'#ec4899' },
+  { k:'artisan_btp',         ico:'🔧', label:'Artisan & BTP',        desc:'Plombier · Électricien · Maçon · Peintre', accent:'#f59e0b' },
+  { k:'createur',            ico:'✨', label:'Créateur & Artisan',   desc:'Couture · Bijoux · Art · Déco · Pâtisserie', accent:'#d946ef' },
+  { k:'sci',                 ico:'🏠', label:'SCI',                  desc:'Société civile immobilière',     accent:'#60a8f0' },
+  { k:'sas',                 ico:'🏢', label:'SAS',                  desc:'Société par actions simplifiée', accent:'#f0a030' },
+  { k:'sarl',                ico:'🏢', label:'SARL',                 desc:'Société à resp. limitée',        accent:'#f0a030' },
+  { k:'eurl',                ico:'🏢', label:'EURL',                 desc:'Entreprise unipersonnelle',      accent:'#f0a030' },
+  { k:'sa',                  ico:'🏢', label:'SA',                   desc:'Société anonyme',                accent:'#f0a030' },
+  { k:'snc',                 ico:'🏢', label:'SNC',                  desc:'Société en nom collectif',       accent:'#f0a030' },
+  { k:'ei',                  ico:'👤', label:'Entreprise individuelle', desc:'EI · EIRL',                  accent:'#60f0d0' },
+  { k:'auto_entrepreneur',   ico:'📊', label:'Auto-entrepreneur',    desc:'Micro-BIC / Micro-BNC',          accent:'#60f0d0' },
+  { k:'profession_liberale', ico:'👔', label:'Profession libérale',  desc:'Avocat · Médecin · Architecte…', accent:'#f060a0' },
+  { k:'association',         ico:'🤝', label:'Association',          desc:'Loi 1901',                       accent:'#a060f0' },
+  { k:'societe_commerciale', ico:'🏪', label:'Autre société comm.',  desc:'Toute autre forme',              accent:'#f0a030' },
+  { k:'societe_dentaire',    ico:'svg_building', label:'Société dentaire', desc:'Laboratoire, fabricant, distributeur, éditeur logiciel', examples:'Henry Schein, Dentsply, Julie Software...', accent:'#c9a961', badge:'Accès régie pub' },
+  { k:'centre_formation_dentaire', ico:'svg_graduation', label:'Centre de formation dentaire', desc:'Plateforme ou formateur individuel dentaire', examples:'LearnyLib, French Tooth, Formateur indépendant', accent:'#c9a961', badge:'Accès régie pub' }
+];
+
+// Champs par type
+const FIELDS = {
+  cabinet_dentaire: [
+    { k:'nom', label:'Nom du cabinet', req:true, ph:'Precision Dentaire' },
+    { k:'adresse', label:'Adresse', full:true, req:true, ph:'12 rue de la Paix', hint:'Adresse du cabinet — obligatoire sur ordonnances et factures' },
+    { k:'code_postal', label:'Code postal', req:true, ph:'75002' },
+    { k:'ville', label:'Ville', req:true, ph:'Paris' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@cabinet.fr', hint:'Utilisé pour les notifications et documents officiels' },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres' }
+  ],
+  paramedical: [
+    { k:'nom', label:'Nom du cabinet', req:true, ph:'Cabinet Lefebvre Kinésithérapie' },
+    { k:'sous_type', label:'Spécialité', type:'select', options:[['kine','Kinésithérapeute'],['osteo','Ostéopathe'],['podologue','Podologue'],['orthophoniste','Orthophoniste'],['psychomotricien','Psychomotricien'],['dieteticien','Diététicien-nutritionniste'],['sage_femme','Sage-femme libérale'],['idel','Infirmier(e) libéral(e)'],['autre','Autre paramédical']] },
+    { k:'adresse', label:'Adresse cabinet', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email professionnel', type:'email', req:true },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'adeli', label:'N° ADELI', ph:'9 chiffres' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres' }
+  ],
+  juridique: [
+    { k:'nom', label:'Nom du cabinet / professionnel', req:true, ph:'Cabinet Maître Martin' },
+    { k:'sous_type', label:'Type de professionnel', type:'select', options:[['avocat','Avocat'],['juriste','Juriste indépendant'],['notaire','Notaire'],['expert_comptable','Expert-comptable'],['commissaire_justice','Commissaire de justice'],['detective','Détective privé'],['autre','Autre profession juridique']] },
+    { k:'adresse', label:'Adresse cabinet', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email professionnel', type:'email', req:true },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'siren', label:'SIREN', ph:'9 chiffres' }
+  ],
+  createur: [
+    { k:'nom', label:'Nom de la boutique / atelier', req:true, ph:'Atelier Marie Couture' },
+    { k:'sous_type', label:'Type de création', type:'select', options:[['couture','Couture / Mode'],['bijouterie','Bijouterie / Joaillerie'],['art','Art / Illustration'],['decoration','Décoration / Design'],['cosmetiques','Cosmétiques / Bougies'],['patisserie','Pâtisserie artisanale'],['photographie','Photographie / Art'],['autre','Autre création']] },
+    { k:'adresse', label:'Adresse atelier', full:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email', type:'email', req:true },
+    { k:'telephone', label:'Téléphone' },
+    { k:'siret', label:'SIRET', ph:'14 chiffres' }
+  ],
+  artisan_btp: [
+    { k:'nom', label:'Nom de l\'entreprise', req:true, ph:'Dupont Plomberie' },
+    { k:'sous_type', label:'Métier', type:'select', options:[['plombier','Plombier / Chauffagiste'],['electricien','Électricien'],['macon','Maçon / Carreleur'],['menuisier','Menuisier / Charpentier'],['peintre','Peintre / Plâtrier'],['paysagiste','Paysagiste / Jardinier'],['couvreur','Couvreur / Zingueur'],['serrurier','Serrurier / Métallier'],['climaticien','Climaticien / Frigoriste'],['facade','Façadier / Nettoyage'],['autre','Autre artisan']] },
+    { k:'adresse', label:'Adresse siège', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email', type:'email', req:true },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'siret', label:'SIRET', ph:'14 chiffres', req:true },
+    { k:'numero_assurance_decennale', label:'N° assurance décennale' }
+  ],
+  services: [
+    { k:'nom', label:'Nom de l\'établissement', req:true, ph:'Salon Marie Coiffure' },
+    { k:'sous_type', label:'Métier', type:'select', options:[['coiffure','Coiffure / Barbier'],['esthetique','Esthétique / Beauté / Onglerie'],['massage','Massage / Spa / Bien-être'],['sport','Sport / Coaching / Cours'],['mode','Mode / Location / Couture'],['photo','Photo / Vidéo / Événementiel'],['commerce','Commerce de proximité'],['restauration','Restauration / Traiteur'],['autre','Autre service']] },
+    { k:'adresse', label:'Adresse', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email', type:'email', req:true },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'siret', label:'SIRET', ph:'14 chiffres' }
+  ],
+  sci: [
+    { k:'nom', label:'Dénomination SCI', req:true, ph:'SCI Bahmed Immobilier' },
+    { k:'regime_fiscal', label:'Régime fiscal', type:'select', options:[['IR','Impôt sur le revenu'],['IS','Impôt sur les sociétés']] },
+    { k:'siren', label:'SIREN' },
+    { k:'capital_social', label:'Capital social (€)', type:'number' },
+    { k:'adresse', label:'Adresse siège', full:true, req:true, hint:'Siège social de la SCI — figure sur les quittances' },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@sci.fr' },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'rcs_ville', label:'RCS (ville)' }
+  ],
+  sas:  commerceFields('SAS'),
+  sarl: commerceFields('SARL'),
+  eurl: commerceFields('EURL'),
+  sa:   commerceFields('SA'),
+  snc:  commerceFields('SNC'),
+  societe_commerciale: commerceFields('Société'),
+  ei: [
+    { k:'nom', label:'Dénomination', req:true, ph:'Jean Martin EI' },
+    { k:'siret', label:'SIRET', ph:'14 chiffres', req:true },
+    { k:'regime_tva', label:'Régime TVA', type:'select', options:[['franchise','Franchise (art.293B)'],['normal','Réel normal'],['simplifie','Réel simplifié']] },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'code_postal', label:'CP' },
+    { k:'ville', label:'Ville' }
+  ],
+  auto_entrepreneur: [
+    { k:'nom', label:'Nom d\'activité', req:true, ph:'Karim Consulting' },
+    { k:'siret', label:'SIRET', req:true, ph:'14 chiffres' },
+    { k:'sous_type', label:'Activité', type:'select', options:[['bic_ventes','BIC Ventes'],['bic_services','BIC Services'],['bnc','BNC']] },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'code_postal', label:'CP' },
+    { k:'ville', label:'Ville' }
+  ],
+  profession_liberale: [
+    { k:'nom', label:'Nom de l\'activité', req:true, ph:'Cabinet Maître Martin' },
+    { k:'sous_type', label:'Profession', type:'select', options:[
+      ['avocat','Avocat'],['medecin','Médecin'],['architecte','Architecte'],
+      ['expert_comptable','Expert-comptable'],['consultant','Consultant'],
+      ['infirmier','Infirmier / IDEL'],['kine','Kinésithérapeute'],['osteo','Ostéopathe'],
+      ['autre','Autre']
+    ]},
+    { k:'siren', label:'SIREN / N° ordre' },
+    { k:'regime_tva', label:'Régime TVA', type:'select', options:[['franchise','Franchise'],['normal','Réel normal'],['simplifie','Réel simplifié']] },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'ville', label:'Ville' }
+  ],
+  association: [
+    { k:'nom', label:'Nom de l\'association', req:true },
+    { k:'siret', label:'N° RNA ou SIRET' },
+    { k:'adresse', label:'Siège', full:true },
+    { k:'ville', label:'Ville' },
+    { k:'email', label:'Email de contact', type:'email' }
+  ],
+  societe_dentaire: [
+    { k:'nom', label:'Dénomination de la société', req:true, ph:'Henry Schein France' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres', req:true, hint:'Obligatoire sur vos factures' },
+    { k:'tva_intracom', label:'N° TVA intracommunautaire', req:true, ph:'FR12345678901' },
+    { k:'capital_social', label:'Capital social (€)', type:'number' },
+    { k:'rcs_ville', label:'RCS (ville)', ph:'Paris' },
+    { k:'adresse', label:'Adresse siège', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@societe.fr' },
+    { k:'email_facturation', label:'Email facturation', type:'email', req:true, ph:'factures@societe.fr' },
+    { k:'email_mailing', label:'Email mailing', type:'email', req:true, ph:'marketing@societe.fr', hint:'Expéditeur des campagnes publicitaires' },
+    { k:'site_web', label:'URL du site internet', type:'url', ph:'https://societe.fr' }
+  ],
+  centre_formation_dentaire: [
+    { k:'nom', label:'Nom de l\'organisme de formation', req:true, ph:'LearnyLib, French Tooth...' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres', req:true },
+    { k:'nda', label:'N° de déclaration d\'activité (NDA)', ph:'11 chiffres', hint:'Numéro délivré par la DREETS' },
+    { k:'adresse', label:'Adresse siège', full:true, req:true },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'telephone', label:'Téléphone', req:true },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@formation.fr' },
+    { k:'email_mailing', label:'Email mailing', type:'email', ph:'marketing@formation.fr', hint:'Expéditeur des campagnes publicitaires' },
+    { k:'site_web', label:'URL du site internet', type:'url', ph:'https://formation.fr' }
+  ],
+  autre: [
+    { k:'nom', label:'Nom', req:true },
+    { k:'sous_type', label:'Type (texte libre)', ph:'Précisez' },
+    { k:'adresse', label:'Adresse', full:true },
+    { k:'ville', label:'Ville' }
+  ]
+};
+function commerceFields(typeLabel){
+  return [
+    { k:'nom', label:`Dénomination ${typeLabel}`, req:true, ph:'Ma société' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres', req:true, hint:'Obligatoire sur vos factures (art. R.123-237 du Code de commerce)' },
+    { k:'tva_intracom', label:'N° TVA intracommunautaire', req:true, ph:'FR12345678901', hint:'Obligatoire sur les factures B2B' },
+    { k:'capital_social', label:'Capital social (€)', type:'number' },
+    { k:'rcs_ville', label:'RCS (ville)', ph:'Paris' },
+    { k:'regime_tva', label:'Régime TVA', type:'select', options:[['normal','Réel normal'],['simplifie','Réel simplifié'],['franchise','Franchise']] },
+    { k:'adresse', label:'Adresse siège', full:true, req:true, hint:'Adresse légale — figurera sur tous vos documents officiels' },
+    { k:'code_postal', label:'Code postal', req:true },
+    { k:'ville', label:'Ville', req:true },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@masociete.fr', hint:'Contact général de la société' },
+    { k:'email_facturation', label:'Email facturation', type:'email', req:true, ph:'factures@masociete.fr', hint:'Utilisé pour envoyer les devis et factures à vos clients' },
+    { k:'email_mailing', label:'Email mailing', type:'email', req:true, ph:'marketing@masociete.fr', hint:'Expéditeur des campagnes publicitaires et newsletters' },
+    { k:'site_web', label:'URL du site internet', type:'url', req:true, ph:'https://masociete.fr', hint:'Utilisée pour importer automatiquement votre catalogue produits' }
+  ];
+}
+
+// Secteurs cibles (= à qui la société vend)
+const SECTEURS = [
+  { k:'sante',        ico:'🦷', label:'Santé',        desc:'Dentistes · Vétérinaires · Médical · Paramédical' },
+  { k:'btp',          ico:'🏗️', label:'BTP',          desc:'Artisans · Entreprises du bâtiment' },
+  { k:'esthetique',   ico:'💆', label:'Esthétique',   desc:'Coiffeurs · Instituts · Spas' },
+  { k:'restauration', ico:'🍕', label:'Restauration', desc:'Restaurateurs · Traiteurs' },
+  { k:'juridique',    ico:'⚖️', label:'Juridique',    desc:'Avocats · Notaires · Huissiers' },
+  { k:'autre',        ico:'📊', label:'Tous secteurs',desc:'Autres secteurs professionnels' }
+];
+
+// Types de société qui VENDENT à d'autres pros → on affiche l'étape secteurs
+const TYPES_AVEC_CIBLAGE = new Set([
+  'societe_commerciale','sas','sarl','eurl','sa','snc',
+  'ei','auto_entrepreneur','profession_liberale','association','autre',
+  'societe_dentaire','centre_formation_dentaire'
+]);
+
+// Modules par type
+const MODULES_BY_TYPE = {
+  cabinet_dentaire: ['stock_ia','factures_fournisseurs','compta','devis_factures','mailing'],
+  sci: ['locatif','compta','devis_factures'],
+  paramedical: ['consultations','compta','dossiers'],
+  juridique: ['consultations','compta','dossiers'],
+  services: ['reservations','compta','marketplace','mailing'],
+  artisan_btp: ['chantiers','devis_factures_btp','stock_btp','compta'],
+  createur: ['showroom_vitrine','commandes_createur','compta'],
+  societe_dentaire: ['devis_factures','compta','scanner_factures','mailing','stock_ia'],
+  centre_formation_dentaire: ['devis_factures','compta','mailing'],
+  default: ['devis_factures','compta','scanner_factures','mailing']
+};
+const MODULES_META = {
+  devis_factures:       { ico:'📄', name:'Devis & Factures',        desc:'Facturation pro + PDF + Stripe' },
+  compta:               { ico:'📊', name:'Comptabilité',            desc:'Dashboard + export comptable + TVA' },
+  scanner_factures:     { ico:'📸', name:'Scanner factures',        desc:'Extraction IA des PDF/emails fournisseurs' },
+  factures_fournisseurs:{ ico:'📧', name:'Import email auto',       desc:'Récup auto des factures par mail' },
+  locatif:              { ico:'🏠', name:'Gestion locative',        desc:'Biens · Locataires · Quittances auto' },
+  stock_ia:             { ico:'📦', name:'Stock intelligent',       desc:'Gestion stock IA dentaire/médical' },
+  mailing:              { ico:'📧', name:'Mailing & campagnes',     desc:'Emailing + stats (option)' },
+  consultations:        { ico:'📅', name:'Agenda consultations',   desc:'Réservation en ligne + visio intégrée' },
+  dossiers:             { ico:'📁', name:'Gestion dossiers',       desc:'Dossiers clients + documents' },
+  reservations:         { ico:'📅', name:'Réservation en ligne',   desc:'Agenda + page publique + acomptes' },
+  marketplace:          { ico:'🛍️', name:'Marketplace',            desc:'Vente + location de produits' },
+  chantiers:            { ico:'🚧', name:'Gestion chantiers',      desc:'Planning · Ouvriers · Rapports intervention' },
+  devis_factures_btp:   { ico:'📋', name:'Devis & Factures BTP',   desc:'Devis détaillés · Situations · TVA auto' },
+  stock_btp:            { ico:'📦', name:'Stock matériaux',         desc:'Scanner · Alertes · Affectation chantier' },
+  showroom_vitrine:     { ico:'✨', name:'Showroom en ligne',       desc:'Vitrine produits · Location · Sur mesure' },
+  commandes_createur:   { ico:'📦', name:'Commandes & Livraisons', desc:'Gestion commandes · Suivi · Retours' }
+};
+
+// ===== STATE =====
+let session=null, token=null;
+let selectedType=null, selectedAccent='#10b981';
+let form={}, modules=new Set(), secteursCibles=new Set();
+let stagedLogo=null; // File à uploader APRÈS création société
+let isFormationProvider=false; // flag formateur dentaire
+
+function wzStageLogo(file){
+  if(!file) return;
+  if(file.size > 2*1024*1024){ toast('Fichier > 2 MB',true); return; }
+  stagedLogo = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    $('wz-logo-preview').innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:100%;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function $(id){return document.getElementById(id);}
+function toast(msg,err){
+  const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' error':'');
+  setTimeout(()=>t.className='toast'+(err?' error':''),3000);
+}
+function setAccent(c){
+  selectedAccent = c;
+  document.documentElement.style.setProperty('--accent',c);
+  document.documentElement.style.setProperty('--accent-soft',
+    `color-mix(in srgb, ${c} 10%, transparent)`);
+}
+function api(path,opts={}){
+  return fetch(path,{
+    ...opts,
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{}) }
+  }).then(r=>r.json());
+}
+
+// ===== URL PARAMS =====
+const URL_PARAMS = new URLSearchParams(location.search);
+const PRESET_TYPE = URL_PARAMS.get('type');
+const NEXT_URL = (()=>{
+  const n = URL_PARAMS.get('next');
+  if(n && /^[a-z0-9_-]+\.html(\?[^#]*)?$/i.test(n)) return n;
+  return 'index.html';
+})();
+const MARK_ONBOARDING = URL_PARAMS.get('onboarding') === '1';
+
+// ===== BOOT =====
+(async function(){
+  const { data } = await db.auth.getSession();
+  if(!data?.session){ return window.location.href='login.html?next=wizard-societe.html'+location.search; }
+  session = data.session; token = session.access_token;
+  renderTypes();
+  // Pré-sélection du type si fourni
+  if(PRESET_TYPE){
+    const t = TYPES.find(x => x.k === PRESET_TYPE);
+    if(t){
+      selectedType = t.k; setAccent(t.accent);
+      setTimeout(()=>{
+        const card = document.querySelector(`.t-card[data-k="${t.k}"]`);
+        if(card) card.classList.add('selected');
+        $('btn-1').disabled = false;
+        go(2);
+      }, 100);
+    }
+  }
+  // Adapte les liens Annuler/Retour vers NEXT_URL
+  document.querySelectorAll('a[href="organisation.html"]').forEach(a => a.href = NEXT_URL);
+})();
+
+const SVG_ICONS = {
+  svg_building: '<svg class="t-ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>',
+  svg_graduation: '<svg class="t-ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10l-10-5L2 10l10 5 10-5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/><path d="M22 10v6"/></svg>'
+};
+function renderTypes(){
+  const grid = $('types-grid'); grid.innerHTML='';
+  TYPES.forEach(t=>{
+    const el=document.createElement('div'); el.className='t-card'; el.dataset.k=t.k;
+    const icoHtml = SVG_ICONS[t.ico] ? SVG_ICONS[t.ico] : `<div class="t-ico">${t.ico}</div>`;
+    const examplesHtml = t.examples ? `<div class="t-examples">${t.examples}</div>` : '';
+    const badgeHtml = t.badge ? `<div class="t-badge-gold">${t.badge}</div>` : '';
+    el.innerHTML=`<div class="t-check">✓</div>${icoHtml}<div class="t-name">${t.label}</div><div class="t-desc">${t.desc}</div>${examplesHtml}${badgeHtml}`;
+    el.onclick=()=>{
+      selectedType=t.k; setAccent(t.accent);
+      document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      $('btn-1').disabled=false;
+    };
+    grid.appendChild(el);
+  });
+}
+
+function renderFields(){
+  const t=TYPES.find(x=>x.k===selectedType);
+  $('s2-title').textContent = `${t.ico} ${t.label}`;
+  $('s2-sub').textContent = `Renseignez les informations de votre ${t.label.toLowerCase()}. Champs obligatoires marqués *.`;
+
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  const grid = $('fields-grid'); grid.innerHTML='';
+  fields.forEach(f=>{
+    const wrap=document.createElement('div'); wrap.className='field'+(f.full?' full':'');
+    let input='';
+    if(f.type==='select'){
+      const opts = f.options.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+      input = `<select id="f-${f.k}"><option value="">—</option>${opts}</select>`;
+    } else {
+      input = `<input type="${f.type||'text'}" id="f-${f.k}" placeholder="${f.ph||''}">`;
+    }
+    const hint = f.hint ? `<div class="hint">${f.hint}</div>` : '';
+    wrap.innerHTML = `<label>${f.label}${f.req?' *':'<span class="optional">(optionnel)</span>'}</label>${input}${hint}`;
+    grid.appendChild(wrap);
+    // restore
+    if(form[f.k]!==undefined){
+      const el = wrap.querySelector('input,select'); if(el) el.value = form[f.k];
+    }
+  });
+}
+
+function renderModules(){
+  const t = selectedType;
+  const list = MODULES_BY_TYPE[t] || MODULES_BY_TYPE.default;
+  // pré-coche tout par défaut
+  if(modules.size===0) list.forEach(k=>modules.add(k));
+  const grid = $('modules-grid'); grid.innerHTML='';
+  list.forEach(k=>{
+    const m = MODULES_META[k]; if(!m) return;
+    const el=document.createElement('div'); el.className='mod'+(modules.has(k)?' selected':'');
+    el.innerHTML=`<div class="mod-ico">${m.ico}</div>
+      <div class="mod-txt"><div class="mod-name">${m.name}</div><div class="mod-desc">${m.desc}</div></div>
+      <div class="mod-check">✓</div>`;
+    el.onclick=()=>{
+      if(modules.has(k)) modules.delete(k); else modules.add(k);
+      el.classList.toggle('selected');
+    };
+    grid.appendChild(el);
+  });
+}
+
+function renderSummary(){
+  const t = TYPES.find(x=>x.k===selectedType);
+  const rows = [
+    ['Type', `${t.ico} ${t.label}`],
+    ['Nom', form.nom || '—']
+  ];
+  if(form.siren) rows.push(['SIREN', form.siren]);
+  if(form.siret) rows.push(['SIRET', form.siret]);
+  if(form.ville) rows.push(['Ville', form.ville]);
+  if(form.regime_fiscal) rows.push(['Régime fiscal', form.regime_fiscal]);
+  if(form.regime_tva) rows.push(['Régime TVA', form.regime_tva]);
+  if(TYPES_AVEC_CIBLAGE.has(selectedType)){
+    const cibles = Array.from(secteursCibles)
+      .map(k => SECTEURS.find(s=>s.k===k)?.label || k).join(' · ') || 'Aucun (campagnes mailing désactivées)';
+    rows.push(['À qui vous vendez', cibles]);
+  }
+  rows.push(['Modules activés', Array.from(modules).map(k=>MODULES_META[k]?.name||k).join(' · ') || '—']);
+  if(selectedType==='cabinet_dentaire'){
+    rows.push(['Formateur', isFormationProvider ? 'Oui — accès régie pub JADOMI Ads' : 'Non']);
+  }
+
+  $('summary').innerHTML = rows.map(r=>`<div class="summary-row"><span>${r[0]}</span><span>${escape(r[1])}</span></div>`).join('');
+}
+function escape(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// Progress bar : 5 segments si étape secteurs visible, 4 sinon.
+// step param suit le flux logique (1..4) — l'étape secteurs est entre 2 et 3.
+function setProgress(step, onSecteurs=false){
+  const hasSect = TYPES_AVEC_CIBLAGE.has(selectedType);
+  const pSect = $('pSect');
+  pSect.style.display = hasSect ? '' : 'none';
+  // états : p1 = type, p2 = infos, pSect = secteurs, p3 = modules, p4 = récap
+  const states = {p1:'',p2:'',pSect:'',p3:'',p4:''};
+  if(onSecteurs){ states.p1='done'; states.p2='done'; states.pSect='active'; }
+  else {
+    if(step>=1) states.p1 = step===1?'active':'done';
+    if(step>=2) states.p2 = step===2?'active':'done';
+    if(hasSect && step>=3) states.pSect = 'done';
+    if(step>=3) states.p3 = step===3?'active':'done';
+    if(step>=4) states.p4 = step===4?'active':'done';
+  }
+  Object.entries(states).forEach(([k,v])=>{ const el=$(k); if(el) el.className=v; });
+}
+
+function renderSecteurs(){
+  const grid = $('secteurs-grid'); grid.innerHTML='';
+  SECTEURS.forEach(s=>{
+    const el = document.createElement('div');
+    el.className = 't-card' + (secteursCibles.has(s.k) ? ' selected' : '');
+    el.dataset.k = s.k;
+    el.innerHTML = `<div class="t-check">✓</div><div class="t-ico">${s.ico}</div><div class="t-name">${s.label}</div><div class="t-desc">${s.desc}</div>`;
+    el.onclick = ()=>{
+      if(secteursCibles.has(s.k)) secteursCibles.delete(s.k);
+      else secteursCibles.add(s.k);
+      el.classList.toggle('selected');
+    };
+    grid.appendChild(el);
+  });
+}
+
+function go(step){
+  if(step===2) renderFields();
+  if(step===3){
+    // Avant d'entrer dans step 3 (modules), si le type peut cibler des secteurs,
+    // on détourne vers l'étape secteurs, sauf si elle a déjà été validée ce tour-ci.
+    if(TYPES_AVEC_CIBLAGE.has(selectedType) && $('sSect').classList.contains('hide') && window.__cameFromSecteurs !== true){
+      return goSecteurs();
+    }
+    window.__cameFromSecteurs = false;
+    renderModules();
+  }
+  if(step===4){
+    // Si cabinet dentaire → passer par l'étape formateur d'abord
+    if(selectedType==='cabinet_dentaire' && !window.__cameFromFormateur){
+      return goFormateur();
+    }
+    window.__cameFromFormateur = false;
+    collectForm(); renderSummary();
+  }
+  ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
+  const map = { 1:'s1', 2:'s2', 3:'s3', 4:'s4' };
+  $(map[step]).classList.remove('hide');
+  setProgress(step);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function goSecteurs(){
+  renderSecteurs();
+  ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
+  $('sSect').classList.remove('hide');
+  setProgress(3, true);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function continueFromSecteurs(){
+  window.__cameFromSecteurs = true;
+  go(3);
+}
+
+function goPrevFromModules(){
+  if(TYPES_AVEC_CIBLAGE.has(selectedType)){
+    goSecteurs();
+  } else {
+    go(2);
+  }
+}
+
+function collectForm(){
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  fields.forEach(f=>{
+    const el = $('f-'+f.k); if(!el) return;
+    form[f.k] = el.value.trim();
+  });
+}
+function validateStep2(){
+  collectForm();
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  for(const f of fields){
+    const v = form[f.k];
+    if(f.req && !v){ return toast(`Champ requis : ${f.label}`,true); }
+    if(v && f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){
+      return toast(`Email invalide : ${f.label}`,true);
+    }
+    if(v && f.type === 'url' && !/^https?:\/\/.+/.test(v)){
+      return toast(`URL invalide : ${f.label} (doit commencer par http:// ou https://)`,true);
+    }
+  }
+  // Si la société vend à des pros → étape secteurs avant modules.
+  if(TYPES_AVEC_CIBLAGE.has(selectedType)) return goSecteurs();
+  go(3);
+}
+
+function goFormateur(){
+  ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
+  $('sFormateur').classList.remove('hide');
+  updateFormateurMsg();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function toggleFormateur(){
+  isFormationProvider = !isFormationProvider;
+  const card = $('formateur-toggle');
+  card.classList.toggle('active', isFormationProvider);
+  updateFormateurMsg();
+}
+function updateFormateurMsg(){
+  const box = $('formateur-msg');
+  if(isFormationProvider){
+    box.innerHTML = '<div class="formateur-msg formateur-msg-yes">En tant que formateur, vous avez accès à la régie publicitaire JADOMI Ads pour promouvoir vos formations auprès de 42 000 confrères vérifiés.</div>';
+  } else {
+    box.innerHTML = '<div class="formateur-msg formateur-msg-no">Vous pourrez activer cette option plus tard dans vos paramètres.</div>';
+  }
+}
+function continueFromFormateur(){
+  window.__cameFromFormateur = true;
+  go(4);
+}
+function goBackFromRecap(){
+  if(selectedType==='cabinet_dentaire') return goFormateur();
+  go(3);
+}
+
+async function createSociete(){
+  const btn = $('btn-finish'); btn.disabled=true; btn.textContent='Création…';
+  try{
+    const payload = {
+      ...form,
+      type: selectedType,
+      couleur_accent: selectedAccent,
+      modules: Array.from(modules)
+    };
+    if(TYPES_AVEC_CIBLAGE.has(selectedType)){
+      payload.secteurs_cibles = Array.from(secteursCibles);
+    }
+    if(selectedType==='cabinet_dentaire'){
+      payload.is_formation_provider = isFormationProvider;
+    }
+    // nettoie empty strings
+    Object.keys(payload).forEach(k => payload[k]===''&&delete payload[k]);
+    if(payload.capital_social) payload.capital_social = Number(payload.capital_social);
+    const r = await api('/api/societes',{ method:'POST', body:JSON.stringify(payload) });
+    if(!r.success) throw new Error(r.error||'create_failed');
+
+    localStorage.setItem('societe_active_id', r.societe.id);
+
+    // Upload logo (best-effort, ne bloque pas le flux)
+    if(stagedLogo){
+      try{
+        const fd = new FormData(); fd.append('file', stagedLogo);
+        await fetch('/api/societes/'+r.societe.id+'/logo',{
+          method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd
+        });
+      }catch(_){}
+    }
+    if(MARK_ONBOARDING){
+      try{ await api('/api/profil',{method:'PUT',body:JSON.stringify({onboarding_termine:true})}); }catch{}
+    }
+    ['s1','s2','sSect','s3','s4','sFormateur'].forEach(id=>$(id).classList.add('hide'));
+    $('done').classList.remove('hide');
+    // Gère la queue multi-création
+    let next = NEXT_URL;
+    try{
+      const q = JSON.parse(localStorage.getItem('jadomi_onboarding_queue')||'[]');
+      if(q.length > 0){
+        const nextType = q.shift();
+        localStorage.setItem('jadomi_onboarding_queue', JSON.stringify(q));
+        next = `wizard-societe.html?type=${nextType}&next=${encodeURIComponent(NEXT_URL)}&onboarding=1`;
+      } else {
+        localStorage.removeItem('jadomi_onboarding_queue');
+      }
+    }catch{}
+    setTimeout(()=>window.location.href=next, 1200);
+  }catch(e){
+    toast(e.message,true);
+    btn.disabled=false; btn.textContent='Créer ma société →';
+  }
+}
+
+// ===== LAWYER PREMIUM WIZARD =====
+const IS_LAWYER_PATH = () => selectedType === 'juridique';
+const EXPERTISES = [
+  'Droit des affaires / Corporate','Droit fiscal','Droit immobilier',
+  'Droit du travail','Droit de la famille','Droit pénal',
+  'Droit des étrangers','Droit de la propriété intellectuelle',
+  'Droit des nouvelles technologies','Droit public / Administratif',
+  'Droit européen','Droit international',
+  'Droit de la santé','Droit de l\'environnement',
+  'Droit des assurances','Droit bancaire et financier',
+  'Droit de la construction','Droit des successions'
+];
+const INTERVENTIONS = [
+  { id:'conseil', label:'Conseil', featured:true },
+  { id:'contentieux', label:'Contentieux (litiges)' },
+  { id:'arbitrage', label:'Arbitrage' },
+  { id:'mediation', label:'Médiation' },
+  { id:'redaction', label:'Rédaction d\'actes' },
+  { id:'transaction', label:'Transaction / Négociation' },
+  { id:'due_diligence', label:'Due diligence' },
+  { id:'formation', label:'Formation juridique' }
+];
+const THEMES = [
+  { id:'midnight_emerald', name:'Midnight Emerald', bg:'#0a1e1a', accent:'#2dd4a0', text:'#e0fff5', rec:true },
+  { id:'bordeaux_velvet', name:'Bordeaux Velvet', bg:'#1a0a0f', accent:'#c44569', text:'#ffe0e8', rec:true },
+  { id:'charcoal_bronze', name:'Charcoal Bronze', bg:'#1a1a1a', accent:'#c9a961', text:'#f5f0e5', rec:true },
+  { id:'ivory_gold', name:'Ivory Gold', bg:'#faf7f0', accent:'#c9a961', text:'#1a1a1a' },
+  { id:'royal_purple', name:'Royal Purple', bg:'#1a0a2e', accent:'#a78bfa', text:'#ede9fe' },
+  { id:'navy_saffron', name:'Navy Saffron', bg:'#0f1b3d', accent:'#f59e0b', text:'#fef3c7' },
+  { id:'ocean_deep', name:'Ocean Deep', bg:'#0a1929', accent:'#38bdf8', text:'#e0f2fe' },
+  { id:'clinical_white', name:'Clinical White', bg:'#f8fafc', accent:'#3b82f6', text:'#1e293b' },
+  { id:'sage_forest', name:'Sage Forest', bg:'#0f1a14', accent:'#86efac', text:'#f0fdf4' },
+  { id:'terracotta', name:'Terracotta', bg:'#1a110e', accent:'#ea580c', text:'#fff7ed' },
+  { id:'rose_porcelain', name:'Rose Porcelain', bg:'#1a0f14', accent:'#f472b6', text:'#fdf2f8' },
+  { id:'pure_minimal', name:'Pure Minimal', bg:'#0a0a0a', accent:'#ffffff', text:'#e0e0e0' }
+];
+const SITE_SECTIONS = [
+  { id:'accueil', name:'Accueil', desc:'Page principale avec vidéo hero', required:true, default:true },
+  { id:'cabinet', name:'Le cabinet', desc:'Histoire, valeurs et engagements', default:true },
+  { id:'expertises', name:'Expertises', desc:'Domaines de droit pratiques', default:true },
+  { id:'equipe', name:'L\'équipe', desc:'Avocats avec photo et biographie', default:true },
+  { id:'actualites', name:'Actualités / Blog', desc:'Articles et veille juridique', default:true },
+  { id:'contact', name:'Contact', desc:'Formulaire + carte + coordonnées', default:true },
+  { id:'rdv', name:'Prise de RDV en ligne', desc:'Calendrier de réservation intégré', badge:'Premium' },
+  { id:'espace_client', name:'Espace client', desc:'Login sécurisé + upload documents', badge:'Premium' },
+  { id:'publications', name:'Publications', desc:'Dossiers résolus et études de cas' },
+  { id:'faq', name:'FAQ juridique', desc:'Questions fréquentes par domaine' },
+  { id:'tarifs', name:'Tarifs / Honoraires', desc:'Transparence sur les honoraires' },
+  { id:'podcast', name:'Podcast / Videos', desc:'Contenus multimedia' }
+];
+const OPTIONAL_MODULES = [
+  { id:'chatbot', name:'Chatbot IA 24/7', desc:'Assistant virtuel intelligent qui répond aux visiteurs. Configuré avec vos FAQ et le ton de votre cabinet.', ico:'🤖' },
+  { id:'espace_client', name:'Espace client sécurisé', desc:'Portail privé avec login, dossiers, échange de documents chiffrés et messagerie.', ico:'🔐' },
+  { id:'rdv_en_ligne', name:'Prise de RDV en ligne', desc:'Système complet avec types de consultation, créneaux, email de confirmation et rappel automatique.', ico:'📅' }
+];
+
+let lawyerData = {
+  expertises: new Set(),
+  interventions: new Set(),
+  videoFile: null, videoUrl: null,
+  slogan: '', subtitle: '',
+  themeId: 'charcoal_bronze',
+  sections: new Set(['accueil','cabinet','expertises','equipe','actualites','contact']),
+  domain: '', domainType: 'free',
+  optionalModules: new Set()
+};
+
+function renderExpertises() {
+  // Domaines de droit
+  const grid = $('expertises-grid');
+  grid.innerHTML = '';
+  EXPERTISES.forEach(e => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (lawyerData.expertises.has(e) ? ' selected' : '');
+    chip.textContent = e;
+    chip.onclick = () => {
+      if (lawyerData.expertises.has(e)) lawyerData.expertises.delete(e);
+      else if (lawyerData.expertises.size + lawyerData.interventions.size < 12) lawyerData.expertises.add(e);
+      else { toast('Maximum 12 sélections au total', true); return; }
+      chip.classList.toggle('selected');
+      updateExpertisesCount();
+    };
+    grid.appendChild(chip);
+  });
+
+  // Types d'intervention
+  const intGrid = $('interventions-grid');
+  intGrid.innerHTML = '';
+  INTERVENTIONS.forEach(inter => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (lawyerData.interventions.has(inter.id) ? ' selected' : '') + (inter.featured ? ' featured' : '');
+    chip.textContent = inter.label;
+    if (inter.featured) chip.style.borderColor = 'rgba(201,169,97,0.5)';
+    chip.onclick = () => {
+      if (lawyerData.interventions.has(inter.id)) lawyerData.interventions.delete(inter.id);
+      else if (lawyerData.expertises.size + lawyerData.interventions.size < 12) lawyerData.interventions.add(inter.id);
+      else { toast('Maximum 12 sélections au total', true); return; }
+      chip.classList.toggle('selected');
+      updateExpertisesCount();
+    };
+    intGrid.appendChild(chip);
+  });
+}
+
+function updateExpertisesCount() {
+  const total = lawyerData.expertises.size + lawyerData.interventions.size;
+  $('expertises-count').textContent = total + ' sélectionné(s)' + (total < 1 ? ' — minimum 1' : '');
+  $('btn-exp').disabled = total < 1;
+}
+
+function renderThemeCarousel() {
+  const carousel = $('theme-carousel');
+  carousel.innerHTML = '';
+  THEMES.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'theme-card' + (t.rec ? ' recommended' : '') + (lawyerData.themeId === t.id ? ' selected' : '');
+    card.innerHTML = `<div class="theme-preview" style="background:${t.bg};display:flex;align-items:center;justify-content:center;">
+      <span style="color:${t.accent};font-family:var(--display);font-weight:800;font-size:16px;">Aa</span>
+    </div><div class="theme-info"><div class="theme-name">${t.name}</div><div class="theme-desc">${t.rec ? '⭐ Recommandé avocat' : 'Tous métiers'}</div></div>`;
+    card.onclick = () => {
+      lawyerData.themeId = t.id;
+      document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      setAccent(t.accent);
+    };
+    carousel.appendChild(card);
+  });
+}
+
+function renderSiteSections() {
+  const grid = $('sections-grid');
+  grid.innerHTML = '';
+  SITE_SECTIONS.forEach(s => {
+    const el = document.createElement('div');
+    const active = lawyerData.sections.has(s.id);
+    el.className = 'section-toggle' + (active ? ' active' : '');
+    el.innerHTML = `<div class="st-check">✓</div><div class="st-info"><div class="st-name">${s.name}</div><div class="st-desc">${s.desc}</div></div>${s.badge ? '<span class="st-badge">' + s.badge + '</span>' : ''}${s.required ? '<span class="st-badge" style="background:rgba(239,68,68,0.15);color:#ef4444;">Obligatoire</span>' : ''}`;
+    if (!s.required) {
+      el.onclick = () => {
+        if (lawyerData.sections.has(s.id)) lawyerData.sections.delete(s.id);
+        else lawyerData.sections.add(s.id);
+        el.classList.toggle('active');
+      };
+    }
+    grid.appendChild(el);
+  });
+}
+
+function renderOptionalModules() {
+  const grid = $('optional-grid');
+  grid.innerHTML = '';
+  OPTIONAL_MODULES.forEach(m => {
+    const el = document.createElement('div');
+    const active = lawyerData.optionalModules.has(m.id);
+    el.className = 'section-toggle' + (active ? ' active' : '');
+    el.innerHTML = `<div class="st-check">✓</div><div style="font-size:24px;flex-shrink:0;">${m.ico}</div><div class="st-info"><div class="st-name">${m.name}</div><div class="st-desc">${m.desc}</div></div>`;
+    el.onclick = () => {
+      if (lawyerData.optionalModules.has(m.id)) lawyerData.optionalModules.delete(m.id);
+      else lawyerData.optionalModules.add(m.id);
+      el.classList.toggle('active');
+    };
+    grid.appendChild(el);
+  });
+}
+
+// Video upload
+(function() {
+  const dz = document.getElementById('video-dropzone');
+  const fi = document.getElementById('video-file');
+  if (!dz || !fi) return;
+  dz.onclick = () => fi.click();
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('dragover'); };
+  dz.ondragleave = () => dz.classList.remove('dragover');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('dragover'); handleVideoFile(e.dataTransfer.files[0]); };
+  fi.onchange = () => { if (fi.files[0]) handleVideoFile(fi.files[0]); };
+})();
+
+function handleVideoFile(file) {
+  if (!file) return;
+  if (file.size > 100 * 1024 * 1024) { toast('Video > 100 MB', true); return; }
+  lawyerData.videoFile = file;
+  lawyerData.videoUrl = URL.createObjectURL(file);
+  const preview = $('video-preview');
+  preview.src = lawyerData.videoUrl;
+  preview.play();
+  $('video-preview-box').classList.add('active');
+  $('video-dropzone').style.display = 'none';
+}
+function changeVideo() {
+  $('video-file').value = '';
+  $('video-preview-box').classList.remove('active');
+  $('video-dropzone').style.display = '';
+  lawyerData.videoFile = null;
+  lawyerData.videoUrl = null;
+}
+function skipVideo() {
+  lawyerData.videoFile = null;
+  toast('Vous pourrez ajouter une vidéo plus tard');
+}
+function toggleOverlay() {
+  const v = $('video-preview');
+  v.style.filter = v.style.filter ? '' : 'brightness(0.7)';
+}
+
+// AI Slogan generation
+async function generateSlogans() {
+  const box = $('slogan-suggestions');
+  box.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:10px;">Génération en cours...</div>';
+  try {
+    const r = await api('/api/vitrines/ai/generate-slogan', {
+      method: 'POST',
+      body: JSON.stringify({
+        expertises: Array.from(lawyerData.expertises),
+        barreau: form.ville || '',
+        cabinet_name: form.nom || ''
+      })
+    });
+    if (r.slogans && r.slogans.length) {
+      box.innerHTML = r.slogans.map(s => `<div class="ai-suggestion" onclick="pickSlogan('${escape(s.text)}')"><div class="as-text">${s.text}</div>${s.subtitle ? '<div class="as-sub">' + s.subtitle + '</div>' : ''}</div>`).join('');
+    } else {
+      box.innerHTML = '<div style="color:var(--muted);font-size:13px;">Aucune suggestion disponible</div>';
+    }
+  } catch (e) {
+    box.innerHTML = '<div style="color:var(--red);font-size:13px;">Erreur de génération</div>';
+  }
+}
+function pickSlogan(text) {
+  $('slogan-input').value = text;
+  lawyerData.slogan = text;
+}
+async function generateSubtitle() {
+  try {
+    const r = await api('/api/vitrines/ai/generate-subtitle', {
+      method: 'POST',
+      body: JSON.stringify({
+        slogan: $('slogan-input').value || '',
+        expertises: Array.from(lawyerData.expertises),
+        barreau: form.ville || '',
+        avocat_name: form.nom || ''
+      })
+    });
+    if (r.subtitle) $('subtitle-input').value = r.subtitle;
+  } catch (e) { toast('Erreur génération sous-titre', true); }
+}
+
+// Domain checking
+let domainTimeout = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const di = document.getElementById('domain-name');
+  if (di) di.addEventListener('input', debounceCheckDomain);
+  const de = document.getElementById('domain-ext');
+  if (de) de.addEventListener('change', debounceCheckDomain);
+});
+function debounceCheckDomain() {
+  clearTimeout(domainTimeout);
+  const name = ($('domain-name')?.value || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const ext = $('domain-ext')?.value || '.fr';
+  const sub = $('free-subdomain');
+  if (sub) sub.textContent = (name || 'votrecabinet') + '.jadomi.fr';
+  if (!name || name.length < 3) { $('domain-status').innerHTML = ''; return; }
+  $('domain-status').innerHTML = '<span class="pending">Vérification...</span>';
+  domainTimeout = setTimeout(async () => {
+    try {
+      const r = await api('/api/vitrines/domains/ovh/check?name=' + encodeURIComponent(name + ext));
+      if (r.mode === 'degraded') {
+        $('domain-status').innerHTML = '<span class="degraded">Vérification bientôt disponible. Votre choix sera validé après publication.</span>';
+      } else if (r.available) {
+        $('domain-status').innerHTML = '<span class="avail">✅ ' + name + ext + ' est disponible !' + (r.price_eur ? ' — ' + r.price_eur + '€/an' : '') + '</span>';
+        lawyerData.domain = name + ext;
+        lawyerData.domainType = 'custom';
+      } else {
+        $('domain-status').innerHTML = '<span class="unavail">❌ ' + name + ext + ' n\'est pas disponible</span>';
+        loadDomainSuggestions(name);
+      }
+    } catch (e) {
+      $('domain-status').innerHTML = '<span class="degraded">Vérification indisponible</span>';
+    }
+  }, 600);
+}
+async function loadDomainSuggestions(base) {
+  $('domain-suggestions').classList.remove('hide');
+  const grid = $('suggestions-grid');
+  grid.innerHTML = '<span style="color:var(--muted);font-size:12px;">Recherche...</span>';
+  try {
+    const r = await api('/api/vitrines/domains/ovh/suggest?base=' + encodeURIComponent(base));
+    grid.innerHTML = (r.suggestions || []).map(s => `<div class="sug-card${s.available ? ' avail' : ''}"><div class="sc-name">${s.domain}</div><div class="sc-status">${s.available ? '<span class="avail">Disponible</span>' : '<span class="unavail">Pris</span>'}</div>${s.available ? '<button class="btn-pick" onclick="pickDomain(\'' + s.domain + '\')">Choisir</button>' : ''}</div>`).join('');
+  } catch (e) { grid.innerHTML = ''; }
+}
+function pickDomain(d) {
+  lawyerData.domain = d;
+  lawyerData.domainType = 'custom';
+  const parts = d.split('.');
+  $('domain-name').value = parts[0];
+  $('domain-ext').value = '.' + parts.slice(1).join('.');
+  $('domain-status').innerHTML = '<span class="avail">✅ ' + d + ' sélectionné</span>';
+  $('domain-suggestions').classList.add('hide');
+}
+function useFreeSubdomain() {
+  const name = ($('domain-name')?.value || form.nom || 'cabinet').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  lawyerData.domain = name + '.jadomi.fr';
+  lawyerData.domainType = 'free';
+  toast('Domaine gratuit sélectionné :' + lawyerData.domain);
+}
+
+// Lawyer wizard navigation — SIMPLIFIED (Passe 33)
+// Wizard crée juste le compte cabinet. Site = module dashboard.
+const LAWYER_STEPS = ['info','expertises','recap'];
+function goLawyer(step) {
+  if (step === 'expertises') renderExpertises();
+  if (step === 'recap') renderLawyerRecap();
+  if (step === 'info') { go(2); return; }
+
+  // Hide all steps
+  ['s1','s2','sSect','s3','s4','sExpertises','sVisual','sStructure','sDomain','sOptional','sPreview','sLawyerRecap','done'].forEach(id => {
+    const el = $(id); if (el) el.classList.add('hide');
+  });
+  const stepMap = {
+    expertises:'sExpertises',
+    recap:'sLawyerRecap'
+  };
+  $(stepMap[step])?.classList.remove('hide');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// === SIMPLIFIED RECAP (Passe 33) ===
+function renderLawyerRecap() {
+  collectForm();
+  const allExpertises = Array.from(lawyerData.expertises);
+  const allInterventions = Array.from(lawyerData.interventions)
+    .map(id => INTERVENTIONS.find(i => i.id === id)?.label || id);
+
+  const rows = [
+    ['Cabinet', form.nom || '—'],
+    ['Ville / Barreau', form.ville || '—'],
+    ['Email', form.email || '—'],
+    ['Téléphone', form.telephone || '—'],
+    ['SIREN', form.siren || 'Non renseigné']
+  ];
+  if (allExpertises.length) rows.push(['Domaines de droit', allExpertises.join(', ')]);
+  if (allInterventions.length) rows.push(['Types d\'intervention', allInterventions.join(', ')]);
+
+  $('lawyer-recap-summary').innerHTML = rows.map(r =>
+    `<div class="summary-row"><span>${r[0]}</span><span>${escape(r[1])}</span></div>`
+  ).join('');
+}
+
+async function createLawyerSociete() {
+  const btn = $('btn-create-lawyer');
+  btn.disabled = true;
+  btn.textContent = 'Création en cours…';
+  try {
+    collectForm();
+    const payload = {
+      ...form, type: 'juridique',
+      couleur_accent: selectedAccent,
+      modules: ['consultations','compta','dossiers'],
+      expertises: Array.from(lawyerData.expertises),
+      interventions: Array.from(lawyerData.interventions)
+    };
+    Object.keys(payload).forEach(k => payload[k] === '' && delete payload[k]);
+    const r = await api('/api/societes', { method: 'POST', body: JSON.stringify(payload) });
+    if (!r.success) throw new Error(r.error || 'create_failed');
+
+    localStorage.setItem('societe_active_id', r.societe.id);
+
+    // Upload logo if staged
+    if (stagedLogo) {
+      try {
+        const fd = new FormData(); fd.append('file', stagedLogo);
+        await fetch('/api/societes/' + r.societe.id + '/logo', {
+          method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd
+        });
+      } catch (_) {}
+    }
+
+    showConfetti();
+    ['s1','s2','sSect','s3','s4','sExpertises','sLawyerRecap'].forEach(id => $(id)?.classList.add('hide'));
+    $('done').classList.remove('hide');
+    $('done').querySelector('h1').textContent = 'Votre espace cabinet est créé !';
+    $('done-msg').innerHTML = 'Redirection vers votre tableau de bord…<br><span style="font-size:12px;color:var(--muted);">Votre assistant JADOMI vous y attend.</span>';
+
+    setTimeout(() => window.location.href = 'organisation.html', 2000);
+  } catch (e) {
+    toast(e.message, true);
+    btn.disabled = false;
+    btn.textContent = 'Créer mon espace cabinet →';
+  }
+}
+
+function showConfetti() {
+  // Simple CSS confetti
+  const overlay = document.createElement('div');
+  overlay.className = 'confetti-overlay';
+  const colors = ['#c9a961','#e8c77b','#6366f1','#22c55e','#f59e0b','#ec4899'];
+  for (let i = 0; i < 80; i++) {
+    const c = document.createElement('div');
+    c.style.cssText = `position:absolute;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${Math.random()*100}%;top:-10px;border-radius:${Math.random()>0.5?'50%':'2px'};animation:confettiFall ${1.5+Math.random()*2}s ease-out forwards;animation-delay:${Math.random()*0.5}s;`;
+    overlay.appendChild(c);
+  }
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 4000);
+}
+// Confetti animation
+if (!document.getElementById('confetti-style')) {
+  const s = document.createElement('style');
+  s.id = 'confetti-style';
+  s.textContent = '@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}';
+  document.head.appendChild(s);
+}
+
+// Override step 2 validation for lawyers
+const _origValidateStep2 = validateStep2;
+validateStep2 = function() {
+  collectForm();
+  const fields = FIELDS[selectedType] || FIELDS.autre;
+  for (const f of fields) {
+    const v = form[f.k];
+    if (f.req && !v) { return toast('Champ requis : ' + f.label, true); }
+    if (v && f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      return toast('Email invalide : ' + f.label, true);
+    }
+  }
+  if (IS_LAWYER_PATH()) {
+    goLawyer('expertises');
+  } else {
+    if (TYPES_AVEC_CIBLAGE.has(selectedType)) return goSecteurs();
+    go(3);
+  }
+};
+</script>
+</body>
+</html>
