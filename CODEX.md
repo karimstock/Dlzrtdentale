@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 28 avril 2026
-**Derniere passe** : Passe 62 — Audit meticuleux complet + 36 corrections securite/bugs
+**Derniere passe** : Passe 63 — Voice Assistant + Factur-X PDF + GPO checkout complet
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1181,6 +1181,24 @@ MOYENS corriges (8) :
 Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 19 fichiers modifies, 757 lignes ajoutees.
 
+## Passe 63 (28 avril 2026) -- Voice Assistant + Factur-X PDF + GPO checkout
+4 chantiers majeurs :
+1. JADOMI Voice Assistant : assistant conversationnel Claude Sonnet integre
+   dans dashboard principal. Web Speech API (STT/TTS) + 7 endpoints :
+   recherche documents, renvoi par email, generation courriers IA,
+   creation BL vocal labo, facture temps reel par dentiste.
+2. Factur-X embarque dans PDF : XML EN 16931 integre comme piece jointe
+   PDF (AF relationship Alternative), metadata XMP, conformite Sept 2026.
+   Service pdf-generator.js enrichi (genererFacturePdfFacturX).
+3. GPO checkout complet : webhook checkout.session.completed branche avec
+   generation Factur-X commerce, emails confirmation client+fournisseur
+   (vouvoiement), payout J+30, notification in-app fournisseur.
+4. 13 corrections reviewers : XSS emails (escHtml), null guards profiles,
+   doc.on error handlers PDF, AF Data→Alternative, scoping variables,
+   unhandled promise .catch(), dentiste supprime skip batch.
+Fichiers modifies : server.js, services/pdf-generator.js,
+routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -1294,7 +1312,7 @@ Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 - [ ] Executer migration SQL 53 dans Supabase (reseau de soins)
 - [ ] Executer SQL 54 dans Supabase (table gpo_orders)
 - [ ] Solution C "Mandat de facturation" (quand 50+ cabinets) — creation SAS/cooperative
-- [ ] Integration facturation electronique 2026 (Chorus Pro / plateforme agreee)
+- [x] Factur-X EN 16931 conforme (XML + PDF embarque) — reste Chorus Pro connecteur
 - [ ] Passe 38 : Systeme JADOMI Coins (wallet tokens type PlayStation/Steam)
   - Packs : 100/500/1000/2500/10000 coins
   - Gamification : bonus quotidien, quetes, niveaux Bronze→Diamant
@@ -1309,6 +1327,10 @@ Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 - [ ] Remplacer regex XSS signature par DOMPurify server-side
 - [ ] Tester 7 nouveaux dashboards sur mobile reel
 - [ ] Deployer en prod (pm2 reload)
+- [x] JADOMI Voice Assistant : 7 endpoints + frontend integre (Passe 63)
+- [x] Factur-X embarque dans PDF labo (PDF/A-3, AF Alternative) (Passe 63)
+- [x] GPO checkout complet : Factur-X + emails + payout J+30 + notif (Passe 63)
+- [x] 13 corrections reviewers securite/bugs (Passe 63)
 
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
@@ -1357,6 +1379,18 @@ Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 - P12 certificat sans passphrase (stocker passphrase en env var)
 - N+1 queries /api/achats/price-watches (batch needed)
 - Navigation inconstante entre anciennes et nouvelles landings (nav .html vs sans)
+
+## Corriges par Passe 63
+- XSS emails GPO : inputs utilisateur non echappes dans HTML → escHtml() ajoute
+- Coercion numerique quantity/price dans emails → Number() wrapping
+- Scoping profiles dans webhook → variables declarees hors try/catch
+- Fetch profiles dupliques (4→2 requetes) → consolidation
+- Unhandled promise IIFE webhook → .catch() ajoute
+- Null guard supplier_id/user_id → early return avec log
+- AF relationship Factur-X Data→Alternative (conformite standard)
+- doc.on('error') manquant sur 4 generateurs PDF → reject(err)
+- Null checks facture/prothesiste/dentiste dans PDF generator
+- Dentiste supprime dans batch /generer → continue + log (pas crash)
 
 ## Corriges par Passe 62
 - Path traversal /patient et /labo-pro → resolve+startsWith
