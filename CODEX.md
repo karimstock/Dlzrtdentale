@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 27 avril 2026
-**Derniere passe** : Passe 60 — Equipment Groupon + Audit securite + IDE ameliorations
+**Derniere mise a jour** : 28 avril 2026
+**Derniere passe** : Passe 61 — 7 dashboards metiers + Audit securite profond + 15 corrections
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1122,6 +1122,35 @@ export-wizard.html : guide interactif WooCommerce (etapes + upload CSV/XML).
 Table staging_sites. SQL 47.
 TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify/Prestashop.
 
+## Passe 61 (28 avril 2026) -- 7 dashboards metiers + Audit securite profond
+7 dashboards professionnels complets crees (Pattern A single-file tab-based) :
+- public/osteopathe/dashboard.html (1589 lignes, theme violet #8b5cf6, 8 tabs)
+- public/orthophoniste/dashboard.html (1714 lignes, theme cyan #06b6d4, 9 tabs)
+- public/psychomotricien/dashboard.html (1574 lignes, theme pink #ec4899, 8 tabs)
+- public/dieteticien/dashboard.html (1648 lignes, theme vert #22c55e, 9 tabs)
+- public/sci-dashboard/dashboard.html (1370 lignes, theme bleu #3b82f6, 8 tabs)
+- public/createur/dashboard.html (1346 lignes, theme orange #f97316, 8 tabs)
+- public/bien-etre/dashboard.html (1704 lignes, theme fuchsia #d946ef, 10 tabs)
+Chaque dashboard : sidebar accordeon, KPIs, modals CRUD, demo data, mobile responsive,
+auth Supabase, PWA meta, toast notifications, empty states, filtres.
+14 routes ajoutees dans server.js (7 + trailing slash).
+7 landings enrichies avec bouton "Acceder au dashboard".
+6 bugs fixes dans dashboards par reviewers (init incomplete + async auth).
+Audit securite profond : 25 vulnerabilites trouvees (5 CRITICAL, 9 HIGH, 8 MEDIUM, 3 LOW).
+15 corrections appliquees :
+1. Auth ajoutee sur /api/scan/lookup et /api/scan/search
+2. Admin check sur /api/suggestions/admin
+3. Rate limit 5/h sur /api/equipment/propose
+4. SQL static serving supprime (/sql/vitrines)
+5. Upload limite a 25 MB (etait 500 MB)
+6. XSS contenu_html sanitise (signature electronique)
+7. Health endpoint stripped (plus d'info memoire/uptime)
+8. SSRF protection sur scraper (IP privees bloquees)
+9. Admin security-scan auth corrigee (email au lieu de role)
+10. IDOR staging corrige (ownership check societe_id)
+Re-audit final : 13/13 PASS.
+TOTAL : 18 fichiers modifies, 11 020 lignes ajoutees.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -1242,6 +1271,15 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
   - Integration abonnements : Standard 100 coins/mois, Premium 500, Elite 1500
   - SQL preparatoire deja cree : sql/vitrines/38_coins_wallet_structure.sql
 
+- [x] 7 dashboards metiers complets : osteopathe, orthophoniste, psychomotricien, dieteticien, SCI, createur, bien-etre (Passe 61)
+- [x] Audit securite profond : 25 vulns, 15 corrigees, re-audit 13/13 PASS (Passe 61)
+- [x] 7 landings enrichies avec bouton "Acceder au dashboard" (Passe 61)
+- [x] 14 routes server.js pour nouveaux dashboards (Passe 61)
+- [ ] Configurer STRIPE_WEBHOOK_SECRET (CRITICAL — webhooks non verifies)
+- [ ] Remplacer regex XSS signature par DOMPurify server-side
+- [ ] Tester 7 nouveaux dashboards sur mobile reel
+- [ ] Deployer en prod (pm2 reload)
+
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
 - [ ] Base 200+ fournisseurs seedee
@@ -1285,6 +1323,21 @@ TODO : executer SQL 44-47, integrer Stripe, mode Upload fichiers, guides Shopify
 - CSP unsafe-inline (dette technique — a remplacer par nonces/hashes quand refacto frontend)
 - ~~npm imap abandonne~~ [RESOLU ✅ Passe 54 — migre vers imapflow]
 - npm xlsx abandonne (6 CVEs, remplacer par exceljs)
+- STRIPE_WEBHOOK_SECRET non configure (webhooks non verifies — CRITICAL)
+
+## Corriges par Passe 61
+- Scan endpoints sans auth → requireAuth() ajoute (/api/scan/lookup, /api/scan/search)
+- Suggestions admin accessible a tous → admin email check ajoute
+- Equipment propose sans rate limit → 5/heure max
+- SQL files publics → /sql/vitrines static serving supprime
+- Upload 500 MB → reduit a 25 MB
+- XSS contenu_html signature → sanitisation regex (script + on*)
+- Health endpoint leak memoire/uptime → stripped a status+timestamp
+- SSRF scraper → isPrivateUrl() bloque IPs privees/localhost/metadata
+- Admin security-scan broken role check → email check
+- Staging IDOR → ownership verification societe_id
+- 3 dashboards init incomplete (osteopathe, SCI, createur) → corrige par reviewers
+- 3 dashboards async auth race condition → await ajoute
 
 ## Corriges par Passe 51
 - Waterfall scan barcode : etape IA simulee au frontend → unifie via 1 appel backend
