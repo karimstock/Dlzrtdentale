@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 const { calculerTotaux } = require('../../services/tva-calculator');
-const { genererFacturePdf } = require('../../services/pdf-generator');
+const { genererFacturePdf, genererFacturePdfFacturX } = require('../../services/pdf-generator');
 const { envoyerFacture, envoyerFacturesBatch } = require('../../services/email-sender');
 const { genererFacturXml, getFacturXMetadata, mentionsFactureElectronique } = require('../../services/facturx-generator');
 
@@ -183,20 +183,35 @@ router.post('/generer', async (req, res) => {
       }
 
       // Generer PDF
-      const { data: dentiste } = await admin()
+      const { data: dentiste, error: dentErr } = await admin()
         .from('dentistes_clients')
         .select('*')
         .eq('id', dentisteId)
         .single();
+
+      if (dentErr || !dentiste) {
+        console.error(`[LABO factures generer] Dentiste ${dentisteId} introuvable, facture ${numero} ignoree`);
+        continue;
+      }
 
       const bonsAvecLignes = blsDentiste.map(bl => ({
         ...bl,
         lignes: bl.lignes_bl || []
       }));
 
-      const pdfBuffer = await genererFacturePdf({
+      // Collecter toutes les lignes pour le XML Factur-X
+      const lignesFacture = [];
+      for (const bl of blsDentiste) {
+        for (const l of (bl.lignes_bl || [])) {
+          lignesFacture.push(l);
+        }
+      }
+
+      // Generer PDF avec XML Factur-X embarque (conformite Sept 2026)
+      const pdfBuffer = await genererFacturePdfFacturX({
         prothesiste, dentiste, facture,
-        bonsLivraison: bonsAvecLignes
+        bonsLivraison: bonsAvecLignes,
+        lignesFacture
       });
 
       const pdfPath = `${req.prothesisteId}/factures/${numero}.pdf`;

@@ -353,10 +353,234 @@ app.post('/api/commerce/checkout/webhook', express.raw({ type: 'application/json
 
       if (order) {
         console.log('[Commerce] Order paid:', order.id, '—', order.total_ttc, 'EUR');
-        // TODO: Generate Factur-X invoice
-        // TODO: Send confirmation emails (client + supplier)
-        // TODO: Schedule supplier payout (J+30)
-        // TODO: Notify supplier of new order
+
+        // HTML-escape helper to prevent XSS in email templates
+        const escHtml = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        // --- Post-payment processing (async, non-blocking) ---
+        (async () => {
+          try {
+            // Guard: skip post-processing if critical IDs are missing
+            if (!order.supplier_id || !order.user_id) {
+              console.error('[Commerce] Order missing supplier_id or user_id, skipping post-payment:', order.id);
+              return;
+            }
+
+            // Fetch supplier and client profiles (reused across steps 1-4)
+            const [supplierRes, clientRes] = await Promise.all([
+              sbClient.from('profiles').select('*').eq('id', order.supplier_id).single(),
+              sbClient.from('profiles').select('*').eq('id', order.user_id).single()
+            ]);
+            const supplier = supplierRes.data;
+            const client = clientRes.data;
+
+            // 1. Generate Factur-X invoice XML
+            const invoiceRef = `JCOM-${Date.now()}-${order.id.slice(0, 8)}`;
+            try {
+              const { genererFacturXml } = require('./services/facturx-generator');
+
+              const totalHt = Number(order.total_ht) || 0;
+              const totalTtc = Number(order.total_ttc) || 0;
+              const totalTva = totalTtc - totalHt;
+
+              const facturXml = genererFacturXml({
+                facture: {
+                  numero_facture: invoiceRef,
+                  date_facture: new Date().toISOString().split('T')[0],
+                  total_ht_taxable: totalHt,
+                  total_ht_exonere: 0,
+                  total_tva: totalTva > 0 ? totalTva : 0,
+                  total_ttc: totalTtc
+                },
+                prothesiste: {
+                  raison_sociale: supplier?.raison_sociale || supplier?.nom || 'Fournisseur JADOMI',
+                  code_postal: supplier?.code_postal || '',
+                  adresse_ligne1: supplier?.adresse || supplier?.adresse_ligne1 || '',
+                  ville: supplier?.ville || '',
+                  siren: supplier?.siren || '',
+                  regime_tva: supplier?.regime_tva || 'normal'
+                },
+                dentiste: {
+                  nom: client?.nom || 'Client',
+                  prenom: client?.prenom || '',
+                  titre: client?.titre || '',
+                  code_postal: client?.code_postal || '',
+                  adresse_ligne1: client?.adresse || client?.adresse_ligne1 || '',
+                  ville: client?.ville || ''
+                },
+                lignes: (order.items || []).map(item => ({
+                  designation: item.name || item.designation || 'Article',
+                  prix_unitaire: item.price || item.prix_unitaire || 0,
+                  quantite: item.quantity || item.quantite || 1,
+                  montant_ht: (item.price || item.prix_unitaire || 0) * (item.quantity || item.quantite || 1),
+                  tva_applicable: true,
+                  taux_tva: 20
+                }))
+              });
+
+              // Store invoice reference and XML on the order
+              await sbClient.from('jadomi_orders').update({
+                invoice_ref: invoiceRef,
+                facturx_xml: facturXml,
+                updated_at: new Date().toISOString()
+              }).eq('id', order.id);
+
+              console.log('[Commerce] Factur-X generated:', invoiceRef);
+            } catch (fxErr) {
+              console.error('[Commerce] Factur-X generation failed:', fxErr.message);
+            }
+
+            // 2. Send confirmation emails (client + supplier)
+            try {
+              const { sendMail } = require('./api/emailService');
+
+              // Use profiles already fetched above
+              const buyer = client;
+              const seller = supplier;
+
+              const itemsHtml = (order.items || []).map(item =>
+                `<tr>
+                  <td style="padding:8px 12px;border-bottom:1px solid #2f2c28;color:#e8e6e0;font-size:13px;">${escHtml(item.name || item.designation || 'Article')}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #2f2c28;color:#e8e6e0;font-size:13px;text-align:center;">${Number(item.quantity || item.quantite || 1)}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #2f2c28;color:#e8e6e0;font-size:13px;text-align:right;">${((Number(item.price || item.prix_unitaire || 0)) * (Number(item.quantity || item.quantite || 1))).toFixed(2)} EUR</td>
+                </tr>`
+              ).join('');
+
+              const emailWrapper = (title, content) => `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0f0e0d;font-family:Arial,sans-serif;color:#e8e6e0;">
+<div style="max-width:560px;margin:0 auto;background:#1a1917;border:1px solid #2f2c28;border-radius:12px;overflow:hidden;">
+  <div style="padding:30px 30px 10px 30px;border-bottom:1px solid #2f2c28;">
+    <div style="font-size:28px;font-weight:800;color:#10b981;letter-spacing:-1px;">JADOMI</div>
+    <div style="font-size:12px;color:#9c9890;margin-top:4px;">Marketplace equipement dentaire</div>
+  </div>
+  <div style="padding:30px;">
+    <h2 style="color:#10b981;font-size:20px;margin:0 0 16px 0;">${title}</h2>
+    ${content}
+    <p style="font-size:12px;color:#9c9890;line-height:1.6;margin-top:24px;">
+      Pour toute question, contactez-nous a <a href="mailto:contact@jadomi.fr" style="color:#10b981;">contact@jadomi.fr</a>.
+    </p>
+  </div>
+  <div style="padding:16px 30px;border-top:1px solid #2f2c28;font-size:11px;color:#6b6760;text-align:center;">
+    JADOMI SAS &middot; <a href="https://jadomi.fr" style="color:#9c9890;text-decoration:none;">jadomi.fr</a>
+  </div>
+</div>
+</body></html>`;
+
+              // Email to buyer (client)
+              if (buyer?.email) {
+                const buyerName = escHtml([buyer.prenom, buyer.nom].filter(Boolean).join(' ') || 'Client');
+                await sendMail({
+                  to: buyer.email,
+                  subject: `Confirmation de votre commande JADOMI n\u00b0${invoiceRef}`,
+                  html: emailWrapper('Confirmation de commande', `
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Bonjour ${buyerName},
+                    </p>
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Nous vous confirmons la bonne reception de votre paiement pour la commande <strong style="color:#10b981;">${invoiceRef}</strong>.
+                    </p>
+                    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                      <thead>
+                        <tr style="background:#2f2c28;">
+                          <th style="padding:8px 12px;text-align:left;color:#9c9890;font-size:12px;">Article</th>
+                          <th style="padding:8px 12px;text-align:center;color:#9c9890;font-size:12px;">Qty</th>
+                          <th style="padding:8px 12px;text-align:right;color:#9c9890;font-size:12px;">Montant</th>
+                        </tr>
+                      </thead>
+                      <tbody>${itemsHtml}</tbody>
+                    </table>
+                    <p style="font-size:15px;color:#e8e6e0;font-weight:700;text-align:right;">
+                      Total TTC : ${Number(order.total_ttc).toFixed(2)} EUR
+                    </p>
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Votre fournisseur a ete notifie et preparera votre commande dans les meilleurs delais.
+                    </p>
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Nous vous remercions pour votre confiance.
+                    </p>`)
+                });
+                console.log('[Commerce] Buyer confirmation email sent to:', buyer.email);
+              }
+
+              // Email to supplier
+              if (seller?.email) {
+                const sellerName = escHtml(seller.raison_sociale || [seller.prenom, seller.nom].filter(Boolean).join(' ') || 'Fournisseur');
+                await sendMail({
+                  to: seller.email,
+                  subject: `Nouvelle commande JADOMI n\u00b0${invoiceRef}`,
+                  html: emailWrapper('Nouvelle commande recue', `
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Bonjour ${sellerName},
+                    </p>
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Une nouvelle commande vient d'etre validee sur la marketplace JADOMI.
+                    </p>
+                    <p style="font-size:14px;color:#e8e6e0;">
+                      <strong>Reference :</strong> <span style="color:#10b981;">${invoiceRef}</span><br>
+                      <strong>Client :</strong> ${escHtml([buyer?.prenom, buyer?.nom].filter(Boolean).join(' ') || 'Client JADOMI')}<br>
+                      <strong>Montant HT :</strong> ${Number(order.total_ht || 0).toFixed(2)} EUR<br>
+                      <strong>Montant TTC :</strong> ${Number(order.total_ttc).toFixed(2)} EUR
+                    </p>
+                    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                      <thead>
+                        <tr style="background:#2f2c28;">
+                          <th style="padding:8px 12px;text-align:left;color:#9c9890;font-size:12px;">Article</th>
+                          <th style="padding:8px 12px;text-align:center;color:#9c9890;font-size:12px;">Qty</th>
+                          <th style="padding:8px 12px;text-align:right;color:#9c9890;font-size:12px;">Montant</th>
+                        </tr>
+                      </thead>
+                      <tbody>${itemsHtml}</tbody>
+                    </table>
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Nous vous invitons a preparer cette commande dans les meilleurs delais. Le reglement vous sera verse sous 30 jours.
+                    </p>
+                    <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
+                      Nous vous remercions pour votre collaboration.
+                    </p>`)
+                });
+                console.log('[Commerce] Supplier notification email sent to:', seller.email);
+              }
+            } catch (emailErr) {
+              console.error('[Commerce] Email sending failed:', emailErr.message);
+            }
+
+            // 3. Schedule supplier payout (J+30)
+            try {
+              const payoutDate = new Date();
+              payoutDate.setDate(payoutDate.getDate() + 30);
+
+              await sbClient.from('jadomi_orders').update({
+                payout_scheduled_at: payoutDate.toISOString(),
+                payout_status: 'scheduled',
+                updated_at: new Date().toISOString()
+              }).eq('id', order.id);
+
+              console.log('[Commerce] Payout scheduled for:', payoutDate.toISOString(), 'order:', order.id);
+            } catch (payoutErr) {
+              console.error('[Commerce] Payout scheduling failed:', payoutErr.message);
+            }
+
+            // 4. Notify supplier of new order (in-app notification)
+            try {
+              await sbClient.from('equipment_notifications').insert({
+                user_id: order.supplier_id,
+                type: 'new_order',
+                title: 'Nouvelle commande recue',
+                message: `Commande ${invoiceRef} - ${Number(order.total_ttc).toFixed(2)} EUR TTC. Veuillez preparer la livraison.`,
+                metadata: { order_id: order.id, invoice_ref: invoiceRef, total_ttc: order.total_ttc },
+                read: false,
+                created_at: new Date().toISOString()
+              });
+              console.log('[Commerce] Supplier notification inserted for:', order.supplier_id);
+            } catch (notifErr) {
+              console.error('[Commerce] Supplier notification insert failed:', notifErr.message);
+            }
+
+          } catch (postPayErr) {
+            console.error('[Commerce] Post-payment processing error:', postPayErr.message);
+          }
+        })().catch(err => console.error('[Commerce] Unhandled post-payment error:', err.message));
       }
     }
 

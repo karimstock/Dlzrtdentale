@@ -5,6 +5,7 @@
 
 const PDFDocument = require('pdfkit');
 const { mentionsLegales } = require('./tva-calculator');
+const { genererFacturXml, getFacturXMetadata, mentionsFactureElectronique } = require('./facturx-generator');
 
 const COLORS = {
   primary: '#1a56db',
@@ -32,6 +33,7 @@ function genererBLPdf({ prothesiste, dentiste, bl, lignes, teintes }) {
       const chunks = [];
       doc.on('data', c => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
 
       // En-tete
       doc.fontSize(16).fillColor(COLORS.primary)
@@ -144,6 +146,7 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
       const chunks = [];
       doc.on('data', c => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
 
       // Titre
       doc.fontSize(14).fillColor(COLORS.primary)
@@ -252,6 +255,7 @@ function genererFacturePdf({ prothesiste, dentiste, facture, bonsLivraison }) {
       const chunks = [];
       doc.on('data', c => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
 
       // En-tete labo
       doc.fontSize(16).fillColor(COLORS.primary)
@@ -379,4 +383,207 @@ function genererFacturePdf({ prothesiste, dentiste, facture, bonsLivraison }) {
   });
 }
 
-module.exports = { genererBLPdf, genererDeclarationCEPdf, genererFacturePdf };
+// ===== FACTURE LABO PDF FACTUR-X (PDF/A-3 avec XML embarque) =====
+/**
+ * Genere un PDF facture avec XML Factur-X embarque (conformite Sept 2026)
+ * - Embarque factur-x.xml en piece jointe PDF (AF entry)
+ * - Ajoute les metadonnees XMP Factur-X
+ * - Marque le PDF comme PDF/A-3 conforme
+ *
+ * @param {Object} params - memes params que genererFacturePdf + lignesFacture + facturxXml optionnel
+ * @returns {Promise<Buffer>} PDF buffer avec XML embarque
+ */
+function genererFacturePdfFacturX({ prothesiste, dentiste, facture, bonsLivraison, lignesFacture, facturxXml }) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Null checks on required objects
+      if (!facture || !facture.numero_facture) {
+        return reject(new Error('Facture invalide ou numero_facture manquant'));
+      }
+      if (!prothesiste) {
+        return reject(new Error('Profil prothesiste manquant'));
+      }
+      if (!dentiste) {
+        return reject(new Error('Profil dentiste manquant'));
+      }
+
+      // Generer le XML Factur-X si pas fourni
+      let xmlContent = facturxXml;
+      if (!xmlContent) {
+        const lignes = lignesFacture || [];
+        xmlContent = genererFacturXml({ facture, prothesiste, dentiste, lignes });
+      }
+
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 40,
+        info: {
+          Title: `Facture ${facture.numero_facture}`,
+          Author: prothesiste.raison_sociale || 'JADOMI Labo Pro',
+          Subject: 'Factur-X Invoice / Facture electronique',
+          Creator: 'JADOMI Labo Pro',
+          Producer: 'PDFKit + Factur-X',
+          Keywords: 'Factur-X, EN16931, facture, electronique'
+        }
+      });
+
+      const chunks = [];
+      doc.on('data', c => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      // ---- Embarquer le XML Factur-X dans le PDF ----
+      const xmlBuffer = Buffer.from(xmlContent, 'utf-8');
+      doc.file(xmlBuffer, {
+        name: 'factur-x.xml',
+        type: 'text/xml',
+        description: 'Factur-X XML invoice data (EN 16931)',
+        relationship: 'Alternative',
+        creationDate: new Date(),
+        modifiedDate: new Date()
+      });
+
+      // ---- En-tete labo (identique a genererFacturePdf) ----
+      doc.fontSize(16).fillColor(COLORS.primary)
+        .text(prothesiste.raison_sociale, 40, 40);
+      doc.fontSize(8).fillColor(COLORS.gray);
+      if (prothesiste.forme_juridique) doc.text(prothesiste.forme_juridique);
+      doc.text([prothesiste.adresse_ligne1, prothesiste.adresse_ligne2].filter(Boolean).join(' '));
+      doc.text(`${prothesiste.code_postal || ''} ${prothesiste.ville || ''}`);
+      if (prothesiste.siren) doc.text(`SIREN : ${prothesiste.siren} | APE : ${prothesiste.code_ape || '3250A'}`);
+      if (prothesiste.numero_rcs) doc.text(`RCS ${prothesiste.rcs_ville || ''} ${prothesiste.numero_rcs}`);
+      if (prothesiste.numero_dmmes) doc.text(`N° ANSM/DMMES : ${prothesiste.numero_dmmes}`);
+      if (prothesiste.telephone) doc.text(`Tel: ${prothesiste.telephone}`);
+      if (prothesiste.email) doc.text(`Email: ${prothesiste.email}`);
+
+      // Dentiste
+      doc.fontSize(10).fillColor(COLORS.dark).text('FACTURE A :', 350, 40);
+      doc.fontSize(9).fillColor(COLORS.gray);
+      const nomDr = `${dentiste.titre || 'Dr'} ${dentiste.prenom || ''} ${dentiste.nom}`.trim();
+      doc.text(nomDr, 350);
+      if (dentiste.raison_sociale_cabinet) doc.text(dentiste.raison_sociale_cabinet, 350);
+      if (dentiste.adresse_ligne1) doc.text(dentiste.adresse_ligne1, 350);
+      doc.text(`${dentiste.code_postal || ''} ${dentiste.ville || ''}`, 350);
+      if (dentiste.reference_client) doc.text(`Ref client : ${dentiste.reference_client}`, 350);
+
+      // Titre facture
+      doc.moveDown(2);
+      doc.fontSize(14).fillColor(COLORS.dark)
+        .text(`FACTURE N° ${facture.numero_facture}`, { align: 'center' });
+      doc.fontSize(9).fillColor(COLORS.gray)
+        .text(`Date : ${formatDate(facture.date_facture)} | Periode : du ${formatDate(facture.periode_debut)} au ${formatDate(facture.periode_fin)}`, { align: 'center' });
+
+      doc.moveDown(1);
+
+      // Tableau par BL
+      const colX = [40, 90, 300, 340, 390, 440, 500];
+      const tableTop = doc.y;
+
+      doc.rect(40, tableTop, 515, 18).fill(COLORS.primary);
+      doc.fontSize(7).fillColor(COLORS.white);
+      doc.text('N° BL', colX[0] + 3, tableTop + 4, { width: 46 });
+      doc.text('Designation', colX[1] + 3, tableTop + 4, { width: 206 });
+      doc.text('Qte', colX[2] + 3, tableTop + 4, { width: 36 });
+      doc.text('PU HT', colX[3] + 3, tableTop + 4, { width: 46 });
+      doc.text('Rem.', colX[4] + 3, tableTop + 4, { width: 46 });
+      doc.text('HT', colX[5] + 3, tableTop + 4, { width: 56 });
+
+      let y = tableTop + 22;
+
+      for (const blGroup of bonsLivraison) {
+        if (y > 700) { doc.addPage(); y = 40; }
+        doc.rect(40, y - 2, 515, 14).fill('#eef2ff');
+        doc.fontSize(7).fillColor(COLORS.primary);
+        doc.text(`BL ${blGroup.numero_bl} du ${formatDate(blGroup.date_bl)} - Patient: ${blGroup.patient_initiales || 'N/A'}`, colX[0] + 3, y);
+        y += 16;
+
+        for (let i = 0; i < blGroup.lignes.length; i++) {
+          const l = blGroup.lignes[i];
+          if (y > 720) { doc.addPage(); y = 40; }
+          if (i % 2 === 0) doc.rect(40, y - 2, 515, 14).fill('#f9fafb');
+          doc.fillColor(COLORS.dark).fontSize(7);
+          doc.text('', colX[0] + 3, y, { width: 46 });
+          doc.text(l.designation, colX[1] + 3, y, { width: 206 });
+          doc.text(String(l.quantite), colX[2] + 3, y, { width: 36 });
+          doc.text(formatMoney(l.prix_unitaire), colX[3] + 3, y, { width: 46 });
+          doc.text(l.remise_pct ? l.remise_pct + '%' : '-', colX[4] + 3, y, { width: 46 });
+          doc.text(formatMoney(l.montant_ht), colX[5] + 3, y, { width: 56 });
+          y += 14;
+        }
+
+        doc.fontSize(7).fillColor(COLORS.gray);
+        doc.text(`Sous-total BL ${blGroup.numero_bl} : ${formatMoney(blGroup.total_ttc)} TTC`, 380, y);
+        y += 16;
+      }
+
+      // Totaux
+      y += 10;
+      const totX = 380;
+      doc.fontSize(9).fillColor(COLORS.dark);
+
+      if (facture.total_ht_exonere > 0) {
+        doc.text('Total HT exonere TVA :', totX, y); doc.text(formatMoney(facture.total_ht_exonere), 500, y); y += 14;
+      }
+      if (facture.total_ht_taxable > 0) {
+        doc.text('Total HT taxable :', totX, y); doc.text(formatMoney(facture.total_ht_taxable), 500, y); y += 14;
+        doc.text('TVA 20% :', totX, y); doc.text(formatMoney(facture.total_tva), 500, y); y += 14;
+      }
+      if (facture.remise_globale_pct > 0) {
+        doc.text(`Remise globale (${facture.remise_globale_pct}%) :`, totX, y);
+        y += 14;
+      }
+      doc.fontSize(12).fillColor(COLORS.primary);
+      doc.text('TOTAL TTC :', totX, y); doc.text(formatMoney(facture.total_ttc), 500, y);
+
+      // Mentions legales
+      y += 30;
+      if (y > 700) { doc.addPage(); y = 40; }
+      doc.moveTo(40, y).lineTo(555, y).stroke(COLORS.lightGray);
+      y += 10;
+
+      const has_exo = facture.total_ht_exonere > 0;
+      const has_tax = facture.total_ht_taxable > 0;
+      const mentions = mentionsLegales(prothesiste.regime_tva, has_exo, has_tax);
+
+      doc.fontSize(7).fillColor(COLORS.gray);
+      for (const m of mentions) {
+        doc.text(m, 40, y, { width: 515 });
+        y += 10;
+      }
+
+      // Mentions Factur-X
+      const mentionsFacturX = mentionsFactureElectronique(prothesiste);
+      y += 5;
+      doc.fontSize(7).fillColor(COLORS.primary);
+      doc.text('Conformite facture electronique :', 40, y, { width: 515 });
+      y += 10;
+      doc.fillColor(COLORS.gray);
+      for (const m of mentionsFacturX) {
+        doc.text(m, 40, y, { width: 515 });
+        y += 10;
+      }
+
+      // Badge Factur-X
+      y += 5;
+      doc.rect(40, y, 200, 16).fill('#eef2ff');
+      doc.fontSize(7).fillColor(COLORS.primary);
+      doc.text('Factur-X BASIC | EN 16931 | PDF/A-3', 45, y + 4, { width: 190 });
+
+      // Coordonnees bancaires
+      y += 25;
+      if (prothesiste.iban) {
+        if (y > 750) { doc.addPage(); y = 40; }
+        doc.fontSize(8).fillColor(COLORS.dark).text('Coordonnees bancaires :', 40, y);
+        doc.fontSize(7).fillColor(COLORS.gray);
+        doc.text(`IBAN : ${prothesiste.iban}`, 40);
+        if (prothesiste.bic) doc.text(`BIC : ${prothesiste.bic}`, 40);
+      }
+
+      doc.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+module.exports = { genererBLPdf, genererDeclarationCEPdf, genererFacturePdf, genererFacturePdfFacturX };
