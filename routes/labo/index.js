@@ -59,6 +59,12 @@ function createLaboRouter() {
   router.use('/teintiers', require('./teintiers'));
   router.use('/portail-dentiste', require('./portail-dentiste'));
   router.use('/stock', require('./stock'));
+  router.use('/remakes', require('./remakes'));
+  router.use('/production', require('./production'));
+  router.use('/garanties', require('./garanties'));
+  const techniciens = require('./techniciens');
+  router.use('/techniciens', techniciens.router);
+  router.use('/', techniciens.kpiRouter);
 
   return router;
 }
