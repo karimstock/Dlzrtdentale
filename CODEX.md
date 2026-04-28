@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 28 avril 2026
-**Derniere passe** : Passe 63 — Voice Assistant + Factur-X PDF + GPO checkout complet
+**Derniere passe** : Passe 64 — Billing API + getDatabaseStats RPC + xlsx→exceljs
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1181,6 +1181,20 @@ MOYENS corriges (8) :
 Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 19 fichiers modifies, 757 lignes ajoutees.
 
+## Passe 64 (28 avril 2026) -- Billing API + getDatabaseStats RPC + xlsx→exceljs
+3 chantiers :
+1. API Billing : GET /api/billing/status + POST /api/billing/portail
+   (Stripe Customer Portal). 3-layer subscription lookup (subscriptions →
+   abonnements → societes), fallback gracieux sans Stripe, billing.html fixe.
+2. getDatabaseStats() : 100K lignes en memoire → 0 lignes. RPC SQL
+   get_database_stats() single call. Migration sql/services/64_database_stats_rpc.sql.
+3. xlsx → exceljs : package abandonne (6 CVEs) remplace dans import-grille.js
+   et commerce.js. Gestion formules, richText, Date ExcelJS.
+5 corrections reviewers : stripe_customer_id leak → has_stripe boolean,
+auth middleware deduplique, ExcelJS rich objects, richText/Date handling.
+Fichiers : server.js, api/billing/index.js, services/products-database.js,
+routes/labo/import-grille.js, api/multiSocietes/commerce.js, public/billing.html.
+
 ## Passe 63 (28 avril 2026) -- Voice Assistant + Factur-X PDF + GPO checkout
 4 chantiers majeurs :
 1. JADOMI Voice Assistant : assistant conversationnel Claude Sonnet integre
@@ -1331,6 +1345,11 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - [x] Factur-X embarque dans PDF labo (PDF/A-3, AF Alternative) (Passe 63)
 - [x] GPO checkout complet : Factur-X + emails + payout J+30 + notif (Passe 63)
 - [x] 13 corrections reviewers securite/bugs (Passe 63)
+- [x] API Billing : /api/billing/status + /portail Stripe (Passe 64)
+- [x] getDatabaseStats RPC SQL (100K rows → 0) (Passe 64)
+- [x] xlsx → exceljs migration (6 CVEs eliminees) (Passe 64)
+- [x] 5 corrections reviewers billing+exceljs (Passe 64)
+- [ ] Executer SQL 64 (get_database_stats RPC) dans Supabase Dashboard
 
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
@@ -1371,14 +1390,21 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
 - CSP unsafe-inline (dette technique — a remplacer par nonces/hashes quand refacto frontend)
-- npm xlsx abandonne (6 CVEs, remplacer par exceljs)
+- ~~npm xlsx abandonne (6 CVEs)~~ [CORRIGE Passe 64 — migre vers exceljs]
 - STRIPE_WEBHOOK_SECRET non configure (webhook rejete si absent — configurer dans Stripe Dashboard)
-- billing.html n'existe pas (lien "Abonnement" dans 11 dashboards → 404)
+- ~~billing.html n'existe pas~~ [CORRIGE Passe 64 — API billing + page fonctionnelle]
 - Videos demo manquantes (demo-dentistes.mp4, demo-coiffeurs.mp4, demo-prothesistes.mp4)
-- getDatabaseStats() charge 100K lignes en memoire (remplacer par RPC/vue SQL)
+- ~~getDatabaseStats() charge 100K lignes en memoire~~ [CORRIGE Passe 64 — RPC SQL 0 rows]
 - P12 certificat sans passphrase (stocker passphrase en env var)
 - N+1 queries /api/achats/price-watches (batch needed)
 - Navigation inconstante entre anciennes et nouvelles landings (nav .html vs sans)
+
+## Corriges par Passe 64
+- stripe_customer_id expose au client → remplace par has_stripe boolean
+- Auth middleware copie-colle dans billing → import depuis multiSocietes/middleware
+- ExcelJS rich objects (formulas, richText, Date) → extraction .result/.richText/.toISOString
+- Champ inutile stripe_subscription_id dans select societes → supprime
+- Commerce headers+data richText/Date non geres → fix complet
 
 ## Corriges par Passe 63
 - XSS emails GPO : inputs utilisateur non echappes dans HTML → escHtml() ajoute
