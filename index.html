@@ -2653,6 +2653,69 @@ function simulerVocal(texte) {
   setTimeout(()=>dispatchVocal(texte),500);
 }
 
+function _getAuthToken() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+  for (const k of keys) { try { const v = JSON.parse(localStorage.getItem(k)); if (v?.access_token) return v.access_token; } catch {} }
+  return localStorage.getItem('sb-auth-token') || '';
+}
+
+async function voiceResendDoc(docId, email) {
+  try {
+    addVocalMsg('user', 'Renvoyer ce document');
+    const token = _getAuthToken();
+    const r = await fetch('/api/voice/resend-document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ document_id: docId, email: email || null })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      addVocalMsg('assistant', 'Document renvoye a <strong>' + d.sent_to + '</strong>.');
+      jadomiSpeak('Document renvoye avec succes.');
+    } else {
+      addVocalMsg('assistant', 'Erreur : ' + (d.error || 'Envoi impossible'));
+    }
+  } catch (e) { addVocalMsg('assistant', 'Erreur reseau.'); }
+}
+
+function voicePrintLetter() {
+  if (!window._lastGeneratedLetter?.html) return;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Courrier JADOMI</title></head><body style="font-family:sans-serif;max-width:700px;margin:40px auto;padding:20px;">' + window._lastGeneratedLetter.html + '</body></html>');
+  w.document.close();
+  w.print();
+}
+
+function voiceCopyLetter() {
+  if (!window._lastGeneratedLetter?.html) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = window._lastGeneratedLetter.html;
+  navigator.clipboard.writeText(tmp.textContent || tmp.innerText).then(() => {
+    showToast('Courrier copie dans le presse-papiers');
+  });
+}
+
+async function voiceSendLetter() {
+  const email = prompt('Email du destinataire :');
+  if (!email) return;
+  try {
+    addVocalMsg('user', 'Envoyer a ' + email);
+    const token = _getAuthToken();
+    const r = await fetch('/api/voice/send-letter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ to: email, subject: 'Courrier JADOMI', html: window._lastGeneratedLetter?.html || '' })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      addVocalMsg('assistant', 'Courrier envoye a <strong>' + d.sent_to + '</strong>.');
+      jadomiSpeak('Courrier envoye avec succes.');
+    } else {
+      addVocalMsg('assistant', 'Erreur envoi : ' + (d.error || 'Impossible'));
+    }
+  } catch (e) { addVocalMsg('assistant', 'Erreur reseau.'); }
+}
+
 // ═══════════════════════════════════
 // VOCAL — LANGAGE NATUREL COMPLET
 // ═══════════════════════════════════
@@ -2721,44 +2784,70 @@ async function traiterCommandeIA(texte) {
     const data = await appelClaudeAPI({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
-      system: `Tu es JADOMI Voice, l'assistant vocal IA du cabinet dentaire. Tu GERES TOUT pour le dentiste.
+      system: `Tu es JADOMI Voice, l'assistant vocal IA complet du professionnel de sante. Tu GERES TOUT.
 
 STOCK ACTUEL :
 ${stockActuel}
 
 ACTIONS POSSIBLES :
-1. "utilise" — Decrementer stock (j'ai consomme, utilise, pose, ouvert)
-2. "ajoute" — Incrementer stock (livraison recue, receptionne)
+
+=== STOCK ===
+1. "utilise" — Decrementer stock (consomme, utilise, pose, ouvert)
+2. "ajoute" — Incrementer stock (livraison, receptionne)
 3. "set" — Fixer quantite (il reste X)
-4. "commande" — Preparer panier + trouver meilleur prix. TU NE DIS PAS "allez sur tel site". Tu dis "Je prepare votre commande via JADOMI GPO, on trouve le meilleur prix pour vous."
-5. "commande_urgente" — Comme commande mais avec flag urgent + recherche express
-6. "alerte" — Montrer produits critiques/rupture
-7. "cherche_prix" — Le dentiste veut juste connaitre les prix du marche
-8. "stats" — Depenses, statistiques
-9. "question" — Le dentiste pose une question, reponds en texte
-10. "confirmation_attente" — Tu attends une reponse du dentiste (oui/non/quantite)
+4. "alerte" — Montrer produits critiques/rupture
 
-FLOW COMMANDE (TRES IMPORTANT) :
-- Quand le dentiste dit "trouve le moins cher" ou "commande" → action:commande
-- Tu proposes : "Je lance la recherche du meilleur prix via JADOMI GPO. Combien en voulez-vous ?"
-- Si la quantite est dans la phrase, prepare directement le panier
-- Si pas de quantite, demande avec action:confirmation_attente
-- Quand il confirme, action:commande avec la quantite
+=== COMMANDES ===
+5. "commande" — Preparer panier GPO + meilleur prix. JAMAIS dire "allez sur tel site". Tu dis "Je prepare votre commande, on s'occupe de tout."
+6. "commande_urgente" — Commande + flag urgent livraison express
 
-FLOW URGENCE :
-- "urgent", "d'urgence", "vite", "tout de suite" → action:commande_urgente
-- Tu dis : "Commande urgente lancee. Je contacte les fournisseurs avec livraison express."
+=== DOCUMENTS ===
+7. "renvoyer_document" — Renvoyer facture/devis/document a un patient/client. Extraire le nom de la personne + type de document.
+   Produits format : [{"nom":"nom du patient","type":"facture|devis|contrat|attestation"}]
+8. "generer_courrier" — Generer un courrier professionnel (relance paiement, mise en demeure, relance remplacement, confirmation, remerciement).
+   Produits format : [{"nom":"destinataire","type":"relance_paiement|mise_en_demeure|relance_remplacement|confirmation|remerciement","contexte":"description de la situation","montant":"si applicable"}]
+9. "envoyer_email" — Envoyer un email libre a quelqu'un
+
+=== INFO ===
+10. "cherche_prix" — Prix du marche pour un produit
+11. "stats" — Depenses, chiffre d'affaires, statistiques
+12. "question" — Repondre a une question generale
+13. "confirmation_attente" — Attendre reponse du dentiste (oui/non/quantite)
+14. "navigation" — Ouvrir un onglet/page du dashboard. Produits format : [{"nom":"page a ouvrir"}]
+
+EXEMPLES :
+- "Renvoie la facture au client Dupont" → action:renvoyer_document, produits:[{nom:"Dupont",type:"facture"}]
+- "Renvoie le devis signe au patient Martin" → action:renvoyer_document, produits:[{nom:"Martin",type:"devis"}]
+- "J'ai fait un remplacement avec une infirmiere qui a pas paye, fais un courrier de relance" → action:generer_courrier, produits:[{nom:"infirmiere",type:"relance_remplacement",contexte:"remplacement effectue, paiement non recu",montant:""}]
+- "Fais une mise en demeure pour 450 euros" → action:generer_courrier, produits:[{nom:"",type:"mise_en_demeure",contexte:"facture impayee",montant:"450"}]
+- "Trouve le Fuji IX le moins cher, 3 boites" → action:commande, produits:[{nom:"Fuji IX",quantite:3}]
+- "Combien j'ai depense ce mois ?" → action:stats
+- "Ouvre les commandes" → action:navigation, produits:[{nom:"commandes"}]
+
+FLOW COMMANDE :
+- "trouve le moins cher" → action:commande → "Je lance la recherche via JADOMI GPO. Combien en voulez-vous ?"
+- Si quantite dans la phrase → prepare directement
+- Si confirmation → action:commande avec quantite
+
+FLOW DOCUMENTS :
+- Le dentiste donne un nom → tu cherches et renvoies
+- Si nom pas clair → action:confirmation_attente, demande le nom exact
+
+FLOW COURRIER :
+- Extraire : destinataire, type de courrier, contexte, montant si mentionne
+- Si infos manquantes → action:confirmation_attente, demande les details
+- Quand complet → action:generer_courrier
 
 REGLES :
 - Vouvoiement obligatoire
-- Reponses courtes et claires (max 2 phrases)
-- JAMAIS dire "allez sur le site de..." — JADOMI gere tout
-- Toujours proposer l'action suivante
+- Reponses courtes (max 2 phrases)
+- JAMAIS dire "allez sur le site de..." — JADOMI s'occupe de TOUT
+- JAMAIS refuser une action liee au metier — toujours proposer de le faire
 - date_peremption : "novembre 2028"→"2028-11"
 - JAMAIS mettre une annee dans quantite
 
 JSON OBLIGATOIRE :
-{"action":"utilise|ajoute|set|commande|commande_urgente|alerte|cherche_prix|stats|question|confirmation_attente","produits":[{"id":123,"nom":"nom","quantite":1,"date_peremption":null,"nouveau":false}],"message":"reponse vocale courte au dentiste","need_response":false}`,
+{"action":"utilise|ajoute|set|commande|commande_urgente|alerte|cherche_prix|stats|question|confirmation_attente|renvoyer_document|generer_courrier|envoyer_email|navigation","produits":[{"id":null,"nom":"","quantite":1,"date_peremption":null,"nouveau":false,"type":"","contexte":"","montant":""}],"message":"reponse vocale courte au dentiste","need_response":false}`,
       messages: contextMsgs
     });
 
@@ -2828,6 +2917,82 @@ JSON OBLIGATOIRE :
     if (res.action === 'cherche_prix') {
       addVocalMsg('assistant', res.message || 'Je recherche les meilleurs prix pour vous...');
       display.innerHTML = '<div style="color:#10b981;font-size:13px;">Recherche prix en cours...</div>';
+      return;
+    }
+
+    // RENVOYER DOCUMENT (facture, devis, contrat)
+    if (res.action === 'renvoyer_document') {
+      const p = (res.produits || [])[0];
+      if (p && p.nom) {
+        addVocalMsg('assistant', (res.message || 'Je recherche le document...') + '<div style="margin-top:8px;font-size:12px;color:#a1a1aa;">Recherche en cours pour "' + p.nom + '"...</div>');
+        display.innerHTML = '<div style="color:#f0a030;font-size:13px;">Recherche document...</div>';
+        try {
+          const token = _getAuthToken();
+          const searchRes = await fetch('/api/voice/search-document', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ search: p.nom, type: p.type || null })
+          });
+          const searchData = await searchRes.json();
+          if (searchData.documents && searchData.documents.length > 0) {
+            const docs = searchData.documents;
+            const docsHtml = docs.slice(0, 5).map(d => '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;"><div><strong>' + (d.title || 'Sans titre') + '</strong><br><span style="font-size:11px;color:#a1a1aa;">' + (d.signer_name || '') + ' — ' + (d.category || '') + ' — ' + new Date(d.created_at).toLocaleDateString('fr-FR') + '</span></div><button class="msg-action" onclick="voiceResendDoc(\'' + d.id + '\',\'' + (d.signer_email || '') + '\')">Renvoyer</button></div>').join('');
+            addVocalMsg('assistant', docs.length + ' document(s) trouve(s) :' + '<div style="margin-top:8px;">' + docsHtml + '</div>');
+            jadomiSpeak(docs.length + ' documents trouves pour ' + p.nom + '. Selectionnez celui a renvoyer.');
+            display.innerHTML = '';
+          } else {
+            addVocalMsg('assistant', 'Aucun document trouve pour "' + p.nom + '". Verifiez le nom ou precisez le type (facture, devis, contrat).');
+            jadomiSpeak('Aucun document trouve pour ' + p.nom);
+            display.innerHTML = '';
+          }
+        } catch (e) {
+          addVocalMsg('assistant', 'Erreur lors de la recherche. Reessayez.');
+          display.innerHTML = '';
+        }
+      }
+      return;
+    }
+
+    // GENERER COURRIER (relance, mise en demeure, etc.)
+    if (res.action === 'generer_courrier') {
+      const p = (res.produits || [])[0];
+      if (p) {
+        addVocalMsg('assistant', (res.message || 'Je prepare le courrier...'));
+        display.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:#6b6760;padding:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse-red 1s infinite;"></div>Generation du courrier en cours...</div>';
+        try {
+          const token = _getAuthToken();
+          const letterRes = await fetch('/api/voice/generate-letter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ type: p.type || 'relance_paiement', context: p.contexte || '', recipient_name: p.nom || '', amount: p.montant || '', details: texte })
+          });
+          const letterData = await letterRes.json();
+          if (letterData.ok && letterData.html) {
+            window._lastGeneratedLetter = letterData;
+            addVocalMsg('assistant', 'Courrier genere avec succes.' + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;max-height:200px;overflow-y:auto;font-size:12px;">' + letterData.html + '</div>' + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">' + (p.nom ? '<button class="msg-action" onclick="voiceSendLetter()">Envoyer par email</button>' : '') + '<button class="msg-action" onclick="voicePrintLetter()">Imprimer</button><button class="msg-action secondary" onclick="voiceCopyLetter()">Copier</button></div>');
+            jadomiSpeak('Le courrier de ' + (p.type || 'relance').replace(/_/g, ' ') + ' est pret.');
+            display.innerHTML = '<div style="color:#10b981;font-size:13px;">Courrier pret</div>';
+          } else {
+            addVocalMsg('assistant', 'Erreur lors de la generation du courrier.');
+            display.innerHTML = '';
+          }
+        } catch (e) {
+          addVocalMsg('assistant', 'Erreur de generation. Verifiez votre connexion.');
+          display.innerHTML = '';
+        }
+      }
+      return;
+    }
+
+    // NAVIGATION
+    if (res.action === 'navigation') {
+      const p = (res.produits || [])[0];
+      if (p && p.nom) {
+        const pages = { 'commandes': 'page-devis', 'stock': 'page-stock', 'panier': 'page-panier', 'fournisseurs': 'page-fournisseurs', 'documents': 'page-signature', 'signature': 'page-signature', 'mailing': 'page-mailing', 'compta': 'page-compta', 'scan': 'page-stock', 'factures': 'page-compta', 'parametres': 'page-parametres' };
+        const target = Object.entries(pages).find(([k]) => p.nom.toLowerCase().includes(k));
+        if (target) { fermerVocal(); showPage(target[1]); showToast('Navigation : ' + target[0]); }
+        else { addVocalMsg('assistant', res.message || 'Page non trouvee.'); }
+      }
       return;
     }
 

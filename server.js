@@ -534,6 +534,137 @@ app.get('/api/ads/me', authSupabase(), async (req, res) => {
   } catch (e) { res.json({ name: req.user.email, email: req.user.email }); }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// JADOMI Voice Assistant — API endpoints
+// ═══════════════════════════════════════════════════════════════
+
+// POST /api/voice/search-document — Rechercher un document par nom patient/client
+app.post('/api/voice/search-document', authSupabase(), async (req, res) => {
+  try {
+    const { search, type } = req.body;
+    if (!search) return res.status(400).json({ error: 'Terme de recherche requis' });
+    const sb = supabaseAdmin || supabase;
+    const safeSearch = search.replace(/[%_,().]/g, '');
+    const societeId = req.user.societe_id || req.headers['x-societe-id'];
+
+    let query = sb.from('signed_documents')
+      .select('id, title, signer_name, signer_email, category, status, created_at')
+      .or(`title.ilike.%${safeSearch}%,signer_name.ilike.%${safeSearch}%,signer_email.ilike.%${safeSearch}%`)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (societeId) query = query.eq('societe_id', societeId);
+    if (type) query = query.eq('category', type);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ ok: true, documents: data || [] });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur recherche documents' });
+  }
+});
+
+// POST /api/voice/resend-document — Renvoyer un document par email
+app.post('/api/voice/resend-document', authSupabase(), async (req, res) => {
+  try {
+    const { document_id, email } = req.body;
+    if (!document_id) return res.status(400).json({ error: 'document_id requis' });
+    const sb = supabaseAdmin || supabase;
+    const societeId = req.user.societe_id || req.headers['x-societe-id'];
+
+    const { data: doc } = await sb.from('signed_documents')
+      .select('*')
+      .eq('id', document_id)
+      .eq('societe_id', societeId)
+      .single();
+    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+
+    const targetEmail = email || doc.signer_email;
+    if (!targetEmail) return res.status(400).json({ error: 'Aucun email disponible' });
+
+    // Send via existing email service
+    try {
+      const { sendMail } = require('./api/emailService');
+      await sendMail({
+        to: targetEmail,
+        subject: 'JADOMI — Document : ' + (doc.title || 'Sans titre'),
+        html: '<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#10b981;">JADOMI</h2><p>Bonjour,</p><p>Veuillez trouver ci-joint le document <strong>' + (doc.title || 'Sans titre') + '</strong> (categorie : ' + (doc.category || '-') + ').</p><p>Pour verifier l\'authenticite de ce document :</p><p><a href="https://jadomi.fr/verify-signature?id=' + doc.id + '" style="color:#10b981;">Verifier le document</a></p><p>Cordialement,<br>JADOMI</p></div>'
+      });
+    } catch (emailErr) {
+      console.warn('[voice/resend] Email error:', emailErr.message);
+    }
+
+    res.json({ ok: true, sent_to: targetEmail, document: doc.title });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur envoi document' });
+  }
+});
+
+// POST /api/voice/generate-letter — Generer un courrier (relance, mise en demeure, etc.)
+app.post('/api/voice/generate-letter', authSupabase(), async (req, res) => {
+  try {
+    const { type, context, recipient_name, recipient_email, amount, details } = req.body;
+    if (!type || !context) return res.status(400).json({ error: 'type et context requis' });
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      system: `Tu es le generateur de courriers professionnels de JADOMI, plateforme pour professionnels de sante.
+Tu generes des courriers en HTML propre, professionnels, en francais, avec vouvoiement.
+Types de courriers :
+- relance_paiement : Relance amiable pour facture impayee
+- mise_en_demeure : Mise en demeure formelle (plus severe)
+- relance_remplacement : Relance pour paiement de remplacement professionnel
+- confirmation : Confirmation de reception/accord
+- remerciement : Lettre de remerciement professionnelle
+
+Le courrier doit inclure :
+- En-tete avec date du jour
+- Objet clair
+- Corps professionnel mais ferme (pour les relances)
+- Mention des references (montant, date, prestation)
+- Formule de politesse
+- Signature "[Nom du cabinet]"
+
+Format : HTML inline styles (pas de CSS externe). Design sobre et professionnel.`,
+      messages: [{
+        role: 'user',
+        content: `Genere un courrier de type "${type}" avec ce contexte :
+Destinataire : ${recipient_name || 'Non precise'}
+Email : ${recipient_email || 'Non precise'}
+Montant : ${amount || 'Non precise'}
+Details : ${context}
+${details ? 'Informations supplementaires : ' + details : ''}`
+      }]
+    });
+
+    const letterHtml = msg.content?.[0]?.text || '';
+    res.json({ ok: true, html: letterHtml, type });
+  } catch (e) {
+    console.error('[voice/generate-letter]', e.message);
+    res.status(500).json({ error: 'Erreur generation courrier' });
+  }
+});
+
+// POST /api/voice/send-letter — Envoyer un courrier genere par email
+app.post('/api/voice/send-letter', authSupabase(), async (req, res) => {
+  try {
+    const { to, subject, html } = req.body;
+    if (!to || !html) return res.status(400).json({ error: 'to et html requis' });
+    const { sendMail } = require('./api/emailService');
+    await sendMail({
+      to,
+      subject: subject || 'JADOMI — Courrier',
+      html: '<div style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;">' + html + '<hr style="margin-top:30px;border:none;border-top:1px solid #eee;"><p style="font-size:11px;color:#999;">Envoye via JADOMI — jadomi.fr</p></div>'
+    });
+    res.json({ ok: true, sent_to: to });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur envoi courrier' });
+  }
+});
+
 // === JADOMI Studio — Hub IA creation publicitaire (Passe 34.2) ===
 try {
   const mountStudio = require('./api/studio');
