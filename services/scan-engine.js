@@ -51,8 +51,8 @@ async function lookupProduct(code, prothesisteId, options = {}) {
   const startTime = Date.now();
   let waterfallLevels = 0;
 
-  // Normaliser le code (retirer espaces, tirets)
-  const cleanCode = code.replace(/[\s\-]/g, '').trim();
+  // Normaliser le code (retirer espaces, tirets, caracteres PostgREST dangereux)
+  const cleanCode = code.replace(/[\s\-]/g, '').replace(/[,().%_]/g, '').trim();
 
   // Categories prioritaires selon le metier du praticien
   // Orthodontiste → cherche d'abord dans Orthodontie

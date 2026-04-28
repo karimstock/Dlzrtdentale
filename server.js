@@ -10,10 +10,13 @@ const crypto = require('crypto');
 const app = express();
 
 // === PWA Patient — MUST be first (before Helmet, CORS, etc.) ===
+const fs = require('fs');
 app.use('/patient', (req, res) => {
   const reqPath = req.path === '/' ? '/index.html' : req.path;
-  const filePath = path.join(__dirname, 'public', 'patient', reqPath);
-  const fs = require('fs');
+  const filePath = path.resolve(__dirname, 'public', 'patient', reqPath);
+  // Path traversal protection
+  const safeDir = path.resolve(__dirname, 'public', 'patient');
+  if (!filePath.startsWith(safeDir)) return res.status(403).end();
   try {
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       return res.sendFile(filePath);
@@ -25,8 +28,10 @@ app.use('/patient', (req, res) => {
 // === PWA Labo Pro — MUST be before Helmet, CORS, etc. ===
 app.use('/labo-pro', (req, res) => {
   const reqPath = req.path === '/' ? '/index.html' : req.path;
-  const filePath = path.join(__dirname, 'public', 'labo-pro', reqPath);
-  const fs = require('fs');
+  const filePath = path.resolve(__dirname, 'public', 'labo-pro', reqPath);
+  // Path traversal protection
+  const safeDir = path.resolve(__dirname, 'public', 'labo-pro');
+  if (!filePath.startsWith(safeDir)) return res.status(403).end();
   try {
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       return res.sendFile(filePath);
@@ -320,8 +325,11 @@ app.post('/api/commerce/checkout/webhook', express.raw({ type: 'application/json
 
     if (webhookSecret && sig) {
       event = stripeInstance.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } else if (!webhookSecret) {
+      console.warn('[STRIPE] STRIPE_WEBHOOK_SECRET_CHECKOUT non configuré — webhook rejeté');
+      return res.status(503).json({ error: 'Webhook secret not configured' });
     } else {
-      event = JSON.parse(req.body.toString());
+      return res.status(400).json({ error: 'Missing stripe-signature header' });
     }
 
     const sbClient = supabaseAdmin || supabase;
@@ -453,6 +461,12 @@ try {
 app.get('/supplier/offer/:token', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/supplier-offer.html'));
 });
+
+// Alias API GPO : /api/gpo/offer/:token → /api/gpo/public/offer/:token (fix route mismatch frontend)
+app.get('/api/gpo/offer/:token', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}`));
+app.post('/api/gpo/offer/:token/accept', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}/accept`));
+app.post('/api/gpo/offer/:token/counter', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}/counter`));
+app.post('/api/gpo/offer/:token/refuse', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}/refuse`));
 
 // Route admin GPO
 app.get('/admin/gpo', (req, res) => {
@@ -5298,6 +5312,12 @@ app.get('/api/signatures/verify', async (req, res) => {
 });
 
 // === PUBLIC OTP for mandate signing (no auth — fournisseur not logged in) ===
+// Rate limit: 3 SMS per 15 min per IP (prevent SMS cost abuse)
+app.use('/api/signatures/send-otp-public', rateLimit({
+  windowMs: 15 * 60 * 1000, max: 3,
+  standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Trop de demandes OTP. Réessayez dans 15 minutes.' }
+}));
 app.post('/api/signatures/send-otp-public', async (req, res) => {
   try {
     const { phone, document_id } = req.body;
@@ -5310,6 +5330,12 @@ app.post('/api/signatures/send-otp-public', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Rate limit: 10 verif per 15 min per IP
+app.use('/api/signatures/verify-otp-public', rateLimit({
+  windowMs: 15 * 60 * 1000, max: 10,
+  standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' }
+}));
 app.post('/api/signatures/verify-otp-public', async (req, res) => {
   try {
     const { phone, document_id, code } = req.body;
@@ -8503,6 +8529,25 @@ app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
   }
 });
 
+// 19b. PATCH /api/ide/visite/:id/notes — Sauvegarder les notes d'une visite
+app.patch('/api/ide/visite/:id/notes', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const { notes } = req.body;
+    if (notes === undefined) return res.status(400).json({ error: 'notes requis' });
+    const { data, error } = await db.from('ide_visites')
+      .update({ notes, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select('id, notes')
+      .single();
+    if (error) throw error;
+    res.json({ ok: true, visite: data });
+  } catch (e) {
+    console.error('[IDE Visite Notes] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // 20. GET /api/ide/visite/:id/tracking — Position live (pas d'auth, acces via token unique)
 // Rate limit: 30 req/min per IP to prevent polling abuse
 app.get('/api/ide/visite/:id/tracking', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
@@ -10636,7 +10681,6 @@ process.on('uncaughtException', (err) => {
 // =============================================
 // Fallback : servir .html correspondant pour URLs sans extension
 // =============================================
-const fs = require('fs');
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || path.extname(req.path)) return next();
   const candidates = [

@@ -7,15 +7,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || ''
 );
 
-// Auth middleware
-function authMiddleware(req, res, next) {
+// Auth middleware — verify JWT via Supabase
+async function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Non authentifié' });
   req.token = token;
-  // Extract user from JWT (simplified - in prod use supabase.auth.getUser)
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    req.user = { id: payload.sub, email: payload.email };
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Token invalide ou expiré' });
+    req.user = { id: user.id, email: user.email };
     req.user.societe_id = req.body?.societe_id || req.query?.societe_id ||
       req.headers['x-societe-id'] || null;
   } catch (e) {

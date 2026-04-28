@@ -231,6 +231,16 @@ module.exports = function mountRequests(app, admin, auth) {
       const { attempt_id } = req.body;
       if (!attempt_id) return res.status(400).json({ error: 'attempt_id requis' });
 
+      // IDOR protection: verify request belongs to user's societe
+      const userSocieteId = req.societe?.id || req.headers['x-societe-id'];
+      const { data: reqCheck } = await admin()
+        .from('gpo_requests')
+        .select('id')
+        .eq('id', req.params.id)
+        .eq('societe_id', userSocieteId)
+        .maybeSingle();
+      if (!reqCheck) return res.status(403).json({ error: 'Accès refusé' });
+
       const { data: attempt } = await admin()
         .from('gpo_request_attempts')
         .select('*, suppliers(id, name, email)')

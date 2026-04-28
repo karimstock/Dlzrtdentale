@@ -99,7 +99,16 @@ async function logAudit(userId, role, action, targetType, targetId, req, success
   } catch {}
 }
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+const ALLOWED_EXTENSIONS_CLIENT = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.doc', '.docx', '.xls', '.xlsx', '.odt', '.txt', '.zip'];
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = '.' + (file.originalname.split('.').pop() || '').toLowerCase();
+    if (ALLOWED_EXTENSIONS_CLIENT.includes(ext)) return cb(null, true);
+    cb(new Error('Type de fichier non autorise'));
+  }
+});
 
 // ================================================
 // LOGIN — Par invitation ou email/password
@@ -269,8 +278,9 @@ router.post('/documents/upload', requireClient, upload.single('file'), async (re
     // Chiffrer
     const { encrypted, iv, tag } = encryptBuffer(req.file.buffer);
 
-    // Stocker
-    const fileDir = path.join(COFFRE_DIR, dossier.avocat_societe_id, dossier_id);
+    // Stocker (with path traversal protection)
+    const fileDir = path.resolve(COFFRE_DIR, dossier.avocat_societe_id, dossier_id);
+    if (!fileDir.startsWith(path.resolve(COFFRE_DIR))) return res.status(400).json({ error: 'Chemin invalide' });
     if (!fs.existsSync(fileDir)) fs.mkdirSync(fileDir, { recursive: true });
     const fileId = crypto.randomUUID();
     fs.writeFileSync(path.join(fileDir, fileId), encrypted);
@@ -307,7 +317,7 @@ router.get('/documents/:id/download', requireClient, async (req, res) => {
 
     await logAudit(req.clientId, 'client', 'document_download', 'document', doc.id, req, true);
 
-    res.setHeader('Content-Disposition', 'attachment; filename="' + doc.filename + '"');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.filename)}`);
     res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
     return res.send(decrypted);
   } catch (err) {

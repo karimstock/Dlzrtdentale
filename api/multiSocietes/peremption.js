@@ -177,11 +177,11 @@ function mountPeremption(app) {
   });
 
   // Marquer une alerte comme traitée (écoulée, détruite, etc.)
-  router.post('/:id/traite', async (req, res) => {
+  router.post('/:id/traite', requireSociete(), async (req, res) => {
     try {
       await admin().from('alertes_peremption').update({
         traite: true, traite_at: new Date().toISOString()
-      }).eq('id', req.params.id);
+      }).eq('id', req.params.id).eq('societe_id', req.societe.id);
       res.json({ success: true });
     } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });

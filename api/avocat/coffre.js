@@ -88,9 +88,15 @@ async function logAudit(userId, role, action, targetType, targetId, req, success
 }
 
 // Upload config
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.doc', '.docx', '.xls', '.xlsx', '.odt', '.txt', '.zip'];
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100 Mo max
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 Mo max
+  fileFilter: (req, file, cb) => {
+    const ext = '.' + (file.originalname.split('.').pop() || '').toLowerCase();
+    if (ALLOWED_EXTENSIONS.includes(ext)) return cb(null, true);
+    cb(new Error('Type de fichier non autorise'));
+  }
 });
 
 // ================================================
@@ -408,7 +414,7 @@ router.get('/coffre/documents/:id/download', requireAvocat, async (req, res) => 
 
     await logAudit(req.userId, 'avocat', 'document_download', 'document', doc.id, req, true);
 
-    res.setHeader('Content-Disposition', 'attachment; filename="' + doc.filename + '"');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.filename)}`);
     res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
     return res.send(decrypted);
   } catch (err) {

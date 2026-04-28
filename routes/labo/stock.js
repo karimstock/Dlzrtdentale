@@ -16,7 +16,10 @@ router.get('/', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId).eq('est_actif', true)
       .order('categorie').order('nom');
     if (categorie) query = query.eq('categorie', categorie);
-    if (search) query = query.or(`nom.ilike.%${search}%,marque.ilike.%${search}%,code_barre.ilike.%${search}%`);
+    if (search) {
+      const s = search.replace(/[%_,().]/g, '');
+      query = query.or(`nom.ilike.%${s}%,marque.ilike.%${s}%,code_barre.ilike.%${s}%`);
+    }
     if (alerte === 'true') query = query.lte('quantite', 'seuil_alerte');
     if (peremption) {
       const d = new Date();

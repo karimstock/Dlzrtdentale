@@ -21,7 +21,7 @@ async function lookupMarketPricesForItems(admin, items) {
       if (!name) continue;
 
       const { data: products } = await admin()
-        .from('products')
+        .from('products_database')
         .select('id, name, name_fr')
         .or(`name.ilike.%${escLike(name)}%,name_fr.ilike.%${escLike(name)}%`)
         .limit(1);

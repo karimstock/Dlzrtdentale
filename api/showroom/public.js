@@ -241,7 +241,8 @@ module.exports = function (router) {
         query = query.in('id', ids);
       }
       if (req.query.q) {
-        query = query.or(`nom_boutique.ilike.%${req.query.q}%,tagline.ilike.%${req.query.q}%,description.ilike.%${req.query.q}%`);
+        const q = req.query.q.replace(/[%_,().]/g, '');
+        query = query.or(`nom_boutique.ilike.%${q}%,tagline.ilike.%${q}%,description.ilike.%${q}%`);
       }
 
       query = query.order('note_moyenne', { ascending: false });

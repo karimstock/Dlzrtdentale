@@ -204,9 +204,12 @@ module.exports = function mountCommunication(app) {
   // DELETE /api/communication/contacts/:id
   app.delete('/api/communication/contacts/:id', auth, async (req, res) => {
     try {
+      const societeId = getSocieteId(req);
+      if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
       const { error } = await admin().from('contacts_cabinet')
         .delete()
-        .eq('id', req.params.id);
+        .eq('id', req.params.id)
+        .eq('societe_id', societeId);
       if (error) throw error;
       res.json({ ok: true });
     } catch (e) {

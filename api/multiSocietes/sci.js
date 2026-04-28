@@ -81,8 +81,9 @@ module.exports = function mountSci(app) {
   });
   router.post('/biens', requireSociete(), async (req, res) => {
     try {
+      const { nom, adresse, type, surface_m2, nb_lots, valeur_estimee, notes, statut } = req.body;
       const { data, error } = await admin().from('biens_immobiliers')
-        .insert({ ...req.body, societe_id: req.societe.id }).select('*').single();
+        .insert({ nom, adresse, type, surface_m2, nb_lots, valeur_estimee, notes, statut, societe_id: req.societe.id }).select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'bien', entityId: data.id, req });
@@ -91,8 +92,10 @@ module.exports = function mountSci(app) {
   });
   router.patch('/biens/:id', requireSociete(), async (req, res) => {
     try {
+      const { nom, adresse, type, surface_m2, nb_lots, valeur_estimee, notes, statut } = req.body;
+      const payload = Object.fromEntries(Object.entries({ nom, adresse, type, surface_m2, nb_lots, valeur_estimee, notes, statut }).filter(([,v]) => v !== undefined));
       const { data, error } = await admin().from('biens_immobiliers')
-        .update(req.body).eq('id', req.params.id).eq('societe_id', req.societe.id)
+        .update(payload).eq('id', req.params.id).eq('societe_id', req.societe.id)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, bien: data });
@@ -112,8 +115,9 @@ module.exports = function mountSci(app) {
   });
   router.post('/locataires', requireSociete(), async (req, res) => {
     try {
+      const { nom, prenom, email, telephone, bien_id, date_entree, date_sortie, loyer_mensuel, notes } = req.body;
       const { data, error } = await admin().from('locataires')
-        .insert({ ...req.body, societe_id: req.societe.id }).select('*').single();
+        .insert({ nom, prenom, email, telephone, bien_id, date_entree, date_sortie, loyer_mensuel, notes, societe_id: req.societe.id }).select('*').single();
       if (error) throw error;
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
         action: 'create', entity: 'locataire', entityId: data.id, req });
@@ -122,8 +126,10 @@ module.exports = function mountSci(app) {
   });
   router.patch('/locataires/:id', requireSociete(), async (req, res) => {
     try {
+      const { nom, prenom, email, telephone, bien_id, date_entree, date_sortie, loyer_mensuel, notes } = req.body;
+      const payload = Object.fromEntries(Object.entries({ nom, prenom, email, telephone, bien_id, date_entree, date_sortie, loyer_mensuel, notes }).filter(([,v]) => v !== undefined));
       const { data, error } = await admin().from('locataires')
-        .update(req.body).eq('id', req.params.id).eq('societe_id', req.societe.id)
+        .update(payload).eq('id', req.params.id).eq('societe_id', req.societe.id)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, locataire: data });
