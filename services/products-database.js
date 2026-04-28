@@ -40,29 +40,38 @@ async function searchProducts(query, options = {}) {
 async function getDatabaseStats() {
   try {
     const { count: total } = await admin().from('products_database').select('*', { count: 'exact', head: true });
-    const { data: bySrc } = await admin().from('products_database')
-      .select('source')
-      .limit(100000);
 
+    // Use RPC or paginated approach to avoid OOM on large tables
+    // Group by source — fetch distinct sources with count via small batches
+    const { data: sources } = await admin().rpc('get_product_stats_by_source').catch(() => ({ data: null }));
     const sourceMap = {};
-    (bySrc || []).forEach(r => {
-      sourceMap[r.source] = (sourceMap[r.source] || 0) + 1;
-    });
+    if (sources) {
+      sources.forEach(r => { sourceMap[r.source] = parseInt(r.count); });
+    } else {
+      // Fallback: get distinct sources only (no count)
+      const { data: distinctSrc } = await admin().from('products_database')
+        .select('source').limit(500);
+      const seen = new Set();
+      (distinctSrc || []).forEach(r => { if (r.source && !seen.has(r.source)) { seen.add(r.source); sourceMap[r.source] = '?'; } });
+    }
 
-    const { data: byCat } = await admin().from('products_database')
-      .select('category')
-      .limit(100000);
-
+    const { data: categories } = await admin().rpc('get_product_stats_by_category').catch(() => ({ data: null }));
     const catMap = {};
-    (byCat || []).forEach(r => {
-      if (r.category) catMap[r.category] = (catMap[r.category] || 0) + 1;
-    });
+    if (categories) {
+      categories.forEach(r => { if (r.category) catMap[r.category] = parseInt(r.count); });
+    } else {
+      // Fallback: get distinct categories only
+      const { data: distinctCat } = await admin().from('products_database')
+        .select('category').not('category', 'is', null).limit(500);
+      const seen = new Set();
+      (distinctCat || []).forEach(r => { if (r.category && !seen.has(r.category)) { seen.add(r.category); catMap[r.category] = '?'; } });
+    }
 
     return {
       total_products: total || 0,
       by_source: sourceMap,
       by_category: catMap,
-      top_categories: Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 20)
+      top_categories: Object.entries(catMap).sort((a, b) => (b[1] || 0) - (a[1] || 0)).slice(0, 20)
     };
   } catch (e) {
     return { total_products: 0, by_source: {}, by_category: {}, error: e.message };

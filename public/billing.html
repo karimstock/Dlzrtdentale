@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Abonnement — JADOMI</title>
+  <link rel="stylesheet" href="/jadomi-theme.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid #222; background: #111; }
+    .topbar-logo { font-size: 1.3rem; font-weight: 700; color: #d4af37; text-decoration: none; }
+    .topbar-back { color: #888; text-decoration: none; font-size: 0.9rem; }
+    .topbar-back:hover { color: #fff; }
+    .container { max-width: 800px; margin: 0 auto; padding: 3rem 1.5rem; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: #fff; }
+    .subtitle { color: #888; margin-bottom: 2.5rem; }
+    .plan-card { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+    .plan-card.active { border-color: #d4af37; }
+    .plan-card.active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #d4af37, #f5d76e); }
+    .plan-name { font-size: 1.3rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem; }
+    .plan-price { font-size: 2rem; font-weight: 700; color: #d4af37; margin-bottom: 0.3rem; }
+    .plan-price span { font-size: 1rem; font-weight: 400; color: #888; }
+    .plan-features { list-style: none; margin-top: 1rem; }
+    .plan-features li { padding: 0.4rem 0; color: #aaa; font-size: 0.9rem; }
+    .plan-features li::before { content: '✓ '; color: #d4af37; font-weight: 600; }
+    .plan-status { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-top: 1rem; }
+    .plan-status.active { background: rgba(212,175,55,0.15); color: #d4af37; }
+    .plan-status.inactive { background: rgba(255,255,255,0.05); color: #666; }
+    .actions { margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .btn { padding: 0.8rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 500; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+    .btn-primary { background: #d4af37; color: #000; }
+    .btn-primary:hover { background: #e5c44a; transform: translateY(-1px); }
+    .btn-secondary { background: #222; color: #fff; border: 1px solid #444; }
+    .btn-secondary:hover { border-color: #666; }
+    .info-box { background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 12px; padding: 1.5rem; margin-top: 2rem; }
+    .info-box h3 { color: #8b9cf7; font-size: 1rem; margin-bottom: 0.5rem; }
+    .info-box p { color: #888; font-size: 0.9rem; line-height: 1.6; }
+    .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .upgrade-card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .upgrade-card:hover { border-color: #d4af37; transform: translateY(-2px); }
+    .upgrade-card .price { font-size: 1.5rem; font-weight: 700; color: #d4af37; }
+    .upgrade-card .name { font-size: 1rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem; }
+    .upgrade-card .desc { font-size: 0.8rem; color: #888; }
+    @media(max-width:600px) { .container { padding: 2rem 1rem; } .actions { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="/" class="topbar-logo">JADOMI</a>
+    <a href="javascript:history.back()" class="topbar-back">← Retour au dashboard</a>
+  </div>
+
+  <div class="container">
+    <h1>Mon Abonnement</h1>
+    <p class="subtitle">Gerez votre formule et vos moyens de paiement</p>
+
+    <div class="plan-card active" id="currentPlan">
+      <div class="plan-name" id="planName">Chargement...</div>
+      <div class="plan-price" id="planPrice">—</div>
+      <ul class="plan-features" id="planFeatures"></ul>
+      <span class="plan-status active" id="planStatus">Actif</span>
+    </div>
+
+    <div class="actions">
+      <a href="/tarifs" class="btn btn-primary">Voir toutes les formules</a>
+      <button class="btn btn-secondary" id="btnPortal" onclick="openStripePortal()">Gerer mon paiement</button>
+    </div>
+
+    <div class="info-box">
+      <h3>Besoin d'aide ?</h3>
+      <p>Votre abonnement est sans engagement. Vous pouvez changer de formule ou resilier a tout moment depuis cette page. Pour toute question, contactez-nous a <strong>contact@jadomi.fr</strong>.</p>
+    </div>
+
+    <h2 style="margin-top:3rem; font-size:1.2rem; color:#fff;">Changer de formule</h2>
+    <div class="plans-grid">
+      <div class="upgrade-card" onclick="location.href='/tarifs'">
+        <div class="name">Essentiel</div>
+        <div class="price">29€<span style="font-size:0.8rem;color:#888">/mois</span></div>
+        <div class="desc">Site vitrine + stock basique</div>
+      </div>
+      <div class="upgrade-card" onclick="location.href='/tarifs'">
+        <div class="name">Standard</div>
+        <div class="price">79€<span style="font-size:0.8rem;color:#888">/mois</span></div>
+        <div class="desc">Multi-societes + GPO + CMS</div>
+      </div>
+      <div class="upgrade-card" onclick="location.href='/tarifs'">
+        <div class="name">Illimite</div>
+        <div class="price">149€<span style="font-size:0.8rem;color:#888">/mois</span></div>
+        <div class="desc">Tout inclus — Le plus choisi</div>
+      </div>
+      <div class="upgrade-card" onclick="location.href='/tarifs'">
+        <div class="name">Prestige</div>
+        <div class="price">199€<span style="font-size:0.8rem;color:#888">/mois</span></div>
+        <div class="desc">Logo IA + Support prioritaire</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+    const SUPABASE_KEY = localStorage.getItem('sb-auth-token') ? '' : '';
+
+    async function loadSubscription() {
+      try {
+        const token = localStorage.getItem('sb-auth-token') ||
+          Object.keys(localStorage).filter(k => k.startsWith('sb-')).map(k => { try { return JSON.parse(localStorage.getItem(k))?.access_token; } catch { return null; } }).find(Boolean);
+        if (!token) {
+          document.getElementById('planName').textContent = 'Aucun abonnement';
+          document.getElementById('planPrice').innerHTML = 'Gratuit';
+          document.getElementById('planStatus').textContent = 'Essai';
+          document.getElementById('planStatus').className = 'plan-status inactive';
+          return;
+        }
+        const res = await fetch('/api/billing/subscription', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.subscription) {
+            document.getElementById('planName').textContent = data.subscription.plan_name || 'Standard';
+            document.getElementById('planPrice').innerHTML = (data.subscription.price || '79') + '€<span>/mois</span>';
+            document.getElementById('planStatus').textContent = data.subscription.status === 'active' ? 'Actif' : 'Inactif';
+          }
+        } else {
+          document.getElementById('planName').textContent = 'Formule Standard';
+          document.getElementById('planPrice').innerHTML = '79€<span>/mois</span>';
+        }
+      } catch (e) {
+        document.getElementById('planName').textContent = 'Formule Standard';
+        document.getElementById('planPrice').innerHTML = '79€<span>/mois</span>';
+      }
+    }
+
+    async function openStripePortal() {
+      try {
+        const token = localStorage.getItem('sb-auth-token') ||
+          Object.keys(localStorage).filter(k => k.startsWith('sb-')).map(k => { try { return JSON.parse(localStorage.getItem(k))?.access_token; } catch { return null; } }).find(Boolean);
+        const res = await fetch('/api/billing/portal', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) window.location.href = data.url;
+        } else {
+          alert('Le portail de paiement n\'est pas encore configure. Contactez contact@jadomi.fr.');
+        }
+      } catch (e) {
+        alert('Erreur de connexion au service de paiement.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSubscription);
+  </script>
+</body>
+</html>
