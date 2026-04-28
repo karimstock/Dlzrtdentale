@@ -62,9 +62,15 @@ function createLaboRouter() {
   router.use('/remakes', require('./remakes'));
   router.use('/production', require('./production'));
   router.use('/garanties', require('./garanties'));
+  router.use('/planning', require('./planning'));
+  router.use('/expeditions', require('./expeditions'));
+  router.use('/shade', require('./shade'));
   const techniciens = require('./techniciens');
   router.use('/techniciens', techniciens.router);
   router.use('/', techniciens.kpiRouter);
+  const { chatRouter, portailChatRouter } = require('./chat');
+  router.use('/chat', chatRouter);
+  router.use('/portail-chat', portailChatRouter);
 
   return router;
 }
