@@ -203,10 +203,11 @@ router.get('/:id/stats', async (req, res) => {
         .eq('technicien_id', id)
         .eq('statut', 'termine'),
 
-      // Etapes for average time
+      // Etapes for average time — filtre par prothesiste via cases
       admin()
         .from('labo_production_etapes')
-        .select('etape, duree_minutes')
+        .select('etape, duree_minutes, labo_production_cases!inner(prothesiste_id)')
+        .eq('labo_production_cases.prothesiste_id', req.prothesisteId)
         .eq('technicien_id', id)
         .not('duree_minutes', 'is', null),
 
@@ -405,9 +406,10 @@ kpiRouter.get('/kpi', async (req, res) => {
         .eq('prothesiste_id', pid)
         .eq('statut', 'en_cours'),
 
-      // Stock sorties this month (cout materiaux)
+      // Stock sorties this month (cout materiaux) — filtre par prothesiste via stock
       admin().from('labo_stock_mouvements')
-        .select('quantite, labo_stock(prix_unitaire)')
+        .select('quantite, labo_stock!inner(prix_unitaire, prothesiste_id)')
+        .eq('labo_stock.prothesiste_id', pid)
         .eq('type_mouvement', 'sortie')
         .gte('created_at', monthStart),
 
@@ -416,9 +418,10 @@ kpiRouter.get('/kpi', async (req, res) => {
         .eq('prothesiste_id', pid)
         .eq('statut', 'actif'),
 
-      // Heures travaillees this month
+      // Heures travaillees this month — filtre par prothesiste via cases
       admin().from('labo_production_etapes')
-        .select('technicien_id, duree_minutes')
+        .select('technicien_id, duree_minutes, labo_production_cases!inner(prothesiste_id)')
+        .eq('labo_production_cases.prothesiste_id', pid)
         .gte('debut', monthStart)
         .lte('debut', monthEnd)
         .not('duree_minutes', 'is', null)

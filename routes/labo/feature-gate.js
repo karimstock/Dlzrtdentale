@@ -130,8 +130,11 @@ function requireFeature(feature) {
       next();
     } catch (e) {
       console.error('[feature-gate] Erreur middleware:', e.message);
-      // En cas d'erreur, laisser passer (graceful pendant beta)
-      next();
+      // En cas d'erreur, bloquer l'acces (securite > disponibilite)
+      return res.status(503).json({
+        error: 'service_unavailable',
+        message: 'Vérification de votre abonnement temporairement indisponible. Veuillez réessayer.'
+      });
     }
   };
 }

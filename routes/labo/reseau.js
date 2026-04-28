@@ -43,7 +43,10 @@ router.get('/annuaire', async (req, res) => {
       .order('charte_france', { ascending: false })
       .order('note_moyenne', { ascending: false });
 
-    if (ville) query = query.ilike('ville', `%${ville}%`);
+    if (ville) {
+      const safeVille = ville.replace(/[%_\\]/g, '');
+      query = query.ilike('ville', `%${safeVille}%`);
+    }
     if (departement) query = query.eq('departement', departement);
     if (specialites) query = query.contains('specialites', [specialites]);
     if (disponible_soustraitance === 'true') query = query.eq('accepte_soustraitance', true);
@@ -152,7 +155,10 @@ router.get('/annonces', async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (type) query = query.eq('type', type);
-    if (specialite) query = query.ilike('specialite_requise', `%${specialite}%`);
+    if (specialite) {
+      const safeSpec = specialite.replace(/[%_\\]/g, '');
+      query = query.ilike('specialite_requise', `%${safeSpec}%`);
+    }
     if (urgence === 'true') query = query.eq('urgence', true);
     if (departement) {
       // Filter by department via profil
@@ -606,10 +612,17 @@ router.post('/entraide/:id/reponse', async (req, res) => {
     if (error) throw error;
 
     // Incrémenter le compteur de réponses
+    // Note: sujet ne contient que 'id', on utilise un RPC ou refetch
+    const { data: sujetFull } = await admin()
+      .from('labo_reseau_entraide')
+      .select('reponses_count')
+      .eq('id', req.params.id)
+      .single();
+
     await admin()
       .from('labo_reseau_entraide')
       .update({
-        reponses_count: sujet.reponses_count + 1 || 1,
+        reponses_count: ((sujetFull?.reponses_count) || 0) + 1,
         updated_at: new Date().toISOString()
       })
       .eq('id', req.params.id);

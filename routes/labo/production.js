@@ -137,16 +137,29 @@ router.get('/stats', async (req, res) => {
 
     if (e4) throw e4;
 
-    // Temps moyen par etape (sur les etapes terminees)
-    const { data: etapesDurees, error: e5 } = await admin()
-      .from('labo_production_etapes')
-      .select('etape, duree_minutes, case_id')
-      .not('duree_minutes', 'is', null);
+    // Temps moyen par etape (sur les etapes terminees, filtre par prothesiste via cases)
+    // D'abord recuperer les case_ids de ce prothesiste
+    const { data: mesCases, error: e5a } = await admin()
+      .from('labo_production_cases')
+      .select('id')
+      .eq('prothesiste_id', req.prothesisteId);
 
-    if (e5) throw e5;
+    if (e5a) throw e5a;
 
-    // Filtrer par prothesiste — on a besoin de joindre
-    // Pour simplifier, calculer les moyennes directement
+    const mesCaseIds = (mesCases || []).map(c => c.id);
+    let etapesDurees = [];
+    if (mesCaseIds.length > 0) {
+      const { data: ed, error: e5 } = await admin()
+        .from('labo_production_etapes')
+        .select('etape, duree_minutes, case_id')
+        .in('case_id', mesCaseIds)
+        .not('duree_minutes', 'is', null);
+
+      if (e5) throw e5;
+      etapesDurees = ed || [];
+    }
+
+    // Calculer les moyennes directement
     const moyennesParEtape = {};
     const comptesParEtape = {};
     for (const e of (etapesDurees || [])) {
@@ -202,8 +215,11 @@ router.get('/qr/:code', async (req, res) => {
     if (error) throw error;
     if (!cas) return res.status(404).json({ error: 'Cas non trouvé pour ce code QR' });
 
-    // Verifier que le cas appartient au labo
-    if (req.prothesisteId && cas.prothesiste_id !== req.prothesisteId) {
+    // Verifier que le cas appartient au labo (OBLIGATOIRE)
+    if (!req.prothesisteId) {
+      return res.status(401).json({ error: 'Authentification requise' });
+    }
+    if (cas.prothesiste_id !== req.prothesisteId) {
       return res.status(403).json({ error: 'Ce cas ne vous appartient pas' });
     }
 
