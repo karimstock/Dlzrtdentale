@@ -2081,9 +2081,11 @@ try {
 // JADOMI LABO — Module gestion laboratoire prothésiste
 // =============================================
 try {
-  const { createLaboRouter } = require('./routes/labo');
+  const { createLaboRouter, createLaboPublicRouter } = require('./routes/labo');
+  // Portail patient PUBLIC (acces par token, pas d'auth) — doit etre monte AVANT le router auth
+  app.use('/api/labo', createLaboPublicRouter());
   app.use('/api/labo', createLaboRouter());
-  console.log('[JADOMI] Module LABO monté sur /api/labo');
+  console.log('[JADOMI] Module LABO monté sur /api/labo (+ portail patient public)');
 } catch (e) {
   console.warn('[JADOMI] Module LABO non chargé:', e.message);
 }

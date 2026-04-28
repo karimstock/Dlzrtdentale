@@ -58,6 +58,8 @@ function createLaboRouter() {
   router.use('/declarations', require('./declaration-conformite'));
   router.use('/teintiers', require('./teintiers'));
   router.use('/portail-dentiste', require('./portail-dentiste'));
+  const { authRouter: portailPatientAuth } = require('./portail-patient');
+  router.use('/portail-patient', portailPatientAuth);
   router.use('/stock', require('./stock'));
   router.use('/remakes', require('./remakes'));
   router.use('/production', require('./production'));
@@ -65,14 +67,28 @@ function createLaboRouter() {
   router.use('/planning', require('./planning'));
   router.use('/expeditions', require('./expeditions'));
   router.use('/shade', require('./shade'));
+  router.use('/maintenance', require('./maintenance'));
   const techniciens = require('./techniciens');
   router.use('/techniciens', techniciens.router);
   router.use('/', techniciens.kpiRouter);
   const { chatRouter, portailChatRouter } = require('./chat');
   router.use('/chat', chatRouter);
   router.use('/portail-chat', portailChatRouter);
+  const { fichiers3dRouter } = require('./fichiers3d');
+  router.use('/fichiers3d', fichiers3dRouter);
+  router.use('/reseau', require('./reseau'));
 
   return router;
 }
 
-module.exports = { createLaboRouter };
+// Public router pour portail patient (pas d'auth, acces par token)
+function createLaboPublicRouter() {
+  const publicRouter = express.Router();
+  const { publicRouter: portailPatientPublic } = require('./portail-patient');
+  publicRouter.use('/portail-patient', portailPatientPublic);
+  const { portail3dRouter } = require('./fichiers3d');
+  publicRouter.use('/portail-3d', portail3dRouter);
+  return publicRouter;
+}
+
+module.exports = { createLaboRouter, createLaboPublicRouter };
