@@ -6,6 +6,21 @@ const cheerio = require('cheerio');
 const { createClient } = require('@supabase/supabase-js');
 const { requireSociete } = require('../multiSocietes/middleware');
 
+function isPrivateUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const h = u.hostname;
+    if (['localhost','127.0.0.1','0.0.0.0','[::1]'].includes(h)) return true;
+    if (h === '169.254.169.254') return true;
+    const parts = h.split('.').map(Number);
+    if (parts[0] === 10) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 127) return true;
+    return false;
+  } catch { return true; }
+}
+
 let _admin = null;
 function admin() {
   if (!_admin) {
@@ -35,6 +50,9 @@ module.exports = function(router) {
       } catch (e) {
         return res.status(400).json({ error: 'URL invalide' });
       }
+
+      // SSRF protection
+      if (isPrivateUrl(url)) return res.status(400).json({ error: 'URL non autorisee' });
 
       // Fetch la page
       const controller = new AbortController();

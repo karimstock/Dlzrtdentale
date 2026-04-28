@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#d946ef"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Bien-etre — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#1a0818;--surface:#261025;--surface2:#301530;--border:rgba(217,70,239,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#d946ef;--accent-dark:#e879f9;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── DESKTOP SIDEBAR LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #1a0818 0%, #2a1028 50%, #1a0818 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(217,70,239,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color 0.15s;border-radius:var(--radius-sm);}
+.nav-group-title:hover{color:var(--text);}
+.nav-group-arrow{font-size:8px;width:12px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);display:inline-block;}
+.nav-group-arrow.open{transform:rotate(90deg);}
+.nav-group-ico{font-size:14px;}
+.nav-group-items .nav-item{padding-left:40px;font-size:12px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#c026d3;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── KPI STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(16,185,129,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+.badge-accent{background:rgba(217,70,239,0.15);color:var(--accent);}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+.progress-fill-green{background:var(--green);}
+.progress-fill-amber{background:var(--amber);}
+.progress-fill-red{background:var(--red);}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* ── BAR WRAP (stock qty) ── */
+.bar-wrap{display:flex;align-items:center;gap:8px;}
+.bar{flex:1;height:4px;background:var(--border);border-radius:2px;max-width:70px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width 0.3s cubic-bezier(.16,1,.3,1);}
+.qty-num{font-size:12px;font-family:var(--mono);color:var(--muted);min-width:24px;text-align:right;}
+
+/* ── ACTION BUTTONS ── */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(217,70,239,0.1);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* ── TIMELINE ── */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.timeline-item{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);transition:background 0.15s;}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-item:hover{background:var(--surface2);border-radius:var(--radius-sm);}
+.timeline-hour{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);min-width:50px;padding-top:2px;}
+.timeline-bar{width:3px;border-radius:2px;min-height:48px;flex-shrink:0;}
+.timeline-content{flex:1;}
+.timeline-patient{font-weight:600;font-size:14px;}
+.timeline-meta{font-size:12px;color:var(--muted);margin-top:3px;}
+.timeline-badge{margin-top:6px;}
+
+/* ── FIDELITE CARDS ── */
+.fid-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.fid-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.fid-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.fid-client{font-weight:600;font-size:14px;}
+.fid-points{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--accent);}
+.fid-detail{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.fid-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .fid-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+  .timeline-item{flex-wrap:wrap;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Bien-etre</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <!-- Activite -->
+    <div class="nav-group" data-nav-group="activite">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">&#x1F4CA;</span> Activite
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="ni">&#x1F4CA;</span>Tableau de bord</div>
+        <div class="nav-item" onclick="showPage('rdv',this)"><span class="ni">&#x23F0;</span>RDV du jour</div>
+        <div class="nav-item" onclick="showPage('planning',this)"><span class="ni">&#x1F4C5;</span>Planning semaine</div>
+      </div>
+    </div>
+
+    <!-- Clients -->
+    <div class="nav-group" data-nav-group="clients">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F9D1;</span> Clients
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('clients',this)"><span class="ni">&#x1F9D1;</span>Mes clients</div>
+        <div class="nav-item" onclick="showPage('fidelite',this)"><span class="ni">&#x2B50;</span>Fidelite</div>
+      </div>
+    </div>
+
+    <!-- Gestion -->
+    <div class="nav-group" data-nav-group="gestion">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4CB;</span> Gestion
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('prestations',this)"><span class="ni">&#x2702;</span>Prestations &amp; Tarifs</div>
+        <div class="nav-item" onclick="showPage('stock',this)"><span class="ni">&#x1F4E6;</span>Stock produits<span class="nav-badge" id="stock-alerte-badge" style="display:none">0</span></div>
+        <div class="nav-item" onclick="showPage('equipe',this)"><span class="ni">&#x1F465;</span>Equipe</div>
+      </div>
+    </div>
+
+    <!-- Finances -->
+    <div class="nav-group" data-nav-group="finances">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4B0;</span> Finances
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('paiements',this)"><span class="ni">&#x1F4B3;</span>Paiements</div>
+        <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Les Elegantes</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Bien-etre</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Tableau de bord</div>
+    <div class="topbar-right" id="topbar-actions"></div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : TABLEAU DE BORD         -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Clients actifs</div><div class="stat-value c-accent" id="kpi-clients">--</div><div class="stat-sub">ce mois-ci</div></div>
+        <div class="stat"><div class="stat-label">RDV aujourd'hui</div><div class="stat-value c-green" id="kpi-rdv">--</div><div class="stat-sub">programmes</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value" id="kpi-ca">--</div><div class="stat-sub">encaissements</div></div>
+        <div class="stat"><div class="stat-label">Produits en stock faible</div><div class="stat-value c-amber" id="kpi-stock">--</div><div class="stat-sub">a reapprovisionner</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Prochains RDV</div></div>
+          <div class="card-body" id="dash-prochains-rdv"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Anniversaires clients ce mois</div></div>
+          <div class="card-body" id="dash-anniversaires"></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Top prestations</div></div>
+          <div class="card-body" id="dash-top-prestations"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Alertes stock</div></div>
+          <div class="card-body" id="dash-alertes-stock"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : MES CLIENTS             -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-clients">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un client..." id="search-clients" oninput="filterClients()" aria-label="Rechercher un client">
+        </div>
+        <select class="filter-select" id="filter-soin" onchange="filterClients()" aria-label="Filtrer par type de soin">
+          <option value="">Tous les soins</option>
+          <option value="coupe">Coupe</option>
+          <option value="coloration">Coloration</option>
+          <option value="soin_visage">Soin visage</option>
+          <option value="massage">Massage</option>
+          <option value="epilation">Epilation</option>
+          <option value="manucure">Manucure</option>
+          <option value="spa">Spa</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des clients</div>
+          <div class="card-count" id="clients-count">0 clients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Soin habituel</th>
+                <th>Frequence</th>
+                <th>Allergies / Notes</th>
+                <th>Fidelite</th>
+                <th>Dernier RDV</th>
+                <th>Prochain</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : RDV DU JOUR             -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-rdv">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Rendez-vous du jour</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="rdv-date-label">--</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalRDV()">+ Nouveau RDV</button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">RDV programmes</div><div class="stat-value c-accent" id="rdv-total">--</div><div class="stat-sub">aujourd'hui</div></div>
+        <div class="stat"><div class="stat-label">Duree totale</div><div class="stat-value c-green" id="rdv-duree">--</div><div class="stat-sub">minutes</div></div>
+        <div class="stat"><div class="stat-label">CA estime</div><div class="stat-value" id="rdv-ca">--</div><div class="stat-sub">recettes jour</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Timeline</div>
+        </div>
+        <div class="card-body">
+          <div class="timeline" id="rdv-timeline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PLANNING SEMAINE        -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-planning">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Planning de la semaine</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Creneaux par employe/poste -- codes couleur par type de prestation</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="planningPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="planningToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="planningNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block;"></span> Coupe/Coiffure</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--purple);display:inline-block;"></span> Coloration</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--blue);display:inline-block;"></span> Soin visage/corps</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--amber);display:inline-block;"></span> Massage/Spa</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--green);display:inline-block;"></span> Epilation/Manucure</div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" id="planning-grid" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PRESTATIONS & TARIFS    -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-prestations">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher une prestation..." id="search-prestations" oninput="filterPrestations()" aria-label="Rechercher une prestation">
+        </div>
+        <select class="filter-select" id="filter-presta-cat" onchange="filterPrestations()" aria-label="Filtrer par categorie">
+          <option value="">Toutes categories</option>
+          <option value="coiffure">Coiffure</option>
+          <option value="coloration">Coloration</option>
+          <option value="soins">Soins visage/corps</option>
+          <option value="massage">Massage</option>
+          <option value="epilation">Epilation</option>
+          <option value="manucure">Manucure/Pedicure</option>
+          <option value="spa">Spa</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Catalogue des prestations</div>
+          <div class="card-count" id="prestations-count">0 prestations</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Prestation</th>
+                <th>Categorie</th>
+                <th>Duree</th>
+                <th>Prix</th>
+                <th>Produits utilises</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="prestations-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : FIDELITE                -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-fidelite">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Programme de fidelite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Points, cartes fidelite, offres speciales et anniversaires</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Clients fideles</div><div class="stat-value c-accent" id="fid-total">--</div><div class="stat-sub">avec carte active</div></div>
+        <div class="stat"><div class="stat-label">Points distribues</div><div class="stat-value c-green" id="fid-points">--</div><div class="stat-sub">ce mois-ci</div></div>
+        <div class="stat"><div class="stat-label">Recompenses utilisees</div><div class="stat-value c-amber" id="fid-rewards">--</div><div class="stat-sub">ce mois-ci</div></div>
+        <div class="stat"><div class="stat-label">Anniversaires ce mois</div><div class="stat-value c-blue" id="fid-anniv" style="color:var(--blue);">--</div><div class="stat-sub">a feliciter</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><div class="card-title">Offres speciales actives</div></div>
+        <div class="card-body" id="fid-offres"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Classement fidelite clients</div>
+          <div class="card-count" id="fid-count">0 clients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Points cumules</th>
+                <th>Niveau</th>
+                <th>Derniere visite</th>
+                <th>Anniversaire</th>
+                <th>Recompense disponible</th>
+              </tr>
+            </thead>
+            <tbody id="fidelite-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : STOCK PRODUITS          -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-stock">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">References</div><div class="stat-value" id="stock-total">--</div><div class="stat-sub">produits en stock</div></div>
+        <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value c-red" id="stock-crit">--</div><div class="stat-sub">action requise</div></div>
+        <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stock-warn">--</div><div class="stat-sub">a surveiller</div></div>
+        <div class="stat"><div class="stat-label">Valeur stock</div><div class="stat-value c-accent" id="stock-valeur">--</div><div class="stat-sub">estimation</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un produit..." id="search-stock" oninput="filterStock()" aria-label="Rechercher un produit">
+        </div>
+        <select class="filter-select" id="filter-stock-cat" onchange="filterStock()" aria-label="Filtrer par categorie">
+          <option value="">Toutes categories</option>
+          <option value="shampooing">Shampooings</option>
+          <option value="coloration">Colorations</option>
+          <option value="soin_cheveux">Soins cheveux</option>
+          <option value="cosmetique">Cosmetiques visage</option>
+          <option value="huile">Huiles/Cremes massage</option>
+          <option value="cire">Cires/Epilation</option>
+          <option value="vernis">Vernis/Manucure</option>
+          <option value="consommable">Consommables</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Stock produits bien-etre</div>
+          <div class="card-count" id="stock-count">0 produits</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Categorie</th>
+                <th>Quantite</th>
+                <th>Seuil</th>
+                <th>Fournisseur</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stock-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PAIEMENTS               -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-paiements">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Paiements</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Encaissements du jour et suivi des paiements</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Total encaisse</div><div class="stat-value c-accent" id="pay-total">--</div><div class="stat-sub">aujourd'hui</div></div>
+        <div class="stat"><div class="stat-label">Carte bancaire</div><div class="stat-value c-green" id="pay-cb">--</div><div class="stat-sub">paiements CB</div></div>
+        <div class="stat"><div class="stat-label">Especes</div><div class="stat-value c-amber" id="pay-especes">--</div><div class="stat-sub">paiements cash</div></div>
+        <div class="stat"><div class="stat-label">Pourboires</div><div class="stat-value c-blue" id="pay-pourboires" style="color:var(--blue);">--</div><div class="stat-sub">du jour</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Encaissements du jour</div>
+          <div class="card-count" id="pay-count">0 lignes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Prestation</th>
+                <th>Montant</th>
+                <th>Mode</th>
+                <th>Pourboire</th>
+                <th>Heure</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="paiements-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : COMPTABILITE            -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese mensuelle de votre activite</div>
+        </div>
+        <select class="filter-select" id="compta-mois" onchange="renderCompta()" aria-label="Mois">
+          <option value="2026-04">Avril 2026</option>
+          <option value="2026-03">Mars 2026</option>
+          <option value="2026-02">Fevrier 2026</option>
+          <option value="2026-01">Janvier 2026</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Recettes</div><div class="stat-value c-green" id="compta-recettes">--</div><div class="stat-sub">chiffre d'affaires</div></div>
+        <div class="stat"><div class="stat-label">Depenses</div><div class="stat-value c-red" id="compta-depenses">--</div><div class="stat-sub">charges + achats</div></div>
+        <div class="stat"><div class="stat-label">Resultat net</div><div class="stat-value c-accent" id="compta-net">--</div><div class="stat-sub">benefice mensuel</div></div>
+        <div class="stat"><div class="stat-label">Marge</div><div class="stat-value" id="compta-marge">--</div><div class="stat-sub">pourcentage</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="compta-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par categorie</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Depenses par poste</div></div>
+          <div class="card-body" id="compta-depenses-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : EQUIPE                  -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-equipe">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Equipe</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Employes, competences et commissions</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">Employes actifs</div><div class="stat-value c-accent" id="equipe-total">--</div><div class="stat-sub">dans l'equipe</div></div>
+        <div class="stat"><div class="stat-label">Total salaires</div><div class="stat-value c-red" id="equipe-salaires">--</div><div class="stat-sub">charges mensuelles</div></div>
+        <div class="stat"><div class="stat-label">Commissions du mois</div><div class="stat-value c-green" id="equipe-commissions">--</div><div class="stat-sub">primes variables</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des employes</div>
+          <div class="card-count" id="equipe-count">0 employes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Employe</th>
+                <th>Poste</th>
+                <th>Competences</th>
+                <th>Planning</th>
+                <th>RDV ce mois</th>
+                <th>Commission</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="equipe-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('dashboard',this)" aria-label="Accueil"><span class="mnav-icon">&#x1F4CA;</span>Accueil</button>
+    <button class="mnav-item" onclick="showPage('rdv',this)" aria-label="RDV"><span class="mnav-icon">&#x23F0;</span>RDV</button>
+    <button class="mnav-item" onclick="showPage('clients',this)" aria-label="Clients"><span class="mnav-icon">&#x1F9D1;</span>Clients</button>
+    <button class="mnav-item" onclick="showPage('paiements',this)" aria-label="Paiements"><span class="mnav-icon">&#x1F4B3;</span>Paiem.</button>
+    <button class="mnav-item" onclick="showPage('stock',this)" aria-label="Stock"><span class="mnav-icon">&#x1F4E6;</span>Stock</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouveau client -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <div class="modal-title">Nouveau client</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom</label><input class="form-input" id="cli-nom" placeholder="Nom de famille"></div>
+      <div class="form-field"><label class="form-label">Prenom</label><input class="form-input" id="cli-prenom" placeholder="Prenom"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="cli-tel" placeholder="06 ..."></div>
+      <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="cli-email" placeholder="email@exemple.fr"></div>
+      <div class="form-field"><label class="form-label">Date de naissance</label><input class="form-input" id="cli-ddn" type="date"></div>
+      <div class="form-field">
+        <label class="form-label">Soin habituel</label>
+        <select class="form-select" id="cli-soin">
+          <option value="coupe">Coupe</option>
+          <option value="coloration">Coloration</option>
+          <option value="soin_visage">Soin visage</option>
+          <option value="massage">Massage</option>
+          <option value="epilation">Epilation</option>
+          <option value="manucure">Manucure</option>
+          <option value="spa">Spa</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Allergies / Notes</label><input class="form-input" id="cli-notes" placeholder="Allergies, preferences, notes..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-client')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterClient()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau RDV -->
+<div class="modal-overlay" id="modal-rdv">
+  <div class="modal">
+    <div class="modal-title">Nouveau rendez-vous</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Client</label><input class="form-input" id="rdv-client" placeholder="Nom du client"></div>
+      <div class="form-field"><label class="form-label">Heure</label><input class="form-input" id="rdv-heure" type="time" value="09:00"></div>
+      <div class="form-field">
+        <label class="form-label">Prestation</label>
+        <select class="form-select" id="rdv-prestation">
+          <option value="coupe">Coupe</option>
+          <option value="coloration">Coloration</option>
+          <option value="soin_visage">Soin visage</option>
+          <option value="massage">Massage</option>
+          <option value="epilation">Epilation</option>
+          <option value="manucure">Manucure</option>
+          <option value="spa">Spa</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Duree</label>
+        <select class="form-select" id="rdv-duree">
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">60 min</option>
+          <option value="90">90 min</option>
+          <option value="120">120 min</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Employe</label>
+        <select class="form-select" id="rdv-employe">
+          <option value="Amelie">Amelie</option>
+          <option value="Chloe">Chloe</option>
+          <option value="Sarah">Sarah</option>
+          <option value="Julie">Julie</option>
+          <option value="Marc">Marc</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Cabine/Poste</label><input class="form-input" id="rdv-cabine" placeholder="Poste 1, Cabine A..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-rdv')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterRDV()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// AUTH CHECK
+// ═══════════════════════════════════
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════
+const pageTitles = {
+  dashboard: 'Tableau de bord',
+  clients: 'Mes clients',
+  rdv: 'RDV du jour',
+  planning: 'Planning semaine',
+  prestations: 'Prestations & Tarifs',
+  fidelite: 'Fidelite',
+  stock: 'Stock produits',
+  paiements: 'Paiements',
+  compta: 'Comptabilite',
+  equipe: 'Equipe'
+};
+
+const pageActions = {
+  dashboard: '',
+  clients: '<button class="btn btn-accent" onclick="ouvrirModalClient()">+ Nouveau client</button>',
+  rdv: '<button class="btn btn-accent" onclick="ouvrirModalRDV()">+ Nouveau RDV</button>',
+  prestations: '<button class="btn btn-accent" onclick="showToast(\'Ajout prestation -- a venir\')">+ Nouvelle prestation</button>',
+  fidelite: '',
+  stock: '<button class="btn btn-accent" onclick="showToast(\'Ajout produit -- a venir\')">+ Ajouter produit</button>',
+  paiements: '',
+  compta: '',
+  equipe: '<button class="btn btn-accent" onclick="showToast(\'Ajout employe -- a venir\')">+ Nouvel employe</button>',
+  planning: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) { el.classList.add('active'); openParentNavGroup(el); }
+  // Lazy render
+  if (id === 'planning' && !planningRendered) renderPlanning();
+  if (id === 'compta') renderCompta();
+  if (id === 'rdv') renderRDV();
+  if (id === 'clients') renderClients();
+  if (id === 'fidelite') renderFidelite();
+  if (id === 'paiements') renderPaiements();
+  if (id === 'stock') renderStock();
+  if (id === 'prestations') renderPrestations();
+  if (id === 'equipe') renderEquipe();
+}
+
+// ═══════════════════════════════════
+// NAV GROUP ACCORDION
+// ═══════════════════════════════════
+function toggleNavGroup(title) {
+  const items = title.nextElementSibling;
+  const arrow = title.querySelector('.nav-group-arrow');
+  if (!items) return;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+function openParentNavGroup(el) {
+  const group = el.closest('.nav-group-items');
+  if (group && group.style.display === 'none') {
+    group.style.display = 'block';
+    const arrow = group.previousElementSibling?.querySelector('.nav-group-arrow');
+    if (arrow) arrow.classList.add('open');
+  }
+}
+
+// ═══════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════
+function ouvrirModalClient() { document.getElementById('modal-client').classList.add('open'); }
+function ouvrirModalRDV() { document.getElementById('modal-rdv').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════
+const DEMO_CLIENTS = [
+  { id:1, nom:'Beaumont', prenom:'Isabelle', tel:'06 12 34 56 78', email:'isabelle.beaumont@email.fr', ddn:'1988-04-15', soin:'coupe', frequence:'3 sem.', allergies:'Aucune', notes:'Prefere les coupes courtes, brushing volume', fidelite:420, dernier:'2026-04-20', prochain:'2026-05-11' },
+  { id:2, nom:'Laurent', prenom:'Camille', tel:'06 23 45 67 89', email:'camille.laurent@email.fr', ddn:'1992-07-22', soin:'coloration', frequence:'6 sem.', allergies:'Allergie PPD (coloration)', notes:'Coloration vegetale uniquement, blond dore', fidelite:680, dernier:'2026-04-18', prochain:'2026-05-30' },
+  { id:3, nom:'Moreau', prenom:'Sophie', tel:'06 34 56 78 90', email:'sophie.moreau@email.fr', ddn:'1975-12-03', soin:'soin_visage', frequence:'Mensuel', allergies:'Peau sensible, eviter acides forts', notes:'Soin anti-age premium, peaux matures', fidelite:890, dernier:'2026-04-22', prochain:'2026-05-20' },
+  { id:4, nom:'Petit', prenom:'Clara', tel:'06 45 67 89 01', email:'clara.petit@email.fr', ddn:'1995-09-08', soin:'massage', frequence:'2 sem.', allergies:'Allergie huile amande', notes:'Massage relaxant dos + nuque, stress professionnel', fidelite:1240, dernier:'2026-04-25', prochain:'2026-05-09' },
+  { id:5, nom:'Dubois', prenom:'Nathalie', tel:'06 56 78 90 12', email:'nathalie.dubois@email.fr', ddn:'1982-06-30', soin:'epilation', frequence:'4 sem.', allergies:'Aucune', notes:'Epilation complete jambes + maillot, cire orientale', fidelite:320, dernier:'2026-04-10', prochain:'2026-05-08' },
+  { id:6, nom:'Fontaine', prenom:'Marie', tel:'06 67 89 01 23', email:'marie.fontaine@email.fr', ddn:'1990-01-17', soin:'manucure', frequence:'2 sem.', allergies:'Aucune', notes:'Manucure semi-permanent, couleurs vives', fidelite:560, dernier:'2026-04-24', prochain:'2026-05-08' },
+  { id:7, nom:'Girard', prenom:'Eloise', tel:'06 78 90 12 34', email:'eloise.girard@email.fr', ddn:'1998-11-25', soin:'spa', frequence:'Mensuel', allergies:'Claustrophobie legere', notes:'Forfait spa detente 2h, jacuzzi + hammam + modelage', fidelite:780, dernier:'2026-04-15', prochain:'2026-05-15' },
+  { id:8, nom:'Lefevre', prenom:'Anne', tel:'06 89 01 23 45', email:'anne.lefevre@email.fr', ddn:'1970-03-28', soin:'coupe', frequence:'4 sem.', allergies:'Aucune', notes:'Coupe + brushing classique, cheveux fins', fidelite:950, dernier:'2026-04-26', prochain:'2026-05-24' },
+  { id:9, nom:'Roux', prenom:'Juliette', tel:'06 90 12 34 56', email:'juliette.roux@email.fr', ddn:'2000-08-12', soin:'coloration', frequence:'8 sem.', allergies:'Aucune', notes:'Balayage miel, entretien racines', fidelite:210, dernier:'2026-04-05', prochain:'2026-05-31' },
+  { id:10, nom:'Bernard', prenom:'Celine', tel:'06 01 23 45 67', email:'celine.bernard@email.fr', ddn:'1985-04-02', soin:'massage', frequence:'Hebdo.', allergies:'Allergie lavande', notes:'Massage sportif, preparation marathon', fidelite:1580, dernier:'2026-04-27', prochain:'2026-05-04' },
+];
+
+const DEMO_RDV = [
+  { id:1, heure:'09:00', client:'Beaumont Isabelle', prestation:'coupe', duree:45, cabine:'Poste 1', employe:'Amelie', notes:'Coupe courte + brushing volume' },
+  { id:2, heure:'09:00', client:'Moreau Sophie', prestation:'soin_visage', duree:60, cabine:'Cabine A', employe:'Sarah', notes:'Soin anti-age complet' },
+  { id:3, heure:'09:30', client:'Fontaine Marie', prestation:'manucure', duree:45, cabine:'Poste Ongles', employe:'Julie', notes:'Semi-permanent rouge carmin' },
+  { id:4, heure:'10:00', client:'Laurent Camille', prestation:'coloration', duree:90, cabine:'Poste 2', employe:'Amelie', notes:'Retouche racines + coloration vegetale' },
+  { id:5, heure:'10:00', client:'Petit Clara', prestation:'massage', duree:60, cabine:'Cabine B', employe:'Marc', notes:'Massage relaxant dos + nuque' },
+  { id:6, heure:'11:00', client:'Dubois Nathalie', prestation:'epilation', duree:45, cabine:'Cabine C', employe:'Chloe', notes:'Epilation jambes completes + maillot' },
+  { id:7, heure:'11:30', client:'Roux Juliette', prestation:'coloration', duree:120, cabine:'Poste 2', employe:'Amelie', notes:'Balayage complet, meches miel' },
+  { id:8, heure:'14:00', client:'Girard Eloise', prestation:'spa', duree:120, cabine:'Espace Spa', employe:'Marc', notes:'Forfait detente 2h complet' },
+  { id:9, heure:'14:00', client:'Lefevre Anne', prestation:'coupe', duree:30, cabine:'Poste 1', employe:'Chloe', notes:'Coupe + brushing classique' },
+  { id:10, heure:'14:30', client:'Bernard Celine', prestation:'massage', duree:60, cabine:'Cabine B', employe:'Sarah', notes:'Massage sportif intensif' },
+  { id:11, heure:'16:00', client:'Beaumont Isabelle', prestation:'manucure', duree:30, cabine:'Poste Ongles', employe:'Julie', notes:'Pose vernis classique' },
+];
+
+const DEMO_PRESTATIONS = [
+  { id:1, nom:'Coupe femme', cat:'coiffure', duree:45, prix:38, produits:'Shampooing, soin, spray coiffant' },
+  { id:2, nom:'Coupe homme', cat:'coiffure', duree:30, prix:25, produits:'Shampooing, cire coiffante' },
+  { id:3, nom:'Brushing', cat:'coiffure', duree:30, prix:22, produits:'Protection thermique, laque' },
+  { id:4, nom:'Coloration racines', cat:'coloration', duree:60, prix:55, produits:'Kit coloration, oxydant, gants' },
+  { id:5, nom:'Coloration complete', cat:'coloration', duree:90, prix:75, produits:'Coloration, oxydant, aluminium, gants' },
+  { id:6, nom:'Balayage / Meches', cat:'coloration', duree:120, prix:95, produits:'Decolorant, aluminium, soin patine' },
+  { id:7, nom:'Soin visage classique', cat:'soins', duree:60, prix:65, produits:'Nettoyant, gommage, masque, serum' },
+  { id:8, nom:'Soin anti-age premium', cat:'soins', duree:75, prix:95, produits:'Serum retinol, masque collagene, creme premium' },
+  { id:9, nom:'Massage relaxant', cat:'massage', duree:60, prix:70, produits:'Huile massage neutre, serviettes' },
+  { id:10, nom:'Massage sportif', cat:'massage', duree:60, prix:80, produits:'Huile chauffante, baume decontracturant' },
+  { id:11, nom:'Massage pierres chaudes', cat:'massage', duree:90, prix:110, produits:'Pierres basalte, huile essentielle' },
+  { id:12, nom:'Epilation jambes completes', cat:'epilation', duree:45, prix:35, produits:'Cire tiede, bandes, huile post-epilation' },
+  { id:13, nom:'Epilation maillot', cat:'epilation', duree:20, prix:18, produits:'Cire, bandes' },
+  { id:14, nom:'Manucure classique', cat:'manucure', duree:30, prix:25, produits:'Vernis, base coat, top coat, soin cuticules' },
+  { id:15, nom:'Manucure semi-permanent', cat:'manucure', duree:45, prix:38, produits:'Gel semi-permanent, lampe UV, degraissant' },
+  { id:16, nom:'Pedicure complete', cat:'manucure', duree:45, prix:35, produits:'Bain pieds, rape, vernis, creme hydratante' },
+  { id:17, nom:'Forfait spa detente 2h', cat:'spa', duree:120, prix:150, produits:'Peignoir, sandales, the, huiles essentielles' },
+  { id:18, nom:'Forfait spa premium 3h', cat:'spa', duree:180, prix:220, produits:'Peignoir, champagne, soins complets' },
+];
+
+const DEMO_STOCK = [
+  { id:1, nom:'Shampooing reparateur 500ml (Kerastase)', cat:'shampooing', qte:18, seuil:8, prix:14.50, fournisseur:'L\'Oreal Pro' },
+  { id:2, nom:'Shampooing volume 500ml (Redken)', cat:'shampooing', qte:12, seuil:6, prix:12.00, fournisseur:'L\'Oreal Pro' },
+  { id:3, nom:'Shampooing colore 250ml (Davines)', cat:'shampooing', qte:4, seuil:5, prix:16.00, fournisseur:'Davines' },
+  { id:4, nom:'Kit coloration Majirel (12 tubes)', cat:'coloration', qte:6, seuil:4, prix:8.50, fournisseur:'L\'Oreal Pro' },
+  { id:5, nom:'Oxydant 1L 20 vol.', cat:'coloration', qte:3, seuil:3, prix:9.00, fournisseur:'L\'Oreal Pro' },
+  { id:6, nom:'Poudre decolorante 500g', cat:'coloration', qte:2, seuil:3, prix:22.00, fournisseur:'Schwarzkopf' },
+  { id:7, nom:'Masque reparateur intense 250ml', cat:'soin_cheveux', qte:10, seuil:5, prix:18.00, fournisseur:'Moroccanoil' },
+  { id:8, nom:'Serum thermo-protecteur 150ml', cat:'soin_cheveux', qte:7, seuil:4, prix:15.00, fournisseur:'GHD' },
+  { id:9, nom:'Creme anti-age visage 50ml', cat:'cosmetique', qte:8, seuil:4, prix:35.00, fournisseur:'Clarins Pro' },
+  { id:10, nom:'Serum vitamine C 30ml', cat:'cosmetique', qte:5, seuil:3, prix:28.00, fournisseur:'Skinceuticals' },
+  { id:11, nom:'Masque collagene (lot 10)', cat:'cosmetique', qte:3, seuil:5, prix:4.50, fournisseur:'Casmara' },
+  { id:12, nom:'Huile massage neutre 1L', cat:'huile', qte:6, seuil:3, prix:18.00, fournisseur:'Phytomer' },
+  { id:13, nom:'Huile essentielle lavande 100ml', cat:'huile', qte:4, seuil:2, prix:12.00, fournisseur:'Pranarom' },
+  { id:14, nom:'Baume decontracturant 200ml', cat:'huile', qte:3, seuil:2, prix:22.00, fournisseur:'Thalgo' },
+  { id:15, nom:'Cire tiede pot 800ml', cat:'cire', qte:5, seuil:3, prix:15.00, fournisseur:'Perron Rigot' },
+  { id:16, nom:'Bandes epilation (rouleau 100)', cat:'cire', qte:8, seuil:5, prix:6.00, fournisseur:'Perron Rigot' },
+  { id:17, nom:'Gel semi-permanent (12 couleurs)', cat:'vernis', qte:2, seuil:3, prix:9.50, fournisseur:'OPI' },
+  { id:18, nom:'Base + Top coat UV 15ml', cat:'vernis', qte:6, seuil:3, prix:11.00, fournisseur:'OPI' },
+  { id:19, nom:'Serviettes jetables (lot 200)', cat:'consommable', qte:4, seuil:3, prix:12.00, fournisseur:'Grossiste hygiene' },
+  { id:20, nom:'Gants nitrile (boite 100)', cat:'consommable', qte:10, seuil:5, prix:7.50, fournisseur:'Grossiste hygiene' },
+];
+
+const DEMO_PAIEMENTS = [
+  { id:1, client:'Beaumont Isabelle', prestation:'Coupe femme + brushing', montant:60, mode:'cb', pourboire:5, heure:'09:50', statut:'encaisse' },
+  { id:2, client:'Moreau Sophie', prestation:'Soin anti-age premium', montant:95, mode:'cb', pourboire:10, heure:'10:05', statut:'encaisse' },
+  { id:3, client:'Fontaine Marie', prestation:'Manucure semi-permanent', montant:38, mode:'especes', pourboire:2, heure:'10:20', statut:'encaisse' },
+  { id:4, client:'Laurent Camille', prestation:'Coloration racines', montant:55, mode:'cb', pourboire:0, heure:'11:35', statut:'encaisse' },
+  { id:5, client:'Petit Clara', prestation:'Massage relaxant 60min', montant:70, mode:'cb', pourboire:8, heure:'11:05', statut:'encaisse' },
+  { id:6, client:'Dubois Nathalie', prestation:'Epilation jambes + maillot', montant:53, mode:'especes', pourboire:3, heure:'11:50', statut:'encaisse' },
+  { id:7, client:'Roux Juliette', prestation:'Balayage complet', montant:95, mode:'cb', pourboire:5, heure:'13:40', statut:'encaisse' },
+  { id:8, client:'Girard Eloise', prestation:'Forfait spa detente 2h', montant:150, mode:'cb', pourboire:15, heure:'16:05', statut:'en_attente' },
+  { id:9, client:'Lefevre Anne', prestation:'Coupe + brushing', montant:60, mode:'cheque', pourboire:0, heure:'14:35', statut:'encaisse' },
+  { id:10, client:'Bernard Celine', prestation:'Massage sportif', montant:80, mode:'cb', pourboire:10, heure:'15:35', statut:'en_attente' },
+];
+
+const DEMO_EQUIPE = [
+  { id:1, nom:'Amelie Renard', poste:'Coiffeuse senior', competences:['Coupe','Coloration','Balayage','Brushing'], planning:'Lun-Sam 9h-18h', rdv_mois:68, commission:480, salaire:2200 },
+  { id:2, nom:'Chloe Martin', poste:'Coiffeuse / Estheticienne', competences:['Coupe','Epilation','Soin visage'], planning:'Lun-Ven 9h-17h', rdv_mois:52, commission:360, salaire:1900 },
+  { id:3, nom:'Sarah Dupuis', poste:'Estheticienne', competences:['Soin visage','Massage','Epilation','Manucure'], planning:'Mar-Sam 10h-19h', rdv_mois:61, commission:420, salaire:2000 },
+  { id:4, nom:'Julie Chen', poste:'Prothesiste ongulaire', competences:['Manucure','Pedicure','Nail art','Semi-permanent'], planning:'Lun-Ven 9h-17h', rdv_mois:74, commission:510, salaire:1800 },
+  { id:5, nom:'Marc Lemoine', poste:'Masseur / Spa manager', competences:['Massage relaxant','Massage sportif','Pierres chaudes','Spa'], planning:'Lun-Sam 10h-19h', rdv_mois:45, commission:390, salaire:2300 },
+];
+
+const DEMO_FIDELITE = [
+  { client:'Bernard Celine', points:1580, niveau:'Or', derniere:'2026-04-27', anniversaire:'02/04', recompense:'Massage 30min offert' },
+  { client:'Petit Clara', points:1240, niveau:'Or', derniere:'2026-04-25', anniversaire:'08/09', recompense:'Soin visage offert' },
+  { client:'Lefevre Anne', points:950, niveau:'Argent', derniere:'2026-04-26', anniversaire:'28/03', recompense:'--' },
+  { client:'Moreau Sophie', points:890, niveau:'Argent', derniere:'2026-04-22', anniversaire:'03/12', recompense:'--' },
+  { client:'Girard Eloise', points:780, niveau:'Argent', derniere:'2026-04-15', anniversaire:'25/11', recompense:'--' },
+  { client:'Laurent Camille', points:680, niveau:'Bronze', derniere:'2026-04-18', anniversaire:'22/07', recompense:'--' },
+  { client:'Fontaine Marie', points:560, niveau:'Bronze', derniere:'2026-04-24', anniversaire:'17/01', recompense:'--' },
+  { client:'Beaumont Isabelle', points:420, niveau:'Bronze', derniere:'2026-04-20', anniversaire:'15/04', recompense:'Anniversaire : -20% prochain soin' },
+  { client:'Dubois Nathalie', points:320, niveau:'Decouverte', derniere:'2026-04-10', anniversaire:'30/06', recompense:'--' },
+  { client:'Roux Juliette', points:210, niveau:'Decouverte', derniere:'2026-04-05', anniversaire:'12/08', recompense:'--' },
+];
+
+// ═══════════════════════════════════
+// RENDER: TABLEAU DE BORD (DASHBOARD)
+// ═══════════════════════════════════
+function renderDashboard() {
+  // Prochains RDV
+  const prochains = DEMO_RDV.slice(0, 5);
+  document.getElementById('dash-prochains-rdv').innerHTML = prochains.map(r =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div><span style="font-weight:500;">${esc(r.client)}</span><div style="font-size:11px;color:var(--muted);margin-top:2px;">${prestaLabel(r.prestation)} -- ${r.duree} min</div></div>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--accent);">${r.heure}</span>
+    </div>`
+  ).join('');
+
+  // Anniversaires
+  const anniClients = DEMO_CLIENTS.filter(c => {
+    if (!c.ddn) return false;
+    const m = new Date(c.ddn).getMonth();
+    return m === new Date().getMonth();
+  });
+  if (anniClients.length === 0) {
+    document.getElementById('dash-anniversaires').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:10px 0;">Aucun anniversaire ce mois-ci</div>';
+  } else {
+    document.getElementById('dash-anniversaires').innerHTML = anniClients.map(c =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <span style="font-weight:500;">${esc(c.prenom)} ${esc(c.nom)}</span>
+        <span class="badge badge-accent">${new Date(c.ddn).getDate()} avril</span>
+      </div>`
+    ).join('');
+  }
+
+  // Top prestations
+  const topPrestas = [
+    { label:'Coupe femme', count:24 },
+    { label:'Coloration complete', count:18 },
+    { label:'Massage relaxant', count:15 },
+    { label:'Manucure semi-permanent', count:14 },
+    { label:'Soin visage classique', count:11 },
+  ];
+  document.getElementById('dash-top-prestations').innerHTML = topPrestas.map(r =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span style="flex:1;">${r.label}</span>
+      <div class="progress-bar" style="max-width:100px;"><div class="progress-fill" style="width:${Math.round(r.count/24*100)}%;background:var(--accent);"></div></div>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted);min-width:28px;text-align:right;">${r.count}</span>
+    </div>`
+  ).join('');
+
+  // Alertes stock
+  const alertes = DEMO_STOCK.filter(s => s.qte <= s.seuil).slice(0, 5);
+  if (alertes.length === 0) {
+    document.getElementById('dash-alertes-stock').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:10px 0;">Aucune alerte stock</div>';
+  } else {
+    document.getElementById('dash-alertes-stock').innerHTML = alertes.map(s => {
+      const isCrit = s.qte <= s.seuil * 0.5;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <span style="font-weight:500;">${esc(s.nom)}</span>
+        <span class="badge ${isCrit ? 'badge-crit' : 'badge-warn'}">${s.qte} / ${s.seuil}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════
+// RENDER: CLIENTS
+// ═══════════════════════════════════
+let clientsData = [...DEMO_CLIENTS];
+
+function renderClients() {
+  const tbody = document.getElementById('clients-body');
+  const search = (document.getElementById('search-clients')?.value || '').toLowerCase();
+  const soinFilter = document.getElementById('filter-soin')?.value || '';
+
+  let filtered = clientsData.filter(c => {
+    if (search && !(c.nom + ' ' + c.prenom).toLowerCase().includes(search)) return false;
+    if (soinFilter && c.soin !== soinFilter) return false;
+    return true;
+  });
+
+  document.getElementById('clients-count').textContent = filtered.length + ' client' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">Aucun client trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    const soinBadge = soinLabel(c.soin);
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(c.nom)} ${esc(c.prenom)}</div><div style="font-size:11px;color:var(--muted);">${esc(c.email)}</div></td>
+      <td>${soinBadge}</td>
+      <td style="font-size:12px;">${esc(c.frequence)}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:180px;">${esc(c.allergies || '--')}<br><span style="font-size:11px;">${esc(c.notes)}</span></td>
+      <td><span style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);">${c.fidelite} pts</span></td>
+      <td style="font-size:12px;">${formatDate(c.dernier)}</td>
+      <td style="font-size:12px;">${formatDate(c.prochain)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir la fiche" aria-label="Voir la fiche" onclick="showToast('Fiche client -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Historique" aria-label="Historique" onclick="showToast('Historique -- a venir')">&#x1F4CB;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterClients() { renderClients(); }
+
+// ═══════════════════════════════════
+// RENDER: RDV DU JOUR
+// ═══════════════════════════════════
+function renderRDV() {
+  const today = new Date();
+  document.getElementById('rdv-date-label').textContent = today.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  const timeline = document.getElementById('rdv-timeline');
+  let totalDuree = 0;
+  let totalCA = 0;
+
+  const tarifs = { coupe:38, coloration:65, soin_visage:80, massage:75, epilation:35, manucure:32, spa:150 };
+
+  DEMO_RDV.forEach(r => {
+    totalDuree += r.duree;
+    totalCA += (tarifs[r.prestation] || 50);
+  });
+
+  document.getElementById('rdv-total').textContent = DEMO_RDV.length;
+  document.getElementById('rdv-duree').textContent = totalDuree + ' min';
+  document.getElementById('rdv-ca').textContent = fmtEur(totalCA);
+
+  const typeColors = {
+    coupe: 'var(--accent)',
+    coloration: 'var(--purple)',
+    soin_visage: 'var(--blue)',
+    massage: 'var(--amber)',
+    epilation: 'var(--green)',
+    manucure: 'var(--green)',
+    spa: 'var(--amber)'
+  };
+
+  if (DEMO_RDV.length === 0) {
+    timeline.innerHTML = '<div class="empty"><div class="empty-icon">&#x23F0;</div><div class="empty-title">Aucun rendez-vous aujourd\'hui</div><div class="empty-sub">Vos rendez-vous du jour apparaitront ici.</div></div>';
+    return;
+  }
+
+  timeline.innerHTML = DEMO_RDV.map(r => {
+    const color = typeColors[r.prestation] || 'var(--accent)';
+    const typeText = prestaLabel(r.prestation);
+    return `<div class="timeline-item">
+      <div class="timeline-hour">${esc(r.heure)}</div>
+      <div class="timeline-bar" style="background:${color};"></div>
+      <div class="timeline-content">
+        <div class="timeline-patient">${esc(r.client)}</div>
+        <div class="timeline-meta">${typeText} -- ${r.duree} min -- ${esc(r.employe)} -- ${esc(r.cabine)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(r.notes)}</div>
+        <div class="timeline-badge"><span class="badge" style="background:${color}20;color:${color};">${typeText}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: PLANNING SEMAINE
+// ═══════════════════════════════════
+let planningRendered = false;
+let planningWeekOffset = 0;
+
+function renderPlanning() {
+  planningRendered = true;
+  const container = document.getElementById('planning-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + planningWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const creneaux = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+
+  const typeColors = {
+    coupe: 'var(--accent)',
+    coloration: 'var(--purple)',
+    soin_visage: 'var(--blue)',
+    massage: 'var(--amber)',
+    epilation: 'var(--green)',
+    manucure: 'var(--green)',
+    spa: 'var(--amber)'
+  };
+
+  const rdvs = [
+    { jour:0, heure:'09:00', duree:45, client:'Beaumont I.', type:'coupe', employe:'Amelie' },
+    { jour:0, heure:'09:00', duree:60, client:'Moreau S.', type:'soin_visage', employe:'Sarah' },
+    { jour:0, heure:'10:00', duree:90, client:'Laurent C.', type:'coloration', employe:'Amelie' },
+    { jour:0, heure:'10:00', duree:60, client:'Petit C.', type:'massage', employe:'Marc' },
+    { jour:0, heure:'11:00', duree:45, client:'Dubois N.', type:'epilation', employe:'Chloe' },
+    { jour:0, heure:'14:00', duree:120, client:'Girard E.', type:'spa', employe:'Marc' },
+    { jour:0, heure:'14:00', duree:30, client:'Lefevre A.', type:'coupe', employe:'Chloe' },
+    { jour:0, heure:'14:30', duree:60, client:'Bernard C.', type:'massage', employe:'Sarah' },
+    { jour:0, heure:'16:00', duree:30, client:'Beaumont I.', type:'manucure', employe:'Julie' },
+    { jour:1, heure:'09:00', duree:45, client:'Fontaine M.', type:'coupe', employe:'Amelie' },
+    { jour:1, heure:'09:30', duree:45, client:'Dubois N.', type:'manucure', employe:'Julie' },
+    { jour:1, heure:'10:00', duree:60, client:'Petit C.', type:'massage', employe:'Marc' },
+    { jour:1, heure:'11:00', duree:60, client:'Moreau S.', type:'soin_visage', employe:'Sarah' },
+    { jour:1, heure:'14:00', duree:90, client:'Roux J.', type:'coloration', employe:'Amelie' },
+    { jour:1, heure:'15:30', duree:45, client:'Bernard C.', type:'massage', employe:'Marc' },
+    { jour:2, heure:'09:00', duree:45, client:'Lefevre A.', type:'coupe', employe:'Chloe' },
+    { jour:2, heure:'09:30', duree:120, client:'Laurent C.', type:'coloration', employe:'Amelie' },
+    { jour:2, heure:'10:00', duree:60, client:'Girard E.', type:'massage', employe:'Marc' },
+    { jour:2, heure:'14:00', duree:60, client:'Beaumont I.', type:'soin_visage', employe:'Sarah' },
+    { jour:2, heure:'15:00', duree:45, client:'Fontaine M.', type:'manucure', employe:'Julie' },
+    { jour:3, heure:'09:00', duree:30, client:'Dubois N.', type:'epilation', employe:'Chloe' },
+    { jour:3, heure:'09:30', duree:60, client:'Petit C.', type:'massage', employe:'Marc' },
+    { jour:3, heure:'10:30', duree:45, client:'Moreau S.', type:'coupe', employe:'Amelie' },
+    { jour:3, heure:'14:00', duree:120, client:'Bernard C.', type:'spa', employe:'Marc' },
+    { jour:3, heure:'14:00', duree:90, client:'Roux J.', type:'coloration', employe:'Amelie' },
+    { jour:3, heure:'16:00', duree:45, client:'Lefevre A.', type:'manucure', employe:'Julie' },
+    { jour:4, heure:'09:00', duree:45, client:'Beaumont I.', type:'coupe', employe:'Amelie' },
+    { jour:4, heure:'09:00', duree:60, client:'Girard E.', type:'soin_visage', employe:'Sarah' },
+    { jour:4, heure:'10:00', duree:60, client:'Petit C.', type:'massage', employe:'Marc' },
+    { jour:4, heure:'11:00', duree:45, client:'Laurent C.', type:'manucure', employe:'Julie' },
+    { jour:4, heure:'14:00', duree:45, client:'Fontaine M.', type:'epilation', employe:'Chloe' },
+    { jour:4, heure:'15:00', duree:60, client:'Bernard C.', type:'massage', employe:'Marc' },
+    { jour:5, heure:'09:00', duree:90, client:'Laurent C.', type:'coloration', employe:'Amelie' },
+    { jour:5, heure:'10:00', duree:120, client:'Moreau S.', type:'spa', employe:'Marc' },
+    { jour:5, heure:'10:30', duree:45, client:'Dubois N.', type:'manucure', employe:'Julie' },
+  ];
+
+  let html = '<table style="min-width:900px;">';
+  html += '<thead><tr><th style="width:70px;">Heure</th>';
+  for (let j = 0; j < 6; j++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + j);
+    const isToday = d.toDateString() === today.toDateString();
+    html += `<th style="${isToday ? 'color:var(--accent);' : ''}">${jours[j]} ${d.getDate()}/${d.getMonth()+1}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  creneaux.forEach(h => {
+    html += `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:6px 10px;">${h}</td>`;
+    for (let j = 0; j < 6; j++) {
+      const rdv = rdvs.find(r => r.jour === j && r.heure === h);
+      if (rdv) {
+        const color = typeColors[rdv.type] || 'var(--accent)';
+        html += `<td style="padding:3px;">
+          <div style="background:${color}15;border-left:3px solid ${color};border-radius:6px;padding:6px 8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+            <div style="font-size:11px;font-weight:600;">${esc(rdv.client)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px;">${rdv.duree}min -- ${esc(rdv.employe)}</div>
+          </div>
+        </td>`;
+      } else {
+        html += '<td style="padding:3px;"></td>';
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function planningPrev() { planningWeekOffset--; renderPlanning(); }
+function planningNext() { planningWeekOffset++; renderPlanning(); }
+function planningToday() { planningWeekOffset = 0; renderPlanning(); }
+
+// ═══════════════════════════════════
+// RENDER: PRESTATIONS
+// ═══════════════════════════════════
+let prestationsData = [...DEMO_PRESTATIONS];
+
+function renderPrestations() {
+  const tbody = document.getElementById('prestations-body');
+  const search = (document.getElementById('search-prestations')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('filter-presta-cat')?.value || '';
+
+  let filtered = prestationsData.filter(p => {
+    if (search && !p.nom.toLowerCase().includes(search)) return false;
+    if (catFilter && p.cat !== catFilter) return false;
+    return true;
+  });
+
+  document.getElementById('prestations-count').textContent = filtered.length + ' prestation' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucune prestation trouvee</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const catBadge = catPrestaLabel(p.cat);
+    return `<tr>
+      <td style="font-weight:500;">${esc(p.nom)}</td>
+      <td>${catBadge}</td>
+      <td style="font-size:12px;">${p.duree} min</td>
+      <td style="font-family:var(--mono);font-weight:500;color:var(--accent);">${p.prix} EUR</td>
+      <td style="font-size:12px;color:var(--muted);max-width:200px;">${esc(p.produits)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Modifier" aria-label="Modifier" onclick="showToast('Modification -- a venir')">&#x270F;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPrestations() { renderPrestations(); }
+
+// ═══════════════════════════════════
+// RENDER: FIDELITE
+// ═══════════════════════════════════
+function renderFidelite() {
+  const tbody = document.getElementById('fidelite-body');
+
+  document.getElementById('fid-total').textContent = DEMO_FIDELITE.length;
+  document.getElementById('fid-points').textContent = '2 840';
+  document.getElementById('fid-rewards').textContent = '3';
+  document.getElementById('fid-anniv').textContent = DEMO_CLIENTS.filter(c => c.ddn && new Date(c.ddn).getMonth() === new Date().getMonth()).length;
+  document.getElementById('fid-count').textContent = DEMO_FIDELITE.length + ' clients';
+
+  // Offres speciales
+  const offres = [
+    { titre:'Parrainage : 100 pts bonus', detail:'Pour chaque nouveau client parraine, vous et votre filleul recevez 100 points de fidelite.', badge:'badge-accent' },
+    { titre:'Anniversaire : -20% sur votre soin', detail:'Le mois de votre anniversaire, beneficiez de 20% de remise sur la prestation de votre choix.', badge:'badge-purple' },
+    { titre:'500 pts = Soin offert', detail:'Cumulez 500 points et obtenez un soin visage classique offert d\'une valeur de 65 EUR.', badge:'badge-ok' },
+  ];
+  document.getElementById('fid-offres').innerHTML = offres.map(o =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
+      <div><span style="font-weight:600;font-size:14px;">${o.titre}</span><div style="font-size:12px;color:var(--muted);margin-top:3px;">${o.detail}</div></div>
+      <span class="badge ${o.badge}">Actif</span>
+    </div>`
+  ).join('');
+
+  const niveauMap = {
+    'Or': 'badge-accent',
+    'Argent': 'badge-blue',
+    'Bronze': 'badge-warn',
+    'Decouverte': 'badge-ok'
+  };
+
+  tbody.innerHTML = DEMO_FIDELITE.map(f => {
+    const cls = niveauMap[f.niveau] || 'badge-ok';
+    return `<tr>
+      <td style="font-weight:500;">${esc(f.client)}</td>
+      <td style="font-family:var(--mono);font-weight:500;color:var(--accent);">${f.points}</td>
+      <td><span class="badge ${cls}">${esc(f.niveau)}</span></td>
+      <td style="font-size:12px;">${formatDate(f.derniere)}</td>
+      <td style="font-size:12px;">${esc(f.anniversaire)}</td>
+      <td style="font-size:12px;">${f.recompense === '--' ? '<span style="color:var(--muted);">--</span>' : '<span style="color:var(--green);font-weight:500;">'+esc(f.recompense)+'</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: STOCK
+// ═══════════════════════════════════
+let stockData = [...DEMO_STOCK];
+
+function renderStock() {
+  const tbody = document.getElementById('stock-body');
+  const search = (document.getElementById('search-stock')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('filter-stock-cat')?.value || '';
+
+  let filtered = stockData.filter(s => {
+    if (search && !s.nom.toLowerCase().includes(search)) return false;
+    if (catFilter && s.cat !== catFilter) return false;
+    return true;
+  });
+
+  document.getElementById('stock-count').textContent = filtered.length + ' produit' + (filtered.length > 1 ? 's' : '');
+
+  let total = stockData.length, crit = 0, warn = 0, valeur = 0;
+  stockData.forEach(s => {
+    if (s.qte <= s.seuil * 0.5) crit++;
+    else if (s.qte <= s.seuil) warn++;
+    valeur += s.qte * s.prix;
+  });
+  document.getElementById('stock-total').textContent = total;
+  document.getElementById('stock-crit').textContent = crit;
+  document.getElementById('stock-warn').textContent = warn;
+  document.getElementById('stock-valeur').textContent = fmtEur(valeur);
+
+  // Badge in sidebar
+  const alerteBadge = document.getElementById('stock-alerte-badge');
+  if (alerteBadge && (crit + warn) > 0) { alerteBadge.textContent = crit + warn; alerteBadge.style.display = 'inline-block'; }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun produit trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(s => {
+    const ratio = s.qte / s.seuil;
+    let badge, barColor;
+    if (ratio <= 0.5) { badge = '<span class="badge badge-crit">Critique</span>'; barColor = 'var(--red)'; }
+    else if (ratio <= 1) { badge = '<span class="badge badge-warn">Faible</span>'; barColor = 'var(--amber)'; }
+    else { badge = '<span class="badge badge-ok">OK</span>'; barColor = 'var(--green)'; }
+    const barPct = Math.min(100, Math.round((s.qte / (s.seuil * 2)) * 100));
+    const catLabel = stockCatLabel(s.cat);
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(s.nom)}</div></td>
+      <td><span class="badge badge-blue">${catLabel}</span></td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar"><div class="bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+          <span class="qty-num">${s.qte}</span>
+        </div>
+      </td>
+      <td style="font-size:12px;font-family:var(--mono);color:var(--muted);">${s.seuil}</td>
+      <td style="font-size:12px;color:var(--muted);">${esc(s.fournisseur)}</td>
+      <td>${badge}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Commander" aria-label="Commander" onclick="showToast('Commande fournisseur -- a venir')">&#x1F6D2;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterStock() { renderStock(); }
+
+// ═══════════════════════════════════
+// RENDER: PAIEMENTS
+// ═══════════════════════════════════
+function renderPaiements() {
+  const tbody = document.getElementById('paiements-body');
+  let totalEnc = 0, totalCB = 0, totalEsp = 0, totalPourb = 0;
+
+  DEMO_PAIEMENTS.forEach(p => {
+    totalEnc += p.montant;
+    if (p.mode === 'cb') totalCB += p.montant;
+    if (p.mode === 'especes') totalEsp += p.montant;
+    totalPourb += p.pourboire;
+  });
+
+  document.getElementById('pay-total').textContent = fmtEur(totalEnc);
+  document.getElementById('pay-cb').textContent = fmtEur(totalCB);
+  document.getElementById('pay-especes').textContent = fmtEur(totalEsp);
+  document.getElementById('pay-pourboires').textContent = fmtEur(totalPourb);
+  document.getElementById('pay-count').textContent = DEMO_PAIEMENTS.length + ' lignes';
+
+  const modeMap = {
+    cb: { label:'Carte bancaire', cls:'badge-ok' },
+    especes: { label:'Especes', cls:'badge-warn' },
+    cheque: { label:'Cheque', cls:'badge-blue' }
+  };
+  const statutMap = {
+    encaisse: { label:'Encaisse', cls:'badge-ok' },
+    en_attente: { label:'En attente', cls:'badge-warn' },
+    annule: { label:'Annule', cls:'badge-crit' }
+  };
+
+  tbody.innerHTML = DEMO_PAIEMENTS.map(p => {
+    const mode = modeMap[p.mode] || { label:p.mode, cls:'badge-ok' };
+    const statut = statutMap[p.statut] || { label:p.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(p.client)}</td>
+      <td style="font-size:12px;">${esc(p.prestation)}</td>
+      <td style="font-family:var(--mono);font-weight:500;">${fmtEur(p.montant)}</td>
+      <td><span class="badge ${mode.cls}">${mode.label}</span></td>
+      <td style="font-family:var(--mono);color:${p.pourboire > 0 ? 'var(--green)' : 'var(--muted)'};">${p.pourboire > 0 ? p.pourboire + ' EUR' : '--'}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">${esc(p.heure)}</td>
+      <td><span class="badge ${statut.cls}">${statut.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: COMPTABILITE
+// ═══════════════════════════════════
+function renderCompta() {
+  const recettes = 14200;
+  const depenses = 5480;
+  const net = recettes - depenses;
+  const marge = Math.round((net / recettes) * 100);
+
+  document.getElementById('compta-recettes').textContent = fmtEur(recettes);
+  document.getElementById('compta-depenses').textContent = fmtEur(depenses);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+  document.getElementById('compta-marge').textContent = marge + '%';
+
+  const recDetail = [
+    { label: 'Coiffure (coupes, brushings)', montant: 4200 },
+    { label: 'Colorations / Meches', montant: 3100 },
+    { label: 'Soins visage / corps', montant: 2400 },
+    { label: 'Massages / Spa', montant: 2800 },
+    { label: 'Epilation / Manucure', montant: 1700 },
+  ];
+  document.getElementById('compta-recettes-detail').innerHTML = recDetail.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${r.label}</span><span style="font-family:var(--mono);font-weight:500;">${fmtEur(r.montant)}</span>
+    </div>`
+  ).join('');
+
+  const depDetail = [
+    { label: 'Salaires equipe (5 employes)', montant: 2800 },
+    { label: 'Produits et consommables', montant: 1200 },
+    { label: 'Loyer + charges fixes', montant: 900 },
+    { label: 'Assurance / Comptable', montant: 380 },
+    { label: 'Formation continue', montant: 200 },
+  ];
+  document.getElementById('compta-depenses-detail').innerHTML = depDetail.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${r.label}</span><span style="font-family:var(--mono);font-weight:500;color:var(--red);">${fmtEur(r.montant)}</span>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: EQUIPE
+// ═══════════════════════════════════
+function renderEquipe() {
+  const tbody = document.getElementById('equipe-body');
+
+  let totalSal = 0, totalComm = 0;
+  DEMO_EQUIPE.forEach(e => { totalSal += e.salaire; totalComm += e.commission; });
+
+  document.getElementById('equipe-total').textContent = DEMO_EQUIPE.length;
+  document.getElementById('equipe-salaires').textContent = fmtEur(totalSal);
+  document.getElementById('equipe-commissions').textContent = fmtEur(totalComm);
+  document.getElementById('equipe-count').textContent = DEMO_EQUIPE.length + ' employes';
+
+  tbody.innerHTML = DEMO_EQUIPE.map(e => {
+    const compBadges = e.competences.map(c => `<span class="badge badge-accent" style="margin:2px;">${esc(c)}</span>`).join('');
+    return `<tr>
+      <td style="font-weight:500;">${esc(e.nom)}</td>
+      <td style="font-size:12px;">${esc(e.poste)}</td>
+      <td style="max-width:200px;">${compBadges}</td>
+      <td style="font-size:12px;color:var(--muted);">${esc(e.planning)}</td>
+      <td style="font-family:var(--mono);font-size:13px;">${e.rdv_mois}</td>
+      <td style="font-family:var(--mono);font-weight:500;color:var(--green);">${fmtEur(e.commission)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le planning" aria-label="Voir le planning" onclick="showToast('Planning individuel -- a venir')">&#x1F4C5;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// KPI UPDATE
+// ═══════════════════════════════════
+function updateKPIs() {
+  document.getElementById('kpi-clients').textContent = clientsData.length;
+  document.getElementById('kpi-rdv').textContent = DEMO_RDV.length;
+  document.getElementById('kpi-ca').textContent = fmtEur(14200);
+  const stockFaible = DEMO_STOCK.filter(s => s.qte <= s.seuil).length;
+  document.getElementById('kpi-stock').textContent = stockFaible;
+}
+
+// ═══════════════════════════════════
+// FORM ACTIONS (DEMO)
+// ═══════════════════════════════════
+function ajouterClient() {
+  const nom = document.getElementById('cli-nom').value.trim();
+  const prenom = document.getElementById('cli-prenom').value.trim();
+  if (!nom || !prenom) { showToast('Veuillez renseigner le nom et le prenom'); return; }
+
+  clientsData.push({
+    id: Date.now(),
+    nom, prenom,
+    tel: document.getElementById('cli-tel').value,
+    email: document.getElementById('cli-email').value,
+    ddn: document.getElementById('cli-ddn').value || '1990-01-01',
+    soin: document.getElementById('cli-soin').value,
+    frequence: '--',
+    allergies: '',
+    notes: document.getElementById('cli-notes').value,
+    fidelite: 0,
+    dernier: '--',
+    prochain: '--'
+  });
+
+  fermerModal('modal-client');
+  renderClients();
+  updateKPIs();
+  showToast('Client ajoute avec succes');
+  ['cli-nom','cli-prenom','cli-tel','cli-email','cli-ddn','cli-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function ajouterRDV() {
+  showToast('Rendez-vous ajoute (demo)');
+  fermerModal('modal-rdv');
+}
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtEur(n) {
+  if (n == null || isNaN(n)) return '--';
+  return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' EUR';
+}
+
+function formatDate(str) {
+  if (!str || str === '--') return '--';
+  const d = new Date(str);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function prestaLabel(type) {
+  const map = {
+    coupe: 'Coupe', coloration: 'Coloration', soin_visage: 'Soin visage',
+    massage: 'Massage', epilation: 'Epilation', manucure: 'Manucure', spa: 'Spa'
+  };
+  return map[type] || type || '--';
+}
+
+function soinLabel(soin) {
+  const map = {
+    coupe: { label:'Coupe', cls:'badge-accent' },
+    coloration: { label:'Coloration', cls:'badge-purple' },
+    soin_visage: { label:'Soin visage', cls:'badge-blue' },
+    massage: { label:'Massage', cls:'badge-warn' },
+    epilation: { label:'Epilation', cls:'badge-ok' },
+    manucure: { label:'Manucure', cls:'badge-ok' },
+    spa: { label:'Spa', cls:'badge-blue' },
+  };
+  const m = map[soin] || { label: soin || '--', cls:'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function catPrestaLabel(cat) {
+  const map = {
+    coiffure: { label:'Coiffure', cls:'badge-accent' },
+    coloration: { label:'Coloration', cls:'badge-purple' },
+    soins: { label:'Soins', cls:'badge-blue' },
+    massage: { label:'Massage', cls:'badge-warn' },
+    epilation: { label:'Epilation', cls:'badge-ok' },
+    manucure: { label:'Manucure/Pedicure', cls:'badge-ok' },
+    spa: { label:'Spa', cls:'badge-blue' },
+  };
+  const m = map[cat] || { label: cat || '--', cls:'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function stockCatLabel(cat) {
+  const map = {
+    shampooing: 'Shampooing', coloration: 'Coloration', soin_cheveux: 'Soins cheveux',
+    cosmetique: 'Cosmetiques', huile: 'Huiles/Cremes', cire: 'Cires/Epilation',
+    vernis: 'Vernis/Manucure', consommable: 'Consommables'
+  };
+  return map[cat] || cat;
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  updateKPIs();
+  renderDashboard();
+  renderClients();
+  renderRDV();
+  renderPrestations();
+  renderFidelite();
+  renderPaiements();
+  renderStock();
+  renderCompta();
+  renderEquipe();
+});
+</script>
+</body>
+</html>

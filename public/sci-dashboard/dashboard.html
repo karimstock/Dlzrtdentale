@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#3b82f6"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI SCI — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0a0f1e;--surface:#101830;--surface2:#15203e;--border:rgba(59,130,246,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#3b82f6;--accent-dark:#60a5fa;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── DESKTOP SIDEBAR LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #060b18 0%, #0c1529 50%, #060b18 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(59,130,246,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color 0.15s;border-radius:var(--radius-sm);}
+.nav-group-title:hover{color:var(--text);}
+.nav-group-arrow{font-size:8px;width:12px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);display:inline-block;}
+.nav-group-arrow.open{transform:rotate(90deg);}
+.nav-group-ico{font-size:14px;}
+.nav-group-items .nav-item{padding-left:40px;font-size:12px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#2563eb;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── KPI STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(16,185,129,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+.badge-accent{background:rgba(59,130,246,0.15);color:var(--accent);}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* ── ACTION BUTTONS ── */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(59,130,246,0.1);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* ── SUMMARY CARDS GRID ── */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px;}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.summary-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.summary-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.summary-row:last-child{border-bottom:none;}
+.summary-row-label{color:var(--muted);}
+.summary-row-value{font-family:var(--mono);font-weight:600;}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .summary-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">SCI</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <!-- Patrimoine -->
+    <div class="nav-group" data-nav-group="patrimoine">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">&#x1F3E0;</span> Patrimoine
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="ni">&#x1F4CA;</span>Tableau de bord</div>
+        <div class="nav-item" onclick="showPage('biens',this)"><span class="ni">&#x1F3E2;</span>Mes biens</div>
+        <div class="nav-item" onclick="showPage('locataires',this)"><span class="ni">&#x1F465;</span>Locataires</div>
+      </div>
+    </div>
+
+    <!-- Gestion -->
+    <div class="nav-group" data-nav-group="gestion">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4B0;</span> Gestion
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('loyers',this)"><span class="ni">&#x1F4B3;</span>Loyers &amp; Quittances<span class="nav-badge" id="impayes-badge" style="display:none">0</span></div>
+        <div class="nav-item" onclick="showPage('charges',this)"><span class="ni">&#x1F527;</span>Charges &amp; Travaux</div>
+      </div>
+    </div>
+
+    <!-- Finances -->
+    <div class="nav-group" data-nav-group="finances">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4C8;</span> Finances
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite SCI</div>
+        <div class="nav-item" onclick="showPage('documents',this)"><span class="ni">&#x1F4C1;</span>Documents</div>
+      </div>
+    </div>
+
+    <!-- SCI -->
+    <div class="nav-group" data-nav-group="sci">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F465;</span> SCI
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('associes',this)"><span class="ni">&#x1F4BC;</span>Associes</div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Ma SCI</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI SCI</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Tableau de bord</div>
+    <div class="topbar-right" id="topbar-actions"></div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : TABLEAU DE BORD         -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Biens geres</div><div class="stat-value c-accent" id="kpi-biens">--</div><div class="stat-sub">dans votre patrimoine</div></div>
+        <div class="stat"><div class="stat-label">Locataires actifs</div><div class="stat-value c-green" id="kpi-locataires">--</div><div class="stat-sub">baux en cours</div></div>
+        <div class="stat"><div class="stat-label">Loyers du mois</div><div class="stat-value" id="kpi-loyers">--</div><div class="stat-sub">encaissements prevus</div></div>
+        <div class="stat"><div class="stat-label">Taux d'occupation</div><div class="stat-value c-accent" id="kpi-occupation">--</div><div class="stat-sub">de votre parc immobilier</div></div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Revenus vs Charges</div></div>
+          <div class="card-body" id="dash-revenus-charges"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Rentabilite par bien</div></div>
+          <div class="card-body" id="dash-rentabilite"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Tresorerie</div></div>
+          <div class="card-body" id="dash-tresorerie"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Alertes</div></div>
+          <div class="card-body" id="dash-alertes"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : MES BIENS               -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-biens">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un bien..." id="search-biens" oninput="filterBiens()" aria-label="Rechercher un bien">
+        </div>
+        <select class="filter-select" id="filter-type-bien" onchange="filterBiens()" aria-label="Filtrer par type">
+          <option value="">Tous les types</option>
+          <option value="appartement">Appartement</option>
+          <option value="maison">Maison</option>
+          <option value="local_commercial">Local commercial</option>
+          <option value="parking">Parking</option>
+          <option value="cave">Cave</option>
+        </select>
+        <select class="filter-select" id="filter-statut-bien" onchange="filterBiens()" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          <option value="loue">Loue</option>
+          <option value="vacant">Vacant</option>
+          <option value="travaux">Travaux</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Patrimoine immobilier</div>
+          <div class="card-count" id="biens-count">0 biens</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Adresse</th>
+                <th>Type</th>
+                <th>Surface</th>
+                <th>Valeur estimee</th>
+                <th>Loyer mensuel</th>
+                <th>Statut</th>
+                <th>Locataire</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="biens-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : LOCATAIRES              -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-locataires">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un locataire..." id="search-locataires" oninput="filterLocataires()" aria-label="Rechercher un locataire">
+        </div>
+        <select class="filter-select" id="filter-paiement-loc" onchange="filterLocataires()" aria-label="Filtrer par statut paiement">
+          <option value="">Tous les statuts</option>
+          <option value="a_jour">A jour</option>
+          <option value="retard">En retard</option>
+          <option value="impaye">Impaye</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des locataires</div>
+          <div class="card-count" id="locataires-count">0 locataires</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Locataire</th>
+                <th>Bien occupe</th>
+                <th>Date d'entree</th>
+                <th>Loyer</th>
+                <th>Depot garantie</th>
+                <th>Paiement</th>
+                <th>Alertes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="locataires-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : LOYERS & QUITTANCES     -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-loyers">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Loyers &amp; Quittances</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Suivi mensuel de vos encaissements</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <select class="filter-select" id="loyers-mois" onchange="renderLoyers()" aria-label="Mois">
+            <option value="2026-04">Avril 2026</option>
+            <option value="2026-03">Mars 2026</option>
+            <option value="2026-02">Fevrier 2026</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Loyers attendus</div><div class="stat-value c-accent" id="loyers-attendus">--</div><div class="stat-sub">ce mois</div></div>
+        <div class="stat"><div class="stat-label">Encaisses</div><div class="stat-value c-green" id="loyers-encaisses">--</div><div class="stat-sub">payes a ce jour</div></div>
+        <div class="stat"><div class="stat-label">En retard</div><div class="stat-value c-amber" id="loyers-retard">--</div><div class="stat-sub">en attente</div></div>
+        <div class="stat"><div class="stat-label">Impayes</div><div class="stat-value c-red" id="loyers-impayes">--</div><div class="stat-sub">action requise</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Encaissements du mois</div>
+          <div class="card-count" id="loyers-count">0 lignes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Locataire</th>
+                <th>Bien</th>
+                <th>Loyer</th>
+                <th>Charges</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th>Date paiement</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="loyers-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : CHARGES & TRAVAUX       -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-charges">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Charges &amp; Travaux</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Copropriete, travaux, devis et factures</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalCharge()">+ Nouvelle charge</button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Charges annuelles</div><div class="stat-value c-red" id="charges-total">--</div><div class="stat-sub">copropriete + entretien</div></div>
+        <div class="stat"><div class="stat-label">Travaux en cours</div><div class="stat-value c-amber" id="travaux-encours">--</div><div class="stat-sub">chantiers actifs</div></div>
+        <div class="stat"><div class="stat-label">Travaux planifies</div><div class="stat-value c-accent" id="travaux-planifies">--</div><div class="stat-sub">a venir</div></div>
+        <div class="stat"><div class="stat-label">Budget travaux</div><div class="stat-value" id="travaux-budget">--</div><div class="stat-sub">estimation totale</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head">
+          <div class="card-title">Charges de copropriete</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Bien</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Montant</th>
+                <th>Periodicite</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="charges-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Travaux</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Bien</th>
+                <th>Nature</th>
+                <th>Prestataire</th>
+                <th>Devis</th>
+                <th>Facture</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="travaux-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : COMPTABILITE SCI        -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite SCI</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Bilan, compte de resultat et obligations fiscales</div>
+        </div>
+        <select class="filter-select" id="compta-exercice" onchange="renderCompta()" aria-label="Exercice">
+          <option value="2026">Exercice 2026</option>
+          <option value="2025">Exercice 2025</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Recettes locatives</div><div class="stat-value c-green" id="compta-recettes">--</div><div class="stat-sub">loyers encaisses</div></div>
+        <div class="stat"><div class="stat-label">Charges deductibles</div><div class="stat-value c-red" id="compta-charges">--</div><div class="stat-sub">interets + travaux + gestion</div></div>
+        <div class="stat"><div class="stat-label">Resultat SCI</div><div class="stat-value c-accent" id="compta-resultat">--</div><div class="stat-sub">benefice / deficit foncier</div></div>
+        <div class="stat"><div class="stat-label">Resultat / associe</div><div class="stat-value" id="compta-par-associe">--</div><div class="stat-sub">quote-part moyenne</div></div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Bilan simplifie</div></div>
+          <div class="card-body" id="compta-bilan"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Compte de resultat</div></div>
+          <div class="card-body" id="compta-resultat-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Repartition associes</div></div>
+          <div class="card-body" id="compta-repartition"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Obligations fiscales</div></div>
+          <div class="card-body" id="compta-fiscal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : DOCUMENTS               -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-documents">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Documents</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Baux, diagnostics, assurances et proces-verbaux</div>
+        </div>
+        <button class="btn btn-accent" onclick="showToast('Telechargement de document -- fonctionnalite a venir')">+ Ajouter un document</button>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un document..." id="search-documents" oninput="filterDocuments()" aria-label="Rechercher un document">
+        </div>
+        <select class="filter-select" id="filter-doc-type" onchange="filterDocuments()" aria-label="Type de document">
+          <option value="">Tous les types</option>
+          <option value="bail">Bail</option>
+          <option value="edl">Etat des lieux</option>
+          <option value="diagnostic">Diagnostic</option>
+          <option value="assurance">Assurance</option>
+          <option value="pv_ag">PV d'AG</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Bibliotheque documentaire</div>
+          <div class="card-count" id="documents-count">0 documents</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Type</th>
+                <th>Bien associe</th>
+                <th>Date</th>
+                <th>Echeance</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="documents-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : ASSOCIES                -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-associes">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Associes de la SCI</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Parts sociales, comptes courants et dividendes</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Capital social</div><div class="stat-value c-accent" id="assoc-capital">--</div><div class="stat-sub">parts sociales emises</div></div>
+        <div class="stat"><div class="stat-label">Nombre d'associes</div><div class="stat-value c-green" id="assoc-nombre">--</div><div class="stat-sub">personnes physiques</div></div>
+        <div class="stat"><div class="stat-label">Comptes courants</div><div class="stat-value" id="assoc-cc">--</div><div class="stat-sub">total apports en compte courant</div></div>
+        <div class="stat"><div class="stat-label">Dividendes verses</div><div class="stat-value c-amber" id="assoc-dividendes">--</div><div class="stat-sub">exercice en cours</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Repartition des parts</div>
+          <div class="card-count" id="associes-count">0 associes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Associe</th>
+                <th>Parts sociales</th>
+                <th>Pourcentage</th>
+                <th>Compte courant</th>
+                <th>Dividendes 2025</th>
+                <th>Role</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="associes-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('dashboard',this)" aria-label="Dashboard"><span class="mnav-icon">&#x1F4CA;</span>Bord</button>
+    <button class="mnav-item" onclick="showPage('biens',this)" aria-label="Biens"><span class="mnav-icon">&#x1F3E2;</span>Biens</button>
+    <button class="mnav-item" onclick="showPage('locataires',this)" aria-label="Locataires"><span class="mnav-icon">&#x1F465;</span>Locataires</button>
+    <button class="mnav-item" onclick="showPage('loyers',this)" aria-label="Loyers"><span class="mnav-icon">&#x1F4B3;</span>Loyers</button>
+    <button class="mnav-item" onclick="showPage('compta',this)" aria-label="Compta"><span class="mnav-icon">&#x1F4B0;</span>Compta</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouvelle charge -->
+<div class="modal-overlay" id="modal-charge">
+  <div class="modal">
+    <div class="modal-title">Nouvelle charge</div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label class="form-label">Bien</label>
+        <select class="form-select" id="charge-bien">
+          <option value="">Selectionnez un bien</option>
+          <option value="1">12 rue de Lannoy, Roubaix</option>
+          <option value="2">45 av. Jean Lebas, Roubaix</option>
+          <option value="3">8 rue Faidherbe, Lille</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="charge-type">
+          <option value="copropriete">Copropriete</option>
+          <option value="entretien">Entretien</option>
+          <option value="assurance">Assurance</option>
+          <option value="taxe_fonciere">Taxe fonciere</option>
+          <option value="travaux">Travaux</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Description</label><input class="form-input" id="charge-desc" placeholder="Description de la charge..."></div>
+      <div class="form-field"><label class="form-label">Montant</label><input class="form-input" id="charge-montant" type="number" placeholder="0.00"></div>
+      <div class="form-field"><label class="form-label">Date</label><input class="form-input" id="charge-date" type="date"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-charge')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterCharge()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau bien -->
+<div class="modal-overlay" id="modal-bien">
+  <div class="modal">
+    <div class="modal-title">Ajouter un bien</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Adresse</label><input class="form-input" id="bien-adresse" placeholder="Adresse complete"></div>
+      <div class="form-field"><label class="form-label">Ville</label><input class="form-input" id="bien-ville" placeholder="Ville"></div>
+      <div class="form-field">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="bien-type">
+          <option value="appartement">Appartement</option>
+          <option value="maison">Maison</option>
+          <option value="local_commercial">Local commercial</option>
+          <option value="parking">Parking</option>
+          <option value="cave">Cave</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Surface (m2)</label><input class="form-input" id="bien-surface" type="number" placeholder="0"></div>
+      <div class="form-field"><label class="form-label">Valeur estimee</label><input class="form-input" id="bien-valeur" type="number" placeholder="0"></div>
+      <div class="form-field"><label class="form-label">Loyer mensuel</label><input class="form-input" id="bien-loyer" type="number" placeholder="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-bien')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterBien()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// AUTH CHECK
+// ═══════════════════════════════════
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════
+const pageTitles = {
+  dashboard: 'Tableau de bord',
+  biens: 'Mes biens',
+  locataires: 'Locataires',
+  loyers: 'Loyers & Quittances',
+  charges: 'Charges & Travaux',
+  compta: 'Comptabilite SCI',
+  documents: 'Documents',
+  associes: 'Associes'
+};
+
+const pageActions = {
+  dashboard: '',
+  biens: '<button class="btn btn-accent" onclick="ouvrirModalBien()">+ Ajouter un bien</button>',
+  locataires: '<button class="btn btn-accent" onclick="showToast(\'Ajout locataire -- fonctionnalite a venir\')">+ Nouveau locataire</button>',
+  loyers: '<button class="btn btn-accent" onclick="showToast(\'Generation de quittance -- fonctionnalite a venir\')">Generer quittances</button>',
+  charges: '<button class="btn btn-accent" onclick="ouvrirModalCharge()">+ Nouvelle charge</button>',
+  compta: '<button class="btn btn-accent" onclick="showToast(\'Export declaration 2072 -- fonctionnalite a venir\')">Exporter 2072</button>',
+  documents: '<button class="btn btn-accent" onclick="showToast(\'Telechargement de document -- fonctionnalite a venir\')">+ Ajouter un document</button>',
+  associes: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) { el.classList.add('active'); openParentNavGroup(el); }
+  // Lazy render
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'biens') renderBiens();
+  if (id === 'locataires') renderLocataires();
+  if (id === 'loyers') renderLoyers();
+  if (id === 'charges') renderCharges();
+  if (id === 'compta') renderCompta();
+  if (id === 'documents') renderDocuments();
+  if (id === 'associes') renderAssocies();
+}
+
+// ═══════════════════════════════════
+// NAV GROUP ACCORDION
+// ═══════════════════════════════════
+function toggleNavGroup(title) {
+  const items = title.nextElementSibling;
+  const arrow = title.querySelector('.nav-group-arrow');
+  if (!items) return;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+function openParentNavGroup(el) {
+  const group = el.closest('.nav-group-items');
+  if (group && group.style.display === 'none') {
+    group.style.display = 'block';
+    const arrow = group.previousElementSibling?.querySelector('.nav-group-arrow');
+    if (arrow) arrow.classList.add('open');
+  }
+}
+
+// ═══════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════
+function ouvrirModalBien() { document.getElementById('modal-bien').classList.add('open'); }
+function ouvrirModalCharge() { document.getElementById('modal-charge').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtEur(n) { return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 }).format(n); }
+function fmtEur2(n) { return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR' }).format(n); }
+function formatDate(d) { if (!d) return '--'; const p = d.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+
+// ═══════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════
+const DEMO_BIENS = [
+  { id:1, adresse:'12 rue de Lannoy', ville:'Roubaix', type:'appartement', surface:65, valeur:95000, loyer:550, statut:'loue', locataire:'Dupont Marie' },
+  { id:2, adresse:'45 av. Jean Lebas', ville:'Roubaix', type:'appartement', surface:42, valeur:68000, loyer:420, statut:'loue', locataire:'Martin Pierre' },
+  { id:3, adresse:'8 rue Faidherbe', ville:'Lille', type:'appartement', surface:78, valeur:185000, loyer:750, statut:'loue', locataire:'Bernard Sophie' },
+  { id:4, adresse:'23 rue du Marechal Foch', ville:'Tourcoing', type:'maison', surface:110, valeur:165000, loyer:850, statut:'loue', locataire:'Leroy Antoine' },
+  { id:5, adresse:'156 Grand Rue', ville:'Roubaix', type:'local_commercial', surface:95, valeur:120000, loyer:900, statut:'loue', locataire:'Boulangerie Delattre' },
+  { id:6, adresse:'3 place de la Liberte', ville:'Lille', type:'appartement', surface:55, valeur:145000, loyer:620, statut:'vacant', locataire:'' },
+  { id:7, adresse:'78 bd Gambetta', ville:'Tourcoing', type:'appartement', surface:38, valeur:58000, loyer:380, statut:'travaux', locataire:'' },
+  { id:8, adresse:'12 rue de Lannoy (cave)', ville:'Roubaix', type:'cave', surface:8, valeur:5000, loyer:40, statut:'loue', locataire:'Dupont Marie' },
+  { id:9, adresse:'Parking 45 av. Jean Lebas', ville:'Roubaix', type:'parking', surface:12, valeur:8000, loyer:60, statut:'loue', locataire:'Fournier Jean' },
+  { id:10, adresse:'22 rue Nationale', ville:'Lille', type:'appartement', surface:92, valeur:210000, loyer:880, statut:'loue', locataire:'Garcia Emma' }
+];
+
+const DEMO_LOCATAIRES = [
+  { id:1, nom:'Dupont Marie', bien:'12 rue de Lannoy, Roubaix', date_entree:'2023-09-01', loyer:550, charges:50, depot:1100, statut_paiement:'a_jour', alerte:'' },
+  { id:2, nom:'Martin Pierre', bien:'45 av. Jean Lebas, Roubaix', date_entree:'2024-01-15', loyer:420, charges:35, depot:840, statut_paiement:'a_jour', alerte:'' },
+  { id:3, nom:'Bernard Sophie', bien:'8 rue Faidherbe, Lille', date_entree:'2022-06-01', loyer:750, charges:80, depot:1500, statut_paiement:'retard', alerte:'Retard 15 jours' },
+  { id:4, nom:'Leroy Antoine', bien:'23 rue du Marechal Foch, Tourcoing', date_entree:'2024-03-01', loyer:850, charges:120, depot:1700, statut_paiement:'a_jour', alerte:'' },
+  { id:5, nom:'Boulangerie Delattre', bien:'156 Grand Rue, Roubaix', date_entree:'2021-01-01', loyer:900, charges:150, depot:2700, statut_paiement:'a_jour', alerte:'Fin bail dans 8 mois' },
+  { id:6, nom:'Dupont Marie', bien:'12 rue de Lannoy (cave), Roubaix', date_entree:'2023-09-01', loyer:40, charges:0, depot:40, statut_paiement:'a_jour', alerte:'' },
+  { id:7, nom:'Fournier Jean', bien:'Parking 45 av. Jean Lebas, Roubaix', date_entree:'2025-01-01', loyer:60, charges:0, depot:60, statut_paiement:'impaye', alerte:'2 mois d\'impayes' },
+  { id:8, nom:'Garcia Emma', bien:'22 rue Nationale, Lille', date_entree:'2025-06-01', loyer:880, charges:90, depot:1760, statut_paiement:'a_jour', alerte:'' }
+];
+
+const DEMO_LOYERS = [
+  { id:1, locataire:'Dupont Marie', bien:'12 rue de Lannoy', loyer:550, charges:50, total:600, statut:'paye', date_paiement:'2026-04-03' },
+  { id:2, locataire:'Martin Pierre', bien:'45 av. Jean Lebas', loyer:420, charges:35, total:455, statut:'paye', date_paiement:'2026-04-05' },
+  { id:3, locataire:'Bernard Sophie', bien:'8 rue Faidherbe', loyer:750, charges:80, total:830, statut:'retard', date_paiement:'' },
+  { id:4, locataire:'Leroy Antoine', bien:'23 rue du Marechal Foch', loyer:850, charges:120, total:970, statut:'paye', date_paiement:'2026-04-01' },
+  { id:5, locataire:'Boulangerie Delattre', bien:'156 Grand Rue', loyer:900, charges:150, total:1050, statut:'paye', date_paiement:'2026-04-02' },
+  { id:6, locataire:'Dupont Marie', bien:'Cave 12 rue de Lannoy', loyer:40, charges:0, total:40, statut:'paye', date_paiement:'2026-04-03' },
+  { id:7, locataire:'Fournier Jean', bien:'Parking 45 av. Jean Lebas', loyer:60, charges:0, total:60, statut:'impaye', date_paiement:'' },
+  { id:8, locataire:'Garcia Emma', bien:'22 rue Nationale', loyer:880, charges:90, total:970, statut:'paye', date_paiement:'2026-04-04' }
+];
+
+const DEMO_CHARGES = [
+  { id:1, bien:'12 rue de Lannoy, Roubaix', type:'copropriete', desc:'Charges trimestrielles copropriete', montant:450, periodicite:'Trimestriel', statut:'paye' },
+  { id:2, bien:'45 av. Jean Lebas, Roubaix', type:'copropriete', desc:'Charges trimestrielles copropriete', montant:320, periodicite:'Trimestriel', statut:'paye' },
+  { id:3, bien:'8 rue Faidherbe, Lille', type:'copropriete', desc:'Charges trimestrielles copropriete', montant:680, periodicite:'Trimestriel', statut:'a_payer' },
+  { id:4, bien:'23 rue du Marechal Foch, Tourcoing', type:'taxe_fonciere', desc:'Taxe fonciere 2026', montant:1200, periodicite:'Annuel', statut:'a_payer' },
+  { id:5, bien:'156 Grand Rue, Roubaix', type:'assurance', desc:'Assurance PNO multirisque', montant:380, periodicite:'Annuel', statut:'paye' },
+  { id:6, bien:'22 rue Nationale, Lille', type:'copropriete', desc:'Appel de fonds travaux ravalement', montant:2500, periodicite:'Exceptionnel', statut:'a_payer' },
+  { id:7, bien:'Tous biens', type:'assurance', desc:'Assurance loyers impayes (GLI)', montant:1450, periodicite:'Annuel', statut:'paye' }
+];
+
+const DEMO_TRAVAUX = [
+  { id:1, bien:'78 bd Gambetta, Tourcoing', nature:'Renovation complete', prestataire:'Ets Dujardin BTP', devis:18500, facture:null, statut:'en_cours' },
+  { id:2, bien:'12 rue de Lannoy, Roubaix', nature:'Remplacement chaudiere', prestataire:'Thermi-Nord', devis:3200, facture:3150, statut:'termine' },
+  { id:3, bien:'22 rue Nationale, Lille', nature:'Ravalement facade (copro)', prestataire:'Facades du Nord', devis:45000, facture:null, statut:'planifie' },
+  { id:4, bien:'45 av. Jean Lebas, Roubaix', nature:'Mise aux normes electriques', prestataire:'Elec Pro 59', devis:2800, facture:null, statut:'planifie' },
+  { id:5, bien:'23 rue du Marechal Foch, Tourcoing', nature:'Reparation toiture', prestataire:'Couverture Lenoir', devis:4500, facture:4350, statut:'termine' }
+];
+
+const DEMO_DOCUMENTS = [
+  { id:1, nom:'Bail habitation - Dupont Marie', type:'bail', bien:'12 rue de Lannoy, Roubaix', date:'2023-09-01', echeance:'2026-09-01', statut:'actif' },
+  { id:2, nom:'Bail habitation - Martin Pierre', type:'bail', bien:'45 av. Jean Lebas, Roubaix', date:'2024-01-15', echeance:'2027-01-15', statut:'actif' },
+  { id:3, nom:'Bail commercial - Boulangerie Delattre', type:'bail', bien:'156 Grand Rue, Roubaix', date:'2021-01-01', echeance:'2030-01-01', statut:'actif' },
+  { id:4, nom:'Etat des lieux entree - Garcia Emma', type:'edl', bien:'22 rue Nationale, Lille', date:'2025-06-01', echeance:'', statut:'actif' },
+  { id:5, nom:'DPE - 12 rue de Lannoy', type:'diagnostic', bien:'12 rue de Lannoy, Roubaix', date:'2023-06-15', echeance:'2033-06-15', statut:'valide' },
+  { id:6, nom:'DPE - 8 rue Faidherbe', type:'diagnostic', bien:'8 rue Faidherbe, Lille', date:'2021-03-10', echeance:'2031-03-10', statut:'valide' },
+  { id:7, nom:'Diagnostic amiante - 45 av. Jean Lebas', type:'diagnostic', bien:'45 av. Jean Lebas, Roubaix', date:'2022-11-20', echeance:'', statut:'valide' },
+  { id:8, nom:'Diagnostic plomb - 12 rue de Lannoy', type:'diagnostic', bien:'12 rue de Lannoy, Roubaix', date:'2023-06-15', echeance:'', statut:'valide' },
+  { id:9, nom:'Assurance PNO multirisque', type:'assurance', bien:'Tous biens', date:'2026-01-01', echeance:'2027-01-01', statut:'actif' },
+  { id:10, nom:'PV AG ordinaire 2025', type:'pv_ag', bien:'SCI', date:'2025-06-15', echeance:'', statut:'archive' },
+  { id:11, nom:'PV AG extraordinaire - Acquisition Nationale', type:'pv_ag', bien:'SCI', date:'2025-04-10', echeance:'', statut:'archive' }
+];
+
+const DEMO_ASSOCIES = [
+  { id:1, nom:'Bahmed Karim', parts:600, total_parts:1000, cc:25000, dividendes_2025:4800, role:'Gerant' },
+  { id:2, nom:'Bahmed Nadia', parts:300, total_parts:1000, cc:12000, dividendes_2025:2400, role:'Associee' },
+  { id:3, nom:'Bahmed Sofiane', parts:100, total_parts:1000, cc:3000, dividendes_2025:800, role:'Associe' }
+];
+
+// ═══════════════════════════════════
+// RENDER: DASHBOARD (Tableau de bord)
+// ═══════════════════════════════════
+function renderDashboard() {
+  const totalBiens = DEMO_BIENS.length;
+  const biensLoues = DEMO_BIENS.filter(b => b.statut === 'loue').length;
+  const locatairesActifs = DEMO_LOCATAIRES.length;
+  const loyersMois = DEMO_BIENS.filter(b => b.statut === 'loue').reduce((s, b) => s + b.loyer, 0);
+  const occupation = Math.round((biensLoues / totalBiens) * 100);
+
+  document.getElementById('kpi-biens').textContent = totalBiens;
+  document.getElementById('kpi-locataires').textContent = locatairesActifs;
+  document.getElementById('kpi-loyers').textContent = fmtEur(loyersMois);
+  document.getElementById('kpi-occupation').textContent = occupation + '%';
+
+  // Revenus vs Charges
+  const totalRevenus = loyersMois * 12;
+  const totalCharges = DEMO_CHARGES.reduce((s, c) => {
+    if (c.periodicite === 'Trimestriel') return s + c.montant * 4;
+    if (c.periodicite === 'Annuel') return s + c.montant;
+    return s + c.montant;
+  }, 0);
+  document.getElementById('dash-revenus-charges').innerHTML = `
+    <div class="summary-row"><span class="summary-row-label">Revenus locatifs annuels</span><span class="summary-row-value" style="color:var(--green);">${fmtEur(totalRevenus)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Charges annuelles</span><span class="summary-row-value" style="color:var(--red);">${fmtEur(totalCharges)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Resultat net previsionnel</span><span class="summary-row-value" style="color:var(--accent);">${fmtEur(totalRevenus - totalCharges)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Marge nette</span><span class="summary-row-value">${Math.round(((totalRevenus - totalCharges) / totalRevenus) * 100)}%</span></div>
+  `;
+
+  // Rentabilite
+  const rentaHtml = DEMO_BIENS.filter(b => b.valeur > 10000).map(b => {
+    const renta = ((b.loyer * 12) / b.valeur * 100).toFixed(1);
+    const color = renta >= 7 ? 'var(--green)' : renta >= 5 ? 'var(--accent)' : 'var(--amber)';
+    return `<div class="summary-row"><span class="summary-row-label">${esc(b.adresse)}</span><span class="summary-row-value" style="color:${color};">${renta}%</span></div>`;
+  }).join('');
+  document.getElementById('dash-rentabilite').innerHTML = rentaHtml;
+
+  // Tresorerie
+  const encaisses = DEMO_LOYERS.filter(l => l.statut === 'paye').reduce((s, l) => s + l.total, 0);
+  const aRecevoir = DEMO_LOYERS.filter(l => l.statut !== 'paye').reduce((s, l) => s + l.total, 0);
+  document.getElementById('dash-tresorerie').innerHTML = `
+    <div class="summary-row"><span class="summary-row-label">Encaisse ce mois</span><span class="summary-row-value" style="color:var(--green);">${fmtEur(encaisses)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">A recevoir</span><span class="summary-row-value" style="color:var(--amber);">${fmtEur(aRecevoir)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Solde compte SCI</span><span class="summary-row-value" style="color:var(--accent);">${fmtEur(34560)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Valeur patrimoine</span><span class="summary-row-value">${fmtEur(DEMO_BIENS.reduce((s,b)=>s+b.valeur,0))}</span></div>
+  `;
+
+  // Alertes
+  const alertes = [];
+  DEMO_LOCATAIRES.filter(l => l.statut_paiement === 'retard').forEach(l => alertes.push({ text: l.nom + ' -- ' + l.alerte, cls: 'badge-warn' }));
+  DEMO_LOCATAIRES.filter(l => l.statut_paiement === 'impaye').forEach(l => alertes.push({ text: l.nom + ' -- ' + l.alerte, cls: 'badge-crit' }));
+  DEMO_LOCATAIRES.filter(l => l.alerte && l.alerte.includes('Fin bail')).forEach(l => alertes.push({ text: l.nom + ' -- ' + l.alerte, cls: 'badge-blue' }));
+  DEMO_BIENS.filter(b => b.statut === 'vacant').forEach(b => alertes.push({ text: b.adresse + ' -- Bien vacant', cls: 'badge-warn' }));
+  DEMO_BIENS.filter(b => b.statut === 'travaux').forEach(b => alertes.push({ text: b.adresse + ' -- Travaux en cours', cls: 'badge-purple' }));
+
+  document.getElementById('dash-alertes').innerHTML = alertes.length === 0
+    ? '<div style="color:var(--muted);font-size:13px;">Aucune alerte en cours.</div>'
+    : alertes.map(a => `<div style="padding:8px 0;border-bottom:1px solid var(--border);"><span class="badge ${a.cls}">${esc(a.text)}</span></div>`).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: MES BIENS
+// ═══════════════════════════════════
+function renderBiens() {
+  const tbody = document.getElementById('biens-body');
+  const search = (document.getElementById('search-biens')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('filter-type-bien')?.value || '';
+  const statutFilter = document.getElementById('filter-statut-bien')?.value || '';
+
+  let filtered = DEMO_BIENS.filter(b => {
+    if (search && !(b.adresse + ' ' + b.ville).toLowerCase().includes(search)) return false;
+    if (typeFilter && b.type !== typeFilter) return false;
+    if (statutFilter && b.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('biens-count').textContent = filtered.length + ' bien' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">Aucun bien trouve</td></tr>';
+    return;
+  }
+
+  const typeLabels = { appartement:'Appartement', maison:'Maison', local_commercial:'Local commercial', parking:'Parking', cave:'Cave' };
+  const statutMap = { loue:{ label:'Loue', cls:'badge-ok' }, vacant:{ label:'Vacant', cls:'badge-warn' }, travaux:{ label:'Travaux', cls:'badge-purple' } };
+
+  tbody.innerHTML = filtered.map(b => {
+    const st = statutMap[b.statut] || { label:b.statut, cls:'badge-ok' };
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(b.adresse)}</div><div style="font-size:11px;color:var(--muted);">${esc(b.ville)}</div></td>
+      <td><span class="badge badge-accent">${typeLabels[b.type] || b.type}</span></td>
+      <td style="font-family:var(--mono);">${b.surface} m&sup2;</td>
+      <td style="font-family:var(--mono);">${fmtEur(b.valeur)}</td>
+      <td style="font-family:var(--mono);font-weight:600;">${fmtEur(b.loyer)}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td style="font-size:12px;color:var(--muted);">${b.locataire ? esc(b.locataire) : '--'}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le bien" aria-label="Voir le bien" onclick="showToast('Fiche bien -- fonctionnalite a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Modifier" aria-label="Modifier" onclick="showToast('Modification -- fonctionnalite a venir')">&#x270F;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterBiens() { renderBiens(); }
+
+// ═══════════════════════════════════
+// RENDER: LOCATAIRES
+// ═══════════════════════════════════
+function renderLocataires() {
+  const tbody = document.getElementById('locataires-body');
+  const search = (document.getElementById('search-locataires')?.value || '').toLowerCase();
+  const paiementFilter = document.getElementById('filter-paiement-loc')?.value || '';
+
+  let filtered = DEMO_LOCATAIRES.filter(l => {
+    if (search && !l.nom.toLowerCase().includes(search)) return false;
+    if (paiementFilter && l.statut_paiement !== paiementFilter) return false;
+    return true;
+  });
+
+  document.getElementById('locataires-count').textContent = filtered.length + ' locataire' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">Aucun locataire trouve</td></tr>';
+    return;
+  }
+
+  const paiementMap = { a_jour:{ label:'A jour', cls:'badge-ok' }, retard:{ label:'En retard', cls:'badge-warn' }, impaye:{ label:'Impaye', cls:'badge-crit' } };
+
+  tbody.innerHTML = filtered.map(l => {
+    const pm = paiementMap[l.statut_paiement] || { label:l.statut_paiement, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(l.nom)}</td>
+      <td style="font-size:12px;">${esc(l.bien)}</td>
+      <td>${formatDate(l.date_entree)}</td>
+      <td style="font-family:var(--mono);">${fmtEur(l.loyer)}</td>
+      <td style="font-family:var(--mono);">${fmtEur(l.depot)}</td>
+      <td><span class="badge ${pm.cls}">${pm.label}</span></td>
+      <td>${l.alerte ? '<span class="badge badge-warn">' + esc(l.alerte) + '</span>' : '<span style="color:var(--muted);font-size:12px;">--</span>'}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Dossier locataire" aria-label="Dossier locataire" onclick="showToast('Dossier locataire -- fonctionnalite a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Relancer" aria-label="Relancer" onclick="showToast('Relance envoyee')">&#x1F4E7;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterLocataires() { renderLocataires(); }
+
+// ═══════════════════════════════════
+// RENDER: LOYERS & QUITTANCES
+// ═══════════════════════════════════
+function renderLoyers() {
+  const tbody = document.getElementById('loyers-body');
+  let attendus = 0, encaisses = 0, retard = 0, impayes = 0;
+
+  DEMO_LOYERS.forEach(l => {
+    attendus += l.total;
+    if (l.statut === 'paye') encaisses += l.total;
+    if (l.statut === 'retard') retard += l.total;
+    if (l.statut === 'impaye') impayes += l.total;
+  });
+
+  document.getElementById('loyers-attendus').textContent = fmtEur(attendus);
+  document.getElementById('loyers-encaisses').textContent = fmtEur(encaisses);
+  document.getElementById('loyers-retard').textContent = fmtEur(retard);
+  document.getElementById('loyers-impayes').textContent = fmtEur(impayes);
+  document.getElementById('loyers-count').textContent = DEMO_LOYERS.length + ' lignes';
+
+  // Show badge
+  const totalImpayes = DEMO_LOYERS.filter(l => l.statut === 'impaye' || l.statut === 'retard').length;
+  const badge = document.getElementById('impayes-badge');
+  if (totalImpayes > 0) { badge.textContent = totalImpayes; badge.style.display = 'inline'; }
+
+  const statutMap = { paye:{ label:'Paye', cls:'badge-ok' }, retard:{ label:'En retard', cls:'badge-warn' }, impaye:{ label:'Impaye', cls:'badge-crit' } };
+
+  tbody.innerHTML = DEMO_LOYERS.map(l => {
+    const st = statutMap[l.statut] || { label:l.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(l.locataire)}</td>
+      <td style="font-size:12px;">${esc(l.bien)}</td>
+      <td style="font-family:var(--mono);">${fmtEur(l.loyer)}</td>
+      <td style="font-family:var(--mono);">${fmtEur(l.charges)}</td>
+      <td style="font-family:var(--mono);font-weight:600;">${fmtEur(l.total)}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td>${l.date_paiement ? formatDate(l.date_paiement) : '<span style="color:var(--muted);">--</span>'}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Quittance PDF" aria-label="Quittance PDF" onclick="showToast('Generation quittance PDF -- fonctionnalite a venir')">&#x1F4C4;</button>
+          ${l.statut !== 'paye' ? '<button class="icon-btn del" title="Relancer" aria-label="Relancer" onclick="showToast(\'Relance impaye envoyee\')">&#x1F4E7;</button>' : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: CHARGES & TRAVAUX
+// ═══════════════════════════════════
+function renderCharges() {
+  const chargesTotal = DEMO_CHARGES.reduce((s, c) => {
+    if (c.periodicite === 'Trimestriel') return s + c.montant * 4;
+    return s + c.montant;
+  }, 0);
+  const travauxEncours = DEMO_TRAVAUX.filter(t => t.statut === 'en_cours').length;
+  const travauxPlanifies = DEMO_TRAVAUX.filter(t => t.statut === 'planifie').length;
+  const budgetTravaux = DEMO_TRAVAUX.reduce((s, t) => s + t.devis, 0);
+
+  document.getElementById('charges-total').textContent = fmtEur(chargesTotal);
+  document.getElementById('travaux-encours').textContent = travauxEncours;
+  document.getElementById('travaux-planifies').textContent = travauxPlanifies;
+  document.getElementById('travaux-budget').textContent = fmtEur(budgetTravaux);
+
+  const chargesStatut = { paye:{ label:'Paye', cls:'badge-ok' }, a_payer:{ label:'A payer', cls:'badge-warn' } };
+
+  document.getElementById('charges-body').innerHTML = DEMO_CHARGES.map(c => {
+    const st = chargesStatut[c.statut] || { label:c.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-size:12px;">${esc(c.bien)}</td>
+      <td><span class="badge badge-accent">${esc(c.type)}</span></td>
+      <td>${esc(c.desc)}</td>
+      <td style="font-family:var(--mono);font-weight:600;">${fmtEur(c.montant)}</td>
+      <td style="font-size:12px;color:var(--muted);">${esc(c.periodicite)}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+    </tr>`;
+  }).join('');
+
+  const travauxStatut = { en_cours:{ label:'En cours', cls:'badge-warn' }, planifie:{ label:'Planifie', cls:'badge-blue' }, termine:{ label:'Termine', cls:'badge-ok' } };
+
+  document.getElementById('travaux-body').innerHTML = DEMO_TRAVAUX.map(t => {
+    const st = travauxStatut[t.statut] || { label:t.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-size:12px;">${esc(t.bien)}</td>
+      <td style="font-weight:500;">${esc(t.nature)}</td>
+      <td style="font-size:12px;">${esc(t.prestataire)}</td>
+      <td style="font-family:var(--mono);">${fmtEur(t.devis)}</td>
+      <td style="font-family:var(--mono);">${t.facture ? fmtEur(t.facture) : '<span style="color:var(--muted);">--</span>'}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir devis" aria-label="Voir devis" onclick="showToast('Devis -- fonctionnalite a venir')">&#x1F4C4;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: COMPTABILITE SCI
+// ═══════════════════════════════════
+function renderCompta() {
+  const recettesAnnuelles = DEMO_BIENS.filter(b => b.statut === 'loue').reduce((s, b) => s + b.loyer * 12, 0);
+  const chargesDeductibles = 18200; // Estimation
+  const resultat = recettesAnnuelles - chargesDeductibles;
+  const nbAssocies = DEMO_ASSOCIES.length;
+
+  document.getElementById('compta-recettes').textContent = fmtEur(recettesAnnuelles);
+  document.getElementById('compta-charges').textContent = fmtEur(chargesDeductibles);
+  document.getElementById('compta-resultat').textContent = fmtEur(resultat);
+  document.getElementById('compta-par-associe').textContent = fmtEur(Math.round(resultat / nbAssocies));
+
+  // Bilan simplifie
+  const valeurPatrimoine = DEMO_BIENS.reduce((s, b) => s + b.valeur, 0);
+  const capitalSocial = 10000;
+  const comptesCourants = DEMO_ASSOCIES.reduce((s, a) => s + a.cc, 0);
+  const emprunt = 320000;
+  document.getElementById('compta-bilan').innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:10px;">ACTIF</div>
+    <div class="summary-row"><span class="summary-row-label">Immobilisations (biens)</span><span class="summary-row-value">${fmtEur(valeurPatrimoine)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Tresorerie</span><span class="summary-row-value">${fmtEur(34560)}</span></div>
+    <div style="font-size:12px;font-weight:600;color:var(--accent);margin:14px 0 10px;">PASSIF</div>
+    <div class="summary-row"><span class="summary-row-label">Capital social</span><span class="summary-row-value">${fmtEur(capitalSocial)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Comptes courants associes</span><span class="summary-row-value">${fmtEur(comptesCourants)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Emprunts bancaires</span><span class="summary-row-value">${fmtEur(emprunt)}</span></div>
+  `;
+
+  // Compte de resultat
+  document.getElementById('compta-resultat-detail').innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:10px;">PRODUITS</div>
+    <div class="summary-row"><span class="summary-row-label">Loyers encaisses</span><span class="summary-row-value" style="color:var(--green);">${fmtEur(recettesAnnuelles)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Provisions charges locataires</span><span class="summary-row-value" style="color:var(--green);">${fmtEur(6540)}</span></div>
+    <div style="font-size:12px;font-weight:600;color:var(--red);margin:14px 0 10px;">CHARGES</div>
+    <div class="summary-row"><span class="summary-row-label">Charges de copropriete</span><span class="summary-row-value" style="color:var(--red);">${fmtEur(5800)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Interets d'emprunt</span><span class="summary-row-value" style="color:var(--red);">${fmtEur(7200)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Assurances</span><span class="summary-row-value" style="color:var(--red);">${fmtEur(1830)}</span></div>
+    <div class="summary-row"><span class="summary-row-label">Travaux deductibles</span><span class="summary-row-value" style="color:var(--red);">${fmtEur(3370)}</span></div>
+    <div style="border-top:2px solid var(--accent);margin-top:10px;padding-top:10px;">
+      <div class="summary-row"><span class="summary-row-label" style="font-weight:600;">RESULTAT NET</span><span class="summary-row-value" style="color:var(--accent);font-size:16px;">${fmtEur(resultat)}</span></div>
+    </div>
+  `;
+
+  // Repartition associes
+  document.getElementById('compta-repartition').innerHTML = DEMO_ASSOCIES.map(a => {
+    const pct = ((a.parts / a.total_parts) * 100).toFixed(0);
+    const quotepart = Math.round(resultat * a.parts / a.total_parts);
+    return `<div class="summary-row">
+      <span class="summary-row-label">${esc(a.nom)} (${pct}%)</span>
+      <span class="summary-row-value" style="color:var(--accent);">${fmtEur(quotepart)}</span>
+    </div>`;
+  }).join('');
+
+  // Obligations fiscales
+  document.getElementById('compta-fiscal').innerHTML = `
+    <div class="summary-row"><span class="summary-row-label">Declaration 2072</span><span class="summary-row-value"><span class="badge badge-warn">A deposer</span></span></div>
+    <div class="summary-row"><span class="summary-row-label">Date limite</span><span class="summary-row-value">15/05/2026</span></div>
+    <div class="summary-row"><span class="summary-row-label">Regime TVA</span><span class="summary-row-value"><span class="badge badge-accent">Non assujetti</span></span></div>
+    <div class="summary-row"><span class="summary-row-label">Regime fiscal</span><span class="summary-row-value"><span class="badge badge-ok">IR (transparent)</span></span></div>
+    <div class="summary-row"><span class="summary-row-label">CFE</span><span class="summary-row-value"><span class="badge badge-ok">Payee</span></span></div>
+  `;
+}
+
+// ═══════════════════════════════════
+// RENDER: DOCUMENTS
+// ═══════════════════════════════════
+function renderDocuments() {
+  const tbody = document.getElementById('documents-body');
+  const search = (document.getElementById('search-documents')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('filter-doc-type')?.value || '';
+
+  let filtered = DEMO_DOCUMENTS.filter(d => {
+    if (search && !d.nom.toLowerCase().includes(search)) return false;
+    if (typeFilter && d.type !== typeFilter) return false;
+    return true;
+  });
+
+  document.getElementById('documents-count').textContent = filtered.length + ' document' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun document trouve</td></tr>';
+    return;
+  }
+
+  const typeLabels = { bail:'Bail', edl:'Etat des lieux', diagnostic:'Diagnostic', assurance:'Assurance', pv_ag:'PV d\'AG' };
+  const typeClasses = { bail:'badge-accent', edl:'badge-blue', diagnostic:'badge-purple', assurance:'badge-ok', pv_ag:'badge-warn' };
+  const statutMap = { actif:{ label:'Actif', cls:'badge-ok' }, valide:{ label:'Valide', cls:'badge-ok' }, expire:{ label:'Expire', cls:'badge-crit' }, archive:{ label:'Archive', cls:'badge-blue' } };
+
+  tbody.innerHTML = filtered.map(d => {
+    const st = statutMap[d.statut] || { label:d.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(d.nom)}</td>
+      <td><span class="badge ${typeClasses[d.type] || 'badge-accent'}">${typeLabels[d.type] || d.type}</span></td>
+      <td style="font-size:12px;">${esc(d.bien)}</td>
+      <td>${formatDate(d.date)}</td>
+      <td>${d.echeance ? formatDate(d.echeance) : '<span style="color:var(--muted);">--</span>'}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Telecharger" aria-label="Telecharger" onclick="showToast('Telechargement -- fonctionnalite a venir')">&#x1F4E5;</button>
+          <button class="icon-btn" title="Voir" aria-label="Voir" onclick="showToast('Apercu document -- fonctionnalite a venir')">&#x1F441;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterDocuments() { renderDocuments(); }
+
+// ═══════════════════════════════════
+// RENDER: ASSOCIES
+// ═══════════════════════════════════
+function renderAssocies() {
+  const capitalSocial = 10000;
+  const totalCC = DEMO_ASSOCIES.reduce((s, a) => s + a.cc, 0);
+  const totalDividendes = DEMO_ASSOCIES.reduce((s, a) => s + a.dividendes_2025, 0);
+
+  document.getElementById('assoc-capital').textContent = fmtEur(capitalSocial);
+  document.getElementById('assoc-nombre').textContent = DEMO_ASSOCIES.length;
+  document.getElementById('assoc-cc').textContent = fmtEur(totalCC);
+  document.getElementById('assoc-dividendes').textContent = fmtEur(totalDividendes);
+  document.getElementById('associes-count').textContent = DEMO_ASSOCIES.length + ' associe' + (DEMO_ASSOCIES.length > 1 ? 's' : '');
+
+  const roleMap = { Gerant:{ cls:'badge-accent' }, Associee:{ cls:'badge-ok' }, Associe:{ cls:'badge-ok' } };
+
+  document.getElementById('associes-body').innerHTML = DEMO_ASSOCIES.map(a => {
+    const pct = ((a.parts / a.total_parts) * 100).toFixed(0);
+    const rm = roleMap[a.role] || { cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(a.nom)}</td>
+      <td style="font-family:var(--mono);">${a.parts} / ${a.total_parts}</td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-bar" style="max-width:80px;"><div class="progress-fill" style="width:${pct}%;background:var(--accent);"></div></div>
+          <span style="font-family:var(--mono);font-size:12px;">${pct}%</span>
+        </div>
+      </td>
+      <td style="font-family:var(--mono);">${fmtEur(a.cc)}</td>
+      <td style="font-family:var(--mono);">${fmtEur(a.dividendes_2025)}</td>
+      <td><span class="badge ${rm.cls}">${esc(a.role)}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Fiche associe" aria-label="Fiche associe" onclick="showToast('Fiche associe -- fonctionnalite a venir')">&#x1F4C4;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// MODAL ACTIONS
+// ═══════════════════════════════════
+function ajouterBien() {
+  showToast('Bien ajoute avec succes');
+  fermerModal('modal-bien');
+}
+
+function ajouterCharge() {
+  showToast('Charge enregistree avec succes');
+  fermerModal('modal-charge');
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  renderDashboard();
+  renderBiens();
+  renderLocataires();
+  renderLoyers();
+  renderCharges();
+  renderCompta();
+  renderDocuments();
+  renderAssocies();
+});
+</script>
+</body>
+</html>

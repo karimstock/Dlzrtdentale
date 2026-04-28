@@ -138,19 +138,9 @@ global.jadomiCache = { get: getCached, map: _cache };
 
 // === Monitoring: health endpoint (bypass rate limit) ===
 app.get('/api/health', (req, res) => {
-  const mem = process.memoryUsage();
   res.json({
     status: 'ok',
-    uptime: Math.floor(process.uptime()),
-    memory: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
-    memory_details: {
-      rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
-      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
-      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB'
-    },
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    env: process.env.NODE_ENV || 'development'
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -251,7 +241,8 @@ app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
 // Servir /assets depuis /public/assets (pour les images landings)
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 // Servir les fichiers SQL pour copier-coller dans Supabase Dashboard
-app.use('/sql/vitrines', express.static(path.join(__dirname, 'sql/vitrines')));
+// SECURITY: SQL static serving removed (Passe 59 security fix)
+// app.use('/sql/vitrines', express.static(path.join(__dirname, 'sql/vitrines')));
 // Serve /docs but BLOCK sensitive subdirectories (signed PDFs, audit trails, certificates)
 app.use('/docs', (req, res, next) => {
   const blocked = ['/signed', '/audit', '/certificates'];
@@ -1357,7 +1348,7 @@ body{font-family:'DM Sans',sans-serif;background:#0f0e0d;color:#f0ede8;min-heigh
     <div class="logo">JADOMI</div>
     <div style="font-size:13px;color:#6b6760;">Signature électronique sécurisée</div>
   </div>
-  <div class="doc-wrap" id="doc-content">${doc.contenu_html || ''}</div>
+  <div class="doc-wrap" id="doc-content">${(doc.contenu_html || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/on\w+\s*=/gi, 'data-removed=')}</div>
   <div class="sign-section">
     <div class="sign-title">Signature électronique</div>
     <div class="field">
@@ -1591,6 +1582,7 @@ Reponds UNIQUEMENT en JSON:
 // GET /api/suggestions/admin — List all suggestions
 // =============================================
 app.get('/api/suggestions/admin', requireAuth(), async (req, res) => {
+  if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) return res.status(403).json({error:'Acces refuse'});
   try {
     const { data: suggestions, error } = await supabase
       .from('suggestions')
@@ -1729,7 +1721,7 @@ const scanLookupLimiter = rateLimit({
   message: { error: 'Trop de scans. Réessaye dans 1 minute.' }
 });
 
-app.get('/api/scan/lookup', scanLookupLimiter, async (req, res) => {
+app.get('/api/scan/lookup', requireAuth(), scanLookupLimiter, async (req, res) => {
   const { code, profession } = req.query;
   if (!code) return res.status(400).json({ error: 'code requis' });
 
@@ -1825,7 +1817,7 @@ const scanSearchLimiter = rateLimit({
   message: { error: 'Trop de recherches. Réessaye dans 1 minute.' }
 });
 
-app.get('/api/scan/search', scanSearchLimiter, async (req, res) => {
+app.get('/api/scan/search', requireAuth(), scanSearchLimiter, async (req, res) => {
   const { q, category, limit: limitParam } = req.query;
   if (!q || q.trim().length < 2) {
     return res.status(400).json({ error: 'Paramètre q requis (min 2 caractères)' });
@@ -3230,6 +3222,20 @@ app.get('/sage-femme', (req, res) => res.sendFile(path.join(__dirname, 'public/s
 app.get('/sage-femme/', (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
 app.get('/podologue', (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
 app.get('/podologue/', (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
+app.get('/osteopathe', (req, res) => res.sendFile(path.join(__dirname, 'public/osteopathe/dashboard.html')));
+app.get('/osteopathe/', (req, res) => res.sendFile(path.join(__dirname, 'public/osteopathe/dashboard.html')));
+app.get('/orthophoniste', (req, res) => res.sendFile(path.join(__dirname, 'public/orthophoniste/dashboard.html')));
+app.get('/orthophoniste/', (req, res) => res.sendFile(path.join(__dirname, 'public/orthophoniste/dashboard.html')));
+app.get('/psychomotricien', (req, res) => res.sendFile(path.join(__dirname, 'public/psychomotricien/dashboard.html')));
+app.get('/psychomotricien/', (req, res) => res.sendFile(path.join(__dirname, 'public/psychomotricien/dashboard.html')));
+app.get('/dieteticien', (req, res) => res.sendFile(path.join(__dirname, 'public/dieteticien/dashboard.html')));
+app.get('/dieteticien/', (req, res) => res.sendFile(path.join(__dirname, 'public/dieteticien/dashboard.html')));
+app.get('/sci-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/sci-dashboard/dashboard.html')));
+app.get('/sci-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/sci-dashboard/dashboard.html')));
+app.get('/createur', (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
+app.get('/createur/', (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
+app.get('/bien-etre-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
+app.get('/bien-etre-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
 
 // GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
 app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
@@ -3340,8 +3346,8 @@ app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
 // POST /api/admin/security-scan — Lancer un scan manuel
 app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Acces reserve aux administrateurs JADOMI' });
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
     }
     const { exec } = require('child_process');
     exec('/home/ubuntu/jadomi/scripts/security-scan.sh', { timeout: 300000 }, (err, stdout, stderr) => {
@@ -6445,7 +6451,8 @@ const equipmentUpload = multer({
 }).single('product_image');
 
 // POST /api/equipment/propose — Public: fabricant/revendeur soumet une proposition
-app.post('/api/equipment/propose', (req, res) => {
+const equipmentProposeLimiter = rateLimit({ windowMs: 60*60*1000, max: 5, message: {error:'Trop de propositions, veuillez reessayer plus tard'} });
+app.post('/api/equipment/propose', equipmentProposeLimiter, (req, res) => {
   equipmentUpload(req, res, async (multerErr) => {
     try {
       if (multerErr) {

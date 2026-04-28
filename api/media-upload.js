@@ -13,7 +13,7 @@ const supabase = createClient(
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|webp|svg|gif|avif|mp4|mov|webm|m4v/;
     const ext = path.extname(file.originalname).toLowerCase().replace('.', '');

@@ -80,9 +80,18 @@ module.exports = function (router) {
     try {
       const token = (req.headers.authorization || '').replace('Bearer ', '');
       if (!token) return res.status(401).json({ error: 'Token requis' });
+      const { data: { user }, error: authErr } = await admin().auth.getUser(token);
+      if (authErr || !user) return res.status(401).json({ error: 'Token invalide' });
 
       const { data, error } = await admin().from('staging_sites').select('*').eq('id', req.params.id).single();
       if (error || !data) return res.status(404).json({ error: 'Staging non trouve' });
+
+      // Verify ownership
+      if (data && data.societe_id) {
+        const { data: societe } = await admin().from('societes').select('id').eq('id', data.societe_id).eq('owner_id', user.id).single();
+        if (!societe) return res.status(403).json({ error: 'Acces refuse' });
+      }
+
       return res.json(data);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });

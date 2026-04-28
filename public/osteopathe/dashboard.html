@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#8b5cf6"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Osteopathe — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f0a1e;--surface:#1a1230;--surface2:#231a3e;--border:rgba(139,92,246,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#8b5cf6;--accent-dark:#a78bfa;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── DESKTOP SIDEBAR LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #0a0618 0%, #150e28 50%, #0a0618 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(139,92,246,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color 0.15s;border-radius:var(--radius-sm);}
+.nav-group-title:hover{color:var(--text);}
+.nav-group-arrow{font-size:8px;width:12px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);display:inline-block;}
+.nav-group-arrow.open{transform:rotate(90deg);}
+.nav-group-ico{font-size:14px;}
+.nav-group-items .nav-item{padding-left:40px;font-size:12px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#7c3aed;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── KPI STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(16,185,129,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(139,92,246,0.15);color:var(--accent);}
+.badge-accent{background:rgba(139,92,246,0.15);color:var(--accent);}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+.progress-fill-green{background:var(--green);}
+.progress-fill-amber{background:var(--amber);}
+.progress-fill-red{background:var(--red);}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* ── BAR WRAP (stock qty) ── */
+.bar-wrap{display:flex;align-items:center;gap:8px;}
+.bar{flex:1;height:4px;background:var(--border);border-radius:2px;max-width:70px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width 0.3s cubic-bezier(.16,1,.3,1);}
+.qty-num{font-size:12px;font-family:var(--mono);color:var(--muted);min-width:24px;text-align:right;}
+
+/* ── ACTION BUTTONS ── */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(139,92,246,0.1);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* ── ECHEANCIER ── */
+.ech-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.ech-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.ech-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.ech-patient{font-weight:600;font-size:14px;}
+.ech-amount{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--accent);}
+.ech-detail{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.ech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+
+/* ── TIMELINE CONSULTATIONS ── */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.timeline-item{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);transition:background 0.15s;}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-item:hover{background:var(--surface2);border-radius:var(--radius-sm);}
+.timeline-hour{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);min-width:50px;padding-top:2px;}
+.timeline-bar{width:3px;border-radius:2px;min-height:48px;flex-shrink:0;}
+.timeline-content{flex:1;}
+.timeline-patient{font-weight:600;font-size:14px;}
+.timeline-meta{font-size:12px;color:var(--muted);margin-top:3px;}
+.timeline-badge{margin-top:6px;}
+
+/* ── BILAN CARDS ── */
+.bilan-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.bilan-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .ech-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+  .timeline-item{flex-wrap:wrap;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Osteopathe</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <!-- Tableau de bord -->
+    <div class="nav-group" data-nav-group="tableau-de-bord">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">&#x1F4CA;</span> Tableau de bord
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="nav-item active" onclick="showPage('patients',this)"><span class="ni">&#x1F9D1;</span>Mes patients</div>
+        <div class="nav-item" onclick="showPage('consultations',this)"><span class="ni">&#x23F0;</span>Consultations du jour</div>
+        <div class="nav-item" onclick="showPage('planning',this)"><span class="ni">&#x1F4C5;</span>Planning semaine</div>
+        <div class="nav-item" onclick="showPage('bilans',this)"><span class="ni">&#x1F4CB;</span>Bilans</div>
+      </div>
+    </div>
+
+    <!-- Finances -->
+    <div class="nav-group" data-nav-group="finances">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4B0;</span> Finances
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('paiements',this)"><span class="ni">&#x1F4B3;</span>Paiements<span class="nav-badge" id="retard-badge" style="display:none">0</span></div>
+        <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+        <div class="nav-item" onclick="showPage('stats',this)"><span class="ni">&#x1F4C8;</span>Statistiques</div>
+      </div>
+    </div>
+
+    <!-- Cabinet -->
+    <div class="nav-group" data-nav-group="cabinet">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4E6;</span> Cabinet
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('stock',this)"><span class="ni">&#x1F4E6;</span>Stock materiel</div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Mon cabinet</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Osteopathe</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Mes patients</div>
+    <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>
+    </div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PATIENTS                -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page active" id="page-patients">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Patients actifs</div><div class="stat-value c-accent" id="kpi-patients">--</div><div class="stat-sub">en suivi osteopathique</div></div>
+        <div class="stat"><div class="stat-label">Consultations aujourd'hui</div><div class="stat-value c-green" id="kpi-consults">--</div><div class="stat-sub">programmees</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value" id="kpi-ca">--</div><div class="stat-sub">facturation courante</div></div>
+        <div class="stat"><div class="stat-label">Suivis a relancer</div><div class="stat-value c-amber" id="kpi-relances">--</div><div class="stat-sub">dans les 30 jours</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un patient..." id="search-patients" oninput="filterPatients()" aria-label="Rechercher un patient">
+        </div>
+        <select class="filter-select" id="filter-motif" onchange="filterPatients()" aria-label="Filtrer par motif">
+          <option value="">Tous les motifs</option>
+          <option value="lombalgie">Lombalgie</option>
+          <option value="cervicalgie">Cervicalgie</option>
+          <option value="migraine">Migraine</option>
+          <option value="digestif">Trouble digestif</option>
+          <option value="stress">Stress / Tension</option>
+          <option value="posture">Posture</option>
+          <option value="sport">Sport / Traumatologie</option>
+        </select>
+        <select class="filter-select" id="filter-statut" onchange="filterPatients()" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          <option value="actif">Actif</option>
+          <option value="termine">Termine</option>
+          <option value="a_relancer">A relancer</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des patients</div>
+          <div class="card-count" id="patients-count">0 patients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Motif</th>
+                <th>Nb seances</th>
+                <th>Derniere visite</th>
+                <th>Prochaine</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patients-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : CONSULTATIONS DU JOUR   -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-consultations">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Consultations du jour</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="consult-date-label">--</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalConsult()">+ Nouvelle consultation</button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">Consultations programmees</div><div class="stat-value c-accent" id="cj-total">--</div><div class="stat-sub">aujourd'hui</div></div>
+        <div class="stat"><div class="stat-label">Duree totale</div><div class="stat-value c-green" id="cj-duree">--</div><div class="stat-sub">minutes</div></div>
+        <div class="stat"><div class="stat-label">CA estime</div><div class="stat-value" id="cj-ca">--</div><div class="stat-sub">honoraires jour</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Timeline</div>
+        </div>
+        <div class="card-body">
+          <div class="timeline" id="consult-timeline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PLANNING SEMAINE        -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-planning">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Planning de la semaine</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Creneaux de 30, 45 ou 60 minutes -- codes couleur par type de consultation</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="planningPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="planningToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="planningNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block;"></span> 1ere consultation</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--green);display:inline-block;"></span> Suivi</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--red);display:inline-block;"></span> Urgence</div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" id="planning-grid" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : BILANS                  -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-bilans">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Bilans osteopathiques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Bilans initiaux (anamnese, tests, diagnostic osteo) et bilans de suivi</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="showToast('Export PDF -- fonctionnalite a venir')">&#x1F4C4; Exporter PDF</button>
+          <button class="btn btn-accent" onclick="ouvrirModalBilan()">+ Nouveau bilan</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un bilan..." id="search-bilans" oninput="filterBilans()" aria-label="Rechercher un bilan">
+        </div>
+        <select class="filter-select" id="filter-bilan-type" onchange="filterBilans()" aria-label="Type de bilan">
+          <option value="">Tous les types</option>
+          <option value="initial">Bilan initial (anamnese)</option>
+          <option value="suivi">Bilan de suivi</option>
+          <option value="final">Bilan final</option>
+        </select>
+        <select class="filter-select" id="filter-bilan-statut" onchange="filterBilans()" aria-label="Statut">
+          <option value="">Tous les statuts</option>
+          <option value="a_faire">A faire</option>
+          <option value="en_cours">En cours</option>
+          <option value="termine">Termine</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des bilans</div>
+          <div class="card-count" id="bilans-count">0 bilans</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Type de bilan</th>
+                <th>Date</th>
+                <th>Motif</th>
+                <th>Diagnostic osteo</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bilans-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PAIEMENTS               -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-paiements">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Paiements</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Suivi des honoraires et remboursements mutuelle</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Total facture</div><div class="stat-value c-accent" id="pay-total">--</div><div class="stat-sub">ce mois</div></div>
+        <div class="stat"><div class="stat-label">Paye</div><div class="stat-value c-green" id="pay-paye">--</div><div class="stat-sub">regle par les patients</div></div>
+        <div class="stat"><div class="stat-label">En attente</div><div class="stat-value c-amber" id="pay-attente">--</div><div class="stat-sub">a recevoir</div></div>
+        <div class="stat"><div class="stat-label">En retard</div><div class="stat-value c-red" id="pay-retard">--</div><div class="stat-sub">relance necessaire</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head">
+          <div class="card-title">Echeancier</div>
+          <div class="card-count" id="pay-count">0 lignes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Type consultation</th>
+                <th>Tarif</th>
+                <th>Mutuelle</th>
+                <th>Remboursement</th>
+                <th>Reste a charge</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="paiements-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : COMPTABILITE            -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese mensuelle de votre activite</div>
+        </div>
+        <select class="filter-select" id="compta-mois" onchange="renderCompta()" aria-label="Mois">
+          <option value="2026-04">Avril 2026</option>
+          <option value="2026-03">Mars 2026</option>
+          <option value="2026-02">Fevrier 2026</option>
+          <option value="2026-01">Janvier 2026</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Recettes</div><div class="stat-value c-green" id="compta-recettes">--</div><div class="stat-sub">facturation totale</div></div>
+        <div class="stat"><div class="stat-label">Charges</div><div class="stat-value c-red" id="compta-depenses">--</div><div class="stat-sub">loyer + charges + materiel</div></div>
+        <div class="stat"><div class="stat-label">Benefice net</div><div class="stat-value c-accent" id="compta-net">--</div><div class="stat-sub">resultat mensuel</div></div>
+        <div class="stat"><div class="stat-label">Marge</div><div class="stat-value" id="compta-marge">--</div><div class="stat-sub">pourcentage</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="compta-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par type</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Charges par poste</div></div>
+          <div class="card-body" id="compta-depenses-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : STATISTIQUES            -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-stats">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Statistiques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Indicateurs cles de votre activite osteopathique</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Consultations / semaine</div><div class="stat-value c-accent" id="stat-consult-sem">--</div><div class="stat-sub">moyenne 4 dernieres semaines</div></div>
+        <div class="stat"><div class="stat-label">Taux de presence</div><div class="stat-value c-green" id="stat-presence">--</div><div class="stat-sub">rendez-vous honores</div></div>
+        <div class="stat"><div class="stat-label">CA moyen / consultation</div><div class="stat-value" id="stat-ca-consult">--</div><div class="stat-sub">honoraires moyens</div></div>
+        <div class="stat"><div class="stat-label">Patients nouveaux</div><div class="stat-value c-amber" id="stat-nouveaux">--</div><div class="stat-sub">ce mois-ci</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Repartition par motif</div></div>
+          <div class="card-body" id="stats-motif-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Repartition par type de consultation</div></div>
+          <div class="card-body" id="stats-type-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : STOCK                   -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-stock">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">References</div><div class="stat-value" id="stock-total">--</div><div class="stat-sub">produits en stock</div></div>
+        <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value c-red" id="stock-crit">--</div><div class="stat-sub">action requise</div></div>
+        <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stock-warn">--</div><div class="stat-sub">a surveiller</div></div>
+        <div class="stat"><div class="stat-label">Valeur stock</div><div class="stat-value c-accent" id="stock-valeur">--</div><div class="stat-sub">estimation</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un produit..." id="search-stock" oninput="filterStock()" aria-label="Rechercher un produit">
+        </div>
+        <select class="filter-select" id="filter-stock-cat" onchange="filterStock()" aria-label="Filtrer par categorie">
+          <option value="">Toutes categories</option>
+          <option value="huiles">Huiles essentielles / massage</option>
+          <option value="coussins">Coussins et supports</option>
+          <option value="linge">Linge de cabinet</option>
+          <option value="hygiene">Hygiene et desinfection</option>
+          <option value="materiel">Materiel de cabinet</option>
+          <option value="consommables">Consommables</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Stock materiel cabinet osteopathie</div>
+          <div class="card-count" id="stock-count">0 produits</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Categorie</th>
+                <th>Quantite</th>
+                <th>Seuil</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stock-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('patients',this)" aria-label="Patients"><span class="mnav-icon">&#x1F9D1;</span>Patients</button>
+    <button class="mnav-item" onclick="showPage('consultations',this)" aria-label="Consultations"><span class="mnav-icon">&#x23F0;</span>Consult.</button>
+    <button class="mnav-item" onclick="showPage('planning',this)" aria-label="Planning"><span class="mnav-icon">&#x1F4C5;</span>Planning</button>
+    <button class="mnav-item" onclick="showPage('paiements',this)" aria-label="Paiements"><span class="mnav-icon">&#x1F4B3;</span>Paiem.</button>
+    <button class="mnav-item" onclick="showPage('stock',this)" aria-label="Stock"><span class="mnav-icon">&#x1F4E6;</span>Stock</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouveau patient -->
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal">
+    <div class="modal-title">Nouveau patient</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom</label><input class="form-input" id="pat-nom" placeholder="Nom de famille"></div>
+      <div class="form-field"><label class="form-label">Prenom</label><input class="form-input" id="pat-prenom" placeholder="Prenom"></div>
+      <div class="form-field"><label class="form-label">Date de naissance</label><input class="form-input" id="pat-ddn" type="date"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="pat-tel" placeholder="06 ..."></div>
+      <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="pat-email" placeholder="email@exemple.fr"></div>
+      <div class="form-field">
+        <label class="form-label">Motif de consultation</label>
+        <select class="form-select" id="pat-motif">
+          <option value="lombalgie">Lombalgie</option>
+          <option value="cervicalgie">Cervicalgie</option>
+          <option value="migraine">Migraine</option>
+          <option value="digestif">Trouble digestif</option>
+          <option value="stress">Stress / Tension</option>
+          <option value="posture">Posture</option>
+          <option value="sport">Sport / Traumatologie</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Adresse par</label>
+        <select class="form-select" id="pat-source">
+          <option value="medecin">Medecin traitant</option>
+          <option value="bouche">Bouche a oreille</option>
+          <option value="internet">Internet</option>
+          <option value="autre">Autre professionnel</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Medecin traitant</label><input class="form-input" id="pat-medecin" placeholder="Dr ..."></div>
+      <div class="form-field full"><label class="form-label">Antecedents / Notes</label><input class="form-input" id="pat-notes" placeholder="Antecedents medicaux, chirurgicaux..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-patient')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterPatient()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouvelle consultation -->
+<div class="modal-overlay" id="modal-consult">
+  <div class="modal">
+    <div class="modal-title">Nouvelle consultation</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="cons-patient" placeholder="Nom du patient"></div>
+      <div class="form-field"><label class="form-label">Heure</label><input class="form-input" id="cons-heure" type="time" value="09:00"></div>
+      <div class="form-field">
+        <label class="form-label">Type de consultation</label>
+        <select class="form-select" id="cons-type">
+          <option value="premiere">1ere consultation</option>
+          <option value="suivi">Suivi</option>
+          <option value="urgence">Urgence</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Duree</label>
+        <select class="form-select" id="cons-duree">
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60" selected>60 min</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Motif</label>
+        <select class="form-select" id="cons-motif">
+          <option value="lombalgie">Lombalgie</option>
+          <option value="cervicalgie">Cervicalgie</option>
+          <option value="migraine">Migraine</option>
+          <option value="digestif">Trouble digestif</option>
+          <option value="stress">Stress / Tension</option>
+          <option value="posture">Posture</option>
+          <option value="sport">Sport / Traumatologie</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="cons-notes" placeholder="Observations..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-consult')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterConsult()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau bilan -->
+<div class="modal-overlay" id="modal-bilan">
+  <div class="modal">
+    <div class="modal-title">Nouveau bilan osteopathique</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="bil-patient" placeholder="Nom du patient"></div>
+      <div class="form-field">
+        <label class="form-label">Type de bilan</label>
+        <select class="form-select" id="bil-type">
+          <option value="initial">Bilan initial (anamnese + tests)</option>
+          <option value="suivi">Bilan de suivi</option>
+          <option value="final">Bilan final</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Date</label><input class="form-input" id="bil-date" type="date"></div>
+      <div class="form-field full"><label class="form-label">Diagnostic osteopathique</label><input class="form-input" id="bil-diag" placeholder="Dysfonctions somatiques identifiees..."></div>
+      <div class="form-field full"><label class="form-label">Tests realises</label><input class="form-input" id="bil-tests" placeholder="Tests de mobilite, palpation, ecoute..."></div>
+      <div class="form-field full"><label class="form-label">Observations</label><input class="form-input" id="bil-notes" placeholder="Observations cliniques..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-bilan')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerBilan()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// AUTH CHECK
+// ═══════════════════════════════════
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════
+const pageTitles = {
+  patients: 'Mes patients',
+  consultations: 'Consultations du jour',
+  planning: 'Planning semaine',
+  bilans: 'Bilans',
+  paiements: 'Paiements',
+  stock: 'Stock materiel',
+  compta: 'Comptabilite',
+  stats: 'Statistiques'
+};
+
+const pageActions = {
+  patients: '<button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>',
+  consultations: '<button class="btn btn-accent" onclick="ouvrirModalConsult()">+ Nouvelle consultation</button>',
+  bilans: '<button class="btn btn-accent" onclick="ouvrirModalBilan()">+ Nouveau bilan</button>',
+  stock: '<button class="btn btn-accent" onclick="ouvrirModalStock()">+ Ajouter produit</button>',
+  planning: '',
+  paiements: '',
+  compta: '',
+  stats: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) { el.classList.add('active'); openParentNavGroup(el); }
+  // Lazy render
+  if (id === 'planning' && !planningRendered) renderPlanning();
+  if (id === 'compta') renderCompta();
+  if (id === 'stats') renderStats();
+  if (id === 'consultations') renderConsultations();
+  if (id === 'bilans') renderBilans();
+  if (id === 'paiements') renderPaiements();
+}
+
+// ═══════════════════════════════════
+// NAV GROUP ACCORDION
+// ═══════════════════════════════════
+function toggleNavGroup(title) {
+  const items = title.nextElementSibling;
+  const arrow = title.querySelector('.nav-group-arrow');
+  if (!items) return;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+function openParentNavGroup(el) {
+  const group = el.closest('.nav-group-items');
+  if (group && group.style.display === 'none') {
+    group.style.display = 'block';
+    const arrow = group.previousElementSibling?.querySelector('.nav-group-arrow');
+    if (arrow) arrow.classList.add('open');
+  }
+}
+
+// ═══════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════
+function ouvrirModalPatient() { document.getElementById('modal-patient').classList.add('open'); }
+function ouvrirModalConsult() { document.getElementById('modal-consult').classList.add('open'); }
+function ouvrirModalBilan() { document.getElementById('modal-bilan').classList.add('open'); }
+function ouvrirModalStock() { showToast('Fonctionnalite a venir'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtEur(n) { return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR' }).format(n); }
+function formatDate(d) {
+  if (!d) return '--';
+  const parts = d.split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return d;
+}
+
+// ═══════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════
+const DEMO_PATIENTS = [
+  { id:1, nom:'Martin', prenom:'Claire', ddn:'1988-03-14', tel:'06 12 34 56 78', email:'martin.c@email.fr', motif:'lombalgie', statut:'actif', nb_seances:4, derniere_visite:'2026-04-20', prochaine:'2026-05-04', medecin:'Dr Lefevre', notes:'Lombalgie chronique, blocage L4-L5, amelioration progressive apres 3 seances' },
+  { id:2, nom:'Dubois', prenom:'Antoine', ddn:'1975-09-22', tel:'06 98 76 54 32', email:'dubois.a@email.fr', motif:'cervicalgie', statut:'actif', nb_seances:3, derniere_visite:'2026-04-22', prochaine:'2026-05-06', medecin:'Dr Moreau', notes:'Cervicalgies liees au travail sur ecran, tensions trapezes bilaterales' },
+  { id:3, nom:'Leroy', prenom:'Sophie', ddn:'1992-06-08', tel:'06 11 22 33 44', email:'leroy.s@email.fr', motif:'migraine', statut:'actif', nb_seances:5, derniere_visite:'2026-04-18', prochaine:'2026-05-02', medecin:'Dr Petit', notes:'Migraines recurrentes, restriction mobilite C0-C1, traitement cranien' },
+  { id:4, nom:'Moreau', prenom:'Thomas', ddn:'1983-12-01', tel:'06 55 66 77 88', email:'moreau.t@email.fr', motif:'digestif', statut:'actif', nb_seances:2, derniere_visite:'2026-04-25', prochaine:'2026-05-09', medecin:'Dr Durand', notes:'Troubles digestifs fonctionnels, tensions diaphragmatiques, travail visceral' },
+  { id:5, nom:'Petit', prenom:'Marie', ddn:'1970-04-17', tel:'06 44 33 22 11', email:'petit.m@email.fr', motif:'stress', statut:'actif', nb_seances:6, derniere_visite:'2026-04-15', prochaine:'2026-04-29', medecin:'Dr Lambert', notes:'Stress chronique, tensions musculaires generalisees, approche cranio-sacree' },
+  { id:6, nom:'Roux', prenom:'Julien', ddn:'2000-08-30', tel:'06 77 88 99 00', email:'roux.j@email.fr', motif:'sport', statut:'actif', nb_seances:3, derniere_visite:'2026-04-23', prochaine:'2026-05-07', medecin:'Dr Garcia (sport)', notes:'Entorse cheville recidivante, footballeur, travail proprioceptif + structurel' },
+  { id:7, nom:'Fournier', prenom:'Isabelle', ddn:'1965-11-25', tel:'06 22 11 33 55', email:'fournier.i@email.fr', motif:'posture', statut:'a_relancer', nb_seances:4, derniere_visite:'2026-03-10', prochaine:'', medecin:'Dr Dubois', notes:'Troubles posturaux, scoliose fonctionnelle, douleurs interscapulaires' },
+  { id:8, nom:'Garcia', prenom:'Lucas', ddn:'1995-02-14', tel:'06 66 55 44 33', email:'garcia.l@email.fr', motif:'lombalgie', statut:'termine', nb_seances:3, derniere_visite:'2026-03-20', prochaine:'', medecin:'Dr Lefevre', notes:'Lumbago aigu resolu en 3 seances, reprise activite normale' },
+  { id:9, nom:'Lambert', prenom:'Camille', ddn:'1980-07-19', tel:'06 33 44 55 66', email:'lambert.c@email.fr', motif:'cervicalgie', statut:'actif', nb_seances:2, derniere_visite:'2026-04-24', prochaine:'2026-05-08', medecin:'Dr Martin', notes:'Torticolis recurrent, restriction C2-C3, technique HVBA' },
+  { id:10, nom:'Bernard', prenom:'Emma', ddn:'1998-10-05', tel:'06 99 88 77 66', email:'bernard.e@email.fr', motif:'stress', statut:'a_relancer', nb_seances:2, derniere_visite:'2026-03-05', prochaine:'', medecin:'Dr Petit', notes:'Anxiete somatisee, tensions plexus solaire, approche cranienne' },
+];
+
+const DEMO_CONSULTATIONS = [
+  { id:1, heure:'08:30', patient:'Martin Claire', type:'suivi', motif:'lombalgie', duree:45, notes:'Suivi lombalgie L4-L5, mobilisation articulaire + techniques myofasciales' },
+  { id:2, heure:'09:30', patient:'Dubois Antoine', type:'suivi', motif:'cervicalgie', duree:45, notes:'Travail cervical C3-C5, decontraction trapezes, conseils ergonomie' },
+  { id:3, heure:'10:30', patient:'Nouveau patient', type:'premiere', motif:'lombalgie', duree:60, notes:'1ere consultation, anamnese complete, bilan postural et tests de mobilite' },
+  { id:4, heure:'11:30', patient:'Leroy Sophie', type:'suivi', motif:'migraine', duree:45, notes:'Traitement cranien C0-C1, liberation membranes durales' },
+  { id:5, heure:'14:00', patient:'Moreau Thomas', type:'suivi', motif:'digestif', duree:45, notes:'Travail visceral, liberation diaphragme, techniques peritoneal' },
+  { id:6, heure:'15:00', patient:'Roux Julien', type:'urgence', motif:'sport', duree:30, notes:'Blocage dorsal aigu apres match, manipulation T5-T7' },
+  { id:7, heure:'15:45', patient:'Petit Marie', type:'suivi', motif:'stress', duree:45, notes:'Approche cranio-sacree, equilibration generale, relaxation' },
+  { id:8, heure:'16:45', patient:'Lambert Camille', type:'suivi', motif:'cervicalgie', duree:45, notes:'Technique HVBA C2-C3, stretching cervical, proprioception' },
+];
+
+const DEMO_BILANS = [
+  { id:1, patient:'Martin Claire', type:'initial', date:'2026-03-02', motif:'Lombalgie chronique', diagnostic:'Dysfonction somatique L4-L5, restriction flexion-extension, hypertonie paravertebraux', statut:'termine', tests:'Flexion lombaire limitee, Lasegue negatif, reflexes OK, hypertonie paravertebrale bilaterale' },
+  { id:2, patient:'Dubois Antoine', type:'initial', date:'2026-03-15', motif:'Cervicalgies professionnelles', diagnostic:'Restriction C3-C5 en rotation droite, contracture trapezes sup bilaterale, dysfonction T1-T3', statut:'termine', tests:'Rotation cervicale D limitee 50%, compression test negatif, trapezes hypertoniques' },
+  { id:3, patient:'Leroy Sophie', type:'initial', date:'2026-02-10', motif:'Migraines recurrentes', diagnostic:'Restriction C0-C1 en extension, tension SSB, dysfonction temporale gauche', statut:'termine', tests:'MRP diminue, restriction cranienne palpable, test de Mitchell positif C0-C1' },
+  { id:4, patient:'Martin Claire', type:'suivi', date:'2026-04-20', motif:'Lombalgie chronique', diagnostic:'Amelioration mobilite L4-L5, hypertonie residuelle droite, flexion en progres', statut:'termine', tests:'Flexion lombaire amelioree +15deg, EVA 3/10 (vs 7/10 initial)' },
+  { id:5, patient:'Moreau Thomas', type:'initial', date:'2026-04-11', motif:'Troubles digestifs fonctionnels', diagnostic:'Restriction mobilite diaphragmatique, tension peritoneale, dysfonction D12-L1', statut:'termine', tests:'Palpation abdominale : tension quadrant sup droit, diaphragme en inspiration, mobilite viscerale reduite' },
+  { id:6, patient:'Roux Julien', type:'initial', date:'2026-04-02', motif:'Entorse cheville recidivante', diagnostic:'Restriction tibioperoneale inf, dysfonction astragale, desequilibre proprioceptif', statut:'termine', tests:'Tiroir anterieur negatif, restriction dorsiflexion 10deg, proprioception deficitaire unipodal' },
+  { id:7, patient:'Petit Marie', type:'suivi', date:'2026-04-15', motif:'Stress chronique', diagnostic:'Amelioration rythme cranio-sacre, persistance tensions cervico-dorsales', statut:'termine', tests:'MRP ameliore, tensions reduites, sommeil ameliore selon patiente' },
+  { id:8, patient:'Leroy Sophie', type:'suivi', date:'2026-05-02', motif:'Migraines recurrentes', diagnostic:'', statut:'a_faire', tests:'' },
+  { id:9, patient:'Dubois Antoine', type:'suivi', date:'2026-05-06', motif:'Cervicalgies professionnelles', diagnostic:'', statut:'a_faire', tests:'' },
+  { id:10, patient:'Moreau Thomas', type:'suivi', date:'2026-05-09', motif:'Troubles digestifs fonctionnels', diagnostic:'', statut:'a_faire', tests:'' },
+];
+
+const DEMO_PAIEMENTS = [
+  { id:1, patient:'Martin Claire', type:'suivi', tarif:50, mutuelle:'MGEN', remboursement:25, reste:25, statut:'paye', date:'2026-04-20' },
+  { id:2, patient:'Dubois Antoine', type:'suivi', tarif:50, mutuelle:'Harmonie', remboursement:30, reste:20, statut:'paye', date:'2026-04-22' },
+  { id:3, patient:'Leroy Sophie', type:'suivi', tarif:50, mutuelle:'AXA Sante', remboursement:20, reste:30, statut:'paye', date:'2026-04-18' },
+  { id:4, patient:'Moreau Thomas', type:'premiere', tarif:60, mutuelle:'MAAF', remboursement:25, reste:35, statut:'paye', date:'2026-04-25' },
+  { id:5, patient:'Petit Marie', type:'suivi', tarif:50, mutuelle:'Groupama', remboursement:15, reste:35, statut:'en_attente', date:'2026-04-15' },
+  { id:6, patient:'Roux Julien', type:'urgence', tarif:70, mutuelle:'Swiss Life', remboursement:30, reste:40, statut:'paye', date:'2026-04-23' },
+  { id:7, patient:'Lambert Camille', type:'suivi', tarif:50, mutuelle:'AG2R', remboursement:25, reste:25, statut:'en_attente', date:'2026-04-24' },
+  { id:8, patient:'Fournier Isabelle', type:'suivi', tarif:50, mutuelle:'MGEN', remboursement:25, reste:25, statut:'retard', date:'2026-03-10' },
+  { id:9, patient:'Garcia Lucas', type:'suivi', tarif:50, mutuelle:'Harmonie', remboursement:30, reste:20, statut:'paye', date:'2026-03-20' },
+  { id:10, patient:'Bernard Emma', type:'suivi', tarif:50, mutuelle:'AXA Sante', remboursement:20, reste:30, statut:'retard', date:'2026-03-05' },
+  { id:11, patient:'Nouveau patient', type:'premiere', tarif:60, mutuelle:'MAAF', remboursement:25, reste:35, statut:'en_attente', date:'2026-04-27' },
+];
+
+const DEMO_STOCK = [
+  { id:1, nom:'Huile de massage neutre 500ml', cat:'huiles', qte:8, seuil:4, prix:14.00 },
+  { id:2, nom:'Huile essentielle lavande 30ml', cat:'huiles', qte:5, seuil:3, prix:12.00 },
+  { id:3, nom:'Huile essentielle gaultherie 30ml', cat:'huiles', qte:3, seuil:3, prix:11.00 },
+  { id:4, nom:'Huile arnica 250ml', cat:'huiles', qte:6, seuil:3, prix:15.00 },
+  { id:5, nom:'Coussin demi-lune cervical', cat:'coussins', qte:4, seuil:2, prix:28.00 },
+  { id:6, nom:'Coussin de positionnement genoux', cat:'coussins', qte:3, seuil:2, prix:22.00 },
+  { id:7, nom:'Coussin lombaire ajustable', cat:'coussins', qte:2, seuil:2, prix:35.00 },
+  { id:8, nom:'Draps d\'examen (rouleau 50m)', cat:'linge', qte:10, seuil:5, prix:9.00 },
+  { id:9, nom:'Serviettes microfibre (lot 5)', cat:'linge', qte:6, seuil:3, prix:18.00 },
+  { id:10, nom:'Housses de table lavables (lot 3)', cat:'linge', qte:4, seuil:2, prix:25.00 },
+  { id:11, nom:'Spray desinfectant surfaces 750ml', cat:'hygiene', qte:5, seuil:3, prix:6.50 },
+  { id:12, nom:'Gel hydroalcoolique 500ml', cat:'hygiene', qte:7, seuil:4, prix:5.00 },
+  { id:13, nom:'Lingettes desinfectantes (boite 100)', cat:'hygiene', qte:8, seuil:4, prix:8.00 },
+  { id:14, nom:'Modele anatomique colonne vertebrale', cat:'materiel', qte:1, seuil:1, prix:85.00 },
+  { id:15, nom:'Modele anatomique crane osteo', cat:'materiel', qte:1, seuil:1, prix:120.00 },
+  { id:16, nom:'Gants d\'examen (boite 100)', cat:'consommables', qte:12, seuil:5, prix:7.00 },
+  { id:17, nom:'K-tape kinesiology (rouleau 5m)', cat:'consommables', qte:6, seuil:3, prix:9.50 },
+];
+
+// ═══════════════════════════════════
+// LABEL HELPERS
+// ═══════════════════════════════════
+function motifLabel(m) {
+  const map = {
+    lombalgie: { label:'Lombalgie', cls:'badge-purple' },
+    cervicalgie: { label:'Cervicalgie', cls:'badge-blue' },
+    migraine: { label:'Migraine', cls:'badge-warn' },
+    digestif: { label:'Trouble digestif', cls:'badge-accent' },
+    stress: { label:'Stress / Tension', cls:'badge-ok' },
+    posture: { label:'Posture', cls:'badge-blue' },
+    sport: { label:'Sport', cls:'badge-crit' }
+  };
+  const entry = map[m] || { label:m, cls:'badge-ok' };
+  return `<span class="badge ${entry.cls}">${entry.label}</span>`;
+}
+
+function statutLabel(s) {
+  const map = {
+    actif: { label:'Actif', cls:'badge-ok' },
+    termine: { label:'Termine', cls:'badge-blue' },
+    a_relancer: { label:'A relancer', cls:'badge-warn' },
+    pause: { label:'En pause', cls:'badge-warn' }
+  };
+  const entry = map[s] || { label:s, cls:'badge-ok' };
+  return `<span class="badge ${entry.cls}">${entry.label}</span>`;
+}
+
+function typeConsultLabel(t) {
+  const map = {
+    premiere: { label:'1ere consultation', cls:'badge-accent' },
+    suivi: { label:'Suivi', cls:'badge-ok' },
+    urgence: { label:'Urgence', cls:'badge-crit' }
+  };
+  const entry = map[t] || { label:t, cls:'badge-ok' };
+  return `<span class="badge ${entry.cls}">${entry.label}</span>`;
+}
+
+function paiementStatutLabel(s) {
+  const map = {
+    paye: { label:'Paye', cls:'badge-ok' },
+    en_attente: { label:'En attente', cls:'badge-warn' },
+    retard: { label:'En retard', cls:'badge-crit' }
+  };
+  const entry = map[s] || { label:s, cls:'badge-ok' };
+  return `<span class="badge ${entry.cls}">${entry.label}</span>`;
+}
+
+// ═══════════════════════════════════
+// RENDER: PATIENTS
+// ═══════════════════════════════════
+let patientsData = [...DEMO_PATIENTS];
+
+function renderPatients() {
+  const tbody = document.getElementById('patients-body');
+  const search = (document.getElementById('search-patients')?.value || '').toLowerCase();
+  const motifFilter = document.getElementById('filter-motif')?.value || '';
+  const statutFilter = document.getElementById('filter-statut')?.value || '';
+
+  let filtered = patientsData.filter(p => {
+    if (search && !(p.nom + ' ' + p.prenom).toLowerCase().includes(search)) return false;
+    if (motifFilter && p.motif !== motifFilter) return false;
+    if (statutFilter && p.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('patients-count').textContent = filtered.length + ' patient' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun patient trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(p.nom)} ${esc(p.prenom)}</div><div style="font-size:11px;color:var(--muted);">${esc(p.email)}</div></td>
+      <td>${motifLabel(p.motif)}</td>
+      <td><span style="font-family:var(--mono);font-size:13px;">${p.nb_seances}</span></td>
+      <td style="font-size:12px;">${formatDate(p.derniere_visite)}</td>
+      <td style="font-size:12px;">${p.prochaine ? formatDate(p.prochaine) : '<span style="color:var(--muted);">--</span>'}</td>
+      <td>${statutLabel(p.statut)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le dossier" aria-label="Voir le dossier" onclick="showToast('Dossier patient -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Bilan" aria-label="Bilan" onclick="showToast('Bilan patient -- a venir')">&#x1F4CB;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPatients() { renderPatients(); }
+
+// ═══════════════════════════════════
+// RENDER: CONSULTATIONS DU JOUR
+// ═══════════════════════════════════
+function renderConsultations() {
+  const today = new Date();
+  document.getElementById('consult-date-label').textContent = today.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  const timeline = document.getElementById('consult-timeline');
+  let totalDuree = 0;
+  let totalCA = 0;
+
+  const tarifs = { premiere: 60, suivi: 50, urgence: 70 };
+
+  DEMO_CONSULTATIONS.forEach(c => {
+    totalDuree += c.duree;
+    totalCA += (tarifs[c.type] || 50);
+  });
+
+  document.getElementById('cj-total').textContent = DEMO_CONSULTATIONS.length;
+  document.getElementById('cj-duree').textContent = totalDuree + ' min';
+  document.getElementById('cj-ca').textContent = fmtEur(totalCA);
+
+  const typeColors = {
+    premiere: 'var(--accent)',
+    suivi: 'var(--green)',
+    urgence: 'var(--red)'
+  };
+
+  const typeLabelsMap = {
+    premiere: '1ere consultation',
+    suivi: 'Suivi',
+    urgence: 'Urgence'
+  };
+
+  if (DEMO_CONSULTATIONS.length === 0) {
+    timeline.innerHTML = '<div class="empty"><div class="empty-icon">&#x23F0;</div><div class="empty-title">Aucune consultation aujourd\'hui</div><div class="empty-sub">Vos consultations du jour apparaitront ici.</div></div>';
+    return;
+  }
+
+  timeline.innerHTML = DEMO_CONSULTATIONS.map(c => {
+    const color = typeColors[c.type] || 'var(--accent)';
+    const typeText = typeLabelsMap[c.type] || c.type;
+    const motifText = c.motif ? (c.motif.charAt(0).toUpperCase() + c.motif.slice(1)) : '';
+    return `<div class="timeline-item">
+      <div class="timeline-hour">${esc(c.heure)}</div>
+      <div class="timeline-bar" style="background:${color};"></div>
+      <div class="timeline-content">
+        <div class="timeline-patient">${esc(c.patient)}</div>
+        <div class="timeline-meta">${typeText} -- ${c.duree} min -- ${motifText}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(c.notes)}</div>
+        <div class="timeline-badge"><span class="badge" style="background:${color}20;color:${color};">${typeText}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: PLANNING SEMAINE
+// ═══════════════════════════════════
+let planningRendered = false;
+let planningWeekOffset = 0;
+
+function renderPlanning() {
+  planningRendered = true;
+  const container = document.getElementById('planning-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + planningWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const creneaux = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+
+  const typeColors = {
+    premiere: 'var(--accent)',
+    suivi: 'var(--green)',
+    urgence: 'var(--red)'
+  };
+
+  const rdvs = [
+    { jour:0, heure:'08:30', duree:45, patient:'Martin Claire', type:'suivi', note:'Lombalgie L4-L5' },
+    { jour:0, heure:'09:30', duree:45, patient:'Dubois Antoine', type:'suivi', note:'Cervicalgie C3-C5' },
+    { jour:0, heure:'10:30', duree:60, patient:'Nouveau patient', type:'premiere', note:'1ere consultation' },
+    { jour:0, heure:'11:30', duree:45, patient:'Leroy Sophie', type:'suivi', note:'Migraine cranien' },
+    { jour:0, heure:'14:00', duree:45, patient:'Moreau Thomas', type:'suivi', note:'Visceral digestif' },
+    { jour:0, heure:'15:00', duree:30, patient:'Roux Julien', type:'urgence', note:'Blocage dorsal aigu' },
+    { jour:0, heure:'15:45', duree:45, patient:'Petit Marie', type:'suivi', note:'Cranio-sacre stress' },
+    { jour:0, heure:'16:45', duree:45, patient:'Lambert Camille', type:'suivi', note:'HVBA cervical' },
+    { jour:1, heure:'08:00', duree:60, patient:'Nouveau patient', type:'premiere', note:'Anamnese + bilan complet' },
+    { jour:1, heure:'09:00', duree:45, patient:'Martin Claire', type:'suivi', note:'Renforcement lombaire' },
+    { jour:1, heure:'10:00', duree:45, patient:'Leroy Sophie', type:'suivi', note:'Suivi migraine' },
+    { jour:1, heure:'14:00', duree:45, patient:'Dubois Antoine', type:'suivi', note:'Ergonomie cervical' },
+    { jour:1, heure:'15:00', duree:45, patient:'Petit Marie', type:'suivi', note:'Relaxation globale' },
+    { jour:2, heure:'08:30', duree:45, patient:'Lambert Camille', type:'suivi', note:'Suivi cervical' },
+    { jour:2, heure:'09:30', duree:60, patient:'Nouveau patient', type:'premiere', note:'Bilan initial complet' },
+    { jour:2, heure:'10:30', duree:45, patient:'Moreau Thomas', type:'suivi', note:'Visceral suivi' },
+    { jour:2, heure:'14:00', duree:45, patient:'Roux Julien', type:'suivi', note:'Cheville proprioception' },
+    { jour:2, heure:'15:00', duree:45, patient:'Martin Claire', type:'suivi', note:'Exercices autonomie' },
+    { jour:3, heure:'08:00', duree:45, patient:'Leroy Sophie', type:'suivi', note:'Cranien C0-C1' },
+    { jour:3, heure:'09:00', duree:30, patient:'Roux Julien', type:'urgence', note:'Douleur post-match' },
+    { jour:3, heure:'09:30', duree:45, patient:'Dubois Antoine', type:'suivi', note:'Mobilisation dorsale' },
+    { jour:3, heure:'14:00', duree:60, patient:'Nouveau patient', type:'premiere', note:'Bilan sport + posture' },
+    { jour:3, heure:'15:00', duree:45, patient:'Petit Marie', type:'suivi', note:'Equilibration cranienne' },
+    { jour:4, heure:'08:30', duree:45, patient:'Martin Claire', type:'suivi', note:'Bilan de suivi' },
+    { jour:4, heure:'09:30', duree:45, patient:'Moreau Thomas', type:'suivi', note:'Diaphragme liberation' },
+    { jour:4, heure:'10:30', duree:45, patient:'Lambert Camille', type:'suivi', note:'Stretching cervical' },
+    { jour:4, heure:'14:00', duree:45, patient:'Dubois Antoine', type:'suivi', note:'Exercices bureau' },
+    { jour:4, heure:'15:00', duree:30, patient:'Roux Julien', type:'urgence', note:'Entorse recidive' },
+    { jour:5, heure:'08:30', duree:60, patient:'Nouveau patient', type:'premiere', note:'Bilan complet' },
+    { jour:5, heure:'09:30', duree:45, patient:'Leroy Sophie', type:'suivi', note:'Suivi migraines' },
+  ];
+
+  let html = '<table style="min-width:900px;">';
+  html += '<thead><tr><th style="width:70px;">Heure</th>';
+  for (let j = 0; j < 6; j++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + j);
+    const isToday = d.toDateString() === today.toDateString();
+    html += `<th style="${isToday ? 'color:var(--accent);' : ''}">${jours[j]} ${d.getDate()}/${d.getMonth()+1}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  creneaux.forEach(h => {
+    html += `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:6px 10px;">${h}</td>`;
+    for (let j = 0; j < 6; j++) {
+      const rdv = rdvs.find(r => r.jour === j && r.heure === h);
+      if (rdv) {
+        const color = typeColors[rdv.type] || 'var(--accent)';
+        html += `<td style="padding:3px;">
+          <div style="background:${color}15;border-left:3px solid ${color};border-radius:6px;padding:6px 8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+            <div style="font-size:11px;font-weight:600;">${esc(rdv.patient)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px;">${rdv.duree}min -- ${esc(rdv.note)}</div>
+          </div>
+        </td>`;
+      } else {
+        html += '<td style="padding:3px;"></td>';
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function planningPrev() { planningWeekOffset--; renderPlanning(); }
+function planningNext() { planningWeekOffset++; renderPlanning(); }
+function planningToday() { planningWeekOffset = 0; renderPlanning(); }
+
+// ═══════════════════════════════════
+// RENDER: BILANS
+// ═══════════════════════════════════
+let bilansData = [...DEMO_BILANS];
+
+function renderBilans() {
+  const tbody = document.getElementById('bilans-body');
+  const search = (document.getElementById('search-bilans')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('filter-bilan-type')?.value || '';
+  const statutFilter = document.getElementById('filter-bilan-statut')?.value || '';
+
+  let filtered = bilansData.filter(b => {
+    if (search && !b.patient.toLowerCase().includes(search)) return false;
+    if (typeFilter && b.type !== typeFilter) return false;
+    if (statutFilter && b.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('bilans-count').textContent = filtered.length + ' bilan' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun bilan trouve</td></tr>';
+    return;
+  }
+
+  const bilanTypeMap = {
+    initial: { label:'Bilan initial', cls:'badge-accent' },
+    suivi: { label:'Bilan de suivi', cls:'badge-blue' },
+    final: { label:'Bilan final', cls:'badge-purple' }
+  };
+  const bilanStatutMap = {
+    termine: { label:'Termine', cls:'badge-ok' },
+    en_cours: { label:'En cours', cls:'badge-warn' },
+    a_faire: { label:'A faire', cls:'badge-crit' }
+  };
+
+  tbody.innerHTML = filtered.map(b => {
+    const bt = bilanTypeMap[b.type] || { label:b.type, cls:'badge-ok' };
+    const bs = bilanStatutMap[b.statut] || { label:b.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(b.patient)}</td>
+      <td><span class="badge ${bt.cls}">${bt.label}</span></td>
+      <td>${formatDate(b.date)}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;">${esc(b.motif)}</td>
+      <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${esc(b.diagnostic)}">${b.diagnostic ? esc(b.diagnostic).substring(0, 60) + (b.diagnostic.length > 60 ? '...' : '') : '<span style="color:var(--muted);">--</span>'}</td>
+      <td><span class="badge ${bs.cls}">${bs.label}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le bilan" aria-label="Voir le bilan" onclick="showToast('Detail bilan -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Exporter PDF" aria-label="Exporter PDF" onclick="showToast('Export PDF -- a venir')">&#x1F4E5;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterBilans() { renderBilans(); }
+
+// ═══════════════════════════════════
+// RENDER: PAIEMENTS
+// ═══════════════════════════════════
+function renderPaiements() {
+  const tbody = document.getElementById('paiements-body');
+  let totalFacture = 0, totalPaye = 0, totalAttente = 0, totalRetard = 0;
+
+  DEMO_PAIEMENTS.forEach(p => {
+    totalFacture += p.tarif;
+    if (p.statut === 'paye') totalPaye += p.tarif;
+    if (p.statut === 'en_attente') totalAttente += p.tarif;
+    if (p.statut === 'retard') totalRetard += p.tarif;
+  });
+
+  document.getElementById('pay-total').textContent = fmtEur(totalFacture);
+  document.getElementById('pay-paye').textContent = fmtEur(totalPaye);
+  document.getElementById('pay-attente').textContent = fmtEur(totalAttente);
+  document.getElementById('pay-retard').textContent = fmtEur(totalRetard);
+  document.getElementById('pay-count').textContent = DEMO_PAIEMENTS.length + ' lignes';
+
+  // Update retard badge
+  const retardCount = DEMO_PAIEMENTS.filter(p => p.statut === 'retard').length;
+  const retardBadge = document.getElementById('retard-badge');
+  if (retardCount > 0) {
+    retardBadge.textContent = retardCount;
+    retardBadge.style.display = 'inline';
+  }
+
+  if (DEMO_PAIEMENTS.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun paiement enregistre</td></tr>';
+    return;
+  }
+
+  const typeMap = { premiere:'1ere consultation (60)', suivi:'Suivi (50)', urgence:'Urgence (70)' };
+
+  tbody.innerHTML = DEMO_PAIEMENTS.map(p => {
+    return `<tr>
+      <td style="font-weight:500;">${esc(p.patient)}</td>
+      <td>${typeMap[p.type] || p.type}</td>
+      <td style="font-family:var(--mono);">${fmtEur(p.tarif)}</td>
+      <td style="font-size:12px;">${esc(p.mutuelle)}</td>
+      <td style="font-family:var(--mono);color:var(--green);">${fmtEur(p.remboursement)}</td>
+      <td style="font-family:var(--mono);color:var(--amber);">${fmtEur(p.reste)}</td>
+      <td>${paiementStatutLabel(p.statut)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: STOCK
+// ═══════════════════════════════════
+let stockData = [...DEMO_STOCK];
+
+function renderStock() {
+  const tbody = document.getElementById('stock-body');
+  const search = (document.getElementById('search-stock')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('filter-stock-cat')?.value || '';
+
+  let filtered = stockData.filter(s => {
+    if (search && !s.nom.toLowerCase().includes(search)) return false;
+    if (catFilter && s.cat !== catFilter) return false;
+    return true;
+  });
+
+  document.getElementById('stock-count').textContent = filtered.length + ' produit' + (filtered.length > 1 ? 's' : '');
+  document.getElementById('stock-total').textContent = stockData.length;
+
+  const critiques = stockData.filter(s => s.qte < s.seuil);
+  const faibles = stockData.filter(s => s.qte >= s.seuil && s.qte <= s.seuil * 1.5);
+  document.getElementById('stock-crit').textContent = critiques.length;
+  document.getElementById('stock-warn').textContent = faibles.length;
+
+  let valeur = 0;
+  stockData.forEach(s => valeur += s.qte * s.prix);
+  document.getElementById('stock-valeur').textContent = fmtEur(valeur);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucun produit trouve</td></tr>';
+    return;
+  }
+
+  const catNames = { huiles:'Huiles', coussins:'Coussins', linge:'Linge', hygiene:'Hygiene', materiel:'Materiel', consommables:'Consommables' };
+
+  tbody.innerHTML = filtered.map(s => {
+    const pct = Math.min(100, Math.round((s.qte / (s.seuil * 3)) * 100));
+    let statut, barColor;
+    if (s.qte < s.seuil) { statut = '<span class="badge badge-crit">Critique</span>'; barColor = 'var(--red)'; }
+    else if (s.qte <= s.seuil * 1.5) { statut = '<span class="badge badge-warn">Faible</span>'; barColor = 'var(--amber)'; }
+    else { statut = '<span class="badge badge-ok">OK</span>'; barColor = 'var(--green)'; }
+
+    return `<tr>
+      <td style="font-weight:500;">${esc(s.nom)}</td>
+      <td><span class="badge badge-accent">${catNames[s.cat] || s.cat}</span></td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${barColor};"></div></div>
+          <div class="qty-num">${s.qte}</div>
+        </div>
+      </td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">${s.seuil}</td>
+      <td>${statut}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Commander" aria-label="Commander" onclick="showToast('Commande -- a venir')">&#x1F6D2;</button>
+          <button class="icon-btn del" title="Supprimer" aria-label="Supprimer" onclick="showToast('Suppression -- a venir')">&#x1F5D1;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterStock() { renderStock(); }
+
+// ═══════════════════════════════════
+// RENDER: COMPTABILITE
+// ═══════════════════════════════════
+function renderCompta() {
+  const mois = document.getElementById('compta-mois')?.value || '2026-04';
+
+  const comptaData = {
+    '2026-04': {
+      recettes: { premieres: 480, suivis: 2400, urgences: 280 },
+      depenses: { loyer: 900, charges: 250, assurance: 180, materiel: 120, formation: 150 }
+    },
+    '2026-03': {
+      recettes: { premieres: 420, suivis: 2200, urgences: 210 },
+      depenses: { loyer: 900, charges: 250, assurance: 180, materiel: 85, formation: 0 }
+    },
+    '2026-02': {
+      recettes: { premieres: 360, suivis: 1950, urgences: 140 },
+      depenses: { loyer: 900, charges: 250, assurance: 180, materiel: 65, formation: 300 }
+    },
+    '2026-01': {
+      recettes: { premieres: 300, suivis: 1800, urgences: 210 },
+      depenses: { loyer: 900, charges: 250, assurance: 180, materiel: 95, formation: 0 }
+    }
+  };
+
+  const data = comptaData[mois] || comptaData['2026-04'];
+  const totalRecettes = Object.values(data.recettes).reduce((a,b) => a+b, 0);
+  const totalDepenses = Object.values(data.depenses).reduce((a,b) => a+b, 0);
+  const net = totalRecettes - totalDepenses;
+  const marge = totalRecettes > 0 ? Math.round((net / totalRecettes) * 100) : 0;
+
+  document.getElementById('compta-recettes').textContent = fmtEur(totalRecettes);
+  document.getElementById('compta-depenses').textContent = fmtEur(totalDepenses);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+  document.getElementById('compta-marge').textContent = marge + '%';
+  document.getElementById('compta-marge').style.color = marge >= 50 ? 'var(--green)' : marge >= 30 ? 'var(--amber)' : 'var(--red)';
+
+  const recLabels = { premieres:'1eres consultations (60)', suivis:'Suivis (50)', urgences:'Urgences (70)' };
+  const depLabels = { loyer:'Loyer cabinet', charges:'Charges (eau, elec, internet)', assurance:'Assurance RCP', materiel:'Materiel et fournitures', formation:'Formation continue' };
+
+  document.getElementById('compta-recettes-detail').innerHTML = Object.entries(data.recettes).map(([k,v]) => {
+    const pct = totalRecettes > 0 ? Math.round((v/totalRecettes)*100) : 0;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-size:13px;font-weight:500;">${recLabels[k] || k}</div><div style="font-size:11px;color:var(--muted);">${pct}% du total</div></div>
+      <div style="font-family:var(--mono);font-weight:600;color:var(--green);">${fmtEur(v)}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('compta-depenses-detail').innerHTML = Object.entries(data.depenses).map(([k,v]) => {
+    const pct = totalDepenses > 0 ? Math.round((v/totalDepenses)*100) : 0;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-size:13px;font-weight:500;">${depLabels[k] || k}</div><div style="font-size:11px;color:var(--muted);">${pct}% des charges</div></div>
+      <div style="font-family:var(--mono);font-weight:600;color:var(--red);">${fmtEur(v)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: STATISTIQUES
+// ═══════════════════════════════════
+function renderStats() {
+  document.getElementById('stat-consult-sem').textContent = '22';
+  document.getElementById('stat-presence').textContent = '94%';
+  document.getElementById('stat-ca-consult').textContent = fmtEur(53.50);
+  document.getElementById('stat-nouveaux').textContent = '8';
+
+  const motifStats = [
+    { label:'Lombalgie', pct:28, color:'var(--accent)' },
+    { label:'Cervicalgie', pct:22, color:'var(--blue)' },
+    { label:'Migraine', pct:14, color:'var(--amber)' },
+    { label:'Stress / Tension', pct:12, color:'var(--green)' },
+    { label:'Trouble digestif', pct:10, color:'var(--purple)' },
+    { label:'Sport', pct:8, color:'var(--red)' },
+    { label:'Posture', pct:6, color:'var(--muted)' }
+  ];
+
+  document.getElementById('stats-motif-detail').innerHTML = motifStats.map(s => {
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:10px;height:10px;border-radius:3px;background:${s.color};flex-shrink:0;"></div>
+      <div style="flex:1;font-size:13px;font-weight:500;">${s.label}</div>
+      <div class="progress-bar" style="max-width:120px;"><div class="progress-fill" style="width:${s.pct}%;background:${s.color};"></div></div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted);min-width:35px;text-align:right;">${s.pct}%</div>
+    </div>`;
+  }).join('');
+
+  const typeStats = [
+    { label:'Suivi', pct:62, color:'var(--green)' },
+    { label:'1ere consultation', pct:28, color:'var(--accent)' },
+    { label:'Urgence', pct:10, color:'var(--red)' }
+  ];
+
+  document.getElementById('stats-type-detail').innerHTML = typeStats.map(s => {
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:10px;height:10px;border-radius:3px;background:${s.color};flex-shrink:0;"></div>
+      <div style="flex:1;font-size:13px;font-weight:500;">${s.label}</div>
+      <div class="progress-bar" style="max-width:120px;"><div class="progress-fill" style="width:${s.pct}%;background:${s.color};"></div></div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted);min-width:35px;text-align:right;">${s.pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// FORM HANDLERS
+// ═══════════════════════════════════
+function ajouterPatient() {
+  const nom = document.getElementById('pat-nom').value.trim();
+  const prenom = document.getElementById('pat-prenom').value.trim();
+  if (!nom || !prenom) { showToast('Veuillez renseigner le nom et le prenom.'); return; }
+
+  const newPatient = {
+    id: patientsData.length + 1,
+    nom,
+    prenom,
+    ddn: document.getElementById('pat-ddn').value,
+    tel: document.getElementById('pat-tel').value,
+    email: document.getElementById('pat-email').value,
+    motif: document.getElementById('pat-motif').value,
+    statut: 'actif',
+    nb_seances: 1,
+    derniere_visite: new Date().toISOString().split('T')[0],
+    prochaine: '',
+    medecin: document.getElementById('pat-medecin').value,
+    notes: document.getElementById('pat-notes').value
+  };
+
+  patientsData.unshift(newPatient);
+  renderPatients();
+  updateKPIs();
+  fermerModal('modal-patient');
+  showToast('Patient ajoute avec succes.');
+  // Clear form
+  ['pat-nom','pat-prenom','pat-ddn','pat-tel','pat-email','pat-medecin','pat-notes'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+}
+
+function ajouterConsult() {
+  const patient = document.getElementById('cons-patient').value.trim();
+  if (!patient) { showToast('Veuillez renseigner le nom du patient.'); return; }
+
+  DEMO_CONSULTATIONS.push({
+    id: DEMO_CONSULTATIONS.length + 1,
+    heure: document.getElementById('cons-heure').value,
+    patient,
+    type: document.getElementById('cons-type').value,
+    motif: document.getElementById('cons-motif').value,
+    duree: parseInt(document.getElementById('cons-duree').value),
+    notes: document.getElementById('cons-notes').value
+  });
+
+  renderConsultations();
+  fermerModal('modal-consult');
+  showToast('Consultation ajoutee avec succes.');
+  document.getElementById('cons-patient').value = '';
+  document.getElementById('cons-notes').value = '';
+}
+
+function creerBilan() {
+  const patient = document.getElementById('bil-patient').value.trim();
+  if (!patient) { showToast('Veuillez renseigner le nom du patient.'); return; }
+
+  bilansData.unshift({
+    id: bilansData.length + 1,
+    patient,
+    type: document.getElementById('bil-type').value,
+    date: document.getElementById('bil-date').value || new Date().toISOString().split('T')[0],
+    motif: '',
+    diagnostic: document.getElementById('bil-diag')?.value || '',
+    statut: 'en_cours',
+    tests: document.getElementById('bil-tests')?.value || ''
+  });
+
+  renderBilans();
+  fermerModal('modal-bilan');
+  showToast('Bilan cree avec succes.');
+  ['bil-patient','bil-date','bil-diag','bil-tests','bil-notes'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+}
+
+// ═══════════════════════════════════
+// KPI UPDATE
+// ═══════════════════════════════════
+function updateKPIs() {
+  const actifs = patientsData.filter(p => p.statut === 'actif').length;
+  document.getElementById('kpi-patients').textContent = actifs;
+  document.getElementById('kpi-consults').textContent = DEMO_CONSULTATIONS.length;
+
+  // CA du mois
+  let ca = 0;
+  const tarifs = { premiere: 60, suivi: 50, urgence: 70 };
+  DEMO_PAIEMENTS.forEach(p => { ca += p.tarif; });
+  document.getElementById('kpi-ca').textContent = fmtEur(ca);
+
+  const relances = patientsData.filter(p => p.statut === 'a_relancer').length;
+  document.getElementById('kpi-relances').textContent = relances;
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  updateKPIs();
+  renderPatients();
+  renderConsultations();
+  renderBilans();
+  renderPaiements();
+  renderStock();
+  renderCompta();
+  renderStats();
+});
+</script>
+</body>
+</html>

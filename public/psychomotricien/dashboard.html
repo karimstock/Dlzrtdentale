@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#ec4899"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Psychomotricien — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#1a0a14;--surface:#261020;--surface2:#30142a;--border:rgba(236,72,153,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#ec4899;--accent-dark:#f472b6;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── DESKTOP SIDEBAR LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #1a0610 0%, #2a0f20 50%, #1a0610 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(236,72,153,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color 0.15s;border-radius:var(--radius-sm);}
+.nav-group-title:hover{color:var(--text);}
+.nav-group-arrow{font-size:8px;width:12px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);display:inline-block;}
+.nav-group-arrow.open{transform:rotate(90deg);}
+.nav-group-ico{font-size:14px;}
+.nav-group-items .nav-item{padding-left:40px;font-size:12px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#db2777;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── KPI STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(16,185,129,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+.badge-accent{background:rgba(236,72,153,0.15);color:var(--accent);}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+.progress-fill-green{background:var(--green);}
+.progress-fill-amber{background:var(--amber);}
+.progress-fill-red{background:var(--red);}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* ── BAR WRAP (stock qty) ── */
+.bar-wrap{display:flex;align-items:center;gap:8px;}
+.bar{flex:1;height:4px;background:var(--border);border-radius:2px;max-width:70px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width 0.3s cubic-bezier(.16,1,.3,1);}
+.qty-num{font-size:12px;font-family:var(--mono);color:var(--muted);min-width:24px;text-align:right;}
+
+/* ── ACTION BUTTONS ── */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(236,72,153,0.1);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* ── TIMELINE SEANCES ── */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.timeline-item{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);transition:background 0.15s;}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-item:hover{background:var(--surface2);border-radius:var(--radius-sm);}
+.timeline-hour{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);min-width:50px;padding-top:2px;}
+.timeline-bar{width:3px;border-radius:2px;min-height:48px;flex-shrink:0;}
+.timeline-content{flex:1;}
+.timeline-patient{font-weight:600;font-size:14px;}
+.timeline-meta{font-size:12px;color:var(--muted);margin-top:3px;}
+.timeline-badge{margin-top:6px;}
+
+/* ── EXERCICE CARDS ── */
+.exercice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.exercice-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.exercice-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.exercice-icon{font-size:28px;margin-bottom:10px;}
+.exercice-name{font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;}
+.exercice-desc{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.exercice-tags{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .exercice-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+  .timeline-item{flex-wrap:wrap;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Psychomotricien</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <!-- Tableau de bord -->
+    <div class="nav-group" data-nav-group="tableau-de-bord">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">&#x1F4CA;</span> Tableau de bord
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="nav-item active" onclick="showPage('patients',this)"><span class="ni">&#x1F9D1;</span>Mes patients</div>
+        <div class="nav-item" onclick="showPage('seances',this)"><span class="ni">&#x23F0;</span>Seances du jour</div>
+        <div class="nav-item" onclick="showPage('planning',this)"><span class="ni">&#x1F4C5;</span>Planning semaine</div>
+        <div class="nav-item" onclick="showPage('bilans',this)"><span class="ni">&#x1F4CB;</span>Bilans psychomoteurs</div>
+      </div>
+    </div>
+
+    <!-- Therapie -->
+    <div class="nav-group" data-nav-group="therapie">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F3AF;</span> Therapie
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('exercices',this)"><span class="ni">&#x1F3AE;</span>Exercices &amp; Activites</div>
+      </div>
+    </div>
+
+    <!-- Finances -->
+    <div class="nav-group" data-nav-group="finances">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4B0;</span> Finances
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('paiements',this)"><span class="ni">&#x1F4B3;</span>Paiements</div>
+        <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+      </div>
+    </div>
+
+    <!-- Cabinet -->
+    <div class="nav-group" data-nav-group="cabinet">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4E6;</span> Cabinet
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('stock',this)"><span class="ni">&#x1F4E6;</span>Stock materiel</div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Mon cabinet</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Psychomotricien</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Mes patients</div>
+    <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>
+    </div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PATIENTS                -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page active" id="page-patients">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Patients actifs</div><div class="stat-value c-accent" id="kpi-patients">--</div><div class="stat-sub">en suivi psychomoteur</div></div>
+        <div class="stat"><div class="stat-label">Seances aujourd'hui</div><div class="stat-value c-green" id="kpi-seances">--</div><div class="stat-sub">programmees</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value" id="kpi-ca">--</div><div class="stat-sub">facturation courante</div></div>
+        <div class="stat"><div class="stat-label">Bilans a renouveler</div><div class="stat-value c-amber" id="kpi-bilans">--</div><div class="stat-sub">dans les 30 jours</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un patient..." id="search-patients" oninput="filterPatients()" aria-label="Rechercher un patient">
+        </div>
+        <select class="filter-select" id="filter-patho" onchange="filterPatients()" aria-label="Filtrer par pathologie">
+          <option value="">Toutes pathologies</option>
+          <option value="tdah">TDAH</option>
+          <option value="dyspraxie">Trouble coordination / Dyspraxie</option>
+          <option value="retard">Retard psychomoteur</option>
+          <option value="tsa">Autisme / TSA</option>
+          <option value="tonico">Trouble tonico-emotionnel</option>
+          <option value="grapho">Graphomotricite</option>
+          <option value="geriatrie">Personnes agees</option>
+        </select>
+        <select class="filter-select" id="filter-statut" onchange="filterPatients()" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          <option value="actif">Actif</option>
+          <option value="termine">Termine</option>
+          <option value="pause">En pause</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des patients</div>
+          <div class="card-count" id="patients-count">0 patients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Age</th>
+                <th>Pathologie</th>
+                <th>Nb seances</th>
+                <th>Progression</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patients-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : SEANCES DU JOUR         -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-seances">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Seances du jour</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="seances-date-label">--</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalSeance()">+ Nouvelle seance</button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">Seances programmees</div><div class="stat-value c-accent" id="sj-total">--</div><div class="stat-sub">aujourd'hui</div></div>
+        <div class="stat"><div class="stat-label">Duree totale</div><div class="stat-value c-green" id="sj-duree">--</div><div class="stat-sub">minutes</div></div>
+        <div class="stat"><div class="stat-label">CA estime</div><div class="stat-value" id="sj-ca">--</div><div class="stat-sub">honoraires jour</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Timeline</div>
+        </div>
+        <div class="card-body">
+          <div class="timeline" id="seances-timeline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PLANNING SEMAINE        -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-planning">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Planning de la semaine</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Seances de 30, 45 ou 60 minutes -- codes couleur par type d'activite</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="planningPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="planningToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="planningNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block;"></span> Psychomotricite</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--purple);display:inline-block;"></span> Relaxation</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--blue);display:inline-block;"></span> Graphomotricite</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--amber);display:inline-block;"></span> Bilan</div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" id="planning-grid" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : BILANS PSYCHOMOTEURS    -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-bilans">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Bilans psychomoteurs</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Bilans initiaux, tests standardises (MABC-2, Charlop-Atwell, BHK), comptes-rendus</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalBilan()">+ Nouveau bilan</button>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un bilan..." id="search-bilans" oninput="filterBilans()" aria-label="Rechercher un bilan">
+        </div>
+        <select class="filter-select" id="filter-bilan-type" onchange="filterBilans()" aria-label="Type de bilan">
+          <option value="">Tous les types</option>
+          <option value="initial">Bilan initial</option>
+          <option value="mabc2">Test MABC-2</option>
+          <option value="charlop">Test Charlop-Atwell</option>
+          <option value="bhk">Test BHK (ecriture)</option>
+          <option value="compte_rendu">Compte-rendu</option>
+        </select>
+        <select class="filter-select" id="filter-bilan-statut" onchange="filterBilans()" aria-label="Statut">
+          <option value="">Tous les statuts</option>
+          <option value="a_faire">A faire</option>
+          <option value="en_cours">En cours</option>
+          <option value="termine">Termine</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des bilans</div>
+          <div class="card-count" id="bilans-count">0 bilans</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Type de bilan</th>
+                <th>Test utilise</th>
+                <th>Date</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bilans-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : EXERCICES & ACTIVITES   -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-exercices">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Exercices &amp; Activites</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Bibliotheque d'exercices psychomoteurs -- assignez-les a vos patients</div>
+        </div>
+        <button class="btn btn-accent" onclick="showToast('Ajout d\'exercice -- a venir')">+ Nouvel exercice</button>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un exercice..." id="search-exercices" oninput="filterExercices()" aria-label="Rechercher un exercice">
+        </div>
+        <select class="filter-select" id="filter-exo-cat" onchange="filterExercices()" aria-label="Filtrer par categorie">
+          <option value="">Toutes categories</option>
+          <option value="motricite_fine">Motricite fine</option>
+          <option value="coordination">Coordination</option>
+          <option value="schema_corporel">Schema corporel</option>
+          <option value="relaxation">Relaxation</option>
+          <option value="jeux">Jeux therapeutiques</option>
+          <option value="grapho">Graphomotricite</option>
+        </select>
+      </div>
+
+      <div class="exercice-grid" id="exercices-grid"></div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PAIEMENTS               -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-paiements">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Paiements</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Non conventionne (hors CPAM sauf exceptions) -- tarifs libres, remboursement mutuelle</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Total facture</div><div class="stat-value c-accent" id="pay-total">--</div><div class="stat-sub">ce mois</div></div>
+        <div class="stat"><div class="stat-label">Part mutuelle</div><div class="stat-value c-green" id="pay-mutuelle">--</div><div class="stat-sub">remboursement complementaire</div></div>
+        <div class="stat"><div class="stat-label">Part patient</div><div class="stat-value c-amber" id="pay-patient">--</div><div class="stat-sub">reste a charge</div></div>
+        <div class="stat"><div class="stat-label">Impayes</div><div class="stat-value c-red" id="pay-impayes">--</div><div class="stat-sub">a relancer</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head">
+          <div class="card-title">Suivi des paiements</div>
+          <div class="card-count" id="pay-count">0 lignes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Type de seance</th>
+                <th>Nb seances</th>
+                <th>Tarif seance</th>
+                <th>Total</th>
+                <th>Part mutuelle</th>
+                <th>Part patient</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="paiements-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : COMPTABILITE            -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese mensuelle de votre activite</div>
+        </div>
+        <select class="filter-select" id="compta-mois" onchange="renderCompta()" aria-label="Mois">
+          <option value="2026-04">Avril 2026</option>
+          <option value="2026-03">Mars 2026</option>
+          <option value="2026-02">Fevrier 2026</option>
+          <option value="2026-01">Janvier 2026</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Recettes</div><div class="stat-value c-green" id="compta-recettes">--</div><div class="stat-sub">facturation totale</div></div>
+        <div class="stat"><div class="stat-label">Depenses</div><div class="stat-value c-red" id="compta-depenses">--</div><div class="stat-sub">achats + charges</div></div>
+        <div class="stat"><div class="stat-label">Resultat net</div><div class="stat-value c-accent" id="compta-net">--</div><div class="stat-sub">benefice mensuel</div></div>
+        <div class="stat"><div class="stat-label">Marge</div><div class="stat-value" id="compta-marge">--</div><div class="stat-sub">pourcentage</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="compta-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par type</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Depenses par poste</div></div>
+          <div class="card-body" id="compta-depenses-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : STOCK                   -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-stock">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">References</div><div class="stat-value" id="stock-total">--</div><div class="stat-sub">articles en stock</div></div>
+        <div class="stat"><div class="stat-label">Critiques</div><div class="stat-value c-red" id="stock-crit">--</div><div class="stat-sub">action requise</div></div>
+        <div class="stat"><div class="stat-label">Faibles</div><div class="stat-value c-amber" id="stock-warn">--</div><div class="stat-sub">a surveiller</div></div>
+        <div class="stat"><div class="stat-label">Valeur stock</div><div class="stat-value c-accent" id="stock-valeur">--</div><div class="stat-sub">estimation</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un article..." id="search-stock" oninput="filterStock()" aria-label="Rechercher un article">
+        </div>
+        <select class="filter-select" id="filter-stock-cat" onchange="filterStock()" aria-label="Filtrer par categorie">
+          <option value="">Toutes categories</option>
+          <option value="ballons">Ballons</option>
+          <option value="cerceaux">Cerceaux / Parcours</option>
+          <option value="moteur">Parcours moteur</option>
+          <option value="sensoriel">Jeux sensoriels</option>
+          <option value="grapho">Materiel graphomoteur</option>
+          <option value="relaxation">Materiel relaxation</option>
+          <option value="consommables">Consommables</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Stock materiel psychomoteur</div>
+          <div class="card-count" id="stock-count">0 articles</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Article</th>
+                <th>Categorie</th>
+                <th>Quantite</th>
+                <th>Seuil</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stock-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('patients',this)" aria-label="Patients"><span class="mnav-icon">&#x1F9D1;</span>Patients</button>
+    <button class="mnav-item" onclick="showPage('seances',this)" aria-label="Seances"><span class="mnav-icon">&#x23F0;</span>Seances</button>
+    <button class="mnav-item" onclick="showPage('planning',this)" aria-label="Planning"><span class="mnav-icon">&#x1F4C5;</span>Planning</button>
+    <button class="mnav-item" onclick="showPage('paiements',this)" aria-label="Paiements"><span class="mnav-icon">&#x1F4B3;</span>Paiem.</button>
+    <button class="mnav-item" onclick="showPage('stock',this)" aria-label="Stock"><span class="mnav-icon">&#x1F4E6;</span>Stock</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouveau patient -->
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal">
+    <div class="modal-title">Nouveau patient</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom</label><input class="form-input" id="pat-nom" placeholder="Nom de famille"></div>
+      <div class="form-field"><label class="form-label">Prenom</label><input class="form-input" id="pat-prenom" placeholder="Prenom"></div>
+      <div class="form-field"><label class="form-label">Date de naissance</label><input class="form-input" id="pat-ddn" type="date"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="pat-tel" placeholder="06 ..."></div>
+      <div class="form-field"><label class="form-label">Email parent/tuteur</label><input class="form-input" id="pat-email" placeholder="email@exemple.fr"></div>
+      <div class="form-field">
+        <label class="form-label">Pathologie</label>
+        <select class="form-select" id="pat-patho">
+          <option value="tdah">TDAH</option>
+          <option value="dyspraxie">Trouble coordination / Dyspraxie</option>
+          <option value="retard">Retard psychomoteur</option>
+          <option value="tsa">Autisme / TSA</option>
+          <option value="tonico">Trouble tonico-emotionnel</option>
+          <option value="grapho">Graphomotricite</option>
+          <option value="geriatrie">Personnes agees</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Prescripteur</label><input class="form-input" id="pat-prescripteur" placeholder="Dr ..."></div>
+      <div class="form-field"><label class="form-label">Nb seances prevues</label><input class="form-input" id="pat-seances" type="number" placeholder="20"></div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="pat-notes" placeholder="Notes supplementaires..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-patient')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterPatient()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouvelle seance -->
+<div class="modal-overlay" id="modal-seance">
+  <div class="modal">
+    <div class="modal-title">Nouvelle seance</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="sea-patient" placeholder="Nom du patient"></div>
+      <div class="form-field"><label class="form-label">Heure</label><input class="form-input" id="sea-heure" type="time" value="09:00"></div>
+      <div class="form-field">
+        <label class="form-label">Type d'activite</label>
+        <select class="form-select" id="sea-type">
+          <option value="psychomotricite">Psychomotricite</option>
+          <option value="relaxation">Relaxation</option>
+          <option value="grapho">Graphomotricite</option>
+          <option value="bilan">Bilan</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Duree</label>
+        <select class="form-select" id="sea-duree">
+          <option value="30">30 min</option>
+          <option value="45" selected>45 min</option>
+          <option value="60">60 min</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Exercices prevus</label><input class="form-input" id="sea-notes" placeholder="Parcours moteur, equilibre, relaxation..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-seance')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterSeance()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau bilan -->
+<div class="modal-overlay" id="modal-bilan">
+  <div class="modal">
+    <div class="modal-title">Nouveau bilan psychomoteur</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="bil-patient" placeholder="Nom du patient"></div>
+      <div class="form-field">
+        <label class="form-label">Type de bilan</label>
+        <select class="form-select" id="bil-type">
+          <option value="initial">Bilan initial complet</option>
+          <option value="mabc2">Test MABC-2</option>
+          <option value="charlop">Test Charlop-Atwell</option>
+          <option value="bhk">Test BHK (ecriture)</option>
+          <option value="compte_rendu">Compte-rendu de suivi</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Date</label><input class="form-input" id="bil-date" type="date"></div>
+      <div class="form-field full"><label class="form-label">Observations</label><input class="form-input" id="bil-notes" placeholder="Observations cliniques..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-bilan')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerBilan()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// AUTH CHECK
+// ═══════════════════════════════════
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════
+const pageTitles = {
+  patients: 'Mes patients',
+  seances: 'Seances du jour',
+  planning: 'Planning semaine',
+  bilans: 'Bilans psychomoteurs',
+  exercices: 'Exercices & Activites',
+  paiements: 'Paiements',
+  compta: 'Comptabilite',
+  stock: 'Stock materiel'
+};
+
+const pageActions = {
+  patients: '<button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>',
+  seances: '<button class="btn btn-accent" onclick="ouvrirModalSeance()">+ Nouvelle seance</button>',
+  bilans: '<button class="btn btn-accent" onclick="ouvrirModalBilan()">+ Nouveau bilan</button>',
+  exercices: '<button class="btn btn-accent" onclick="showToast(\'Ajout d\\\'exercice -- a venir\')">+ Nouvel exercice</button>',
+  stock: '<button class="btn btn-accent" onclick="showToast(\'Ajout article -- a venir\')">+ Ajouter article</button>',
+  planning: '',
+  paiements: '',
+  compta: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) { el.classList.add('active'); openParentNavGroup(el); }
+  // Lazy render
+  if (id === 'planning' && !planningRendered) renderPlanning();
+  if (id === 'compta') renderCompta();
+  if (id === 'seances') renderSeances();
+  if (id === 'bilans') renderBilans();
+  if (id === 'paiements') renderPaiements();
+  if (id === 'exercices') renderExercices();
+}
+
+// ═══════════════════════════════════
+// NAV GROUP ACCORDION
+// ═══════════════════════════════════
+function toggleNavGroup(title) {
+  const items = title.nextElementSibling;
+  const arrow = title.querySelector('.nav-group-arrow');
+  if (!items) return;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+function openParentNavGroup(el) {
+  const group = el.closest('.nav-group-items');
+  if (group && group.style.display === 'none') {
+    group.style.display = 'block';
+    const arrow = group.previousElementSibling?.querySelector('.nav-group-arrow');
+    if (arrow) arrow.classList.add('open');
+  }
+}
+
+// ═══════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════
+function ouvrirModalPatient() { document.getElementById('modal-patient').classList.add('open'); }
+function ouvrirModalSeance() { document.getElementById('modal-seance').classList.add('open'); }
+function ouvrirModalBilan() { document.getElementById('modal-bilan').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════
+const DEMO_PATIENTS = [
+  { id:1, nom:'Lemaire', prenom:'Hugo', ddn:'2018-03-15', tel:'06 12 34 56 78', email:'lemaire.parents@email.fr', pathologie:'tdah', statut:'actif', seances_prevues:30, seances_faites:18, prescripteur:'Dr Fontaine (neuropediatre)', notes:'TDAH mixte, difficultes attentionnelles et impulsivite motrice' },
+  { id:2, nom:'Rousseau', prenom:'Lina', ddn:'2019-07-22', tel:'06 98 76 54 32', email:'rousseau.famille@email.fr', pathologie:'dyspraxie', statut:'actif', seances_prevues:25, seances_faites:12, prescripteur:'Dr Mercier (pediatre)', notes:'Trouble de la coordination, difficultes habillage et decoupage' },
+  { id:3, nom:'Duval', prenom:'Noa', ddn:'2017-11-08', tel:'06 11 22 33 44', email:'duval.maman@email.fr', pathologie:'tsa', statut:'actif', seances_prevues:40, seances_faites:22, prescripteur:'Dr Garnier (pedopsychiatre)', notes:'TSA niveau 1, travail sur regulation tonique et interactions' },
+  { id:4, nom:'Petit', prenom:'Jade', ddn:'2020-01-30', tel:'06 55 66 77 88', email:'petit.papa@email.fr', pathologie:'retard', statut:'actif', seances_prevues:20, seances_faites:8, prescripteur:'Dr Leroy (pediatre)', notes:'Retard psychomoteur global, marche acquise a 20 mois, motricite fine fragile' },
+  { id:5, nom:'Moreau', prenom:'Theo', ddn:'2016-05-14', tel:'06 44 33 22 11', email:'moreau.contact@email.fr', pathologie:'grapho', statut:'actif', seances_prevues:15, seances_faites:11, prescripteur:'Dr Bernard (medecin scolaire)', notes:'Graphomotricite, ecriture lente et crispee, fatigue rapide a l\'ecrit' },
+  { id:6, nom:'Lefevre', prenom:'Camille', ddn:'2019-09-03', tel:'06 77 88 99 00', email:'lefevre.parents@email.fr', pathologie:'tonico', statut:'actif', seances_prevues:20, seances_faites:6, prescripteur:'Dr Dupuis (pedopsychiatre)', notes:'Trouble tonico-emotionnel, hypertonicite, difficultes de regulation' },
+  { id:7, nom:'Garcia', prenom:'Adam', ddn:'2018-12-18', tel:'06 22 11 33 55', email:'garcia.famille@email.fr', pathologie:'tdah', statut:'pause', seances_prevues:25, seances_faites:15, prescripteur:'Dr Fontaine (neuropediatre)', notes:'En pause pour vacances scolaires, bonne progression' },
+  { id:8, nom:'Blanchard', prenom:'Louise', ddn:'2015-06-25', tel:'06 66 55 44 33', email:'blanchard@email.fr', pathologie:'dyspraxie', statut:'termine', seances_prevues:20, seances_faites:20, prescripteur:'Dr Mercier (pediatre)', notes:'Suivi termine, objectifs atteints, autonomie amelioree' },
+  { id:9, nom:'Dupont', prenom:'Marguerite', ddn:'1942-04-10', tel:'06 33 44 55 66', email:'dupont.aidant@email.fr', pathologie:'geriatrie', statut:'actif', seances_prevues:15, seances_faites:7, prescripteur:'Dr Lambert (geriatre)', notes:'Prevention chutes, equilibre, maintien autonomie, stimulation cognitive' },
+  { id:10, nom:'Roux', prenom:'Enzo', ddn:'2020-08-12', tel:'06 99 88 77 66', email:'roux.maman@email.fr', pathologie:'retard', statut:'actif', seances_prevues:20, seances_faites:3, prescripteur:'Dr Leroy (pediatre)', notes:'Retard moteur, difficultes de coordination, debut de prise en charge' },
+  { id:11, nom:'Martin', prenom:'Chloe', ddn:'2017-02-28', tel:'06 15 25 35 45', email:'martin.parents@email.fr', pathologie:'tsa', statut:'actif', seances_prevues:35, seances_faites:28, prescripteur:'Dr Garnier (pedopsychiatre)', notes:'TSA, amelioration du schema corporel, travail sensoriel en cours' },
+  { id:12, nom:'Bernard', prenom:'Paul', ddn:'2016-10-05', tel:'06 85 75 65 55', email:'bernard.famille@email.fr', pathologie:'grapho', statut:'actif', seances_prevues:12, seances_faites:5, prescripteur:'Dr Bernard (medecin scolaire)', notes:'Difficultes graphiques, posture et prise de stylo a corriger' },
+];
+
+const DEMO_SEANCES = [
+  { id:1, heure:'08:30', patient:'Lemaire Hugo', type:'psychomotricite', duree:45, notes:'Parcours moteur, equilibre poutre, jeux d\'inhibition' },
+  { id:2, heure:'09:15', patient:'Rousseau Lina', type:'psychomotricite', duree:45, notes:'Motricite fine (perles, decoupage), coordination bimanuelle' },
+  { id:3, heure:'10:00', patient:'Duval Noa', type:'psychomotricite', duree:60, notes:'Schema corporel, imitation postures, jeux de regulation tonique' },
+  { id:4, heure:'11:00', patient:'Petit Jade', type:'psychomotricite', duree:45, notes:'Coordination globale, lancers-rattrapes, equilibre statique' },
+  { id:5, heure:'14:00', patient:'Moreau Theo', type:'grapho', duree:30, notes:'Exercices graphomoteurs, deliement digital, lignes et boucles' },
+  { id:6, heure:'14:30', patient:'Lefevre Camille', type:'relaxation', duree:45, notes:'Relaxation Wintrebert, dialogue tonique, enveloppements' },
+  { id:7, heure:'15:30', patient:'Dupont Marguerite', type:'psychomotricite', duree:45, notes:'Equilibre, prevention chutes, parcours adapte, stimulation cognitive' },
+  { id:8, heure:'16:15', patient:'Martin Chloe', type:'psychomotricite', duree:45, notes:'Jeux sensoriels, bac a sable, pate a modeler, structuration spatiale' },
+  { id:9, heure:'17:00', patient:'Bernard Paul', type:'grapho', duree:30, notes:'Prise de stylo, posture, exercices de pression et fluidite' },
+];
+
+const DEMO_BILANS = [
+  { id:1, patient:'Lemaire Hugo', type:'initial', test:'MABC-2 + attention', date:'2025-09-10', statut:'termine', notes:'Score MABC-2 : P5, deficit equilibre et dexterite manuelle, attention soutenue deficitaire' },
+  { id:2, patient:'Rousseau Lina', type:'initial', test:'MABC-2', date:'2025-11-05', statut:'termine', notes:'Score MABC-2 : P10, coordination bimanuelle faible, praxies gestuelles alterees' },
+  { id:3, patient:'Duval Noa', type:'initial', test:'Charlop-Atwell', date:'2025-06-20', statut:'termine', notes:'Imitation de postures deficitaire, schema corporel fragile, hypotonique au repos' },
+  { id:4, patient:'Petit Jade', type:'initial', test:'Echelle Brunet-Lezine', date:'2026-02-15', statut:'termine', notes:'Age de developpement moteur inferieur de 6 mois, posture et prehension en retard' },
+  { id:5, patient:'Moreau Theo', type:'bhk', test:'BHK', date:'2025-10-18', statut:'termine', notes:'BHK : vitesse P15, qualite P8, crispation marquee, fatigue rapide' },
+  { id:6, patient:'Lefevre Camille', type:'initial', test:'Examen psychomoteur complet', date:'2026-03-12', statut:'termine', notes:'Hypertonicite de fond, difficultes regulation emotionnelle, agitation motrice' },
+  { id:7, patient:'Dupont Marguerite', type:'initial', test:'Tinetti + MMS', date:'2026-03-22', statut:'termine', notes:'Tinetti 18/28, risque de chute modere, MMS 24/30, ralentissement psychomoteur' },
+  { id:8, patient:'Duval Noa', type:'compte_rendu', test:'Suivi semestriel', date:'2026-04-20', statut:'termine', notes:'Amelioration regulation tonique, interactions plus adaptees, progres en imitation' },
+  { id:9, patient:'Lemaire Hugo', type:'mabc2', test:'MABC-2 (controle)', date:'2026-05-10', statut:'a_faire', notes:'' },
+  { id:10, patient:'Moreau Theo', type:'bhk', test:'BHK (controle)', date:'2026-05-15', statut:'a_faire', notes:'' },
+  { id:11, patient:'Martin Chloe', type:'compte_rendu', test:'Suivi annuel', date:'2026-05-20', statut:'a_faire', notes:'' },
+  { id:12, patient:'Petit Jade', type:'compte_rendu', test:'Point d\'etape 6 mois', date:'2026-05-25', statut:'a_faire', notes:'' },
+];
+
+const DEMO_EXERCICES = [
+  { id:1, nom:'Parcours moteur', cat:'coordination', icon:'&#x1F3C3;', desc:'Parcours avec obstacles, tunnels, cerceaux et poutre d\'equilibre. Travail de la planification motrice et de la coordination globale.', age:'3-10 ans', duree:'15-20 min' },
+  { id:2, nom:'Jeu des statues', cat:'coordination', icon:'&#x1F9CD;', desc:'L\'enfant doit s\'immobiliser a un signal. Travail de l\'inhibition motrice et du controle tonique.', age:'4-8 ans', duree:'10 min' },
+  { id:3, nom:'Enfilage de perles', cat:'motricite_fine', icon:'&#x1F4FF;', desc:'Enfilage de perles de tailles decroissantes sur un fil. Travail de la pince fine et de la coordination oculo-manuelle.', age:'3-7 ans', duree:'10-15 min' },
+  { id:4, nom:'Decoupage guide', cat:'motricite_fine', icon:'&#x2702;&#xFE0F;', desc:'Decoupage de formes geometriques puis de formes complexes. Travail de la coordination bimanuelle.', age:'4-8 ans', duree:'10-15 min' },
+  { id:5, nom:'Miroir corporel', cat:'schema_corporel', icon:'&#x1FA9E;', desc:'L\'enfant reproduit les postures du therapeute en miroir. Travail du schema corporel et de l\'imitation.', age:'3-10 ans', duree:'10 min' },
+  { id:6, nom:'Dessin du bonhomme', cat:'schema_corporel', icon:'&#x1F468;', desc:'Dessin libre puis guide du bonhomme. Evaluation et travail de la representation corporelle.', age:'3-8 ans', duree:'15 min' },
+  { id:7, nom:'Relaxation Wintrebert', cat:'relaxation', icon:'&#x1F9D8;', desc:'Mobilisations passives lentes des membres, dialogue tonique. Regulation du tonus et de l\'emotionnel.', age:'Tous ages', duree:'20-30 min' },
+  { id:8, nom:'Respiration ventrale', cat:'relaxation', icon:'&#x1F32C;&#xFE0F;', desc:'Exercices de respiration abdominale avec support visuel (plume, bougie). Aide a la regulation emotionnelle.', age:'4-12 ans', duree:'10 min' },
+  { id:9, nom:'Bac sensoriel', cat:'jeux', icon:'&#x1F3A8;', desc:'Exploration de differentes textures (sable, riz, eau, pate). Stimulation tactile et tolerance sensorielle.', age:'2-7 ans', duree:'15-20 min' },
+  { id:10, nom:'Jeu de construction', cat:'jeux', icon:'&#x1F9F1;', desc:'Construction avec Kapla, Lego, cubes. Travail spatial, planification et motricite fine.', age:'3-10 ans', duree:'15-20 min' },
+  { id:11, nom:'Boucles et ponts', cat:'grapho', icon:'&#x270D;&#xFE0F;', desc:'Exercices preparatoires a l\'ecriture : boucles, ponts, vagues sur grand format puis reduit.', age:'5-10 ans', duree:'10-15 min' },
+  { id:12, nom:'Deliement digital', cat:'grapho', icon:'&#x1F44C;', desc:'Exercices de dissociation des doigts, prise de stylo adaptee, travail de la pression.', age:'5-12 ans', duree:'10 min' },
+  { id:13, nom:'Lancer-rattraper', cat:'coordination', icon:'&#x1F3BE;', desc:'Lancers et rattrapes de balles de tailles variees. Coordination oculo-manuelle et anticipation.', age:'3-10 ans', duree:'10-15 min' },
+  { id:14, nom:'Marche sensorielle', cat:'jeux', icon:'&#x1F9B6;', desc:'Parcours pieds nus sur differentes textures (mousse, bois, tissu, galets). Integration proprioceptive.', age:'3-8 ans', duree:'10-15 min' },
+  { id:15, nom:'Yoga enfant', cat:'relaxation', icon:'&#x1F338;', desc:'Postures de yoga adaptees aux enfants avec noms d\'animaux. Conscience corporelle et equilibre.', age:'4-10 ans', duree:'15-20 min' },
+  { id:16, nom:'Jeu de la cible', cat:'coordination', icon:'&#x1F3AF;', desc:'Lancers precis sur cible (velcro, anneaux). Travail de la precision et de la planification du geste.', age:'4-10 ans', duree:'10-15 min' },
+];
+
+const DEMO_PAIEMENTS = [
+  { id:1, patient:'Lemaire Hugo', type:'Seance psychomotricite (45 min)', nb:18, tarif:55, part_mutuelle:25, statut:'paye' },
+  { id:2, patient:'Rousseau Lina', type:'Seance psychomotricite (45 min)', nb:12, tarif:55, part_mutuelle:25, statut:'paye' },
+  { id:3, patient:'Duval Noa', type:'Seance psychomotricite (60 min)', nb:22, tarif:65, part_mutuelle:30, statut:'partiel' },
+  { id:4, patient:'Petit Jade', type:'Seance psychomotricite (45 min)', nb:8, tarif:55, part_mutuelle:20, statut:'paye' },
+  { id:5, patient:'Moreau Theo', type:'Seance graphomotricite (30 min)', nb:11, tarif:45, part_mutuelle:20, statut:'paye' },
+  { id:6, patient:'Lefevre Camille', type:'Seance relaxation (45 min)', nb:6, tarif:55, part_mutuelle:25, statut:'paye' },
+  { id:7, patient:'Dupont Marguerite', type:'Seance psychomotricite (45 min)', nb:7, tarif:55, part_mutuelle:0, statut:'impaye' },
+  { id:8, patient:'Martin Chloe', type:'Seance psychomotricite (45 min)', nb:28, tarif:55, part_mutuelle:25, statut:'paye' },
+  { id:9, patient:'Roux Enzo', type:'Seance psychomotricite (45 min)', nb:3, tarif:55, part_mutuelle:25, statut:'paye' },
+  { id:10, patient:'Bernard Paul', type:'Seance graphomotricite (30 min)', nb:5, tarif:45, part_mutuelle:20, statut:'partiel' },
+];
+
+const DEMO_STOCK = [
+  { id:1, nom:'Ballons de Bobath (55 cm)', cat:'ballons', qte:4, seuil:2, prix:18.00 },
+  { id:2, nom:'Ballons de Bobath (45 cm)', cat:'ballons', qte:3, seuil:2, prix:15.00 },
+  { id:3, nom:'Balles sensorielles texturees (lot 6)', cat:'sensoriel', qte:5, seuil:3, prix:12.00 },
+  { id:4, nom:'Cerceaux colores (lot 6)', cat:'cerceaux', qte:2, seuil:3, prix:22.00 },
+  { id:5, nom:'Plots de parcours (lot 10)', cat:'moteur', qte:10, seuil:5, prix:28.00 },
+  { id:6, nom:'Poutre d\'equilibre mousse 2m', cat:'moteur', qte:2, seuil:1, prix:45.00 },
+  { id:7, nom:'Tunnel de motricite pliable', cat:'moteur', qte:1, seuil:1, prix:35.00 },
+  { id:8, nom:'Pate a modeler sensorielle (lot 8)', cat:'sensoriel', qte:6, seuil:4, prix:14.00 },
+  { id:9, nom:'Perles a enfiler (coffret)', cat:'sensoriel', qte:3, seuil:2, prix:16.00 },
+  { id:10, nom:'Jeux de construction Kapla (200 pcs)', cat:'sensoriel', qte:2, seuil:1, prix:38.00 },
+  { id:11, nom:'Crayons ergonomiques (lot 12)', cat:'grapho', qte:15, seuil:6, prix:8.50 },
+  { id:12, nom:'Grips de stylo adaptatifs (lot 10)', cat:'grapho', qte:8, seuil:5, prix:9.00 },
+  { id:13, nom:'Coussins de relaxation', cat:'relaxation', qte:4, seuil:2, prix:22.00 },
+  { id:14, nom:'Couverture lestee enfant 3kg', cat:'relaxation', qte:2, seuil:1, prix:55.00 },
+  { id:15, nom:'Tapis de sol mousse (lot 4)', cat:'relaxation', qte:4, seuil:2, prix:32.00 },
+  { id:16, nom:'Lingettes desinfectantes (paquet 100)', cat:'consommables', qte:8, seuil:4, prix:5.50 },
+  { id:17, nom:'Gel hydroalcoolique 500ml', cat:'consommables', qte:5, seuil:3, prix:6.00 },
+];
+
+// ═══════════════════════════════════
+// RENDER: PATIENTS
+// ═══════════════════════════════════
+let patientsData = [...DEMO_PATIENTS];
+
+function getAge(ddn) {
+  if (!ddn) return '--';
+  const birth = new Date(ddn);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age + ' ans';
+}
+
+function renderPatients() {
+  const tbody = document.getElementById('patients-body');
+  const search = (document.getElementById('search-patients')?.value || '').toLowerCase();
+  const pathoFilter = document.getElementById('filter-patho')?.value || '';
+  const statutFilter = document.getElementById('filter-statut')?.value || '';
+
+  let filtered = patientsData.filter(p => {
+    if (search && !(p.nom + ' ' + p.prenom).toLowerCase().includes(search)) return false;
+    if (pathoFilter && p.pathologie !== pathoFilter) return false;
+    if (statutFilter && p.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('patients-count').textContent = filtered.length + ' patient' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun patient trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const pct = Math.round((p.seances_faites / p.seances_prevues) * 100);
+    const barColor = pct >= 80 ? 'var(--green)' : pct >= 40 ? 'var(--accent)' : 'var(--amber)';
+    const statutBadge = statutLabel(p.statut);
+    const pathoBadge = pathoLabel(p.pathologie);
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(p.nom)} ${esc(p.prenom)}</div><div style="font-size:11px;color:var(--muted);">${esc(p.email)}</div></td>
+      <td style="font-family:var(--mono);font-size:12px;">${getAge(p.ddn)}</td>
+      <td>${pathoBadge}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${p.seances_faites}/${p.seances_prevues}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="progress-bar" style="max-width:80px;"><div class="progress-fill" style="width:${pct}%;background:${barColor};"></div></div>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">${pct}%</span>
+        </div>
+      </td>
+      <td>${statutBadge}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le dossier" aria-label="Voir le dossier" onclick="showToast('Dossier patient -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Bilan" aria-label="Bilan" onclick="showToast('Bilan patient -- a venir')">&#x1F4CB;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPatients() { renderPatients(); }
+
+// ═══════════════════════════════════
+// RENDER: SEANCES DU JOUR
+// ═══════════════════════════════════
+function renderSeances() {
+  const today = new Date();
+  document.getElementById('seances-date-label').textContent = today.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  const timeline = document.getElementById('seances-timeline');
+  let totalDuree = 0;
+  let totalCA = 0;
+
+  const tarifs = { psychomotricite: 55, relaxation: 55, grapho: 45, bilan: 120 };
+
+  DEMO_SEANCES.forEach(s => {
+    totalDuree += s.duree;
+    totalCA += (tarifs[s.type] || 55);
+  });
+
+  document.getElementById('sj-total').textContent = DEMO_SEANCES.length;
+  document.getElementById('sj-duree').textContent = totalDuree + ' min';
+  document.getElementById('sj-ca').textContent = fmtEur(totalCA);
+
+  const typeColors = {
+    psychomotricite: 'var(--accent)',
+    relaxation: 'var(--purple)',
+    grapho: 'var(--blue)',
+    bilan: 'var(--amber)'
+  };
+
+  const typeLabelsMap = {
+    psychomotricite: 'Psychomotricite',
+    relaxation: 'Relaxation',
+    grapho: 'Graphomotricite',
+    bilan: 'Bilan'
+  };
+
+  if (DEMO_SEANCES.length === 0) {
+    timeline.innerHTML = '<div class="empty"><div class="empty-icon">&#x23F0;</div><div class="empty-title">Aucune seance aujourd\'hui</div><div class="empty-sub">Vos seances du jour apparaitront ici.</div></div>';
+    return;
+  }
+
+  timeline.innerHTML = DEMO_SEANCES.map(s => {
+    const color = typeColors[s.type] || 'var(--accent)';
+    const typeText = typeLabelsMap[s.type] || s.type;
+    return `<div class="timeline-item">
+      <div class="timeline-hour">${esc(s.heure)}</div>
+      <div class="timeline-bar" style="background:${color};"></div>
+      <div class="timeline-content">
+        <div class="timeline-patient">${esc(s.patient)}</div>
+        <div class="timeline-meta">${typeText} -- ${s.duree} min</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(s.notes)}</div>
+        <div class="timeline-badge"><span class="badge" style="background:${color}20;color:${color};">${typeText}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: PLANNING SEMAINE
+// ═══════════════════════════════════
+let planningRendered = false;
+let planningWeekOffset = 0;
+
+function renderPlanning() {
+  planningRendered = true;
+  const container = document.getElementById('planning-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + planningWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const creneaux = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30'];
+
+  const typeColors = {
+    psychomotricite: 'var(--accent)',
+    relaxation: 'var(--purple)',
+    grapho: 'var(--blue)',
+    bilan: 'var(--amber)'
+  };
+
+  const rdvs = [
+    { jour:0, heure:'08:30', duree:45, patient:'Lemaire Hugo', type:'psychomotricite', note:'Parcours moteur, inhibition' },
+    { jour:0, heure:'09:15', duree:45, patient:'Rousseau Lina', type:'psychomotricite', note:'Motricite fine, coordination' },
+    { jour:0, heure:'10:00', duree:60, patient:'Duval Noa', type:'psychomotricite', note:'Schema corporel, regulation' },
+    { jour:0, heure:'11:00', duree:45, patient:'Petit Jade', type:'psychomotricite', note:'Coordination globale' },
+    { jour:0, heure:'14:00', duree:30, patient:'Moreau Theo', type:'grapho', note:'Graphomotricite, boucles' },
+    { jour:0, heure:'14:30', duree:45, patient:'Lefevre Camille', type:'relaxation', note:'Relaxation Wintrebert' },
+    { jour:0, heure:'15:30', duree:45, patient:'Dupont Marguerite', type:'psychomotricite', note:'Equilibre, prevention chutes' },
+    { jour:0, heure:'16:15', duree:45, patient:'Martin Chloe', type:'psychomotricite', note:'Jeux sensoriels' },
+    { jour:0, heure:'17:00', duree:30, patient:'Bernard Paul', type:'grapho', note:'Prise de stylo, pression' },
+    { jour:1, heure:'08:30', duree:45, patient:'Lemaire Hugo', type:'psychomotricite', note:'Jeux d\'attention, inhibition' },
+    { jour:1, heure:'09:15', duree:60, patient:'Duval Noa', type:'psychomotricite', note:'Interactions, jeu symbolique' },
+    { jour:1, heure:'10:30', duree:45, patient:'Roux Enzo', type:'psychomotricite', note:'Motricite globale' },
+    { jour:1, heure:'14:00', duree:30, patient:'Moreau Theo', type:'grapho', note:'Deliement digital' },
+    { jour:1, heure:'14:30', duree:45, patient:'Martin Chloe', type:'relaxation', note:'Relaxation, dialogue tonique' },
+    { jour:2, heure:'08:30', duree:45, patient:'Rousseau Lina', type:'psychomotricite', note:'Coordination bimanuelle' },
+    { jour:2, heure:'09:30', duree:45, patient:'Petit Jade', type:'psychomotricite', note:'Lancers, equilibre' },
+    { jour:2, heure:'10:30', duree:45, patient:'Lefevre Camille', type:'psychomotricite', note:'Regulation tonique' },
+    { jour:2, heure:'14:00', duree:60, patient:'Duval Noa', type:'bilan', note:'Bilan de suivi semestriel' },
+    { jour:2, heure:'15:30', duree:45, patient:'Dupont Marguerite', type:'psychomotricite', note:'Stimulation cognitive' },
+    { jour:3, heure:'08:30', duree:45, patient:'Lemaire Hugo', type:'psychomotricite', note:'Parcours moteur adapte' },
+    { jour:3, heure:'09:30', duree:45, patient:'Martin Chloe', type:'psychomotricite', note:'Schema corporel, construction' },
+    { jour:3, heure:'10:30', duree:30, patient:'Bernard Paul', type:'grapho', note:'Ecriture, fluidite' },
+    { jour:3, heure:'14:00', duree:45, patient:'Roux Enzo', type:'psychomotricite', note:'Motricite fine, perles' },
+    { jour:3, heure:'15:00', duree:45, patient:'Lefevre Camille', type:'relaxation', note:'Respiration, enveloppement' },
+    { jour:4, heure:'08:30', duree:45, patient:'Rousseau Lina', type:'psychomotricite', note:'Habillage, autonomie' },
+    { jour:4, heure:'09:30', duree:45, patient:'Petit Jade', type:'psychomotricite', note:'Jeux de construction' },
+    { jour:4, heure:'10:30', duree:45, patient:'Dupont Marguerite', type:'psychomotricite', note:'Equilibre, marche' },
+    { jour:4, heure:'14:00', duree:60, patient:'Nouveau patient', type:'bilan', note:'Bilan initial psychomoteur' },
+    { jour:4, heure:'15:30', duree:30, patient:'Moreau Theo', type:'grapho', note:'Exercices maison revision' },
+  ];
+
+  let html = '<table style="min-width:900px;">';
+  html += '<thead><tr><th style="width:70px;">Heure</th>';
+  for (let j = 0; j < 6; j++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + j);
+    const isToday = d.toDateString() === today.toDateString();
+    html += `<th style="${isToday ? 'color:var(--accent);' : ''}">${jours[j]} ${d.getDate()}/${d.getMonth()+1}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  creneaux.forEach(h => {
+    html += `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:6px 10px;">${h}</td>`;
+    for (let j = 0; j < 6; j++) {
+      const rdv = rdvs.find(r => r.jour === j && r.heure === h);
+      if (rdv) {
+        const color = typeColors[rdv.type] || 'var(--accent)';
+        html += `<td style="padding:3px;">
+          <div style="background:${color}15;border-left:3px solid ${color};border-radius:6px;padding:6px 8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+            <div style="font-size:11px;font-weight:600;">${esc(rdv.patient)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px;">${rdv.duree}min -- ${esc(rdv.note)}</div>
+          </div>
+        </td>`;
+      } else {
+        html += '<td style="padding:3px;"></td>';
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function planningPrev() { planningWeekOffset--; renderPlanning(); }
+function planningNext() { planningWeekOffset++; renderPlanning(); }
+function planningToday() { planningWeekOffset = 0; renderPlanning(); }
+
+// ═══════════════════════════════════
+// RENDER: BILANS
+// ═══════════════════════════════════
+let bilansData = [...DEMO_BILANS];
+
+function renderBilans() {
+  const tbody = document.getElementById('bilans-body');
+  const search = (document.getElementById('search-bilans')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('filter-bilan-type')?.value || '';
+  const statutFilter = document.getElementById('filter-bilan-statut')?.value || '';
+
+  let filtered = bilansData.filter(b => {
+    if (search && !b.patient.toLowerCase().includes(search)) return false;
+    if (typeFilter && b.type !== typeFilter) return false;
+    if (statutFilter && b.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('bilans-count').textContent = filtered.length + ' bilan' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucun bilan trouve</td></tr>';
+    return;
+  }
+
+  const bilanTypeMap = {
+    initial: { label:'Bilan initial', cls:'badge-accent' },
+    mabc2: { label:'Test MABC-2', cls:'badge-blue' },
+    charlop: { label:'Charlop-Atwell', cls:'badge-purple' },
+    bhk: { label:'Test BHK', cls:'badge-blue' },
+    compte_rendu: { label:'Compte-rendu', cls:'badge-ok' }
+  };
+  const bilanStatutMap = {
+    termine: { label:'Termine', cls:'badge-ok' },
+    en_cours: { label:'En cours', cls:'badge-warn' },
+    a_faire: { label:'A faire', cls:'badge-crit' }
+  };
+
+  tbody.innerHTML = filtered.map(b => {
+    const bt = bilanTypeMap[b.type] || { label:b.type, cls:'badge-ok' };
+    const bs = bilanStatutMap[b.statut] || { label:b.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(b.patient)}</td>
+      <td><span class="badge ${bt.cls}">${bt.label}</span></td>
+      <td style="font-size:12px;color:var(--muted);">${esc(b.test)}</td>
+      <td>${formatDate(b.date)}</td>
+      <td><span class="badge ${bs.cls}">${bs.label}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le bilan" aria-label="Voir le bilan" onclick="showToast('Detail bilan -- a venir')">&#x1F4C4;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterBilans() { renderBilans(); }
+
+// ═══════════════════════════════════
+// RENDER: EXERCICES & ACTIVITES
+// ═══════════════════════════════════
+function renderExercices() {
+  const grid = document.getElementById('exercices-grid');
+  const search = (document.getElementById('search-exercices')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('filter-exo-cat')?.value || '';
+
+  let filtered = DEMO_EXERCICES.filter(e => {
+    if (search && !e.nom.toLowerCase().includes(search) && !e.desc.toLowerCase().includes(search)) return false;
+    if (catFilter && e.cat !== catFilter) return false;
+    return true;
+  });
+
+  const catLabels = {
+    motricite_fine: 'Motricite fine',
+    coordination: 'Coordination',
+    schema_corporel: 'Schema corporel',
+    relaxation: 'Relaxation',
+    jeux: 'Jeux therapeutiques',
+    grapho: 'Graphomotricite'
+  };
+
+  const catBadge = {
+    motricite_fine: 'badge-accent',
+    coordination: 'badge-ok',
+    schema_corporel: 'badge-purple',
+    relaxation: 'badge-blue',
+    jeux: 'badge-warn',
+    grapho: 'badge-accent'
+  };
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F3AE;</div><div class="empty-title">Aucun exercice trouve</div><div class="empty-sub">Modifiez vos filtres pour voir les exercices disponibles.</div></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(e => {
+    const catLabel = catLabels[e.cat] || e.cat;
+    const catCls = catBadge[e.cat] || 'badge-ok';
+    return `<div class="exercice-card">
+      <div class="exercice-icon">${e.icon}</div>
+      <div class="exercice-name">${esc(e.nom)}</div>
+      <div class="exercice-desc">${esc(e.desc)}</div>
+      <div class="exercice-tags">
+        <span class="badge ${catCls}">${catLabel}</span>
+        <span class="badge badge-blue">${esc(e.age)}</span>
+        <span class="badge badge-purple">${esc(e.duree)}</span>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="showToast('Exercice assigne au patient (demo)')">Assigner a un patient</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterExercices() { renderExercices(); }
+
+// ═══════════════════════════════════
+// RENDER: PAIEMENTS
+// ═══════════════════════════════════
+function renderPaiements() {
+  const tbody = document.getElementById('paiements-body');
+  let totalFacture = 0, totalMutuelle = 0, totalPatient = 0, totalImpayes = 0;
+
+  DEMO_PAIEMENTS.forEach(p => {
+    const total = p.nb * p.tarif;
+    const mutuelle = p.nb * p.part_mutuelle;
+    totalFacture += total;
+    totalMutuelle += mutuelle;
+    totalPatient += (total - mutuelle);
+    if (p.statut === 'impaye') totalImpayes += total;
+  });
+
+  document.getElementById('pay-total').textContent = fmtEur(totalFacture);
+  document.getElementById('pay-mutuelle').textContent = fmtEur(totalMutuelle);
+  document.getElementById('pay-patient').textContent = fmtEur(totalPatient);
+  document.getElementById('pay-impayes').textContent = fmtEur(totalImpayes);
+  document.getElementById('pay-count').textContent = DEMO_PAIEMENTS.length + ' lignes';
+
+  const statutMap = {
+    paye: { label:'Paye', cls:'badge-ok' },
+    partiel: { label:'Partiel', cls:'badge-warn' },
+    impaye: { label:'Impaye', cls:'badge-crit' }
+  };
+
+  tbody.innerHTML = DEMO_PAIEMENTS.map(p => {
+    const total = p.nb * p.tarif;
+    const mutuelle = p.nb * p.part_mutuelle;
+    const patient = total - mutuelle;
+    const st = statutMap[p.statut] || { label:p.statut, cls:'badge-ok' };
+    return `<tr>
+      <td style="font-weight:500;">${esc(p.patient)}</td>
+      <td style="font-size:12px;">${esc(p.type)}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${p.nb}</td>
+      <td style="font-family:var(--mono);">${fmtEur(p.tarif)}</td>
+      <td style="font-family:var(--mono);font-weight:500;">${fmtEur(total)}</td>
+      <td style="font-family:var(--mono);color:var(--green);">${fmtEur(mutuelle)}</td>
+      <td style="font-family:var(--mono);color:var(--amber);">${fmtEur(patient)}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: STOCK
+// ═══════════════════════════════════
+let stockData = [...DEMO_STOCK];
+
+function renderStock() {
+  const tbody = document.getElementById('stock-body');
+  const search = (document.getElementById('search-stock')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('filter-stock-cat')?.value || '';
+
+  let filtered = stockData.filter(s => {
+    if (search && !s.nom.toLowerCase().includes(search)) return false;
+    if (catFilter && s.cat !== catFilter) return false;
+    return true;
+  });
+
+  document.getElementById('stock-count').textContent = filtered.length + ' article' + (filtered.length > 1 ? 's' : '');
+
+  // KPI
+  let total = stockData.length, crit = 0, warn = 0, valeur = 0;
+  stockData.forEach(s => {
+    if (s.qte <= s.seuil * 0.5) crit++;
+    else if (s.qte <= s.seuil) warn++;
+    valeur += s.qte * s.prix;
+  });
+  document.getElementById('stock-total').textContent = total;
+  document.getElementById('stock-crit').textContent = crit;
+  document.getElementById('stock-warn').textContent = warn;
+  document.getElementById('stock-valeur').textContent = fmtEur(valeur);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucun article trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(s => {
+    const ratio = s.qte / s.seuil;
+    let badge, barColor;
+    if (ratio <= 0.5) { badge = '<span class="badge badge-crit">Critique</span>'; barColor = 'var(--red)'; }
+    else if (ratio <= 1) { badge = '<span class="badge badge-warn">Faible</span>'; barColor = 'var(--amber)'; }
+    else { badge = '<span class="badge badge-ok">OK</span>'; barColor = 'var(--green)'; }
+    const barPct = Math.min(100, Math.round((s.qte / (s.seuil * 2)) * 100));
+    const catLabel = stockCatLabel(s.cat);
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(s.nom)}</div></td>
+      <td><span class="badge badge-blue">${catLabel}</span></td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar"><div class="bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+          <span class="qty-num">${s.qte}</span>
+        </div>
+      </td>
+      <td style="font-size:12px;font-family:var(--mono);color:var(--muted);">${s.seuil}</td>
+      <td>${badge}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Commander" aria-label="Commander" onclick="showToast('Commande rapide -- a venir')">&#x1F6D2;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterStock() { renderStock(); }
+
+// ═══════════════════════════════════
+// RENDER: COMPTABILITE
+// ═══════════════════════════════════
+function renderCompta() {
+  const recettes = 6850;
+  const depenses = 1420;
+  const net = recettes - depenses;
+  const marge = Math.round((net / recettes) * 100);
+
+  document.getElementById('compta-recettes').textContent = fmtEur(recettes);
+  document.getElementById('compta-depenses').textContent = fmtEur(depenses);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+  document.getElementById('compta-marge').textContent = marge + '%';
+
+  const recDetail = [
+    { label: 'Seances psychomotricite (45/60 min)', montant: 4400 },
+    { label: 'Seances graphomotricite (30 min)', montant: 720 },
+    { label: 'Seances relaxation', montant: 330 },
+    { label: 'Bilans psychomoteurs', montant: 960 },
+    { label: 'Comptes-rendus / rapports', montant: 440 },
+  ];
+  document.getElementById('compta-recettes-detail').innerHTML = recDetail.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${r.label}</span><span style="font-family:var(--mono);font-weight:500;">${fmtEur(r.montant)}</span>
+    </div>`
+  ).join('');
+
+  const depDetail = [
+    { label: 'Materiel psychomoteur (jeux, ballons)', montant: 380 },
+    { label: 'Materiel graphomoteur', montant: 120 },
+    { label: 'Consommables cabinet', montant: 90 },
+    { label: 'Charges fixes (loyer, assurance)', montant: 650 },
+    { label: 'Formation continue / supervision', montant: 180 },
+  ];
+  document.getElementById('compta-depenses-detail').innerHTML = depDetail.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${r.label}</span><span style="font-family:var(--mono);font-weight:500;color:var(--red);">${fmtEur(r.montant)}</span>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════
+// KPI UPDATE
+// ═══════════════════════════════════
+function updateKPIs() {
+  const actifs = patientsData.filter(p => p.statut === 'actif');
+  const seancesJour = DEMO_SEANCES.length;
+  const bilansARenouveler = DEMO_BILANS.filter(b => b.statut === 'a_faire').length;
+  const caMois = 6850;
+
+  document.getElementById('kpi-patients').textContent = actifs.length;
+  document.getElementById('kpi-seances').textContent = seancesJour;
+  document.getElementById('kpi-ca').textContent = fmtEur(caMois);
+  document.getElementById('kpi-bilans').textContent = bilansARenouveler;
+}
+
+// ═══════════════════════════════════
+// FORM ACTIONS (DEMO)
+// ═══════════════════════════════════
+function ajouterPatient() {
+  const nom = document.getElementById('pat-nom').value.trim();
+  const prenom = document.getElementById('pat-prenom').value.trim();
+  if (!nom || !prenom) { showToast('Veuillez renseigner le nom et le prenom'); return; }
+
+  patientsData.push({
+    id: Date.now(),
+    nom, prenom,
+    ddn: document.getElementById('pat-ddn').value || '2018-01-01',
+    tel: document.getElementById('pat-tel').value,
+    email: document.getElementById('pat-email').value,
+    pathologie: document.getElementById('pat-patho').value,
+    statut: 'actif',
+    seances_prevues: parseInt(document.getElementById('pat-seances').value) || 20,
+    seances_faites: 0,
+    prescripteur: document.getElementById('pat-prescripteur').value || '--',
+    notes: document.getElementById('pat-notes').value
+  });
+
+  fermerModal('modal-patient');
+  renderPatients();
+  updateKPIs();
+  showToast('Patient ajoute avec succes');
+  ['pat-nom','pat-prenom','pat-ddn','pat-tel','pat-email','pat-prescripteur','pat-seances','pat-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function ajouterSeance() {
+  showToast('Seance ajoutee (demo)');
+  fermerModal('modal-seance');
+}
+
+function creerBilan() {
+  showToast('Bilan enregistre (demo)');
+  fermerModal('modal-bilan');
+}
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtEur(n) {
+  if (n == null || isNaN(n)) return '--';
+  return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' EUR';
+}
+
+function formatDate(str) {
+  if (!str) return '--';
+  const d = new Date(str);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function pathoLabel(patho) {
+  const map = {
+    tdah: { label:'TDAH', cls:'badge-accent' },
+    dyspraxie: { label:'Dyspraxie', cls:'badge-purple' },
+    retard: { label:'Retard psychomoteur', cls:'badge-warn' },
+    tsa: { label:'TSA / Autisme', cls:'badge-blue' },
+    tonico: { label:'Tonico-emotionnel', cls:'badge-purple' },
+    grapho: { label:'Graphomotricite', cls:'badge-accent' },
+    geriatrie: { label:'Personne agee', cls:'badge-blue' },
+  };
+  const m = map[patho] || { label: patho || '--', cls:'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function statutLabel(statut) {
+  const map = {
+    actif: { label:'Actif', cls:'badge-ok' },
+    termine: { label:'Termine', cls:'badge-blue' },
+    pause: { label:'En pause', cls:'badge-warn' },
+  };
+  const m = map[statut] || { label: statut, cls:'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function stockCatLabel(cat) {
+  const map = {
+    ballons: 'Ballons', cerceaux: 'Cerceaux', moteur: 'Parcours moteur',
+    sensoriel: 'Jeux sensoriels', grapho: 'Graphomoteur',
+    relaxation: 'Relaxation', consommables: 'Consommables'
+  };
+  return map[cat] || cat;
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  // Render all with demo data
+  updateKPIs();
+  renderPatients();
+  renderSeances();
+  renderBilans();
+  renderPaiements();
+  renderStock();
+  renderCompta();
+  renderExercices();
+});
+</script>
+</body>
+</html>
