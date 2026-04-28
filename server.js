@@ -12,7 +12,7 @@ const app = express();
 // === PWA Patient — MUST be first (before Helmet, CORS, etc.) ===
 const fs = require('fs');
 app.use('/patient', (req, res) => {
-  const reqPath = req.path === '/' ? '/index.html' : req.path;
+  const reqPath = req.path === '/' ? 'index.html' : req.path.replace(/^\//, '');
   const filePath = path.resolve(__dirname, 'public', 'patient', reqPath);
   // Path traversal protection
   const safeDir = path.resolve(__dirname, 'public', 'patient');
@@ -27,7 +27,7 @@ app.use('/patient', (req, res) => {
 
 // === PWA Labo Pro — MUST be before Helmet, CORS, etc. ===
 app.use('/labo-pro', (req, res) => {
-  const reqPath = req.path === '/' ? '/index.html' : req.path;
+  const reqPath = req.path === '/' ? 'index.html' : req.path.replace(/^\//, '');
   const filePath = path.resolve(__dirname, 'public', 'labo-pro', reqPath);
   // Path traversal protection
   const safeDir = path.resolve(__dirname, 'public', 'labo-pro');
