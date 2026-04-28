@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 28 avril 2026
-**Derniere passe** : Passe 61 — 7 dashboards metiers + Audit securite profond + 15 corrections
+**Derniere passe** : Passe 62 — Audit meticuleux complet + 36 corrections securite/bugs
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1151,6 +1151,36 @@ Audit securite profond : 25 vulnerabilites trouvees (5 CRITICAL, 9 HIGH, 8 MEDIU
 Re-audit final : 13/13 PASS.
 TOTAL : 18 fichiers modifies, 11 020 lignes ajoutees.
 
+## Passe 62 (28 avril 2026) -- Audit meticuleux complet + 36 corrections
+6 agents d'audit deployes en parallele (server.js, dashboards, API backend,
+scan/GPO/equipment, signature/juridique, landing/navigation).
+113 problemes identifies, 36 corriges immediatement :
+CRITIQUES corriges (9) :
+- Path traversal /patient et /labo-pro (resolve + startsWith)
+- Proxy Claude API sans auth (ajout auth + CORS strict)
+- site-analysis JWT sans verification signature (→ supabase.auth.getUser)
+- Open redirect mailing click tracking (whitelist domaines)
+- Stripe webhook sans secret = rejete (plus de parsing brut)
+- GPO route mismatch (flux fournisseur etait mort : aliases 307 ajoutes)
+- Rate limit OTP public (3 SMS/15min, 10 verif/15min)
+- ms-switcher.js + manifest.json copies dans public/ (12 dashboards fixes)
+- Endpoint /api/ide/visite/:id/notes cree (notes etaient perdues)
+HAUTS corriges (11) :
+- 3 IDOR (communication, peremption, GPO confirm-counter)
+- Body spread injection (SCI biens/locataires, mailing campagnes)
+- Table GPO inexistante products → products_database
+- PostgREST injection sanitisee (showroom, scan-engine, labo/stock)
+- Path traversal espace-client upload
+- Content-Disposition header injection (coffre + espace-client)
+- File upload type validation (coffre + espace-client)
+MOYENS corriges (8) :
+- Password timing-safe (coffre + espace-client)
+- HMAC token 16→32 chars + suppression fallback secret
+- OTP TTL aligne 60s→5min
+- Chatbot public rate limit 10/min/IP
+Pages legales creees : cgv.html, mentions-legales.html, contact.html.
+19 fichiers modifies, 757 lignes ajoutees.
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -1315,15 +1345,40 @@ TOTAL : 18 fichiers modifies, 11 020 lignes ajoutees.
 ## Bugs a corriger
 - 5 sites dupliques en BDD (garder a8ac57cc-90d2-4ca2-a16b-b288cc437620)
 - Doublons produits dans Panier intelligent
-- ~~Migrations SQL 22-29 pas encore executees dans Supabase~~ [RESOLU ✅ 24/04/2026 - toutes migrations 22-38 en prod]
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
-- ~~JWT_SECRET du client-portal utilise fallback~~ [RESOLU Passe 54 - JWT random genere]
 - CSP unsafe-inline (dette technique — a remplacer par nonces/hashes quand refacto frontend)
-- ~~npm imap abandonne~~ [RESOLU ✅ Passe 54 — migre vers imapflow]
 - npm xlsx abandonne (6 CVEs, remplacer par exceljs)
-- STRIPE_WEBHOOK_SECRET non configure (webhooks non verifies — CRITICAL)
+- STRIPE_WEBHOOK_SECRET non configure (webhook rejete si absent — configurer dans Stripe Dashboard)
+- billing.html n'existe pas (lien "Abonnement" dans 11 dashboards → 404)
+- Videos demo manquantes (demo-dentistes.mp4, demo-coiffeurs.mp4, demo-prothesistes.mp4)
+- getDatabaseStats() charge 100K lignes en memoire (remplacer par RPC/vue SQL)
+- P12 certificat sans passphrase (stocker passphrase en env var)
+- N+1 queries /api/achats/price-watches (batch needed)
+- Navigation inconstante entre anciennes et nouvelles landings (nav .html vs sans)
+
+## Corriges par Passe 62
+- Path traversal /patient et /labo-pro → resolve+startsWith
+- Proxy Claude API sans auth → auth+CORS strict
+- site-analysis JWT decode sans signature → supabase.auth.getUser
+- Open redirect mailing → whitelist domaines jadomi.fr
+- Stripe webhook sans secret → rejete (503)
+- GPO route mismatch → aliases 307 (flux fournisseur retabli)
+- OTP public sans rate limit → 3 SMS/15min + 10 verif/15min
+- ms-switcher.js + manifest.json → copies dans public/
+- Notes IDE jamais sauvegardees → endpoint PATCH cree
+- 3 IDOR (communication, peremption, GPO confirm-counter) → societe_id check
+- Body spread SCI/mailing → whitelist champs
+- Table GPO products → products_database
+- PostgREST injection → sanitisation %_,().
+- Content-Disposition injection → RFC 5987 encodeURIComponent
+- File upload sans filtre → whitelist extensions
+- Password non timing-safe → crypto.timingSafeEqual
+- HMAC 16→32 chars + fallback secret supprime
+- OTP TTL 60s→5min (alignement message SMS)
+- Chatbot public → rate limit 10/min/IP
+- Pages legales creees : cgv.html, mentions-legales.html, contact.html
 
 ## Corriges par Passe 61
 - Scan endpoints sans auth → requireAuth() ajoute (/api/scan/lookup, /api/scan/search)
