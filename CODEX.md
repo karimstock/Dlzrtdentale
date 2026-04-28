@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 28 avril 2026
-**Derniere passe** : Passe 64 — Billing API + getDatabaseStats RPC + xlsx→exceljs
+**Derniere passe** : Passe 65 — Plateforme prothesiste complete + reseau solidarite
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1181,6 +1181,30 @@ MOYENS corriges (8) :
 Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 19 fichiers modifies, 757 lignes ajoutees.
 
+## Passe 65 (28 avril 2026) -- Plateforme prothesiste complete + reseau solidarite
+La plus grosse passe du projet. 15 nouveaux modules labo + dashboard complet.
+1. Suivi production 8 etapes + QR code tracking (10 endpoints)
+2. Gestion remakes/refabrications + analytics qualite (6 endpoints)
+3. Techniciens CRUD + KPI dashboard labo complet (7 endpoints + CSV export)
+4. Garanties par type prothese + reclamations (8 endpoints)
+5. Chat temps reel dentiste-labo + portail magic link (10 endpoints)
+6. Photo shade management + analyse IA Vision colorimetrie (7 endpoints)
+7. Expeditions + tracking + etiquettes (9 endpoints)
+8. Planning techniciens + conges + charge (8 endpoints)
+9. Maintenance machines (four, fraiseuse, imprimante 3D) (9 endpoints)
+10. Fichiers 3D STL/OBJ + validation portail dentiste (10 endpoints)
+11. Portail patient suivi cas (PREMIERE MONDIALE) (3 endpoints)
+12. Reseau solidarite prothesistes FR: annuaire, sous-traitance,
+    achats groupes, entraide forum, charte 100% France (20 endpoints)
+13. Achats groupes materiaux entre prothesistes (5 endpoints)
+14. Dashboard prothesiste 2267 lignes, 15 onglets, theme #be185d
+15. 3 formules tarifaires: Essentiel 49EUR, Pro 99EUR, Premium 179EUR
+16. Feature gating middleware (21 features gatees)
+17. Landing prothesiste enrichie + charte 100% France
+9 corrections securite (4 CRITICAL IDOR, 2 HIGH, 3 MEDIUM)
+SQL: 28 nouvelles tables, 77 RLS policies, 47 indexes
+Total: 119 nouveaux endpoints API, ~10000 lignes de code
+
 ## Passe 64 (28 avril 2026) -- Billing API + getDatabaseStats RPC + xlsx→exceljs
 3 chantiers :
 1. API Billing : GET /api/billing/status + POST /api/billing/portail
@@ -1350,6 +1374,17 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - [x] xlsx → exceljs migration (6 CVEs eliminees) (Passe 64)
 - [x] 5 corrections reviewers billing+exceljs (Passe 64)
 - [ ] Executer SQL 64 (get_database_stats RPC) dans Supabase Dashboard
+- [x] Plateforme prothesiste complete : 15 modules labo, 119 endpoints (Passe 65)
+- [x] Suivi production 8 etapes + QR code tracking labo (Passe 65)
+- [x] Chat temps reel dentiste-labo + portail magic link (Passe 65)
+- [x] Photo shade management + analyse IA Vision colorimetrie (Passe 65)
+- [x] Fichiers 3D STL/OBJ + validation portail dentiste (Passe 65)
+- [x] Portail patient suivi cas PREMIERE MONDIALE (Passe 65)
+- [x] Reseau solidarite prothesistes FR : annuaire, sous-traitance, achats groupes (Passe 65)
+- [x] Dashboard prothesiste 2267 lignes, 15 onglets (Passe 65)
+- [x] 3 formules tarifaires prothesiste + feature gating middleware (Passe 65)
+- [x] 9 corrections securite (4 CRITICAL IDOR, 2 HIGH, 3 MEDIUM) (Passe 65)
+- [ ] Executer MIGRATION_COMPLETE_65.sql dans Supabase Dashboard
 
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
@@ -1398,6 +1433,11 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - P12 certificat sans passphrase (stocker passphrase en env var)
 - N+1 queries /api/achats/price-watches (batch needed)
 - Navigation inconstante entre anciennes et nouvelles landings (nav .html vs sans)
+
+## Corriges par Passe 65
+- 4 CRITICAL IDOR : acces cross-labo sur production, remakes, techniciens, garanties → societe_id check
+- 2 HIGH : auth manquante sur chat websocket + portail magic link sans expiration → fix
+- 3 MEDIUM : XSS sur noms fichiers 3D upload, rate limit manquant sur forum solidarite, CSV injection export techniciens → sanitize
 
 ## Corriges par Passe 64
 - stripe_customer_id expose au client → remplace par has_stripe boolean
