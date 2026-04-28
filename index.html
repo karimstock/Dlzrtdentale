@@ -167,7 +167,21 @@ tbody tr:hover td{background:var(--surface2);}
 .vocal-examples{display:flex;flex-direction:column;gap:6px;}
 .vocal-example{padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);cursor:pointer;border:1px solid var(--border);transition:all 0.15s;}
 .vocal-example:hover{border-color:var(--accent);color:var(--accent);}
+.vocal-examples{display:flex;flex-wrap:wrap;gap:6px;}
 .vocal-close{position:absolute;top:20px;right:20px;width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);}
+/* Waveform bars */
+.wave-bar{width:3px;height:8px;background:var(--accent);border-radius:2px;animation:waveAnim 0.6s ease-in-out infinite;}
+.wave-bar:nth-child(2){animation-delay:0.1s;}.wave-bar:nth-child(3){animation-delay:0.2s;}.wave-bar:nth-child(4){animation-delay:0.3s;}.wave-bar:nth-child(5){animation-delay:0.4s;}
+.wave-bar:nth-child(6){animation-delay:0.15s;}.wave-bar:nth-child(7){animation-delay:0.25s;}.wave-bar:nth-child(8){animation-delay:0.35s;}.wave-bar:nth-child(9){animation-delay:0.45s;}.wave-bar:nth-child(10){animation-delay:0.05s;}
+@keyframes waveAnim{0%,100%{height:8px;opacity:0.4;}50%{height:28px;opacity:1;}}
+/* Conversation bubbles */
+.vocal-msg{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;margin-bottom:8px;max-width:90%;animation:fadeSlideUp 0.3s ease;}
+.vocal-msg.user{background:var(--accent);color:#fff;margin-left:auto;border-bottom-right-radius:4px;}
+.vocal-msg.assistant{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px;}
+.vocal-msg .msg-action{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin-top:8px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;}
+.vocal-msg .msg-action:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.vocal-msg .msg-action.secondary{background:transparent;border:1px solid var(--border);color:var(--muted);}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
 /* ── PHOTO MODAL ── */
 .photo-modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(8px);}
@@ -1526,22 +1540,36 @@ tbody tr:hover td{background:var(--surface2);}
 <!-- VOCAL FAB (moved to sidebar) -->
 <button class="vocal-fab" id="vocal-fab" onclick="ouvrirVocal()" title="Commande vocale" style="display:none;">🎤</button>
 
-<!-- MODAL VOCAL -->
+<!-- MODAL VOCAL — JADOMI Voice Assistant -->
 <div class="vocal-modal" id="vocal-modal">
   <div class="vocal-panel" style="position:relative;">
     <button class="vocal-close" onclick="fermerVocal()">✕</button>
-    <div class="vocal-title">Commande vocale</div>
-    <div class="vocal-sub">Dis ce que tu as utilisé ou livré</div>
-    <div class="vocal-display empty" id="vocal-display">En attente de ta voix...</div>
+    <div class="vocal-title">JADOMI Voice</div>
+    <div class="vocal-sub" id="vocal-sub">Parlez, JADOMI s'occupe de tout</div>
+    <!-- Conversation history -->
+    <div class="vocal-conversation" id="vocal-conversation" style="max-height:280px;overflow-y:auto;margin-bottom:12px;"></div>
+    <!-- Current display -->
+    <div class="vocal-display empty" id="vocal-display">En attente de votre voix...</div>
+    <!-- Waveform animation -->
+    <div class="vocal-wave" id="vocal-wave" style="display:none;height:40px;display:flex;align-items:center;justify-content:center;gap:3px;margin:8px 0;">
+      <span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>
+      <span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>
+    </div>
+    <!-- Input texte alternatif -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input type="text" id="vocal-text-input" placeholder="Ou tapez votre demande ici..." style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;" onkeypress="if(event.key==='Enter'){dispatchVocal(this.value);this.value='';}" />
+      <button onclick="dispatchVocal(document.getElementById('vocal-text-input').value);document.getElementById('vocal-text-input').value='';" style="padding:10px 16px;border-radius:10px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600;">Envoyer</button>
+    </div>
     <div class="vocal-btn-wrap">
       <button class="vocal-record-btn" id="vocal-btn" onclick="toggleVocal()">🎤</button>
     </div>
-    <div class="vocal-examples">
-      <div class="vocal-example" onclick="simulerVocal('J\'ai utilisé un Scotchbond')">💬 "J'ai utilisé un Scotchbond"</div>
-      <div class="vocal-example" onclick="simulerVocal('On a consommé 3 gants nitrile S')">💬 "On a consommé 3 gants nitrile S"</div>
-      <div class="vocal-example" onclick="simulerVocal('Il reste 5 carpules d\'articaïne')">💬 "Il reste 5 carpules d'articaïne"</div>
-      <div class="vocal-example" onclick="simulerVocal('Livraison reçue : 10 boîtes de gants M')">💬 "Livraison reçue : 10 boîtes de gants M"</div>
-      <div class="vocal-example" onclick="simulerVocal('Montre les produits en rupture')">💬 "Montre les produits en rupture"</div>
+    <div class="vocal-examples" id="vocal-examples">
+      <div class="vocal-example" onclick="simulerVocal('J\'ai consomme du Fuji IX, trouve le moins cher')">💬 "Fuji IX consomme, trouve le moins cher"</div>
+      <div class="vocal-example" onclick="simulerVocal('Commande urgente 3 carpules articaine')">💬 "Commande urgente 3 carpules"</div>
+      <div class="vocal-example" onclick="simulerVocal('On a consomme 3 gants nitrile S')">💬 "Consomme 3 gants nitrile S"</div>
+      <div class="vocal-example" onclick="simulerVocal('Il reste 5 carpules d\'articaine')">💬 "Il reste 5 carpules"</div>
+      <div class="vocal-example" onclick="simulerVocal('Montre les produits en rupture')">💬 "Produits en rupture"</div>
+      <div class="vocal-example" onclick="simulerVocal('Combien j\'ai depense ce mois')">💬 "Depenses du mois ?"</div>
     </div>
   </div>
 </div>
@@ -2613,8 +2641,9 @@ function toggleVocal() {
 function updateVocalUI() {
   const btn = document.getElementById('vocal-btn');
   const fab = document.getElementById('vocal-fab');
-  if(isListening){btn.classList.add('listening');btn.textContent='⏹';fab.classList.add('listening');}
-  else{btn.classList.remove('listening');btn.textContent='🎤';fab.classList.remove('listening');}
+  const wave = document.getElementById('vocal-wave');
+  if(isListening){btn.classList.add('listening');btn.textContent='⏹';fab.classList.add('listening');if(wave)wave.style.display='flex';
+  else{btn.classList.remove('listening');btn.textContent='🎤';fab.classList.remove('listening');if(wave)wave.style.display='none';}
 }
 
 function simulerVocal(texte) {
@@ -2649,89 +2678,193 @@ function dispatchVocal(texte) {
 }
 
 // ═══════════════════════════════════
-// VOCAL IA — CLAUDE API
+// VOCAL IA — JADOMI VOICE ASSISTANT
 // ═══════════════════════════════════
+let vocalContext = { history: [], pending: null, step: null };
+
+function addVocalMsg(role, html) {
+  const conv = document.getElementById('vocal-conversation');
+  const div = document.createElement('div');
+  div.className = 'vocal-msg ' + role;
+  div.innerHTML = html;
+  conv.appendChild(div);
+  conv.scrollTop = conv.scrollHeight;
+  // Hide examples after first message
+  const ex = document.getElementById('vocal-examples');
+  if (ex) ex.style.display = 'none';
+}
+
+function jadomiSpeak(text) {
+  if ('speechSynthesis' in window) {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR'; u.rate = 1.05; u.pitch = 1;
+    const voices = speechSynthesis.getVoices();
+    const fr = voices.find(v => v.lang.startsWith('fr') && v.name.includes('Google')) || voices.find(v => v.lang.startsWith('fr'));
+    if (fr) u.voice = fr;
+    speechSynthesis.speak(u);
+  }
+}
+
 async function traiterCommandeIA(texte) {
-  const display=document.getElementById('vocal-display');
+  const display = document.getElementById('vocal-display');
   display.classList.remove('empty');
-  display.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:#6b6760;padding:12px;">
-    <div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse-red 1s infinite;"></div>JADOMI IA analyse...</div>`;
+  addVocalMsg('user', texte);
+  display.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:#6b6760;padding:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse-red 1s infinite;"></div>JADOMI analyse...</div>';
 
   try {
-    const stockActuel=produits.slice(0,50).map(p=>p.nom+'(id:'+p.id+',stock:'+p.qty+(p.date_peremption?',exp:'+p.date_peremption:'')+')').join('\n');
+    const stockActuel = produits.slice(0, 50).map(p => p.nom + '(id:' + p.id + ',stock:' + p.qty + (p.date_peremption ? ',exp:' + p.date_peremption : '') + ')').join('\n');
 
-    const data=await appelClaudeAPI({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:800,
-      system:`Tu es l'IA de JADOMI, app de stock dentaire française.
+    // Build conversation context
+    const contextMsgs = vocalContext.history.slice(-6).map(h => ({ role: h.role, content: h.content }));
+    contextMsgs.push({ role: 'user', content: 'Le dentiste dit : "' + texte + '"' });
+
+    const data = await appelClaudeAPI({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: `Tu es JADOMI Voice, l'assistant vocal IA du cabinet dentaire. Tu GERES TOUT pour le dentiste.
 
 STOCK ACTUEL :
 ${stockActuel}
 
-RÈGLES ABSOLUES :
-1. "j'ai reçu 20 flacons de Scotchbond périme nov 2028" → action:ajoute, quantite:20, date_peremption:"2028-11" — JAMAIS mettre 2028 dans quantite
-2. "j'ai utilisé une boîte de gants nitrile" → action:utilise, quantite:1
-3. "j'ai utilisé 5 carpules" → action:utilise, quantite:5
-4. "livraison 10 gants, 5 Fuji Plus" → action:ajoute, 2 produits
-5. "commande 10 nitrile S, 5 Scotchbond meilleur prix" → action:commande
-6. "il reste 3 Fuji" → action:set, quantite:3
-7. "plus de composite" ou "rupture" → action:alerte
+ACTIONS POSSIBLES :
+1. "utilise" — Decrementer stock (j'ai consomme, utilise, pose, ouvert)
+2. "ajoute" — Incrementer stock (livraison recue, receptionne)
+3. "set" — Fixer quantite (il reste X)
+4. "commande" — Preparer panier + trouver meilleur prix. TU NE DIS PAS "allez sur tel site". Tu dis "Je prepare votre commande via JADOMI GPO, on trouve le meilleur prix pour vous."
+5. "commande_urgente" — Comme commande mais avec flag urgent + recherche express
+6. "alerte" — Montrer produits critiques/rupture
+7. "cherche_prix" — Le dentiste veut juste connaitre les prix du marche
+8. "stats" — Depenses, statistiques
+9. "question" — Le dentiste pose une question, reponds en texte
+10. "confirmation_attente" — Tu attends une reponse du dentiste (oui/non/quantite)
 
-CONVERSION DATES : "novembre 2028"→"2028-11", "mars 2026"→"2026-03", "fin 2027"→"2027-12", "2028" seul→"2028-12"
-JAMAIS mettre une année dans quantite.
+FLOW COMMANDE (TRES IMPORTANT) :
+- Quand le dentiste dit "trouve le moins cher" ou "commande" → action:commande
+- Tu proposes : "Je lance la recherche du meilleur prix via JADOMI GPO. Combien en voulez-vous ?"
+- Si la quantite est dans la phrase, prepare directement le panier
+- Si pas de quantite, demande avec action:confirmation_attente
+- Quand il confirme, action:commande avec la quantite
 
-Réponds UNIQUEMENT JSON :
-{"action":"utilise|ajoute|set|commande|alerte|inconnu","produits":[{"id":123,"nom":"nom exact","quantite":1,"date_peremption":null,"nouveau":false}],"message":"confirmation courte"}`,
-      messages:[{role:'user',content:'Le dentiste dit : "'+texte+'"'}]
+FLOW URGENCE :
+- "urgent", "d'urgence", "vite", "tout de suite" → action:commande_urgente
+- Tu dis : "Commande urgente lancee. Je contacte les fournisseurs avec livraison express."
+
+REGLES :
+- Vouvoiement obligatoire
+- Reponses courtes et claires (max 2 phrases)
+- JAMAIS dire "allez sur le site de..." — JADOMI gere tout
+- Toujours proposer l'action suivante
+- date_peremption : "novembre 2028"→"2028-11"
+- JAMAIS mettre une annee dans quantite
+
+JSON OBLIGATOIRE :
+{"action":"utilise|ajoute|set|commande|commande_urgente|alerte|cherche_prix|stats|question|confirmation_attente","produits":[{"id":123,"nom":"nom","quantite":1,"date_peremption":null,"nouveau":false}],"message":"reponse vocale courte au dentiste","need_response":false}`,
+      messages: contextMsgs
     });
-    const text=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('')||'';
-    const jsonMatch=text.match(/\{[\s\S]*\}/);
-    if(!jsonMatch) throw new Error('JSON invalide');
-    const res=JSON.parse(jsonMatch[0]);
-    let actions=[];
 
-    if(res.action==='alerte') {
-      document.getElementById('filter-status').value='critique';filtrer();
-      fermerVocal();showToast('📋 '+(res.message||'Produits critiques'));return;
-    }
-    if(res.action==='commande' && res.produits?.length) {
-      window._panierVocal=res.produits.map(p=>({nom:p.nom,qte:p.quantite,cat:'Autre',marque:''}));
-      fermerVocal();validerPanierVocal();return;
+    const text = data.content?.filter(c => c.type === 'text').map(c => c.text).join('') || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON invalide');
+    const res = JSON.parse(jsonMatch[0]);
+    let actions = [];
+
+    // Save context
+    vocalContext.history.push({ role: 'user', content: texte });
+    vocalContext.history.push({ role: 'assistant', content: JSON.stringify(res) });
+
+    // TTS response
+    if (res.message) jadomiSpeak(res.message);
+
+    // Handle actions
+    if (res.action === 'alerte') {
+      document.getElementById('filter-status').value = 'critique'; filtrer();
+      addVocalMsg('assistant', res.message || 'Voici vos produits critiques.');
+      display.innerHTML = '<div style="color:#10b981;font-size:13px;">Produits critiques affiches en arriere-plan</div>';
+      return;
     }
 
-    for(const p of (res.produits||[])) {
-      if(res.action==='utilise' && p.id) {
-        const pr=produits.find(x=>x.id===p.id);
-        if(pr){const nq=Math.max(0,pr.qty-p.quantite);produits=produits.map(x=>x.id===p.id?{...x,qty:nq}:x);actions.push(pr.nom+': '+pr.qty+' → '+nq);if(db){try{db.from('produits').update({qty:nq}).eq('id',p.id);}catch(e){}}}
-      } else if(res.action==='ajoute') {
-        if(p.nouveau||!p.id) {
-          const nv={nom:p.nom,categorie:p.categorie||'Autre',marque:p.marque||'',qty:p.quantite,seuil:5,date_peremption:p.date_peremption||null,fournisseur:'',is_partner:false,date_entree:new Date().toISOString().slice(0,10)};
-          produits=[{id:Date.now(),...nv},...produits];enrichirCatalogueVocal(nv);
-          actions.push(p.nom+' ajouté (×'+p.quantite+')'+(p.date_peremption?' Exp:'+p.date_peremption:''));
-          if(db){try{db.from('produits').insert([nv]).select();}catch(e){}}
-        } else {
-          const pr=produits.find(x=>x.id===p.id);
-          if(pr){const nq=pr.qty+p.quantite;const upd={qty:nq,date_entree:new Date().toISOString().slice(0,10)};if(p.date_peremption)upd.date_peremption=p.date_peremption;produits=produits.map(x=>x.id===p.id?{...x,...upd}:x);actions.push(pr.nom+': '+pr.qty+' → '+nq+(p.date_peremption?' Exp:'+p.date_peremption:''));if(db){try{db.from('produits').update(upd).eq('id',p.id);}catch(e){}}}
+    if (res.action === 'confirmation_attente') {
+      vocalContext.pending = res;
+      vocalContext.step = 'attente_quantite';
+      addVocalMsg('assistant', res.message + '<br><button class="msg-action" onclick="toggleVocal()">🎤 Repondre</button>');
+      display.innerHTML = '<div style="color:#f0a030;font-size:13px;">En attente de votre reponse...</div>';
+      return;
+    }
+
+    if (res.action === 'question' || res.action === 'stats') {
+      addVocalMsg('assistant', res.message);
+      display.innerHTML = '';
+      return;
+    }
+
+    if (res.action === 'commande' || res.action === 'commande_urgente') {
+      const urgent = res.action === 'commande_urgente';
+      const prods = res.produits || [];
+      if (prods.length > 0) {
+        window._panierVocal = prods.map(p => ({ nom: p.nom, qte: p.quantite || 1, cat: 'Autre', marque: '' }));
+        const panierHtml = prods.map(p => '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;"><span>' + p.nom + '</span><span style="color:#10b981;font-weight:600;">' + (p.quantite || 1) + '</span></div>').join('');
+        addVocalMsg('assistant', (res.message || 'Panier prepare.') + '<div style="background:rgba(16,185,129,0.08);border-radius:8px;padding:10px;margin-top:8px;">' + panierHtml + '</div>' + (urgent ? '<div style="color:#ef4444;font-size:11px;margin-top:6px;">URGENCE — Recherche fournisseur express</div>' : '') + '<div style="display:flex;gap:8px;margin-top:10px;"><button class="msg-action" onclick="validerPanierVocal();addVocalMsg(\'user\',\'Oui, lancez la commande\')">Lancer la commande</button><button class="msg-action secondary" onclick="addVocalMsg(\'user\',\'Annuler\');vocalContext.pending=null;">Annuler</button></div>');
+        display.innerHTML = '<div style="color:#10b981;font-size:13px;">Panier pret — confirmez pour commander</div>';
+      } else {
+        addVocalMsg('assistant', res.message);
+        display.innerHTML = '';
+      }
+      // Also decrement stock if it was "consomme + commande"
+      for (const p of prods) {
+        if (p.id) {
+          const pr = produits.find(x => x.id === p.id);
+          if (pr && pr.qty > 0) {
+            const nq = Math.max(0, pr.qty - (p.quantite || 1));
+            produits = produits.map(x => x.id === p.id ? { ...x, qty: nq } : x);
+            actions.push(pr.nom + ': stock ' + pr.qty + ' → ' + nq);
+            if (db) { try { db.from('produits').update({ qty: nq }).eq('id', p.id); } catch (e) { } }
+          }
         }
-      } else if(res.action==='set' && p.id) {
-        const pr=produits.find(x=>x.id===p.id);
-        if(pr){produits=produits.map(x=>x.id===p.id?{...x,qty:p.quantite}:x);actions.push(pr.nom+': stock = '+p.quantite);if(db){try{db.from('produits').update({qty:p.quantite}).eq('id',p.id);}catch(e){}}}
+      }
+      if (actions.length) { localStorage.setItem('amilo_produits', JSON.stringify(produits)); updateStats(); filtrer(); }
+      return;
+    }
+
+    if (res.action === 'cherche_prix') {
+      addVocalMsg('assistant', res.message || 'Je recherche les meilleurs prix pour vous...');
+      display.innerHTML = '<div style="color:#10b981;font-size:13px;">Recherche prix en cours...</div>';
+      return;
+    }
+
+    // Standard stock actions (utilise, ajoute, set)
+    for (const p of (res.produits || [])) {
+      if (res.action === 'utilise' && p.id) {
+        const pr = produits.find(x => x.id === p.id);
+        if (pr) { const nq = Math.max(0, pr.qty - p.quantite); produits = produits.map(x => x.id === p.id ? { ...x, qty: nq } : x); actions.push(pr.nom + ': ' + pr.qty + ' → ' + nq); if (db) { try { db.from('produits').update({ qty: nq }).eq('id', p.id); } catch (e) { } } }
+      } else if (res.action === 'ajoute') {
+        if (p.nouveau || !p.id) {
+          const nv = { nom: p.nom, categorie: p.categorie || 'Autre', marque: p.marque || '', qty: p.quantite, seuil: 5, date_peremption: p.date_peremption || null, fournisseur: '', is_partner: false, date_entree: new Date().toISOString().slice(0, 10) };
+          produits = [{ id: Date.now(), ...nv }, ...produits]; enrichirCatalogueVocal(nv);
+          actions.push(p.nom + ' ajoute (x' + p.quantite + ')' + (p.date_peremption ? ' Exp:' + p.date_peremption : ''));
+          if (db) { try { db.from('produits').insert([nv]).select(); } catch (e) { } }
+        } else {
+          const pr = produits.find(x => x.id === p.id);
+          if (pr) { const nq = pr.qty + p.quantite; const upd = { qty: nq, date_entree: new Date().toISOString().slice(0, 10) }; if (p.date_peremption) upd.date_peremption = p.date_peremption; produits = produits.map(x => x.id === p.id ? { ...x, ...upd } : x); actions.push(pr.nom + ': ' + pr.qty + ' → ' + nq + (p.date_peremption ? ' Exp:' + p.date_peremption : '')); if (db) { try { db.from('produits').update(upd).eq('id', p.id); } catch (e) { } } }
+        }
+      } else if (res.action === 'set' && p.id) {
+        const pr = produits.find(x => x.id === p.id);
+        if (pr) { produits = produits.map(x => x.id === p.id ? { ...x, qty: p.quantite } : x); actions.push(pr.nom + ': stock = ' + p.quantite); if (db) { try { db.from('produits').update({ qty: p.quantite }).eq('id', p.id); } catch (e) { } } }
       }
     }
 
-    localStorage.setItem('amilo_produits',JSON.stringify(produits));
-    updateStats();filtrer();
+    localStorage.setItem('amilo_produits', JSON.stringify(produits));
+    updateStats(); filtrer();
 
-    display.innerHTML=`
-      <div style="color:#10b981;font-weight:600;font-size:14px;margin-bottom:10px;">✅ ${res.message||'Action effectuée'}</div>
-      ${actions.map(a=>`<div style="padding:5px 0;border-bottom:1px solid #2e2c29;font-size:12px;color:#f0ede8;">${a}</div>`).join('')}`;
+    const actionsHtml = actions.length ? '<div style="margin-top:6px;font-size:12px;color:#a1a1aa;">' + actions.join('<br>') + '</div>' : '';
+    addVocalMsg('assistant', (res.message || 'Action effectuee.') + actionsHtml);
+    display.innerHTML = '';
     bipScan();
-    setTimeout(()=>fermerVocal(),3000);
 
-  } catch(e) {
-    console.warn('Vocal IA:',e);
-    display.innerHTML='<div style="color:#f0a030;font-size:12px;">🟡 IA indisponible · Mode local</div>';
-    setTimeout(()=>traiterCommande(texte),500);
+  } catch (e) {
+    console.warn('Vocal IA:', e);
+    addVocalMsg('assistant', 'Mode local active (IA indisponible)');
+    display.innerHTML = '';
+    traiterCommande(texte);
   }
 }
 
@@ -3296,8 +3429,21 @@ async function scannerDatePeremptionPhoto(file){
   }
 }
 
-function ouvrirVocal() { document.getElementById('vocal-modal').classList.add('open'); }
-function fermerVocal() { document.getElementById('vocal-modal').classList.remove('open'); if(isListening){recognition?.stop();isListening=false;updateVocalUI();} }
+function ouvrirVocal() {
+  document.getElementById('vocal-modal').classList.add('open');
+  const conv = document.getElementById('vocal-conversation');
+  conv.innerHTML = '';
+  vocalContext = { history: [], pending: null, step: null };
+  const ex = document.getElementById('vocal-examples');
+  if (ex) ex.style.display = 'flex';
+  document.getElementById('vocal-display').innerHTML = 'En attente de votre voix...';
+  document.getElementById('vocal-display').classList.add('empty');
+}
+function fermerVocal() {
+  document.getElementById('vocal-modal').classList.remove('open');
+  if (isListening) { recognition?.stop(); isListening = false; updateVocalUI(); }
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
 
 // ═══════════════════════════════════
 // PHOTO
