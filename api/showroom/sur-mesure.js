@@ -17,7 +17,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.json({ success: true, demandes: [] });
 
-      let query = admin().from('showroom_sur_mesure')
+      let query = admin().from('showroom_demandes_sur_mesure')
         .select('*, produit_ref:produit_id(nom, photos)')
         .eq('profil_id', profilId);
 
@@ -33,7 +33,7 @@ module.exports = function (router) {
   router.get('/sur-mesure/:id', requireSociete(), async (req, res) => {
     try {
       const profilId = await getProfilId(req.societe.id);
-      const { data } = await admin().from('showroom_sur_mesure')
+      const { data } = await admin().from('showroom_demandes_sur_mesure')
         .select('*, produit_ref:produit_id(nom, photos, categorie)')
         .eq('id', req.params.id).eq('profil_id', profilId).maybeSingle();
       if (!data) return res.status(404).json({ error: 'Demande introuvable' });
@@ -52,7 +52,7 @@ module.exports = function (router) {
 
       const acompte = Math.round(Number(prix_devis) * ACOMPTE_PCT) / 100;
 
-      const { data, error } = await admin().from('showroom_sur_mesure')
+      const { data, error } = await admin().from('showroom_demandes_sur_mesure')
         .update({
           prix_devis: Number(prix_devis),
           acompte_montant: acompte,
@@ -94,7 +94,7 @@ module.exports = function (router) {
       }
 
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
-        action: 'devis_sur_mesure', entity: 'showroom_sur_mesure', entityId: data.id,
+        action: 'devis_sur_mesure', entity: 'showroom_demandes_sur_mesure', entityId: data.id,
         meta: { prix_devis, acompte, delai_jours }, req });
       res.json({ success: true, demande: data });
     } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
@@ -113,7 +113,7 @@ module.exports = function (router) {
       const updates = { statut, updated_at: new Date().toISOString() };
       if (notes) updates.notes_createur = notes;
 
-      const { data, error } = await admin().from('showroom_sur_mesure')
+      const { data, error } = await admin().from('showroom_demandes_sur_mesure')
         .update(updates).eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();
       if (error) throw error;
@@ -128,7 +128,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       const { stripe_payment_intent_id } = req.body;
 
-      const { data, error } = await admin().from('showroom_sur_mesure')
+      const { data, error } = await admin().from('showroom_demandes_sur_mesure')
         .update({
           acompte_paye: true,
           acompte_date: new Date().toISOString(),

@@ -16,7 +16,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.json({ success: true, conversations: [] });
 
-      const { data } = await admin().from('showroom_conversations')
+      const { data } = await admin().from('showroom_messages')
         .select('*, dernier_message:showroom_messages(contenu, auteur_type, created_at)')
         .eq('profil_id', profilId)
         .order('updated_at', { ascending: false });
@@ -37,7 +37,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
 
       // Vérifier propriété de la conversation
-      const { data: conv } = await admin().from('showroom_conversations')
+      const { data: conv } = await admin().from('showroom_messages')
         .select('*').eq('id', req.params.conversationId).eq('profil_id', profilId).maybeSingle();
       if (!conv) return res.status(404).json({ error: 'Conversation introuvable' });
 
@@ -51,7 +51,7 @@ module.exports = function (router) {
         .eq('conversation_id', conv.id).eq('auteur_type', 'client').eq('lu_createur', false);
 
       // Mettre à jour le compteur non lu
-      await admin().from('showroom_conversations')
+      await admin().from('showroom_messages')
         .update({ nb_non_lus_createur: 0 })
         .eq('id', conv.id);
 
@@ -67,7 +67,7 @@ module.exports = function (router) {
       if (!contenu || !contenu.trim()) return res.status(400).json({ error: 'contenu requis' });
 
       // Vérifier propriété de la conversation
-      const { data: conv } = await admin().from('showroom_conversations')
+      const { data: conv } = await admin().from('showroom_messages')
         .select('*').eq('id', req.params.conversationId).eq('profil_id', profilId).maybeSingle();
       if (!conv) return res.status(404).json({ error: 'Conversation introuvable' });
 
@@ -83,7 +83,7 @@ module.exports = function (router) {
       if (error) throw error;
 
       // Mettre à jour la conversation
-      await admin().from('showroom_conversations')
+      await admin().from('showroom_messages')
         .update({
           updated_at: new Date().toISOString(),
           nb_non_lus_client: (conv.nb_non_lus_client || 0) + 1
@@ -114,7 +114,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.json({ success: true, count: 0 });
 
-      const { data } = await admin().from('showroom_conversations')
+      const { data } = await admin().from('showroom_messages')
         .select('nb_non_lus_createur').eq('profil_id', profilId);
 
       const count = (data || []).reduce((s, c) => s + (c.nb_non_lus_createur || 0), 0);

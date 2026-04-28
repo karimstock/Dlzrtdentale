@@ -75,8 +75,13 @@ module.exports = function (router) {
     try {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(400).json({ error: 'Profil requis' });
+      // Whitelist fields to prevent mass assignment (attacker overriding profil_id, id, etc.)
+      const { date_debut, date_fin, heure_debut, heure_fin, motif, jour_semaine, recurrent } = req.body;
+      const safe = { date_debut, date_fin, heure_debut, heure_fin, motif, jour_semaine, recurrent, profil_id: profilId };
+      // Remove undefined keys
+      Object.keys(safe).forEach(k => safe[k] === undefined && delete safe[k]);
       const { data, error } = await admin().from('juridique_blocages')
-        .insert({ ...req.body, profil_id: profilId }).select('*').single();
+        .insert(safe).select('*').single();
       if (error) throw error;
       res.json({ success: true, blocage: data });
     } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }

@@ -144,6 +144,7 @@ const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let TOKEN='',currentPage=1,totalClients=0;
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 async function refreshToken(){const{data}=await sb.auth.getSession();if(!data?.session){location.href='/pro/login.html';return}TOKEN=data.session.access_token}
 async function api(url,opts={}){
   if(!TOKEN)await refreshToken();
@@ -156,7 +157,7 @@ async function api(url,opts={}){
 async function loadSegments(){
   const r=await api('/api/services/clients/segments/list');
   const sel=document.getElementById('filterSegment');
-  sel.innerHTML='<option value="">Tous les segments</option>'+(r.segments||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
+  sel.innerHTML='<option value="">Tous les segments</option>'+(r.segments||[]).map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
 }
 async function loadClients(){
   const search=document.getElementById('searchInput').value;
@@ -170,12 +171,12 @@ async function loadClients(){
   if(!clients.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty">Aucun client trouv&eacute;</div></td></tr>';return}
   tbody.innerHTML=clients.map(c=>{
     const initials=((c.prenom||'')[0]||'')+((c.nom||'')[0]||'');
-    return`<tr onclick="editClient('${c.id}')">
-      <td><div class="client-cell"><div class="avatar">${initials.toUpperCase()}</div><div><div class="name">${c.prenom||''} ${c.nom||''}</div><div class="email">${c.email||''}</div></div></div></td>
-      <td>${c.telephone||'—'}</td>
-      <td>${c.nb_visites||0}</td>
-      <td><span class="points-badge">${c.points_fidelite||0} pts</span></td>
-      <td>${(c.segments||[]).map(s=>`<span class="segment-tag">${s}</span>`).join('')||'—'}</td>
+    return`<tr onclick="editClient('${esc(c.id)}')">
+      <td><div class="client-cell"><div class="avatar">${esc(initials.toUpperCase())}</div><div><div class="name">${esc(c.prenom||'')} ${esc(c.nom||'')}</div><div class="email">${esc(c.email||'')}</div></div></div></td>
+      <td>${esc(c.telephone||'—')}</td>
+      <td>${parseInt(c.nb_visites)||0}</td>
+      <td><span class="points-badge">${parseInt(c.points_fidelite)||0} pts</span></td>
+      <td>${(c.segments||[]).map(s=>`<span class="segment-tag">${esc(s)}</span>`).join('')||'—'}</td>
       <td>${c.derniere_visite?new Date(c.derniere_visite).toLocaleDateString('fr-FR'):'—'}</td>
     </tr>`}).join('');
   renderPagination();
@@ -221,7 +222,7 @@ async function editClient(id){
   // Load history
   document.getElementById('fPoints').textContent=r.client.points_fidelite||0;
   const hist=r.historique||[];
-  document.getElementById('historiqueList').innerHTML=hist.length?hist.map(h=>`<div class="hist-item"><div><strong>${h.prestation?.nom||'RDV'}</strong> — ${h.statut}</div><div><span class="hist-date">${new Date(h.date_heure).toLocaleDateString('fr-FR')}</span> <strong>${h.prestation?.prix||0}&euro;</strong></div></div>`).join(''):'<div class="empty">Aucun historique</div>';
+  document.getElementById('historiqueList').innerHTML=hist.length?hist.map(h=>`<div class="hist-item"><div><strong>${esc(h.prestation?.nom||'RDV')}</strong> — ${esc(h.statut)}</div><div><span class="hist-date">${new Date(h.date_heure).toLocaleDateString('fr-FR')}</span> <strong>${parseFloat(h.prestation?.prix)||0}&euro;</strong></div></div>`).join(''):'<div class="empty">Aucun historique</div>';
 }
 async function saveClient(){
   const id=document.getElementById('clientId').value;

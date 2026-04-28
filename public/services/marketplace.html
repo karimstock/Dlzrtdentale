@@ -162,6 +162,7 @@ const SUPABASE_URL='https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SUPABASE_KEY='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let TOKEN='',allProducts=[];
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 async function refreshToken(){const{data}=await sb.auth.getSession();if(!data?.session){location.href='/pro/login.html';return}TOKEN=data.session.access_token}
 async function api(url,opts={}){
   if(!TOKEN)await refreshToken();
@@ -186,18 +187,18 @@ async function loadProducts(){
   allProducts=r.produits||[];
   const c=document.getElementById('productsList');
   if(!allProducts.length){c.innerHTML='<div class="empty">Aucun produit</div>';return}
-  c.innerHTML=allProducts.map(p=>`<div class="product-card" onclick="editProduct('${p.id}')">
-    <span class="product-type ${p.type==='vente'?'type-vente':'type-location'}">${p.type}</span>
-    <div class="product-nom">${p.nom}</div>
-    <div class="product-desc">${p.description||''}</div>
+  c.innerHTML=allProducts.map(p=>`<div class="product-card" onclick="editProduct('${esc(p.id)}')">
+    <span class="product-type ${p.type==='vente'?'type-vente':'type-location'}">${esc(p.type)}</span>
+    <div class="product-nom">${esc(p.nom)}</div>
+    <div class="product-desc">${esc(p.description||'')}</div>
     <div class="product-meta">
-      <span class="product-prix">${p.type==='location'?(p.prix_location_jour||0)+'€/j':p.prix+'€'}</span>
-      <span class="product-stock ${p.stock_quantite<=2?'stock-low':''}">Stock: ${p.stock_quantite}</span>
+      <span class="product-prix">${p.type==='location'?(parseFloat(p.prix_location_jour)||0)+'€/j':(parseFloat(p.prix)||0)+'€'}</span>
+      <span class="product-stock ${(parseInt(p.stock_quantite)||0)<=2?'stock-low':''}">Stock: ${parseInt(p.stock_quantite)||0}</span>
     </div>
-    ${p.caution?`<div style="font-size:11px;color:var(--warning);margin-top:6px">Caution: ${p.caution}€</div>`:''}
+    ${p.caution?`<div style="font-size:11px;color:var(--warning);margin-top:6px">Caution: ${parseFloat(p.caution)||0}€</div>`:''}
   </div>`).join('');
   // Update commande product select
-  document.getElementById('cProduit').innerHTML=allProducts.map(p=>`<option value="${p.id}">${p.nom} (${p.type})</option>`).join('');
+  document.getElementById('cProduit').innerHTML=allProducts.map(p=>`<option value="${esc(p.id)}">${esc(p.nom)} (${esc(p.type)})</option>`).join('');
 }
 async function loadCommandes(){
   const statut=document.getElementById('filterCmdStatut').value;

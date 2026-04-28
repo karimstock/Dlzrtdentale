@@ -611,6 +611,8 @@ const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
 let db = null;
 try { const {createClient} = supabase; db = createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){}
 
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 let monProfil = null;
 let commandes = [], stocks = [], factures = [], tarifs = [], rushes = [], mesRushes = [];
 
@@ -759,14 +761,14 @@ function rendreCmd() {
   if (!list.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">Aucune commande</td></tr>'; }
   else tb.innerHTML = list.map(c => `
     <tr>
-      <td><strong>${c.cabinet_nom||'—'}</strong><div style="font-size:11px;color:var(--muted);">${c.dentiste_nom||''}</div></td>
-      <td>${c.type_travail||''}<div style="font-size:11px;color:var(--muted);">${c.patient_ref||''}</div></td>
-      <td>${c.matiere||''}</td>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">${c.date_reception||''}</td>
-      <td style="font-family:var(--mono);font-size:12px;">${c.date_livraison_prevue||''}</td>
+      <td><strong>${esc(c.cabinet_nom||'—')}</strong><div style="font-size:11px;color:var(--muted);">${esc(c.dentiste_nom||'')}</div></td>
+      <td>${esc(c.type_travail||'')}<div style="font-size:11px;color:var(--muted);">${esc(c.patient_ref||'')}</div></td>
+      <td>${esc(c.matiere||'')}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted);">${esc(c.date_reception||'')}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${esc(c.date_livraison_prevue||'')}</td>
       <td>${badgeStatut(c.statut)}</td>
-      <td><strong>${c.prix_ht||0} €</strong></td>
-      <td><div class="action-btns"><button class="icon-btn go" onclick="avancerCmd(${c.id})" title="Avancer">→</button><button class="icon-btn del" onclick="supprimerCmd(${c.id})">🗑</button></div></td>
+      <td><strong>${parseFloat(c.prix_ht)||0} €</strong></td>
+      <td><div class="action-btns"><button class="icon-btn go" onclick="avancerCmd(${parseInt(c.id)||0})" title="Avancer">→</button><button class="icon-btn del" onclick="supprimerCmd(${parseInt(c.id)||0})">🗑</button></div></td>
     </tr>`).join('');
   document.getElementById('cmd-count').textContent = list.length + ' / ' + commandes.length;
   // stats
@@ -849,13 +851,13 @@ function rendreStock() {
     const ratio = (s.quantite||0) / (s.seuil||1);
     const sev = ratio < 1 ? 'crit' : ratio < 2 ? 'warn' : 'ok';
     return `<tr>
-      <td><strong>${s.nom}</strong></td>
-      <td><span class="badge badge-info">${s.categorie||''}</span></td>
-      <td><strong>${s.quantite||0}</strong> ${s.unite||''}</td>
-      <td>${s.seuil||0}</td>
-      <td>${s.fournisseur||'—'}</td>
-      <td>${s.date_peremption||'—'}</td>
-      <td><div class="action-btns"><button class="icon-btn del" onclick="supprimerStock(${s.id})">🗑</button></div></td>
+      <td><strong>${esc(s.nom)}</strong></td>
+      <td><span class="badge badge-info">${esc(s.categorie||'')}</span></td>
+      <td><strong>${parseInt(s.quantite)||0}</strong> ${esc(s.unite||'')}</td>
+      <td>${parseInt(s.seuil)||0}</td>
+      <td>${esc(s.fournisseur||'—')}</td>
+      <td>${esc(s.date_peremption||'—')}</td>
+      <td><div class="action-btns"><button class="icon-btn del" onclick="supprimerStock(${parseInt(s.id)||0})">🗑</button></div></td>
     </tr>`;
   }).join('');
   document.getElementById('stock-count').textContent = list.length + ' / ' + stocks.length;
@@ -915,13 +917,13 @@ function rendreFact() {
   if (!factures.length) tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">Aucune facture</td></tr>';
   else tb.innerHTML = factures.map(f => `
     <tr>
-      <td style="font-family:var(--mono);">${f.numero||''}</td>
-      <td>${f.cabinet_nom||''}<div style="font-size:11px;color:var(--muted);">${f.dentiste_nom||''}</div></td>
-      <td style="font-family:var(--mono);font-size:12px;">${f.date_emission||''}</td>
-      <td style="font-family:var(--mono);font-size:12px;">${f.date_echeance||''}</td>
-      <td><strong>${(f.montant_ttc||0).toFixed?f.montant_ttc.toFixed(2):f.montant_ttc} €</strong></td>
+      <td style="font-family:var(--mono);">${esc(f.numero||'')}</td>
+      <td>${esc(f.cabinet_nom||'')}<div style="font-size:11px;color:var(--muted);">${esc(f.dentiste_nom||'')}</div></td>
+      <td style="font-family:var(--mono);font-size:12px;">${esc(f.date_emission||'')}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${esc(f.date_echeance||'')}</td>
+      <td><strong>${(parseFloat(f.montant_ttc)||0).toFixed(2)} €</strong></td>
       <td>${badgeStatut(f.statut)}</td>
-      <td><div class="action-btns"><button class="icon-btn go" onclick="marquerPayee(${f.id})" title="Marquer payee">✓</button><button class="icon-btn del" onclick="supprimerFact(${f.id})">🗑</button></div></td>
+      <td><div class="action-btns"><button class="icon-btn go" onclick="marquerPayee(${parseInt(f.id)||0})" title="Marquer payee">✓</button><button class="icon-btn del" onclick="supprimerFact(${parseInt(f.id)||0})">🗑</button></div></td>
     </tr>`).join('');
   document.getElementById('fact-count').textContent = factures.length;
   document.getElementById('s-fact-emises').textContent = factures.filter(f=>f.statut==='emise'||f.statut==='envoyee').length;
@@ -982,12 +984,12 @@ function rendreTarif() {
   if (!list.length) tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Aucun tarif</td></tr>';
   else tb.innerHTML = list.map(t => `
     <tr>
-      <td><strong>${t.type_travail||''}</strong><div style="font-size:11px;color:var(--muted);">${t.description||''}</div></td>
-      <td>${t.matiere||''}</td>
-      <td><strong>${t.prix_ht||0} €</strong></td>
-      <td>${t.delai_jours||0} j</td>
+      <td><strong>${esc(t.type_travail||'')}</strong><div style="font-size:11px;color:var(--muted);">${esc(t.description||'')}</div></td>
+      <td>${esc(t.matiere||'')}</td>
+      <td><strong>${parseFloat(t.prix_ht)||0} €</strong></td>
+      <td>${parseInt(t.delai_jours)||0} j</td>
       <td>${t.actif!==false?'<span class="badge badge-ok">Actif</span>':'<span class="badge badge-warn">Inactif</span>'}</td>
-      <td><div class="action-btns"><button class="icon-btn del" onclick="supprimerTarif(${t.id})">🗑</button></div></td>
+      <td><div class="action-btns"><button class="icon-btn del" onclick="supprimerTarif(${parseInt(t.id)||0})">🗑</button></div></td>
     </tr>`).join('');
   document.getElementById('tarif-count').textContent = tarifs.length;
 }
@@ -1037,16 +1039,16 @@ function rendreRush() {
       ? '<span class="badge badge-fr">🇫🇷 Made in France</span>'
       : '<span class="badge badge-import">🌍 Import</span>';
     return `<div class="rush-card">
-      <div class="rush-pseudo">${r.token?.slice(0,10)}··· · ${r.ville_depart||''} ${r.cp_depart||''}</div>
-      <div class="rush-type">${r.type_travail}</div>
-      <div class="rush-meta">${r.description||''}</div>
-      <div class="rush-info">${badge} <span>${r.matiere||''}</span> <span>${r.quantite||1}u</span> <span>⏱ ${r.delai_jours||3}j</span></div>
+      <div class="rush-pseudo">${esc((r.token||'').slice(0,10))}··· · ${esc(r.ville_depart||'')} ${esc(r.cp_depart||'')}</div>
+      <div class="rush-type">${esc(r.type_travail)}</div>
+      <div class="rush-meta">${esc(r.description||'')}</div>
+      <div class="rush-info">${badge} <span>${esc(r.matiere||'')}</span> <span>${parseInt(r.quantite)||1}u</span> <span>⏱ ${parseInt(r.delai_jours)||3}j</span></div>
       <div class="rush-tarif">
-        <span class="rush-tarif-val">${r.tarif_propose} €</span>
-        <span class="rush-tarif-sub">HT · livraison ~${r.livraison_estimee||0}€</span>
+        <span class="rush-tarif-val">${parseFloat(r.tarif_propose)||0} €</span>
+        <span class="rush-tarif-sub">HT · livraison ~${parseFloat(r.livraison_estimee)||0}€</span>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Commission JADOMI : ${r.commission_jadomi||0}€ (10%)</div>
-      <button class="btn btn-accent" style="width:100%;" onclick="proposerOffre('${r.id}','${r.token}')">⚡ Je prends ce travail</button>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Commission JADOMI : ${parseFloat(r.commission_jadomi)||0}€ (10%)</div>
+      <button class="btn btn-accent" style="width:100%;" onclick="proposerOffre('${esc(r.id)}','${esc(r.token)}')">⚡ Je prends ce travail</button>
     </div>`;
   }).join('');
 }
@@ -1086,14 +1088,14 @@ function rendreMesRush() {
   if (!mesRushes.length) tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">Aucune demande Rush</td></tr>';
   else tb.innerHTML = mesRushes.map(r => `
     <tr>
-      <td style="font-family:var(--mono);font-size:11px;">${r.token?.slice(0,8)}···</td>
-      <td><strong>${r.type_travail}</strong><div style="font-size:11px;color:var(--muted);">${r.matiere||''}</div></td>
+      <td style="font-family:var(--mono);font-size:11px;">${esc((r.token||'').slice(0,8))}···</td>
+      <td><strong>${esc(r.type_travail)}</strong><div style="font-size:11px;color:var(--muted);">${esc(r.matiere||'')}</div></td>
       <td>${r.made_in_demandeur==='FR'?'<span class="badge badge-fr">🇫🇷 FR</span>':'<span class="badge badge-import">🌍 Import</span>'}</td>
-      <td><strong>${r.tarif_propose} €</strong></td>
-      <td>${r.commission_jadomi||0} €</td>
-      <td>${r.livraison_estimee||0} €</td>
+      <td><strong>${parseFloat(r.tarif_propose)||0} €</strong></td>
+      <td>${parseFloat(r.commission_jadomi)||0} €</td>
+      <td>${parseFloat(r.livraison_estimee)||0} €</td>
       <td>${badgeStatut(r.statut)}</td>
-      <td><div class="action-btns"><button class="icon-btn go" onclick="genererEtiquette(${r.id})" title="Étiquette QR">🏷</button></div></td>
+      <td><div class="action-btns"><button class="icon-btn go" onclick="genererEtiquette(${parseInt(r.id)||0})" title="Étiquette QR">🏷</button></div></td>
     </tr>`).join('');
   document.getElementById('mr-count').textContent = mesRushes.length;
   document.getElementById('s-mr-encours').textContent = mesRushes.filter(r=>r.statut==='ouverte'||r.statut==='attribuee'||r.statut==='en_cours').length;

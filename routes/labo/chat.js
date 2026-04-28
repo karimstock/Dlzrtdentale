@@ -58,33 +58,56 @@ router.get('/conversations', async (req, res) => {
     if (req.query.dentiste_id) query = query.eq('dentiste_id', req.query.dentiste_id);
     if (req.query.case_id) query = query.eq('case_production_id', req.query.case_id);
 
+    query = query.limit(100); // Perf: cap conversations list
     const { data: conversations, error } = await query;
     if (error) throw error;
 
-    // Get last message + unread count for each conversation
-    const enriched = await Promise.all((conversations || []).map(async (conv) => {
-      const { data: lastMsg } = await admin()
+    // Batch-fetch last messages + unread counts to avoid N+1 queries
+    const convIds = (conversations || []).map(c => c.id);
+    let lastMsgMap = {};
+    let unreadMap = {};
+
+    if (convIds.length > 0) {
+      // Batch: last message per conversation (fetch recent messages, dedupe in JS)
+      const { data: recentMsgs } = await admin()
         .from('labo_messages')
-        .select('contenu, auteur_type, auteur_nom, type, created_at')
-        .eq('conversation_id', conv.id)
+        .select('conversation_id, contenu, auteur_type, auteur_nom, type, created_at')
+        .in('conversation_id', convIds)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(convIds.length * 2);
 
-      const { count } = await admin()
-        .from('labo_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('conversation_id', conv.id)
-        .eq('lu_labo', false)
-        .eq('auteur_type', 'dentiste');
+      for (const msg of (recentMsgs || [])) {
+        if (!lastMsgMap[msg.conversation_id]) {
+          lastMsgMap[msg.conversation_id] = {
+            contenu: msg.contenu, auteur_type: msg.auteur_type,
+            auteur_nom: msg.auteur_nom, type: msg.type, created_at: msg.created_at
+          };
+        }
+      }
 
-      return {
-        ...conv,
-        dentiste: conv.dentistes_clients,
-        dentistes_clients: undefined,
-        dernier_message: lastMsg || null,
-        non_lus: count || 0
-      };
+      // Batch: unread counts (one query with grouping not available in Supabase, use Promise.all with limited concurrency)
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < convIds.length; i += BATCH_SIZE) {
+        const batch = convIds.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(batch.map(cid =>
+          admin()
+            .from('labo_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', cid)
+            .eq('lu_labo', false)
+            .eq('auteur_type', 'dentiste')
+            .then(r => ({ cid, count: r.count || 0 }))
+        ));
+        for (const r of results) unreadMap[r.cid] = r.count;
+      }
+    }
+
+    const enriched = (conversations || []).map(conv => ({
+      ...conv,
+      dentiste: conv.dentistes_clients,
+      dentistes_clients: undefined,
+      dernier_message: lastMsgMap[conv.id] || null,
+      non_lus: unreadMap[conv.id] || 0
     }));
 
     res.json({ conversations: enriched });
@@ -316,32 +339,53 @@ portailRouter.get('/conversations', async (req, res) => {
       `)
       .eq('dentiste_id', req.dentisteId)
       .eq('prothesiste_id', req.dentisteProthesisteId)
-      .order('dernier_message_at', { ascending: false });
+      .order('dernier_message_at', { ascending: false })
+      .limit(100); // Perf: cap conversations list
 
     if (error) throw error;
 
-    // Get last message + unread count for each conversation
-    const enriched = await Promise.all((conversations || []).map(async (conv) => {
-      const { data: lastMsg } = await admin()
+    // Batch-fetch to avoid N+1 queries
+    const convIds = (conversations || []).map(c => c.id);
+    let lastMsgMap = {};
+    let unreadMap = {};
+
+    if (convIds.length > 0) {
+      const { data: recentMsgs } = await admin()
         .from('labo_messages')
-        .select('contenu, auteur_type, auteur_nom, type, created_at')
-        .eq('conversation_id', conv.id)
+        .select('conversation_id, contenu, auteur_type, auteur_nom, type, created_at')
+        .in('conversation_id', convIds)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(convIds.length * 2);
 
-      const { count } = await admin()
-        .from('labo_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('conversation_id', conv.id)
-        .eq('lu_dentiste', false)
-        .eq('auteur_type', 'labo');
+      for (const msg of (recentMsgs || [])) {
+        if (!lastMsgMap[msg.conversation_id]) {
+          lastMsgMap[msg.conversation_id] = {
+            contenu: msg.contenu, auteur_type: msg.auteur_type,
+            auteur_nom: msg.auteur_nom, type: msg.type, created_at: msg.created_at
+          };
+        }
+      }
 
-      return {
-        ...conv,
-        dernier_message: lastMsg || null,
-        non_lus: count || 0
-      };
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < convIds.length; i += BATCH_SIZE) {
+        const batch = convIds.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(batch.map(cid =>
+          admin()
+            .from('labo_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', cid)
+            .eq('lu_dentiste', false)
+            .eq('auteur_type', 'labo')
+            .then(r => ({ cid, count: r.count || 0 }))
+        ));
+        for (const r of results) unreadMap[r.cid] = r.count;
+      }
+    }
+
+    const enriched = (conversations || []).map(conv => ({
+      ...conv,
+      dernier_message: lastMsgMap[conv.id] || null,
+      non_lus: unreadMap[conv.id] || 0
     }));
 
     res.json({ conversations: enriched });

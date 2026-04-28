@@ -20,7 +20,7 @@ try {
     });
     console.log('[JADOMI] Module OVH Domains configure');
   } else {
-    console.warn('[JADOMI] Module OVH Domains en mode degrade (cles API manquantes)');
+    console.log('[JADOMI] Module OVH Domains en mode degrade (cles API manquantes)');
   }
 } catch(err) {
   console.error('[JADOMI] OVH init error:', err.message);

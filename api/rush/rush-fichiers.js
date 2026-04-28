@@ -12,7 +12,7 @@ const { uploadToR2, getPresignedUrl, downloadFromR2, deleteFromR2, isR2Available
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500Mo max
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100Mo max (reduced from 500Mo for memory safety)
   fileFilter: (req, file, cb) => {
     const ok = /\.(stl|obj|ply|3mf|dcm|jpg|jpeg|png|webp|zip)$/i.test(file.originalname);
     cb(ok ? null : new Error('Format non accepte (STL, OBJ, PLY, 3MF, DCM, JPG, PNG, WEBP, ZIP)'), ok);

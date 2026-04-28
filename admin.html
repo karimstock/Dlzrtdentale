@@ -154,7 +154,7 @@ label{font-size:11px;color:var(--txt2);display:block;margin-bottom:5px;text-tran
 
 #error-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--red);color:#fff;padding:10px;text-align:center;z-index:100;font-weight:600}
 </style>
-  <link rel="stylesheet" href="/jadomi-mobile.css">
+  <link rel="stylesheet" href="/css/jadomi-mobile.css">
 </head>
 <body>
 
@@ -655,6 +655,7 @@ function showError(msg){
 
 function fmt(n){ return (Number(n)||0).toLocaleString('fr-FR', {maximumFractionDigits:2}) + '€'; }
 function maskEmail(e){ if(!e) return ''; const [u,d] = e.split('@'); return u.slice(0,2)+'***@'+d; }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ============================================
 // CHARTS
@@ -716,17 +717,17 @@ async function loadUsers(){
     if (!users.length) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:30px">Aucun utilisateur</td></tr>'; return; }
     tb.innerHTML = users.map(u => `
       <tr>
-        <td>${u.user_jadomi_id || u.id}</td>
+        <td>${esc(u.user_jadomi_id || u.id)}</td>
         <td>${maskEmail(u.email || u.stripe_customer_id || '')}</td>
-        <td>${u.profession || '—'}</td>
-        <td><span class="tag blue">${u.plan || '—'}</span></td>
-        <td><span class="tag ${u.statut==='actif'?'green':u.statut==='banni'?'red':'orange'}">${u.statut || 'actif'}</span></td>
-        <td>${(u.created_at||'').slice(0,10)}</td>
+        <td>${esc(u.profession || '—')}</td>
+        <td><span class="tag blue">${esc(u.plan || '—')}</span></td>
+        <td><span class="tag ${u.statut==='actif'?'green':u.statut==='banni'?'red':'orange'}">${esc(u.statut || 'actif')}</span></td>
+        <td>${esc((u.created_at||'').slice(0,10))}</td>
         <td>—</td><td>—</td>
         <td>
-          <button class="btn btn-sm" onclick="suspendre('${u.id}')">Suspendre</button>
-          <button class="btn btn-sm btn-danger" onclick="bannirUser('${u.id}')">Bannir</button>
-          <button class="btn btn-sm" onclick="reactiver('${u.id}')">Réactiver</button>
+          <button class="btn btn-sm" onclick="suspendre('${esc(u.id)}')">Suspendre</button>
+          <button class="btn btn-sm btn-danger" onclick="bannirUser('${esc(u.id)}')">Bannir</button>
+          <button class="btn btn-sm" onclick="reactiver('${esc(u.id)}')">Réactiver</button>
         </td>
       </tr>`).join('');
   } catch(e){}
@@ -746,16 +747,16 @@ async function loadAbos(){
     }
     document.getElementById('tbl-impayes').innerHTML = impayes.length ? impayes.map(i => `
       <tr>
-        <td>${i.user_jadomi_id || i.id}</td>
+        <td>${esc(i.user_jadomi_id || i.id)}</td>
         <td>${maskEmail(i.stripe_customer_id || '')}</td>
         <td>${fmt(i.montant)}</td>
         <td><span class="tag red">J+${i.jours_retard||0}</span></td>
         <td>${i.nb_relances||0}</td>
-        <td><span class="tag red">${i.statut}</span></td>
+        <td><span class="tag red">${esc(i.statut)}</span></td>
         <td>
-          <button class="btn btn-sm" onclick="relancer('${i.id}')">Relancer</button>
-          <button class="btn btn-sm btn-danger" onclick="suspendre('${i.id}')">Suspendre</button>
-          <button class="btn btn-sm" onclick="marquerPaye('${i.id}')">Marquer payé</button>
+          <button class="btn btn-sm" onclick="relancer('${esc(i.id)}')">Relancer</button>
+          <button class="btn btn-sm btn-danger" onclick="suspendre('${esc(i.id)}')">Suspendre</button>
+          <button class="btn btn-sm" onclick="marquerPaye('${esc(i.id)}')">Marquer payé</button>
         </td>
       </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucun impayé 🎉</td></tr>';
 
@@ -819,7 +820,7 @@ async function loadSuggestions(){
   try {
     const { suggestions } = await api('/api/admin/suggestions');
     document.getElementById('tbl-sugg').innerHTML = suggestions.length ? suggestions.map(s => `
-      <tr><td>${(s.created_at||'').slice(0,10)}</td><td>${s.cabinet_nom||'—'}</td><td>${s.titre||''}</td><td>${s.categorie||''}</td><td>${s.score_ia||'—'}</td><td><span class="tag blue">${s.statut||'nouveau'}</span></td><td><button class="btn btn-sm" onclick="changerStatutSugg('${s.id}')">Changer</button></td></tr>
+      <tr><td>${esc((s.created_at||'').slice(0,10))}</td><td>${esc(s.cabinet_nom||'—')}</td><td>${esc(s.titre||'')}</td><td>${esc(s.categorie||'')}</td><td>${esc(s.score_ia||'—')}</td><td><span class="tag blue">${esc(s.statut||'nouveau')}</span></td><td><button class="btn btn-sm" onclick="changerStatutSugg('${esc(s.id)}')">Changer</button></td></tr>
     `).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:30px">Aucune suggestion</td></tr>';
   } catch(e){}
 }

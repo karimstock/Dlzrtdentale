@@ -20,7 +20,7 @@ module.exports = function (router) {
       if (!produit) return res.status(404).json({ error: 'Produit introuvable' });
 
       // Récupérer les blocages
-      const { data: blocages } = await admin().from('showroom_location_blocages')
+      const { data: blocages } = await admin().from('showroom_disponibilites_location')
         .select('*').eq('produit_id', produitId)
         .gte('date_fin', new Date().toISOString().slice(0, 10))
         .order('date_debut');
@@ -56,7 +56,7 @@ module.exports = function (router) {
         .select('id').eq('id', produit_id).eq('profil_id', profilId).maybeSingle();
       if (!produit) return res.status(404).json({ error: 'Produit introuvable' });
 
-      const { data, error } = await admin().from('showroom_location_blocages')
+      const { data, error } = await admin().from('showroom_disponibilites_location')
         .insert({ produit_id, date_debut, date_fin, motif: motif || null })
         .select('*').single();
       if (error) throw error;
@@ -72,14 +72,14 @@ module.exports = function (router) {
     try {
       const profilId = await getProfilId(req.societe.id);
       // Vérifier que le blocage concerne un produit du créateur
-      const { data: blocage } = await admin().from('showroom_location_blocages')
+      const { data: blocage } = await admin().from('showroom_disponibilites_location')
         .select('*, produit:produit_id(profil_id)')
         .eq('id', req.params.id).maybeSingle();
 
       if (!blocage || blocage.produit?.profil_id !== profilId)
         return res.status(404).json({ error: 'Blocage introuvable' });
 
-      await admin().from('showroom_location_blocages').delete().eq('id', req.params.id);
+      await admin().from('showroom_disponibilites_location').delete().eq('id', req.params.id);
       res.json({ success: true });
     } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
@@ -148,7 +148,7 @@ module.exports = function (router) {
         .gte('date_fin_location', from).lte('date_debut_location', to);
 
       // Blocages
-      const { data: blocages } = await admin().from('showroom_location_blocages')
+      const { data: blocages } = await admin().from('showroom_disponibilites_location')
         .select('id, produit_id, date_debut, date_fin, motif, produit:produit_id(nom)')
         .gte('date_fin', from).lte('date_debut', to);
 

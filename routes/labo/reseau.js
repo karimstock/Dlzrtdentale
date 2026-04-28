@@ -355,17 +355,27 @@ router.get('/achats-groupes', async (req, res) => {
       .from('labo_achats_groupes')
       .select('*')
       .in('statut', ['ouvert', 'atteint'])
-      .order('date_cloture', { ascending: true });
+      .order('date_cloture', { ascending: true })
+      .limit(50); // Perf: cap campagnes list
 
     if (error) throw error;
 
-    // Enrichir avec nombre de participants et palier actuel
-    const enriched = await Promise.all((campagnes || []).map(async (c) => {
-      const { count } = await admin()
-        .from('labo_achats_groupes_participants')
-        .select('*', { count: 'exact', head: true })
-        .eq('achat_groupe_id', c.id);
+    // Batch-fetch participant counts to avoid N+1
+    const campIds = (campagnes || []).map(c => c.id);
+    let countMap = {};
+    if (campIds.length > 0) {
+      const results = await Promise.all(campIds.map(cid =>
+        admin()
+          .from('labo_achats_groupes_participants')
+          .select('*', { count: 'exact', head: true })
+          .eq('achat_groupe_id', cid)
+          .then(r => ({ cid, count: r.count || 0 }))
+      ));
+      for (const r of results) countMap[r.cid] = r.count;
+    }
 
+    const enriched = (campagnes || []).map(c => {
+      const count = countMap[c.id] || 0;
       const paliers = c.paliers || [];
       let prix_actuel = c.prix_catalogue;
       let prochain_palier = null;
@@ -379,11 +389,11 @@ router.get('/achats-groupes', async (req, res) => {
 
       return {
         ...c,
-        participants_count: count || 0,
+        participants_count: count,
         prix_actuel,
         prochain_palier
       };
-    }));
+    });
 
     res.json({ achats_groupes: enriched });
   } catch (e) {

@@ -25,6 +25,7 @@ router.get('/', async (req, res) => {
 
     if (statut) query = query.eq('statut', statut);
     if (dentiste_id) query = query.eq('dentiste_id', dentiste_id);
+    query = query.limit(500); // Perf: cap factures list
 
     const { data, error } = await query;
     if (error) throw error;

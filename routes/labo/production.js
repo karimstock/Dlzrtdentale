@@ -57,7 +57,8 @@ router.get('/tableau', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .in('statut', ['en_cours', 'en_attente'])
       .order('urgence', { ascending: false })
-      .order('date_livraison_prevue', { ascending: true });
+      .order('date_livraison_prevue', { ascending: true })
+      .limit(500); // Perf: cap production cases list
 
     if (error) throw error;
 

@@ -15,7 +15,7 @@ module.exports = function (router) {
   router.get('/profil', requireSociete(), async (req, res) => {
     try {
       const { data, error } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('*')
         .eq('societe_id', req.societe.id)
         .maybeSingle();
@@ -35,7 +35,7 @@ module.exports = function (router) {
               acompte_pct, horaires, reseaux_sociaux } = req.body;
       const slug = slugify(nom, ville);
       const { data, error } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .insert({
           societe_id: req.societe.id,
           user_id: req.user.id,
@@ -49,7 +49,7 @@ module.exports = function (router) {
         .select()
         .single();
       if (error) throw error;
-      await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'services_profil_create', entity: 'services_profils', entityId: data.id, req });
+      await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'services_profil_create', entity: 'services_profil', entityId: data.id, req });
       res.json({ profil: data });
     } catch (e) {
       console.error('[services/profil] POST:', e.message);
@@ -66,18 +66,18 @@ module.exports = function (router) {
         'acompte_pct', 'horaires', 'reseaux_sociaux', 'actif'];
       fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
       if (updates.nom || updates.ville) {
-        const current = await admin().from('services_profils').select('nom, ville').eq('societe_id', req.societe.id).maybeSingle();
+        const current = await admin().from('services_profil').select('nom, ville').eq('societe_id', req.societe.id).maybeSingle();
         updates.slug = slugify(updates.nom || current?.data?.nom, updates.ville || current?.data?.ville);
       }
       updates.updated_at = new Date().toISOString();
       const { data, error } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .update(updates)
         .eq('societe_id', req.societe.id)
         .select()
         .single();
       if (error) throw error;
-      await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'services_profil_update', entity: 'services_profils', entityId: data.id, req });
+      await auditLog({ userId: req.user.id, societeId: req.societe.id, action: 'services_profil_update', entity: 'services_profil', entityId: data.id, req });
       res.json({ profil: data });
     } catch (e) {
       console.error('[services/profil] PATCH:', e.message);

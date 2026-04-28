@@ -101,7 +101,7 @@ module.exports = function (router) {
       const [devisRes, facturesRes, rapportsRes] = await Promise.all([
         admin().from('btp_devis').select('*').eq('chantier_id', req.params.id).order('created_at', { ascending: false }),
         admin().from('btp_factures').select('*').eq('chantier_id', req.params.id).order('created_at', { ascending: false }),
-        admin().from('btp_rapports').select('*').eq('chantier_id', req.params.id).order('date_intervention', { ascending: false })
+        admin().from('btp_rapports_intervention').select('*').eq('chantier_id', req.params.id).order('date_intervention', { ascending: false })
       ]);
 
       res.json({
@@ -147,7 +147,7 @@ module.exports = function (router) {
       // Logique specifique par statut
       if (statut === 'termine') {
         // Calculer duree reelle depuis les rapports
-        const { data: rapports } = await admin().from('btp_rapports')
+        const { data: rapports } = await admin().from('btp_rapports_intervention')
           .select('duree_heures').eq('chantier_id', req.params.id);
         if (rapports && rapports.length > 0) {
           updates.duree_reelle = rapports.reduce((sum, r) => sum + (r.duree_heures || 0), 0);

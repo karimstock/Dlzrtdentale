@@ -22,6 +22,7 @@ router.get('/', async (req, res) => {
     if (categorie) query = query.eq('categorie', categorie);
     if (sous_categorie) query = query.eq('sous_categorie', sous_categorie);
     if (search) query = query.or(`nom.ilike.%${search}%,description.ilike.%${search}%`);
+    query = query.limit(500); // Perf: cap catalogue list
 
     const { data, error } = await query;
     if (error) throw error;

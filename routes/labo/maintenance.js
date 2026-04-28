@@ -27,6 +27,7 @@ router.get('/machines', async (req, res) => {
       const s = search.replace(/[%_,().]/g, '');
       query = query.or(`nom.ilike.%${s}%,marque.ilike.%${s}%,modele.ilike.%${s}%,numero_serie.ilike.%${s}%`);
     }
+    query = query.limit(200);
     const { data, error } = await query;
     if (error) throw error;
 

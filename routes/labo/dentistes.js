@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
 
     if (actif !== 'all') query = query.eq('est_actif', true);
     if (search) query = query.or(`nom.ilike.%${search}%,prenom.ilike.%${search}%,raison_sociale_cabinet.ilike.%${search}%,email.ilike.%${search}%`);
+    query = query.limit(500); // Perf: cap dentistes list
 
     const { data, error } = await query;
     if (error) throw error;

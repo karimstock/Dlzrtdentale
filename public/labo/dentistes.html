@@ -469,6 +469,8 @@ let allDentists = [];
 let editingId   = null;
 let selectedDentist = null;
 
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 try {
   const { createClient } = supabase;
   db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -577,24 +579,25 @@ function renderCards(list) {
   grid.innerHTML = list.map(d => {
     const initials = ((d.prenom||'').charAt(0) + (d.nom||'').charAt(0)).toUpperCase() || '?';
     const isActif  = d.actif !== false;
-    return `<div class="dentist-card" onclick="openDetail('${d.id}')">
+    const safeId = esc(d.id);
+    return `<div class="dentist-card" onclick="openDetail('${safeId}')">
       <div class="dentist-card-header">
-        <div class="dentist-avatar">${initials}</div>
+        <div class="dentist-avatar">${esc(initials)}</div>
         <div style="flex:1;min-width:0;">
-          <div class="dentist-name">${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}</div>
-          <div class="dentist-cabinet">${d.cabinet||'—'}</div>
+          <div class="dentist-name">${esc(d.titre||'Dr')} ${esc(d.prenom||'')} ${esc(d.nom||'')}</div>
+          <div class="dentist-cabinet">${esc(d.cabinet||'—')}</div>
         </div>
         <span class="badge ${isActif?'badge-green':'badge-gray'}">${isActif?'Actif':'Inactif'}</span>
       </div>
       <div class="dentist-card-body">
-        ${d.ville ? `<div class="dentist-info-row"><span class="icon">📍</span>${d.cp||''} ${d.ville}</div>` : ''}
-        ${d.email ? `<div class="dentist-info-row"><span class="icon">✉️</span>${d.email}</div>` : ''}
-        ${d.tel   ? `<div class="dentist-info-row"><span class="icon">📞</span>${d.tel}</div>` : ''}
-        ${d.rpps  ? `<div class="dentist-info-row"><span class="icon">🏥</span>RPPS: ${d.rpps}</div>` : ''}
+        ${d.ville ? `<div class="dentist-info-row"><span class="icon">📍</span>${esc(d.cp||'')} ${esc(d.ville)}</div>` : ''}
+        ${d.email ? `<div class="dentist-info-row"><span class="icon">✉️</span>${esc(d.email)}</div>` : ''}
+        ${d.tel   ? `<div class="dentist-info-row"><span class="icon">📞</span>${esc(d.tel)}</div>` : ''}
+        ${d.rpps  ? `<div class="dentist-info-row"><span class="icon">🏥</span>RPPS: ${esc(d.rpps)}</div>` : ''}
       </div>
       <div class="dentist-card-footer">
-        <span style="font-size:11px;color:var(--muted);">${d.siret||d.siren||''}</span>
-        <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();openDetail('${d.id}')">Voir</button>
+        <span style="font-size:11px;color:var(--muted);">${esc(d.siret||d.siren||'')}</span>
+        <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();openDetail('${safeId}')">Voir</button>
       </div>
     </div>`;
   }).join('');
@@ -614,9 +617,9 @@ function onSearchInput() {
     }).slice(0,6);
     const ac = document.getElementById('autocompleteList');
     if (!list.length) { ac.style.display='none'; return; }
-    ac.innerHTML = list.map(d => `<div class="autocomplete-item" onclick="selectAC('${d.id}')">
-      <div class="autocomplete-item-title">${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}</div>
-      <div class="autocomplete-item-sub">${d.cabinet||''} — ${d.ville||''}</div>
+    ac.innerHTML = list.map(d => `<div class="autocomplete-item" onclick="selectAC('${esc(d.id)}')">
+      <div class="autocomplete-item-title">${esc(d.titre||'Dr')} ${esc(d.prenom||'')} ${esc(d.nom||'')}</div>
+      <div class="autocomplete-item-sub">${esc(d.cabinet||'')} — ${esc(d.ville||'')}</div>
     </div>`).join('');
     ac.style.display = 'block';
   }, 200);
@@ -640,28 +643,28 @@ function openDetail(id) {
   document.getElementById('dpToggleBtn').textContent = isActif ? '⏸️ Désactiver' : '▶️ Activer';
   document.getElementById('dpToggleBtn').className = `btn btn-sm ${isActif?'btn-outline':'btn-primary'}`;
   document.getElementById('dpBody').innerHTML = `
-    <div class="dp-avatar">${initials}</div>
+    <div class="dp-avatar">${esc(initials)}</div>
     <div style="text-align:center;margin-bottom:16px;">
-      <div style="font-size:15px;font-weight:700;">${d.titre||'Dr'} ${d.prenom||''} ${d.nom||''}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${d.specialite||'Chirurgien-dentiste'}</div>
+      <div style="font-size:15px;font-weight:700;">${esc(d.titre||'Dr')} ${esc(d.prenom||'')} ${esc(d.nom||'')}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(d.specialite||'Chirurgien-dentiste')}</div>
       <span class="badge ${isActif?'badge-green':'badge-gray'}" style="margin-top:6px;">${isActif?'Actif':'Inactif'}</span>
     </div>
     <div class="dp-section">
       <div class="dp-section-title">Cabinet</div>
-      <div class="dp-field"><span class="dp-label">Cabinet</span><span class="dp-value">${d.cabinet||'—'}</span></div>
-      <div class="dp-field"><span class="dp-label">Adresse</span><span class="dp-value">${d.adresse||'—'}</span></div>
-      <div class="dp-field"><span class="dp-label">Ville</span><span class="dp-value">${d.cp||''} ${d.ville||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">Cabinet</span><span class="dp-value">${esc(d.cabinet||'—')}</span></div>
+      <div class="dp-field"><span class="dp-label">Adresse</span><span class="dp-value">${esc(d.adresse||'—')}</span></div>
+      <div class="dp-field"><span class="dp-label">Ville</span><span class="dp-value">${esc(d.cp||'')} ${esc(d.ville||'—')}</span></div>
     </div>
     <div class="dp-section">
       <div class="dp-section-title">Contact</div>
-      <div class="dp-field"><span class="dp-label">Téléphone</span><span class="dp-value">${d.tel||'—'}</span></div>
-      <div class="dp-field"><span class="dp-label">Email</span><span class="dp-value">${d.email||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">Téléphone</span><span class="dp-value">${esc(d.tel||'—')}</span></div>
+      <div class="dp-field"><span class="dp-label">Email</span><span class="dp-value">${esc(d.email||'—')}</span></div>
     </div>
     <div class="dp-section">
       <div class="dp-section-title">Identifiants</div>
-      <div class="dp-field"><span class="dp-label">RPPS</span><span class="dp-value">${d.rpps||'—'}</span></div>
-      <div class="dp-field"><span class="dp-label">SIREN</span><span class="dp-value">${d.siren||'—'}</span></div>
-      <div class="dp-field"><span class="dp-label">SIRET</span><span class="dp-value">${d.siret||'—'}</span></div>
+      <div class="dp-field"><span class="dp-label">RPPS</span><span class="dp-value">${esc(d.rpps||'—')}</span></div>
+      <div class="dp-field"><span class="dp-label">SIREN</span><span class="dp-value">${esc(d.siren||'—')}</span></div>
+      <div class="dp-field"><span class="dp-label">SIRET</span><span class="dp-value">${esc(d.siret||'—')}</span></div>
     </div>
   `;
   document.getElementById('detailPanel').classList.add('open');
@@ -884,8 +887,8 @@ function renderDinumResults(list) {
   if (!list.length) { el.innerHTML='<p style="font-size:12px;color:var(--muted);">Aucun cabinet trouvé.</p>'; return; }
   el.innerHTML = `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-height:180px;overflow-y:auto;">
     ${list.slice(0,8).map((c,i) => `<div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="applyDinum(${i})" data-idx="${i}">
-      <div style="font-weight:600;color:var(--text);">${c.nom_cabinet||c.nom||'—'}</div>
-      <div style="color:var(--muted);margin-top:2px;">${c.adresse||''} ${c.cp||''} ${c.ville||''} — SIRET: ${c.siret||'—'}</div>
+      <div style="font-weight:600;color:var(--text);">${esc(c.nom_cabinet||c.nom||'—')}</div>
+      <div style="color:var(--muted);margin-top:2px;">${esc(c.adresse||'')} ${esc(c.cp||'')} ${esc(c.ville||'')} — SIRET: ${esc(c.siret||'—')}</div>
     </div>`).join('')}
   </div>`;
   window._dinumData = list;

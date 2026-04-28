@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
       d.setDate(d.getDate() + parseInt(peremption));
       query = query.lte('date_peremption', d.toISOString().split('T')[0]).not('date_peremption', 'is', null);
     }
+    query = query.limit(500);
     const { data, error } = await query;
     if (error) throw error;
     res.json({ stock: data || [] });

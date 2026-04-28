@@ -13,7 +13,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
-      let q = admin().from('btp_rapports')
+      let q = admin().from('btp_rapports_intervention')
         .select('*, chantier:chantier_id(id, reference, titre)')
         .eq('profil_id', profilId)
         .order('date_intervention', { ascending: false });
@@ -33,7 +33,7 @@ module.exports = function (router) {
 
       const _ar = ['chantier_id', 'type', 'contenu', 'date_rapport', 'meteo', 'observations', 'photos', 'materiaux_utilises'];
       const _sr = {}; for (const k of _ar) { if (req.body[k] !== undefined) _sr[k] = req.body[k]; }
-      const { data: rapport, error } = await admin().from('btp_rapports')
+      const { data: rapport, error } = await admin().from('btp_rapports_intervention')
         .insert({ ..._sr, profil_id: profilId })
         .select('*').single();
       if (error) throw error;
@@ -66,7 +66,7 @@ module.exports = function (router) {
       }
 
       await auditLog({ userId: req.user.id, societeId: req.societe.id,
-        action: 'create', entity: 'btp_rapports', entityId: rapport.id, req });
+        action: 'create', entity: 'btp_rapports_intervention', entityId: rapport.id, req });
       res.json({ success: true, rapport });
     } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
@@ -77,7 +77,7 @@ module.exports = function (router) {
       const profilId = await getProfilId(req.societe.id);
       if (!profilId) return res.status(404).json({ error: 'Profil BTP introuvable' });
 
-      const { data, error } = await admin().from('btp_rapports')
+      const { data, error } = await admin().from('btp_rapports_intervention')
         .select('*, chantier:chantier_id(*)')
         .eq('id', req.params.id).eq('profil_id', profilId).single();
       if (error) throw error;
@@ -93,7 +93,7 @@ module.exports = function (router) {
 
       const _ar = ['chantier_id', 'type', 'contenu', 'date_rapport', 'meteo', 'observations', 'photos', 'materiaux_utilises'];
       const _sr = {}; for (const k of _ar) { if (req.body[k] !== undefined) _sr[k] = req.body[k]; }
-      const { data, error } = await admin().from('btp_rapports')
+      const { data, error } = await admin().from('btp_rapports_intervention')
         .update({ ..._sr, updated_at: new Date().toISOString() })
         .eq('id', req.params.id).eq('profil_id', profilId)
         .select('*').single();

@@ -24,7 +24,7 @@ function publicRoutes(router) {
       const { categorie } = req.query;
 
       let query = sb()
-        .from('network_deals')
+        .from('jadomi_deals')
         .select('*')
         .eq('actif', true)
         .gte('date_fin', today)
@@ -60,7 +60,7 @@ function authRoutes(router) {
       const societeId = req.societe.id;
 
       const { data, error } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .select('*')
         .eq('societe_id', societeId)
         .order('created_at', { ascending: false });
@@ -86,7 +86,7 @@ function authRoutes(router) {
       }
 
       const { data, error } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .insert({
           societe_id: societeId,
           user_id: userId,
@@ -110,7 +110,7 @@ function authRoutes(router) {
 
       await auditLog({
         userId, societeId, action: 'deal_created',
-        entity: 'network_deals', entityId: data.id, req
+        entity: 'jadomi_deals', entityId: data.id, req
       });
 
       res.status(201).json({ ok: true, deal: data });
@@ -129,7 +129,7 @@ function authRoutes(router) {
 
       // Verify ownership
       const { data: existing, error: existErr } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .select('id, societe_id')
         .eq('id', dealId)
         .maybeSingle();
@@ -151,7 +151,7 @@ function authRoutes(router) {
       updates.updated_at = new Date().toISOString();
 
       const { data, error } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .update(updates)
         .eq('id', dealId)
         .select()
@@ -161,7 +161,7 @@ function authRoutes(router) {
 
       await auditLog({
         userId: req.user.id, societeId, action: 'deal_updated',
-        entity: 'network_deals', entityId: dealId, req
+        entity: 'jadomi_deals', entityId: dealId, req
       });
 
       res.json({ ok: true, deal: data });
@@ -179,7 +179,7 @@ function authRoutes(router) {
 
       // Verify ownership
       const { data: existing, error: existErr } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .select('id, societe_id')
         .eq('id', dealId)
         .maybeSingle();
@@ -189,7 +189,7 @@ function authRoutes(router) {
       if (existing.societe_id !== societeId) return res.status(403).json({ error: 'forbidden' });
 
       const { error } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .update({ actif: false, updated_at: new Date().toISOString() })
         .eq('id', dealId);
 
@@ -197,7 +197,7 @@ function authRoutes(router) {
 
       await auditLog({
         userId: req.user.id, societeId, action: 'deal_deactivated',
-        entity: 'network_deals', entityId: dealId, req
+        entity: 'jadomi_deals', entityId: dealId, req
       });
 
       res.json({ ok: true, message: 'Deal désactivé' });
@@ -215,7 +215,7 @@ function authRoutes(router) {
 
       // Get the deal
       const { data: deal, error: dealErr } = await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .select('*')
         .eq('id', dealId)
         .eq('actif', true)
@@ -237,7 +237,7 @@ function authRoutes(router) {
 
       // Check unique user (user hasn't already used this deal)
       const { data: existing, error: existErr } = await admin()
-        .from('network_deals_utilisations')
+        .from('jadomi_deals_utilisations')
         .select('id')
         .eq('deal_id', dealId)
         .eq('user_id', userId)
@@ -250,7 +250,7 @@ function authRoutes(router) {
 
       // Record utilisation
       const { data: utilisation, error: utilErr } = await admin()
-        .from('network_deals_utilisations')
+        .from('jadomi_deals_utilisations')
         .insert({
           deal_id: dealId,
           user_id: userId,
@@ -263,13 +263,13 @@ function authRoutes(router) {
 
       // Increment counter
       await admin()
-        .from('network_deals')
+        .from('jadomi_deals')
         .update({ nb_utilisations: (deal.nb_utilisations || 0) + 1 })
         .eq('id', dealId);
 
       await auditLog({
         userId, societeId: deal.societe_id, action: 'deal_used',
-        entity: 'network_deals', entityId: dealId, req
+        entity: 'jadomi_deals', entityId: dealId, req
       });
 
       res.json({ ok: true, utilisation });

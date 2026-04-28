@@ -9,6 +9,15 @@ const crypto = require('crypto');
 
 const app = express();
 
+// === Security: trust only 1 proxy hop (Nginx/Cloudflare) for correct req.ip in rate limiters ===
+// Without this, behind a reverse proxy, req.ip is always the proxy IP and rate limits are shared/bypassable.
+// Set to 1 for single proxy (Nginx), 2 for Cloudflare+Nginx. Never set to true (trusts all X-Forwarded-For).
+app.set('trust proxy', 1);
+
+// === Performance: gzip/brotli compression ===
+const compression = require('compression');
+app.use(compression({ threshold: 1024 })); // compress responses > 1KB
+
 // === PWA Patient — MUST be first (before Helmet, CORS, etc.) ===
 const fs = require('fs');
 app.use('/patient', (req, res) => {
@@ -141,11 +150,36 @@ setInterval(() => {
 }, 600000).unref();
 global.jadomiCache = { get: getCached, map: _cache };
 
+// === Performance: request timeout for API routes (30s, longer for uploads/IMAP) ===
+app.use('/api/', (req, res, next) => {
+  // Exempt upload and long-running routes from short timeout
+  const longRoutes = ['/api/documents/upload', '/api/media', '/api/scan-yahoo', '/api/scan-gmail'];
+  if (longRoutes.some(r => req.originalUrl.startsWith(r))) {
+    return next(); // These routes set their own timeout or use multer
+  }
+  req.setTimeout(30000);
+  res.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(408).json({ error: 'Requete trop longue (timeout 30s)' });
+    }
+  });
+  next();
+});
+
 // === Monitoring: health endpoint (bypass rate limit) ===
+const _startTime = Date.now();
 app.get('/api/health', (req, res) => {
+  const mem = process.memoryUsage();
   res.json({
     status: 'ok',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    uptime_s: Math.floor((Date.now() - _startTime) / 1000),
+    memory: {
+      rss_mb: Math.round(mem.rss / 1024 / 1024),
+      heap_used_mb: Math.round(mem.heapUsed / 1024 / 1024),
+      heap_total_mb: Math.round(mem.heapTotal / 1024 / 1024)
+    },
+    cache_size: _cache.size
   });
 });
 
@@ -244,7 +278,7 @@ app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'))
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
 app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
 // Servir /assets depuis /public/assets (pour les images landings)
-app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+app.use('/assets', express.static(path.join(__dirname, 'public/assets'), { maxAge: '7d' }));
 // Servir les fichiers SQL pour copier-coller dans Supabase Dashboard
 // SECURITY: SQL static serving removed (Passe 59 security fix)
 // app.use('/sql/vitrines', express.static(path.join(__dirname, 'sql/vitrines')));
@@ -256,8 +290,8 @@ app.use('/docs', (req, res, next) => {
     return res.status(403).json({ error: 'Acces refuse' });
   }
   next();
-}, express.static(path.join(__dirname, 'docs')));
-app.use(express.static(path.join(__dirname, 'public')));
+}, express.static(path.join(__dirname, 'docs'), { maxAge: '1d' }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
 
 // --- Anthropic Claude client ---
 const anthropic = new Anthropic({
@@ -599,7 +633,7 @@ app.post('/api/commerce/checkout/webhook', express.raw({ type: 'application/json
   }
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // === Middleware authSupabase pour routes legacy (sécurité) ===
 // Valide le JWT Supabase dans Authorization: Bearer <token>, met req.user
@@ -695,10 +729,12 @@ app.get('/supplier/offer/:token', (req, res) => {
 });
 
 // Alias API GPO : /api/gpo/offer/:token → /api/gpo/public/offer/:token (fix route mismatch frontend)
-app.get('/api/gpo/offer/:token', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}`));
-app.post('/api/gpo/offer/:token/accept', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}/accept`));
-app.post('/api/gpo/offer/:token/counter', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}/counter`));
-app.post('/api/gpo/offer/:token/refuse', (req, res) => res.redirect(307, `/api/gpo/public/offer/${req.params.token}/refuse`));
+// Sanitize token to prevent open redirect / header injection (alnum + dash + underscore only)
+function _safeGpoToken(t) { return String(t || '').replace(/[^a-zA-Z0-9\-_]/g, ''); }
+app.get('/api/gpo/offer/:token', (req, res) => { const t = _safeGpoToken(req.params.token); if (!t) return res.status(400).end(); res.redirect(307, `/api/gpo/public/offer/${t}`); });
+app.post('/api/gpo/offer/:token/accept', (req, res) => { const t = _safeGpoToken(req.params.token); if (!t) return res.status(400).end(); res.redirect(307, `/api/gpo/public/offer/${t}/accept`); });
+app.post('/api/gpo/offer/:token/counter', (req, res) => { const t = _safeGpoToken(req.params.token); if (!t) return res.status(400).end(); res.redirect(307, `/api/gpo/public/offer/${t}/counter`); });
+app.post('/api/gpo/offer/:token/refuse', (req, res) => { const t = _safeGpoToken(req.params.token); if (!t) return res.status(400).end(); res.redirect(307, `/api/gpo/public/offer/${t}/refuse`); });
 
 // Route admin GPO
 app.get('/admin/gpo', (req, res) => {
@@ -776,8 +812,9 @@ app.post('/api/voice/search-document', authSupabase(), async (req, res) => {
     const { search, type } = req.body;
     if (!search) return res.status(400).json({ error: 'Terme de recherche requis' });
     const sb = supabaseAdmin || supabase;
-    const safeSearch = search.replace(/[%_,().]/g, '');
+    const safeSearch = search.replace(/[%_\\,()."]/g, '').trim().substring(0, 200);
     const societeId = req.user.societe_id || req.headers['x-societe-id'];
+    if (!safeSearch) return res.json({ results: [] });
 
     let query = sb.from('signed_documents')
       .select('id, title, signer_name, signer_email, category, status, created_at')
@@ -1290,6 +1327,7 @@ app.get('/api/eco/check', requireAuth(), async (req, res) => {
     if (cabinet) {
       query = query.neq('cabinet', cabinet);
     }
+    query = query.limit(200);
 
     const { data: produits, error: prodErr } = await query;
     if (prodErr) throw prodErr;
@@ -1318,6 +1356,7 @@ app.get('/api/eco/check', requireAuth(), async (req, res) => {
       ecoQuery = ecoQuery.eq('cabinet_besoin', cabinet);
     }
 
+    ecoQuery = ecoQuery.limit(100); // Perf: cap eco_matching results
     const { data: proposals, error: ecoErr } = await ecoQuery;
     if (ecoErr) throw ecoErr;
 
@@ -1382,7 +1421,8 @@ app.get('/api/predict/commande', requireAuth(), async (req, res) => {
     const { data: produits, error } = await supabase
       .from('produits')
       .select('*')
-      .eq('cabinet', cabinet);
+      .eq('cabinet', cabinet)
+      .limit(500); // Perf: cap products per cabinet
 
     if (error) throw error;
 
@@ -1661,12 +1701,19 @@ Retourne UNIQUEMENT le HTML complet.` }]
       } catch(e) {}
     }
 
-    // Cancel Stripe subscription if exists
-    if (stripe && req.body.stripe_subscription_id) {
+    // Cancel Stripe subscription — IDOR protection: verify the subscription belongs to user's contrat
+    if (stripe && contrat_id) {
       try {
-        await stripe.subscriptions.update(req.body.stripe_subscription_id, {
-          cancel_at_period_end: true
-        });
+        const { data: contratRow } = await supabase.from('contrats')
+          .select('stripe_subscription_id')
+          .eq('id', contrat_id)
+          .eq('user_id', user_id)
+          .maybeSingle();
+        if (contratRow?.stripe_subscription_id) {
+          await stripe.subscriptions.update(contratRow.stripe_subscription_id, {
+            cancel_at_period_end: true
+          });
+        }
       } catch(e) { console.log('Stripe cancel:', e.message); }
     }
 
@@ -1804,7 +1851,7 @@ app.post('/api/signature/:token/signer', async (req, res) => {
   try {
     const { token } = req.params;
     const { nom_signataire } = req.body;
-    const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
 
     if (!nom_signataire) return res.status(400).json({ error: 'nom_signataire required' });
 
@@ -2590,6 +2637,8 @@ app.post('/api/achats/price-watch', requireAuth(), async (req, res) => {
     const userId = req.user.id;
     const societeId = req.headers['x-societe-id'] || req.body.societe_id;
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+    const hasAccess = await _verifySocieteAccess(admin(), userId, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
 
     const { product_id, gtin, product_name, target_price } = req.body;
     if (!product_name) return res.status(400).json({ error: 'product_name requis' });
@@ -2625,6 +2674,8 @@ app.get('/api/achats/price-watches', requireAuth(), async (req, res) => {
     const { admin } = require('./api/multiSocietes/middleware');
     const societeId = req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+    const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
 
     const { data: watches, error } = await admin()
       .from('price_watches')
@@ -2703,6 +2754,8 @@ app.delete('/api/achats/price-watch/:id', requireAuth(), async (req, res) => {
     const { admin } = require('./api/multiSocietes/middleware');
     const societeId = req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+    const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
 
     const { data, error } = await admin()
       .from('price_watches')
@@ -2727,6 +2780,8 @@ app.post('/api/achats/check-price-watches', requireAuth(), async (req, res) => {
     const { admin } = require('./api/multiSocietes/middleware');
     const societeId = req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
+    const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
+    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
 
     const { data: watches, error } = await admin()
       .from('price_watches')
@@ -3914,6 +3969,9 @@ app.get('/api/facturation/mandate-template/pdf', requireAuth(), async (req, res)
 // POST /api/admin/security-report — Recevoir rapport scan nocturne
 app.post('/api/admin/security-report', requireAuth(), async (req, res) => {
   try {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+    }
     const report = req.body;
     if (!report || !report.date) return res.status(400).json({ error: 'Rapport invalide' });
     // Stocker dans Supabase
@@ -3945,6 +4003,9 @@ app.post('/api/admin/security-report', requireAuth(), async (req, res) => {
 // GET /api/admin/security-report — Dernier rapport pour le dashboard
 app.get('/api/admin/security-report', requireAuth(), async (req, res) => {
   try {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+    }
     const { data } = await supabase.from('security_reports')
       .select('*').order('report_date', { ascending: false }).limit(1).single();
     res.json({ report: data || null });
@@ -3956,6 +4017,9 @@ app.get('/api/admin/security-report', requireAuth(), async (req, res) => {
 // GET /api/admin/security-reports — Historique des rapports
 app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
   try {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+    }
     const limit = Math.min(parseInt(req.query.limit) || 30, 90);
     const { data } = await supabase.from('security_reports')
       .select('id, report_date, security_score, antivirus_status, antivirus_infected, rootkit_status, integrity_status, memory_pct, disk_pct')
@@ -3985,6 +4049,9 @@ app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
 // POST /api/admin/send-documents — Envoyer les dossiers par email
 app.post('/api/admin/send-documents', requireAuth(), async (req, res) => {
   try {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+    }
     const { sendMail } = require('./api/multiSocietes/mailer');
     const fs = require('fs');
     const target = req.body.email || 'karim_bahmed@yahoo.fr';
@@ -4797,10 +4864,25 @@ app.post('/api/valider-document', requireAuth(), async (req, res) => {
 // OAuth2 Yahoo
 // =============================================
 function encodeState(obj) {
-  return Buffer.from(JSON.stringify(obj)).toString('base64url');
+  const payload = Buffer.from(JSON.stringify(obj)).toString('base64url');
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'jadomi-state-key';
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url').slice(0, 16);
+  return payload + '.' + sig;
 }
 function decodeState(s) {
-  try { return JSON.parse(Buffer.from(s || '', 'base64url').toString('utf8')); } catch(e) { return {}; }
+  try {
+    if (!s || !s.includes('.')) return {};
+    const [payload, sig] = s.split('.');
+    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'jadomi-state-key';
+    const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('base64url').slice(0, 16);
+    // Ensure same length before timingSafeEqual (different lengths = instant reject, no timing leak)
+    if (sig.length !== expectedSig.length) return {};
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return {};
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    // Expire state tokens after 10 minutes to prevent replay attacks
+    if (parsed.t && (Date.now() - parsed.t) > 10 * 60 * 1000) return {};
+    return parsed;
+  } catch(e) { return {}; }
 }
 
 app.get('/api/auth/yahoo', (req, res) => {
@@ -4925,14 +5007,30 @@ function storeAttachment(userId, att) {
 
 app.get('/api/mail/attachment/:token', (req, res) => {
   try {
+    // Validate token format (hex, 32 chars) to prevent enumeration
+    if (!/^[0-9a-f]{32}$/i.test(req.params.token)) return res.status(400).json({ error: 'Token invalide' });
     const entry = scanAttachments.get(req.params.token);
     if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
     if (!entry.buffer) return res.status(500).json({ error: 'contenu_manquant' });
-    res.setHeader('Content-Type', entry.contentType || 'application/octet-stream');
     const filename = entry.filename || 'attachment';
-    if (entry.contentType && entry.contentType.startsWith('text/html')) {
+    // Sanitize Content-Type to prevent XSS via malicious content types
+    const safeContentType = (entry.contentType || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+    if (safeContentType.startsWith('text/html')) {
+      // Serve HTML email content with strict CSP + hardened headers to prevent XSS from malicious emails
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src https:; script-src 'none'; frame-src 'none'; object-src 'none'");
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
       return res.end(entry.buffer);
     }
+    // Force download for dangerous MIME types that can execute JS (SVG, XML)
+    if (safeContentType.startsWith('image/svg') || safeContentType.includes('xml')) {
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + encodeURIComponent(filename) + '"');
+      return res.end(entry.buffer);
+    }
+    res.setHeader('Content-Type', safeContentType);
     res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(filename) + '"');
     res.end(entry.buffer);
   } catch (e) {
@@ -5609,7 +5707,7 @@ app.get('/api/factures', requireAuth(), async (req, res) => {
     const userId = req.user.id;
     const db = supabaseAdmin || supabase;
     const { data, error } = await db.from('documents_compta')
-      .select('*').eq('user_id', userId).order('date_document', { ascending: false });
+      .select('*').eq('user_id', userId).order('date_document', { ascending: false }).limit(500);
 
     if (error) throw error;
     console.log('[FACTURES] userId=', userId, 'found:', (data || []).length);
@@ -5936,7 +6034,7 @@ app.post('/api/signatures/send-otp-public', async (req, res) => {
     const smsResult = await otpSms.sendOTPSms(phone, otp.code);
     if (!smsResult.sent) return res.status(500).json({ error: smsResult.error || 'Erreur envoi SMS' });
     res.json({ ok: true, expires_at: otp.expires_at, simulated: smsResult.simulated || false });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 // Rate limit: 10 verif per 15 min per IP
@@ -5952,7 +6050,7 @@ app.post('/api/signatures/verify-otp-public', async (req, res) => {
     const otpSms = require('./lib/otp-sms');
     const result = otpSms.verifyOTP(phone, document_id, code);
     res.json({ ok: result.valid, error: result.error || undefined });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
 // === OTP SMS — Verification signataire ===
@@ -6000,7 +6098,7 @@ app.post('/api/signatures/send-otp', requireAuth(), async (req, res) => {
       simulated: smsResult.simulated || false
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6030,7 +6128,7 @@ app.post('/api/signatures/verify-otp', requireAuth(), async (req, res) => {
 
     res.json({ ok: result.valid, error: result.error || undefined });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6069,7 +6167,7 @@ app.post('/api/signatures/aes/init', requireAuth(), async (req, res) => {
       expires_at: expiresAt
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6097,7 +6195,7 @@ app.post('/api/signatures/aes/identity', requireAuth(), async (req, res) => {
     }
 
     // Record identity and consent
-    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress;
+    const ip = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'] || 'unknown';
 
     const aesProof = {
@@ -6123,7 +6221,7 @@ app.post('/api/signatures/aes/identity', requireAuth(), async (req, res) => {
 
     res.json({ ok: true, identity_recorded: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6215,7 +6313,7 @@ app.post('/api/signatures/aes/complete', requireAuth(), async (req, res) => {
         : 'Signature SES (simple) completee — verification SMS manquante pour AES'
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6223,9 +6321,10 @@ app.post('/api/signatures/aes/complete', requireAuth(), async (req, res) => {
 app.get('/api/signatures/aes/status/:id', requireAuth(), async (req, res) => {
   try {
     const { data: doc } = await supabase.from('signed_documents')
-      .select('metadata, status').eq('id', req.params.id).single();
+      .select('metadata, status, user_id, societe_id, signer_email').eq('id', req.params.id).single();
 
     if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Acces refuse' });
 
     const meta = doc.metadata || {};
     const aesProof = meta.aes_proof || {};
@@ -6242,7 +6341,7 @@ app.get('/api/signatures/aes/status/:id', requireAuth(), async (req, res) => {
       }
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6343,7 +6442,7 @@ app.get('/api/documents/signed', requireAuth(), async (req, res) => {
     res.json({ ok: true, documents: data || [], categories, total: count || (data || []).length });
   } catch (e) {
     console.error('[GET /api/documents/signed]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6356,7 +6455,7 @@ app.get('/api/documents/signed/:id', requireAuth(), async (req, res) => {
     res.json({ ok: true, document: data });
   } catch (e) {
     console.error('[GET /api/documents/signed/:id]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6395,7 +6494,7 @@ app.get('/api/documents/signed/:id/download', requireAuth(), async (req, res) =>
     res.status(404).json({ error: 'PDF non disponible' });
   } catch (e) {
     console.error('[GET /api/documents/signed/:id/download]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6405,6 +6504,7 @@ app.get('/api/documents/signed/:id/certificate', requireAuth(), async (req, res)
     const { data: doc, error } = await supabase.from('signed_documents')
       .select('*').eq('id', req.params.id).single();
     if (error || !doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Acces refuse' });
 
     const sigId = doc.metadata && doc.metadata.signature_id;
     if (sigId) {
@@ -6446,7 +6546,8 @@ app.get('/api/documents/signed/:id/certificate', requireAuth(), async (req, res)
       return res.status(500).json({ error: 'Impossible de generer le certificat' });
     }
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[GET /api/documents/signed/:id/certificate]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6456,6 +6557,7 @@ app.post('/api/documents/signed/:id/resend', requireAuth(), async (req, res) => 
     const { data: doc, error } = await supabase.from('signed_documents')
       .select('*').eq('id', req.params.id).single();
     if (error || !doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Acces refuse' });
     if (doc.status === 'signed') return res.status(400).json({ error: 'Document deja signe' });
 
     // Resend via DocuSeal if we have a submission ID
@@ -6475,7 +6577,7 @@ app.post('/api/documents/signed/:id/resend', requireAuth(), async (req, res) => 
 
     res.json({ ok: true, message: 'Demande de signature renvoyee' });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6535,7 +6637,7 @@ app.post('/api/documents/signed/send-email', requireAuth(), async (req, res) => 
     res.json({ ok: true, sent: attachments.length });
   } catch (e) {
     console.error('[POST /api/documents/signed/send-email]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6680,7 +6782,7 @@ app.get('/api/docuseal/templates', requireAuth(), async (req, res) => {
     res.json(data);
   } catch (e) {
     console.error('[GET /api/docuseal/templates]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6750,7 +6852,7 @@ app.post('/api/documents/request-signature', requireAuth(), async (req, res) => 
     res.json({ ok: true, document: doc, docuseal_submission_id: submissionId });
   } catch (e) {
     console.error('[POST /api/documents/request-signature]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6784,7 +6886,7 @@ app.get('/api/documents/categories', requireAuth(), async (req, res) => {
     res.json({ ok: true, categories: tree });
   } catch (e) {
     console.error('[GET /api/documents/categories]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -6895,7 +6997,7 @@ app.post('/api/documents/upload', requireAuth(), (req, res) => {
         try { if (fsMod.existsSync(fullPath)) fsMod.unlinkSync(fullPath); } catch (_) { /* ignore cleanup error */ }
       }
       console.error('[POST /api/documents/upload]', e.message);
-      res.status(500).json({ error: e.message });
+      console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
     }
   });
 });
@@ -6948,7 +7050,7 @@ app.delete('/api/documents/signed/:id', requireAuth(), async (req, res) => {
     res.json({ ok: true, deleted: docId });
   } catch (e) {
     console.error('[DELETE /api/documents/signed]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -7040,7 +7142,7 @@ app.post('/api/clients/save', requireAuth(), async (req, res) => {
 
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -7794,7 +7896,7 @@ app.post('/api/patients/ban', requireAuth(), async (req, res) => {
     if (error) throw error;
     res.json({ ok: true, ban_id: data.id });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -7817,7 +7919,7 @@ app.post('/api/patients/unban', requireAuth(), async (req, res) => {
     if (!data) return res.status(404).json({ error: 'Ban non trouve ou acces refuse' });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -7833,7 +7935,7 @@ app.get('/api/patients/banned', requireAuth(), async (req, res) => {
     if (error) throw error;
     res.json({ ok: true, banned: (data || []).map(d => ({ id: d.id, ...d.metadata, status: d.status, banned_at: d.metadata?.banned_at || d.created_at })) });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -8447,13 +8549,13 @@ app.get('/api/ide/patients', requireAuth(), async (req, res) => {
     let query = db.from('ide_patients').select('*').eq('cabinet_id', cabinetId);
     const qRaw = req.query.q;
     if (qRaw) {
-      // Sanitize: strip PostgREST special chars to prevent filter injection
-      const q = String(qRaw).replace(/[%_().,]/g, '').trim().substring(0, 100);
+      // Sanitize: strip PostgREST special chars (including backslash) to prevent filter injection
+      const q = String(qRaw).replace(/[%_\\().,]/g, '').trim().substring(0, 100);
       if (q) {
         query = query.or(`nom.ilike.%${q}%,prenom.ilike.%${q}%`);
       }
     }
-    query = query.order('nom');
+    query = query.order('nom').limit(1000);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -10004,7 +10106,7 @@ app.post('/api/commerce/connect/onboard-supplier', requireAuth(), async (req, re
     res.json({ ok: true, account_id: account.id });
   } catch (e) {
     console.error('[Connect onboard]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10041,7 +10143,7 @@ app.post('/api/commerce/cart/save', requireAuth(), async (req, res) => {
     res.json({ ok: true, items_count: cartData.items_count, subtotal_ht: cartData.subtotal_ht });
   } catch (e) {
     console.error('[Cart save]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10056,7 +10158,7 @@ app.get('/api/commerce/cart', requireAuth(), async (req, res) => {
 
     res.json({ ok: true, ...cart });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10196,7 +10298,7 @@ app.post('/api/commerce/calculate-order', requireAuth(), async (req, res) => {
     });
   } catch (e) {
     console.error('[Calculate order]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10321,7 +10423,7 @@ app.post('/api/commerce/checkout', requireAuth(), async (req, res) => {
     });
   } catch (e) {
     console.error('[Checkout]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10381,7 +10483,7 @@ app.post('/api/commerce/payout/schedule', requireAuth(), async (req, res) => {
     res.json({ ok: true, transfers });
   } catch (e) {
     console.error('[Payout]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10455,7 +10557,7 @@ app.post('/api/disputes', requireAuth(), async (req, res) => {
     });
   } catch (e) {
     console.error('[Disputes]', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10475,7 +10577,7 @@ app.get('/api/disputes', requireAuth(), async (req, res) => {
 
     res.json({ ok: true, disputes: data || [] });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -10488,7 +10590,7 @@ app.get('/api/suppliers/:id/score', requireAuth(), async (req, res) => {
 
     res.json({ ok: true, score: data || { score_total: 100, badge: 'new' } });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -11275,6 +11377,24 @@ app.post('/api/ide/cron/confirm-patients', requireAuth(), _ideCronConfirmLimiter
   }
 });
 
+// =============================================
+// Fallback : servir .html correspondant pour URLs sans extension
+// (MUST be before global error handler so errors here are caught)
+// =============================================
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || path.extname(req.path)) return next();
+  const candidates = [
+    path.join(__dirname, req.path + '.html'),
+    path.join(__dirname, 'public' + req.path + '.html'),
+    path.join(__dirname, 'public/vitrines' + req.path + '.html')
+  ];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c) && fs.statSync(c).isFile()) return res.sendFile(c); } catch {}
+  }
+  next();
+});
+
+// Global error handler — MUST be last middleware after all routes
 app.use((err, req, res, _next) => {
   console.error(`[GLOBAL ERROR] ${req.method} ${req.originalUrl}:`, err.message);
   if (!res.headersSent) {
@@ -11292,22 +11412,6 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err.message, err.stack);
   // Laisser PM2 restart proprement si c'est fatal
-});
-
-// =============================================
-// Fallback : servir .html correspondant pour URLs sans extension
-// =============================================
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api/') || path.extname(req.path)) return next();
-  const candidates = [
-    path.join(__dirname, req.path + '.html'),
-    path.join(__dirname, 'public' + req.path + '.html'),
-    path.join(__dirname, 'public/vitrines' + req.path + '.html')
-  ];
-  for (const c of candidates) {
-    try { if (fs.existsSync(c) && fs.statSync(c).isFile()) return res.sendFile(c); } catch {}
-  }
-  next();
 });
 
 // =============================================

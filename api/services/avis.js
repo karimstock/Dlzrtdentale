@@ -76,7 +76,7 @@ async function updateNoteMoyenne(societeId) {
     if (!data?.length) return;
     const moy = data.reduce((s, a) => s + a.note, 0) / data.length;
     await admin()
-      .from('services_profils')
+      .from('services_profil')
       .update({ note_moyenne: Math.round(moy * 10) / 10, nb_avis: data.length })
       .eq('societe_id', societeId);
   } catch (e) {

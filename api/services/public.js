@@ -12,7 +12,7 @@ module.exports = function (router) {
   router.get('/profil/:slug', async (req, res) => {
     try {
       const { data, error } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('id, societe_id, nom, slug, description, adresse, ville, code_postal, telephone, email, logo_url, photo_url, categorie, sous_categorie, site_web, horaires, reseaux_sociaux, note_moyenne, nb_avis, acompte_pct')
         .eq('slug', req.params.slug)
         .eq('actif', true)
@@ -29,7 +29,7 @@ module.exports = function (router) {
   router.get('/praticiens/:slug', async (req, res) => {
     try {
       const { data: profil } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('id')
         .eq('slug', req.params.slug)
         .eq('actif', true)
@@ -52,7 +52,7 @@ module.exports = function (router) {
   router.get('/prestations/:slug', async (req, res) => {
     try {
       const { data: profil } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('societe_id')
         .eq('slug', req.params.slug)
         .eq('actif', true)
@@ -76,7 +76,7 @@ module.exports = function (router) {
     try {
       const { prestation_id, praticien_id } = req.query;
       const { data: profil } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('societe_id')
         .eq('slug', req.params.slug)
         .eq('actif', true)
@@ -184,7 +184,7 @@ module.exports = function (router) {
   router.get('/avis/:slug', async (req, res) => {
     try {
       const { data: profil } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('societe_id, note_moyenne, nb_avis')
         .eq('slug', req.params.slug)
         .eq('actif', true)
@@ -214,7 +214,7 @@ module.exports = function (router) {
       }
 
       const { data: profil } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('societe_id, nom, acompte_pct')
         .eq('slug', slug)
         .eq('actif', true)
@@ -343,7 +343,7 @@ module.exports = function (router) {
 
       // Get profil for email
       const { data: profil } = await admin()
-        .from('services_profils')
+        .from('services_profil')
         .select('nom, email')
         .eq('societe_id', resa.societe_id)
         .maybeSingle();

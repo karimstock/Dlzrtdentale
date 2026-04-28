@@ -65,7 +65,7 @@ function buildSystemPrompt(professionConfig, societeData, mode, userData) {
 
   // Injection base de connaissances metier (Passe 41B)
   try {
-    const metierCode = professionConfig.id || 'dentiste';
+    const metierCode = String(professionConfig.id || 'dentiste').replace(/[^a-z0-9_]/gi, '');
     const metierData = require('../../../data/metiers/' + metierCode + '.json');
     if (metierData) {
       prompt += '\n\nBASE DE CONNAISSANCES METIER JADOMI :';

@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
     if (dentiste_id) query = query.eq('dentiste_id', dentiste_id);
     if (from) query = query.gte('date_bl', from);
     if (to) query = query.lte('date_bl', to);
+    query = query.limit(500); // Perf: cap BL list
 
     const { data, error } = await query;
     if (error) throw error;

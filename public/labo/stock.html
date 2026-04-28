@@ -704,6 +704,8 @@ let db, currentToken, currentSocieteId, currentUser;
 let allProducts = [];
 let filteredProducts = [];
 let allMouvements = [];
+
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 let editingProductId = null;
 let adjustingProductId = null;
 let cameraStream = null;
@@ -853,7 +855,7 @@ async function handleImportFile(file) {
   } catch(e) {
     status.style.display = 'none';
     result.style.display = 'block';
-    result.innerHTML = `<div style="padding:16px;background:var(--red-bg,#fee2e2);border:1px solid var(--red,#dc2626);border-radius:var(--radius);color:var(--red,#dc2626);font-size:13px;">Erreur : ${e.message}</div>`;
+    result.innerHTML = `<div style="padding:16px;background:var(--red-bg,#fee2e2);border:1px solid var(--red,#dc2626);border-radius:var(--radius);color:var(--red,#dc2626);font-size:13px;">Erreur : ${esc(e.message)}</div>`;
   }
 }
 
@@ -1048,7 +1050,7 @@ function productCard(p) {
   const fillClass = qty <= 0 ? 'danger' : (qty <= seuil ? 'warn' : 'ok');
   const qtyColor  = qty <= 0 ? 'var(--red)' : (qty <= seuil ? 'var(--amber)' : 'var(--green)');
 
-  const eanBadge = p.code_barre ? `<span class="product-ean-badge" title="EAN: ${p.code_barre}">💰 EAN</span>` : '';
+  const eanBadge = p.code_barre ? `<span class="product-ean-badge" title="EAN: ${esc(p.code_barre)}">💰 EAN</span>` : '';
 
   // Peremption badge
   let peremBadge = '';
@@ -1064,38 +1066,39 @@ function productCard(p) {
     ? `<div class="tooltip-wrap"><span class="price-info">${parseFloat(p.prix_achat).toFixed(2)} €</span><div class="tooltip-box">Prix d'achat HT</div></div>`
     : '<span class="price-info" style="color:var(--muted-light);">—</span>';
 
-  return `<div class="product-card" id="pc-${p.id}">
+  const safeId = esc(p.id);
+  return `<div class="product-card" id="pc-${safeId}">
     <div class="product-card-header">
       <div>
-        <div class="product-name">${p.nom||'—'} ${peremBadge}</div>
-        <div class="product-brand">${p.marque||''} ${p.fournisseur ? '· '+p.fournisseur : ''}</div>
+        <div class="product-name">${esc(p.nom||'—')} ${peremBadge}</div>
+        <div class="product-brand">${esc(p.marque||'')} ${p.fournisseur ? '· '+esc(p.fournisseur) : ''}</div>
       </div>
       ${eanBadge}
     </div>
     <div class="qty-bar-wrap">
       <div class="qty-bar-label">
-        <span style="color:${qtyColor};" class="qty-val">${qty} ${p.unite||''}</span>
+        <span style="color:${qtyColor};" class="qty-val">${qty} ${esc(p.unite||'')}</span>
         ${seuil>0 ? `<span style="color:var(--muted);font-size:10px;">seuil: ${seuil}</span>` : ''}
       </div>
       <div class="qty-bar"><div class="qty-bar-fill ${fillClass}" style="width:${pct}%;"></div></div>
     </div>
     <div class="product-meta">
-      ${p.categorie ? `<span>🏷️ ${p.categorie}</span>` : ''}
-      ${p.reference ? `<span>🔢 ${p.reference}</span>` : ''}
-      ${p.emplacement ? `<span>📍 ${p.emplacement}</span>` : ''}
+      ${p.categorie ? `<span>🏷️ ${esc(p.categorie)}</span>` : ''}
+      ${p.reference ? `<span>🔢 ${esc(p.reference)}</span>` : ''}
+      ${p.emplacement ? `<span>📍 ${esc(p.emplacement)}</span>` : ''}
       ${p.date_peremption ? `<span>📅 ${new Date(p.date_peremption).toLocaleDateString('fr-FR')}</span>` : ''}
     </div>
     <div class="product-card-footer">
       <div class="qty-ctrl">
-        <button class="qty-btn" onclick="quickQty('${p.id}',-1)">−</button>
-        <input class="qty-input" type="number" value="${qty}" id="qi-${p.id}" onchange="setQty('${p.id}',this.value)" min="0" step="0.01">
-        <button class="qty-btn" onclick="quickQty('${p.id}',+1)">+</button>
+        <button class="qty-btn" onclick="quickQty('${safeId}',-1)">−</button>
+        <input class="qty-input" type="number" value="${qty}" id="qi-${safeId}" onchange="setQty('${safeId}',this.value)" min="0" step="0.01">
+        <button class="qty-btn" onclick="quickQty('${safeId}',+1)">+</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${priceHtml}
-        <button class="btn btn-outline btn-xs" onclick="openEditModal('${p.id}')" title="Modifier">✏️</button>
-        <button class="btn btn-outline btn-xs" onclick="openAdjustModal('${p.id}')" title="Mouvement">📊</button>
-        <button class="btn btn-danger btn-xs" onclick="deleteProduct('${p.id}')" title="Supprimer">🗑️</button>
+        <button class="btn btn-outline btn-xs" onclick="openEditModal('${safeId}')" title="Modifier">✏️</button>
+        <button class="btn btn-outline btn-xs" onclick="openAdjustModal('${safeId}')" title="Mouvement">📊</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteProduct('${safeId}')" title="Supprimer">🗑️</button>
       </div>
     </div>
   </div>`;
@@ -1577,12 +1580,12 @@ function renderAlertSection(containerId, items, subtitle) {
   if (!items.length) { el.innerHTML='<div class="alert-empty">Aucune alerte — tout va bien ✅</div>'; return; }
   el.innerHTML = items.map(p => `<div class="alert-item">
     <div>
-      <div class="alert-item-name">${p.nom||'—'}</div>
-      <div class="alert-item-sub">${subtitle(p)} ${p.fournisseur?'· '+p.fournisseur:''}</div>
+      <div class="alert-item-name">${esc(p.nom||'—')}</div>
+      <div class="alert-item-sub">${subtitle(p)} ${p.fournisseur?'· '+esc(p.fournisseur):''}</div>
     </div>
     <div style="display:flex;gap:6px;">
-      <button class="btn btn-outline btn-xs" onclick="openEditModal('${p.id}');switchTab('inventaire')">✏️</button>
-      <button class="btn btn-outline btn-xs" onclick="openAdjustModal('${p.id}')">📊</button>
+      <button class="btn btn-outline btn-xs" onclick="openEditModal('${esc(p.id)}');switchTab('inventaire')">✏️</button>
+      <button class="btn btn-outline btn-xs" onclick="openAdjustModal('${esc(p.id)}')">📊</button>
     </div>
   </div>`).join('');
 }
@@ -1781,11 +1784,11 @@ async function lookupSupplier(name) {
 
       el.style.background = 'var(--green-bg)';
       el.style.color = 'var(--green)';
-      el.innerHTML = `<strong>${s.name}</strong>${s.supplier_type ? ' (' + s.supplier_type + ')' : ''}
-        ${s.description ? '<br>' + s.description : ''}
-        ${s.website ? '<br><a href="'+s.website+'" target="_blank" style="color:var(--blue);">'+s.website+'</a>' : ''}
-        ${s.specialties?.length ? '<br>Specialites : ' + s.specialties.join(', ') : ''}
-        ${s.brands_distributed?.length ? '<br>Marques : ' + s.brands_distributed.slice(0,8).join(', ') : ''}`;
+      el.innerHTML = `<strong>${esc(s.name)}</strong>${s.supplier_type ? ' (' + esc(s.supplier_type) + ')' : ''}
+        ${s.description ? '<br>' + esc(s.description) : ''}
+        ${s.website ? '<br><a href="'+esc(s.website)+'" target="_blank" style="color:var(--blue);">'+esc(s.website)+'</a>' : ''}
+        ${s.specialties?.length ? '<br>Specialites : ' + s.specialties.map(x=>esc(x)).join(', ') : ''}
+        ${s.brands_distributed?.length ? '<br>Marques : ' + s.brands_distributed.slice(0,8).map(x=>esc(x)).join(', ') : ''}`;
     } else {
       el.style.background = 'var(--amber-bg)';
       el.style.color = 'var(--amber)';
@@ -1864,11 +1867,11 @@ function renderMouvements(list) {
     const date = m.created_at ? new Date(m.created_at).toLocaleString('fr-FR') : '—';
     return `<tr>
       <td>${date}</td>
-      <td class="td-main">${m.produit_nom||'—'}</td>
+      <td class="td-main">${esc(m.produit_nom||'—')}</td>
       <td><span class="${typeClass}">${typeLabel}</span></td>
-      <td style="text-align:right;font-weight:600;">${isEntree?'+':''}${isSortie?'-':''}${m.quantite||0}</td>
-      <td>${m.motif||'—'}</td>
-      <td style="color:var(--muted);">${m.produit_categorie||'—'}</td>
+      <td style="text-align:right;font-weight:600;">${isEntree?'+':''}${isSortie?'-':''}${parseFloat(m.quantite)||0}</td>
+      <td>${esc(m.motif||'—')}</td>
+      <td style="color:var(--muted);">${esc(m.produit_categorie||'—')}</td>
     </tr>`;
   }).join('');
 }

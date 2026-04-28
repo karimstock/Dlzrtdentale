@@ -13,6 +13,9 @@ const mailer = require('./mailer');
 let pushNotif = () => null;
 try { pushNotif = require('./notifications').pushNotification; } catch {}
 
+// Escape PostgREST ilike special chars to prevent wildcard injection
+function _escIlike(s) { return String(s || '').replace(/[%_\\]/g, c => '\\' + c); }
+
 let stripe = null;
 try {
   if (process.env.STRIPE_SECRET_KEY) stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -204,7 +207,7 @@ module.exports = function mountCommerce(app) {
     let qb = admin().from('produits_societe')
       .select('*', { count: 'exact' })
       .eq('societe_id', req.societe.id).eq('actif', true);
-    if (q) qb = qb.or(`designation.ilike.%${q}%,reference.ilike.%${q}%,code_barre.eq.${q}`);
+    if (q) { const eq = _escIlike(q); qb = qb.or(`designation.ilike.%${eq}%,reference.ilike.%${eq}%,code_barre.eq.${q}`); }
     const { data, count, error } = await qb.order('designation').range(from, to);
     if (error) return res.status(500).json({ success: false, error: 'Erreur interne' });
 
@@ -219,9 +222,13 @@ module.exports = function mountCommerce(app) {
       }
     });
   });
+  // Whitelist to prevent mass assignment (attacker overriding societe_id, id, etc.)
+  const _produitFields = ['designation', 'reference', 'prix_ht', 'taux_tva', 'unite', 'stock_actuel', 'stock_alerte', 'code_barre', 'categorie', 'description', 'fournisseur', 'source', 'actif'];
+  function _pickFields(body, fields) { const o = {}; for (const f of fields) if (body[f] !== undefined) o[f] = body[f]; return o; }
+
   router.post('/produits', requireSociete(), async (req, res) => {
     try {
-      const p = { ...req.body, societe_id: req.societe.id, source: req.body.source || 'manuel' };
+      const p = { ..._pickFields(req.body, _produitFields), societe_id: req.societe.id, source: req.body.source || 'manuel' };
       const { data, error } = await admin().from('produits_societe').insert(p).select('*').single();
       if (error) throw error;
       res.json({ success: true, produit: data });
@@ -229,8 +236,10 @@ module.exports = function mountCommerce(app) {
   });
   router.patch('/produits/:id', requireSociete(), async (req, res) => {
     try {
+      const safe = _pickFields(req.body, _produitFields);
+      if (!Object.keys(safe).length) return res.status(400).json({ success: false, error: 'Aucun champ valide' });
       const { data, error } = await admin().from('produits_societe')
-        .update(req.body).eq('id', req.params.id).eq('societe_id', req.societe.id)
+        .update(safe).eq('id', req.params.id).eq('societe_id', req.societe.id)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, produit: data });
@@ -668,22 +677,26 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
   router.get('/clients', requireSociete(), async (req, res) => {
     const q = req.query.q ? String(req.query.q).trim() : null;
     let qb = admin().from('clients_societe').select('*').eq('societe_id', req.societe.id);
-    if (q) qb = qb.or(`raison_sociale.ilike.%${q}%,nom.ilike.%${q}%,email.ilike.%${q}%`);
+    if (q) { const eq = _escIlike(q); qb = qb.or(`raison_sociale.ilike.%${eq}%,nom.ilike.%${eq}%,email.ilike.%${eq}%`); }
     const { data } = await qb.order('raison_sociale').limit(200);
     res.json({ success: true, clients: data || [] });
   });
+  const _clientFields = ['type', 'raison_sociale', 'nom', 'prenom', 'email', 'telephone', 'adresse', 'code_postal', 'ville', 'pays', 'siret', 'tva_intra', 'notes', 'conditions_paiement', 'delai_paiement_jours'];
   router.post('/clients', requireSociete(), async (req, res) => {
     try {
+      const safe = { ..._pickFields(req.body, _clientFields), societe_id: req.societe.id };
       const { data, error } = await admin().from('clients_societe')
-        .insert({ ...req.body, societe_id: req.societe.id }).select('*').single();
+        .insert(safe).select('*').single();
       if (error) throw error;
       res.json({ success: true, client: data });
     } catch (e) { res.status(400).json({ success: false, error: 'Erreur validation' }); }
   });
   router.patch('/clients/:id', requireSociete(), async (req, res) => {
     try {
+      const safe = _pickFields(req.body, _clientFields);
+      if (!Object.keys(safe).length) return res.status(400).json({ success: false, error: 'Aucun champ valide' });
       const { data, error } = await admin().from('clients_societe')
-        .update(req.body).eq('id', req.params.id).eq('societe_id', req.societe.id)
+        .update(safe).eq('id', req.params.id).eq('societe_id', req.societe.id)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, client: data });
@@ -1276,7 +1289,7 @@ Filtek Z350,FZ-A2-4G,Teinte-Format,A2-4g,28.00,20,30,Composite universel nanocha
       let qb = admin().from('v_stock_analytics')
         .select('*', { count: 'exact' })
         .eq('societe_id', req.societe.id);
-      if (q) qb = qb.or(`designation.ilike.%${q}%,reference.ilike.%${q}%`);
+      if (q) { const eq = _escIlike(q); qb = qb.or(`designation.ilike.%${eq}%,reference.ilike.%${eq}%`); }
       if (statut) qb = qb.eq('statut_stock', statut);
       const { data, count, error } = await qb.order('statut_stock').order('designation').range(from, to);
       if (error) throw error;

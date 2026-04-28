@@ -121,7 +121,7 @@ module.exports = function (router) {
         cautionMontant = Number(produit.caution_location) || 0;
       } else if (cmdType === 'sur_mesure') {
         // Créer une demande sur mesure
-        const { data: demande, error: smErr } = await admin().from('showroom_sur_mesure')
+        const { data: demande, error: smErr } = await admin().from('showroom_demandes_sur_mesure')
           .insert({
             profil_id: produit.profil.id,
             produit_id: produit.id,
@@ -373,7 +373,7 @@ module.exports = function (router) {
       const in90 = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
 
       // Blocages
-      const { data: blocages } = await admin().from('showroom_location_blocages')
+      const { data: blocages } = await admin().from('showroom_disponibilites_location')
         .select('date_debut, date_fin').eq('produit_id', produit.id)
         .gte('date_fin', today).lte('date_debut', in90);
 
@@ -423,11 +423,11 @@ module.exports = function (router) {
       if (!profil) return res.status(404).json({ error: 'Créateur introuvable' });
 
       // Créer ou récupérer la conversation
-      let { data: conv } = await admin().from('showroom_conversations')
+      let { data: conv } = await admin().from('showroom_messages')
         .select('*').eq('profil_id', profil.id).eq('client_email', client_email).maybeSingle();
 
       if (!conv) {
-        const { data: newConv, error: convErr } = await admin().from('showroom_conversations')
+        const { data: newConv, error: convErr } = await admin().from('showroom_messages')
           .insert({
             profil_id: profil.id,
             client_nom, client_prenom, client_email,
@@ -438,7 +438,7 @@ module.exports = function (router) {
         if (convErr) throw convErr;
         conv = newConv;
       } else {
-        await admin().from('showroom_conversations')
+        await admin().from('showroom_messages')
           .update({
             nb_non_lus_createur: (conv.nb_non_lus_createur || 0) + 1,
             updated_at: new Date().toISOString()

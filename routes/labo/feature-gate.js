@@ -184,7 +184,7 @@ function requireBLSlot() {
       debut.setHours(0, 0, 0, 0);
 
       const { count } = await admin()
-        .from('labo_bons_livraison')
+        .from('bons_livraison')
         .select('id', { count: 'exact', head: true })
         .eq('prothesiste_id', req.prothesisteId)
         .gte('created_at', debut.toISOString());

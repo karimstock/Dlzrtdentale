@@ -43,7 +43,7 @@ module.exports = function (router) {
 
       // Charger la config profession
       let profConfig;
-      try { profConfig = require('./professions/' + metier); } catch { profConfig = require('./professions/dentiste'); }
+      const safeMetier = String(metier).replace(/[^a-z0-9_]/gi, ''); try { profConfig = require('./professions/' + safeMetier); } catch { profConfig = require('./professions/dentiste'); }
 
       // Trouver la section dans les configs
       let sectionConfig = null;
@@ -136,7 +136,7 @@ module.exports = function (router) {
 
       const metier = site.profession_id || 'dentiste';
       let profConfig;
-      try { profConfig = require('./professions/' + metier); } catch { profConfig = require('./professions/dentiste'); }
+      const safeMetier = String(metier).replace(/[^a-z0-9_]/gi, ''); try { profConfig = require('./professions/' + safeMetier); } catch { profConfig = require('./professions/dentiste'); }
 
       // Charger la conversation pour trouver les equipements/specialites coches
       const { data: conv } = await admin().from('vitrines_conversations').select('extracted_data').eq('site_id', site.id).single();
