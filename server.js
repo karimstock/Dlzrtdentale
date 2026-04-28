@@ -8533,14 +8533,21 @@ app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
 app.patch('/api/ide/visite/:id/notes', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
     const { notes } = req.body;
     if (notes === undefined) return res.status(400).json({ error: 'notes requis' });
+    const sanitizedNotes = typeof notes === 'string' ? notes.substring(0, 5000) : '';
     const { data, error } = await db.from('ide_visites')
-      .update({ notes, updated_at: new Date().toISOString() })
+      .update({ notes: sanitizedNotes, updated_at: new Date().toISOString() })
       .eq('id', req.params.id)
+      .eq('cabinet_id', cabinetId)
       .select('id, notes')
       .single();
     if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Visite non trouvee.' });
     res.json({ ok: true, visite: data });
   } catch (e) {
     console.error('[IDE Visite Notes] Error:', e.message);

@@ -231,7 +231,10 @@ module.exports = function (router) {
         .eq('actif', true);
 
       if (req.query.type_createur) query = query.eq('type_createur', req.query.type_createur);
-      if (req.query.ville) query = query.ilike('ville', `%${req.query.ville}%`);
+      if (req.query.ville) {
+        const v = req.query.ville.replace(/[%_,().]/g, '');
+        query = query.ilike('ville', `%${v}%`);
+      }
       if (req.query.categorie) {
         // Chercher les créateurs qui ont des produits dans cette catégorie
         const { data: profilIds } = await admin().from('showroom_produits')

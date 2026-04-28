@@ -272,12 +272,11 @@ module.exports = function mountMailing(app) {
   // Redirect clic : GET /api/mailing/t/c/:token?u=...
   app.get('/api/mailing/t/c/:token', async (req, res) => {
     let u = req.query.u ? String(req.query.u) : PUBLIC_HOST;
-    // Open redirect protection: only allow http(s) URLs on approved domains
+    // Open redirect protection: only allow http(s) protocol (block javascript:, data:, etc.)
     try {
       const parsed = new URL(u);
-      const allowedHosts = ['jadomi.fr', 'www.jadomi.fr', 'jadomi.be', 'www.jadomi.be'];
-      if (!['http:', 'https:'].includes(parsed.protocol) || !allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
-        u = PUBLIC_HOST; // fallback to jadomi.fr if suspicious URL
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        u = PUBLIC_HOST;
       }
     } catch { u = PUBLIC_HOST; }
     try {
