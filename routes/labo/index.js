@@ -5,6 +5,7 @@
 
 const express = require('express');
 const { authSupabase, requireSociete, admin } = require('../../api/multiSocietes/middleware');
+const { requireFeature, requireTechnicienSlot, requireBLSlot } = require('./feature-gate');
 
 function createLaboRouter() {
   const router = express.Router();
@@ -49,34 +50,42 @@ function createLaboRouter() {
   });
 
   // Monte les sous-routes
+  // -- Formules (pas de gate, accessible a tous) --
+  router.use('/formules', require('./formules'));
+
+  // -- Essentiel (inclus pour tous) --
   router.use('/profil', require('./profil'));
   router.use('/catalogue', require('./catalogue'));
-  router.use('/import-grille', require('./import-grille'));
   router.use('/dentistes', require('./dentistes'));
-  router.use('/bons-livraison', require('./bons-livraison'));
+  router.use('/bons-livraison', requireBLSlot(), require('./bons-livraison'));
   router.use('/factures', require('./factures-labo'));
   router.use('/declarations', require('./declaration-conformite'));
   router.use('/teintiers', require('./teintiers'));
   router.use('/portail-dentiste', require('./portail-dentiste'));
-  const { authRouter: portailPatientAuth } = require('./portail-patient');
-  router.use('/portail-patient', portailPatientAuth);
   router.use('/stock', require('./stock'));
-  router.use('/remakes', require('./remakes'));
-  router.use('/production', require('./production'));
-  router.use('/garanties', require('./garanties'));
-  router.use('/planning', require('./planning'));
-  router.use('/expeditions', require('./expeditions'));
-  router.use('/shade', require('./shade'));
-  router.use('/maintenance', require('./maintenance'));
+
+  // -- Pro (requireFeature gate) --
+  router.use('/import-grille', requireFeature('import_grille_ia'), require('./import-grille'));
+  router.use('/remakes', requireFeature('remakes'), require('./remakes'));
+  router.use('/production', requireFeature('production'), require('./production'));
+  router.use('/garanties', requireFeature('garanties'), require('./garanties'));
+  router.use('/planning', requireFeature('planning'), require('./planning'));
+  router.use('/expeditions', requireFeature('expeditions'), require('./expeditions'));
+  const { chatRouter, portailChatRouter } = require('./chat');
+  router.use('/chat', requireFeature('chat'), chatRouter);
+  router.use('/portail-chat', portailChatRouter);
   const techniciens = require('./techniciens');
   router.use('/techniciens', techniciens.router);
   router.use('/', techniciens.kpiRouter);
-  const { chatRouter, portailChatRouter } = require('./chat');
-  router.use('/chat', chatRouter);
-  router.use('/portail-chat', portailChatRouter);
+
+  // -- Premium (requireFeature gate) --
+  router.use('/shade', requireFeature('shade_ia'), require('./shade'));
+  router.use('/maintenance', requireFeature('maintenance'), require('./maintenance'));
+  const { authRouter: portailPatientAuth } = require('./portail-patient');
+  router.use('/portail-patient', requireFeature('portail_patient'), portailPatientAuth);
   const { fichiers3dRouter } = require('./fichiers3d');
-  router.use('/fichiers3d', fichiers3dRouter);
-  router.use('/reseau', require('./reseau'));
+  router.use('/fichiers3d', requireFeature('fichiers_3d'), fichiers3dRouter);
+  router.use('/reseau', requireFeature('reseau_annuaire'), require('./reseau'));
 
   return router;
 }

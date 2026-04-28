@@ -1,0 +1,2267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#be185d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Labo Pro — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f0a1a;--surface:#1a1028;--surface2:#231538;--border:rgba(190,24,93,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#be185d;--accent-dark:#e11d7a;--accent-light:rgba(190,24,93,0.12);
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── DESKTOP SIDEBAR LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #0d0616 0%, #16082a 50%, #0d0616 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:14px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-light);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;min-width:18px;text-align:center;}
+.nav-badge.info{background:var(--accent);}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.labo-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.labo-name{font-size:12px;font-weight:600;}
+.labo-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+.france-badge{display:flex;align-items:center;gap:6px;padding:8px 0 0;font-size:10px;color:var(--muted);letter-spacing:0.3px;}
+.france-badge .flag{font-size:12px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#9f1250;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+.btn-sm{padding:5px 12px;font-size:12px;}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── KPI STATS ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color 0.2s;}
+.stat:hover{border-color:var(--accent);}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.stat-bar{height:4px;background:var(--surface2);border-radius:2px;margin-top:10px;overflow:hidden;}
+.stat-bar-fill{height:100%;border-radius:2px;transition:width 0.6s cubic-bezier(.16,1,.3,1);}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+.c-blue{color:var(--blue);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:12px 20px;border-bottom:1px solid rgba(190,24,93,0.1);font-size:13px;vertical-align:middle;}
+tbody tr{transition:background 0.15s;}
+tbody tr:hover{background:var(--surface2);}
+
+/* ── STATUS BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.2px;}
+.badge-green{background:var(--green-l);color:var(--green);}
+.badge-amber{background:var(--amber-l);color:var(--amber);}
+.badge-red{background:var(--red-l);color:var(--red);}
+.badge-blue{background:var(--blue-l);color:var(--blue);}
+.badge-purple{background:var(--purple-l);color:var(--purple);}
+.badge-accent{background:var(--accent-light);color:var(--accent);}
+.badge-muted{background:var(--surface2);color:var(--muted);}
+
+/* ── SEARCH ── */
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;margin-bottom:16px;transition:border-color 0.2s;}
+.search-bar:focus-within{border-color:var(--accent);}
+.search-bar input{background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;flex:1;}
+.search-bar input::placeholder{color:var(--muted);}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.filter-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--muted);transition:all 0.15s;}
+.filter-chip:hover{color:var(--text);border-color:var(--accent);}
+.filter-chip.active{background:var(--accent-light);color:var(--accent);border-color:var(--accent);}
+
+/* ── KANBAN ── */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;min-height:400px;}
+.kanban-col{min-width:220px;max-width:240px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;}
+.kanban-col-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;}
+.kanban-col-count{background:var(--surface2);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--muted);font-family:var(--mono);}
+.kanban-col-body{padding:8px;flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:500px;}
+.kanban-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;transition:all 0.15s;}
+.kanban-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+.kanban-card-title{font-size:12px;font-weight:600;margin-bottom:4px;}
+.kanban-card-sub{font-size:11px;color:var(--muted);}
+.kanban-card-meta{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.kanban-tag{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);color:var(--text);padding:12px 24px;border-radius:var(--radius);font-size:13px;font-weight:500;border:1px solid var(--accent);box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:9999;transition:transform 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);width:90%;max-width:520px;max-height:85vh;overflow-y:auto;animation:modalIn 0.3s cubic-bezier(.16,1,.3,1);}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);}
+.modal-title{font-family:var(--font-display);font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px;transition:color 0.15s;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:20px 24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:0.3px;}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:13px;transition:border-color 0.2s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);}
+.form-textarea{resize:vertical;min-height:80px;}
+.form-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+
+/* ── SKELETON ── */
+.skel{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface) 50%,var(--surface2) 75%);background-size:200% 100%;animation:skel 1.5s infinite;border-radius:var(--radius-sm);min-height:20px;}
+@keyframes skel{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.skel-line{height:14px;margin-bottom:8px;width:80%;}
+.skel-block{height:80px;margin-bottom:12px;}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty-state-icon{font-size:40px;margin-bottom:12px;opacity:0.3;}
+.empty-state-title{font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.empty-state-text{font-size:13px;max-width:320px;margin:0 auto;}
+
+/* ── GRID LAYOUTS ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+
+/* ── MINI CHART ── */
+.mini-chart{display:flex;align-items:flex-end;gap:3px;height:40px;margin-top:8px;}
+.mini-chart-bar{flex:1;background:var(--accent-light);border-radius:2px;transition:height 0.3s cubic-bezier(.16,1,.3,1);}
+
+/* ── PROGRESS ── */
+.progress{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;background:var(--accent);transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+
+/* ── CALENDAR MINI ── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day{padding:6px 4px;text-align:center;font-size:11px;border-radius:6px;cursor:pointer;transition:background 0.15s;}
+.cal-day:hover{background:var(--surface2);}
+.cal-day.today{background:var(--accent-light);color:var(--accent);font-weight:600;}
+.cal-day.has-event{position:relative;}
+.cal-day.has-event::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent);}
+.cal-header{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;}
+
+/* ── TAG / PILL ── */
+.urgency-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
+.urgency-badge.urgent{color:var(--red);}
+.urgency-badge.normal{color:var(--muted);}
+.urgency-badge.express{color:var(--amber);}
+
+/* ── TABS ── */
+.tabs-inline{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.tab-inline{padding:10px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+.tab-inline:hover{color:var(--text);}
+.tab-inline.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── MOBILE ── */
+.burger{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,0.5);}
+  .main{margin-left:0;}
+  .burger{display:inline-flex;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .kanban{flex-direction:column;}.kanban-col{min-width:100%;max-width:100%;}
+  .grid-2,.grid-3{grid-template-columns:1fr;}
+  .content{padding:16px;}
+  .topbar{padding:14px 16px;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+
+/* ── OVERLAY FOR MOBILE SIDEBAR ── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:49;}
+.sidebar.open ~ .sidebar-overlay{display:block;}
+
+/* ── NETWORK CARD ── */
+.net-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:border-color 0.2s;}
+.net-card:hover{border-color:var(--accent);}
+.net-card-name{font-weight:600;font-size:14px;margin-bottom:4px;}
+.net-card-info{font-size:12px;color:var(--muted);}
+
+/* ── EQUIPMENT / MACHINE CARD ── */
+.machine-card{display:flex;gap:14px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;transition:border-color 0.2s;}
+.machine-card:hover{border-color:var(--accent);}
+.machine-icon{width:40px;height:40px;border-radius:var(--radius-sm);background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.machine-info{flex:1;}
+.machine-name{font-weight:600;font-size:13px;}
+.machine-status{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(190,24,93,0.3);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(190,24,93,0.5);}
+</style>
+</head>
+<body>
+<div class="shell">
+<!-- ═══════ SIDEBAR ═══════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI Labo Pro</div>
+    <div class="logo-tagline">Laboratoire de protheses dentaires</div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-section">Activite</div>
+    <a class="nav-item active" onclick="showPage('dashboard',this)" aria-label="Tableau de bord">
+      <span class="ni">&#9670;</span>Tableau de bord
+    </a>
+    <a class="nav-item" onclick="showPage('production',this)" aria-label="Production">
+      <span class="ni">&#9881;</span>Production<span class="nav-badge info" id="badge-production">0</span>
+    </a>
+
+    <div class="nav-section">Commercial</div>
+    <a class="nav-item" onclick="showPage('bons',this)" aria-label="Bons de livraison">
+      <span class="ni">&#9993;</span>Bons de livraison
+    </a>
+    <a class="nav-item" onclick="showPage('facturation',this)" aria-label="Facturation">
+      <span class="ni">&#8364;</span>Facturation
+    </a>
+    <a class="nav-item" onclick="showPage('dentistes',this)" aria-label="Dentistes">
+      <span class="ni">&#9734;</span>Dentistes
+    </a>
+    <a class="nav-item" onclick="showPage('catalogue',this)" aria-label="Catalogue">
+      <span class="ni">&#9776;</span>Catalogue
+    </a>
+
+    <div class="nav-section">Operations</div>
+    <a class="nav-item" onclick="showPage('stock',this)" aria-label="Stock">
+      <span class="ni">&#9744;</span>Stock<span class="nav-badge" id="badge-stock">0</span>
+    </a>
+    <a class="nav-item" onclick="showPage('techniciens',this)" aria-label="Techniciens">
+      <span class="ni">&#9775;</span>Techniciens
+    </a>
+    <a class="nav-item" onclick="showPage('expeditions',this)" aria-label="Expeditions">
+      <span class="ni">&#8658;</span>Expeditions
+    </a>
+    <a class="nav-item" onclick="showPage('maintenance',this)" aria-label="Maintenance">
+      <span class="ni">&#9888;</span>Maintenance<span class="nav-badge" id="badge-maintenance">0</span>
+    </a>
+
+    <div class="nav-section">Qualite</div>
+    <a class="nav-item" onclick="showPage('qualite',this)" aria-label="Qualite et Garanties">
+      <span class="ni">&#10003;</span>Qualite et Garanties
+    </a>
+    <a class="nav-item" onclick="showPage('teintes',this)" aria-label="Teintes et Photos">
+      <span class="ni">&#9786;</span>Teintes et Photos
+    </a>
+    <a class="nav-item" onclick="showPage('fichiers3d',this)" aria-label="Fichiers 3D">
+      <span class="ni">&#9651;</span>Fichiers 3D
+    </a>
+
+    <div class="nav-section">Reseau</div>
+    <a class="nav-item" onclick="showPage('reseau',this)" aria-label="Reseau France">
+      <span class="ni">&#9733;</span>Reseau France<span class="nav-badge info" id="badge-reseau">0</span>
+    </a>
+
+    <div style="height:8px"></div>
+    <a class="nav-item" onclick="showPage('parametres',this)" aria-label="Parametres">
+      <span class="ni">&#9881;</span>Parametres
+    </a>
+    <a class="nav-item" onclick="showPage('abonnement',this)" aria-label="Abonnement">
+      <span class="ni">&#9830;</span>Abonnement
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="labo-card">
+      <div class="labo-name" id="labo-name">Mon Laboratoire</div>
+      <div class="labo-plan" id="labo-plan">JADOMI Labo Pro</div>
+    </div>
+    <div class="france-badge">
+      <span class="flag">FR</span> 100% Made in France
+    </div>
+  </div>
+</aside>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="main">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="burger" id="burger-btn" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+      <h1 class="page-title" id="page-title">Tableau de bord</h1>
+    </div>
+    <div class="topbar-right" id="topbar-actions"></div>
+  </header>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 1: TABLEAU DE BORD             -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="stats" id="kpi-grid">
+      <div class="stat">
+        <div class="stat-label">CA du mois</div>
+        <div class="stat-value c-accent" id="kpi-ca">--</div>
+        <div class="stat-sub" id="kpi-ca-sub">Chargement...</div>
+        <div class="mini-chart" id="chart-ca"></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Bons de livraison en cours</div>
+        <div class="stat-value c-blue" id="kpi-bl">--</div>
+        <div class="stat-sub">Toutes etapes confondues</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Factures impayees</div>
+        <div class="stat-value c-red" id="kpi-impayes">--</div>
+        <div class="stat-sub" id="kpi-impayes-sub">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Remakes ce mois</div>
+        <div class="stat-value c-amber" id="kpi-remakes">--</div>
+        <div class="stat-sub" id="kpi-remakes-sub">Taux de retour</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Techniciens actifs</div>
+        <div class="stat-value c-green" id="kpi-tech">--</div>
+        <div class="stat-sub">Aujourd'hui</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Machines en alerte</div>
+        <div class="stat-value c-red" id="kpi-machines">--</div>
+        <div class="stat-sub">Maintenance requise</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Production du jour</span>
+          <span class="card-count" id="prod-today-count">0 cas</span>
+        </div>
+        <div class="card-body" id="prod-today-list">
+          <div class="empty-state">
+            <div class="empty-state-title">Aucun cas en production</div>
+            <div class="empty-state-text">Les cas du jour apparaitront ici.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Bons de livraison recents</span>
+          <span class="card-count" id="bl-recent-count">0</span>
+        </div>
+        <div class="card-body" id="bl-recent-list">
+          <div class="empty-state">
+            <div class="empty-state-title">Aucun bon de livraison</div>
+            <div class="empty-state-text">Vos derniers bons de livraison apparaitront ici.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 2: PRODUCTION (KANBAN)         -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-production">
+    <div class="filters" id="prod-filters">
+      <div class="filter-chip active" onclick="filterProd('all',this)">Tous</div>
+      <div class="filter-chip" onclick="filterProd('urgent',this)">Urgent</div>
+      <div class="filter-chip" onclick="filterProd('express',this)">Express</div>
+      <div class="filter-chip" onclick="filterProd('normal',this)">Normal</div>
+    </div>
+    <div class="kanban" id="kanban-board">
+      <!-- Columns generated by JS -->
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 3: BONS DE LIVRAISON          -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-bons">
+    <div class="search-bar">
+      <span>&#128269;</span>
+      <input type="text" placeholder="Rechercher un bon de livraison..." id="search-bons" oninput="filterBons()">
+    </div>
+    <div class="filters">
+      <div class="filter-chip active" onclick="filterBonsStatus('all',this)">Tous</div>
+      <div class="filter-chip" onclick="filterBonsStatus('brouillon',this)">Brouillon</div>
+      <div class="filter-chip" onclick="filterBonsStatus('envoye',this)">Envoye</div>
+      <div class="filter-chip" onclick="filterBonsStatus('livre',this)">Livre</div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Bons de livraison</span>
+        <span class="card-count" id="bons-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>N. BL</th><th>Date</th><th>Dentiste</th><th>Patient</th><th>Articles</th><th>Statut</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="bons-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 4: FACTURATION                -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-facturation">
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+      <div class="stat">
+        <div class="stat-label">A facturer</div>
+        <div class="stat-value c-amber" id="fact-a-facturer">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">En attente de paiement</div>
+        <div class="stat-value c-blue" id="fact-attente">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Encaisse ce mois</div>
+        <div class="stat-value c-green" id="fact-encaisse">--</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Factures</span>
+        <span class="card-count" id="fact-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>N. Facture</th><th>Date</th><th>Dentiste</th><th>Montant HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="fact-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 5: DENTISTES                   -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-dentistes">
+    <div class="search-bar">
+      <span>&#128269;</span>
+      <input type="text" placeholder="Rechercher un dentiste..." id="search-dentistes" oninput="filterDentistes()">
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Repertoire dentistes</span>
+        <span class="card-count" id="dentistes-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Nom</th><th>Cabinet</th><th>Ville</th><th>Tel</th><th>Email</th><th>CA annuel</th><th>Derniere commande</th>
+          </tr></thead>
+          <tbody id="dentistes-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 6: CATALOGUE                   -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-catalogue">
+    <div class="tabs-inline" id="catalogue-tabs">
+      <div class="tab-inline active" onclick="showCatalogueTab('protheses',this)">Protheses</div>
+      <div class="tab-inline" onclick="showCatalogueTab('orthodontie',this)">Orthodontie</div>
+      <div class="tab-inline" onclick="showCatalogueTab('implantaire',this)">Implantaire</div>
+      <div class="tab-inline" onclick="showCatalogueTab('all',this)">Tout</div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Catalogue produits</span>
+        <span class="card-count" id="catalogue-count">0 produits</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Reference</th><th>Designation</th><th>Categorie</th><th>Materiau</th><th>Prix HT</th><th>Delai (j)</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="catalogue-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 7: STOCK                       -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-stock">
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+      <div class="stat">
+        <div class="stat-label">References en stock</div>
+        <div class="stat-value c-accent" id="stock-refs">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Alertes stock bas</div>
+        <div class="stat-value c-red" id="stock-alertes">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Expirations proches</div>
+        <div class="stat-value c-amber" id="stock-expirations">--</div>
+      </div>
+    </div>
+    <div class="search-bar">
+      <span>&#128269;</span>
+      <input type="text" placeholder="Rechercher un materiau, une reference..." id="search-stock" oninput="filterStock()">
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Inventaire materiaux</span>
+        <span class="card-count" id="stock-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Reference</th><th>Materiau</th><th>Lot</th><th>Quantite</th><th>Seuil alerte</th><th>Expiration</th><th>Statut</th>
+          </tr></thead>
+          <tbody id="stock-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 8: TECHNICIENS                 -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-techniciens">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Equipe</span>
+          <span class="card-count" id="tech-count">0 techniciens</span>
+        </div>
+        <div class="card-body" id="tech-list">
+          <div class="empty-state">
+            <div class="empty-state-title">Aucun technicien</div>
+            <div class="empty-state-text">Ajoutez les membres de votre equipe pour suivre leur production.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Planning semaine</span>
+        </div>
+        <div class="card-body" id="tech-planning">
+          <div class="skel skel-block"></div>
+          <div class="skel skel-block"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-head">
+        <span class="card-title">Performance individuelle</span>
+      </div>
+      <div class="card-body" id="tech-perf">
+        <div class="empty-state">
+          <div class="empty-state-title">Statistiques a venir</div>
+          <div class="empty-state-text">Les performances par technicien s'afficheront ici.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 9: EXPEDITIONS                 -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-expeditions">
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+      <div class="stat">
+        <div class="stat-label">A expedier</div>
+        <div class="stat-value c-amber" id="exp-a-expedier">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">En transit</div>
+        <div class="stat-value c-blue" id="exp-transit">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Livres cette semaine</div>
+        <div class="stat-value c-green" id="exp-livres">--</div>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="filter-chip active" onclick="filterExp('all',this)">Tous</div>
+      <div class="filter-chip" onclick="filterExp('a_expedier',this)">A expedier</div>
+      <div class="filter-chip" onclick="filterExp('transit',this)">En transit</div>
+      <div class="filter-chip" onclick="filterExp('livre',this)">Livre</div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Suivi des expeditions</span>
+        <span class="card-count" id="exp-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>N. Envoi</th><th>Date</th><th>Dentiste</th><th>Transporteur</th><th>N. Suivi</th><th>Statut</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="exp-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 10: QUALITE                    -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-qualite">
+    <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+      <div class="stat">
+        <div class="stat-label">Remakes ce mois</div>
+        <div class="stat-value c-red" id="qual-remakes">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Taux de retour</div>
+        <div class="stat-value c-amber" id="qual-taux">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Garanties actives</div>
+        <div class="stat-value c-green" id="qual-garanties">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Expirant sous 30j</div>
+        <div class="stat-value c-amber" id="qual-expiring">--</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Remakes recents</span>
+        </div>
+        <div class="card-body" id="qual-remakes-list">
+          <div class="empty-state">
+            <div class="empty-state-title">Aucun remake enregistre</div>
+            <div class="empty-state-text">Les cas de retour apparaitront ici avec leur cause.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Repartition des causes</span>
+        </div>
+        <div class="card-body" id="qual-causes-chart">
+          <div class="skel skel-block" style="height:200px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-head">
+        <span class="card-title">Garanties</span>
+        <span class="card-count" id="garanties-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Patient</th><th>Type prothese</th><th>Dentiste</th><th>Date pose</th><th>Expiration</th><th>Statut</th>
+          </tr></thead>
+          <tbody id="garanties-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 11: TEINTES & PHOTOS           -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-teintes">
+    <div class="tabs-inline">
+      <div class="tab-inline active" onclick="showTeintesTab('cases',this)">Cas en cours</div>
+      <div class="tab-inline" onclick="showTeintesTab('galerie',this)">Galerie photos</div>
+      <div class="tab-inline" onclick="showTeintesTab('guide',this)">Guide teintes</div>
+    </div>
+    <div id="teintes-content">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Gestion des teintes</span>
+          <span class="card-count" id="teintes-count">0 cas</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>Patient</th><th>Dentiste</th><th>Teinte demandee</th><th>Photos</th><th>Analyse IA</th><th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="teintes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 12: FICHIERS 3D                -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-fichiers3d">
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+      <div class="stat">
+        <div class="stat-label">Fichiers recus</div>
+        <div class="stat-value c-blue" id="f3d-recus">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">En attente validation</div>
+        <div class="stat-value c-amber" id="f3d-attente">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Valides ce mois</div>
+        <div class="stat-value c-green" id="f3d-valides">--</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Fichiers 3D (STL / PLY / OBJ)</span>
+        <span class="card-count" id="f3d-count">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Fichier</th><th>Patient</th><th>Dentiste</th><th>Type</th><th>Taille</th><th>Date reception</th><th>Statut</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="f3d-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 13: RESEAU FRANCE              -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-reseau">
+    <div class="tabs-inline">
+      <div class="tab-inline active" onclick="showReseauTab('annuaire',this)">Annuaire</div>
+      <div class="tab-inline" onclick="showReseauTab('annonces',this)">Annonces</div>
+      <div class="tab-inline" onclick="showReseauTab('achats',this)">Achats groupes</div>
+      <div class="tab-inline" onclick="showReseauTab('forum',this)">Forum</div>
+    </div>
+    <div id="reseau-content">
+      <div class="search-bar">
+        <span>&#128269;</span>
+        <input type="text" placeholder="Rechercher un laboratoire, une ville..." id="search-reseau" oninput="filterReseau()">
+      </div>
+      <div class="grid-3" id="reseau-grid">
+        <div class="empty-state" style="grid-column:1/-1;">
+          <div class="empty-state-title">Reseau en cours de construction</div>
+          <div class="empty-state-text">Le reseau national des prothesistes JADOMI sera bientot disponible.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 14: MAINTENANCE                -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-maintenance">
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+      <div class="stat">
+        <div class="stat-label">Machines actives</div>
+        <div class="stat-value c-green" id="maint-actives">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Alertes maintenance</div>
+        <div class="stat-value c-red" id="maint-alertes">--</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Prochaine revision</div>
+        <div class="stat-value c-amber" id="maint-prochaine">--</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Equipements</span>
+          <span class="card-count" id="maint-count">0</span>
+        </div>
+        <div class="card-body" id="maint-machines-list">
+          <div class="empty-state">
+            <div class="empty-state-title">Aucun equipement enregistre</div>
+            <div class="empty-state-text">Ajoutez vos machines et equipements pour suivre leur maintenance.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Historique interventions</span>
+        </div>
+        <div class="card-body" id="maint-historique">
+          <div class="empty-state">
+            <div class="empty-state-title">Aucune intervention</div>
+            <div class="empty-state-text">L'historique de maintenance apparaitra ici.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 15: PARAMETRES                 -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-parametres">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Profil du laboratoire</span></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Nom du laboratoire</label>
+            <input class="form-input" type="text" id="param-nom" placeholder="Mon Laboratoire Dentaire">
+          </div>
+          <div class="form-group">
+            <label class="form-label">SIRET</label>
+            <input class="form-input" type="text" id="param-siret" placeholder="123 456 789 00012">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Adresse</label>
+            <textarea class="form-textarea" id="param-adresse" rows="2" placeholder="Adresse complete"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telephone</label>
+            <input class="form-input" type="tel" id="param-tel" placeholder="01 23 45 67 89">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="param-email" placeholder="contact@monlabo.fr">
+          </div>
+          <button class="btn btn-accent" onclick="sauverProfil()">Enregistrer</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">Configuration garanties</span></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Duree garantie couronne (mois)</label>
+            <input class="form-input" type="number" id="param-gar-couronne" value="24">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duree garantie bridge (mois)</label>
+            <input class="form-input" type="number" id="param-gar-bridge" value="36">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duree garantie prothese amovible (mois)</label>
+            <input class="form-input" type="number" id="param-gar-amovible" value="12">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duree garantie implant (mois)</label>
+            <input class="form-input" type="number" id="param-gar-implant" value="60">
+          </div>
+          <button class="btn btn-accent" onclick="sauverGaranties()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-head"><span class="card-title">Facturation</span></div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Taux de TVA (%)</label>
+            <input class="form-input" type="number" id="param-tva" value="20">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Delai de paiement (jours)</label>
+            <input class="form-input" type="number" id="param-delai-paiement" value="30">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prefixe numeros de facture</label>
+            <input class="form-input" type="text" id="param-prefix-facture" value="FAC-" placeholder="FAC-">
+          </div>
+          <div class="form-group">
+            <label class="form-label">RIB / IBAN</label>
+            <input class="form-input" type="text" id="param-iban" placeholder="FR76 XXXX XXXX XXXX">
+          </div>
+        </div>
+        <button class="btn btn-accent" onclick="sauverFacturation()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ -->
+  <!-- TAB 16: ABONNEMENT                 -->
+  <!-- ═══════════════════════════════════ -->
+  <div class="page" id="page-abonnement">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Votre abonnement JADOMI Labo Pro</span></div>
+      <div class="card-body">
+        <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+          <div class="stat">
+            <div class="stat-label">Formule actuelle</div>
+            <div class="stat-value c-accent" id="abo-formule">--</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Prochaine echeance</div>
+            <div class="stat-value" id="abo-echeance">--</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Techniciens inclus</div>
+            <div class="stat-value" id="abo-tech">--</div>
+          </div>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px;">
+          Pour modifier votre abonnement ou ajouter des options, veuillez nous contacter.
+        </p>
+        <button class="btn btn-ghost" onclick="showToast('Notre equipe va vous contacter sous 24h.')">Contacter le support</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- .content -->
+</div><!-- .main -->
+</div><!-- .shell -->
+
+<!-- ═══════ MODALS ═══════ -->
+
+<!-- Modal: Nouveau bon de livraison -->
+<div class="modal-overlay" id="modal-bl">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Nouveau bon de livraison</span>
+      <button class="modal-close" onclick="fermerModal('modal-bl')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Dentiste</label>
+        <select class="form-select" id="bl-dentiste"><option value="">Selectionner un dentiste</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Patient</label>
+        <input class="form-input" type="text" id="bl-patient" placeholder="Nom du patient">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type de travail</label>
+        <select class="form-select" id="bl-type">
+          <option value="couronne">Couronne</option>
+          <option value="bridge">Bridge</option>
+          <option value="inlay-onlay">Inlay / Onlay</option>
+          <option value="facette">Facette</option>
+          <option value="prothese-amovible">Prothese amovible</option>
+          <option value="gouttiere">Gouttiere</option>
+          <option value="implant">Supra-implantaire</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teinte</label>
+        <input class="form-input" type="text" id="bl-teinte" placeholder="A2, A3...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dents concernees</label>
+        <input class="form-input" type="text" id="bl-dents" placeholder="Ex: 14, 15, 16">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date de livraison souhaitee</label>
+        <input class="form-input" type="date" id="bl-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="bl-notes" placeholder="Instructions particulieres..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-bl')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerBL()">Creer le bon</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nouveau dentiste -->
+<div class="modal-overlay" id="modal-dentiste">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Nouveau dentiste</span>
+      <button class="modal-close" onclick="fermerModal('modal-dentiste')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nom du praticien</label>
+        <input class="form-input" type="text" id="dent-nom" placeholder="Dr Dupont">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cabinet</label>
+        <input class="form-input" type="text" id="dent-cabinet" placeholder="Cabinet Dentaire du Centre">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ville</label>
+        <input class="form-input" type="text" id="dent-ville" placeholder="Paris">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telephone</label>
+        <input class="form-input" type="tel" id="dent-tel" placeholder="01 23 45 67 89">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" id="dent-email" placeholder="dr.dupont@cabinet.fr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="dent-notes" placeholder="Preferences, remarques..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-dentiste')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerDentiste()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nouveau produit catalogue -->
+<div class="modal-overlay" id="modal-produit">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Nouveau produit</span>
+      <button class="modal-close" onclick="fermerModal('modal-produit')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Reference</label>
+        <input class="form-input" type="text" id="prod-ref" placeholder="COU-ZR-001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Designation</label>
+        <input class="form-input" type="text" id="prod-designation" placeholder="Couronne zircone monolithique">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categorie</label>
+        <select class="form-select" id="prod-categorie">
+          <option value="protheses">Protheses</option>
+          <option value="orthodontie">Orthodontie</option>
+          <option value="implantaire">Implantaire</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Materiau</label>
+        <input class="form-input" type="text" id="prod-materiau" placeholder="Zircone, Ceramique...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prix HT</label>
+        <input class="form-input" type="number" step="0.01" id="prod-prix" placeholder="150.00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Delai de fabrication (jours)</label>
+        <input class="form-input" type="number" id="prod-delai" value="5">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-produit')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerProduit()">Ajouter au catalogue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nouveau technicien -->
+<div class="modal-overlay" id="modal-technicien">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Nouveau technicien</span>
+      <button class="modal-close" onclick="fermerModal('modal-technicien')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nom complet</label>
+        <input class="form-input" type="text" id="tech-nom" placeholder="Jean Martin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Specialite</label>
+        <select class="form-select" id="tech-specialite">
+          <option value="ceramiste">Ceramiste</option>
+          <option value="cfao">CFAO / Numerique</option>
+          <option value="metal">Metallurgie</option>
+          <option value="amovible">Prothese amovible</option>
+          <option value="orthodontie">Orthodontie</option>
+          <option value="polyvalent">Polyvalent</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" id="tech-email-input" placeholder="jean@monlabo.fr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telephone</label>
+        <input class="form-input" type="tel" id="tech-tel" placeholder="06 12 34 56 78">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-technicien')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerTechnicien()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nouvelle machine -->
+<div class="modal-overlay" id="modal-machine">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Nouvel equipement</span>
+      <button class="modal-close" onclick="fermerModal('modal-machine')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nom de l'equipement</label>
+        <input class="form-input" type="text" id="machine-nom" placeholder="Four Ivoclar Programat P710">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="machine-type">
+          <option value="four">Four ceramique</option>
+          <option value="usineuse">Usineuse CFAO</option>
+          <option value="scanner">Scanner intra-oral</option>
+          <option value="imprimante3d">Imprimante 3D</option>
+          <option value="sableuse">Sableuse</option>
+          <option value="polisseuse">Polisseuse</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Numero de serie</label>
+        <input class="form-input" type="text" id="machine-serie" placeholder="SN-12345678">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date d'achat</label>
+        <input class="form-input" type="date" id="machine-achat">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prochaine revision prevue</label>
+        <input class="form-input" type="date" id="machine-revision">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-machine')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerMachine()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// AUTH CHECK
+// ═══════════════════════════════════
+let currentSession = null;
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    currentSession = session;
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+function getHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (currentSession?.access_token) h['Authorization'] = 'Bearer ' + currentSession.access_token;
+  return h;
+}
+
+async function apiFetch(url) {
+  try {
+    const res = await fetch(url, { headers: getHeaders() });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    console.warn('API fetch failed:', url, e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtEur(n) { return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR' }).format(n || 0); }
+function formatDate(d) {
+  if (!d) return '--';
+  const parts = d.split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return d;
+}
+function relativeDate(d) {
+  if (!d) return '--';
+  const now = new Date(); const dt = new Date(d);
+  const diff = Math.floor((dt - now) / (1000*60*60*24));
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return 'Demain';
+  if (diff === -1) return 'Hier';
+  if (diff > 0) return 'Dans ' + diff + ' jours';
+  return 'Il y a ' + Math.abs(diff) + ' jours';
+}
+
+function badgeStatus(status) {
+  const map = {
+    'brouillon': '<span class="badge badge-muted">Brouillon</span>',
+    'en_cours': '<span class="badge badge-blue">En cours</span>',
+    'envoye': '<span class="badge badge-blue">Envoye</span>',
+    'livre': '<span class="badge badge-green">Livre</span>',
+    'annule': '<span class="badge badge-red">Annule</span>',
+    'paye': '<span class="badge badge-green">Paye</span>',
+    'impaye': '<span class="badge badge-red">Impaye</span>',
+    'en_attente': '<span class="badge badge-amber">En attente</span>',
+    'a_facturer': '<span class="badge badge-amber">A facturer</span>',
+    'valide': '<span class="badge badge-green">Valide</span>',
+    'refuse': '<span class="badge badge-red">Refuse</span>',
+    'a_expedier': '<span class="badge badge-amber">A expedier</span>',
+    'transit': '<span class="badge badge-blue">En transit</span>',
+    'ok': '<span class="badge badge-green">OK</span>',
+    'alerte': '<span class="badge badge-red">Alerte</span>',
+    'attention': '<span class="badge badge-amber">Attention</span>',
+    'actif': '<span class="badge badge-green">Actif</span>',
+    'inactif': '<span class="badge badge-muted">Inactif</span>',
+    'expire': '<span class="badge badge-red">Expire</span>',
+  };
+  return map[status] || '<span class="badge badge-muted">' + esc(status || '--') + '</span>';
+}
+
+function urgencyBadge(urgency) {
+  if (urgency === 'urgent') return '<span class="urgency-badge urgent">URGENT</span>';
+  if (urgency === 'express') return '<span class="urgency-badge express">EXPRESS</span>';
+  return '';
+}
+
+// ═══════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════
+const pageTitles = {
+  dashboard: 'Tableau de bord',
+  production: 'Production',
+  bons: 'Bons de livraison',
+  facturation: 'Facturation',
+  dentistes: 'Repertoire dentistes',
+  catalogue: 'Catalogue produits',
+  stock: 'Gestion du stock',
+  techniciens: 'Techniciens',
+  expeditions: 'Expeditions',
+  qualite: 'Qualite et Garanties',
+  teintes: 'Teintes et Photos',
+  fichiers3d: 'Fichiers 3D',
+  reseau: 'Reseau France',
+  maintenance: 'Maintenance equipements',
+  parametres: 'Parametres',
+  abonnement: 'Abonnement'
+};
+
+const pageActions = {
+  bons: '<button class="btn btn-accent" onclick="ouvrirModal(\'modal-bl\')">+ Nouveau BL</button>',
+  dentistes: '<button class="btn btn-accent" onclick="ouvrirModal(\'modal-dentiste\')">+ Nouveau dentiste</button>',
+  catalogue: '<button class="btn btn-accent" onclick="ouvrirModal(\'modal-produit\')">+ Nouveau produit</button>',
+  techniciens: '<button class="btn btn-accent" onclick="ouvrirModal(\'modal-technicien\')">+ Nouveau technicien</button>',
+  maintenance: '<button class="btn btn-accent" onclick="ouvrirModal(\'modal-machine\')">+ Nouvel equipement</button>',
+  facturation: '<button class="btn btn-accent" onclick="genererFactures()">Generer les factures</button>',
+  stock: '<button class="btn btn-ghost" onclick="showToast(\'Scan code-barres : fonctionnalite a venir.\')">Scanner code-barres</button>',
+};
+
+const pageLoaded = {};
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) el.classList.add('active');
+
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+
+  // Lazy load data
+  if (!pageLoaded[id]) {
+    pageLoaded[id] = true;
+    loadPageData(id);
+  }
+}
+
+// ═══════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════
+function ouvrirModal(id) { document.getElementById(id).classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════
+const DEMO_DENTISTES = [
+  { id:1, nom:'Dr Martin Lefevre', cabinet:'Cabinet Dentaire du Parc', ville:'Paris 16e', tel:'01 45 67 89 10', email:'dr.lefevre@cabinet-parc.fr', ca_annuel:48500, derniere_commande:'2026-04-25' },
+  { id:2, nom:'Dr Sophie Durand', cabinet:'Centre Dentaire Rivoli', ville:'Paris 1er', tel:'01 42 33 55 77', email:'s.durand@rivoli-dent.fr', ca_annuel:62300, derniere_commande:'2026-04-27' },
+  { id:3, nom:'Dr Philippe Moreau', cabinet:'Cabinet Moreau & Associes', ville:'Lyon 6e', tel:'04 78 24 33 11', email:'p.moreau@cabinet-moreau.fr', ca_annuel:35800, derniere_commande:'2026-04-20' },
+  { id:4, nom:'Dr Nathalie Petit', cabinet:'Clinique Dentaire Sud', ville:'Marseille', tel:'04 91 55 22 33', email:'n.petit@clinique-sud.fr', ca_annuel:29100, derniere_commande:'2026-04-18' },
+  { id:5, nom:'Dr Alexandre Roux', cabinet:'Cabinet Roux', ville:'Bordeaux', tel:'05 56 44 11 22', email:'a.roux@cabinet-roux.fr', ca_annuel:41200, derniere_commande:'2026-04-22' },
+];
+
+const DEMO_CATALOGUE = [
+  { ref:'COU-ZR-001', designation:'Couronne zircone monolithique', categorie:'protheses', materiau:'Zircone', prix:180, delai:5 },
+  { ref:'COU-CC-002', designation:'Couronne ceramo-ceramique', categorie:'protheses', materiau:'E.max', prix:220, delai:7 },
+  { ref:'BRI-ZR-001', designation:'Bridge 3 elements zircone', categorie:'protheses', materiau:'Zircone', prix:520, delai:8 },
+  { ref:'INL-CE-001', designation:'Inlay / Onlay ceramique', categorie:'protheses', materiau:'Ceramique', prix:160, delai:5 },
+  { ref:'FAC-CE-001', designation:'Facette ceramique', categorie:'protheses', materiau:'E.max', prix:250, delai:7 },
+  { ref:'GOT-TR-001', designation:'Gouttiere transparente', categorie:'orthodontie', materiau:'Resine', prix:90, delai:3 },
+  { ref:'PIL-TI-001', designation:'Pilier implantaire titane', categorie:'implantaire', materiau:'Titane', prix:280, delai:6 },
+  { ref:'COU-IM-001', designation:'Couronne sur implant zircone', categorie:'implantaire', materiau:'Zircone', prix:320, delai:7 },
+  { ref:'PAP-AM-001', designation:'Prothese amovible partielle', categorie:'protheses', materiau:'Resine / Stellite', prix:350, delai:10 },
+  { ref:'PAC-AM-002', designation:'Prothese amovible complete', categorie:'protheses', materiau:'Resine', prix:420, delai:12 },
+];
+
+const DEMO_STOCK = [
+  { ref:'MAT-ZR-01', materiau:'Disque zircone 98mm', lot:'ZR-2026-042', quantite:12, seuil:5, expiration:'2027-06-15', statut:'ok' },
+  { ref:'MAT-EM-01', materiau:'Lingot E.max HT A2', lot:'EM-2026-018', quantite:8, seuil:3, expiration:'2027-03-10', statut:'ok' },
+  { ref:'MAT-RS-01', materiau:'Resine d\'impression 3D', lot:'RS-2026-033', quantite:2, seuil:3, expiration:'2026-08-20', statut:'alerte' },
+  { ref:'MAT-TI-01', materiau:'Disque titane Grade 5', lot:'TI-2026-007', quantite:4, seuil:2, expiration:'2028-12-31', statut:'ok' },
+  { ref:'MAT-CE-01', materiau:'Poudre ceramique VITA', lot:'CE-2026-055', quantite:1, seuil:2, expiration:'2026-05-30', statut:'alerte' },
+  { ref:'MAT-PL-01', materiau:'Platre type IV', lot:'PL-2026-099', quantite:15, seuil:5, expiration:'2027-01-15', statut:'ok' },
+  { ref:'MAT-GL-01', materiau:'Glaze universel', lot:'GL-2026-011', quantite:6, seuil:2, expiration:'2026-11-20', statut:'ok' },
+];
+
+const DEMO_TECHNICIENS = [
+  { id:1, nom:'Marc Dubois', specialite:'Ceramiste', email:'marc@labo.fr', tel:'06 12 34 56 78', cas_mois:42, taux_retour:1.2, statut:'actif' },
+  { id:2, nom:'Claire Fontaine', specialite:'CFAO / Numerique', email:'claire@labo.fr', tel:'06 23 45 67 89', cas_mois:55, taux_retour:0.8, statut:'actif' },
+  { id:3, nom:'Julien Roche', specialite:'Metallurgie', email:'julien@labo.fr', tel:'06 34 56 78 90', cas_mois:38, taux_retour:1.5, statut:'actif' },
+  { id:4, nom:'Amelie Blanc', specialite:'Prothese amovible', email:'amelie@labo.fr', tel:'06 45 67 89 01', cas_mois:28, taux_retour:2.0, statut:'actif' },
+];
+
+const KANBAN_STAGES = [
+  { id:'reception', label:'Reception', color:'var(--muted)' },
+  { id:'moulage', label:'Moulage', color:'var(--blue)' },
+  { id:'cfao', label:'CFAO / Scan', color:'var(--purple)' },
+  { id:'fabrication', label:'Fabrication', color:'var(--accent)' },
+  { id:'ceramique', label:'Ceramique', color:'var(--amber)' },
+  { id:'finition', label:'Finition', color:'var(--green)' },
+  { id:'controle', label:'Controle qualite', color:'#22d3ee' },
+  { id:'expedition', label:'Expedition', color:'#10b981' },
+];
+
+const DEMO_PRODUCTION = [
+  { id:1, patient:'M. Renard', type:'Couronne zircone', teinte:'A2', dentiste:'Dr Lefevre', stage:'cfao', urgency:'normal', technicien:'Claire F.' },
+  { id:2, patient:'Mme Garnier', type:'Bridge 3 elements', teinte:'A3', dentiste:'Dr Durand', stage:'fabrication', urgency:'urgent', technicien:'Marc D.' },
+  { id:3, patient:'M. Lemoine', type:'Facette ceramique', teinte:'B1', dentiste:'Dr Moreau', stage:'ceramique', urgency:'normal', technicien:'Marc D.' },
+  { id:4, patient:'Mme Faure', type:'Inlay ceramique', teinte:'A2', dentiste:'Dr Petit', stage:'reception', urgency:'express', technicien:'--' },
+  { id:5, patient:'M. Dupuis', type:'Prothese amovible', teinte:'--', dentiste:'Dr Roux', stage:'moulage', urgency:'normal', technicien:'Amelie B.' },
+  { id:6, patient:'Mme Caron', type:'Couronne sur implant', teinte:'A3.5', dentiste:'Dr Lefevre', stage:'controle', urgency:'normal', technicien:'Julien R.' },
+  { id:7, patient:'M. Perrin', type:'Gouttiere', teinte:'--', dentiste:'Dr Durand', stage:'finition', urgency:'normal', technicien:'Claire F.' },
+  { id:8, patient:'Mme Simon', type:'Couronne E.max', teinte:'A1', dentiste:'Dr Moreau', stage:'expedition', urgency:'urgent', technicien:'Marc D.' },
+  { id:9, patient:'M. Laurent', type:'Bridge zircone', teinte:'B2', dentiste:'Dr Petit', stage:'cfao', urgency:'normal', technicien:'Claire F.' },
+  { id:10, patient:'Mme Morel', type:'Facette', teinte:'A2', dentiste:'Dr Roux', stage:'reception', urgency:'normal', technicien:'--' },
+];
+
+const DEMO_BONS = [
+  { id:'BL-2026-0147', date:'2026-04-28', dentiste:'Dr Lefevre', patient:'M. Renard', articles:1, statut:'en_cours' },
+  { id:'BL-2026-0146', date:'2026-04-27', dentiste:'Dr Durand', patient:'Mme Garnier', articles:1, statut:'en_cours' },
+  { id:'BL-2026-0145', date:'2026-04-25', dentiste:'Dr Moreau', patient:'M. Lemoine', articles:1, statut:'envoye' },
+  { id:'BL-2026-0144', date:'2026-04-22', dentiste:'Dr Roux', patient:'M. Dupuis', articles:1, statut:'livre' },
+  { id:'BL-2026-0143', date:'2026-04-20', dentiste:'Dr Petit', patient:'Mme Faure', articles:2, statut:'livre' },
+];
+
+const DEMO_FACTURES = [
+  { id:'FAC-2026-089', date:'2026-04-25', dentiste:'Dr Lefevre', ht:520, tva:104, ttc:624, statut:'en_attente' },
+  { id:'FAC-2026-088', date:'2026-04-22', dentiste:'Dr Durand', ht:880, tva:176, ttc:1056, statut:'paye' },
+  { id:'FAC-2026-087', date:'2026-04-20', dentiste:'Dr Moreau', ht:250, tva:50, ttc:300, statut:'paye' },
+  { id:'FAC-2026-086', date:'2026-04-18', dentiste:'Dr Petit', ht:350, tva:70, ttc:420, statut:'impaye' },
+  { id:'FAC-2026-085', date:'2026-04-15', dentiste:'Dr Roux', ht:180, tva:36, ttc:216, statut:'paye' },
+];
+
+const DEMO_EXPEDITIONS = [
+  { id:'EXP-0098', date:'2026-04-28', dentiste:'Dr Moreau', transporteur:'Chronopost', suivi:'FR123456789', statut:'a_expedier' },
+  { id:'EXP-0097', date:'2026-04-27', dentiste:'Dr Durand', transporteur:'Colissimo', suivi:'FR987654321', statut:'transit' },
+  { id:'EXP-0096', date:'2026-04-25', dentiste:'Dr Lefevre', transporteur:'DHL', suivi:'DE555111222', statut:'livre' },
+  { id:'EXP-0095', date:'2026-04-23', dentiste:'Dr Petit', transporteur:'Coursier', suivi:'--', statut:'livre' },
+];
+
+const DEMO_REMAKES = [
+  { id:1, patient:'Mme Vidal', type:'Couronne zircone', dentiste:'Dr Lefevre', cause:'Teinte non conforme', date:'2026-04-20' },
+  { id:2, patient:'M. Blanc', type:'Bridge ceramique', dentiste:'Dr Durand', cause:'Ajustage proximal', date:'2026-04-15' },
+  { id:3, patient:'Mme Roy', type:'Inlay', dentiste:'Dr Moreau', cause:'Fracture au try-in', date:'2026-04-10' },
+];
+
+const DEMO_GARANTIES = [
+  { patient:'M. Bernard', type:'Couronne zircone', dentiste:'Dr Lefevre', date_pose:'2024-06-15', expiration:'2026-06-15', statut:'actif' },
+  { patient:'Mme Fournier', type:'Bridge zircone', dentiste:'Dr Durand', date_pose:'2023-09-20', expiration:'2026-09-20', statut:'actif' },
+  { patient:'M. Girard', type:'Facette E.max', dentiste:'Dr Moreau', date_pose:'2024-11-01', expiration:'2026-11-01', statut:'actif' },
+  { patient:'Mme Thomas', type:'Couronne E.max', dentiste:'Dr Petit', date_pose:'2024-01-10', expiration:'2026-01-10', statut:'expire' },
+];
+
+const DEMO_TEINTES = [
+  { patient:'Mme Garnier', dentiste:'Dr Durand', teinte:'A3', photos:3, analyse_ia:'Correspondance 94%', statut:'valide' },
+  { patient:'M. Renard', dentiste:'Dr Lefevre', teinte:'A2', photos:2, analyse_ia:'En cours', statut:'en_attente' },
+  { patient:'M. Lemoine', dentiste:'Dr Moreau', teinte:'B1', photos:1, analyse_ia:'--', statut:'en_attente' },
+];
+
+const DEMO_FICHIERS3D = [
+  { fichier:'scan_renard_14-15.stl', patient:'M. Renard', dentiste:'Dr Lefevre', type:'STL', taille:'12.4 Mo', date:'2026-04-27', statut:'valide' },
+  { fichier:'scan_garnier_bridge.stl', patient:'Mme Garnier', dentiste:'Dr Durand', type:'STL', taille:'18.2 Mo', date:'2026-04-26', statut:'en_attente' },
+  { fichier:'scan_faure_inlay.ply', patient:'Mme Faure', dentiste:'Dr Petit', type:'PLY', taille:'8.7 Mo', date:'2026-04-25', statut:'valide' },
+  { fichier:'scan_dupuis_amovible.stl', patient:'M. Dupuis', dentiste:'Dr Roux', type:'STL', taille:'22.1 Mo', date:'2026-04-24', statut:'refuse' },
+];
+
+const DEMO_MACHINES = [
+  { id:1, nom:'Four Ivoclar Programat P710', type:'four', serie:'SN-IVO-P710-2024', achat:'2024-03-15', revision:'2026-05-01', statut:'attention' },
+  { id:2, nom:'Usineuse Roland DWX-52DC', type:'usineuse', serie:'SN-ROL-52DC-2023', achat:'2023-06-20', revision:'2026-07-15', statut:'ok' },
+  { id:3, nom:'Scanner 3Shape E4', type:'scanner', serie:'SN-3SH-E4-2025', achat:'2025-01-10', revision:'2026-12-10', statut:'ok' },
+  { id:4, nom:'Imprimante 3D Formlabs 3B+', type:'imprimante3d', serie:'SN-FRM-3B-2024', achat:'2024-08-05', revision:'2026-04-20', statut:'alerte' },
+  { id:5, nom:'Sableuse Renfert Basic', type:'sableuse', serie:'SN-RNF-BAS-2022', achat:'2022-11-01', revision:'2026-06-01', statut:'ok' },
+];
+
+// ═══════════════════════════════════
+// LOAD PAGE DATA (API + fallback demo)
+// ═══════════════════════════════════
+async function loadPageData(id) {
+  switch(id) {
+    case 'dashboard': loadDashboard(); break;
+    case 'production': renderProduction(); break;
+    case 'bons': renderBons(); break;
+    case 'facturation': renderFacturation(); break;
+    case 'dentistes': renderDentistes(); break;
+    case 'catalogue': renderCatalogue(); break;
+    case 'stock': renderStock(); break;
+    case 'techniciens': renderTechniciens(); break;
+    case 'expeditions': renderExpeditions(); break;
+    case 'qualite': renderQualite(); break;
+    case 'teintes': renderTeintes(); break;
+    case 'fichiers3d': renderFichiers3D(); break;
+    case 'reseau': renderReseau(); break;
+    case 'maintenance': renderMaintenance(); break;
+  }
+}
+
+// ═══════════════════════════════════
+// DASHBOARD (TAB 1)
+// ═══════════════════════════════════
+async function loadDashboard() {
+  // Try API first, fallback to demo
+  const data = await apiFetch('/api/labo/kpi');
+  if (data) {
+    document.getElementById('kpi-ca').textContent = fmtEur(data.ca_mois);
+    document.getElementById('kpi-bl').textContent = data.bl_en_cours || 0;
+    document.getElementById('kpi-impayes').textContent = fmtEur(data.impayes_montant);
+    document.getElementById('kpi-remakes').textContent = data.remakes_mois || 0;
+    document.getElementById('kpi-tech').textContent = data.techniciens_actifs || 0;
+    document.getElementById('kpi-machines').textContent = data.machines_alerte || 0;
+  } else {
+    // Demo data
+    const ca = DEMO_FACTURES.reduce((s,f) => s + f.ttc, 0);
+    document.getElementById('kpi-ca').textContent = fmtEur(ca);
+    document.getElementById('kpi-ca-sub').textContent = DEMO_FACTURES.length + ' factures';
+    document.getElementById('kpi-bl').textContent = DEMO_BONS.filter(b => b.statut === 'en_cours').length;
+    const impayes = DEMO_FACTURES.filter(f => f.statut === 'impaye').reduce((s,f) => s + f.ttc, 0);
+    document.getElementById('kpi-impayes').textContent = fmtEur(impayes);
+    document.getElementById('kpi-impayes-sub').textContent = DEMO_FACTURES.filter(f => f.statut === 'impaye').length + ' factures';
+    document.getElementById('kpi-remakes').textContent = DEMO_REMAKES.length;
+    document.getElementById('kpi-remakes-sub').textContent = ((DEMO_REMAKES.length / DEMO_PRODUCTION.length * 100) || 0).toFixed(1) + '% de retour';
+    document.getElementById('kpi-tech').textContent = DEMO_TECHNICIENS.filter(t => t.statut === 'actif').length;
+    document.getElementById('kpi-machines').textContent = DEMO_MACHINES.filter(m => m.statut === 'alerte').length;
+  }
+
+  // Mini chart CA
+  const chartCA = document.getElementById('chart-ca');
+  const bars = [65,45,80,55,90,70,85,60,95,75,88,92];
+  chartCA.innerHTML = bars.map(h => '<div class="mini-chart-bar" style="height:'+h+'%;background:var(--accent-light);"></div>').join('');
+
+  // Dashboard production list
+  const todayProd = DEMO_PRODUCTION.slice(0, 4);
+  document.getElementById('prod-today-count').textContent = todayProd.length + ' cas';
+  document.getElementById('prod-today-list').innerHTML = todayProd.map(c =>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">' +
+      '<div><div style="font-weight:600;font-size:13px;">' + esc(c.patient) + '</div>' +
+      '<div style="font-size:11px;color:var(--muted);">' + esc(c.type) + ' — ' + esc(c.dentiste) + '</div></div>' +
+      '<div>' + urgencyBadge(c.urgency) + ' ' + badgeStatus(c.stage === 'expedition' ? 'envoye' : 'en_cours') + '</div>' +
+    '</div>'
+  ).join('');
+
+  // Dashboard BL list
+  const recentBL = DEMO_BONS.slice(0, 3);
+  document.getElementById('bl-recent-count').textContent = recentBL.length;
+  document.getElementById('bl-recent-list').innerHTML = recentBL.map(b =>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">' +
+      '<div><div style="font-weight:600;font-size:13px;">' + esc(b.id) + '</div>' +
+      '<div style="font-size:11px;color:var(--muted);">' + esc(b.dentiste) + ' — ' + esc(b.patient) + '</div></div>' +
+      '<div>' + badgeStatus(b.statut) + '</div>' +
+    '</div>'
+  ).join('');
+
+  // Update badges
+  document.getElementById('badge-production').textContent = DEMO_PRODUCTION.length;
+  document.getElementById('badge-stock').textContent = DEMO_STOCK.filter(s => s.statut === 'alerte').length;
+  document.getElementById('badge-maintenance').textContent = DEMO_MACHINES.filter(m => m.statut === 'alerte' || m.statut === 'attention').length;
+  document.getElementById('badge-reseau').textContent = '3';
+}
+
+// ═══════════════════════════════════
+// PRODUCTION KANBAN (TAB 2)
+// ═══════════════════════════════════
+let currentProdFilter = 'all';
+function renderProduction(filter) {
+  filter = filter || currentProdFilter;
+  const board = document.getElementById('kanban-board');
+  let filtered = DEMO_PRODUCTION;
+  if (filter !== 'all') filtered = filtered.filter(c => c.urgency === filter);
+
+  board.innerHTML = KANBAN_STAGES.map(stage => {
+    const cards = filtered.filter(c => c.stage === stage.id);
+    return '<div class="kanban-col">' +
+      '<div class="kanban-col-head"><span style="color:' + stage.color + '">' + esc(stage.label) + '</span>' +
+      '<span class="kanban-col-count">' + cards.length + '</span></div>' +
+      '<div class="kanban-col-body">' +
+      (cards.length === 0 ? '<div style="text-align:center;padding:20px;font-size:11px;color:var(--muted);">Aucun cas</div>' :
+      cards.map(c =>
+        '<div class="kanban-card">' +
+          '<div class="kanban-card-title">' + esc(c.patient) + '</div>' +
+          '<div class="kanban-card-sub">' + esc(c.type) + '</div>' +
+          '<div class="kanban-card-meta">' +
+            (c.teinte && c.teinte !== '--' ? '<span class="kanban-tag" style="background:var(--accent-light);color:var(--accent);">Teinte ' + esc(c.teinte) + '</span>' : '') +
+            '<span class="kanban-tag" style="background:var(--surface2);color:var(--muted);">' + esc(c.dentiste) + '</span>' +
+            (c.urgency !== 'normal' ? '<span class="kanban-tag" style="background:' + (c.urgency==='urgent'?'var(--red-l)':'var(--amber-l)') + ';color:' + (c.urgency==='urgent'?'var(--red)':'var(--amber)') + ';">' + c.urgency.toUpperCase() + '</span>' : '') +
+          '</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:4px;">' + esc(c.technicien) + '</div>' +
+        '</div>'
+      ).join('')) +
+      '</div></div>';
+  }).join('');
+}
+
+function filterProd(filter, el) {
+  currentProdFilter = filter;
+  document.querySelectorAll('#prod-filters .filter-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderProduction(filter);
+}
+
+// ═══════════════════════════════════
+// BONS DE LIVRAISON (TAB 3)
+// ═══════════════════════════════════
+let currentBonsFilter = 'all';
+function renderBons(filter) {
+  filter = filter || currentBonsFilter;
+  let data = DEMO_BONS;
+  const search = (document.getElementById('search-bons')?.value || '').toLowerCase();
+  if (search) data = data.filter(b => (b.id + b.dentiste + b.patient).toLowerCase().includes(search));
+  if (filter !== 'all') data = data.filter(b => b.statut === filter);
+
+  document.getElementById('bons-count').textContent = data.length;
+  document.getElementById('bons-tbody').innerHTML = data.length === 0 ?
+    '<tr><td colspan="7" class="empty-state" style="padding:32px;"><div class="empty-state-title">Aucun bon de livraison</div></td></tr>' :
+    data.map(b =>
+      '<tr>' +
+        '<td><span style="font-family:var(--mono);font-weight:600;">' + esc(b.id) + '</span></td>' +
+        '<td>' + formatDate(b.date) + '</td>' +
+        '<td>' + esc(b.dentiste) + '</td>' +
+        '<td>' + esc(b.patient) + '</td>' +
+        '<td>' + b.articles + '</td>' +
+        '<td>' + badgeStatus(b.statut) + '</td>' +
+        '<td><button class="btn btn-ghost btn-sm" onclick="showToast(\'Fonctionnalite a venir\')">Voir</button></td>' +
+      '</tr>'
+    ).join('');
+}
+
+function filterBons() { renderBons(); }
+function filterBonsStatus(s, el) {
+  currentBonsFilter = s;
+  document.querySelectorAll('#page-bons .filter-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderBons();
+}
+
+// ═══════════════════════════════════
+// FACTURATION (TAB 4)
+// ═══════════════════════════════════
+function renderFacturation() {
+  const aFacturer = DEMO_BONS.filter(b => b.statut === 'livre').length;
+  const attente = DEMO_FACTURES.filter(f => f.statut === 'en_attente').reduce((s,f) => s + f.ttc, 0);
+  const encaisse = DEMO_FACTURES.filter(f => f.statut === 'paye').reduce((s,f) => s + f.ttc, 0);
+
+  document.getElementById('fact-a-facturer').textContent = aFacturer;
+  document.getElementById('fact-attente').textContent = fmtEur(attente);
+  document.getElementById('fact-encaisse').textContent = fmtEur(encaisse);
+  document.getElementById('fact-count').textContent = DEMO_FACTURES.length;
+
+  document.getElementById('fact-tbody').innerHTML = DEMO_FACTURES.map(f =>
+    '<tr>' +
+      '<td><span style="font-family:var(--mono);font-weight:600;">' + esc(f.id) + '</span></td>' +
+      '<td>' + formatDate(f.date) + '</td>' +
+      '<td>' + esc(f.dentiste) + '</td>' +
+      '<td>' + fmtEur(f.ht) + '</td>' +
+      '<td>' + fmtEur(f.tva) + '</td>' +
+      '<td style="font-weight:600;">' + fmtEur(f.ttc) + '</td>' +
+      '<td>' + badgeStatus(f.statut) + '</td>' +
+      '<td><button class="btn btn-ghost btn-sm" onclick="showToast(\'Fonctionnalite a venir\')">PDF</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function genererFactures() {
+  showToast('Generation des factures en cours...');
+}
+
+// ═══════════════════════════════════
+// DENTISTES (TAB 5)
+// ═══════════════════════════════════
+function renderDentistes() {
+  let data = DEMO_DENTISTES;
+  const search = (document.getElementById('search-dentistes')?.value || '').toLowerCase();
+  if (search) data = data.filter(d => (d.nom + d.cabinet + d.ville).toLowerCase().includes(search));
+
+  document.getElementById('dentistes-count').textContent = data.length;
+  document.getElementById('dentistes-tbody').innerHTML = data.length === 0 ?
+    '<tr><td colspan="7" class="empty-state" style="padding:32px;"><div class="empty-state-title">Aucun dentiste trouve</div></td></tr>' :
+    data.map(d =>
+      '<tr>' +
+        '<td style="font-weight:600;">' + esc(d.nom) + '</td>' +
+        '<td>' + esc(d.cabinet) + '</td>' +
+        '<td>' + esc(d.ville) + '</td>' +
+        '<td style="font-family:var(--mono);font-size:12px;">' + esc(d.tel) + '</td>' +
+        '<td>' + esc(d.email) + '</td>' +
+        '<td style="font-weight:600;">' + fmtEur(d.ca_annuel) + '</td>' +
+        '<td>' + formatDate(d.derniere_commande) + '</td>' +
+      '</tr>'
+    ).join('');
+}
+
+function filterDentistes() { renderDentistes(); }
+
+// ═══════════════════════════════════
+// CATALOGUE (TAB 6)
+// ═══════════════════════════════════
+let currentCatalogueTab = 'protheses';
+function renderCatalogue(cat) {
+  cat = cat || currentCatalogueTab;
+  let data = DEMO_CATALOGUE;
+  if (cat !== 'all') data = data.filter(p => p.categorie === cat);
+
+  document.getElementById('catalogue-count').textContent = data.length + ' produits';
+  document.getElementById('catalogue-tbody').innerHTML = data.length === 0 ?
+    '<tr><td colspan="7" class="empty-state" style="padding:32px;"><div class="empty-state-title">Aucun produit dans cette categorie</div></td></tr>' :
+    data.map(p =>
+      '<tr>' +
+        '<td><span style="font-family:var(--mono);font-size:12px;">' + esc(p.ref) + '</span></td>' +
+        '<td style="font-weight:500;">' + esc(p.designation) + '</td>' +
+        '<td>' + badgeStatus(p.categorie === 'protheses' ? 'actif' : p.categorie === 'orthodontie' ? 'en_cours' : 'valide') + '</td>' +
+        '<td>' + esc(p.materiau) + '</td>' +
+        '<td style="font-weight:600;">' + fmtEur(p.prix) + '</td>' +
+        '<td>' + p.delai + 'j</td>' +
+        '<td><button class="btn btn-ghost btn-sm" onclick="showToast(\'Edition a venir\')">Modifier</button></td>' +
+      '</tr>'
+    ).join('');
+}
+
+function showCatalogueTab(cat, el) {
+  currentCatalogueTab = cat;
+  document.querySelectorAll('#catalogue-tabs .tab-inline').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderCatalogue(cat);
+}
+
+// ═══════════════════════════════════
+// STOCK (TAB 7)
+// ═══════════════════════════════════
+function renderStock() {
+  let data = DEMO_STOCK;
+  const search = (document.getElementById('search-stock')?.value || '').toLowerCase();
+  if (search) data = data.filter(s => (s.ref + s.materiau + s.lot).toLowerCase().includes(search));
+
+  document.getElementById('stock-refs').textContent = DEMO_STOCK.length;
+  document.getElementById('stock-alertes').textContent = DEMO_STOCK.filter(s => s.statut === 'alerte').length;
+  const expSoon = DEMO_STOCK.filter(s => {
+    const exp = new Date(s.expiration);
+    const diff = (exp - new Date()) / (1000*60*60*24);
+    return diff < 90 && diff > 0;
+  }).length;
+  document.getElementById('stock-expirations').textContent = expSoon;
+  document.getElementById('stock-count').textContent = data.length;
+
+  document.getElementById('stock-tbody').innerHTML = data.length === 0 ?
+    '<tr><td colspan="7" class="empty-state" style="padding:32px;"><div class="empty-state-title">Aucun materiau trouve</div></td></tr>' :
+    data.map(s => {
+      const qtyStyle = s.quantite <= s.seuil ? 'color:var(--red);font-weight:700;' : '';
+      return '<tr>' +
+        '<td><span style="font-family:var(--mono);font-size:12px;">' + esc(s.ref) + '</span></td>' +
+        '<td style="font-weight:500;">' + esc(s.materiau) + '</td>' +
+        '<td style="font-family:var(--mono);font-size:12px;">' + esc(s.lot) + '</td>' +
+        '<td style="' + qtyStyle + '">' + s.quantite + '</td>' +
+        '<td style="color:var(--muted);">' + s.seuil + '</td>' +
+        '<td>' + formatDate(s.expiration) + '</td>' +
+        '<td>' + badgeStatus(s.statut) + '</td>' +
+      '</tr>';
+    }).join('');
+}
+
+function filterStock() { renderStock(); }
+
+// ═══════════════════════════════════
+// TECHNICIENS (TAB 8)
+// ═══════════════════════════════════
+function renderTechniciens() {
+  document.getElementById('tech-count').textContent = DEMO_TECHNICIENS.length + ' techniciens';
+
+  document.getElementById('tech-list').innerHTML = DEMO_TECHNICIENS.map(t =>
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:14px;">' + esc(t.nom) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);">' + esc(t.specialite) + '</div>' +
+      '</div>' +
+      '<div style="text-align:right;">' +
+        '<div style="font-weight:600;font-size:14px;">' + t.cas_mois + ' cas/mois</div>' +
+        '<div style="font-size:11px;color:' + (t.taux_retour > 1.5 ? 'var(--amber)' : 'var(--green)') + ';">' + t.taux_retour + '% retour</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+
+  // Planning placeholder
+  const jours = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+  document.getElementById('tech-planning').innerHTML =
+    '<table><thead><tr><th>Technicien</th>' + jours.map(j => '<th>' + j + '</th>').join('') + '</tr></thead>' +
+    '<tbody>' + DEMO_TECHNICIENS.map(t =>
+      '<tr><td style="font-weight:600;font-size:12px;">' + esc(t.nom.split(' ')[0]) + '</td>' +
+      jours.map(() => {
+        const cas = Math.floor(Math.random() * 6) + 3;
+        return '<td style="text-align:center;font-size:12px;">' + cas + ' cas</td>';
+      }).join('') +
+      '</tr>'
+    ).join('') + '</tbody></table>';
+
+  // Performance
+  document.getElementById('tech-perf').innerHTML = DEMO_TECHNICIENS.map(t => {
+    const perf = Math.min(100, Math.round((t.cas_mois / 55) * 100));
+    return '<div style="margin-bottom:14px;">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+        '<span style="font-size:13px;font-weight:500;">' + esc(t.nom) + '</span>' +
+        '<span style="font-size:12px;color:var(--muted);">' + t.cas_mois + '/55 cas</span>' +
+      '</div>' +
+      '<div class="progress"><div class="progress-fill" style="width:' + perf + '%;background:' + (perf > 80 ? 'var(--green)' : perf > 50 ? 'var(--amber)' : 'var(--red)') + ';"></div></div>' +
+    '</div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// EXPEDITIONS (TAB 9)
+// ═══════════════════════════════════
+let currentExpFilter = 'all';
+function renderExpeditions(filter) {
+  filter = filter || currentExpFilter;
+  let data = DEMO_EXPEDITIONS;
+  if (filter !== 'all') data = data.filter(e => e.statut === filter);
+
+  document.getElementById('exp-a-expedier').textContent = DEMO_EXPEDITIONS.filter(e => e.statut === 'a_expedier').length;
+  document.getElementById('exp-transit').textContent = DEMO_EXPEDITIONS.filter(e => e.statut === 'transit').length;
+  document.getElementById('exp-livres').textContent = DEMO_EXPEDITIONS.filter(e => e.statut === 'livre').length;
+  document.getElementById('exp-count').textContent = data.length;
+
+  document.getElementById('exp-tbody').innerHTML = data.length === 0 ?
+    '<tr><td colspan="7" class="empty-state" style="padding:32px;"><div class="empty-state-title">Aucune expedition</div></td></tr>' :
+    data.map(e =>
+      '<tr>' +
+        '<td><span style="font-family:var(--mono);font-weight:600;">' + esc(e.id) + '</span></td>' +
+        '<td>' + formatDate(e.date) + '</td>' +
+        '<td>' + esc(e.dentiste) + '</td>' +
+        '<td>' + esc(e.transporteur) + '</td>' +
+        '<td style="font-family:var(--mono);font-size:12px;">' + esc(e.suivi) + '</td>' +
+        '<td>' + badgeStatus(e.statut) + '</td>' +
+        '<td><button class="btn btn-ghost btn-sm" onclick="showToast(\'Suivi en temps reel a venir\')">Suivre</button></td>' +
+      '</tr>'
+    ).join('');
+}
+
+function filterExp(s, el) {
+  currentExpFilter = s;
+  document.querySelectorAll('#page-expeditions .filter-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderExpeditions(s);
+}
+
+// ═══════════════════════════════════
+// QUALITE (TAB 10)
+// ═══════════════════════════════════
+function renderQualite() {
+  document.getElementById('qual-remakes').textContent = DEMO_REMAKES.length;
+  const taux = ((DEMO_REMAKES.length / DEMO_PRODUCTION.length) * 100).toFixed(1);
+  document.getElementById('qual-taux').textContent = taux + '%';
+  document.getElementById('qual-garanties').textContent = DEMO_GARANTIES.filter(g => g.statut === 'actif').length;
+  document.getElementById('qual-expiring').textContent = DEMO_GARANTIES.filter(g => {
+    const exp = new Date(g.expiration);
+    const diff = (exp - new Date()) / (1000*60*60*24);
+    return diff < 30 && diff > 0;
+  }).length;
+
+  // Remakes list
+  document.getElementById('qual-remakes-list').innerHTML = DEMO_REMAKES.map(r =>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:13px;">' + esc(r.patient) + ' — ' + esc(r.type) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);">' + esc(r.dentiste) + ' | ' + formatDate(r.date) + '</div>' +
+      '</div>' +
+      '<div><span class="badge badge-red">' + esc(r.cause) + '</span></div>' +
+    '</div>'
+  ).join('');
+
+  // Causes chart (bar chart simulation)
+  const causes = {};
+  DEMO_REMAKES.forEach(r => { causes[r.cause] = (causes[r.cause] || 0) + 1; });
+  const maxCause = Math.max(...Object.values(causes), 1);
+  document.getElementById('qual-causes-chart').innerHTML =
+    Object.entries(causes).map(([cause, count]) =>
+      '<div style="margin-bottom:12px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">' +
+          '<span>' + esc(cause) + '</span><span style="color:var(--muted);">' + count + '</span>' +
+        '</div>' +
+        '<div class="progress"><div class="progress-fill" style="width:' + ((count/maxCause)*100) + '%;background:var(--red);"></div></div>' +
+      '</div>'
+    ).join('');
+
+  // Garanties table
+  document.getElementById('garanties-count').textContent = DEMO_GARANTIES.length;
+  document.getElementById('garanties-tbody').innerHTML = DEMO_GARANTIES.map(g =>
+    '<tr>' +
+      '<td style="font-weight:500;">' + esc(g.patient) + '</td>' +
+      '<td>' + esc(g.type) + '</td>' +
+      '<td>' + esc(g.dentiste) + '</td>' +
+      '<td>' + formatDate(g.date_pose) + '</td>' +
+      '<td>' + formatDate(g.expiration) + '</td>' +
+      '<td>' + badgeStatus(g.statut) + '</td>' +
+    '</tr>'
+  ).join('');
+}
+
+// ═══════════════════════════════════
+// TEINTES & PHOTOS (TAB 11)
+// ═══════════════════════════════════
+function renderTeintes() {
+  document.getElementById('teintes-count').textContent = DEMO_TEINTES.length + ' cas';
+  document.getElementById('teintes-tbody').innerHTML = DEMO_TEINTES.map(t =>
+    '<tr>' +
+      '<td style="font-weight:500;">' + esc(t.patient) + '</td>' +
+      '<td>' + esc(t.dentiste) + '</td>' +
+      '<td><span style="font-family:var(--mono);font-weight:600;color:var(--accent);">' + esc(t.teinte) + '</span></td>' +
+      '<td>' + t.photos + ' photo(s)</td>' +
+      '<td>' + esc(t.analyse_ia) + '</td>' +
+      '<td>' + badgeStatus(t.statut) + '</td>' +
+      '<td><button class="btn btn-ghost btn-sm" onclick="showToast(\'Visualisation a venir\')">Voir</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function showTeintesTab(tab, el) {
+  document.querySelectorAll('#page-teintes .tab-inline').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (tab === 'galerie') {
+    document.getElementById('teintes-content').innerHTML =
+      '<div class="empty-state"><div class="empty-state-title">Galerie photos</div>' +
+      '<div class="empty-state-text">La galerie de photos de teintes sera disponible prochainement. Vos photos seront organisees par cas et par dentiste.</div></div>';
+  } else if (tab === 'guide') {
+    document.getElementById('teintes-content').innerHTML =
+      '<div class="card"><div class="card-head"><span class="card-title">Guide des teintes VITA</span></div>' +
+      '<div class="card-body"><div class="grid-3">' +
+      ['A1','A2','A3','A3.5','A4','B1','B2','B3','B4','C1','C2','C3','C4','D2','D3','D4'].map(t =>
+        '<div style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);text-align:center;">' +
+        '<div style="font-family:var(--mono);font-weight:700;font-size:16px;color:var(--accent);">' + t + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:4px;">VITA Classical</div></div>'
+      ).join('') +
+      '</div></div></div>';
+  } else {
+    renderTeintes();
+    document.getElementById('teintes-content').innerHTML = '';
+    // Re-render the table
+    const tableHTML = '<div class="card"><div class="card-head"><span class="card-title">Gestion des teintes</span>' +
+      '<span class="card-count" id="teintes-count">' + DEMO_TEINTES.length + ' cas</span></div>' +
+      '<div style="overflow-x:auto;"><table><thead><tr>' +
+      '<th>Patient</th><th>Dentiste</th><th>Teinte demandee</th><th>Photos</th><th>Analyse IA</th><th>Statut</th><th>Actions</th>' +
+      '</tr></thead><tbody id="teintes-tbody"></tbody></table></div></div>';
+    document.getElementById('teintes-content').innerHTML = tableHTML;
+    renderTeintes();
+  }
+}
+
+// ═══════════════════════════════════
+// FICHIERS 3D (TAB 12)
+// ═══════════════════════════════════
+function renderFichiers3D() {
+  document.getElementById('f3d-recus').textContent = DEMO_FICHIERS3D.length;
+  document.getElementById('f3d-attente').textContent = DEMO_FICHIERS3D.filter(f => f.statut === 'en_attente').length;
+  document.getElementById('f3d-valides').textContent = DEMO_FICHIERS3D.filter(f => f.statut === 'valide').length;
+  document.getElementById('f3d-count').textContent = DEMO_FICHIERS3D.length;
+
+  document.getElementById('f3d-tbody').innerHTML = DEMO_FICHIERS3D.map(f =>
+    '<tr>' +
+      '<td><span style="font-family:var(--mono);font-size:12px;">' + esc(f.fichier) + '</span></td>' +
+      '<td style="font-weight:500;">' + esc(f.patient) + '</td>' +
+      '<td>' + esc(f.dentiste) + '</td>' +
+      '<td><span class="badge badge-accent">' + esc(f.type) + '</span></td>' +
+      '<td style="font-family:var(--mono);font-size:12px;">' + esc(f.taille) + '</td>' +
+      '<td>' + formatDate(f.date) + '</td>' +
+      '<td>' + badgeStatus(f.statut) + '</td>' +
+      '<td><button class="btn btn-ghost btn-sm" onclick="showToast(\'Visualisation 3D a venir\')">Voir</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+// ═══════════════════════════════════
+// RESEAU FRANCE (TAB 13)
+// ═══════════════════════════════════
+function renderReseau() {
+  const labos = [
+    { nom:'Labo Ceramique Excellence', ville:'Paris', specialite:'Ceramique, CFAO', note:'4.8/5' },
+    { nom:'Prothese Sud Provence', ville:'Marseille', specialite:'Prothese amovible', note:'4.5/5' },
+    { nom:'LabNum Lyon', ville:'Lyon', specialite:'100% numerique', note:'4.9/5' },
+    { nom:'Atlantic Dental Lab', ville:'Nantes', specialite:'Implantaire', note:'4.6/5' },
+    { nom:'Alsace Prothese', ville:'Strasbourg', specialite:'Orthodontie, ceramique', note:'4.7/5' },
+    { nom:'Digital Smile Bordeaux', ville:'Bordeaux', specialite:'Facettes, esthetique', note:'4.4/5' },
+  ];
+
+  document.getElementById('reseau-grid').innerHTML = labos.map(l =>
+    '<div class="net-card">' +
+      '<div class="net-card-name">' + esc(l.nom) + '</div>' +
+      '<div class="net-card-info">' + esc(l.ville) + ' — ' + esc(l.specialite) + '</div>' +
+      '<div style="margin-top:8px;font-size:12px;color:var(--accent);">' + esc(l.note) + '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function showReseauTab(tab, el) {
+  document.querySelectorAll('#page-reseau .tab-inline').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const content = document.getElementById('reseau-content');
+  if (tab === 'annonces') {
+    content.innerHTML =
+      '<div class="card"><div class="card-head"><span class="card-title">Annonces de sous-traitance</span></div>' +
+      '<div class="card-body">' +
+      [
+        { titre:'Recherche ceramiste experimente', labo:'Labo Excellence Paris', date:'27/04/2026', type:'Recrutement' },
+        { titre:'Sous-traitance CFAO urgente — 20 cas/semaine', labo:'LabNum Lyon', date:'26/04/2026', type:'Sous-traitance' },
+        { titre:'Proposition partenariat implantaire', labo:'Atlantic Dental Lab', date:'25/04/2026', type:'Partenariat' },
+      ].map(a =>
+        '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+            '<div><div style="font-weight:600;">' + esc(a.titre) + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);">' + esc(a.labo) + ' | ' + a.date + '</div></div>' +
+            '<span class="badge badge-accent">' + esc(a.type) + '</span>' +
+          '</div>' +
+        '</div>'
+      ).join('') +
+      '</div></div>';
+  } else if (tab === 'achats') {
+    content.innerHTML =
+      '<div class="card"><div class="card-head"><span class="card-title">Achats groupes en cours</span></div>' +
+      '<div class="card-body">' +
+      [
+        { produit:'Disques zircone Katana UTML', fournisseur:'Kuraray Noritake', participants:12, objectif:20, remise:'-25%' },
+        { produit:'Lingots E.max HT', fournisseur:'Ivoclar Vivadent', participants:8, objectif:15, remise:'-20%' },
+      ].map(a => {
+        const pct = Math.round((a.participants / a.objectif) * 100);
+        return '<div style="padding:14px 0;border-bottom:1px solid var(--border);">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+            '<div><div style="font-weight:600;">' + esc(a.produit) + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);">' + esc(a.fournisseur) + '</div></div>' +
+            '<span class="badge badge-green">' + esc(a.remise) + '</span>' +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;">' +
+            '<span>' + a.participants + '/' + a.objectif + ' participants</span><span>' + pct + '%</span></div>' +
+          '<div class="progress"><div class="progress-fill" style="width:' + pct + '%;"></div></div>' +
+        '</div>';
+      }).join('') +
+      '</div></div>';
+  } else if (tab === 'forum') {
+    content.innerHTML =
+      '<div class="empty-state" style="padding:60px 20px;">' +
+        '<div class="empty-state-title">Forum communautaire</div>' +
+        '<div class="empty-state-text">Le forum d\'echange entre prothesistes sera lance prochainement. Partagez vos techniques, posez vos questions et echangez avec vos confreres.</div>' +
+      '</div>';
+  } else {
+    renderReseau();
+    content.innerHTML = '<div class="search-bar"><span>&#128269;</span>' +
+      '<input type="text" placeholder="Rechercher un laboratoire, une ville..." id="search-reseau" oninput="filterReseau()"></div>' +
+      '<div class="grid-3" id="reseau-grid"></div>';
+    renderReseau();
+  }
+}
+
+function filterReseau() {
+  // Simple filter — would connect to API
+  renderReseau();
+}
+
+// ═══════════════════════════════════
+// MAINTENANCE (TAB 14)
+// ═══════════════════════════════════
+function renderMaintenance() {
+  document.getElementById('maint-actives').textContent = DEMO_MACHINES.filter(m => m.statut === 'ok').length;
+  document.getElementById('maint-alertes').textContent = DEMO_MACHINES.filter(m => m.statut === 'alerte').length;
+
+  // Find next revision
+  const prochaine = DEMO_MACHINES
+    .filter(m => m.revision)
+    .sort((a,b) => new Date(a.revision) - new Date(b.revision))[0];
+  document.getElementById('maint-prochaine').textContent = prochaine ? relativeDate(prochaine.revision) : '--';
+  document.getElementById('maint-count').textContent = DEMO_MACHINES.length;
+
+  const machineIcons = { four:'F', usineuse:'U', scanner:'S', imprimante3d:'3D', sableuse:'Sa', polisseuse:'P', autre:'?' };
+
+  document.getElementById('maint-machines-list').innerHTML = DEMO_MACHINES.map(m =>
+    '<div class="machine-card">' +
+      '<div class="machine-icon">' + (machineIcons[m.type] || '?') + '</div>' +
+      '<div class="machine-info">' +
+        '<div class="machine-name">' + esc(m.nom) + '</div>' +
+        '<div class="machine-status">' +
+          'S/N: ' + esc(m.serie) + ' | Revision: ' + formatDate(m.revision) +
+        '</div>' +
+      '</div>' +
+      '<div>' + badgeStatus(m.statut) + '</div>' +
+    '</div>'
+  ).join('');
+
+  // Historique placeholder
+  document.getElementById('maint-historique').innerHTML = [
+    { machine:'Imprimante 3D Formlabs 3B+', intervention:'Remplacement bac resine + calibration', date:'20/04/2026', technicien:'Claire Fontaine' },
+    { machine:'Four Ivoclar Programat P710', intervention:'Nettoyage chambre + verification thermocouple', date:'15/04/2026', technicien:'Marc Dubois' },
+    { machine:'Usineuse Roland DWX-52DC', intervention:'Changement fraises + mise a jour firmware', date:'10/04/2026', technicien:'Julien Roche' },
+  ].map(h =>
+    '<div style="padding:10px 0;border-bottom:1px solid var(--border);">' +
+      '<div style="font-weight:600;font-size:13px;">' + esc(h.machine) + '</div>' +
+      '<div style="font-size:12px;color:var(--muted);">' + esc(h.intervention) + '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + h.date + ' — ' + esc(h.technicien) + '</div>' +
+    '</div>'
+  ).join('');
+}
+
+// ═══════════════════════════════════
+// MODAL ACTIONS
+// ═══════════════════════════════════
+function creerBL() {
+  const patient = document.getElementById('bl-patient').value.trim();
+  if (!patient) { showToast('Veuillez renseigner le nom du patient.'); return; }
+
+  const newBL = {
+    id: 'BL-2026-' + String(DEMO_BONS.length + 148).padStart(4, '0'),
+    date: new Date().toISOString().split('T')[0],
+    dentiste: document.getElementById('bl-dentiste').options[document.getElementById('bl-dentiste').selectedIndex]?.text || '--',
+    patient: patient,
+    articles: 1,
+    statut: 'brouillon'
+  };
+  DEMO_BONS.unshift(newBL);
+
+  // Also create production entry
+  DEMO_PRODUCTION.push({
+    id: DEMO_PRODUCTION.length + 1,
+    patient: patient,
+    type: document.getElementById('bl-type').options[document.getElementById('bl-type').selectedIndex]?.text || 'Couronne',
+    teinte: document.getElementById('bl-teinte').value || '--',
+    dentiste: newBL.dentiste,
+    stage: 'reception',
+    urgency: 'normal',
+    technicien: '--'
+  });
+
+  pageLoaded['bons'] = false;
+  pageLoaded['production'] = false;
+  fermerModal('modal-bl');
+  showToast('Bon de livraison ' + newBL.id + ' cree avec succes.');
+  document.getElementById('bl-patient').value = '';
+  document.getElementById('bl-teinte').value = '';
+  document.getElementById('bl-dents').value = '';
+  document.getElementById('bl-notes').value = '';
+}
+
+function creerDentiste() {
+  const nom = document.getElementById('dent-nom').value.trim();
+  if (!nom) { showToast('Veuillez renseigner le nom du praticien.'); return; }
+
+  DEMO_DENTISTES.push({
+    id: DEMO_DENTISTES.length + 1,
+    nom: nom,
+    cabinet: document.getElementById('dent-cabinet').value,
+    ville: document.getElementById('dent-ville').value,
+    tel: document.getElementById('dent-tel').value,
+    email: document.getElementById('dent-email').value,
+    ca_annuel: 0,
+    derniere_commande: '--'
+  });
+
+  pageLoaded['dentistes'] = false;
+  fermerModal('modal-dentiste');
+  showToast('Dentiste ajoute avec succes.');
+  ['dent-nom','dent-cabinet','dent-ville','dent-tel','dent-email','dent-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  // Refresh dentiste dropdown in BL modal
+  populateDentisteSelect();
+}
+
+function creerProduit() {
+  const designation = document.getElementById('prod-designation').value.trim();
+  if (!designation) { showToast('Veuillez renseigner la designation du produit.'); return; }
+
+  DEMO_CATALOGUE.push({
+    ref: document.getElementById('prod-ref').value || 'NEW-001',
+    designation: designation,
+    categorie: document.getElementById('prod-categorie').value,
+    materiau: document.getElementById('prod-materiau').value,
+    prix: parseFloat(document.getElementById('prod-prix').value) || 0,
+    delai: parseInt(document.getElementById('prod-delai').value) || 5
+  });
+
+  pageLoaded['catalogue'] = false;
+  fermerModal('modal-produit');
+  showToast('Produit ajoute au catalogue avec succes.');
+  ['prod-ref','prod-designation','prod-materiau','prod-prix'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
+function creerTechnicien() {
+  const nom = document.getElementById('tech-nom').value.trim();
+  if (!nom) { showToast('Veuillez renseigner le nom du technicien.'); return; }
+
+  DEMO_TECHNICIENS.push({
+    id: DEMO_TECHNICIENS.length + 1,
+    nom: nom,
+    specialite: document.getElementById('tech-specialite').options[document.getElementById('tech-specialite').selectedIndex]?.text || 'Polyvalent',
+    email: document.getElementById('tech-email-input').value,
+    tel: document.getElementById('tech-tel').value,
+    cas_mois: 0,
+    taux_retour: 0,
+    statut: 'actif'
+  });
+
+  pageLoaded['techniciens'] = false;
+  fermerModal('modal-technicien');
+  showToast('Technicien ajoute avec succes.');
+  ['tech-nom','tech-email-input','tech-tel'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
+function creerMachine() {
+  const nom = document.getElementById('machine-nom').value.trim();
+  if (!nom) { showToast('Veuillez renseigner le nom de l\'equipement.'); return; }
+
+  DEMO_MACHINES.push({
+    id: DEMO_MACHINES.length + 1,
+    nom: nom,
+    type: document.getElementById('machine-type').value,
+    serie: document.getElementById('machine-serie').value,
+    achat: document.getElementById('machine-achat').value,
+    revision: document.getElementById('machine-revision').value,
+    statut: 'ok'
+  });
+
+  pageLoaded['maintenance'] = false;
+  fermerModal('modal-machine');
+  showToast('Equipement ajoute avec succes.');
+  ['machine-nom','machine-serie','machine-achat','machine-revision'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
+function sauverProfil() { showToast('Profil du laboratoire enregistre.'); }
+function sauverGaranties() { showToast('Configuration des garanties enregistree.'); }
+function sauverFacturation() { showToast('Parametres de facturation enregistres.'); }
+
+// ═══════════════════════════════════
+// POPULATE DENTISTE SELECT
+// ═══════════════════════════════════
+function populateDentisteSelect() {
+  const sel = document.getElementById('bl-dentiste');
+  sel.innerHTML = '<option value="">Selectionner un dentiste</option>' +
+    DEMO_DENTISTES.map(d => '<option value="' + d.id + '">' + esc(d.nom) + '</option>').join('');
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  populateDentisteSelect();
+  loadDashboard();
+});
+</script>
+</body>
+</html>

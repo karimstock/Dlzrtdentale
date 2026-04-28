@@ -3857,6 +3857,8 @@ app.get('/createur', (req, res) => res.sendFile(path.join(__dirname, 'public/cre
 app.get('/createur/', (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
 app.get('/bien-etre-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
 app.get('/bien-etre-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
+app.get('/prothesiste-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
+app.get('/prothesiste-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
 
 // GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
 app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
