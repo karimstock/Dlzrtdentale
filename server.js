@@ -1856,6 +1856,233 @@ try {
   console.warn('[JADOMI] Module LABO non chargé:', e.message);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// JADOMI Voice LABO — Creer BL par commande vocale
+// ═══════════════════════════════════════════════════════════════
+
+// POST /api/voice/labo/creer-bl — IA parse la phrase → cree le bon automatiquement
+app.post('/api/voice/labo/creer-bl', authSupabase(), async (req, res) => {
+  try {
+    const { phrase } = req.body;
+    if (!phrase) return res.status(400).json({ error: 'phrase requise' });
+    const sb = supabaseAdmin || supabase;
+    const societeId = req.user.societe_id || req.headers['x-societe-id'];
+    if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
+
+    // 1. Trouver le profil prothesiste
+    const { data: proth } = await sb.from('labo_prothesistes')
+      .select('id, prochain_numero_bl, prefix_bl')
+      .eq('societe_id', societeId).single();
+    if (!proth) return res.status(404).json({ error: 'Profil prothesiste requis' });
+
+    // 2. Charger dentistes + catalogue pour le contexte IA
+    const { data: dentistes } = await sb.from('dentistes_clients')
+      .select('id, nom, prenom, titre, email')
+      .eq('prothesiste_id', proth.id).eq('est_actif', true).limit(100);
+    const { data: catalogue } = await sb.from('catalogue_produits')
+      .select('id, nom, code_ccam, prix_unitaire, tva_applicable, taux_tva, type_produit, categorie, necessite_teinte')
+      .eq('prothesiste_id', proth.id).eq('est_actif', true).limit(200);
+
+    const dentistesCtx = (dentistes || []).map(d => `${d.titre||''} ${d.nom} ${d.prenom||''} (id:${d.id})`).join('\n');
+    const catalogueCtx = (catalogue || []).map(c => `${c.nom} | ${c.code_ccam||''} | ${c.prix_unitaire}EUR | ${c.type_produit} (id:${c.id})`).join('\n');
+
+    // 3. IA parse la phrase
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 800,
+      system: `Tu es l'IA de JADOMI LABO. Tu analyses une phrase du prothesiste pour creer un bon de livraison.
+
+DENTISTES CLIENTS :
+${dentistesCtx}
+
+CATALOGUE PRODUITS :
+${catalogueCtx}
+
+Tu dois extraire de la phrase :
+- dentiste_id : trouver le dentiste par son nom (chercher dans la liste)
+- lignes : les produits/actes realises (CCM = Couronne Ceramo-Metallique, etc.)
+- teinte : si mentionnee (A1, A2, A3, B1, B2, C1, etc. = VITA Classical)
+- patient_initiales : si mentionnees
+- quantite : par ligne (defaut 1)
+
+ABREVIATIONS DENTAIRES COURANTES :
+CCM = Couronne Ceramo-Metallique | CCC = Couronne Ceramo-Ceramique | CC = Couronne Ceramique
+IEC = Inlay/Endocouronne | Inlay-Core = Inlay-Core | Bridge = Bridge
+Facette = Facette ceramique | Onlay = Onlay | Gouttiere = Gouttiere occlusale
+PPA = Prothese Partielle Amovible | PAC = Prothese Adjointe Complete | Stellite = Chassis metallique
+
+JSON OBLIGATOIRE :
+{"dentiste_id":"uuid","dentiste_nom":"nom trouve","lignes":[{"produit_id":"uuid ou null","designation":"nom complet du produit","quantite":1,"prix_unitaire":0}],"teinte_principale":"A2 ou null","teintier_utilise":"VITA Classical ou null","patient_initiales":"XX ou null","notes_techniques":"","message":"Bon cree : 1x CCM A2 pour Dr Scortichi"}`,
+      messages: [{ role: 'user', content: phrase }]
+    });
+
+    const text = msg.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(400).json({ error: 'IA: impossible de parser la demande' });
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!parsed.dentiste_id) return res.json({ ok: false, need_info: 'dentiste', message: 'Quel dentiste ? ' + (dentistes||[]).map(d=>`${d.titre||''} ${d.nom}`).join(', '), parsed });
+
+    // 4. Enrichir les lignes avec les prix du catalogue
+    const lignes = (parsed.lignes || []).map((l, i) => {
+      const cat = (catalogue || []).find(c => c.id === l.produit_id);
+      return {
+        produit_id: l.produit_id || null,
+        designation: l.designation || 'Acte',
+        quantite: l.quantite || 1,
+        prix_unitaire: l.prix_unitaire || cat?.prix_unitaire || 0,
+        tva_applicable: cat?.tva_applicable || false,
+        taux_tva: cat?.taux_tva || 0,
+        remise_pct: 0,
+        materiau: null,
+        numero_lot_materiau: null,
+        teinte_specifique: parsed.teinte_principale || null,
+        ordre: i
+      };
+    });
+
+    // 5. Calculer TVA
+    const { calculerLigne, calculerTotaux } = require('./services/tva-calculator');
+    const lignesCalc = lignes.map(l => {
+      const calc = calculerLigne(l);
+      return { ...l, ...calc };
+    });
+    const totaux = calculerTotaux(lignesCalc);
+
+    // 6. Generer numero BL
+    const numeroBl = (proth.prefix_bl || 'BL') + '-' + String(proth.prochain_numero_bl || 1).padStart(4, '0');
+
+    // 7. Creer le BL
+    const { data: newBl, error: blErr } = await sb.from('bons_livraison')
+      .insert({
+        prothesiste_id: proth.id,
+        dentiste_id: parsed.dentiste_id,
+        numero_bl: numeroBl,
+        date_bl: new Date().toISOString().split('T')[0],
+        patient_initiales: parsed.patient_initiales || null,
+        teintier_utilise: parsed.teintier_utilise || null,
+        teinte_principale: parsed.teinte_principale || null,
+        notes_techniques: parsed.notes_techniques || null,
+        statut: 'brouillon',
+        ...totaux
+      }).select().single();
+    if (blErr) throw blErr;
+
+    // 8. Inserer lignes
+    const lignesInsert = lignesCalc.map(l => ({ ...l, bl_id: newBl.id }));
+    await sb.from('lignes_bl').insert(lignesInsert);
+
+    // 9. Incrementer compteur
+    await sb.from('labo_prothesistes')
+      .update({ prochain_numero_bl: (proth.prochain_numero_bl || 1) + 1 })
+      .eq('id', proth.id);
+
+    res.json({
+      ok: true,
+      bl: newBl,
+      numero_bl: numeroBl,
+      dentiste_nom: parsed.dentiste_nom,
+      lignes: lignesCalc.length,
+      message: parsed.message || `Bon ${numeroBl} cree`
+    });
+  } catch (e) {
+    console.error('[voice/labo/creer-bl]', e.message);
+    res.status(500).json({ error: 'Erreur creation BL vocal' });
+  }
+});
+
+// GET /api/voice/labo/facture-live/:dentiste_id — Facture temps reel en cours de mois
+app.get('/api/voice/labo/facture-live/:dentiste_id', authSupabase(), async (req, res) => {
+  try {
+    const sb = supabaseAdmin || supabase;
+    const societeId = req.user.societe_id || req.headers['x-societe-id'];
+    const { data: proth } = await sb.from('labo_prothesistes')
+      .select('id').eq('societe_id', societeId).single();
+    if (!proth) return res.status(404).json({ error: 'Profil requis' });
+
+    // BL non factures pour ce dentiste
+    const { data: bls } = await sb.from('bons_livraison')
+      .select('*, lignes_bl(*)')
+      .eq('prothesiste_id', proth.id)
+      .eq('dentiste_id', req.params.dentiste_id)
+      .in('statut', ['livre', 'brouillon'])
+      .is('facture_id', null)
+      .order('date_bl', { ascending: true });
+
+    // Dentiste info
+    const { data: dentiste } = await sb.from('dentistes_clients')
+      .select('nom, prenom, titre, email')
+      .eq('id', req.params.dentiste_id).single();
+
+    let totalHtExo = 0, totalHtTax = 0, totalTva = 0, totalTtc = 0;
+    const lignesDetail = [];
+    for (const bl of (bls || [])) {
+      totalHtExo += parseFloat(bl.total_ht_exonere || 0);
+      totalHtTax += parseFloat(bl.total_ht_taxable || 0);
+      totalTva += parseFloat(bl.total_tva || 0);
+      totalTtc += parseFloat(bl.total_ttc || 0);
+      for (const l of (bl.lignes_bl || [])) {
+        lignesDetail.push({ ...l, bl_numero: bl.numero_bl, bl_date: bl.date_bl, patient: bl.patient_initiales });
+      }
+    }
+
+    res.json({
+      ok: true,
+      dentiste,
+      nb_bons: (bls || []).length,
+      nb_lignes: lignesDetail.length,
+      total_ht_exonere: Math.round(totalHtExo * 100) / 100,
+      total_ht_taxable: Math.round(totalHtTax * 100) / 100,
+      total_tva: Math.round(totalTva * 100) / 100,
+      total_ttc: Math.round(totalTtc * 100) / 100,
+      bons: (bls || []).map(bl => ({ id: bl.id, numero: bl.numero_bl, date: bl.date_bl, patient: bl.patient_initiales, statut: bl.statut, total_ttc: bl.total_ttc })),
+      lignes: lignesDetail
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur facture live' });
+  }
+});
+
+// GET /api/voice/labo/factures-live — Vue globale toutes factures en cours par dentiste
+app.get('/api/voice/labo/factures-live', authSupabase(), async (req, res) => {
+  try {
+    const sb = supabaseAdmin || supabase;
+    const societeId = req.user.societe_id || req.headers['x-societe-id'];
+    const { data: proth } = await sb.from('labo_prothesistes')
+      .select('id').eq('societe_id', societeId).single();
+    if (!proth) return res.status(404).json({ error: 'Profil requis' });
+
+    // Tous les BL non factures groupes par dentiste
+    const { data: bls } = await sb.from('bons_livraison')
+      .select('dentiste_id, total_ttc, statut, dentistes_clients(id, nom, prenom, titre)')
+      .eq('prothesiste_id', proth.id)
+      .in('statut', ['livre', 'brouillon'])
+      .is('facture_id', null);
+
+    const parDentiste = {};
+    for (const bl of (bls || [])) {
+      const did = bl.dentiste_id;
+      if (!parDentiste[did]) {
+        parDentiste[did] = {
+          dentiste_id: did,
+          nom: `${bl.dentistes_clients?.titre||''} ${bl.dentistes_clients?.nom||''} ${bl.dentistes_clients?.prenom||''}`.trim(),
+          nb_bons: 0,
+          total_ttc: 0
+        };
+      }
+      parDentiste[did].nb_bons++;
+      parDentiste[did].total_ttc += parseFloat(bl.total_ttc || 0);
+    }
+
+    const result = Object.values(parDentiste).sort((a, b) => b.total_ttc - a.total_ttc);
+    res.json({ ok: true, dentistes: result, total_global: result.reduce((s, d) => s + d.total_ttc, 0) });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur factures live' });
+  }
+});
+
 // =============================================
 // Module Communication Cabinet (confreres + patients)
 // =============================================

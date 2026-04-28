@@ -1570,6 +1570,8 @@ tbody tr:hover td{background:var(--surface2);}
       <div class="vocal-example" onclick="simulerVocal('Il reste 5 carpules d\'articaine')">💬 "Il reste 5 carpules"</div>
       <div class="vocal-example" onclick="simulerVocal('Montre les produits en rupture')">💬 "Produits en rupture"</div>
       <div class="vocal-example" onclick="simulerVocal('Combien j\'ai depense ce mois')">💬 "Depenses du mois ?"</div>
+      <div class="vocal-example" onclick="simulerVocal('J\'ai fait une CCM teinte A2 pour le Dr Dupont')">💬 "CCM A2 pour Dr Dupont"</div>
+      <div class="vocal-example" onclick="simulerVocal('Renvoie la facture au patient Martin')">💬 "Renvoie la facture Martin"</div>
     </div>
   </div>
 </div>
@@ -2808,6 +2810,10 @@ ACTIONS POSSIBLES :
    Produits format : [{"nom":"destinataire","type":"relance_paiement|mise_en_demeure|relance_remplacement|confirmation|remerciement","contexte":"description de la situation","montant":"si applicable"}]
 9. "envoyer_email" — Envoyer un email libre a quelqu'un
 
+=== LABO PROTHESISTE ===
+10b. "creer_bl" — Creer un bon de livraison. Le prothesiste dit "j'ai fait une CCM A2 pour le Dr Scortichi" → extraire dentiste + produit + teinte + creer le bon.
+   Produits format : [{"nom":"designation","dentiste":"nom du dentiste","teinte":"A2","quantite":1}]
+
 === INFO ===
 10. "cherche_prix" — Prix du marche pour un produit
 11. "stats" — Depenses, chiffre d'affaires, statistiques
@@ -2980,6 +2986,38 @@ JSON OBLIGATOIRE :
           addVocalMsg('assistant', 'Erreur de generation. Verifiez votre connexion.');
           display.innerHTML = '';
         }
+      }
+      return;
+    }
+
+    // CREER BON DE LIVRAISON (labo prothesiste)
+    if (res.action === 'creer_bl') {
+      const p = (res.produits || [])[0];
+      addVocalMsg('assistant', (res.message || 'Creation du bon en cours...'));
+      display.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:#6b6760;padding:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse-red 1s infinite;"></div>Creation du bon de livraison...</div>';
+      try {
+        const token = _getAuthToken();
+        const blRes = await fetch('/api/voice/labo/creer-bl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-Societe-Id': localStorage.getItem('societe_active_id') || '' },
+          body: JSON.stringify({ phrase: texte })
+        });
+        const blData = await blRes.json();
+        if (blData.ok) {
+          addVocalMsg('assistant', '<div style="color:#10b981;font-weight:600;">Bon ' + blData.numero_bl + ' cree</div>' + '<div style="font-size:13px;margin-top:6px;">Dentiste : <strong>' + (blData.dentiste_nom || '') + '</strong><br>Lignes : ' + blData.lignes + '</div>' + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;"><button class="msg-action" onclick="window.open(\'/labo/bons-livraison\',\'_blank\')">Voir les bons</button><button class="msg-action secondary" onclick="toggleVocal()">Ajouter un autre</button></div>');
+          jadomiSpeak('Bon numero ' + blData.numero_bl + ' cree pour ' + (blData.dentiste_nom || 'le dentiste'));
+          display.innerHTML = '<div style="color:#10b981;font-size:13px;">Bon cree avec succes</div>';
+        } else if (blData.need_info) {
+          addVocalMsg('assistant', blData.message || 'Il me manque des informations.');
+          jadomiSpeak(blData.message || 'Precisez le dentiste.');
+          display.innerHTML = '<div style="color:#f0a030;font-size:13px;">Precisez les informations</div>';
+        } else {
+          addVocalMsg('assistant', 'Erreur : ' + (blData.error || 'Impossible de creer le bon'));
+          display.innerHTML = '';
+        }
+      } catch (e) {
+        addVocalMsg('assistant', 'Erreur reseau lors de la creation du bon.');
+        display.innerHTML = '';
       }
       return;
     }
