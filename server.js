@@ -494,17 +494,7 @@ try {
   console.warn('[JADOMI] Module vitrines non chargé:', e.message);
 }
 
-// Alias routes vitrines publics (frontend appelle /api/vitrines/site/* mais backend = /api/vitrines/public/site/*)
-app.use('/api/vitrines/site', (req, res) => {
-  const newUrl = '/api/vitrines/public/site' + req.url;
-  req.url = newUrl;
-  req.app.handle(req, res);
-});
-app.use('/api/vitrines/chatbot', (req, res) => {
-  const newUrl = '/api/vitrines/public/chatbot' + req.url;
-  req.url = newUrl;
-  req.app.handle(req, res);
-});
+// Alias vitrines publics montes dans api/vitrines/index.js directement
 
 // === JADOMI Site Analysis (Passe 33 — import site existant) ===
 try {

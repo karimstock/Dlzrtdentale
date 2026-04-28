@@ -62,6 +62,12 @@ module.exports = function mountVitrines(app) {
     console.warn('[vitrines] chatbot-public non charge:', e.message);
   }
   app.use('/api/vitrines/public', publicRouter);
+  // Alias : frontend appelle sans /public/ — rediriger vers les routes publiques
+  app.get('/api/vitrines/site/:slug', (req, res, next) => { req.url = '/site/' + req.params.slug; publicRouter.handle(req, res, next); });
+  app.post('/api/vitrines/site/:slug/contact', (req, res, next) => { req.url = '/site/' + req.params.slug + '/contact'; publicRouter.handle(req, res, next); });
+  app.post('/api/vitrines/site/:slug/track', (req, res, next) => { req.url = '/site/' + req.params.slug + '/track'; publicRouter.handle(req, res, next); });
+  app.get('/api/vitrines/chatbot/config/:siteId', (req, res, next) => { req.url = '/chatbot/config/' + req.params.siteId; publicRouter.handle(req, res, next); });
+  app.post('/api/vitrines/chatbot/message', (req, res, next) => { req.url = '/chatbot/message'; publicRouter.handle(req, res, next); });
 
   // --- Routes authentifiees ---
   const router = express.Router();
