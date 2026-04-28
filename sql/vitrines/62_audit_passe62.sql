@@ -82,7 +82,7 @@ CREATE POLICY ide_visites_select_own ON ide_visites
   FOR SELECT USING (
     cabinet_id IN (
       SELECT id FROM ide_cabinets WHERE societe_id IN (
-        SELECT societe_id FROM user_societes WHERE user_id = auth.uid()
+        SELECT societe_id FROM user_societe_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -93,7 +93,7 @@ CREATE POLICY ide_visites_update_own ON ide_visites
   FOR UPDATE USING (
     cabinet_id IN (
       SELECT id FROM ide_cabinets WHERE societe_id IN (
-        SELECT societe_id FROM user_societes WHERE user_id = auth.uid()
+        SELECT societe_id FROM user_societe_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -104,7 +104,7 @@ CREATE POLICY ide_visites_insert_own ON ide_visites
   FOR INSERT WITH CHECK (
     cabinet_id IN (
       SELECT id FROM ide_cabinets WHERE societe_id IN (
-        SELECT societe_id FROM user_societes WHERE user_id = auth.uid()
+        SELECT societe_id FROM user_societe_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -115,7 +115,7 @@ CREATE POLICY ide_visites_delete_own ON ide_visites
   FOR DELETE USING (
     cabinet_id IN (
       SELECT id FROM ide_cabinets WHERE societe_id IN (
-        SELECT societe_id FROM user_societes WHERE user_id = auth.uid()
+        SELECT societe_id FROM user_societe_roles WHERE user_id = auth.uid()
       )
     )
   );
@@ -129,7 +129,7 @@ DROP POLICY IF EXISTS contacts_cabinet_all_own ON contacts_cabinet;
 CREATE POLICY contacts_cabinet_all_own ON contacts_cabinet
   FOR ALL USING (
     societe_id IN (
-      SELECT societe_id FROM user_societes WHERE user_id = auth.uid()
+      SELECT societe_id FROM user_societe_roles WHERE user_id = auth.uid()
     )
   );
 
@@ -142,7 +142,7 @@ DROP POLICY IF EXISTS alertes_peremption_all_own ON alertes_peremption;
 CREATE POLICY alertes_peremption_all_own ON alertes_peremption
   FOR ALL USING (
     societe_id IN (
-      SELECT societe_id FROM user_societes WHERE user_id = auth.uid()
+      SELECT societe_id FROM user_societe_roles WHERE user_id = auth.uid()
     )
   );
 
