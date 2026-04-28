@@ -94,8 +94,10 @@ module.exports = function mountMailing(app) {
   });
   router.patch('/campagnes/:id', requireSociete(), async (req, res) => {
     try {
+      const { titre, objet_email, contenu_html, cible, base_id, statut } = req.body;
+      const payload = Object.fromEntries(Object.entries({ titre, objet_email, contenu_html, cible, base_id, statut }).filter(([,v]) => v !== undefined));
       const { data, error } = await admin().from('campagnes_mailing')
-        .update(req.body).eq('id', req.params.id).eq('societe_id', req.societe.id)
+        .update(payload).eq('id', req.params.id).eq('societe_id', req.societe.id)
         .select('*').single();
       if (error) throw error;
       res.json({ success: true, campagne: data });

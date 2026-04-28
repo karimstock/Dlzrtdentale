@@ -51,7 +51,8 @@ function hashPassword(password) {
 function verifyPassword(password, stored) {
   const [salt, hash] = stored.split(':');
   const verify = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  return hash === verify;
+  if (hash.length !== verify.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verify, 'hex'));
 }
 
 // === AUTH MIDDLEWARE AVOCAT ===

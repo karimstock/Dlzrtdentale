@@ -20,13 +20,22 @@ function admin() {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const rateLimit = require('express-rate-limit');
+
 module.exports = function(router) {
+
+  // Rate limit chatbot: 10 messages per minute per IP (prevent Anthropic cost abuse)
+  const chatbotLimiter = rateLimit({
+    windowMs: 60 * 1000, max: 10,
+    standardHeaders: true, legacyHeaders: false,
+    message: { error: 'Trop de messages. Reessayez dans une minute.' }
+  });
 
   // ------------------------------------------
   // POST /chatbot/message — Envoyer un message au chatbot public
   // Body: { site_id, session_id, message }
   // ------------------------------------------
-  router.post('/chatbot/message', async (req, res) => {
+  router.post('/chatbot/message', chatbotLimiter, async (req, res) => {
     try {
       const { site_id, session_id, message } = req.body || {};
 
