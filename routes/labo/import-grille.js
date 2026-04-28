@@ -63,11 +63,30 @@ router.post('/upload', upload.single('fichier'), async (req, res) => {
       } else if (type_fichier === 'xlsx') {
         // Tenter parse xlsx si disponible
         try {
-          const XLSX = require('xlsx');
-          const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+          const ExcelJS = require('exceljs');
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(file.buffer);
           let texte = '';
-          for (const sheetName of workbook.SheetNames) {
-            texte += XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]) + '\n';
+          for (const worksheet of workbook.worksheets) {
+            worksheet.eachRow((row) => {
+              const vals = [];
+              row.eachCell({ includeEmpty: true }, (cell) => {
+                let v = cell.value;
+                // Handle exceljs rich types: formulas, richText, dates
+                if (v !== null && typeof v === 'object') {
+                  if (v.result !== undefined) v = v.result;        // formula cell
+                  else if (Array.isArray(v.richText)) v = v.richText.map(r => r.text || '').join('');  // rich text
+                  else if (v instanceof Date) v = v.toISOString();  // date cell
+                }
+                const str = (v === null || v === undefined) ? '' : String(v);
+                // Escape CSV: quote if contains comma, quote, or newline
+                vals.push(str.includes(',') || str.includes('"') || str.includes('\n')
+                  ? '"' + str.replace(/"/g, '""') + '"'
+                  : str);
+              });
+              texte += vals.join(',') + '\n';
+            });
+            texte += '\n';
           }
           extraction = await extraireDepuisTexte(texte);
         } catch (xlsxErr) {

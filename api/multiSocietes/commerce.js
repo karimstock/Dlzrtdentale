@@ -421,10 +421,47 @@ ${html}`
       if (ext === 'xlsx' || ext === 'xls') {
         // Try xlsx parsing
         try {
-          const XLSX = require('xlsx');
-          const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          const ExcelJS = require('exceljs');
+          const wb = new ExcelJS.Workbook();
+          await wb.xlsx.load(req.file.buffer);
+          const sheet = wb.worksheets[0];
+          if (!sheet || sheet.rowCount === 0) {
+            rows = [];
+          } else {
+            // Build header array from first row
+            const headerRow = sheet.getRow(1);
+            const headers = [];
+            headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+              let hv = cell.value;
+              if (hv !== null && typeof hv === 'object') {
+                if (hv.result !== undefined) hv = hv.result;
+                else if (Array.isArray(hv.richText)) hv = hv.richText.map(r => r.text || '').join('');
+              }
+              headers[colNumber] = hv ? String(hv).trim() : `col_${colNumber}`;
+            });
+            rows = [];
+            sheet.eachRow((row, rowNumber) => {
+              if (rowNumber === 1) return; // skip header
+              const obj = {};
+              row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                const key = headers[colNumber] || `col_${colNumber}`;
+                let v = cell.value;
+                // Handle exceljs rich types: formulas, richText, dates
+                if (v !== null && typeof v === 'object') {
+                  if (v.result !== undefined) v = v.result;        // formula cell
+                  else if (Array.isArray(v.richText)) v = v.richText.map(r => r.text || '').join('');  // rich text
+                  else if (v instanceof Date) v = v.toISOString();  // date cell
+                }
+                obj[key] = (v === null || v === undefined) ? '' : v;
+              });
+              // Also fill missing columns with defval ''
+              for (const col of Object.keys(headers)) {
+                const key = headers[col];
+                if (key && !(key in obj)) obj[key] = '';
+              }
+              rows.push(obj);
+            });
+          }
         } catch (e) {
           return res.status(400).json({ error: 'Fichier Excel invalide' });
         }

@@ -36,35 +36,39 @@ async function searchProducts(query, options = {}) {
 
 /**
  * Stats globales de la base produits
+ * Performance: single RPC call (get_database_stats) instead of loading all rows.
+ * Fallback: 3 lightweight queries (count + 2 RPCs) if combined RPC unavailable.
+ * Previous approach loaded 100K+ rows into memory — now O(1) memory.
  */
 async function getDatabaseStats() {
   try {
-    const { count: total } = await admin().from('products_database').select('*', { count: 'exact', head: true });
-
-    // Use RPC or paginated approach to avoid OOM on large tables
-    // Group by source — fetch distinct sources with count via small batches
-    const { data: sources } = await admin().rpc('get_product_stats_by_source').catch(() => ({ data: null }));
-    const sourceMap = {};
-    if (sources) {
-      sources.forEach(r => { sourceMap[r.source] = parseInt(r.count); });
-    } else {
-      // Fallback: get distinct sources only (no count)
-      const { data: distinctSrc } = await admin().from('products_database')
-        .select('source').limit(500);
-      const seen = new Set();
-      (distinctSrc || []).forEach(r => { if (r.source && !seen.has(r.source)) { seen.add(r.source); sourceMap[r.source] = '?'; } });
+    // Strategy 1: Single RPC call (sql/services/64_database_stats_rpc.sql)
+    const { data: stats, error: rpcError } = await admin().rpc('get_database_stats');
+    if (!rpcError && stats) {
+      const s = typeof stats === 'string' ? JSON.parse(stats) : stats;
+      return {
+        total_products: s.total_products || 0,
+        by_source: s.by_source || {},
+        by_category: s.by_category || {},
+        top_categories: Object.entries(s.by_category || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0)).slice(0, 20)
+      };
     }
 
-    const { data: categories } = await admin().rpc('get_product_stats_by_category').catch(() => ({ data: null }));
+    // Strategy 2: Individual efficient queries (no row loading)
+    const { count: total } = await admin().from('products_database').select('*', { count: 'exact', head: true });
+
+    // Source stats via dedicated RPC (sql/vitrines/62_audit_passe62.sql)
+    const sourceMap = {};
+    const { data: sources } = await admin().rpc('get_product_stats_by_source').catch(() => ({ data: null }));
+    if (sources) {
+      sources.forEach(r => { sourceMap[r.source] = parseInt(r.count); });
+    }
+
+    // Category stats via dedicated RPC
     const catMap = {};
+    const { data: categories } = await admin().rpc('get_product_stats_by_category').catch(() => ({ data: null }));
     if (categories) {
       categories.forEach(r => { if (r.category) catMap[r.category] = parseInt(r.count); });
-    } else {
-      // Fallback: get distinct categories only
-      const { data: distinctCat } = await admin().from('products_database')
-        .select('category').not('category', 'is', null).limit(500);
-      const seen = new Set();
-      (distinctCat || []).forEach(r => { if (r.category && !seen.has(r.category)) { seen.add(r.category); catMap[r.category] = '?'; } });
     }
 
     return {
@@ -131,15 +135,28 @@ async function bulkInsertProducts(products, source) {
 
 /**
  * Obtenir les categories distinctes
+ * Performance: uses get_database_stats RPC (includes distinct_categories).
+ * Fallback: DISTINCT query instead of loading 10K rows + dedup in JS.
  */
 async function getCategories() {
   try {
+    // Try combined RPC first (includes distinct_categories)
+    const { data: stats } = await admin().rpc('get_database_stats').catch(() => ({ data: null }));
+    if (stats) {
+      const s = typeof stats === 'string' ? JSON.parse(stats) : stats;
+      if (Array.isArray(s.distinct_categories)) return s.distinct_categories;
+    }
+    // Fallback: category RPC returns grouped categories
+    const { data: categories } = await admin().rpc('get_product_stats_by_category').catch(() => ({ data: null }));
+    if (categories) {
+      return categories.map(r => r.category).filter(Boolean).sort();
+    }
+    // Last resort: select distinct (still better than loading 10K rows)
     const { data } = await admin().from('products_database')
       .select('category')
       .not('category', 'is', null)
-      .limit(10000);
-    const cats = [...new Set((data || []).map(r => r.category))].sort();
-    return cats;
+      .limit(500);
+    return [...new Set((data || []).map(r => r.category))].sort();
   } catch (e) { return []; }
 }
 

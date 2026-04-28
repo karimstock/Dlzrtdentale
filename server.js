@@ -631,6 +631,14 @@ const requireAuthSSE = () => async (req, res, next) => {
   }
 };
 
+// === JADOMI Billing API (user-level) ===
+try {
+  app.use('/api/billing', require('./api/billing'));
+  console.log('[JADOMI] Routes /api/billing (user-level) montées');
+} catch (e) {
+  console.warn('[JADOMI] Module billing non chargé:', e.message);
+}
+
 // === JADOMI Multi-sociétés (SCI, commerce, mailing, billing) ===
 try {
   require('./api/multiSocietes')(app);
