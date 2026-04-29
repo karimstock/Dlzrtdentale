@@ -10,7 +10,7 @@ const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'jadomi_admin_karim_2026';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@jadomi.fr';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'karim_bahmed@yahoo.fr';
 
 async function requireAdmin(req, res, next) {
   // Method 1: legacy X-Admin-Token header or query param

@@ -21,7 +21,7 @@ function admin() {
   return _admin;
 }
 
-const ADMIN_EMAIL = 'contact@jadomi.fr';
+const ADMIN_EMAIL = 'karim_bahmed@yahoo.fr';
 const VALID_CATEGORIES = ['bug', 'question', 'demande_fonctionnalite', 'facturation', 'technique', 'autre'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const VALID_STATUSES = ['ouvert', 'en_cours', 'resolu', 'ferme'];
