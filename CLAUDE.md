@@ -34,11 +34,17 @@ C'est INACCEPTABLE.
 - Responsive mobile/tablet/desktop obligatoire
 - Accessibilite : aria-label, focus-visible, WCAG AA contraste
 
-## Emails officiels — OBLIGATOIRE
-- contact@jadomi.fr : tout ce qui est visible publiquement (pages, footer, CGV, support)
+## Emails officiels — OBLIGATOIRE (ATTENTION DISTINCTION CRITIQUE)
+- contact@jadomi.fr : tout ce qui est VISIBLE PUBLIQUEMENT (pages, footer, CGV, support)
 - noreply@jadomi.fr : tout ce qui est envoye automatiquement (notifications, confirmations)
-- karim_bahmed@yahoo.fr : UNIQUEMENT pour l'admin auth check dans le code
-- JAMAIS afficher l'email perso du fondateur sur une page publique
+- karim_bahmed@yahoo.fr : email de CONNEXION du fondateur + ADMIN_EMAIL dans le code
+  → C'est cet email qui est dans Supabase Auth, c'est avec lui que le fondateur se connecte
+  → TOUTES les verifications admin (isAdmin, AE, ADMIN_EMAIL) DOIVENT utiliser cet email
+  → NE JAMAIS le remplacer par contact@jadomi.fr dans les checks d'auth/admin
+  → NE JAMAIS l'afficher sur une page publique (footer, CGV, landing, etc.)
+- REGLE : "public = contact@jadomi.fr" mais "auth/admin code = karim_bahmed@yahoo.fr"
+- INCIDENT PASSE 66 : l'audit a remplace l'email admin partout par contact@jadomi.fr,
+  rendant tout le hub organisation invisible (isAdmin=false). NE PLUS JAMAIS FAIRE CA.
 
 ## Fichiers intouchables
 Ne JAMAIS modifier sans demande explicite :
