@@ -240,12 +240,12 @@
       const btn = document.createElement('button');
       btn.className = 'coach-toggle-btn' + (this.enabled ? '' : ' disabled');
       btn.innerHTML = '🎓';
-      btn.title = this.enabled ? 'Desactiver les guides' : 'Afficher les guides';
-      btn.setAttribute('aria-label', 'Activer ou desactiver les guides');
+      btn.title = this.enabled ? 'Désactiver les guides' : 'Afficher les guides';
+      btn.setAttribute('aria-label', 'Activer ou désactiver les guides');
       btn.addEventListener('click', () => {
         this.enabled = !this.enabled;
         btn.classList.toggle('disabled', !this.enabled);
-        btn.title = this.enabled ? 'Desactiver les guides' : 'Afficher les guides';
+        btn.title = this.enabled ? 'Désactiver les guides' : 'Afficher les guides';
 
         if (this.enabled) {
           this.seen.clear();

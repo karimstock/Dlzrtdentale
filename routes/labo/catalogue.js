@@ -133,7 +133,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/labo/catalogue/:id — Desactiver produit
+// DELETE /api/labo/catalogue/:id — Désactiver produit
 router.delete('/:id', async (req, res) => {
   try {
     const { error } = await admin()

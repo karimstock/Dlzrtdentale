@@ -1,11 +1,11 @@
 // =============================================
-// JADOMI — Generation etiquettes expedition
+// JADOMI — Génération étiquettes expédition
 // =============================================
 const { generateShippingLabel, generateTrackingNumber } = require('../../lib/shipping/label-generator');
 
 module.exports = function mountLabels(app, admin, auth) {
 
-  // POST /api/logistics/labels — generer une etiquette
+  // POST /api/logistics/labels — générer une étiquette
   app.post('/api/logistics/labels', auth, async (req, res) => {
     try {
       const { request_id, campaign_item_id, carrier } = req.body;
@@ -30,7 +30,7 @@ module.exports = function mountLabels(app, admin, auth) {
 
       if (!supplierId) return res.status(400).json({ error: 'Pas de fournisseur gagnant' });
 
-      // Recuperer infos
+      // Récupérer infos
       const [supplierRes, societeRes, warehouseRes] = await Promise.all([
         admin().from('suppliers').select('name, address, city, postal_code').eq('id', supplierId).single(),
         admin().from('societes').select('nom, address, city, postal_code').eq('id', societeId).single(),
@@ -47,7 +47,7 @@ module.exports = function mountLabels(app, admin, auth) {
       const fromAddr = warehouse || supplier || {};
       const toAddr = societe || {};
 
-      // Generer PDF
+      // Générer PDF
       const pdfBuffer = await generateShippingLabel({
         trackingNumber,
         carrier: carrier || 'chronopost',
@@ -124,7 +124,7 @@ module.exports = function mountLabels(app, admin, auth) {
     }
   });
 
-  // GET /api/logistics/labels/:id — detail etiquette
+  // GET /api/logistics/labels/:id — détail étiquette
   app.get('/api/logistics/labels/:id', auth, async (req, res) => {
     try {
       const { data, error } = await admin()
@@ -132,7 +132,7 @@ module.exports = function mountLabels(app, admin, auth) {
         .select('*')
         .eq('id', req.params.id)
         .single();
-      if (error || !data) return res.status(404).json({ error: 'Etiquette introuvable' });
+      if (error || !data) return res.status(404).json({ error: 'Étiquette introuvable' });
       res.json(data);
     } catch (e) {
       res.status(500).json({ error: 'Erreur interne' });

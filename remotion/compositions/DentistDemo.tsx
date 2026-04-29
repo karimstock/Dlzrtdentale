@@ -1,6 +1,6 @@
 /**
  * JADOMI Remotion — Demo Interface Dentiste
- * Passe 44 — Transition page-flip 3D entre les 5 ecrans
+ * Passe 44 — Transition page-flip 3D entre les 5 écrans
  * Rendu artistique : spring physics, blur, glow, parallax
  */
 import React from 'react';
@@ -13,18 +13,18 @@ const SCREENS = [
   {
     title: 'Stock — Inventaire intelligent',
     icon: '📦',
-    badge: '247 references',
+    badge: '247 références',
     stats: [
-      { val: '247', lbl: 'References', color: '#6366f1', delta: '+12 ce mois' },
+      { val: '247', lbl: 'Références', color: '#6366f1', delta: '+12 ce mois' },
       { val: '12', lbl: 'Critiques', color: '#ef4444', delta: 'Action requise' },
-      { val: '28', lbl: 'Faibles', color: '#06b6d4', delta: 'A surveiller' },
-      { val: '1 840€', lbl: 'Economies', color: '#10b981', delta: '+23%' },
+      { val: '28', lbl: 'Faibles', color: '#06b6d4', delta: 'À surveiller' },
+      { val: '1 840€', lbl: 'Économies', color: '#10b981', delta: '+23%' },
     ],
     rows: [
       ['Composite A2 Filtek Supreme', '3', 'Critique', '#fca5a5'],
-      ['Anesth. Articaine 4%', '48', 'OK', '#6ee7b7'],
+      ['Anesth. Articaïne 4%', '48', 'OK', '#6ee7b7'],
       ['Gants nitrile M (x100)', '8', 'Faible', '#fcd34d'],
-      ['Ciment verre ionomere GC', '2', 'Critique', '#fca5a5'],
+      ['Ciment verre ionomère GC', '2', 'Critique', '#fca5a5'],
     ],
   },
   {
@@ -39,30 +39,30 @@ const SCREENS = [
     ],
   },
   {
-    title: 'Paniers groupes',
+    title: 'Paniers groupés',
     icon: '🤝',
     badge: '4 campagnes',
     cards: [
       { name: 'Composite A2', pct: 80, discount: '-22%', color: '#6366f1' },
-      { name: 'Articaine 4%', pct: 60, discount: '-18%', color: '#06b6d4' },
+      { name: 'Articaïne 4%', pct: 60, discount: '-18%', color: '#06b6d4' },
       { name: 'Gants nitrile', pct: 100, discount: '-25%', color: '#10b981' },
       { name: 'Gutta percha', pct: 40, discount: '-15%', color: '#f59e0b' },
     ],
   },
   {
-    title: 'SOS Stock — Urgences confreres',
+    title: 'SOS Stock — Urgences confrères',
     icon: '🆘',
-    badge: 'Solidarite',
+    badge: 'Solidarité',
     sos: true,
   },
   {
     title: 'JADOMI Green',
     icon: '🌱',
-    badge: 'Eco-responsable',
+    badge: 'Éco-responsable',
     green: [
-      { ico: '♻️', lbl: 'Produits sauves', val: '34' },
-      { ico: '💰', lbl: 'Economies', val: '892€' },
-      { ico: '🌍', lbl: 'CO2 evite', val: '12kg' },
+      { ico: '♻️', lbl: 'Produits sauvés', val: '34' },
+      { ico: '💰', lbl: 'Économies', val: '892€' },
+      { ico: '🌍', lbl: 'CO2 évité', val: '12kg' },
     ],
   },
 ];
@@ -74,7 +74,7 @@ const Sidebar: React.FC<{ activeIdx: number; frame: number }> = ({ activeIdx, fr
   const items = [
     { icon: '📦', name: 'Stock', idx: 0 },
     { icon: '📄', name: 'Scanner IA', idx: 1 },
-    { icon: '🤝', name: 'Paniers groupes', idx: 2 },
+    { icon: '🤝', name: 'Paniers groupés', idx: 2 },
     { icon: '🆘', name: 'SOS Stock', idx: 3 },
     { icon: '🌱', name: 'JADOMI Green', idx: 4 },
   ];
@@ -108,7 +108,7 @@ const Sidebar: React.FC<{ activeIdx: number; frame: number }> = ({ activeIdx, fr
           borderLeft: `2px solid ${activeIdx === item.idx ? '#6366f1' : 'transparent'}`,
         }}>{item.icon} {item.name}</div>
       ))}
-      <div style={{ fontSize: 8, fontWeight: 700, color: '#334155', padding: '10px 18px 4px', textTransform: 'uppercase' as const, letterSpacing: 1.5 }}>Communaute</div>
+      <div style={{ fontSize: 8, fontWeight: 700, color: '#334155', padding: '10px 18px 4px', textTransform: 'uppercase' as const, letterSpacing: 1.5 }}>Communauté</div>
       {items.slice(3).map((item, i) => (
         <div key={i} style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', fontSize: 11,
@@ -210,7 +210,7 @@ const ScreenContent: React.FC<{ screen: typeof SCREENS[0]; frame: number; fps: n
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {[
               { title: '🚨 Demande urgente', desc: 'Dr. Martin (2km) cherche 3x Composite A2', accent: '#ef4444' },
-              { title: '✅ Resolu hier', desc: 'Dr. Leroy vous a prete 5x Articaine', accent: '#10b981' },
+              { title: '✅ Résolu hier', desc: 'Dr. Leroy vous a prêté 5x Articaïne', accent: '#10b981' },
             ].map((c, i) => {
               const s = stagger(i);
               return (

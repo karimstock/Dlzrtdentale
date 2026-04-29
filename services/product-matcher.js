@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI LABO — Product Matcher (Jaro-Winkler)
-// Match produits importes avec catalogue existant
+// Match produits importés avec catalogue existant
 // =============================================
 
 // Jaro-Winkler distance
@@ -75,7 +75,7 @@ function matcherProduit(nomExtrait, prixExtrait, catalogueExistant) {
     const prodNorm = normaliserNom(produit.nom);
     const score = jaroWinkler(nomNorm, prodNorm);
 
-    // Bonus si prix proche (ecart < 15%)
+    // Bonus si prix proche (écart < 15%)
     let scoreAjuste = score;
     if (prixExtrait && produit.prix_unitaire) {
       const ecartPrix = Math.abs(prixExtrait - produit.prix_unitaire) / produit.prix_unitaire;

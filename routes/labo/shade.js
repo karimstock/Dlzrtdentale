@@ -14,7 +14,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Seules les images sont acceptees'));
+    else cb(new Error('Seules les images sont acceptées'));
   }
 });
 
@@ -53,7 +53,7 @@ router.get('/cases/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !data) return res.status(404).json({ error: 'Cas non trouve' });
+    if (error || !data) return res.status(404).json({ error: 'Cas non trouvé' });
     res.json({ shade_case: data });
   } catch (e) {
     console.error('[LABO shade detail]', e.message);
@@ -101,7 +101,7 @@ router.post('/cases/:id/photos', upload.single('image'), async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (caseErr || !shadeCase) return res.status(404).json({ error: 'Cas non trouve' });
+    if (caseErr || !shadeCase) return res.status(404).json({ error: 'Cas non trouvé' });
 
     // Upload vers Supabase storage
     const ext = req.file.originalname.split('.').pop() || 'jpg';
@@ -159,7 +159,7 @@ router.post('/cases/:id/analyser', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (caseErr || !shadeCase) return res.status(404).json({ error: 'Cas non trouve' });
+    if (caseErr || !shadeCase) return res.status(404).json({ error: 'Cas non trouvé' });
 
     const photos = shadeCase.labo_shade_photos || [];
     if (photos.length === 0) return res.status(400).json({ error: 'Aucune photo dans ce cas' });
@@ -198,7 +198,7 @@ router.post('/cases/:id/analyser', async (req, res) => {
     }
 
     const teintier = shadeCase.teintier_reference || 'VITA Classical';
-    const dentsInfo = shadeCase.dents?.length ? `Dent(s) concernee(s) : ${shadeCase.dents.join(', ')}` : '';
+    const dentsInfo = shadeCase.dents?.length ? `Dent(s) concernée(s) : ${shadeCase.dents.join(', ')}` : '';
 
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -206,30 +206,30 @@ router.post('/cases/:id/analyser', async (req, res) => {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-      system: `Vous etes un expert en colorimetrie dentaire avec 20 ans d'experience en prothese dentaire. Vous maitrisez tous les teintiers (VITA Classical, VITA 3D-Master, Ivoclar Chromascop, etc.) et savez analyser les nuances de teinte a partir de photos cliniques.
+      system: `Vous êtes un expert en colorimétrie dentaire avec 20 ans d'expérience en prothèse dentaire. Vous maîtrisez tous les teintiers (VITA Classical, VITA 3D-Master, Ivoclar Chromascop, etc.) et savez analyser les nuances de teinte à partir de photos cliniques.
 
-Vous devez TOUJOURS repondre en JSON strict, sans texte autour.`,
+Vous devez TOUJOURS répondre en JSON strict, sans texte autour.`,
       messages: [{
         role: 'user',
         content: [
           ...imageBlocks,
           {
             type: 'text',
-            text: `Analysez ces photos de dent(s) pour determiner la teinte precise.
+            text: `Analysez ces photos de dent(s) pour déterminer la teinte précise.
 ${dentsInfo}
-Teintier de reference : ${teintier}
+Teintier de référence : ${teintier}
 
-Determinez :
+Déterminez :
 1. Teinte dominante selon le teintier ${teintier}
 2. Variations de teinte par zone : cervical (collet), corps, bord incisif
-3. Niveau de translucidite : opaque / semi-translucide / translucide
-4. Texture de surface : lisse / granulee / striee
-5. Observations chromatiques (cast couleur de la photo, qualite d'eclairage, fond)
-6. Corrections chromatiques necessaires si la photo a un cast couleur
-7. Teinte recommandee avec degre de confiance (0-100)
+3. Niveau de translucidité : opaque / semi-translucide / translucide
+4. Texture de surface : lisse / granulée / striée
+5. Observations chromatiques (cast couleur de la photo, qualité d'éclairage, fond)
+6. Corrections chromatiques nécessaires si la photo a un cast couleur
+7. Teinte recommandée avec degré de confiance (0-100)
 8. Teintes alternatives proches
 
-Repondez en JSON strict :
+Répondez en JSON strict :
 {
   "teinte_dominante": "A2",
   "variations": {
@@ -310,7 +310,7 @@ router.put('/cases/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Cas non trouve' });
+    if (!data) return res.status(404).json({ error: 'Cas non trouvé' });
     res.json({ success: true, shade_case: data });
   } catch (e) {
     console.error('[LABO shade update]', e.message);
@@ -330,7 +330,7 @@ router.delete('/cases/:id/photos/:photoId', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!shadeCase) return res.status(404).json({ error: 'Cas non trouve' });
+    if (!shadeCase) return res.status(404).json({ error: 'Cas non trouvé' });
 
     // Recuperer la photo pour supprimer du storage
     const { data: photo } = await admin().from('labo_shade_photos')
@@ -339,7 +339,7 @@ router.delete('/cases/:id/photos/:photoId', async (req, res) => {
       .eq('shade_case_id', req.params.id)
       .single();
 
-    if (!photo) return res.status(404).json({ error: 'Photo non trouvee' });
+    if (!photo) return res.status(404).json({ error: 'Photo non trouvée' });
 
     // Supprimer du storage Supabase
     if (photo.url) {

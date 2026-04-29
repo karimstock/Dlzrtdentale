@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI LABO — Generateur PDF (PDFKit)
+// JADOMI LABO — Générateur PDF (PDFKit)
 // BL, Declaration Conformite CE, Factures
 // =============================================
 
@@ -123,7 +123,7 @@ function genererBLPdf({ prothesiste, dentiste, bl, lignes, teintes }) {
       y += 10;
       doc.fontSize(9).fillColor(COLORS.dark);
       const totX = 400;
-      doc.text('Total HT exonere :', totX, y); doc.text(formatMoney(bl.total_ht_exonere), 500, y); y += 14;
+      doc.text('Total HT exonéré :', totX, y); doc.text(formatMoney(bl.total_ht_exonere), 500, y); y += 14;
       if (bl.total_ht_taxable > 0) {
         doc.text('Total HT taxable :', totX, y); doc.text(formatMoney(bl.total_ht_taxable), 500, y); y += 14;
         doc.text('TVA 20% :', totX, y); doc.text(formatMoney(bl.total_tva), 500, y); y += 14;
@@ -138,7 +138,7 @@ function genererBLPdf({ prothesiste, dentiste, bl, lignes, teintes }) {
   });
 }
 
-// ===== DECLARATION CONFORMITE CE PDF =====
+// ===== DÉCLARATION CONFORMITÉ CE PDF =====
 function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaration }) {
   return new Promise((resolve, reject) => {
     try {
@@ -150,11 +150,11 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
 
       // Titre
       doc.fontSize(14).fillColor(COLORS.primary)
-        .text('DECLARATION DE CONFORMITE UE', { align: 'center' });
+        .text('DÉCLARATION DE CONFORMITÉ UE', { align: 'center' });
       doc.fontSize(11).fillColor(COLORS.dark)
-        .text('Dispositif medical sur mesure', { align: 'center' });
+        .text('Dispositif médical sur mesure', { align: 'center' });
       doc.fontSize(9).fillColor(COLORS.gray)
-        .text('(Reglement UE 2017/745 - Annexe XIII)', { align: 'center' });
+        .text('(Règlement UE 2017/745 - Annexe XIII)', { align: 'center' });
 
       doc.moveDown(1.5);
       doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke(COLORS.lightGray);
@@ -174,12 +174,12 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
       // IDENTIFICATION DU DISPOSITIF
       doc.fontSize(11).fillColor(COLORS.primary).text('IDENTIFICATION DU DISPOSITIF');
       doc.fontSize(9).fillColor(COLORS.dark);
-      doc.text(`Reference unique : ${bl.numero_bl}`);
+      doc.text(`Référence unique : ${bl.numero_bl}`);
       doc.text(`Date de fabrication : ${formatDate(bl.date_bl)}`);
       doc.text(`Designation :`);
       for (const l of lignes) {
         let desc = `  - ${l.designation}`;
-        if (l.materiau) desc += ` (Materiau: ${l.materiau}`;
+        if (l.materiau) desc += ` (Matériau: ${l.materiau}`;
         if (l.numero_lot_materiau) desc += `, Lot: ${l.numero_lot_materiau}`;
         if (l.materiau) desc += ')';
         doc.text(desc);
@@ -207,7 +207,7 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
       doc.fontSize(9).fillColor(COLORS.dark);
       doc.text(`Identification : ${bl.patient_initiales || 'N/A'} ${bl.patient_reference_interne ? '(Ref: ' + bl.patient_reference_interne + ')' : ''}`);
       doc.fontSize(8).fillColor(COLORS.gray)
-        .text('(Donnees nominatives conservees chez le praticien - RGPD)');
+        .text('(Données nominatives conservées chez le praticien - RGPD)');
 
       doc.moveDown(1);
 
@@ -215,7 +215,7 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
       doc.fontSize(11).fillColor(COLORS.primary).text('CLASSIFICATION');
       doc.fontSize(9).fillColor(COLORS.dark);
       doc.text('DM sur mesure - Classe IIa');
-      doc.text('Conformite Annexe I Reglement UE 2017/745');
+      doc.text('Conformité Annexe I Règlement UE 2017/745');
 
       doc.moveDown(1);
 
@@ -223,21 +223,21 @@ function genererDeclarationCEPdf({ prothesiste, dentiste, bl, lignes, declaratio
       doc.fontSize(11).fillColor(COLORS.primary).text('DECLARATION');
       doc.fontSize(9).fillColor(COLORS.dark);
       doc.text(
-        'Le fabricant declare sous sa seule responsabilite que le dispositif medical identifie ci-dessus ' +
-        'est conforme aux exigences générales de sécurité et de performance enoncees a l\'Annexe I du ' +
+        'Le fabricant déclare sous sa seule responsabilité que le dispositif médical identifié ci-dessus ' +
+        'est conforme aux exigences générales de sécurité et de performance énoncées à l\'Annexe I du ' +
         'Reglement (UE) 2017/745, qu\'il est fabrique conformement a la prescription medicale du praticien, ' +
-        'et destine exclusivement au patient identifie.',
+        'et destiné exclusivement au patient identifié.',
         { align: 'justify' }
       );
       doc.moveDown(0.3);
-      doc.text('Conforme a l\'article R.5211-51 du CSP.');
-      doc.text(`Fabrique en ${prothesiste.pays_fabrication || prothesiste.pays || 'France'}.`);
+      doc.text('Conforme à l\'article R.5211-51 du CSP.');
+      doc.text(`Fabriqué en ${prothesiste.pays_fabrication || prothesiste.pays || 'France'}.`);
 
       doc.moveDown(1.5);
 
       // SIGNATURE
       doc.fontSize(9).fillColor(COLORS.dark);
-      doc.text(`Fait a ${prothesiste.ville || '___'}, le ${formatDate(bl.date_bl)}`);
+      doc.text(`Fait à ${prothesiste.ville || '___'}, le ${formatDate(bl.date_bl)}`);
       if (prothesiste.responsable_qualite) doc.text(prothesiste.responsable_qualite);
 
       doc.end();
@@ -338,7 +338,7 @@ function genererFacturePdf({ prothesiste, dentiste, facture, bonsLivraison }) {
       doc.fontSize(9).fillColor(COLORS.dark);
 
       if (facture.total_ht_exonere > 0) {
-        doc.text('Total HT exonere TVA :', totX, y); doc.text(formatMoney(facture.total_ht_exonere), 500, y); y += 14;
+        doc.text('Total HT exonéré TVA :', totX, y); doc.text(formatMoney(facture.total_ht_exonere), 500, y); y += 14;
       }
       if (facture.total_ht_taxable > 0) {
         doc.text('Total HT taxable :', totX, y); doc.text(formatMoney(facture.total_ht_taxable), 500, y); y += 14;
@@ -370,7 +370,7 @@ function genererFacturePdf({ prothesiste, dentiste, facture, bonsLivraison }) {
       // Coordonnees bancaires
       if (prothesiste.iban) {
         y += 5;
-        doc.fontSize(8).fillColor(COLORS.dark).text('Coordonnees bancaires :', 40, y);
+        doc.fontSize(8).fillColor(COLORS.dark).text('Coordonnées bancaires :', 40, y);
         doc.fontSize(7).fillColor(COLORS.gray);
         doc.text(`IBAN : ${prothesiste.iban}`, 40);
         if (prothesiste.bic) doc.text(`BIC : ${prothesiste.bic}`, 40);
@@ -522,7 +522,7 @@ function genererFacturePdfFacturX({ prothesiste, dentiste, facture, bonsLivraiso
       doc.fontSize(9).fillColor(COLORS.dark);
 
       if (facture.total_ht_exonere > 0) {
-        doc.text('Total HT exonere TVA :', totX, y); doc.text(formatMoney(facture.total_ht_exonere), 500, y); y += 14;
+        doc.text('Total HT exonéré TVA :', totX, y); doc.text(formatMoney(facture.total_ht_exonere), 500, y); y += 14;
       }
       if (facture.total_ht_taxable > 0) {
         doc.text('Total HT taxable :', totX, y); doc.text(formatMoney(facture.total_ht_taxable), 500, y); y += 14;
@@ -555,7 +555,7 @@ function genererFacturePdfFacturX({ prothesiste, dentiste, facture, bonsLivraiso
       const mentionsFacturX = mentionsFactureElectronique(prothesiste);
       y += 5;
       doc.fontSize(7).fillColor(COLORS.primary);
-      doc.text('Conformite facture electronique :', 40, y, { width: 515 });
+      doc.text('Conformité facture électronique :', 40, y, { width: 515 });
       y += 10;
       doc.fillColor(COLORS.gray);
       for (const m of mentionsFacturX) {
@@ -573,7 +573,7 @@ function genererFacturePdfFacturX({ prothesiste, dentiste, facture, bonsLivraiso
       y += 25;
       if (prothesiste.iban) {
         if (y > 750) { doc.addPage(); y = 40; }
-        doc.fontSize(8).fillColor(COLORS.dark).text('Coordonnees bancaires :', 40, y);
+        doc.fontSize(8).fillColor(COLORS.dark).text('Coordonnées bancaires :', 40, y);
         doc.fontSize(7).fillColor(COLORS.gray);
         doc.text(`IBAN : ${prothesiste.iban}`, 40);
         if (prothesiste.bic) doc.text(`BIC : ${prothesiste.bic}`, 40);

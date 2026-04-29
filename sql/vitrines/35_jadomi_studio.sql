@@ -1,6 +1,6 @@
 -- ============================================================
 -- JADOMI Studio — Migration SQL 35 (Passe 34.2)
--- Hub IA creation publicitaire dentaire
+-- Hub IA création publicitaire dentaire
 -- Tables : ai_generations_log, studio_library, studio_rate_limits
 -- ============================================================
 
@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_log_user ON ai_generations_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_log_provider ON ai_generations_log(provider);
 CREATE INDEX IF NOT EXISTS idx_ai_log_date ON ai_generations_log(created_at);
 
--- Bibliotheque personnelle de creations sauvegardees
+-- Bibliothèque personnelle de créations sauvegardées
 CREATE TABLE IF NOT EXISTS studio_library (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS studio_rate_limits (
 INSERT INTO features_pricing (id, category, name, description, coins_cost, tier_free_for) VALUES
   ('studio_image_standard', 'studio', 'Image IA Standard', 'DALL-E 3 1024x1024', 30, NULL),
   ('studio_image_banner', 'studio', 'Image Banner Pro', 'DALL-E 3 HD 1792x1024', 50, NULL),
-  ('studio_image_luxury', 'studio', 'Image Ultra Realiste', 'DALL-E 3 HD premium', 100, NULL),
+  ('studio_image_luxury', 'studio', 'Image Ultra Réaliste', 'DALL-E 3 HD premium', 100, NULL),
   ('studio_video_4s', 'studio', 'Video IA 4 sec', 'Sora 2 720p', 40, NULL),
   ('studio_video_8s', 'studio', 'Video IA 8 sec', 'Sora 2 720p', 80, NULL),
   ('studio_video_12s', 'studio', 'Video IA 12 sec', 'Sora 2 720p', 120, NULL),

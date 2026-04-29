@@ -35,7 +35,7 @@ async function processCampaigns() {
       }
     }
 
-    // 2. Campagnes dont deadline est depassee
+    // 2. Campagnes dont deadline est dépassée
     const { data: expired, error: err2 } = await admin()
       .from('group_purchase_campaigns')
       .select('*')
@@ -61,7 +61,7 @@ function startScheduler() {
   if (_interval) return;
   _interval = setInterval(processCampaigns, 60000);
   _interval.unref();
-  console.log('[Groupage Scheduler] Demarre — polling toutes les 60s');
+  console.log('[Groupage Scheduler] Démarré — polling toutes les 60s');
 }
 
 startScheduler();

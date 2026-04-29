@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support — JADOMI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg-card:rgba(255,255,255,.04);--bg-card-hover:rgba(255,255,255,.07);
+  --gold:#c9a961;--gold-light:#e8c77b;--gold-dim:rgba(201,169,97,.15);
+  --text:#e8e6e1;--text-dim:rgba(232,230,225,.55);--text-muted:rgba(232,230,225,.35);
+  --border:rgba(255,255,255,.06);--border-hover:rgba(201,169,97,.25);
+  --blue:#3b82f6;--orange:#f59e0b;--green:#10b981;--gray:#6b7280;--red:#ef4444;
+  --radius:14px;--radius-sm:10px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:'Fraunces',serif}
+
+/* Layout */
+.app-shell{display:flex;min-height:100vh}
+.sidebar{
+  width:260px;background:var(--bg2);border-right:1px solid var(--border);
+  padding:32px 20px;position:fixed;top:0;left:0;height:100vh;
+  display:flex;flex-direction:column;z-index:10;
+}
+.sidebar-logo{
+  font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:8px;
+}
+.sidebar-sub{font-size:.78rem;color:var(--text-muted);margin-bottom:32px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-radius:var(--radius-sm);border:none;background:transparent;
+  color:var(--text-dim);font-size:.88rem;font-family:inherit;cursor:pointer;
+  transition:all .25s var(--ease);margin-bottom:4px;width:100%;text-align:left;
+}
+.nav-item:hover{background:var(--bg-card-hover);color:var(--text)}
+.nav-item.active{background:var(--gold-dim);color:var(--gold);font-weight:600}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.sidebar-bottom{margin-top:auto}
+.sidebar-bottom a{
+  display:block;padding:10px 14px;color:var(--text-muted);font-size:.82rem;
+  text-decoration:none;transition:color .2s;
+}
+.sidebar-bottom a:hover{color:var(--gold)}
+
+.main{margin-left:260px;flex:1;padding:32px 40px;max-width:960px}
+@media(max-width:860px){
+  .sidebar{display:none}
+  .main{margin-left:0;padding:20px 16px}
+  .mobile-nav{display:flex !important}
+}
+
+/* Mobile nav */
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--bg2);border-top:1px solid var(--border);
+  padding:8px 12px;gap:4px;z-index:20;justify-content:space-around;
+}
+.mobile-nav button{
+  flex:1;padding:10px 4px;border:none;background:transparent;
+  color:var(--text-muted);font-size:.72rem;font-family:inherit;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  border-radius:8px;transition:all .2s;
+}
+.mobile-nav button.active{color:var(--gold);background:var(--gold-dim)}
+.mobile-nav button svg{width:20px;height:20px}
+
+/* Page header */
+.page-header{margin-bottom:32px}
+.page-header h1{font-size:clamp(1.4rem,3vw,1.8rem);font-weight:700;margin-bottom:6px}
+.page-header p{color:var(--text-dim);font-size:.9rem}
+
+/* Stats bar */
+.stats-bar{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:12px;margin-bottom:28px;
+}
+.stat-card{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:16px;text-align:center;transition:border-color .3s var(--ease);
+}
+.stat-card:hover{border-color:var(--border-hover)}
+.stat-val{font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:var(--gold)}
+.stat-label{font-size:.75rem;color:var(--text-muted);margin-top:2px}
+
+/* Tabs content */
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Form */
+.form-group{margin-bottom:20px}
+.form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--text-dim);margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;padding:12px 16px;border-radius:var(--radius-sm);
+  background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text);font-size:.9rem;font-family:inherit;
+  outline:none;transition:border .3s var(--ease);
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+  border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim);
+}
+.form-group textarea{min-height:140px;resize:vertical;line-height:1.6}
+.form-group select{cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;
+}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;border-radius:50px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:#0a0a0f;font-size:.88rem;font-weight:600;font-family:inherit;
+  transition:all .3s var(--ease);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(201,169,97,.3)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-outline{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 18px;border-radius:50px;cursor:pointer;
+  background:transparent;border:1px solid var(--border);
+  color:var(--text-dim);font-size:.82rem;font-family:inherit;
+  transition:all .3s var(--ease);
+}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+
+/* Ticket list */
+.ticket-list{display:flex;flex-direction:column;gap:10px}
+.ticket-card{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 22px;cursor:pointer;transition:all .3s var(--ease);
+}
+.ticket-card:hover{border-color:var(--border-hover);background:var(--bg-card-hover);transform:translateY(-1px)}
+.ticket-card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.ticket-card h3{font-family:'Inter',sans-serif;font-size:.95rem;font-weight:600;flex:1;min-width:200px}
+.badge{
+  display:inline-flex;padding:3px 10px;border-radius:50px;font-size:.7rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.badge-ouvert{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-en_cours{background:rgba(245,158,11,.15);color:var(--orange)}
+.badge-resolu{background:rgba(16,185,129,.15);color:var(--green)}
+.badge-ferme{background:rgba(107,114,128,.15);color:var(--gray)}
+.badge-cat{background:var(--gold-dim);color:var(--gold);font-size:.65rem}
+.badge-priority-urgent{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-priority-high{background:rgba(245,158,11,.15);color:var(--orange)}
+.ticket-meta{font-size:.78rem;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap}
+.ticket-preview{font-size:.82rem;color:var(--text-dim);margin-top:8px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;
+}
+
+/* Ticket detail */
+.detail-header{margin-bottom:24px}
+.detail-header h2{font-size:1.2rem;font-weight:700;margin-bottom:8px}
+.detail-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.detail-actions{display:flex;gap:10px;margin:20px 0;flex-wrap:wrap}
+
+/* Messages thread */
+.messages-thread{display:flex;flex-direction:column;gap:14px;margin-bottom:24px}
+.msg-bubble{
+  max-width:80%;padding:14px 18px;border-radius:var(--radius);
+  font-size:.88rem;line-height:1.6;position:relative;
+}
+.msg-user{
+  align-self:flex-end;background:var(--gold-dim);border:1px solid var(--border-hover);
+  border-bottom-right-radius:4px;
+}
+.msg-admin{
+  align-self:flex-start;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);
+  border-bottom-left-radius:4px;
+}
+.msg-system{
+  align-self:center;background:var(--bg-card);border:1px solid var(--border);
+  font-size:.78rem;color:var(--text-muted);font-style:italic;max-width:90%;text-align:center;
+}
+.msg-sender{font-size:.72rem;font-weight:600;margin-bottom:4px;color:var(--text-muted)}
+.msg-time{font-size:.68rem;color:var(--text-muted);margin-top:6px;text-align:right}
+@media(max-width:600px){.msg-bubble{max-width:95%}}
+
+/* Reply box */
+.reply-box{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;
+}
+.reply-box textarea{
+  width:100%;padding:12px;border-radius:var(--radius-sm);
+  background:var(--bg);border:1px solid var(--border);
+  color:var(--text);font-size:.88rem;font-family:inherit;
+  min-height:80px;resize:vertical;outline:none;
+  transition:border .3s var(--ease);
+}
+.reply-box textarea:focus{border-color:var(--gold)}
+.reply-box .reply-actions{display:flex;justify-content:flex-end;margin-top:10px;gap:10px}
+
+/* Satisfaction modal */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  z-index:100;display:none;align-items:center;justify-content:center;
+}
+.modal-overlay.show{display:flex}
+.modal-box{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:32px;max-width:420px;width:90%;
+}
+.modal-box h3{font-size:1.1rem;margin-bottom:16px}
+.stars{display:flex;gap:6px;margin-bottom:16px}
+.star{
+  width:36px;height:36px;cursor:pointer;border:none;background:transparent;
+  font-size:1.5rem;color:var(--text-muted);transition:all .2s;
+}
+.star.active,.star:hover{color:var(--gold);transform:scale(1.15)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+
+/* Empty state */
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-muted);
+}
+.empty-state svg{width:48px;height:48px;color:var(--text-muted);margin-bottom:12px}
+.empty-state p{font-size:.9rem}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:80px;right:24px;padding:14px 24px;
+  border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);font-size:.85rem;z-index:200;
+  transform:translateY(20px);opacity:0;transition:all .4s var(--ease);
+  pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.success{border-color:var(--green);color:var(--green)}
+
+/* Loading */
+.loading-spinner{
+  display:flex;align-items:center;justify-content:center;padding:40px;
+  color:var(--text-muted);font-size:.88rem;
+}
+
+/* Back button */
+.back-btn{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 0;
+  border:none;background:transparent;color:var(--text-muted);
+  font-size:.82rem;font-family:inherit;cursor:pointer;margin-bottom:16px;
+  transition:color .2s;
+}
+.back-btn:hover{color:var(--gold)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">JADOMI</div>
+  <div class="sidebar-sub">Support technique</div>
+
+  <button class="nav-item active" data-tab="tickets" onclick="switchTab('tickets')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+    Mes tickets
+  </button>
+  <button class="nav-item" data-tab="new" onclick="switchTab('new')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+    Nouveau ticket
+  </button>
+
+  <div class="sidebar-bottom">
+    <a href="/organisation">Retour au dashboard</a>
+    <a href="/vitrines/aide.html">Centre d'aide</a>
+  </div>
+</aside>
+
+<!-- Mobile nav -->
+<div class="mobile-nav">
+  <button class="active" data-tab="tickets" onclick="switchTab('tickets')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+    Mes tickets
+  </button>
+  <button data-tab="new" onclick="switchTab('new')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+    Nouveau ticket
+  </button>
+</div>
+
+<!-- Main content -->
+<div class="app-shell">
+<div class="main">
+
+  <!-- TAB: Mes tickets -->
+  <div class="tab-content active" id="tab-tickets">
+    <div class="page-header">
+      <h1>Mes tickets de support</h1>
+      <p>Suivez vos demandes et échangez avec notre équipe</p>
+    </div>
+
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-card"><div class="stat-val" id="stat-total">-</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-open">-</div><div class="stat-label">Ouverts</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-resolved">-</div><div class="stat-label">Résolus</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-avg">-</div><div class="stat-label">Temps moyen (h)</div></div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <select id="filter-status" onchange="loadTickets()" style="padding:8px 14px;border-radius:50px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:.82rem;font-family:inherit;cursor:pointer">
+        <option value="">Tous les statuts</option>
+        <option value="ouvert">Ouvert</option>
+        <option value="en_cours">En cours</option>
+        <option value="resolu">Résolu</option>
+        <option value="ferme">Fermé</option>
+      </select>
+      <select id="filter-category" onchange="loadTickets()" style="padding:8px 14px;border-radius:50px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:.82rem;font-family:inherit;cursor:pointer">
+        <option value="">Toutes catégories</option>
+        <option value="bug">Bug</option>
+        <option value="question">Question</option>
+        <option value="demande_fonctionnalite">Fonctionnalité</option>
+        <option value="facturation">Facturation</option>
+        <option value="technique">Technique</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
+
+    <div class="ticket-list" id="ticket-list">
+      <div class="loading-spinner">Chargement...</div>
+    </div>
+  </div>
+
+  <!-- TAB: Nouveau ticket -->
+  <div class="tab-content" id="tab-new">
+    <div class="page-header">
+      <h1>Créer un ticket de support</h1>
+      <p>Décrivez votre problème ou votre demande, nous vous répondrons dans les meilleurs délais</p>
+    </div>
+
+    <form id="ticket-form" onsubmit="createTicket(event)">
+      <div class="form-group" style="position:relative">
+        <label for="f-subject">Sujet</label>
+        <input type="text" id="f-subject" placeholder="Résumé de votre demande..." required minlength="3" maxlength="200" autocomplete="off">
+        <div id="faq-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;margin-top:4px;background:var(--bg2);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:12px 16px;max-height:280px;overflow-y:auto">
+          <div style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:10px">Articles susceptibles de vous aider</div>
+          <div id="faq-suggestions-list"></div>
+          <div id="faq-suggestions-footer" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:.78rem;color:var(--text-muted)">Si ces articles ne répondent pas à votre question, poursuivez la création du ticket.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="f-category">Catégorie</label>
+          <select id="f-category" required>
+            <option value="question">Question</option>
+            <option value="bug">Bug / Dysfonctionnement</option>
+            <option value="demande_fonctionnalite">Demande de fonctionnalité</option>
+            <option value="facturation">Facturation</option>
+            <option value="technique">Technique</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="f-priority">Priorité</label>
+          <select id="f-priority">
+            <option value="low">Basse</option>
+            <option value="medium" selected>Moyenne</option>
+            <option value="high">Haute</option>
+            <option value="urgent">Urgente</option>
+          </select>
+          <div id="priority-hint" style="display:none;font-size:.75rem;margin-top:4px;transition:all .3s"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="f-description">Description détaillée</label>
+        <textarea id="f-description" placeholder="Décrivez votre problème en détail : étapes pour reproduire, comportement attendu, etc." required minlength="10" maxlength="5000"></textarea>
+      </div>
+      <button type="submit" class="btn-primary" id="btn-submit">Envoyer le ticket</button>
+    </form>
+  </div>
+
+  <!-- TAB: Ticket detail (dynamic) -->
+  <div class="tab-content" id="tab-detail">
+    <button class="back-btn" onclick="switchTab('tickets')">&#8592; Retour aux tickets</button>
+    <div id="detail-content">
+      <div class="loading-spinner">Chargement...</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Satisfaction modal -->
+<div class="modal-overlay" id="modal-satisfaction">
+  <div class="modal-box">
+    <h3>Votre avis compte</h3>
+    <p style="color:var(--text-dim);font-size:.88rem;margin-bottom:16px">Comment évaluez-vous le traitement de ce ticket ?</p>
+    <div class="stars" id="stars" role="radiogroup" aria-label="Note de satisfaction">
+      <button class="star" data-val="1" aria-label="1 étoile sur 5" role="radio" aria-checked="false">&#9733;</button>
+      <button class="star" data-val="2" aria-label="2 étoiles sur 5" role="radio" aria-checked="false">&#9733;</button>
+      <button class="star" data-val="3" aria-label="3 étoiles sur 5" role="radio" aria-checked="false">&#9733;</button>
+      <button class="star" data-val="4" aria-label="4 étoiles sur 5" role="radio" aria-checked="false">&#9733;</button>
+      <button class="star" data-val="5" aria-label="5 étoiles sur 5" role="radio" aria-checked="false">&#9733;</button>
+    </div>
+    <div class="form-group">
+      <textarea id="sat-comment" placeholder="Un commentaire ? (optionnel)" style="min-height:60px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeSatisfactionModal()">Annuler</button>
+      <button class="btn-primary" onclick="submitSatisfaction()">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentTicketId = null;
+let selectedRating = 0;
+
+const CATEGORY_LABELS = {
+  bug: 'Bug', question: 'Question', demande_fonctionnalite: 'Fonctionnalité',
+  facturation: 'Facturation', technique: 'Technique', autre: 'Autre'
+};
+const STATUS_LABELS = {
+  ouvert: 'Ouvert', en_cours: 'En cours', resolu: 'Résolu', ferme: 'Fermé'
+};
+const PRIORITY_LABELS = {
+  low: 'Basse', medium: 'Moyenne', high: 'Haute', urgent: 'Urgente'
+};
+
+// --- Auth & API helper ---
+async function getToken() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) {
+    window.location.href = '/login.html';
+    return null;
+  }
+  return session.access_token;
+}
+
+async function api(path, opts = {}) {
+  let token = await getToken();
+  if (!token) return null;
+  const societeId = localStorage.getItem('societe_active_id');
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + token,
+    'X-Societe-Id': societeId || '',
+    ...(opts.headers || {})
+  };
+  let res = await fetch('/api/support' + path, { ...opts, headers });
+  if (res.status === 401) {
+    const { data: r } = await db.auth.refreshSession();
+    if (r?.session) {
+      token = r.session.access_token;
+      headers['Authorization'] = 'Bearer ' + token;
+      res = await fetch('/api/support' + path, { ...opts, headers });
+    } else {
+      window.location.href = '/login.html';
+      return null;
+    }
+  }
+  return res;
+}
+
+// --- Toast ---
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || '');
+  setTimeout(() => el.className = 'toast', 3500);
+}
+
+// --- Tab switching ---
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .mobile-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('[data-tab="' + tab + '"]').forEach(b => b.classList.add('active'));
+
+  if (tab === 'tickets') {
+    loadTickets();
+    loadStats();
+  }
+}
+
+// --- Format date ---
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) +
+    ' à ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// --- Load stats ---
+async function loadStats() {
+  try {
+    const res = await api('/tickets/stats');
+    if (!res) return;
+    const data = await res.json();
+    document.getElementById('stat-total').textContent = data.total || 0;
+    document.getElementById('stat-open').textContent = data.open || 0;
+    document.getElementById('stat-resolved').textContent = data.resolved || 0;
+    document.getElementById('stat-avg').textContent = data.avgResolutionHours !== null ? data.avgResolutionHours : '-';
+  } catch (e) {
+    console.error('[stats]', e);
+  }
+}
+
+// --- Load tickets ---
+async function loadTickets() {
+  const list = document.getElementById('ticket-list');
+  list.innerHTML = '<div class="loading-spinner">Chargement...</div>';
+
+  try {
+    const status = document.getElementById('filter-status').value;
+    const category = document.getElementById('filter-category').value;
+    let qs = '?limit=50';
+    if (status) qs += '&status=' + status;
+    if (category) qs += '&category=' + category;
+
+    const res = await api('/tickets' + qs);
+    if (!res) return;
+    const data = await res.json();
+
+    if (!data.tickets || data.tickets.length === 0) {
+      list.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg><p>Aucun ticket pour le moment.</p></div>';
+      return;
+    }
+
+    list.innerHTML = data.tickets.map(t => `
+      <div class="ticket-card" onclick="openTicket('${t.id}')">
+        <div class="ticket-card-top">
+          <h3>${esc(t.subject)}</h3>
+          <span class="badge badge-${t.status}">${STATUS_LABELS[t.status] || t.status}</span>
+          <span class="badge badge-cat">${CATEGORY_LABELS[t.category] || t.category}</span>
+          ${t.priority === 'urgent' ? '<span class="badge badge-priority-urgent">Urgent</span>' : ''}
+          ${t.priority === 'high' ? '<span class="badge badge-priority-high">Haute</span>' : ''}
+        </div>
+        <div class="ticket-meta">
+          <span>${fmtDate(t.created_at)}</span>
+          <span>Priorité : ${PRIORITY_LABELS[t.priority] || t.priority}</span>
+          ${getSlaHtml(t.priority, t.created_at, t.status)}
+        </div>
+        <div class="ticket-preview">${esc(t.description)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('[loadTickets]', e);
+    list.innerHTML = '<div class="empty-state"><p>Erreur de chargement.</p></div>';
+  }
+}
+
+// --- Create ticket ---
+async function createTicket(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+
+  try {
+    const body = {
+      subject: document.getElementById('f-subject').value.trim(),
+      category: document.getElementById('f-category').value,
+      priority: document.getElementById('f-priority').value,
+      description: document.getElementById('f-description').value.trim()
+    };
+
+    const res = await api('/tickets', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+
+    if (!res) return;
+    const data = await res.json();
+
+    if (!res.ok) {
+      toast(data.error || 'Erreur lors de la création.', 'error');
+      return;
+    }
+
+    toast('Ticket créé avec succès.', 'success');
+    document.getElementById('ticket-form').reset();
+    switchTab('tickets');
+  } catch (e) {
+    console.error('[createTicket]', e);
+    toast('Erreur réseau.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Envoyer le ticket';
+  }
+}
+
+// --- Open ticket detail ---
+async function openTicket(id) {
+  currentTicketId = id;
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-detail').classList.add('active');
+  document.querySelectorAll('.nav-item, .mobile-nav button').forEach(b => b.classList.remove('active'));
+
+  const container = document.getElementById('detail-content');
+  container.innerHTML = '<div class="loading-spinner">Chargement...</div>';
+
+  try {
+    const res = await api('/tickets/' + id);
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) {
+      container.innerHTML = '<div class="empty-state"><p>Ticket introuvable.</p></div>';
+      return;
+    }
+
+    const t = data.ticket;
+    const msgs = data.messages || [];
+    const sat = data.satisfaction;
+
+    let html = `
+      <div class="detail-header">
+        <h2>${esc(t.subject)}</h2>
+        <div class="detail-meta">
+          <span class="badge badge-${t.status}">${STATUS_LABELS[t.status] || t.status}</span>
+          <span class="badge badge-cat">${CATEGORY_LABELS[t.category] || t.category}</span>
+          <span style="color:var(--text-muted);font-size:.78rem">Créé le ${fmtDate(t.created_at)}</span>
+          <span style="color:var(--text-muted);font-size:.78rem">Priorité : ${PRIORITY_LABELS[t.priority] || t.priority}</span>
+          ${getSlaHtml(t.priority, t.created_at, t.status)}
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        ${t.status !== 'ferme' ? '<button class="btn-outline" onclick="closeTicket()">Fermer le ticket</button>' : ''}
+        ${(t.status === 'ferme' || t.status === 'resolu') ? '<button class="btn-outline" onclick="reopenTicket()">Rouvrir le ticket</button>' : ''}
+        ${(t.status === 'resolu' || t.status === 'ferme') && !sat ? '<button class="btn-primary" onclick="openSatisfactionModal()" style="font-size:.82rem;padding:8px 18px">Évaluer le support</button>' : ''}
+      </div>
+
+      ${sat ? '<div style="background:var(--gold-dim);border:1px solid var(--border-hover);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:20px;font-size:.85rem"><strong>Votre évaluation :</strong> ' + '&#9733;'.repeat(sat.rating) + '&#9734;'.repeat(5 - sat.rating) + (sat.comment ? ' — ' + esc(sat.comment) : '') + '</div>' : ''}
+
+      <div class="messages-thread">
+        ${msgs.map(m => `
+          <div class="msg-bubble msg-${m.sender_type}">
+            ${m.sender_type !== 'system' ? '<div class="msg-sender">' + (m.sender_type === 'admin' ? 'Support JADOMI' : 'Vous') + '</div>' : ''}
+            <div>${esc(m.message)}</div>
+            <div class="msg-time">${fmtDate(m.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${t.status !== 'ferme' ? `
+      <div class="reply-box">
+        <textarea id="reply-text" placeholder="Votre réponse..."></textarea>
+        <div class="reply-actions">
+          <button class="btn-primary" onclick="sendReply()" style="font-size:.82rem;padding:8px 18px" id="btn-reply">Envoyer</button>
+        </div>
+      </div>
+      ` : '<div style="text-align:center;color:var(--text-muted);font-size:.85rem;padding:20px">Ce ticket est fermé. Rouvrez-le pour répondre.</div>'}
+    `;
+
+    container.innerHTML = html;
+  } catch (e) {
+    console.error('[openTicket]', e);
+    container.innerHTML = '<div class="empty-state"><p>Erreur de chargement.</p></div>';
+  }
+}
+
+// --- Send reply ---
+async function sendReply() {
+  const text = document.getElementById('reply-text').value.trim();
+  if (!text) { toast('Veuillez saisir un message.', 'error'); return; }
+  const btn = document.getElementById('btn-reply');
+  btn.disabled = true;
+
+  try {
+    const res = await api('/tickets/' + currentTicketId + '/messages', {
+      method: 'POST',
+      body: JSON.stringify({ message: text })
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur.', 'error'); return; }
+    toast('Message envoyé.', 'success');
+    openTicket(currentTicketId);
+  } catch (e) {
+    toast('Erreur réseau.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// --- Close/Reopen ticket ---
+async function closeTicket() {
+  try {
+    const res = await api('/tickets/' + currentTicketId + '/close', { method: 'POST' });
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur.', 'error'); return; }
+    toast('Ticket fermé.', 'success');
+    openTicket(currentTicketId);
+  } catch (e) { toast('Erreur.', 'error'); }
+}
+
+async function reopenTicket() {
+  try {
+    const res = await api('/tickets/' + currentTicketId + '/reopen', { method: 'POST' });
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur.', 'error'); return; }
+    toast('Ticket rouvert.', 'success');
+    openTicket(currentTicketId);
+  } catch (e) { toast('Erreur.', 'error'); }
+}
+
+// --- Satisfaction ---
+function openSatisfactionModal() {
+  selectedRating = 0;
+  document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+  document.getElementById('sat-comment').value = '';
+  document.getElementById('modal-satisfaction').classList.add('show');
+}
+function closeSatisfactionModal() {
+  document.getElementById('modal-satisfaction').classList.remove('show');
+}
+document.querySelectorAll('.star').forEach(s => {
+  s.addEventListener('click', () => {
+    selectedRating = parseInt(s.dataset.val);
+    document.querySelectorAll('.star').forEach((st, i) => {
+      st.classList.toggle('active', i < selectedRating);
+      st.setAttribute('aria-checked', i < selectedRating ? 'true' : 'false');
+    });
+  });
+});
+
+async function submitSatisfaction() {
+  if (!selectedRating) { toast('Veuillez sélectionner une note.', 'error'); return; }
+  try {
+    const res = await api('/tickets/' + currentTicketId + '/satisfaction', {
+      method: 'POST',
+      body: JSON.stringify({
+        rating: selectedRating,
+        comment: document.getElementById('sat-comment').value.trim()
+      })
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur.', 'error'); return; }
+    toast('Merci pour votre retour.', 'success');
+    closeSatisfactionModal();
+    openTicket(currentTicketId);
+  } catch (e) { toast('Erreur.', 'error'); }
+}
+
+// --- Escape HTML ---
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- Keyboard accessibility ---
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeSatisfactionModal();
+});
+
+// --- FAQ Knowledge Base (Intercom-style auto-suggestions) ---
+const FAQ_ARTICLES = [
+  { q: 'Comment ajouter un produit au stock ?', a: 'Rendez-vous dans l\'onglet Stock, cliquez sur "Ajouter un produit" et renseignez les informations. Vous pouvez aussi utiliser le scanner de code-barres.', keywords: ['stock', 'produit', 'ajouter', 'inventaire', 'scanner'] },
+  { q: 'Comment créer une facture ?', a: 'Depuis le module Facturation, cliquez sur "Nouvelle facture". Sélectionnez le patient, ajoutez les actes réalisés, puis générez la facture au format Factur-X.', keywords: ['facture', 'facturation', 'factur-x', 'creer', 'generer'] },
+  { q: 'Comment inviter un collaborateur ?', a: 'Dans Paramètres > Équipe, cliquez sur "Inviter un collaborateur". Saisissez son adresse email et attribuez-lui un rôle (admin, praticien, assistant).', keywords: ['inviter', 'collaborateur', 'equipe', 'role', 'acces', 'permission'] },
+  { q: 'Comment configurer mon site vitrine ?', a: 'Rendez-vous dans le module Site vitrine, choisissez votre formule (Essentiel, Pro ou Premium), personnalisez les couleurs et le contenu, puis publiez votre site.', keywords: ['site', 'vitrine', 'configurer', 'personnaliser', 'formule'] },
+  { q: 'Comment fonctionne la signature électronique ?', a: 'JADOMI Sign vous permet d\'envoyer des documents à signer par email. Le signataire reçoit un lien sécurisé et signe depuis n\'importe quel appareil. Chaque signature est horodatée.', keywords: ['signature', 'electronique', 'signer', 'document', 'sign'] },
+  { q: 'Comment modifier mon abonnement ?', a: 'Dans Paramètres > Abonnement, vous pouvez changer de formule, mettre à jour vos informations de paiement ou télécharger vos factures d\'abonnement.', keywords: ['abonnement', 'formule', 'paiement', 'modifier', 'changer', 'plan'] },
+  { q: 'Comment exporter mes données comptables ?', a: 'Dans le module Facturation, utilisez le bouton "Exporter" pour générer un fichier compatible avec votre logiciel comptable (format CSV ou FEC).', keywords: ['exporter', 'comptable', 'comptabilite', 'csv', 'fec', 'donnees'] },
+  { q: 'Comment contacter le support ?', a: 'Vous êtes au bon endroit. Créez un ticket en remplissant ce formulaire et notre équipe vous répondra dans les meilleurs délais.', keywords: ['contact', 'support', 'aide', 'assistance', 'joindre'] },
+  { q: 'Problème de connexion à mon compte', a: 'Vérifiez votre adresse email et votre mot de passe. Si le problème persiste, utilisez "Mot de passe oublié" sur la page de connexion. Vous recevrez un lien de réinitialisation par email.', keywords: ['connexion', 'login', 'mot de passe', 'oublie', 'compte', 'acces'] },
+  { q: 'Comment fonctionne la commande groupée GPO ?', a: 'Les commandes GPO regroupent les achats de plusieurs praticiens pour obtenir des tarifs négociés. Rejoignez un panier ouvert ou créez le vôtre dans le module Commandes.', keywords: ['gpo', 'commande', 'groupee', 'panier', 'groupe', 'tarif'] },
+  { q: 'Comment ajouter des photos dans la timeline patient ?', a: 'Ouvrez la fiche du patient, accédez à l\'onglet Timeline, puis cliquez sur "Ajouter un événement" et sélectionnez le type "Photo".', keywords: ['photo', 'timeline', 'patient', 'image', 'fiche'] },
+  { q: 'Comment gérer les rendez-vous en ligne ?', a: 'Dans le module Rendez-vous, configurez vos créneaux disponibles. Vos patients pourront prendre rendez-vous directement depuis votre site vitrine.', keywords: ['rendez-vous', 'rdv', 'agenda', 'creneau', 'planning', 'en ligne'] },
+  { q: 'Comment envoyer un dossier au prothésiste ?', a: 'Depuis la fiche patient ou le module Prothésiste, sélectionnez les éléments à transmettre (photos, empreintes, prescription) et envoyez-les via le système de commande intégré.', keywords: ['prothesiste', 'dossier', 'envoyer', 'empreinte', 'prescription', 'labo'] },
+  { q: 'Comment réinitialiser mon mot de passe ?', a: 'Sur la page de connexion, cliquez sur "Mot de passe oublié", saisissez votre email et suivez les instructions reçues par mail.', keywords: ['reinitialiser', 'mot de passe', 'oublie', 'reset', 'password'] },
+  { q: 'Erreur lors du chargement de la page', a: 'Essayez de rafraîchir la page (Ctrl+F5). Si le problème persiste, videz le cache de votre navigateur ou essayez un autre navigateur. Contactez le support si l\'erreur continue.', keywords: ['erreur', 'chargement', 'page', 'bug', 'bloque', 'affichage'] }
+];
+
+// Auto-suggest FAQ on subject input (Intercom pattern)
+(function() {
+  const subjectInput = document.getElementById('f-subject');
+  const suggestionsBox = document.getElementById('faq-suggestions');
+  const suggestionsList = document.getElementById('faq-suggestions-list');
+  let debounceTimer = null;
+
+  subjectInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      const query = subjectInput.value.toLowerCase().trim();
+      if (query.length < 3) { suggestionsBox.style.display = 'none'; return; }
+      const words = query.split(/\s+/);
+      const scored = FAQ_ARTICLES.map(function(faq) {
+        let score = 0;
+        words.forEach(function(w) {
+          if (w.length < 2) return;
+          faq.keywords.forEach(function(kw) {
+            if (kw.indexOf(w) !== -1) score += 2;
+          });
+          if (faq.q.toLowerCase().indexOf(w) !== -1) score += 1;
+        });
+        return { faq: faq, score: score };
+      }).filter(function(r) { return r.score > 0; })
+        .sort(function(a, b) { return b.score - a.score; })
+        .slice(0, 5);
+
+      if (scored.length === 0) { suggestionsBox.style.display = 'none'; return; }
+
+      suggestionsList.innerHTML = scored.map(function(r) {
+        return '<div style="margin-bottom:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all .2s" ' +
+          'onmouseenter="this.style.borderColor=\'var(--border-hover)\'" onmouseleave="this.style.borderColor=\'var(--border)\'">' +
+          '<div style="font-size:.85rem;font-weight:600;color:var(--gold-light);margin-bottom:4px">' + esc(r.faq.q) + '</div>' +
+          '<div style="font-size:.78rem;color:var(--text-dim);line-height:1.5">' + esc(r.faq.a) + '</div>' +
+          '</div>';
+      }).join('');
+      suggestionsBox.style.display = 'block';
+    }, 300);
+  });
+
+  // Close suggestions on click outside
+  document.addEventListener('click', function(e) {
+    if (!suggestionsBox.contains(e.target) && e.target !== subjectInput) {
+      suggestionsBox.style.display = 'none';
+    }
+  });
+})();
+
+// --- Priority auto-detection (Zendesk pattern) ---
+(function() {
+  const descInput = document.getElementById('f-description');
+  const subjectInput = document.getElementById('f-subject');
+  const prioritySelect = document.getElementById('f-priority');
+  let priorityManuallySet = false;
+
+  prioritySelect.addEventListener('change', function() { priorityManuallySet = true; });
+
+  function detectPriority() {
+    if (priorityManuallySet) return;
+    const text = (subjectInput.value + ' ' + descInput.value).toLowerCase();
+    const urgentWords = ['urgence', 'urgent', 'bloque', 'bloquant', 'impossible', 'erreur critique', 'panne', 'hors service', 'indisponible', 'arrete', 'catastrophe', 'perte de donnees'];
+    const highWords = ['erreur', 'bug', 'dysfonctionnement', 'ne fonctionne pas', 'probleme grave', 'plante', 'crash', 'lent', 'tres lent'];
+    const lowWords = ['question', 'comment', 'suggestion', 'amelioration', 'souhait', 'serait-il possible', 'demande', 'information', 'renseignement'];
+
+    let detected = 'medium';
+    for (let i = 0; i < urgentWords.length; i++) {
+      if (text.indexOf(urgentWords[i]) !== -1) { detected = 'urgent'; break; }
+    }
+    if (detected === 'medium') {
+      for (let i = 0; i < highWords.length; i++) {
+        if (text.indexOf(highWords[i]) !== -1) { detected = 'high'; break; }
+      }
+    }
+    if (detected === 'medium') {
+      for (let i = 0; i < lowWords.length; i++) {
+        if (text.indexOf(lowWords[i]) !== -1) { detected = 'low'; break; }
+      }
+    }
+
+    if (prioritySelect.value !== detected) {
+      prioritySelect.value = detected;
+      // Visual hint
+      const hint = document.getElementById('priority-hint');
+      if (hint) {
+        const labels = { low: 'Basse', medium: 'Moyenne', high: 'Haute', urgent: 'Urgente' };
+        hint.textContent = 'Priorité suggérée : ' + labels[detected];
+        hint.style.display = 'block';
+        hint.style.color = detected === 'urgent' ? 'var(--red)' : detected === 'high' ? 'var(--orange)' : 'var(--gold)';
+      }
+    }
+  }
+
+  descInput.addEventListener('input', function() { setTimeout(detectPriority, 200); });
+  subjectInput.addEventListener('input', function() { setTimeout(detectPriority, 200); });
+})();
+
+// --- SLA indicators (Freshdesk pattern) ---
+const SLA_CONFIG = {
+  low: { label: 'Réponse attendue sous 48h', hours: 48 },
+  medium: { label: 'Réponse attendue sous 24h', hours: 24 },
+  high: { label: 'Réponse attendue sous 4h', hours: 4 },
+  urgent: { label: 'Réponse attendue sous 1h', hours: 1 }
+};
+
+function getSlaHtml(priority, createdAt, status) {
+  if (status === 'resolu' || status === 'ferme') return '';
+  const sla = SLA_CONFIG[priority] || SLA_CONFIG.medium;
+  const elapsed = (Date.now() - new Date(createdAt).getTime()) / 3600000;
+  const ratio = elapsed / sla.hours;
+  let color = 'var(--green)';
+  let icon = '&#9679;';
+  if (ratio >= 1) { color = 'var(--red)'; icon = '&#9888;'; }
+  else if (ratio >= 0.75) { color = 'var(--orange)'; icon = '&#9679;'; }
+  const elapsedStr = elapsed < 1 ? Math.round(elapsed * 60) + 'min' : Math.round(elapsed * 10) / 10 + 'h';
+  return '<span style="font-size:.72rem;color:' + color + ';display:inline-flex;align-items:center;gap:4px">' +
+    icon + ' ' + sla.label + ' (écoulé : ' + elapsedStr + ')</span>';
+}
+
+// --- Init ---
+(async function init() {
+  const token = await getToken();
+  if (!token) return;
+  loadTickets();
+  loadStats();
+})();
+</script>
+</body>
+</html>

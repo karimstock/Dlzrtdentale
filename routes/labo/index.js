@@ -27,7 +27,7 @@ function createLaboRouter() {
         .eq('societe_id', societeId)
         .maybeSingle();
 
-      if (roleErr || !role) return res.status(403).json({ error: 'Acces interdit a cette societe' });
+      if (roleErr || !role) return res.status(403).json({ error: 'Accès interdit à cette société' });
 
       req.societeId = societeId;
       req.userRole = role.role;

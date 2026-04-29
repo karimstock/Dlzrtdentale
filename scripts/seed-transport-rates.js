@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =============================================
-// JADOMI — Seed tarifs transport negocies
+// JADOMI — Seed tarifs transport négociés
 // Usage: node scripts/seed-transport-rates.js
 // =============================================
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
@@ -55,6 +55,6 @@ const rates = [
     if (error) console.warn('Skip:', error.message);
     else inserted++;
   }
-  console.log(`${inserted}/${rates.length} tarifs transport inseres`);
+  console.log(`${inserted}/${rates.length} tarifs transport insérés`);
   process.exit(0);
 })();

@@ -30,7 +30,7 @@ module.exports = function mountInterventions(app, supabase) {
       }
       if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation' });
       next();
-    } catch { return res.status(401).json({ error: 'Auth echouee' }); }
+    } catch { return res.status(401).json({ error: 'Auth échouée' }); }
   }
 
   // --- Rate limit : max 5/site/jour, 10/pro/jour ---
@@ -56,7 +56,7 @@ module.exports = function mountInterventions(app, supabase) {
       next();
     } catch (err) {
       console.error('[checkLimits] Erreur:', err.message);
-      return res.status(500).json({ error: 'Verification des limites echouee' });
+      return res.status(500).json({ error: 'Vérification des limites échouée' });
     }
   }
 
@@ -67,15 +67,15 @@ module.exports = function mountInterventions(app, supabase) {
     try {
       const { site_id, demande } = req.body || {};
       if (!site_id || !demande || demande.trim().length < 5) {
-        return res.status(400).json({ error: 'site_id et demande requis (5 caracteres min)' });
+        return res.status(400).json({ error: 'site_id et demande requis (5 caractères min)' });
       }
 
-      // Verifier que le site appartient au pro
+      // Vérifier que le site appartient au pro
       const { data: site } = await supabase.from('sites_existants')
         .select('id').eq('id', site_id).eq('societe_id', req.societeId).single();
-      if (!site) return res.status(404).json({ error: 'Site non trouve' });
+      if (!site) return res.status(404).json({ error: 'Site non trouvé' });
 
-      // Creer l'intervention
+      // Créer l'intervention
       const { data: intervention, error } = await supabase
         .from('sites_existants_interventions')
         .insert({
@@ -93,9 +93,9 @@ module.exports = function mountInterventions(app, supabase) {
 
       if (error) return res.status(500).json({ error: 'Erreur interne' });
 
-      // Lancer en arriere-plan
+      // Lancer en arrière-plan
       executerIntervention(intervention.id, supabase)
-        .then(result => console.log('[intervention] Terminee:', intervention.id.substring(0, 8), result.success ? 'OK' : 'FAIL'))
+        .then(result => console.log('[intervention] Terminée:', intervention.id.substring(0, 8), result.success ? 'OK' : 'FAIL'))
         .catch(err => console.error('[intervention] Crash:', err.message));
 
       return res.status(201).json({
@@ -116,25 +116,25 @@ module.exports = function mountInterventions(app, supabase) {
       const { site_id, action_code, parametres } = req.body || {};
       if (!site_id || !action_code) return res.status(400).json({ error: 'site_id et action_code requis' });
 
-      // Charger l'action predefinie
+      // Charger l'action prédéfinie
       const { data: action } = await supabase.from('interventions_actions_predefinies')
         .select('*').eq('code', action_code).single();
       if (!action) return res.status(404).json({ error: 'Action inconnue: ' + action_code });
 
-      // Verifier site
+      // Vérifier site
       const { data: site } = await supabase.from('sites_existants')
         .select('id').eq('id', site_id).eq('societe_id', req.societeId).single();
-      if (!site) return res.status(404).json({ error: 'Site non trouve' });
+      if (!site) return res.status(404).json({ error: 'Site non trouvé' });
 
-      // Construire la demande a partir du prompt_ia + parametres
+      // Construire la demande à partir du prompt_ia + paramètres
       let demande = action.prompt_ia;
       if (parametres) {
         for (const [k, v] of Object.entries(parametres)) {
-          demande += `\nParametre "${k}" : ${v}`;
+          demande += `\nParamètre "${k}" : ${v}`;
         }
       }
 
-      // Creer l'intervention
+      // Créer l'intervention
       const { data: intervention, error } = await supabase
         .from('sites_existants_interventions')
         .insert({
@@ -154,7 +154,7 @@ module.exports = function mountInterventions(app, supabase) {
 
       if (error) return res.status(500).json({ error: 'Erreur interne' });
 
-      // Lancer en arriere-plan
+      // Lancer en arrière-plan
       executerIntervention(intervention.id, supabase)
         .then(result => console.log('[action-rapide] ' + action_code + ':', result.success ? 'OK' : 'FAIL'))
         .catch(err => console.error('[action-rapide] Crash:', err.message));
@@ -163,7 +163,7 @@ module.exports = function mountInterventions(app, supabase) {
         intervention_id: intervention.id,
         action: action.nom,
         statut: 'en_cours',
-        message: 'JADOMI IA execute: ' + action.nom + '...'
+        message: 'JADOMI IA exécute : ' + action.nom + '...'
       });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
@@ -180,7 +180,7 @@ module.exports = function mountInterventions(app, supabase) {
         .eq('id', req.params.id)
         .eq('societe_id', req.societeId)
         .single();
-      if (error || !data) return res.status(404).json({ error: 'Intervention non trouvee' });
+      if (error || !data) return res.status(404).json({ error: 'Intervention non trouvée' });
       return res.json(data);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
@@ -216,10 +216,10 @@ module.exports = function mountInterventions(app, supabase) {
         .eq('societe_id', req.societeId)
         .single();
 
-      if (!intervention) return res.status(404).json({ error: 'Intervention non trouvee' });
-      if (intervention.rollback_effectue) return res.status(400).json({ error: 'Rollback deja effectue' });
+      if (!intervention) return res.status(404).json({ error: 'Intervention non trouvée' });
+      if (intervention.rollback_effectue) return res.status(400).json({ error: 'Rollback déjà effectué' });
 
-      // Dechiffrer credentials
+      // Déchiffrer credentials
       const { data: credRow } = await supabase.from('sites_existants_credentials')
         .select('*').eq('site_id', intervention.site_id)
         .order('created_at', { ascending: false }).limit(1).single();
@@ -238,7 +238,7 @@ module.exports = function mountInterventions(app, supabase) {
       const ok = await rollbackIntervention(req.params.id, supabase, ftpClient, creds, credRow.type_acces);
       if (ftpClient) ftpClient.close();
 
-      return res.json({ success: ok, message: ok ? 'Rollback effectue, fichiers restaures' : 'Rollback echoue' });
+      return res.json({ success: ok, message: ok ? 'Rollback effectué, fichiers restaurés' : 'Rollback échoué' });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
     }

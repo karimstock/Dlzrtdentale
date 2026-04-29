@@ -28,7 +28,7 @@ module.exports = function(router) {
   const chatbotLimiter = rateLimit({
     windowMs: 60 * 1000, max: 10,
     standardHeaders: true, legacyHeaders: false,
-    message: { error: 'Trop de messages. Reessayez dans une minute.' }
+    message: { error: 'Trop de messages. Réessayez dans une minute.' }
   });
 
   // ------------------------------------------
@@ -50,7 +50,7 @@ module.exports = function(router) {
         return res.status(400).json({ error: 'message requis' });
       }
       if (message.length > 2000) {
-        return res.status(400).json({ error: 'Message trop long (2000 caracteres max)' });
+        return res.status(400).json({ error: 'Message trop long (2000 caractères max)' });
       }
 
       // --- Recuperer la config chatbot ---
@@ -131,21 +131,21 @@ module.exports = function(router) {
         ? `\nExpertises : ${config.expertises.join(', ')}`
         : '';
 
-      const systemPrompt = `Vous etes l'assistant virtuel de ${cabinetName}, ${cabinetType}.
+      const systemPrompt = `Vous êtes l'assistant virtuel de ${cabinetName}, ${cabinetType}.
 ${toneInstructions[tone] || toneInstructions.professionnel}
 
 Informations sur le cabinet :
 - Nom : ${cabinetName}
 - Type : ${cabinetType}
-- Adresse : ${address || 'Non renseignee'}
-- Telephone : ${phone || 'Non renseigne'}
-- Email : ${email || 'Non renseigne'}${hoursSection}${expertisesSection}${faqSection}
+- Adresse : ${address || 'Non renseignée'}
+- Téléphone : ${phone || 'Non renseigné'}
+- Email : ${email || 'Non renseigné'}${hoursSection}${expertisesSection}${faqSection}
 
-Regles strictes :
+Règles strictes :
 - Utilisez TOUJOURS le vouvoiement.
 - Ne donnez JAMAIS de conseil juridique, medical ou professionnel specifique.
 - Pour les questions complexes ou specifiques, orientez le visiteur vers une prise de rendez-vous.
-- Reponses courtes et concises : 50 a 100 mots maximum.
+- Réponses courtes et concises : 50 à 100 mots maximum.
 - Restez toujours dans le cadre du cabinet et de ses services.
 - Si vous ne savez pas, dites-le honnêtement et proposez de contacter le cabinet directement.`;
 
@@ -169,7 +169,7 @@ Regles strictes :
 
       const responseText = claudeRes.content && claudeRes.content[0] && claudeRes.content[0].text
         ? claudeRes.content[0].text
-        : 'Desolee, je ne peux pas repondre pour le moment.';
+        : 'Désolé, je ne peux pas répondre pour le moment.';
 
       // --- Mettre a jour la conversation ---
       const updatedMessages = [

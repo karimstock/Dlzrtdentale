@@ -316,9 +316,9 @@ async function analyzeProduct(product, societeId) {
   // ══════════════════════════════════════════
 
   if (report.is_white_label && report.equivalents_count > 0) {
-    let msg = `Meme produit disponible sous ${report.equivalents_count} autre${report.equivalents_count > 1 ? 's' : ''} marque${report.equivalents_count > 1 ? 's' : ''}.`;
+    let msg = `Même produit disponible sous ${report.equivalents_count} autre${report.equivalents_count > 1 ? 's' : ''} marque${report.equivalents_count > 1 ? 's' : ''}.`;
     if (report.potential_savings > 0) {
-      msg += ` Economie possible : ${report.potential_savings.toFixed(2)} EUR/unite (-${report.savings_percent}%).`;
+      msg += ` Économie possible : ${report.potential_savings.toFixed(2)} EUR/unite (-${report.savings_percent}%).`;
     }
     if (report.cheapest_equivalent) {
       msg += ` Meilleur prix : ${report.cheapest_equivalent.marque} chez ${report.cheapest_equivalent.fournisseur}.`;
@@ -326,12 +326,12 @@ async function analyzeProduct(product, societeId) {
     report.market_insight = msg;
 
   } else if (report.is_white_label && report.oem_origin) {
-    report.market_insight = `Alternative verifiee : ce produit existe sous d'autres marques. JADOMI surveille les prix pour vous.`;
+    report.market_insight = `Alternative vérifiée : ce produit existe sous d'autres marques. JADOMI surveille les prix pour vous.`;
 
   } else if (report.equivalents_count > 0) {
     let msg = `${report.equivalents_count} alternative${report.equivalents_count > 1 ? 's' : ''} verifiee${report.equivalents_count > 1 ? 's' : ''} sous d'autres marques.`;
     if (report.potential_savings > 0) {
-      msg += ` Economie possible : ${report.potential_savings.toFixed(2)} EUR/unite (-${report.savings_percent}%).`;
+      msg += ` Économie possible : ${report.potential_savings.toFixed(2)} EUR/unite (-${report.savings_percent}%).`;
     }
     report.market_insight = msg;
   }

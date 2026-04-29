@@ -188,7 +188,7 @@ module.exports = function mountSuppliers(app, admin, auth) {
             specialties: []
           };
         }
-        // Agreger les specialites
+        // Agréger les spécialités
         const products = inv.extracted_data?.products || inv.products || [];
         if (Array.isArray(products)) {
           products.forEach(p => {

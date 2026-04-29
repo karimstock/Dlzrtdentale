@@ -31,7 +31,7 @@ const ETAPES_LABELS = {
   expedition: 'Expédition'
 };
 
-// Generer QR code unique pour un cas
+// Générer QR code unique pour un cas
 function genererQrCode(prothesisteId, caseId) {
   const pShort = prothesisteId.substring(0, 6).toUpperCase();
   const cShort = caseId.substring(0, 8).toUpperCase();
@@ -376,7 +376,7 @@ router.post('/', async (req, res) => {
 
     if (error) throw error;
 
-    // Generer QR code
+    // Générer QR code
     const qrCode = genererQrCode(req.prothesisteId, cas.id);
     const { error: qrErr } = await admin()
       .from('labo_production_cases')
@@ -385,7 +385,7 @@ router.post('/', async (req, res) => {
 
     if (qrErr) console.error('[LABO/Production] QR update error:', qrErr.message);
 
-    // Creer la premiere etape (reception)
+    // Créer la première étape (reception)
     await admin()
       .from('labo_production_etapes')
       .insert({
@@ -574,7 +574,7 @@ router.post('/:id/etape', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /api/labo/production/:id/qr — Generer QR
+// POST /api/labo/production/:id/qr — Générer QR
 // ─────────────────────────────────────────────
 router.post('/:id/qr', async (req, res) => {
   try {
@@ -592,7 +592,7 @@ router.post('/:id/qr', async (req, res) => {
       return res.json({ qr_code: cas.qr_code, case_id: cas.id });
     }
 
-    // Generer un nouveau QR
+    // Générer un nouveau QR
     const qrCode = genererQrCode(req.prothesisteId, cas.id);
     const { error: updErr } = await admin()
       .from('labo_production_cases')

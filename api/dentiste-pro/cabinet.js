@@ -9,13 +9,13 @@ const router = express.Router();
 
 // =========================================================
 // POST /cabinet
-// Creer un cabinet lie a la societe du praticien
+// Créer un cabinet lié à la société du praticien
 // =========================================================
 router.post('/', requireCabinet(), async (req, res) => {
   try {
-    // Verifier qu'il n'existe pas deja
+    // Vérifier qu'il n'existe pas déjà
     if (req.cabinet) {
-      return res.status(409).json({ error: 'Un cabinet existe deja pour cette societe' });
+      return res.status(409).json({ error: 'Un cabinet existe déjà pour cette société' });
     }
 
     const { nom, profession_type, adresse, telephone, email, config } = req.body;
@@ -41,7 +41,7 @@ router.post('/', requireCabinet(), async (req, res) => {
 
     if (error) {
       console.error('[dentiste-pro] cabinet create error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la creation du cabinet' });
+      return res.status(500).json({ error: 'Erreur lors de la création du cabinet' });
     }
 
     res.json({ success: true, cabinet });
@@ -53,12 +53,12 @@ router.post('/', requireCabinet(), async (req, res) => {
 
 // =========================================================
 // GET /cabinet
-// Recuperer la config du cabinet
+// Récupérer la config du cabinet
 // =========================================================
 router.get('/', requireCabinet(), async (req, res) => {
   try {
     if (!req.cabinet) {
-      return res.status(404).json({ error: 'Aucun cabinet configure pour cette societe' });
+      return res.status(404).json({ error: 'Aucun cabinet configuré pour cette société' });
     }
 
     res.json({ success: true, cabinet: req.cabinet });
@@ -75,7 +75,7 @@ router.get('/', requireCabinet(), async (req, res) => {
 router.put('/', requireCabinet(), async (req, res) => {
   try {
     if (!req.cabinet) {
-      return res.status(404).json({ error: 'Aucun cabinet configure. Creez-en un d\'abord.' });
+      return res.status(404).json({ error: 'Aucun cabinet configuré. Créez-en un d\'abord.' });
     }
 
     const { nom, profession_type, adresse, telephone, email, config } = req.body;
@@ -90,7 +90,7 @@ router.put('/', requireCabinet(), async (req, res) => {
     updates.updated_at = new Date().toISOString();
 
     if (Object.keys(updates).length <= 1) {
-      return res.status(400).json({ error: 'Aucun champ a mettre a jour' });
+      return res.status(400).json({ error: 'Aucun champ à mettre à jour' });
     }
 
     const { data: cabinet, error } = await admin()
@@ -102,7 +102,7 @@ router.put('/', requireCabinet(), async (req, res) => {
 
     if (error) {
       console.error('[dentiste-pro] cabinet update error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la mise a jour du cabinet' });
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour du cabinet' });
     }
 
     res.json({ success: true, cabinet });
@@ -114,13 +114,13 @@ router.put('/', requireCabinet(), async (req, res) => {
 
 // =========================================================
 // PUT /cabinet/ia-config
-// Mettre a jour la base de connaissances Chat IA
+// Mettre à jour la base de connaissances Chat IA
 // Body: { ia_knowledge_base, ia_prompt_system, ia_enabled }
 // =========================================================
 router.put('/ia-config', requireCabinet(), async (req, res) => {
   try {
     if (!req.cabinet) {
-      return res.status(404).json({ error: 'Aucun cabinet configure.' });
+      return res.status(404).json({ error: 'Aucun cabinet configuré.' });
     }
 
     const { ia_knowledge_base, ia_prompt_system, ia_enabled } = req.body;
@@ -132,7 +132,7 @@ router.put('/ia-config', requireCabinet(), async (req, res) => {
     updates.updated_at = new Date().toISOString();
 
     if (Object.keys(updates).length <= 1) {
-      return res.status(400).json({ error: 'Aucun champ IA a mettre a jour' });
+      return res.status(400).json({ error: 'Aucun champ IA à mettre à jour' });
     }
 
     const { data: cabinet, error } = await admin()
@@ -144,7 +144,7 @@ router.put('/ia-config', requireCabinet(), async (req, res) => {
 
     if (error) {
       console.error('[dentiste-pro] ia-config update error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la mise a jour de la config IA' });
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour de la config IA' });
     }
 
     res.json({ success: true, cabinet });
@@ -156,12 +156,12 @@ router.put('/ia-config', requireCabinet(), async (req, res) => {
 
 // =========================================================
 // GET /cabinet/ia-config
-// Recuperer la config Chat IA
+// Récupérer la config Chat IA
 // =========================================================
 router.get('/ia-config', requireCabinet(), async (req, res) => {
   try {
     if (!req.cabinet) {
-      return res.status(404).json({ error: 'Aucun cabinet configure.' });
+      return res.status(404).json({ error: 'Aucun cabinet configuré.' });
     }
 
     const { ia_knowledge_base, ia_prompt_system, ia_enabled } = req.cabinet;

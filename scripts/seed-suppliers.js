@@ -21,9 +21,9 @@ function log(msg) {
   fs.appendFileSync(LOG_FILE, line + '\n');
 }
 
-// Fournisseurs a enrichir par metier
+// Fournisseurs à enrichir par métier
 const SUPPLIERS_BY_SECTOR = {
-  'Distributeurs generaux FR': [
+  'Distributeurs généraux FR': [
     'Henry Schein France', 'GACD', 'Mega Dental', 'Dental Express',
     'Dental Hi Tec', 'OralCare', 'Promodentaire', 'Medidental',
     'Labocast', 'Techno Dent'
@@ -45,19 +45,19 @@ const SUPPLIERS_BY_SECTOR = {
     'Neodent', 'BTI', 'Global D', 'TBR Implants',
     'Implant Direct', 'Dentium', 'Megagen'
   ],
-  'Prothese et labo': [
+  'Prothèse et labo': [
     'Zirkonzahn', 'Amann Girrbach', 'Ivoclar Digital', 'Vita Zahnfabrik',
     'Zubler', 'Renfert', 'Yeti Dental', 'Schmitz Zander',
     'Dental Direkt', 'Pritidenta', 'Wieland Dental',
     'Zhermack', 'Kettenbach', 'Coltene Whaledent'
   ],
-  'CFAO numerique': [
+  'CFAO numérique': [
     '3Shape', 'Medit', 'Planmeca', 'Align Technology iTero',
     'Dentsply Sirona Primescan', 'Carestream Dental',
     'Formlabs', 'SprintRay', 'Asiga', 'NextDent',
     'VHF', 'Imes-Icore', 'Roland DG Dental', 'Amann Girrbach'
   ],
-  'Equipement cabinet': [
+  'Équipement cabinet': [
     'KaVo Kerr', 'Planmeca', 'Bien-Air', 'W&H', 'NSK',
     'Sirona', 'Castellini', 'Stern Weber', 'Anthos',
     'Mectron', 'Satelec Acteon', 'EMS', 'Durr Dental',
@@ -68,7 +68,7 @@ const SUPPLIERS_BY_SECTOR = {
     'Coltene HyFlex', 'Produits Dentaires SA', 'Micro-Mega',
     'EdgeEndo', 'Brasseler', 'SybronEndo', 'Ultradent'
   ],
-  'Hygiene et sterilisation': [
+  'Hygiène et stérilisation': [
     'Hu-Friedy (Cantel)', 'LM-Instruments', 'American Eagle',
     'W&H Lisa', 'Melag', 'SciCan', 'Tuttnauer', 'Mocom',
     'Durr Dental Hygiene', 'Pierre Fabre Oral Care'
@@ -109,7 +109,7 @@ async function main() {
         const msg = await anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 2000,
-          system: `Tu es un expert du marche de la distribution dentaire et medicale en France et en Europe. Tu connais tous les acteurs du secteur, leurs specialites, leurs marques distribuees, leur couverture geographique, et leurs conditions commerciales generales.`,
+          system: `Tu es un expert du marché de la distribution dentaire et médicale en France et en Europe. Tu connais tous les acteurs du secteur, leurs spécialités, leurs marques distribuées, leur couverture géographique, et leurs conditions commerciales générales.`,
           messages: [{
             role: 'user',
             content: `Enrichis ces fournisseurs du secteur "${sector}" avec un maximum d'infos utiles pour un logiciel de gestion de cabinet dentaire.
@@ -126,7 +126,7 @@ Pour chaque, JSON dans un array :
   "phone": "telephone France ou null",
   "country": "FR|DE|CH|...",
   "city": "ville siege",
-  "specialties": ["orthodontie","prothese","implants","omnipratique","labo","cfao","endodontie","parodontie","hygiene","radiologie","equipement"],
+  "specialties": ["orthodontie","prothèse","implants","omnipratique","labo","cfao","endodontie","parodontie","hygiène","radiologie","équipement"],
   "brands_distributed": ["Marque1","Marque2"],
   "sectors": ["dentaire","medical","labo"],
   "coverage_national": true/false,
@@ -186,7 +186,7 @@ JSON array strict :`
 
   const cost = (totalTokens / 1000000 * 1.0).toFixed(2);
   log(`\n${'='.repeat(50)}`);
-  log(`SEED FOURNISSEURS TERMINE`);
+  log(`SEED FOURNISSEURS TERMINÉ`);
   log(`  Enrichis: ${totalEnriched}`);
   log(`  Tokens: ${totalTokens} (~${cost}$)`);
   log('='.repeat(50));

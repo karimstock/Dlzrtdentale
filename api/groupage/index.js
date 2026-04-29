@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI — Module Groupage Regional (Groupon dentaire)
+// JADOMI — Module Groupage Régional (Groupon dentaire)
 // Routes /api/groupage/*
 // =============================================
 const { createClient } = require('@supabase/supabase-js');
@@ -23,5 +23,5 @@ module.exports = function mountGroupage(app) {
   require('./campaigns')(app, admin, auth);
   require('./scheduler');
 
-  console.log('[JADOMI] Module Groupage Regional monte');
+  console.log('[JADOMI] Module Groupage Régional monté');
 };

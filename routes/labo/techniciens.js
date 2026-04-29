@@ -121,7 +121,7 @@ router.put('/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Technicien non trouve' });
+    if (!data) return res.status(404).json({ error: 'Technicien non trouvé' });
     res.json({ technicien: data });
   } catch (e) {
     console.error('[LABO techniciens PUT]', e.message);
@@ -130,7 +130,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // =============================================
-// DELETE /api/labo/techniciens/:id — Desactiver (soft delete)
+// DELETE /api/labo/techniciens/:id — Désactiver (soft delete)
 // =============================================
 router.delete('/:id', async (req, res) => {
   try {
@@ -146,8 +146,8 @@ router.delete('/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Technicien non trouve' });
-    res.json({ message: 'Technicien desactive', technicien: data });
+    if (!data) return res.status(404).json({ error: 'Technicien non trouvé' });
+    res.json({ message: 'Technicien désactivé', technicien: data });
   } catch (e) {
     console.error('[LABO techniciens DELETE]', e.message);
     res.status(500).json({ error: 'Erreur interne' });
@@ -174,7 +174,7 @@ router.get('/:id/stats', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (techErr || !tech) return res.status(404).json({ error: 'Technicien non trouve' });
+    if (techErr || !tech) return res.status(404).json({ error: 'Technicien non trouvé' });
 
     // Parallel queries
     const [

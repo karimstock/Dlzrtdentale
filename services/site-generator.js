@@ -1,7 +1,7 @@
 // =============================================
-// JADOMI — Moteur de generation de sites clients
+// JADOMI — Moteur de génération de sites clients
 // Passe 38 — 24 avril 2026
-// Genere les fichiers HTML/CSS a partir des templates + donnees BDD
+// Génère les fichiers HTML/CSS à partir des templates + données BDD
 // =============================================
 const fs = require('fs');
 const path = require('path');
@@ -16,12 +16,12 @@ function renderTemplate(template, data) {
     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
     html = html.replace(regex, value != null ? String(value) : '');
   }
-  // Nettoyer les placeholders non remplaces
+  // Nettoyer les placeholders non remplacés
   html = html.replace(/\{\{[a-z_]+\}\}/g, '');
   return html;
 }
 
-// Generer les donnees de rendu a partir des sections BDD
+// Générer les données de rendu à partir des sections BDD
 function buildRenderData(site, sections, theme) {
   const data = {
     nom_cabinet: site.nom_affiche || 'Cabinet',
@@ -63,7 +63,7 @@ function buildRenderData(site, sections, theme) {
       case 'horaires':
         if (val.jours) {
           data.horaires_html = val.jours.map(j =>
-            `<tr><td>${j.jour}</td><td>${j.ouvert ? j.heures : 'Ferme'}</td></tr>`
+            `<tr><td>${j.jour}</td><td>${j.ouvert ? j.heures : 'Fermé'}</td></tr>`
           ).join('');
         }
         break;
@@ -93,7 +93,7 @@ function buildRenderData(site, sections, theme) {
   return data;
 }
 
-// Generer le site complet
+// Générer le site complet
 async function genererSite(siteId, supabase) {
   // 1. Charger site + sections + theme
   const { data: site, error: siteErr } = await supabase
@@ -102,7 +102,7 @@ async function genererSite(siteId, supabase) {
     .eq('id', siteId)
     .single();
 
-  if (siteErr || !site) throw new Error('Site non trouve: ' + (siteErr?.message || siteId));
+  if (siteErr || !site) throw new Error('Site non trouvé : ' + (siteErr?.message || siteId));
 
   const { data: sections } = await supabase
     .from('sites_jadomi_sections')
@@ -116,26 +116,26 @@ async function genererSite(siteId, supabase) {
     .eq('code', site.theme_code)
     .single();
 
-  // 2. Charger le template (specifique OU base + CSS theme)
+  // 2. Charger le template (spécifique OU base + CSS thème)
   const themeDir = path.join(TEMPLATES_DIR, site.theme_code);
   const baseDir = path.join(TEMPLATES_DIR, '_base');
   let templateHtml = '';
   let styleCss = '';
 
-  // Priorite 1 : template specifique au theme
+  // Priorité 1 : template spécifique au thème
   const specificTemplate = path.join(themeDir, 'template.html');
   if (fs.existsSync(specificTemplate)) {
     templateHtml = fs.readFileSync(specificTemplate, 'utf8');
   }
-  // Priorite 2 : template de base + CSS theme
+  // Priorité 2 : template de base + CSS thème
   else if (fs.existsSync(path.join(baseDir, 'template.html'))) {
     templateHtml = fs.readFileSync(path.join(baseDir, 'template.html'), 'utf8');
   }
   else {
-    throw new Error('Aucun template trouve pour: ' + site.theme_code);
+    throw new Error('Aucun template trouvé pour : ' + site.theme_code);
   }
 
-  // Charger CSS specifique au theme
+  // Charger CSS spécifique au thème
   const stylePath = path.join(themeDir, 'style.css');
   if (fs.existsSync(stylePath)) styleCss = fs.readFileSync(stylePath, 'utf8');
 
@@ -150,7 +150,7 @@ async function genererSite(siteId, supabase) {
     html = html.replace('</head>', `<style>${styleCss}</style>\n</head>`);
   }
 
-  // 4. Ecrire dans /sites-clients/
+  // 4. Écrire dans /sites-clients/
   const siteDir = path.join(SITES_DIR, site.slug);
   if (!fs.existsSync(siteDir)) fs.mkdirSync(siteDir, { recursive: true });
   fs.writeFileSync(path.join(siteDir, 'index.html'), html, 'utf8');
@@ -165,14 +165,14 @@ async function genererSite(siteId, supabase) {
     }
   }
 
-  // 5. Generer sitemap.xml
+  // 5. Générer sitemap.xml
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>${renderData.url_jadomi}</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod></url>
 </urlset>`;
   fs.writeFileSync(path.join(siteDir, 'sitemap.xml'), sitemap, 'utf8');
 
-  // 6. Mettre a jour statut
+  // 6. Mettre à jour statut
   const urlJadomi = 'https://jadomi.fr/sites/' + site.slug + '/';
   await supabase.from('sites_jadomi')
     .update({
@@ -189,13 +189,13 @@ async function genererSite(siteId, supabase) {
     site_id: siteId,
     societe_id: site.societe_id,
     snapshot: { sections: sections, theme_code: site.theme_code, renderData },
-    commentaire: 'Generation automatique'
+    commentaire: 'Génération automatique'
   });
 
   return { success: true, url: urlJadomi, slug: site.slug };
 }
 
-// Regenerer (apres modification)
+// Régénérer (après modification)
 async function regenererSite(siteId, supabase, commentaire) {
   // Snapshot avant
   const { data: currentSections } = await supabase

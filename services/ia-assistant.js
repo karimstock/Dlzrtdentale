@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI — IA Assistant (suggestions, pas decisions)
+// JADOMI — IA Assistant (suggestions, pas décisions)
 // Passe 38 — 24 avril 2026
 // L'IA propose TOUJOURS 3 suggestions, le pro choisit
 // =============================================
@@ -7,36 +7,36 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 const METIER_CONTEXT = {
   dentiste: 'chirurgien-dentiste, cabinet dentaire, soins dentaires, implants, blanchiment, orthodontie',
-  avocat: 'avocat, cabinet d\'avocats, droit, contentieux, conseil juridique, defense',
+  avocat: 'avocat, cabinet d\'avocats, droit, contentieux, conseil juridique, défense',
   orthodontiste: 'orthodontiste, aligneurs invisibles, appareils dentaires, sourire, correction',
-  prothesiste: 'prothesiste dentaire, laboratoire, protheses, couronnes, bridges, ceramique, zircone'
+  prothesiste: 'prothésiste dentaire, laboratoire, prothèses, couronnes, bridges, céramique, zircone'
 };
 
 async function suggestText(type, contexte_cabinet, texte_actuel, metier) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const metierCtx = METIER_CONTEXT[metier] || metier || 'professionnel de sante';
+  const metierCtx = METIER_CONTEXT[metier] || metier || 'professionnel de santé';
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 800,
     temperature: 0.7,
-    system: `Tu es redacteur web professionnel specialise ${metierCtx}.
+    system: `Tu es rédacteur web professionnel spécialisé ${metierCtx}.
 Propose EXACTEMENT 3 versions (60 mots max chacune) pour le champ "${type}".
 Ton : professionnel rassurant, sans superlatifs agressifs.
 Pas d'emojis sauf demande explicite. Vouvoiement obligatoire.
-Reponds UNIQUEMENT en JSON strict : {"propositions": ["v1", "v2", "v3"]}`,
+Réponds UNIQUEMENT en JSON strict : {"propositions": ["v1", "v2", "v3"]}`,
     messages: [{
       role: 'user',
-      content: `Cabinet : ${contexte_cabinet || 'non precise'}
+      content: `Cabinet : ${contexte_cabinet || 'non précisé'}
 Texte actuel : ${texte_actuel || '(vide)'}
-Champ a remplir : ${type}
-Genere 3 propositions.`
+Champ à remplir : ${type}
+Génère 3 propositions.`
     }]
   });
 
   const text = response.content[0]?.text || '';
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Reponse IA invalide');
+  if (!jsonMatch) throw new Error('Réponse IA invalide');
 
   const result = JSON.parse(jsonMatch[0]);
   const tokensIn = response.usage?.input_tokens || 0;
@@ -109,11 +109,11 @@ async function verifierSite(siteId, supabase) {
   const issues = [];
 
   const { data: site } = await supabase.from('sites_jadomi').select('*').eq('id', siteId).single();
-  if (!site) return [{ type: 'error', message: 'Site non trouve' }];
+  if (!site) return [{ type: 'error', message: 'Site non trouvé' }];
 
   const { data: sections } = await supabase.from('sites_jadomi_sections').select('*').eq('site_id', siteId);
 
-  // Verifier completude
+  // Vérifier complétude
   const requiredSections = ['hero', 'contact', 'services'];
   for (const req of requiredSections) {
     const found = (sections || []).find(s => s.cle === req);
@@ -123,15 +123,15 @@ async function verifierSite(siteId, supabase) {
     }
   }
 
-  // Verifier contact
+  // Vérifier contact
   const contact = (sections || []).find(s => s.cle === 'contact');
   if (contact?.valeur) {
-    if (!contact.valeur.telephone) issues.push({ type: 'info', section: 'contact', message: 'Telephone non renseigne' });
-    if (!contact.valeur.email) issues.push({ type: 'info', section: 'contact', message: 'Email non renseigne' });
-    if (!contact.valeur.adresse) issues.push({ type: 'info', section: 'contact', message: 'Adresse non renseignee' });
+    if (!contact.valeur.telephone) issues.push({ type: 'info', section: 'contact', message: 'Téléphone non renseigné' });
+    if (!contact.valeur.email) issues.push({ type: 'info', section: 'contact', message: 'Email non renseigné' });
+    if (!contact.valeur.adresse) issues.push({ type: 'info', section: 'contact', message: 'Adresse non renseignée' });
   }
 
-  // Verifier hero
+  // Vérifier hero
   const hero = (sections || []).find(s => s.cle === 'hero');
   if (hero?.valeur) {
     if (!hero.valeur.slogan || hero.valeur.slogan.length < 10) {
@@ -139,7 +139,7 @@ async function verifierSite(siteId, supabase) {
     }
   }
 
-  if (issues.length === 0) issues.push({ type: 'success', message: 'Tout est pret pour la publication.' });
+  if (issues.length === 0) issues.push({ type: 'success', message: 'Tout est prêt pour la publication.' });
 
   return issues;
 }

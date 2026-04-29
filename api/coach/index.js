@@ -238,7 +238,7 @@ router.post('/generate-welcome', async (req, res) => {
       .eq('id', societe_id)
       .maybeSingle();
 
-    if (!societe) return res.status(404).json({ error: 'Societe introuvable' });
+    if (!societe) return res.status(404).json({ error: 'Société introuvable' });
 
     const context = getProfessionContext(societe.type, societe.sous_type);
     const userName = profile?.nom || profile?.prenom || 'cher client';

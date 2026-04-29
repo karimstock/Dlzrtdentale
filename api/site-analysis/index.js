@@ -205,17 +205,17 @@ async function runAnalysis(analysisId, url, societeId) {
         design: designAudit,
         security: securityAudit,
         seo: seoAudit,
-        performance: { score: null, note: 'PageSpeed API non configuree' },
+        performance: { score: null, note: 'PageSpeed API non configurée' },
         completed_at: new Date().toISOString()
       }
     }).eq('id', analysisId);
 
   } catch (err) {
     console.error('[site-analysis] Pipeline error:', err.message);
-    // Marquer comme echoue — utilise type_site (pas status qui n'existe pas)
+    // Marquer comme échoué — utilise type_site (pas status qui n'existe pas)
     await supabase.from('site_analyses').update({
       type_site: 'error',
-      recommandation: 'erreur: ' + (err.message || 'Analyse echouee').substring(0, 200)
+      recommandation: 'erreur: ' + (err.message || 'Analyse échouée').substring(0, 200)
     }).eq('id', analysisId).then(() => {}).catch(() => {});
   }
 }

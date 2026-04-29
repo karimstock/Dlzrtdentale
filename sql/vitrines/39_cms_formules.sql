@@ -1,13 +1,13 @@
 -- =============================================
 -- Passe 36 - CMS 3 formules Studio (Classic/Pro/Expert)
 -- Date : 24 avril 2026
--- Objectif : tables pour forfaits + contenus editables + historique
+-- Objectif : tables pour forfaits + contenus éditables + historique
 -- =============================================
 -- IDEMPOTENT : CREATE IF NOT EXISTS partout
 -- ZERO DROP TABLE, ZERO DELETE sans WHERE
 -- =============================================
 
--- 1. Forfaits JADOMI Studio (referentiel des 3 niveaux)
+-- 1. Forfaits JADOMI Studio (référentiel des 3 niveaux)
 CREATE TABLE IF NOT EXISTS public.studio_forfaits (
   id SERIAL PRIMARY KEY,
   code VARCHAR(20) UNIQUE NOT NULL,
@@ -36,7 +36,7 @@ VALUES
   '{"pages": "illimite", "photos": "illimite", "langues": 5, "articles_blog_mois": 20}')
 ON CONFLICT (code) DO NOTHING;
 
--- 2. Abonnement d'une organisation a un forfait Studio
+-- 2. Abonnement d'une organisation à un forfait Studio
 CREATE TABLE IF NOT EXISTS public.studio_abonnements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   societe_id UUID NOT NULL,
@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_studio_abo_org
 CREATE INDEX IF NOT EXISTS idx_studio_abo_statut
   ON public.studio_abonnements(statut);
 
--- 3. Contenus editables du site (CMS pour Pro/Expert)
+-- 3. Contenus éditables du site (CMS pour Pro/Expert)
 CREATE TABLE IF NOT EXISTS public.site_contenus (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   societe_id UUID NOT NULL,
@@ -129,8 +129,8 @@ ALTER TABLE public.site_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_contenus_historique ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_demandes_modif ENABLE ROW LEVEL SECURITY;
 
--- Policy : lecture/ecriture restreinte a l'organisation de l'utilisateur
--- Utilise le meme pattern que les tables existantes JADOMI :
+-- Policy : lecture/écriture restreinte à l'organisation de l'utilisateur
+-- Utilise le même pattern que les tables existantes JADOMI :
 -- L'utilisateur doit avoir un role dans user_societe_roles pour cette organisation
 
 -- studio_abonnements : lecture par membre de l'orga
@@ -298,5 +298,5 @@ END $$;
 
 -- =============================================
 -- FIN migration 39 — Passe 36 CMS 3 formules + analyses sites
--- 7 tables creees, RLS actif, seeds inclus
+-- 7 tables créées, RLS actif, seeds inclus
 -- =============================================

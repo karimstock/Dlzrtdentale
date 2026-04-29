@@ -45,7 +45,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !bl) return res.status(404).json({ error: 'BL non trouve' });
+    if (error || !bl) return res.status(404).json({ error: 'BL non trouvé' });
 
     const { data: lignes } = await admin()
       .from('lignes_bl')
@@ -70,7 +70,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'dentiste_id et lignes requis' });
     }
 
-    // Generer numero BL sequentiel
+    // Générer numéro BL séquentiel
     const proth = req.prothesiste;
     const numeroBl = `${proth.prefix_bl || 'BL'}${String(proth.prochain_numero_bl || 1).padStart(5, '0')}`;
 
@@ -160,7 +160,7 @@ router.put('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!existing) return res.status(404).json({ error: 'BL non trouve' });
+    if (!existing) return res.status(404).json({ error: 'BL non trouvé' });
     if (existing.statut !== 'brouillon') {
       return res.status(400).json({ error: 'Seuls les BL brouillon sont modifiables' });
     }
@@ -242,7 +242,7 @@ router.post('/:id/valider', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!bl) return res.status(404).json({ error: 'BL non trouve' });
+    if (!bl) return res.status(404).json({ error: 'BL non trouvé' });
     if (bl.statut !== 'brouillon') return res.status(400).json({ error: 'BL déjà validé' });
 
     const { data: dentiste } = await admin()
@@ -259,7 +259,7 @@ router.post('/:id/valider', async (req, res) => {
 
     const prothesiste = req.prothesiste;
 
-    // Generer PDF BL
+    // Générer PDF BL
     const pdfBl = await genererBLPdf({
       prothesiste,
       dentiste,
@@ -281,7 +281,7 @@ router.post('/:id/valider', async (req, res) => {
       contentType: 'application/pdf', upsert: true
     });
 
-    // Generer Declaration Conformite CE
+    // Générer Déclaration Conformité CE
     const pdfDoc = await genererDeclarationCEPdf({
       prothesiste,
       dentiste,
@@ -342,7 +342,7 @@ router.delete('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!bl) return res.status(404).json({ error: 'BL non trouve' });
+    if (!bl) return res.status(404).json({ error: 'BL non trouvé' });
     if (bl.statut !== 'brouillon') return res.status(400).json({ error: 'Seuls les BL brouillon sont supprimables' });
 
     await admin().from('lignes_bl').delete().eq('bl_id', req.params.id);

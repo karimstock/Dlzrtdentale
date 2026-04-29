@@ -1,5 +1,5 @@
--- Passe 56 — Documents signes (DocuSeal integration)
--- Table pour stocker tous les documents signes electroniquement
+-- Passe 56 — Documents signés (DocuSeal integration)
+-- Table pour stocker tous les documents signés électroniquement
 
 CREATE TABLE IF NOT EXISTS signed_documents (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS signed_documents (
   user_id UUID,
   title TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT 'contrat', -- contrat, mandat, avocat, juridique, administratif, autre
-  subcategory TEXT, -- sous-dossier theme
+  subcategory TEXT, -- sous-dossier thème
   docuseal_submission_id INTEGER UNIQUE, -- DocuSeal submission ID (unique to prevent duplicate webhooks)
   docuseal_template_id INTEGER, -- DocuSeal template ID
   signer_name TEXT,

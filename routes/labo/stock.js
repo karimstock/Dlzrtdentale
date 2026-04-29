@@ -273,7 +273,7 @@ router.post('/:id/mouvement', async (req, res) => {
 
     const { data: stock } = await admin().from('labo_stock').select('quantite')
       .eq('id', req.params.id).eq('prothesiste_id', req.prothesisteId).single();
-    if (!stock) return res.status(404).json({ error: 'Produit non trouve' });
+    if (!stock) return res.status(404).json({ error: 'Produit non trouvé' });
 
     let newQty = Number(stock.quantite);
     if (type_mouvement === 'entree') newQty += Number(quantite);
@@ -360,7 +360,7 @@ router.get('/scan-stats', async (req, res) => {
   }
 });
 
-// DELETE /api/labo/stock/:id — Desactiver
+// DELETE /api/labo/stock/:id — Désactiver
 router.delete('/:id', async (req, res) => {
   try {
     await admin().from('labo_stock').update({ est_actif: false })
@@ -388,17 +388,17 @@ router.post('/scan-peremption', async (req, res) => {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 500,
-      system: `Tu es un assistant expert specialise dans la lecture de dates de peremption sur des emballages de produits dentaires, medicaux et de laboratoire prothetique.
+      system: `Tu es un assistant expert spécialisé dans la lecture de dates de péremption sur des emballages de produits dentaires, médicaux et de laboratoire prothétique.
 
-Tu connais tous les formats utilises dans l'industrie :
-- DD/MM/YYYY (francais)
+Tu connais tous les formats utilisés dans l'industrie :
+- DD/MM/YYYY (français)
 - MM/YYYY ou MM/YY (international)
 - YYYY-MM-DD (ISO)
-- Marquages : EXP, USE BY, BBE, Best Before, Peremption
+- Marquages : EXP, USE BY, BBE, Best Before, Péremption
 - Pictogramme sablier
-- Numeros de lot : LOT, Batch, No., REF
+- Numéros de lot : LOT, Batch, No., REF
 
-Tu retournes TOUJOURS un JSON strict avec confidence calibre sur la qualite reelle de ta lecture.`,
+Tu retournes TOUJOURS un JSON strict avec confidence calibré sur la qualité réelle de ta lecture.`,
       messages: [{
         role: 'user',
         content: [
@@ -438,7 +438,7 @@ Format JSON strict :
 router.post('/supplier/lookup', async (req, res) => {
   try {
     const { name } = req.body;
-    if (!name || name.trim().length < 2) return res.status(400).json({ error: 'name requis (min 2 caracteres)' });
+    if (!name || name.trim().length < 2) return res.status(400).json({ error: 'name requis (min 2 caractères)' });
 
     const supplierName = name.trim();
     const normalized = supplierName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
@@ -455,7 +455,7 @@ router.post('/supplier/lookup', async (req, res) => {
       }
     } catch (e) { /* table pas encore creee, continue */ }
 
-    // Pas trouve → Claude Haiku recherche les infos
+    // Pas trouvé → Claude Haiku recherche les infos
     if (!process.env.ANTHROPIC_API_KEY) {
       return res.json({ found: false, source: 'none', supplier: { name: supplierName } });
     }
@@ -524,7 +524,7 @@ JSON strict :
       found: true,
       source: 'ia',
       supplier: { ...supplier, name: supplier.name || supplierName },
-      message: 'Fournisseur identifie et enregistre dans l\'annuaire JADOMI'
+      message: 'Fournisseur identifié et enregistré dans l\'annuaire JADOMI'
     });
   } catch (e) {
     res.status(500).json({ error: 'Erreur interne' });
@@ -730,11 +730,11 @@ JSON strict :
           if (pushNotif) {
             let titre, message;
             if (oemReport.is_white_label && oemReport.oem_origin) {
-              titre = `Alternative verifiee : ${product.nom_fr || product.nom}`;
+              titre = `Alternative vérifiée : ${product.nom_fr || product.nom}`;
               message = oemReport.market_insight || `Ce produit (${brandName}) existe sous d'autres marques, potentiellement moins cher.`;
             } else if (oemReport.potential_savings > 0) {
-              titre = `Economie detectee : ${product.nom_fr || product.nom}`;
-              message = `Meme produit disponible a -${oemReport.savings_percent}%. ${oemReport.market_insight || ''}`;
+              titre = `Économie détectée : ${product.nom_fr || product.nom}`;
+              message = `Même produit disponible à -${oemReport.savings_percent}%. ${oemReport.market_insight || ''}`;
             } else {
               titre = `${oemReport.equivalents_count} alternative(s) : ${product.nom_fr || product.nom}`;
               message = oemReport.market_insight || `Des alternatives existent sous d'autres marques.`;
@@ -755,7 +755,7 @@ JSON strict :
                   message,
                   entity_type: 'economies_alert',
                   entity_id: productDbId,
-                  cta_label: 'Voir mes economies',
+                  cta_label: 'Voir mes économies',
                   cta_url: '/index.html?tab=economies',
                 });
               } catch (_) {}
@@ -804,7 +804,7 @@ JSON strict :
         pays_fabrication: product.pays_fabrication || null,
       },
       enriched: true,
-      message: 'Produit identifie et ajoute a la base JADOMI.'
+      message: 'Produit identifié et ajouté à la base JADOMI.'
     });
   } catch (e) {
     res.status(500).json({ error: 'Erreur interne' });
@@ -834,7 +834,7 @@ router.get('/economies-report', async (req, res) => {
       .limit(100);
 
     if (!equivs?.length) {
-      return res.json({ alerts: [], total_savings: 0, message: 'Aucune alternative detectee pour le moment. Scannez vos produits pour enrichir la base JADOMI.' });
+      return res.json({ alerts: [], total_savings: 0, message: 'Aucune alternative détectée pour le moment. Scannez vos produits pour enrichir la base JADOMI.' });
     }
 
     // 2. Enrichir chaque équivalence avec les détails produit + prix
@@ -911,8 +911,8 @@ router.get('/economies-report', async (req, res) => {
       alerts_count: alerts.length,
       total_savings: +totalSavings.toFixed(2),
       message: alerts.length > 0
-        ? `${alerts.length} alternative(s) verifiee(s). Economie potentielle : ${totalSavings.toFixed(2)} EUR.`
-        : 'Aucune alternative detectee pour le moment.',
+        ? `${alerts.length} alternative(s) vérifiée(s). Économie potentielle : ${totalSavings.toFixed(2)} EUR.`
+        : 'Aucune alternative détectée pour le moment.',
     });
   } catch (e) {
     res.status(500).json({ error: 'Erreur interne' });

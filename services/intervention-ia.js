@@ -1,7 +1,7 @@
 // =============================================
 // JADOMI — Moteur d'intervention IA automatique
 // Passe 38 — 24 avril 2026
-// Execute des modifications sur sites existants via FTP/WordPress
+// Exécute des modifications sur sites existants via FTP/WordPress
 // =============================================
 const crypto = require('crypto');
 const ftp = require('basic-ftp');
@@ -139,23 +139,23 @@ async function analyserDemande(demande, fichiers, siteInfo) {
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4000,
     temperature: 0.1,
-    system: `Tu es un developpeur web expert qui modifie un site existant d'un professionnel (dentiste, avocat, etc.).
+    system: `Tu es un développeur web expert qui modifie un site existant d'un professionnel (dentiste, avocat, etc.).
 
 CONTEXTE DU SITE :
 - Plateforme : ${siteInfo.plateforme || 'inconnue'}
 - URL : ${siteInfo.url}
 
 TON TRAVAIL :
-1. Identifier quels fichiers doivent etre modifies
+1. Identifier quels fichiers doivent être modifiés
 2. Pour chaque fichier : fournir le remplacement exact (ancien_contenu / nouveau_contenu)
-3. Evaluer la complexite (simple/moyen/complexe)
+3. Évaluer la complexité (simple/moyen/complexe)
 4. Si complexe (refonte, nouvelles pages, e-commerce) : refuser en expliquant pourquoi
 
-REGLES CRITIQUES :
+RÈGLES CRITIQUES :
 - JAMAIS modifier wp-config.php, .env, .htaccess, fichiers de paiement
 - JAMAIS supprimer de contenu sans remplacement
 - Faire des remplacements chirurgicaux (le moins de changement possible)
-- Preserver l'encodage et l'indentation
+- Préserver l'encodage et l'indentation
 
 FORMAT DE REPONSE : JSON strict uniquement, pas de texte avant ni apres.
 {
@@ -184,7 +184,7 @@ FORMAT DE REPONSE : JSON strict uniquement, pas de texte avant ni apres.
   const text = response.content[0]?.text || '';
   // Extraire le JSON
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Reponse IA invalide (pas de JSON)');
+  if (!jsonMatch) throw new Error('Réponse IA invalide (pas de JSON)');
 
   const result = JSON.parse(jsonMatch[0]);
   const tokensIn = response.usage?.input_tokens || 0;
@@ -213,7 +213,7 @@ async function executerIntervention(interventionId, supabase) {
       .eq('id', interventionId)
       .single();
 
-    if (intErr || !intervention) throw new Error('Intervention non trouvee');
+    if (intErr || !intervention) throw new Error('Intervention non trouvée');
 
     const { data: site } = await supabase
       .from('sites_existants')
@@ -221,7 +221,7 @@ async function executerIntervention(interventionId, supabase) {
       .eq('id', intervention.site_id)
       .single();
 
-    if (!site) throw new Error('Site non trouve');
+    if (!site) throw new Error('Site non trouvé');
 
     const { data: credRow } = await supabase
       .from('sites_existants_credentials')
@@ -231,7 +231,7 @@ async function executerIntervention(interventionId, supabase) {
       .limit(1)
       .single();
 
-    if (!credRow) throw new Error('Aucun credential pour ce site');
+    if (!credRow) throw new Error('Aucun identifiant pour ce site');
 
     const creds = dechiffrerCredentials(credRow.donnees_chiffrees, credRow.iv, credRow.tag, CRED_KEY);
 
@@ -265,7 +265,7 @@ async function executerIntervention(interventionId, supabase) {
         fichiers._ftpClient = client;
       } catch (e) {
         client.close();
-        throw new Error('Connexion FTP echouee: ' + e.message);
+        throw new Error('Connexion FTP échouée: ' + e.message);
       }
 
     } else if (credRow.type_acces === 'wordpress_admin') {
@@ -345,7 +345,7 @@ async function executerIntervention(interventionId, supabase) {
 
     for (const modif of analyse.modifications) {
       if (isBlacklisted(modif.fichier)) {
-        log('SKIP blackliste: ' + modif.fichier);
+        log('SKIP blacklisté: ' + modif.fichier);
         continue;
       }
 
@@ -356,7 +356,7 @@ async function executerIntervention(interventionId, supabase) {
       let newContent = fichier.content;
       if (modif.ancien_contenu && modif.nouveau_contenu !== undefined) {
         if (!newContent.includes(modif.ancien_contenu)) {
-          log('WARN: ancien_contenu non trouve dans ' + modif.fichier);
+          log('WARN: ancien_contenu non trouvé dans ' + modif.fichier);
           continue;
         }
         newContent = newContent.replace(modif.ancien_contenu, modif.nouveau_contenu);
@@ -384,7 +384,7 @@ async function executerIntervention(interventionId, supabase) {
           })
           .eq('id', interventionId);
         if (fichiers._ftpClient) fichiers._ftpClient.close();
-        return { success: false, reason: 'Erreur upload, rollback effectue', rollback: true };
+        return { success: false, reason: 'Erreur upload, rollback effectué', rollback: true };
       }
     }
 
@@ -404,7 +404,7 @@ async function executerIntervention(interventionId, supabase) {
         log('WARN: site repond ' + checkRes.status + ' apres modif');
       }
     } catch (e) {
-      log('WARN: verification echouee: ' + e.message);
+      log('WARN: vérification échouée: ' + e.message);
     }
 
     // 8. Succes

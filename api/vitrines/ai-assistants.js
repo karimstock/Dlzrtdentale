@@ -23,9 +23,9 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // ------------------------------------------
 // System prompt de base pour contexte juridique francais
 // ------------------------------------------
-const BASE_SYSTEM = `Vous etes un assistant specialise dans la communication pour les cabinets d'avocats francais.
-Ton professionnel, precis, sobre. Contexte : droit francais, deontologie du barreau, RGPD.
-Repondez toujours en francais sauf instruction contraire.`;
+const BASE_SYSTEM = `Vous êtes un assistant spécialisé dans la communication pour les cabinets d'avocats français.
+Ton professionnel, précis, sobre. Contexte : droit français, déontologie du barreau, RGPD.
+Répondez toujours en français sauf instruction contraire.`;
 
 module.exports = function(router) {
 
@@ -46,25 +46,25 @@ module.exports = function(router) {
         system: BASE_SYSTEM,
         messages: [{
           role: 'user',
-          content: `Generez exactement 3 slogans pour le cabinet d'avocats "${cabinet_name}", barreau de ${barreau}.
+          content: `Générez exactement 3 slogans pour le cabinet d'avocats "${cabinet_name}", barreau de ${barreau}.
 Expertises : ${expertises.join(', ')}.
 
 Chaque slogan doit :
 - Faire entre 3 et 6 mots
-- Etre percutant, professionnel et memorable
-- Refleter les valeurs du cabinet et ses expertises
+- Être percutant, professionnel et mémorable
+- Refléter les valeurs du cabinet et ses expertises
 
-Pour chaque slogan, proposez aussi un sous-titre complementaire (max 60 caracteres).
+Pour chaque slogan, proposez aussi un sous-titre complémentaire (max 60 caractères).
 
-Repondez UNIQUEMENT en JSON valide, format :
-[{"text": "Le slogan", "subtitle": "Le sous-titre complementaire"}]`
+Répondez UNIQUEMENT en JSON valide, format :
+[{"text": "Le slogan", "subtitle": "Le sous-titre complémentaire"}]`
         }]
       });
 
       const text = response.content[0].text.trim();
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
-        return res.status(500).json({ error: 'ai_parse_error', message: 'Reponse IA non parseable' });
+        return res.status(500).json({ error: 'ai_parse_error', message: 'Réponse IA non parseable' });
       }
 
       const slogans = JSON.parse(jsonMatch[0]);
@@ -92,19 +92,19 @@ Repondez UNIQUEMENT en JSON valide, format :
         system: BASE_SYSTEM,
         messages: [{
           role: 'user',
-          content: `Generez un sous-titre professionnel (60 caracteres maximum) pour completer le slogan suivant d'un cabinet d'avocats :
+          content: `Générez un sous-titre professionnel (60 caractères maximum) pour compléter le slogan suivant d'un cabinet d'avocats :
 
 Slogan : "${slogan}"
-Avocat : ${avocat_name || 'Non precise'}
-Barreau : ${barreau || 'Non precise'}
+Avocat : ${avocat_name || 'Non précisé'}
+Barreau : ${barreau || 'Non précisé'}
 Expertises : ${expertises.join(', ')}
 
 Le sous-titre doit :
-- Completer le slogan sans le repeter
-- Etre sobre et professionnel
-- Ne pas depasser 60 caracteres
+- Compléter le slogan sans le répéter
+- Être sobre et professionnel
+- Ne pas dépasser 60 caractères
 
-Repondez UNIQUEMENT avec le sous-titre, sans guillemets ni ponctuation finale.`
+Répondez UNIQUEMENT avec le sous-titre, sans guillemets ni ponctuation finale.`
         }]
       });
 
@@ -133,30 +133,30 @@ Repondez UNIQUEMENT avec le sous-titre, sans guillemets ni ponctuation finale.`
         system: BASE_SYSTEM,
         messages: [{
           role: 'user',
-          content: `Redigez les mentions legales completes pour le site internet du cabinet d'avocats suivant :
+          content: `Rédigez les mentions légales complètes pour le site internet du cabinet d'avocats suivant :
 
 Cabinet : ${cabinet_name}
-SIRET : ${siret || '[A completer]'}
-Adresse : ${address || '[A completer]'}
+SIRET : ${siret || '[À compléter]'}
+Adresse : ${address || '[À compléter]'}
 Avocat responsable : ${avocat_name}
 Barreau : ${barreau}
 
-Les mentions legales doivent etre conformes au droit francais et au RGPD. Structurez en HTML avec les sections suivantes :
-1. <h2>Editeur du site</h2> — identite complete du cabinet
-2. <h2>Hebergeur</h2> — JADOMI SAS, heberge par OVH SAS, 2 rue Kellermann, 59100 Roubaix
-3. <h2>Propriete intellectuelle</h2> — protection du contenu
-4. <h2>Responsabilite</h2> — limitations de responsabilite
-5. <h2>Protection des donnees personnelles (RGPD)</h2> — droits des utilisateurs, base legale, duree de conservation, contact DPO
+Les mentions légales doivent être conformes au droit français et au RGPD. Structurez en HTML avec les sections suivantes :
+1. <h2>Éditeur du site</h2> — identité complète du cabinet
+2. <h2>Hébergeur</h2> — JADOMI SAS, hébergé par OVH SAS, 2 rue Kellermann, 59100 Roubaix
+3. <h2>Propriété intellectuelle</h2> — protection du contenu
+4. <h2>Responsabilité</h2> — limitations de responsabilité
+5. <h2>Protection des données personnelles (RGPD)</h2> — droits des utilisateurs, base légale, durée de conservation, contact DPO
 6. <h2>Cookies</h2> — politique cookies, consentement
-7. <h2>Deontologie</h2> — reference au Reglement Interieur National (RIN), Conseil National des Barreaux (CNB), obligation de secret professionnel
+7. <h2>Déontologie</h2> — référence au Règlement Intérieur National (RIN), Conseil National des Barreaux (CNB), obligation de secret professionnel
 
 Utilisez des balises HTML (<h2>, <p>, <ul>, <li>) pour la mise en forme.
-Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
+Répondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
         }]
       });
 
       let content = response.content[0].text.trim();
-      // Nettoyer les eventuels blocs markdown
+      // Nettoyer les éventuels blocs markdown
       content = content.replace(/^```html?\s*/i, '').replace(/\s*```$/i, '');
 
       res.json({ content });
@@ -183,22 +183,22 @@ Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
         system: BASE_SYSTEM,
         messages: [{
           role: 'user',
-          content: `Redigez une biographie professionnelle pour un avocat, entre 150 et 200 mots.
+          content: `Rédigez une biographie professionnelle pour un avocat, entre 150 et 200 mots.
 
 Nom : ${name}
 Barreau : ${barreau}
 Expertises : ${expertises.join(', ')}
-Annees d'experience : ${years_exp || 'Non precise'}
-Formation : ${formation || 'Non precisee'}
+Années d'expérience : ${years_exp || 'Non précisé'}
+Formation : ${formation || 'Non précisée'}
 
 La biographie doit :
 - Commencer par "Avocat(e) au Barreau de ${barreau}"
-- Mettre en avant les expertises et l'experience
-- Etre redigee a la troisieme personne
+- Mettre en avant les expertises et l'expérience
+- Être rédigée à la troisième personne
 - Ton professionnel et sobre, inspire confiance
 - Mentionner la formation si fournie
 
-Repondez UNIQUEMENT avec le texte de la biographie, sans titre ni guillemets.`
+Répondez UNIQUEMENT avec le texte de la biographie, sans titre ni guillemets.`
         }]
       });
 
@@ -226,39 +226,39 @@ Repondez UNIQUEMENT avec le texte de la biographie, sans titre ni guillemets.`
       }
 
       const sectionPrompts = {
-        cabinet: `Redigez le contenu HTML de la section "Le Cabinet" pour le site d'un cabinet d'avocats.
-Incluez : presentation du cabinet, valeurs, approche client, engagement.
+        cabinet: `Rédigez le contenu HTML de la section "Le Cabinet" pour le site d'un cabinet d'avocats.
+Incluez : présentation du cabinet, valeurs, approche client, engagement.
 Utilisez des <h3>, <p> et <ul> pour structurer.
 150-250 mots.`,
 
-        expertises: `Redigez le contenu HTML de la section "Nos Expertises" pour un cabinet d'avocats.
-Pour chaque expertise listee, redigez un paragraphe de 2-3 phrases.
+        expertises: `Rédigez le contenu HTML de la section "Nos Expertises" pour un cabinet d'avocats.
+Pour chaque expertise listée, rédigez un paragraphe de 2-3 phrases.
 Utilisez des <h3> pour chaque expertise et <p> pour les descriptions.`,
 
-        equipe: `Redigez le contenu HTML de la section "Notre Equipe" pour un cabinet d'avocats.
-Incluez : introduction de l'equipe, valeurs partagees, complementarite.
+        equipe: `Rédigez le contenu HTML de la section "Notre Équipe" pour un cabinet d'avocats.
+Incluez : introduction de l'équipe, valeurs partagées, complémentarité.
 Utilisez des <h3> et <p>. 100-150 mots pour l'introduction.`,
 
-        actualites: `Redigez le contenu HTML de la section "Actualites" pour un cabinet d'avocats.
-Generez 3 exemples d'articles courts (titre + resume 2-3 phrases) sur des sujets juridiques actuels.
+        actualites: `Rédigez le contenu HTML de la section "Actualités" pour un cabinet d'avocats.
+Générez 3 exemples d'articles courts (titre + résumé 2-3 phrases) sur des sujets juridiques actuels.
 Utilisez des <article>, <h3> et <p>.`,
 
-        contact: `Redigez le contenu HTML de la section "Contact" pour un cabinet d'avocats.
-Incluez : texte d'accueil invitant a prendre contact, mention des horaires, engagement de reponse rapide.
+        contact: `Rédigez le contenu HTML de la section "Contact" pour un cabinet d'avocats.
+Incluez : texte d'accueil invitant à prendre contact, mention des horaires, engagement de réponse rapide.
 Utilisez des <h3> et <p>. Ton accueillant mais professionnel. 80-120 mots.`,
 
-        faq: `Redigez le contenu HTML de la section "Questions Frequentes" pour un cabinet d'avocats.
-Generez 5-6 questions/reponses pertinentes sur : premier rendez-vous, honoraires, delais, confidentialite, procedures.
-Utilisez des <details> et <summary> pour chaque question, <p> pour la reponse.`
+        faq: `Rédigez le contenu HTML de la section "Questions Fréquentes" pour un cabinet d'avocats.
+Générez 5-6 questions/réponses pertinentes sur : premier rendez-vous, honoraires, délais, confidentialité, procédures.
+Utilisez des <details> et <summary> pour chaque question, <p> pour la réponse.`
       };
 
       const cabinetInfo = `
 Informations du cabinet :
-- Nom : ${cabinet_data.cabinet_name || 'Non precise'}
-- Avocat : ${cabinet_data.avocat_name || 'Non precise'}
-- Barreau : ${cabinet_data.barreau || 'Non precise'}
-- Expertises : ${(cabinet_data.expertises || []).join(', ') || 'Non precisees'}
-- Adresse : ${cabinet_data.address || 'Non precisee'}`;
+- Nom : ${cabinet_data.cabinet_name || 'Non précisé'}
+- Avocat : ${cabinet_data.avocat_name || 'Non précisé'}
+- Barreau : ${cabinet_data.barreau || 'Non précisé'}
+- Expertises : ${(cabinet_data.expertises || []).join(', ') || 'Non précisées'}
+- Adresse : ${cabinet_data.address || 'Non précisée'}`;
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
@@ -270,7 +270,7 @@ Informations du cabinet :
 
 ${cabinetInfo}
 
-Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
+Répondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
         }]
       });
 
@@ -291,7 +291,7 @@ Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
     try {
       const { content, target_lang } = req.body;
 
-      const validLangs = { en: 'anglais', es: 'espagnol', de: 'allemand', ar: 'arabe', nl: 'neerlandais' };
+      const validLangs = { en: 'anglais', es: 'espagnol', de: 'allemand', ar: 'arabe', nl: 'néerlandais' };
       if (!content || typeof content !== 'string') {
         return res.status(400).json({ error: 'validation', message: 'content (string) requis' });
       }
@@ -302,21 +302,21 @@ Repondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: `Vous etes un traducteur professionnel specialise dans le domaine juridique.
-Vous traduisez du francais vers d'autres langues en preservant :
+        system: `Vous êtes un traducteur professionnel spécialisé dans le domaine juridique.
+Vous traduisez du français vers d'autres langues en préservant :
 - Toutes les balises HTML intactes (ne traduisez pas les attributs)
-- Le vocabulaire juridique precis de la langue cible
+- Le vocabulaire juridique précis de la langue cible
 - Le ton professionnel et formel`,
         messages: [{
           role: 'user',
-          content: `Traduisez le contenu suivant du francais vers le ${validLangs[target_lang]}.
+          content: `Traduisez le contenu suivant du français vers le ${validLangs[target_lang]}.
 Conservez toutes les balises HTML exactement comme elles sont.
 Ne traduisez que le texte visible, pas les attributs HTML.
 
-Contenu a traduire :
+Contenu à traduire :
 ${content}
 
-Repondez UNIQUEMENT avec le contenu traduit, sans commentaire ni bloc de code.`
+Répondez UNIQUEMENT avec le contenu traduit, sans commentaire ni bloc de code.`
         }]
       });
 

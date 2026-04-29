@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI Studio — Module acces sites existants
+// JADOMI Studio — Module accès sites existants
 // Passe 37 — 24 avril 2026
 // Routes /api/studio/sites-existants/*
 // Chiffrement AES-256-GCM pour credentials
@@ -10,12 +10,12 @@ const crypto = require('crypto');
 
 module.exports = function mountSitesExistants(app, supabase) {
 
-  // --- Cle de chiffrement ---
+  // --- Clé de chiffrement ---
   const CRED_KEY = process.env.SITE_CREDENTIALS_KEY;
   const KEY_BUFFER = CRED_KEY ? Buffer.from(CRED_KEY, 'hex') : null;
 
   function chiffrer(data) {
-    if (!KEY_BUFFER) throw new Error('SITE_CREDENTIALS_KEY non configuree');
+    if (!KEY_BUFFER) throw new Error('SITE_CREDENTIALS_KEY non configurée');
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', KEY_BUFFER, iv);
     let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
@@ -25,9 +25,9 @@ module.exports = function mountSitesExistants(app, supabase) {
   }
 
   function dechiffrer(donnees_chiffrees, iv, tag) {
-    if (!KEY_BUFFER) throw new Error('SITE_CREDENTIALS_KEY non configuree');
+    if (!KEY_BUFFER) throw new Error('SITE_CREDENTIALS_KEY non configurée');
     const decipher = crypto.createDecipheriv('aes-256-gcm', KEY_BUFFER, Buffer.from(iv, 'hex'));
-    if (!tag) throw new Error('Auth tag manquant — donnees corrompues');
+    if (!tag) throw new Error('Auth tag manquant — données corrompues');
     decipher.setAuthTag(Buffer.from(tag, 'hex'));
     let decrypted = decipher.update(donnees_chiffrees, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
@@ -54,22 +54,22 @@ module.exports = function mountSitesExistants(app, supabase) {
           .select('societe_id, role').eq('user_id', user.id).limit(1).single();
         if (firstRole) { req.societeId = firstRole.societe_id; req.userRole = firstRole.role; }
       }
-      if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation trouvee' });
+      if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation trouvée' });
       next();
     } catch (err) {
-      return res.status(401).json({ error: 'Authentification echouee' });
+      return res.status(401).json({ error: 'Authentification échouée' });
     }
   }
 
-  // --- Instructions par hebergeur ---
+  // --- Instructions par hébergeur ---
   const INSTRUCTIONS = {
     hostinger: {
       nom: 'Hostinger',
       etapes: [
-        'Connectez-vous a hPanel (hpanel.hostinger.com)',
-        'Allez dans Fichiers > Comptes FTP > Creer',
+        'Connectez-vous à hPanel (hpanel.hostinger.com)',
+        'Allez dans Fichiers > Comptes FTP > Créer',
         'Nom du compte : jadomi-access',
-        'Generez un mot de passe fort',
+        'Générez un mot de passe fort',
         'Copiez : Serveur FTP, Port (21), Utilisateur, Mot de passe'
       ],
       type_acces_defaut: 'ftp'
@@ -78,8 +78,8 @@ module.exports = function mountSitesExistants(app, supabase) {
       nom: 'OVH',
       etapes: [
         'Connectez-vous au manager OVH (ovh.com/manager)',
-        'Hebergements > Votre hebergement > FTP-SSH',
-        'Creez un compte FTP utilisateur',
+        'Hébergements > Votre hébergement > FTP-SSH',
+        'Créez un compte FTP utilisateur',
         'Copiez : Serveur (ftp.votredomaine.com), Port, Utilisateur, Mot de passe'
       ],
       type_acces_defaut: 'ftp'
@@ -87,8 +87,8 @@ module.exports = function mountSitesExistants(app, supabase) {
     infomaniak: {
       nom: 'Infomaniak',
       etapes: [
-        'Manager Infomaniak > Hebergement',
-        'FTP > Creer un compte',
+        'Manager Infomaniak > Hébergement',
+        'FTP > Créer un compte',
         'Copiez les credentials (serveur, port, utilisateur, mot de passe)'
       ],
       type_acces_defaut: 'ftp'
@@ -96,17 +96,17 @@ module.exports = function mountSitesExistants(app, supabase) {
     wordpress: {
       nom: 'WordPress.com',
       etapes: [
-        'Parametres > Utilisateurs > Ajouter',
+        'Paramètres > Utilisateurs > Ajouter',
         'Email : access@jadomi.fr',
         'Role : Administrateur',
-        'Envoyez-nous le mot de passe cree'
+        'Envoyez-nous le mot de passe créé'
       ],
       type_acces_defaut: 'wordpress_admin'
     },
     shopify: {
       nom: 'Shopify',
       etapes: [
-        'Parametres > Utilisateurs et permissions',
+        'Paramètres > Utilisateurs et permissions',
         'Ajouter un collaborateur',
         'Email : access@jadomi.fr',
         'Donnez les permissions : Themes, Pages, Navigation'
@@ -114,11 +114,11 @@ module.exports = function mountSitesExistants(app, supabase) {
       type_acces_defaut: 'api'
     },
     autre: {
-      nom: 'Autre hebergeur',
+      nom: 'Autre hébergeur',
       etapes: [
-        'Demandez a votre hebergeur les informations FTP ou SSH',
+        'Demandez à votre hébergeur les informations FTP ou SSH',
         'Vous aurez besoin de : serveur, port, utilisateur, mot de passe',
-        'Si vous avez un VPS, l\'acces SSH est prefere'
+        'Si vous avez un VPS, l\'accès SSH est préféré'
       ],
       type_acces_defaut: 'ftp'
     }
@@ -170,7 +170,7 @@ module.exports = function mountSitesExistants(app, supabase) {
 
       if (!type_acces) return res.status(400).json({ error: 'type_acces requis (ftp, sftp, ssh, wordpress_admin, api)' });
 
-      // Verifier que le site appartient au pro
+      // Vérifier que le site appartient au pro
       const { data: site, error: siteErr } = await supabase
         .from('sites_existants')
         .select('*')
@@ -178,9 +178,9 @@ module.exports = function mountSitesExistants(app, supabase) {
         .eq('societe_id', req.societeId)
         .single();
 
-      if (siteErr || !site) return res.status(404).json({ error: 'Site non trouve' });
+      if (siteErr || !site) return res.status(404).json({ error: 'Site non trouvé' });
 
-      // Construire les donnees a chiffrer
+      // Construire les données à chiffrer
       let credData;
       if (type_acces === 'wordpress_admin') {
         credData = { admin_url: admin_url || site.url + '/wp-admin', admin_user, admin_password };
@@ -196,13 +196,13 @@ module.exports = function mountSitesExistants(app, supabase) {
         try {
           // Test FTP basique via fetch vers le host
           testOk = true;
-          testMessage = 'Connexion enregistree. Test FTP complet disponible apres installation de basic-ftp.';
+          testMessage = 'Connexion enregistrée. Test FTP complet disponible après installation de basic-ftp.';
         } catch (ftpErr) {
           testMessage = 'Erreur FTP : ' + ftpErr.message;
         }
       } else if (type_acces === 'wordpress_admin') {
         try {
-          // Nettoyer l'URL : retirer /wp-admin, /wp-login.php, trailing slash
+          // Nettoyer l'URL : retirer /wp-admin, /wp-login.php, barre oblique finale
           let baseUrl = (admin_url || site.url || '').replace(/\/wp-admin\/?.*$/i, '').replace(/\/wp-login\.php.*$/i, '').replace(/\/+$/, '');
           if (!baseUrl) baseUrl = site.url.replace(/\/+$/, '');
 
@@ -219,11 +219,11 @@ module.exports = function mountSitesExistants(app, supabase) {
           if (wpRes.ok) {
             const userData = await wpRes.json();
             testOk = true;
-            testMessage = 'Connexion WordPress OK — connecte en tant que ' + (userData.name || admin_user);
+            testMessage = 'Connexion WordPress OK — connecté en tant que ' + (userData.name || admin_user);
           } else if (wpRes.status === 401 || wpRes.status === 403) {
             // 401/403 = API accessible mais credentials invalides
             testOk = false;
-            testMessage = 'Identifiants invalides. Verifiez votre email/username et mot de passe WordPress. Si vous avez la 2FA activee, utilisez un Application Password (Parametres > Securite dans WordPress).';
+            testMessage = 'Identifiants invalides. Vérifiez votre email/username et mot de passe WordPress. Si vous avez la 2FA activée, utilisez un Application Password (Paramètres > Sécurité dans WordPress).';
           } else {
             // Autre erreur — essayer /wp-json/ tout court pour verifier que WP REST est actif
             const checkRes = await fetch(baseUrl + '/wp-json/', {
@@ -233,10 +233,10 @@ module.exports = function mountSitesExistants(app, supabase) {
 
             if (checkRes && checkRes.ok) {
               testOk = false;
-              testMessage = 'WordPress detecte mais authentification echouee (HTTP ' + wpRes.status + '). Utilisez un Application Password : WordPress > Utilisateurs > Votre profil > Application Passwords.';
+              testMessage = 'WordPress détecté mais authentification échouée (HTTP ' + wpRes.status + '). Utilisez un Application Password : WordPress > Utilisateurs > Votre profil > Application Passwords.';
             } else {
               testOk = false;
-              testMessage = 'API REST WordPress non accessible (HTTP ' + wpRes.status + '). Verifiez que votre site WordPress est bien en ligne et que l\'API REST n\'est pas desactivee.';
+              testMessage = 'API REST WordPress non accessible (HTTP ' + wpRes.status + '). Vérifiez que votre site WordPress est bien en ligne et que l\'API REST n\'est pas désactivée.';
             }
           }
         } catch (wpErr) {
@@ -244,13 +244,13 @@ module.exports = function mountSitesExistants(app, supabase) {
         }
       } else {
         testOk = true;
-        testMessage = 'Credentials enregistres. Test SSH/API sera effectue manuellement.';
+        testMessage = 'Credentials enregistrés. Test SSH/API sera effectué manuellement.';
       }
 
       // Chiffrer et sauvegarder
       if (!KEY_BUFFER) {
         return res.status(500).json({
-          error: 'Chiffrement non configure',
+          error: 'Chiffrement non configuré',
           message: 'SITE_CREDENTIALS_KEY manquante dans .env. Contactez l\'administrateur.'
         });
       }
@@ -281,7 +281,7 @@ module.exports = function mountSitesExistants(app, supabase) {
 
       if (credErr) return res.status(500).json({ error: credErr.message });
 
-      // Mettre a jour le statut du site
+      // Mettre à jour le statut du site
       if (testOk) {
         await supabase
           .from('sites_existants')
@@ -313,7 +313,7 @@ module.exports = function mountSitesExistants(app, supabase) {
         .limit(1)
         .single();
 
-      if (error || !creds) return res.status(404).json({ error: 'Aucun credential trouve pour ce site' });
+      if (error || !creds) return res.status(404).json({ error: 'Aucun credential trouvé pour ce site' });
 
       const credData = dechiffrer(creds.donnees_chiffrees, creds.iv, creds.tag);
       let testOk = false;
@@ -330,16 +330,16 @@ module.exports = function mountSitesExistants(app, supabase) {
             signal: AbortSignal.timeout(10000)
           });
           testOk = wpRes.ok;
-          testMessage = wpRes.ok ? 'Connexion WordPress OK' : 'Identifiants invalides ou API REST desactivee (HTTP ' + wpRes.status + ')';
+          testMessage = wpRes.ok ? 'Connexion WordPress OK' : 'Identifiants invalides ou API REST désactivée (HTTP ' + wpRes.status + ')';
         } catch (e) {
           testMessage = 'WordPress inaccessible : ' + e.message;
         }
       } else {
         testOk = true;
-        testMessage = 'Test FTP/SSH sera effectue manuellement par l\'equipe JADOMI.';
+        testMessage = 'Test FTP/SSH sera effectué manuellement par l\'équipe JADOMI.';
       }
 
-      // Mettre a jour le test
+      // Mettre à jour le test
       await supabase
         .from('sites_existants_credentials')
         .update({ teste_le: new Date().toISOString(), dernier_test_ok: testOk })
@@ -381,9 +381,9 @@ module.exports = function mountSitesExistants(app, supabase) {
         .eq('societe_id', req.societeId)
         .single();
 
-      if (error || !site) return res.status(404).json({ error: 'Site non trouve' });
+      if (error || !site) return res.status(404).json({ error: 'Site non trouvé' });
 
-      // Credentials (metadonnees uniquement, jamais les valeurs)
+      // Credentials (métadonnées uniquement, jamais les valeurs)
       const { data: creds } = await supabase
         .from('sites_existants_credentials')
         .select('id, type_acces, teste_le, dernier_test_ok, created_at')
@@ -409,7 +409,7 @@ module.exports = function mountSitesExistants(app, supabase) {
 
   // ================================================
   // DELETE /api/studio/sites-existants/:id/credentials
-  // Retirer les acces (supprime credentials chiffres)
+  // Retirer les accès (supprime credentials chiffrés)
   // ================================================
   router.delete('/:id/credentials', requireAuth, async (req, res) => {
     try {
@@ -427,7 +427,7 @@ module.exports = function mountSitesExistants(app, supabase) {
         .eq('id', req.params.id)
         .eq('societe_id', req.societeId);
 
-      return res.json({ message: 'Credentials supprimes' });
+      return res.json({ message: 'Credentials supprimés' });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
     }

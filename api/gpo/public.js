@@ -110,7 +110,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
         .eq('response_token', req.params.token)
         .single();
 
-      if (error || !attempt) return res.status(404).json({ error: 'Offre introuvable ou expiree' });
+      if (error || !attempt) return res.status(404).json({ error: 'Offre introuvable ou expirée' });
 
       const request = attempt.gpo_requests;
       const supplier = attempt.suppliers;
@@ -181,7 +181,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
 
       if (error || !attempt) return res.status(404).json({ error: 'Offre introuvable' });
       if (attempt.response_status !== 'pending') {
-        return res.status(400).json({ error: 'Reponse deja envoyee' });
+        return res.status(400).json({ error: 'Réponse déjà envoyée' });
       }
 
       const now = new Date().toISOString();
@@ -324,8 +324,8 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
           user_id: dentist.user_id,
           societe_id: request.societe_id,
           type: 'gpo_accepted',
-          titre: `Commande acceptee par ${supplierName}`,
-          message: `Votre commande${orderRef} de ${itemsCount} produit${itemsCount > 1 ? 's' : ''} a ete acceptee au tarif de ${finalPrice ? Number(finalPrice).toFixed(2) + '\u20ac' : 'tarif cible'}.`,
+          titre: `Commande acceptée par ${supplierName}`,
+          message: `Votre commande${orderRef} de ${itemsCount} produit${itemsCount > 1 ? 's' : ''} a été acceptée au tarif de ${finalPrice ? Number(finalPrice).toFixed(2) + '\u20ac' : 'tarif cible'}.`,
           cta_url: '/index.html?tab=commandes',
           entity_id: request.id
         });
@@ -334,7 +334,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
       // 5) Response with order info
       res.json({
         success: true,
-        message: 'Commande acceptee',
+        message: 'Commande acceptée',
         final_price_eur: finalPrice,
         order_number: orderData?.order_number || null,
         order_id: order?.id || null
@@ -362,7 +362,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
 
       if (error || !attempt) return res.status(404).json({ error: 'Offre introuvable' });
       if (attempt.response_status !== 'pending') {
-        return res.status(400).json({ error: 'Reponse deja envoyee' });
+        return res.status(400).json({ error: 'Réponse déjà envoyée' });
       }
 
       const now = new Date().toISOString();
@@ -415,7 +415,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
         }
       }
 
-      res.json({ success: true, message: 'Contre-proposition envoyee' });
+      res.json({ success: true, message: 'Contre-proposition envoyée' });
     } catch (e) {
       console.error('[GPO POST /counter]', e.message);
       res.status(500).json({ error: 'Erreur interne' });
@@ -433,7 +433,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
 
       if (error || !attempt) return res.status(404).json({ error: 'Offre introuvable' });
       if (attempt.response_status !== 'pending') {
-        return res.status(400).json({ error: 'Reponse deja envoyee' });
+        return res.status(400).json({ error: 'Réponse déjà envoyée' });
       }
 
       const now = new Date().toISOString();
@@ -454,7 +454,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
       const { escalateToNextSupplier } = require('../../lib/gpo-scheduler');
       await escalateToNextSupplier(attempt.request_id);
 
-      res.json({ success: true, message: 'Offre refusee, passage au fournisseur suivant' });
+      res.json({ success: true, message: 'Offre refusée, passage au fournisseur suivant' });
     } catch (e) {
       console.error('[GPO POST /refuse]', e.message);
       res.status(500).json({ error: 'Erreur interne' });
@@ -484,7 +484,7 @@ module.exports = function mountPublic(app, admin, publicLimiter) {
         .update(updates)
         .eq('id', attempt.supplier_id);
 
-      res.json({ success: true, message: 'Compte active' });
+      res.json({ success: true, message: 'Compte activé' });
     } catch (e) {
       console.error('[GPO POST /signup-extra]', e.message);
       res.status(500).json({ error: 'Erreur interne' });

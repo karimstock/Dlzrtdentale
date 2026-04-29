@@ -173,7 +173,7 @@ module.exports = function (router) {
       if (statut === 'facture') {
         const { data: facture } = await admin().from('btp_factures')
           .select('id').eq('chantier_id', req.params.id).limit(1).maybeSingle();
-        if (!facture) return res.status(400).json({ error: 'Aucune facture associee a ce chantier' });
+        if (!facture) return res.status(400).json({ error: 'Aucune facture associée à ce chantier' });
       }
 
       const { data, error } = await admin().from('btp_chantiers')

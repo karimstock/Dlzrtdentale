@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS treatment_timelines (
   updated_at timestamptz DEFAULT now()
 );
 
--- Etapes chronologiques
+-- Étapes chronologiques
 CREATE TABLE IF NOT EXISTS timeline_steps (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   timeline_id uuid REFERENCES treatment_timelines(id) ON DELETE CASCADE,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS timeline_steps (
   updated_at timestamptz DEFAULT now()
 );
 
--- Photos attachees aux etapes
+-- Photos attachées aux étapes
 CREATE TABLE IF NOT EXISTS timeline_photos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   step_id uuid REFERENCES timeline_steps(id) ON DELETE CASCADE,

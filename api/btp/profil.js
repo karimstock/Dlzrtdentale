@@ -59,7 +59,7 @@ module.exports = function (router) {
       if (updates.slug) {
         const { data: existing } = await admin().from('btp_profil')
           .select('id').eq('slug', updates.slug).neq('id', req.params.id).maybeSingle();
-        if (existing) return res.status(400).json({ error: 'Ce slug est deja utilise' });
+        if (existing) return res.status(400).json({ error: 'Ce slug est déjà utilisé' });
       }
       const { data, error } = await admin().from('btp_profil')
         .update(updates).eq('id', req.params.id).eq('societe_id', req.societe.id)

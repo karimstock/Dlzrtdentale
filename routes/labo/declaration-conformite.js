@@ -1,12 +1,12 @@
 // =============================================
-// JADOMI LABO — Routes declarations conformite CE
+// JADOMI LABO — Routes déclarations conformité CE
 // =============================================
 
 const express = require('express');
 const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 
-// GET /api/labo/declarations — Liste declarations
+// GET /api/labo/declarations — Liste déclarations
 router.get('/', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/labo/declarations/:id/pdf — Telecharger PDF declaration
+// GET /api/labo/declarations/:id/pdf — Télécharger PDF déclaration
 router.get('/:id/pdf', async (req, res) => {
   try {
     const { data: decl } = await admin()

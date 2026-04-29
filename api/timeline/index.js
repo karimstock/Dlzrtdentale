@@ -1,9 +1,9 @@
 // =============================================
 // JADOMI — Module Timeline (Suivi de traitement)
 // Routes /api/timeline/*
-// Praticien: creation/gestion timelines, etapes, photos
+// Praticien: création/gestion timelines, étapes, photos
 // Patient: consultation, consentement
-// Public: portfolio anonymise
+// Public: portfolio anonymisé
 // =============================================
 const express = require('express');
 const router = express.Router();
@@ -62,7 +62,7 @@ function verifyToken(token) {
 
 function requireClient(req, res, next) {
   const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Non autorise' });
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Non autorisé' });
   const payload = verifyToken(auth.slice(7));
   if (!payload) return res.status(401).json({ error: 'Token invalide' });
   req.client = payload;
@@ -128,7 +128,7 @@ router.post('/practitioner/timelines', async (req, res) => {
     res.status(201).json(data);
   } catch (err) {
     console.error('[timeline] POST /practitioner/timelines', err);
-    res.status(500).json({ error: 'Erreur creation timeline' });
+    res.status(500).json({ error: 'Erreur création timeline' });
   }
 });
 
@@ -206,7 +206,7 @@ router.get('/practitioner/timelines/:id', async (req, res) => {
     res.json({ ...timeline, steps: stepsWithPhotos });
   } catch (err) {
     console.error('[timeline] GET /practitioner/timelines/:id', err);
-    res.status(500).json({ error: 'Erreur detail timeline' });
+    res.status(500).json({ error: 'Erreur détail timeline' });
   }
 });
 
@@ -223,7 +223,7 @@ router.patch('/practitioner/timelines/:id', async (req, res) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'Aucun champ a mettre a jour' });
+      return res.status(400).json({ error: 'Aucun champ à mettre à jour' });
     }
     updates.updated_at = new Date().toISOString();
 
@@ -240,7 +240,7 @@ router.patch('/practitioner/timelines/:id', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[timeline] PATCH /practitioner/timelines/:id', err);
-    res.status(500).json({ error: 'Erreur mise a jour timeline' });
+    res.status(500).json({ error: 'Erreur mise à jour timeline' });
   }
 });
 
@@ -338,7 +338,7 @@ router.patch('/practitioner/steps/:id', async (req, res) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'Aucun champ a mettre a jour' });
+      return res.status(400).json({ error: 'Aucun champ à mettre à jour' });
     }
     updates.updated_at = new Date().toISOString();
 
@@ -353,7 +353,7 @@ router.patch('/practitioner/steps/:id', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[timeline] PATCH /practitioner/steps/:id', err);
-    res.status(500).json({ error: 'Erreur mise a jour étape' });
+    res.status(500).json({ error: 'Erreur mise à jour étape' });
   }
 });
 
@@ -414,7 +414,7 @@ router.post('/practitioner/steps/:stepId/photos', upload.array('photos', 10), as
     }
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'Aucun fichier envoye' });
+      return res.status(400).json({ error: 'Aucun fichier envoyé' });
     }
 
     const timelineId = step.timelines.id;
@@ -609,7 +609,7 @@ router.post('/practitioner/steps/:id/ai-notes', async (req, res) => {
     res.json({ suggested_notes: suggestedNotes });
   } catch (err) {
     console.error('[timeline] POST /practitioner/steps/:id/ai-notes', err);
-    res.status(500).json({ error: 'Erreur generation notes IA' });
+    res.status(500).json({ error: 'Erreur génération notes IA' });
   }
 });
 
@@ -640,7 +640,7 @@ router.post('/practitioner/timelines/:id/request-consent', async (req, res) => {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1a1a1a;">Suivi de traitement</h2>
           <p>Bonjour,</p>
-          <p>Votre praticien vous invite a consulter et donner votre consentement pour le partage
+          <p>Votre praticien vous invite à consulter et donner votre consentement pour le partage
           de votre suivi de traitement <strong>${timeline.treatment_label || timeline.treatment_type}</strong>.</p>
           <p style="margin: 24px 0;">
             <a href="${consentUrl}"
@@ -648,7 +648,7 @@ router.post('/practitioner/timelines/:id/request-consent', async (req, res) => {
               Consulter et donner mon consentement
             </a>
           </p>
-          <p style="color: #666; font-size: 13px;">Si vous n'etes pas concerne par ce message, veuillez l'ignorer.</p>
+          <p style="color: #666; font-size: 13px;">Si vous n'êtes pas concerné par ce message, veuillez l'ignorer.</p>
         </div>
       `
     });
@@ -709,7 +709,7 @@ router.post('/practitioner/timelines/:id/generate-pdf', async (req, res) => {
     doc.fontSize(20).font('Helvetica-Bold').text('Rapport de suivi de traitement', { align: 'center' });
     doc.moveDown(0.5);
     doc.fontSize(10).font('Helvetica').fillColor('#666')
-      .text(`Genere le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'center' });
+      .text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'center' });
     doc.moveDown(1);
 
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#000').text('Patient : ', { continued: true });
@@ -723,11 +723,11 @@ router.post('/practitioner/timelines/:id/generate-pdf', async (req, res) => {
       doc.font('Helvetica').text(timeline.practitioner_name);
     }
 
-    doc.font('Helvetica-Bold').text('Debut : ', { continued: true });
+    doc.font('Helvetica-Bold').text('Début : ', { continued: true });
     doc.font('Helvetica').text(timeline.start_date || '-');
 
     if (timeline.estimated_end_date) {
-      doc.font('Helvetica-Bold').text('Fin estimee : ', { continued: true });
+      doc.font('Helvetica-Bold').text('Fin estimée : ', { continued: true });
       doc.font('Helvetica').text(timeline.estimated_end_date);
     }
 
@@ -787,7 +787,7 @@ router.post('/practitioner/timelines/:id/generate-pdf', async (req, res) => {
     res.send(pdfBuffer);
   } catch (err) {
     console.error('[timeline] POST /practitioner/timelines/:id/generate-pdf', err);
-    res.status(500).json({ error: 'Erreur generation PDF' });
+    res.status(500).json({ error: 'Erreur génération PDF' });
   }
 });
 

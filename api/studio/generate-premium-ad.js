@@ -226,7 +226,7 @@ router.post('/', async (req, res) => {
 
   } catch (err) {
     console.error('[Premium Ad API] Error:', err);
-    res.status(500).json({ error: 'Erreur lors de la generation video premium' });
+    res.status(500).json({ error: 'Erreur lors de la génération vidéo premium' });
   }
 });
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================
 // JADOMI — Enrichissement IA produits (Claude Sonnet)
-// Passe 51 — Categorisation FR + description + mots-cles
+// Passe 51 — Catégorisation FR + description + mots-clés
 //
 // Usage :
 //   node scripts/enrich-products-ia.js [--batch 10] [--limit 1000]
@@ -37,7 +37,7 @@ async function main() {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  // Recuperer les produits non enrichis
+  // Récupérer les produits non enrichis
   const { data: products, error } = await supabase.from('products_database')
     .select('id, gtin, name, name_en, brand, manufacturer, category, gmdn_code')
     .is('name_fr', null)
@@ -45,11 +45,11 @@ async function main() {
     .limit(LIMIT);
 
   if (error || !products?.length) {
-    log(error ? `Erreur: ${error.message}` : 'Aucun produit a enrichir');
+    log(error ? `Erreur: ${error.message}` : 'Aucun produit à enrichir');
     return;
   }
 
-  log(`${products.length} produits a enrichir`);
+  log(`${products.length} produits à enrichir`);
   let enriched = 0;
   let errors = 0;
   let tokensUsed = 0;
@@ -64,23 +64,23 @@ async function main() {
       const msg = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
-        system: `Tu es un expert en produits dentaires et medicaux. Tu categorises et traduis des produits en francais pour un logiciel de gestion de cabinet dentaire / laboratoire de prothese.
+        system: `Tu es un expert en produits dentaires et médicaux. Tu catégorises et traduis des produits en français pour un logiciel de gestion de cabinet dentaire / laboratoire de prothèse.
 
-Categories principales : Instruments, Consommables, Implants, Prothese, Orthodontie, Endodontie, Parodontie, Radiologie, Hygiene, Anesthesie, Chirurgie, Empreintes, Composites, Ceramiques, CFAO, Equipement, Divers.
+Catégories principales : Instruments, Consommables, Implants, Prothèse, Orthodontie, Endodontie, Parodontie, Radiologie, Hygiène, Anesthésie, Chirurgie, Empreintes, Composites, Céramiques, CFAO, Équipement, Divers.
 
-Reponds UNIQUEMENT avec un JSON array.`,
+Réponds UNIQUEMENT avec un JSON array.`,
         messages: [{
           role: 'user',
-          content: `Enrichis ces ${batch.length} produits dentaires/medicaux en francais.
+          content: `Enrichis ces ${batch.length} produits dentaires/médicaux en français.
 
 ${productsList}
 
 Pour chaque produit, retourne :
 {
   "idx": 1,
-  "name_fr": "Nom en francais",
-  "category": "Categorie principale",
-  "subcategory": "Sous-categorie",
+  "name_fr": "Nom en français",
+  "category": "Catégorie principale",
+  "subcategory": "Sous-catégorie",
   "keywords": ["mot1", "mot2", ...],
   "usage": "Description courte usage en cabinet"
 }
@@ -130,7 +130,7 @@ JSON array strict, pas de markdown :`
   }
 
   const costEstimate = (tokensUsed / 1000000 * 0.25).toFixed(2);
-  log(`=== Enrichissement IA termine ===`);
+  log(`=== Enrichissement IA terminé ===`);
   log(`Enrichis: ${enriched} | Erreurs: ${errors} | Tokens: ${tokensUsed} (~${costEstimate}$)`);
 }
 

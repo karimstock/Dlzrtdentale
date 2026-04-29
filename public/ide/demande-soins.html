@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Demande de soins infirmiers à domicile — JADOMI</title>
+<meta name="description" content="Trouvez une infirmière libérale près de chez vous. Envoyez votre ordonnance et recevez des soins à domicile rapidement.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#f8fafb;--surface:#ffffff;--border:rgba(13,148,136,0.12);
+  --text:#1a2e2b;--muted:#6b7f7b;--accent:#0d9488;--accent-dark:#0f766e;--accent-light:#ccfbf1;
+  --red:#ef4444;--green:#10b981;--green-l:#d1fae5;
+  --font:'Inter',system-ui,-apple-system,sans-serif;--font-display:'Fraunces',Georgia,serif;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6;}
+
+/* Header */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.header-logo{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;text-decoration:none;}
+.header-sub{font-size:12px;color:var(--muted);margin-left:12px;font-weight:500;}
+
+/* Container */
+.container{max-width:580px;margin:0 auto;padding:32px 20px 120px;}
+
+/* Progress */
+.progress-bar{display:flex;gap:6px;margin-bottom:32px;padding:0 4px;}
+.progress-step{flex:1;height:4px;border-radius:4px;background:rgba(13,148,136,0.12);transition:background 0.4s var(--ease);}
+.progress-step.done{background:var(--accent);}
+.progress-step.active{background:var(--accent);opacity:0.6;}
+
+/* Step title */
+.step-num{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.step-title{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-0.5px;}
+.step-desc{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.5;}
+
+/* Steps */
+.step{display:none;animation:stepIn 0.4s var(--ease);}
+.step.active{display:block;}
+@keyframes stepIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* Form */
+.form-field{margin-bottom:20px;}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.form-input,.form-select{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:var(--font);outline:none;transition:all 0.2s;background:var(--surface);color:var(--text);-webkit-appearance:none;}
+.form-input:focus,.form-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(13,148,136,0.08);}
+.form-input::placeholder{color:#9ca3af;}
+.form-hint{font-size:12px;color:var(--muted);margin-top:4px;}
+.form-error{font-size:12px;color:var(--red);margin-top:4px;display:none;}
+
+/* Address autocomplete */
+.autocomplete-wrap{position:relative;}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);z-index:10;display:none;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.08);}
+.autocomplete-list.show{display:block;}
+.ac-item{padding:12px 16px;font-size:14px;cursor:pointer;transition:background 0.1s;border-bottom:1px solid rgba(0,0,0,0.04);}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover,.ac-item.selected{background:var(--accent-light);color:var(--accent-dark);}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px 24px;text-align:center;cursor:pointer;transition:all 0.3s var(--ease);background:var(--surface);}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:rgba(13,148,136,0.03);}
+.upload-zone.has-file{border-color:var(--green);border-style:solid;background:var(--green-l);}
+.upload-icon{display:block;margin:0 auto 12px;width:48px;height:48px;color:var(--muted);opacity:0.5;}
+.upload-zone.has-file .upload-icon{color:var(--green);opacity:1;}
+.upload-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.upload-sub{font-size:13px;color:var(--muted);}
+.upload-file-info{font-size:13px;color:var(--green);font-weight:600;margin-top:8px;display:none;}
+.upload-zone.has-file .upload-file-info{display:block;}
+.upload-zone.has-file .upload-sub{display:none;}
+.upload-input{display:none;}
+.upload-actions{display:flex;gap:10px;justify-content:center;margin-top:16px;}
+.upload-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);transition:all 0.2s var(--ease);}
+.upload-btn-camera{background:var(--accent);color:#fff;}
+.upload-btn-camera:hover{background:var(--accent-dark);}
+.upload-btn-file{background:rgba(13,148,136,0.08);color:var(--accent);border:1px solid rgba(13,148,136,0.2);}
+.upload-btn-file:hover{background:rgba(13,148,136,0.15);}
+
+/* RGPD */
+.consent-box{display:flex;gap:14px;padding:20px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);margin-bottom:20px;}
+.consent-box input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;margin-top:2px;accent-color:var(--accent);cursor:pointer;}
+.consent-text{font-size:13px;color:var(--muted);line-height:1.6;}
+
+/* Buttons */
+.btn-row{display:flex;gap:10px;margin-top:32px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 28px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);transition:all 0.25s var(--ease);width:100%;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;box-shadow:0 4px 14px rgba(13,148,136,0.25);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(13,148,136,0.35);}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-secondary{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
+.btn-secondary:hover{color:var(--text);border-color:var(--accent);background:rgba(13,148,136,0.03);}
+.btn-danger{background:rgba(239,68,68,0.08);color:var(--red);border:1px solid rgba(239,68,68,0.2);}
+.btn-danger:hover{background:rgba(239,68,68,0.15);}
+
+/* Confirmation page */
+.confirm-card{text-align:center;padding:40px 24px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);box-shadow:0 4px 20px rgba(0,0,0,0.04);}
+.confirm-icon{width:64px;height:64px;margin:0 auto 20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.confirm-icon-wait{background:rgba(13,148,136,0.1);color:var(--accent);}
+.confirm-icon-ok{background:var(--green-l);color:var(--green);}
+.confirm-title{font-family:var(--font-display);font-size:22px;font-weight:700;margin-bottom:10px;color:var(--text);}
+.confirm-desc{font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+
+/* Status tracker */
+.status-tracker{margin:24px 0;text-align:left;}
+.status-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid rgba(0,0,0,0.04);}
+.status-item:last-child{border-bottom:none;}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--border);}
+.status-dot.active{background:var(--accent);box-shadow:0 0 0 4px rgba(13,148,136,0.15);animation:pulse 2s ease-in-out infinite;}
+.status-dot.done{background:var(--green);}
+.status-label{font-size:14px;color:var(--muted);}
+.status-label.active{color:var(--text);font-weight:600;}
+.status-label.done{color:var(--green);font-weight:600;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(13,148,136,0.15);}50%{box-shadow:0 0 0 8px rgba(13,148,136,0.08);}}
+
+/* Recap */
+.recap{text-align:left;background:rgba(13,148,136,0.03);border-radius:var(--radius);padding:20px;margin:20px 0;}
+.recap-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);font-size:14px;}
+.recap-row:last-child{border-bottom:none;}
+.recap-label{color:var(--muted);}
+.recap-value{font-weight:600;color:var(--text);text-align:right;max-width:60%;}
+
+/* Nurse info (after acceptance) */
+.nurse-card{background:var(--green-l);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius);padding:20px;margin-top:20px;text-align:left;}
+.nurse-card-title{font-weight:700;font-size:15px;color:var(--green);margin-bottom:8px;}
+.nurse-card-detail{font-size:14px;color:var(--text);margin-bottom:4px;}
+
+/* Footer */
+.footer{text-align:center;padding:20px;font-size:12px;color:var(--muted);}
+.footer a{color:var(--accent);text-decoration:none;}
+
+/* Responsive */
+@media(min-width:768px){
+  .container{padding:48px 20px 120px;}
+  .step-title{font-size:28px;}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a href="/" class="header-logo" aria-label="Accueil JADOMI">JADOMI</a>
+  <span class="header-sub">Soins infirmiers à domicile</span>
+</header>
+
+<main class="container">
+
+  <div class="progress-bar" role="progressbar" aria-label="Progression de votre demande">
+    <div class="progress-step done" id="prog-1"></div>
+    <div class="progress-step" id="prog-2"></div>
+    <div class="progress-step" id="prog-3"></div>
+    <div class="progress-step" id="prog-4"></div>
+    <div class="progress-step" id="prog-5"></div>
+  </div>
+
+  <!-- STEP 1: Adresse -->
+  <div class="step active" id="step-1">
+    <div class="step-num">Étape 1 sur 4</div>
+    <div class="step-title">Où souhaitez-vous recevoir vos soins ?</div>
+    <div class="step-desc">Saisissez l'adresse du lieu de soins (votre domicile ou celui du patient).</div>
+
+    <div class="form-field">
+      <label class="form-label" for="input-adresse">Adresse complète</label>
+      <div class="autocomplete-wrap">
+        <input type="text" class="form-input" id="input-adresse" placeholder="Ex : 12 rue de la Paix, 75002 Paris" autocomplete="off" aria-describedby="adresse-hint">
+        <div class="autocomplete-list" id="ac-list" role="listbox" aria-label="Suggestions d'adresses"></div>
+      </div>
+      <div class="form-hint" id="adresse-hint">Nous utilisons l'API officielle adresse.data.gouv.fr pour localiser votre adresse.</div>
+      <div class="form-error" id="err-adresse">Veuillez saisir une adresse valide.</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goStep(2)" id="btn-step1">Continuer</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Ordonnance -->
+  <div class="step" id="step-2">
+    <div class="step-num">Étape 2 sur 4</div>
+    <div class="step-title">Votre ordonnance</div>
+    <div class="step-desc">Prenez en photo ou déposez votre ordonnance médicale. Ce document sera transmis uniquement à l'infirmière qui acceptera votre demande.</div>
+
+    <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Zone de dépôt d'ordonnance">
+      <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+      <div class="upload-title">Déposez votre ordonnance ici</div>
+      <div class="upload-sub">JPG, PNG ou PDF — 10 Mo maximum</div>
+      <div class="upload-file-info" id="upload-filename"></div>
+    </div>
+    <input type="file" class="upload-input" id="upload-input" accept="image/jpeg,image/png,application/pdf">
+    <div class="upload-actions">
+      <button class="upload-btn upload-btn-camera" onclick="captureCamera()" id="btn-camera" aria-label="Prendre une photo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Prendre en photo
+      </button>
+      <button class="upload-btn upload-btn-file" onclick="document.getElementById('upload-input').click()" aria-label="Choisir un fichier">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        Choisir un fichier
+      </button>
+    </div>
+    <div class="form-error" id="err-ordonnance" style="text-align:center;margin-top:12px;">Veuillez fournir votre ordonnance.</div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)" style="width:auto;padding:14px 20px;">Retour</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Continuer</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Informations patient -->
+  <div class="step" id="step-3">
+    <div class="step-num">Étape 3 sur 4</div>
+    <div class="step-title">Vos informations</div>
+    <div class="step-desc">Ces informations seront transmises à l'infirmière qui acceptera votre demande de soins.</div>
+
+    <div class="form-field">
+      <label class="form-label" for="input-nom">Nom</label>
+      <input type="text" class="form-input" id="input-nom" placeholder="Votre nom de famille" autocomplete="family-name">
+      <div class="form-error" id="err-nom">Veuillez saisir votre nom.</div>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="input-prenom">Prénom</label>
+      <input type="text" class="form-input" id="input-prenom" placeholder="Votre prénom" autocomplete="given-name">
+      <div class="form-error" id="err-prenom">Veuillez saisir votre prénom.</div>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="input-telephone">Téléphone</label>
+      <input type="tel" class="form-input" id="input-telephone" placeholder="06 12 34 56 78" autocomplete="tel">
+      <div class="form-error" id="err-telephone">Veuillez saisir un numéro de téléphone valide.</div>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="input-type-soin">Type de soin</label>
+      <select class="form-select" id="input-type-soin">
+        <option value="">Sélectionnez le type de soin</option>
+        <option value="prise_de_sang">Prise de sang</option>
+        <option value="pansement">Pansement</option>
+        <option value="injection">Injection</option>
+        <option value="perfusion">Perfusion</option>
+        <option value="toilette_medicalisee">Toilette médicalisée</option>
+        <option value="soins_post_operatoires">Soins post-opératoires</option>
+        <option value="chimiotherapie">Chimiothérapie à domicile</option>
+        <option value="surveillance_diabete">Surveillance diabète</option>
+        <option value="autre">Autre</option>
+      </select>
+      <div class="form-error" id="err-type-soin">Veuillez sélectionner un type de soin.</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(2)" style="width:auto;padding:14px 20px;">Retour</button>
+      <button class="btn btn-primary" onclick="goStep(4)">Continuer</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: RGPD + envoi -->
+  <div class="step" id="step-4">
+    <div class="step-num">Étape 4 sur 4</div>
+    <div class="step-title">Consentement et envoi</div>
+    <div class="step-desc">Vérifiez les informations ci-dessous et donnez votre consentement pour envoyer votre demande.</div>
+
+    <div class="recap" id="recap-box">
+      <div class="recap-row"><span class="recap-label">Adresse</span><span class="recap-value" id="recap-adresse">--</span></div>
+      <div class="recap-row"><span class="recap-label">Type de soin</span><span class="recap-value" id="recap-soin">--</span></div>
+      <div class="recap-row"><span class="recap-label">Patient</span><span class="recap-value" id="recap-patient">--</span></div>
+      <div class="recap-row"><span class="recap-label">Téléphone</span><span class="recap-value" id="recap-tel">--</span></div>
+      <div class="recap-row"><span class="recap-label">Ordonnance</span><span class="recap-value" id="recap-ordo">--</span></div>
+    </div>
+
+    <div class="consent-box">
+      <input type="checkbox" id="input-rgpd" aria-describedby="rgpd-text">
+      <label class="consent-text" for="input-rgpd" id="rgpd-text">
+        J'accepte le partage de mon ordonnance avec les infirmier(e)s libérales JADOMI pour traiter ma demande de soins. Mes données de santé sont chiffrées et supprimées après acceptation. Je peux retirer mon consentement à tout moment.
+      </label>
+    </div>
+    <div class="form-error" id="err-rgpd" style="margin-bottom:12px;">Vous devez accepter les conditions pour envoyer votre demande.</div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(3)" style="width:auto;padding:14px 20px;">Retour</button>
+      <button class="btn btn-primary" onclick="submitDemande()" id="btn-submit">Envoyer ma demande</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: Confirmation + live status -->
+  <div class="step" id="step-5">
+    <div class="confirm-card">
+      <div class="confirm-icon confirm-icon-wait" id="confirm-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="confirm-title" id="confirm-title">Demande envoyée</div>
+      <div class="confirm-desc" id="confirm-desc">Votre demande de soins a été transmise aux infirmières de votre secteur. Vous serez contacté(e) dès qu'une infirmière accepte.</div>
+
+      <div class="status-tracker" id="status-tracker">
+        <div class="status-item">
+          <div class="status-dot done"></div>
+          <div class="status-label done">Demande enregistrée</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot active" id="dot-recherche"></div>
+          <div class="status-label active" id="label-recherche">Recherche en cours...</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot" id="dot-acceptee"></div>
+          <div class="status-label" id="label-acceptee">En attente d'acceptation</div>
+        </div>
+      </div>
+
+      <div class="nurse-card" id="nurse-card" style="display:none;">
+        <div class="nurse-card-title">Votre demande a été acceptée</div>
+        <div class="nurse-card-detail" id="nurse-info"></div>
+      </div>
+
+      <!-- Push notification opt-in (RGPD : opt-in explicite) -->
+      <div id="push-optin" style="display:none;margin-top:20px;background:#f0fdf4;border:1px solid rgba(13,148,136,0.2);border-radius:12px;padding:20px;text-align:center;">
+        <div style="font-size:14px;font-weight:600;color:#1a2e2b;margin-bottom:8px;">Recevez une notification quand une infirmière accepte votre demande</div>
+        <div style="font-size:13px;color:#6b7f7b;margin-bottom:16px;">Vous serez prévenu(e) instantanément, même si cette page est fermée.</div>
+        <button class="btn" onclick="activerNotifications()" id="btn-push" style="width:auto;margin:0 auto;padding:10px 20px;font-size:13px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;">Activer les notifications</button>
+        <div id="push-status" style="display:none;margin-top:10px;font-size:12px;color:var(--muted);"></div>
+      </div>
+
+      <div style="margin-top:24px;">
+        <button class="btn btn-danger" onclick="cancelDemande()" id="btn-cancel" style="width:auto;margin:0 auto;padding:10px 20px;font-size:13px;">Annuler ma demande</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>JADOMI SAS — Soins infirmiers à domicile</p>
+  <p><a href="/cgv.html">Conditions générales</a> — <a href="/politique-confidentialite.html">Politique de confidentialité</a></p>
+</footer>
+
+<script>
+// =============================================
+// JADOMI — Demande de soins patient
+// =============================================
+
+let currentStep = 1;
+let selectedFile = null;
+let selectedAddress = '';
+let selectedLat = null;
+let selectedLng = null;
+let demandeId = null;
+let pollInterval = null;
+
+// ── STEP NAVIGATION ──
+function goStep(step) {
+  // Validate current step before advancing
+  if (step > currentStep) {
+    if (!validateStep(currentStep)) return;
+  }
+
+  currentStep = step;
+  document.querySelectorAll('.step').forEach(function(s) { s.classList.remove('active'); });
+  var el = document.getElementById('step-' + step);
+  if (el) el.classList.add('active');
+
+  // Update progress bar
+  for (var i = 1; i <= 5; i++) {
+    var p = document.getElementById('prog-' + i);
+    p.classList.remove('done', 'active');
+    if (i < step) p.classList.add('done');
+    if (i === step) p.classList.add('done');
+  }
+
+  // Populate recap on step 4
+  if (step === 4) populateRecap();
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validateStep(step) {
+  hideAllErrors();
+  if (step === 1) {
+    var addr = document.getElementById('input-adresse').value.trim();
+    if (!addr || addr.length < 5) {
+      showError('err-adresse');
+      return false;
+    }
+    selectedAddress = addr;
+    return true;
+  }
+  if (step === 2) {
+    if (!selectedFile) {
+      showError('err-ordonnance');
+      return false;
+    }
+    return true;
+  }
+  if (step === 3) {
+    var nom = document.getElementById('input-nom').value.trim();
+    var prenom = document.getElementById('input-prenom').value.trim();
+    var tel = document.getElementById('input-telephone').value.trim();
+    var soin = document.getElementById('input-type-soin').value;
+    var valid = true;
+    if (!nom) { showError('err-nom'); valid = false; }
+    if (!prenom) { showError('err-prenom'); valid = false; }
+    if (!tel || !/^[\d\s+.\-()]{8,20}$/.test(tel)) { showError('err-telephone'); valid = false; }
+    if (!soin) { showError('err-type-soin'); valid = false; }
+    return valid;
+  }
+  if (step === 4) {
+    if (!document.getElementById('input-rgpd').checked) {
+      showError('err-rgpd');
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
+function showError(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'block';
+}
+
+function hideAllErrors() {
+  document.querySelectorAll('.form-error').forEach(function(e) { e.style.display = 'none'; });
+}
+
+// ── ADDRESS AUTOCOMPLETE ──
+var acTimeout = null;
+var acItems = [];
+var acSelected = -1;
+
+document.getElementById('input-adresse').addEventListener('input', function() {
+  clearTimeout(acTimeout);
+  var q = this.value.trim();
+  if (q.length < 3) {
+    hideAutocomplete();
+    return;
+  }
+  acTimeout = setTimeout(function() { searchAddress(q); }, 300);
+});
+
+document.getElementById('input-adresse').addEventListener('keydown', function(e) {
+  var list = document.getElementById('ac-list');
+  if (!list.classList.contains('show')) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acSelected = Math.min(acSelected + 1, acItems.length - 1);
+    highlightAc();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acSelected = Math.max(acSelected - 1, 0);
+    highlightAc();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acSelected >= 0 && acItems[acSelected]) selectAcItem(acItems[acSelected]);
+  } else if (e.key === 'Escape') {
+    hideAutocomplete();
+  }
+});
+
+function searchAddress(q) {
+  fetch('https://api-adresse.data.gouv.fr/search/?q=' + encodeURIComponent(q) + '&limit=5')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.features || data.features.length === 0) {
+        hideAutocomplete();
+        return;
+      }
+      acItems = data.features;
+      acSelected = -1;
+      var list = document.getElementById('ac-list');
+      list.innerHTML = '';
+      acItems.forEach(function(f, i) {
+        var div = document.createElement('div');
+        div.className = 'ac-item';
+        div.setAttribute('role', 'option');
+        div.textContent = f.properties.label;
+        div.onclick = function() { selectAcItem(f); };
+        list.appendChild(div);
+      });
+      list.classList.add('show');
+    })
+    .catch(function() { hideAutocomplete(); });
+}
+
+function selectAcItem(feature) {
+  var label = feature.properties.label;
+  document.getElementById('input-adresse').value = label;
+  selectedAddress = label;
+  selectedLat = feature.geometry.coordinates[1];
+  selectedLng = feature.geometry.coordinates[0];
+  hideAutocomplete();
+}
+
+function highlightAc() {
+  var items = document.getElementById('ac-list').querySelectorAll('.ac-item');
+  items.forEach(function(el, i) {
+    el.classList.toggle('selected', i === acSelected);
+  });
+}
+
+function hideAutocomplete() {
+  document.getElementById('ac-list').classList.remove('show');
+  acItems = [];
+  acSelected = -1;
+}
+
+// Close autocomplete on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.autocomplete-wrap')) hideAutocomplete();
+});
+
+// ── FILE UPLOAD ──
+var uploadZone = document.getElementById('upload-zone');
+var uploadInput = document.getElementById('upload-input');
+
+uploadZone.addEventListener('click', function(e) {
+  if (e.target.closest('.upload-btn')) return;
+  uploadInput.click();
+});
+
+uploadZone.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    uploadInput.click();
+  }
+});
+
+// Drag and drop
+uploadZone.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+uploadZone.addEventListener('dragleave', function() {
+  uploadZone.classList.remove('dragover');
+});
+uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+});
+
+uploadInput.addEventListener('change', function() {
+  if (this.files.length > 0) handleFile(this.files[0]);
+});
+
+function handleFile(file) {
+  // Validate type
+  var validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+  if (!validTypes.includes(file.type)) {
+    alert('Format non accepté. Veuillez utiliser un fichier JPG, PNG ou PDF.');
+    return;
+  }
+  // Validate size (10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    alert('Fichier trop volumineux. La taille maximale est de 10 Mo.');
+    return;
+  }
+  selectedFile = file;
+  uploadZone.classList.add('has-file');
+  var sizeKb = Math.round(file.size / 1024);
+  var sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' Mo' : sizeKb + ' Ko';
+  document.getElementById('upload-filename').textContent = file.name + ' (' + sizeStr + ')';
+  hideAllErrors();
+}
+
+function captureCamera() {
+  // Use capture attribute for mobile camera
+  var cameraInput = document.createElement('input');
+  cameraInput.type = 'file';
+  cameraInput.accept = 'image/jpeg,image/png';
+  cameraInput.setAttribute('capture', 'environment');
+  cameraInput.onchange = function() {
+    if (this.files.length > 0) handleFile(this.files[0]);
+  };
+  cameraInput.click();
+}
+
+// ── RECAP ──
+var soinLabels = {
+  prise_de_sang: 'Prise de sang',
+  pansement: 'Pansement',
+  injection: 'Injection',
+  perfusion: 'Perfusion',
+  toilette_medicalisee: 'Toilette médicalisée',
+  soins_post_operatoires: 'Soins post-opératoires',
+  chimiotherapie: 'Chimiothérapie à domicile',
+  surveillance_diabete: 'Surveillance diabète',
+  autre: 'Autre'
+};
+
+function populateRecap() {
+  document.getElementById('recap-adresse').textContent = selectedAddress || '--';
+  document.getElementById('recap-soin').textContent = soinLabels[document.getElementById('input-type-soin').value] || '--';
+  document.getElementById('recap-patient').textContent = escText(document.getElementById('input-prenom').value) + ' ' + escText(document.getElementById('input-nom').value);
+  document.getElementById('recap-tel').textContent = escText(document.getElementById('input-telephone').value);
+  document.getElementById('recap-ordo').textContent = selectedFile ? selectedFile.name : '--';
+}
+
+function escText(s) {
+  var d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// ── SUBMIT ──
+function submitDemande() {
+  if (!validateStep(4)) return;
+
+  var btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+
+  var formData = new FormData();
+  formData.append('nom', document.getElementById('input-nom').value.trim());
+  formData.append('prenom', document.getElementById('input-prenom').value.trim());
+  formData.append('telephone', document.getElementById('input-telephone').value.trim());
+  formData.append('adresse', selectedAddress);
+  formData.append('type_soin', document.getElementById('input-type-soin').value);
+  formData.append('rgpd_consent', 'true');
+  formData.append('ordonnance_file', selectedFile);
+
+  fetch('/api/ide/demandes-soins', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok && data.id) {
+      demandeId = data.id;
+      goStep(5);
+      startPolling();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Envoyer ma demande';
+      alert(data.error || 'Une erreur est survenue. Veuillez réessayer.');
+    }
+  })
+  .catch(function(err) {
+    btn.disabled = false;
+    btn.textContent = 'Envoyer ma demande';
+    alert('Erreur de connexion. Veuillez vérifier votre connexion internet et réessayer.');
+  });
+}
+
+// ── POLLING ──
+function startPolling() {
+  if (!demandeId) return;
+  pollInterval = setInterval(pollStatus, 10000); // every 10 seconds
+  // Also poll once immediately after 3 seconds
+  setTimeout(pollStatus, 3000);
+}
+
+function pollStatus() {
+  if (!demandeId) return;
+  fetch('/api/ide/demandes-soins/' + demandeId + '/status')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+
+      if (data.status === 'notifiee') {
+        document.getElementById('label-recherche').textContent = 'Infirmières notifiées';
+        document.getElementById('label-recherche').className = 'status-label done';
+        document.getElementById('dot-recherche').className = 'status-dot done';
+        document.getElementById('dot-acceptee').className = 'status-dot active';
+        document.getElementById('label-acceptee').className = 'status-label active';
+        document.getElementById('label-acceptee').textContent = 'En attente d\'acceptation...';
+      }
+
+      if (data.status === 'acceptee') {
+        clearInterval(pollInterval);
+        document.getElementById('confirm-icon').className = 'confirm-icon confirm-icon-ok';
+        document.getElementById('confirm-icon').innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+        document.getElementById('confirm-title').textContent = 'Demande acceptée';
+        document.getElementById('confirm-desc').textContent = 'Une infirmière a accepté votre demande de soins. Elle vous contactera sous 30 minutes.';
+
+        document.getElementById('dot-recherche').className = 'status-dot done';
+        document.getElementById('label-recherche').className = 'status-label done';
+        document.getElementById('label-recherche').textContent = 'Infirmières notifiées';
+        document.getElementById('dot-acceptee').className = 'status-dot done';
+        document.getElementById('label-acceptee').className = 'status-label done';
+        document.getElementById('label-acceptee').textContent = 'Acceptée';
+
+        if (data.nurse_prenom || data.nurse_telephone) {
+          var info = '';
+          if (data.nurse_prenom) info += 'Infirmière : ' + data.nurse_prenom;
+          if (data.nurse_telephone) info += (info ? ' — ' : '') + 'Téléphone : ' + data.nurse_telephone;
+          document.getElementById('nurse-info').textContent = info;
+          document.getElementById('nurse-card').style.display = 'block';
+        }
+
+        document.getElementById('btn-cancel').style.display = 'none';
+      }
+
+      if (data.status === 'expiree') {
+        clearInterval(pollInterval);
+        document.getElementById('confirm-title').textContent = 'Demande expirée';
+        document.getElementById('confirm-desc').textContent = 'Aucune infirmière n\'a pu accepter votre demande dans le délai imparti. Vous pouvez soumettre une nouvelle demande.';
+        document.getElementById('btn-cancel').style.display = 'none';
+      }
+
+      if (data.status === 'annulee') {
+        clearInterval(pollInterval);
+        document.getElementById('confirm-title').textContent = 'Demande annulée';
+        document.getElementById('confirm-desc').textContent = 'Votre demande a été annulée et vos données supprimées.';
+        document.getElementById('btn-cancel').style.display = 'none';
+      }
+    })
+    .catch(function() { /* Silently ignore polling errors */ });
+}
+
+// ── CANCEL ──
+function cancelDemande() {
+  if (!demandeId) return;
+  if (!confirm('Souhaitez-vous vraiment annuler votre demande ? Vos données seront supprimées.')) return;
+
+  fetch('/api/ide/demandes-soins/' + demandeId, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      clearInterval(pollInterval);
+      document.getElementById('confirm-title').textContent = 'Demande annulée';
+      document.getElementById('confirm-desc').textContent = 'Votre demande a été annulée et vos données personnelles supprimées conformément au RGPD.';
+      document.getElementById('btn-cancel').style.display = 'none';
+      document.getElementById('status-tracker').style.display = 'none';
+    })
+    .catch(function() { alert('Erreur lors de l\'annulation. Veuillez réessayer.'); });
+}
+
+// ── PUSH NOTIFICATIONS (opt-in RGPD) ──
+function initPushOptin() {
+  // Verifier si le navigateur supporte les notifications push
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    return; // Navigateur non compatible, on ne montre pas l'option
+  }
+  // Si deja accorde, pas besoin de demander
+  if (Notification.permission === 'granted') {
+    registerPushSubscription();
+    return;
+  }
+  // Si refuse, ne pas montrer le bouton
+  if (Notification.permission === 'denied') {
+    return;
+  }
+  // Montrer le bloc opt-in
+  var el = document.getElementById('push-optin');
+  if (el) el.style.display = 'block';
+}
+
+function activerNotifications() {
+  var btn = document.getElementById('btn-push');
+  var status = document.getElementById('push-status');
+  btn.disabled = true;
+  btn.textContent = 'Activation en cours...';
+
+  Notification.requestPermission().then(function(permission) {
+    if (permission === 'granted') {
+      registerPushSubscription();
+      btn.style.display = 'none';
+      status.style.display = 'block';
+      status.style.color = '#10b981';
+      status.textContent = 'Notifications activées. Vous serez prévenu(e) dès qu\'une infirmière accepte.';
+    } else {
+      btn.style.display = 'none';
+      status.style.display = 'block';
+      status.style.color = 'var(--muted)';
+      status.textContent = 'Vous serez notifié(e) par email.';
+    }
+  }).catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Activer les notifications';
+  });
+}
+
+function registerPushSubscription() {
+  // Recuperer la cle publique VAPID
+  fetch('/api/push/vapid-public')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.publicKey) return;
+      return navigator.serviceWorker.register('/sw-push.js').then(function(reg) {
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(data.publicKey)
+        });
+      });
+    })
+    .then(function(subscription) {
+      if (!subscription) return;
+      var sub = subscription.toJSON();
+      var tel = '';
+      try { tel = document.getElementById('input-telephone').value.trim(); } catch(_) {}
+      return fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: sub.endpoint,
+          keys: sub.keys,
+          patient_telephone: tel || undefined
+        })
+      });
+    })
+    .catch(function(e) {
+      console.warn('[Push] Erreur enregistrement:', e);
+    });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Montrer l'opt-in push quand on arrive a step 5
+var _origGoStep = goStep;
+goStep = function(step) {
+  _origGoStep(step);
+  if (step === 5) {
+    setTimeout(initPushOptin, 1000); // Afficher apres 1s pour ne pas surcharger
+  }
+};
+</script>
+
+</body>
+</html>

@@ -99,7 +99,7 @@ module.exports = function mountRequests(app, admin, auth) {
         return res.json({
           request_id: request.id,
           status: 'failed',
-          message: 'Aucun fournisseur eligible pour le moment'
+          message: 'Aucun fournisseur éligible pour le moment'
         });
       }
 
@@ -152,7 +152,7 @@ module.exports = function mountRequests(app, admin, auth) {
         },
         total_target_eur: totalTarget || null,
         total_market_eur: totalMarket || null,
-        price_note: usedFallback ? 'Prix estimes — affinement via Scanner IA factures' : null
+        price_note: usedFallback ? 'Prix estimés — affinement via Scanner IA factures' : null
       });
 
     } catch (e) {
@@ -317,7 +317,7 @@ module.exports = function mountRequests(app, admin, auth) {
       const { data: current } = await admin().from('gpo_requests').select('status').eq('id', req.params.id).eq('societe_id', societeId).single();
       if (!current) return res.status(404).json({ error: 'Demande introuvable' });
       if (['accepted', 'fulfilled', 'cancelled'].includes(current.status)) {
-        return res.status(400).json({ error: 'Impossible annuler au statut: ' + current.status });
+        return res.status(400).json({ error: 'Impossible d\'annuler au statut : ' + current.status });
       }
 
       const { error } = await admin()

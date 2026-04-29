@@ -1,7 +1,7 @@
 // =============================================
 // JADOMI — Dentiste Pro : Smart Batch Slot-Finder
-// Recherche de creneaux recurrents en un clic
-// Compatible toutes professions de sante
+// Recherche de créneaux récurrents en un clic
+// Compatible toutes professions de santé
 // =============================================
 const express = require('express');
 const router = express.Router();
@@ -12,7 +12,7 @@ const { admin, requireCabinet, requirePatient, requirePermission, toMinutes, fro
 // =============================================
 
 /**
- * Parse une date "YYYY-MM-DD" en objet Date local (sans decalage UTC).
+ * Parse une date "YYYY-MM-DD" en objet Date local (sans décalage UTC).
  */
 function parseDate(dateStr) {
   return new Date(dateStr + 'T00:00:00');
@@ -29,7 +29,7 @@ function formatDate(d) {
 }
 
 /**
- * Ajoute N jours a une date.
+ * Ajoute N jours à une date.
  */
 function addDays(dateStr, days) {
   const d = parseDate(dateStr);
@@ -45,16 +45,16 @@ function getDayOfWeek(dateStr) {
 }
 
 /**
- * Genere les N dates cibles a partir d'une date de depart et d'une frequence.
+ * Génère les N dates cibles à partir d'une date de départ et d'une fréquence.
  *
  * Si preferred_days est fourni, ajuste chaque date cible vers le jour
- * prefere le plus proche (dans la meme semaine). Cela permet de viser
+ * préféré le plus proche (dans la même semaine). Cela permet de viser
  * par exemple "chaque mardi" meme si start_from_date est un jeudi.
  *
- * @param {string} startDate - Date de depart YYYY-MM-DD
+ * @param {string} startDate - Date de départ YYYY-MM-DD
  * @param {number} frequencyDays - Intervalle entre RDV (7, 14, etc.)
- * @param {number} count - Nombre de RDV souhaites
- * @param {number[]} preferredDays - Jours preferes (0=dim..6=sam), optionnel
+ * @param {number} count - Nombre de RDV souhaités
+ * @param {number[]} preferredDays - Jours préférés (0=dim..6=sam), optionnel
  * @returns {string[]} Tableau de dates YYYY-MM-DD
  */
 function generateTargetDates(startDate, frequencyDays, count, preferredDays) {
@@ -65,7 +65,7 @@ function generateTargetDates(startDate, frequencyDays, count, preferredDays) {
     const rawDate = addDays(startDate, i * frequencyDays);
 
     if (preferredDays && preferredDays.length > 0) {
-      // Ajuster vers le jour prefere le plus proche
+      // Ajuster vers le jour préféré le plus proche
       const rawDay = getDayOfWeek(rawDate);
       let bestOffset = Infinity;
 
@@ -89,12 +89,12 @@ function generateTargetDates(startDate, frequencyDays, count, preferredDays) {
 }
 
 /**
- * A partir d'un tableau de RDV existants (avec start_time/end_time),
- * calcule les intervalles libres dans une fenetre horaire donnee.
+ * À partir d'un tableau de RDV existants (avec start_time/end_time),
+ * calcule les intervalles libres dans une fenêtre horaire donnée.
  *
  * @param {Array} existingAppts - [{start_time: "HH:MM", end_time: "HH:MM"}, ...]
- * @param {string} windowStart - Debut de la fenetre "HH:MM"
- * @param {string} windowEnd - Fin de la fenetre "HH:MM"
+ * @param {string} windowStart - Début de la fenêtre "HH:MM"
+ * @param {string} windowEnd - Fin de la fenêtre "HH:MM"
  * @returns {Array} [{start: minutes, end: minutes}, ...] intervalles libres
  */
 function computeFreeIntervals(existingAppts, windowStart, windowEnd) {
@@ -103,10 +103,10 @@ function computeFreeIntervals(existingAppts, windowStart, windowEnd) {
 
   if (wStart >= wEnd) return [];
 
-  // Trier les RDV par heure de debut
+  // Trier les RDV par heure de début
   const booked = existingAppts
     .map(a => ({ start: toMinutes(a.start_time), end: toMinutes(a.end_time) }))
-    .filter(b => b.end > wStart && b.start < wEnd) // Garder uniquement ceux dans la fenetre
+    .filter(b => b.end > wStart && b.start < wEnd) // Garder uniquement ceux dans la fenêtre
     .sort((a, b) => a.start - b.start);
 
   const freeIntervals = [];
@@ -119,7 +119,7 @@ function computeFreeIntervals(existingAppts, windowStart, windowEnd) {
     cursor = Math.max(cursor, b.end);
   }
 
-  // Intervalle restant apres le dernier RDV
+  // Intervalle restant après le dernier RDV
   if (cursor < wEnd) {
     freeIntervals.push({ start: cursor, end: wEnd });
   }
@@ -131,8 +131,8 @@ function computeFreeIntervals(existingAppts, windowStart, windowEnd) {
  * Cherche le premier bloc libre >= durationMinutes dans les intervalles libres.
  *
  * @param {Array} freeIntervals - [{start, end}, ...] en minutes
- * @param {number} durationMinutes - Duree requise
- * @returns {{start: string, end: string}|null} Creneau trouve ou null
+ * @param {number} durationMinutes - Durée requise
+ * @returns {{start: string, end: string}|null} Créneau trouvé ou null
  */
 function findFirstFreeBlock(freeIntervals, durationMinutes) {
   for (const interval of freeIntervals) {
@@ -185,7 +185,7 @@ function findAlternatives(targetDate, toleranceDays, windowStart, windowEnd, dur
 }
 
 /**
- * Resout le(s) site_id associe(s) a une societe.
+ * Résout le(s) site_id associé(s) à une société.
  * La table appointments utilise site_id (vitrines_sites),
  * pas societe_id directement.
  */
@@ -200,11 +200,11 @@ async function getSiteIdsForSociete(societeId) {
 }
 
 /**
- * Algorithme principal : trouve N creneaux recurrents en un seul appel.
+ * Algorithme principal : trouve N créneaux récurrents en un seul appel.
  *
- * OPTIMISATION CLE : une seule requete Supabase pour recuperer tous les
- * RDV de la plage de dates etendue (dates cibles +/- tolerance), puis
- * filtrage en memoire.
+ * OPTIMISATION CLÉ : une seule requête Supabase pour récupérer tous les
+ * RDV de la plage de dates étendue (dates cibles +/- tolérance), puis
+ * filtrage en mémoire.
  */
 async function findBatchSlots({
   cabinet_id,
@@ -219,10 +219,10 @@ async function findBatchSlots({
   start_from_date,
   tolerance_days = 2
 }) {
-  // 0. Resoudre les site_ids lies a cette societe
+  // 0. Résoudre les site_ids liés à cette société
   const siteIds = await getSiteIdsForSociete(societe_id);
 
-  // 1. Generer les dates cibles
+  // 1. Générer les dates cibles
   const targetDates = generateTargetDates(
     start_from_date,
     frequency_days,
@@ -230,7 +230,7 @@ async function findBatchSlots({
     preferred_days
   );
 
-  // 2. Calculer la plage de dates elargie (avec tolerance)
+  // 2. Calculer la plage de dates élargie (avec tolérance)
   const allDates = [];
   for (const td of targetDates) {
     for (let offset = -tolerance_days; offset <= tolerance_days; offset++) {
@@ -253,14 +253,14 @@ async function findBatchSlots({
   if (siteIds.length > 0) {
     query = query.in('site_id', siteIds);
   } else {
-    // Aucun site associe : pas de conflits possibles
+    // Aucun site associé : pas de conflits possibles
     // On retourne tout comme disponible
   }
 
   const { data: allAppts, error } = await query;
   if (error) throw error;
 
-  // 4. Indexer les RDV par date (Map pour acces O(1))
+  // 4. Indexer les RDV par date (Map pour accès O(1))
   const apptsByDate = new Map();
   for (const appt of (allAppts || [])) {
     if (!apptsByDate.has(appt.date)) {
@@ -269,7 +269,7 @@ async function findBatchSlots({
     apptsByDate.get(appt.date).push(appt);
   }
 
-  // 5. Pour chaque date cible, chercher un creneau
+  // 5. Pour chaque date cible, chercher un créneau
   const results = [];
   let available = 0;
   let conflicts = 0;
@@ -282,7 +282,7 @@ async function findBatchSlots({
     const block = findFirstFreeBlock(freeIntervals, duration_minutes);
 
     if (block) {
-      // Creneau trouve sur la date cible
+      // Créneau trouvé sur la date cible
       results.push({
         week: i + 1,
         target_date: targetDate,
@@ -367,9 +367,9 @@ router.post('/find', requireCabinet(), requirePermission('agenda'), async (req, 
       return res.status(400).json({ error: 'start_from_date requis (YYYY-MM-DD)' });
     }
 
-    // Verifier que la fenetre horaire est coherente
+    // Vérifier que la fenêtre horaire est cohérente
     if (toMinutes(time_window_end) - toMinutes(time_window_start) < duration_minutes) {
-      return res.status(400).json({ error: 'La fenetre horaire est trop courte pour la duree demandee' });
+      return res.status(400).json({ error: 'La fenêtre horaire est trop courte pour la durée demandée' });
     }
 
     const result = await findBatchSlots({
@@ -389,12 +389,12 @@ router.post('/find', requireCabinet(), requirePermission('agenda'), async (req, 
     res.json(result);
   } catch (err) {
     console.error('[batch-slots] POST /find', err.message);
-    res.status(500).json({ error: 'Erreur recherche creneaux' });
+    res.status(500).json({ error: 'Erreur recherche créneaux' });
   }
 });
 
 
-// --- 2. POST /book-all --- Reservation atomique de la serie ---
+// --- 2. POST /book-all --- Réservation atomique de la série ---
 router.post('/book-all', requireCabinet(), requirePermission('series'), async (req, res) => {
   try {
     const {
@@ -420,7 +420,7 @@ router.post('/book-all', requireCabinet(), requirePermission('series'), async (r
     const societeId = req.societe.id;
     const cabinetId = req.cabinet?.id;
 
-    // Resoudre les site_ids (appointments utilise site_id, pas societe_id)
+    // Résoudre les site_ids (appointments utilise site_id, pas societe_id)
     const siteIds = await getSiteIdsForSociete(societeId);
     const primarySiteId = siteIds[0] || null;
 

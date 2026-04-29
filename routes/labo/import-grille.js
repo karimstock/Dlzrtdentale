@@ -184,7 +184,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !imp) return res.status(404).json({ error: 'Import non trouve' });
+    if (error || !imp) return res.status(404).json({ error: 'Import non trouvé' });
 
     const { data: lignes } = await admin()
       .from('lignes_import')

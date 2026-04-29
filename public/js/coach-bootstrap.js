@@ -125,8 +125,9 @@
 
   // Init on DOM ready
   document.addEventListener('DOMContentLoaded', function() {
-    injectHelpCSS();
-    addHelpButton();
+    // Old floating help button removed — replaced by contextual-help.js widget
+    // injectHelpCSS();
+    // addHelpButton();
     // Delay tour to let dashboard load
     setTimeout(function() { initTour().catch(function(e) { console.warn('[Coach]', e); }); }, 2000);
   });

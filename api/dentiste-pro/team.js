@@ -1,7 +1,7 @@
 // =============================================
-// JADOMI — Dentiste Pro : Gestion equipe & permissions
-// Invitation, roles, permissions granulaires par module
-// Fonctionne pour toutes professions de sante
+// JADOMI — Dentiste Pro : Gestion équipe & permissions
+// Invitation, rôles, permissions granulaires par module
+// Fonctionne pour toutes professions de santé
 // =============================================
 const express = require('express');
 const crypto = require('crypto');
@@ -9,7 +9,7 @@ const { admin, requireCabinet } = require('./shared');
 
 const router = express.Router();
 
-// ===== Role presets =====
+// ===== Rôle presets =====
 const ROLE_PRESETS = {
   praticien: {
     agenda: true, patients: true, chat: true, stock: true,
@@ -62,9 +62,9 @@ function generateInvitationToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// Verifie que le user actuel est praticien ou associe du cabinet
+// Vérifie que le user actuel est praticien ou associé du cabinet
 async function isManagerRole(userId, cabinetId) {
-  // D'abord verifier si c'est le proprietaire de la societe (via cabinet)
+  // D'abord vérifier si c'est le propriétaire de la société (via cabinet)
   const { data: cabinet } = await admin()
     .from('dentiste_pro_cabinets')
     .select('societe_id')
@@ -80,10 +80,10 @@ async function isManagerRole(userId, cabinetId) {
     .eq('societe_id', cabinet.societe_id)
     .maybeSingle();
 
-  // Le proprietaire de la societe (role owner/admin) est toujours manager
+  // Le propriétaire de la société (rôle owner/admin) est toujours manager
   if (role && (role.role === 'owner' || role.role === 'admin')) return true;
 
-  // Verifier si c'est un praticien ou associe dans l'equipe
+  // Vérifier si c'est un praticien ou associé dans l'équipe
   const { data: teamMember } = await admin()
     .from('dentiste_pro_team')
     .select('role')
@@ -96,18 +96,18 @@ async function isManagerRole(userId, cabinetId) {
 }
 
 // =========================================================
-// POST /team/invite — Inviter un membre d'equipe
-// Requiert: praticien ou associe
+// POST /team/invite — Inviter un membre d'équipe
+// Requiert: praticien ou associé
 // =========================================================
 router.post('/invite', requireCabinet(), async (req, res) => {
   try {
     const cabinetId = req.cabinet?.id;
-    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configure' });
+    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configuré' });
 
-    // Verifier les droits
+    // Vérifier les droits
     const canManage = await isManagerRole(req.user.id, cabinetId);
     if (!canManage) {
-      return res.status(403).json({ error: 'Seul un praticien ou associe peut inviter des membres' });
+      return res.status(403).json({ error: 'Seul un praticien ou associé peut inviter des membres' });
     }
 
     const { email, nom, prenom, role } = req.body;
@@ -116,10 +116,10 @@ router.post('/invite', requireCabinet(), async (req, res) => {
       return res.status(400).json({ error: 'Email valide requis' });
     }
     if (!role || !ROLE_PRESETS[role]) {
-      return res.status(400).json({ error: 'Role invalide. Roles acceptes : ' + Object.keys(ROLE_PRESETS).join(', ') });
+      return res.status(400).json({ error: 'Rôle invalide. Rôles acceptés : ' + Object.keys(ROLE_PRESETS).join(', ') });
     }
 
-    // Verifier que le membre n'existe pas deja
+    // Vérifier que le membre n'existe pas déjà
     const { data: existing } = await admin()
       .from('dentiste_pro_team')
       .select('id, actif, invitation_accepted')
@@ -129,9 +129,9 @@ router.post('/invite', requireCabinet(), async (req, res) => {
 
     if (existing) {
       if (existing.actif) {
-        return res.status(409).json({ error: 'Ce membre fait deja partie de l\'equipe' });
+        return res.status(409).json({ error: 'Ce membre fait déjà partie de l\'équipe' });
       }
-      // Reactiver un membre desactive
+      // Réactiver un membre désactivé
       const token = generateInvitationToken();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 jours
 
@@ -160,7 +160,7 @@ router.post('/invite', requireCabinet(), async (req, res) => {
       return res.json({ ok: true, member: sanitizeMember(reactivated), reactivated: true });
     }
 
-    // Creer le nouveau membre
+    // Créer le nouveau membre
     const token = generateInvitationToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -194,12 +194,12 @@ router.post('/invite', requireCabinet(), async (req, res) => {
 });
 
 // =========================================================
-// GET /team — Lister les membres de l'equipe
+// GET /team — Lister les membres de l'équipe
 // =========================================================
 router.get('/', requireCabinet(), async (req, res) => {
   try {
     const cabinetId = req.cabinet?.id;
-    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configure' });
+    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configuré' });
 
     const { data, error } = await admin()
       .from('dentiste_pro_team')
@@ -212,7 +212,7 @@ router.get('/', requireCabinet(), async (req, res) => {
     res.json({ ok: true, team: data || [] });
   } catch (err) {
     console.error('[team] GET /', err.message);
-    res.status(500).json({ error: 'Erreur liste equipe' });
+    res.status(500).json({ error: 'Erreur liste équipe' });
   }
 });
 
@@ -223,11 +223,11 @@ router.get('/', requireCabinet(), async (req, res) => {
 router.put('/:id/permissions', requireCabinet(), async (req, res) => {
   try {
     const cabinetId = req.cabinet?.id;
-    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configure' });
+    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configuré' });
 
     const canManage = await isManagerRole(req.user.id, cabinetId);
     if (!canManage) {
-      return res.status(403).json({ error: 'Seul un praticien ou associe peut modifier les permissions' });
+      return res.status(403).json({ error: 'Seul un praticien ou associé peut modifier les permissions' });
     }
 
     const { permissions } = req.body;
@@ -241,7 +241,7 @@ router.put('/:id/permissions', requireCabinet(), async (req, res) => {
         return res.status(400).json({ error: `Module inconnu : ${key}. Modules valides : ${VALID_MODULES.join(', ')}` });
       }
       if (typeof permissions[key] !== 'boolean') {
-        return res.status(400).json({ error: `La permission "${key}" doit etre un booleen` });
+        return res.status(400).json({ error: `La permission "${key}" doit être un booléen` });
       }
     }
 
@@ -286,19 +286,19 @@ router.put('/:id/permissions', requireCabinet(), async (req, res) => {
 router.put('/:id/role', requireCabinet(), async (req, res) => {
   try {
     const cabinetId = req.cabinet?.id;
-    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configure' });
+    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configuré' });
 
     const canManage = await isManagerRole(req.user.id, cabinetId);
     if (!canManage) {
-      return res.status(403).json({ error: 'Seul un praticien ou associe peut changer les roles' });
+      return res.status(403).json({ error: 'Seul un praticien ou associé peut changer les rôles' });
     }
 
     const { role } = req.body;
     if (!role || !ROLE_PRESETS[role]) {
-      return res.status(400).json({ error: 'Role invalide. Roles acceptes : ' + Object.keys(ROLE_PRESETS).join(', ') });
+      return res.status(400).json({ error: 'Rôle invalide. Rôles acceptés : ' + Object.keys(ROLE_PRESETS).join(', ') });
     }
 
-    // Verifier que le membre existe dans ce cabinet
+    // Vérifier que le membre existe dans ce cabinet
     const { data: member, error: mErr } = await admin()
       .from('dentiste_pro_team')
       .select('id, cabinet_id')
@@ -325,7 +325,7 @@ router.put('/:id/role', requireCabinet(), async (req, res) => {
     res.json({ ok: true, member: sanitizeMember(updated) });
   } catch (err) {
     console.error('[team] PUT /:id/role', err.message);
-    res.status(500).json({ error: 'Erreur changement role' });
+    res.status(500).json({ error: 'Erreur changement rôle' });
   }
 });
 
@@ -336,14 +336,14 @@ router.put('/:id/role', requireCabinet(), async (req, res) => {
 router.delete('/:id', requireCabinet(), async (req, res) => {
   try {
     const cabinetId = req.cabinet?.id;
-    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configure' });
+    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configuré' });
 
     const canManage = await isManagerRole(req.user.id, cabinetId);
     if (!canManage) {
-      return res.status(403).json({ error: 'Seul un praticien ou associe peut retirer des membres' });
+      return res.status(403).json({ error: 'Seul un praticien ou associé peut retirer des membres' });
     }
 
-    // Verifier que le membre existe dans ce cabinet
+    // Vérifier que le membre existe dans ce cabinet
     const { data: member, error: mErr } = await admin()
       .from('dentiste_pro_team')
       .select('id, cabinet_id, role')
@@ -354,12 +354,12 @@ router.delete('/:id', requireCabinet(), async (req, res) => {
     if (mErr) throw mErr;
     if (!member) return res.status(404).json({ error: 'Membre introuvable' });
 
-    // Ne pas permettre de supprimer un praticien (proprietaire)
+    // Ne pas permettre de supprimer un praticien (propriétaire)
     if (member.role === 'praticien') {
-      return res.status(403).json({ error: 'Impossible de retirer le praticien proprietaire' });
+      return res.status(403).json({ error: 'Impossible de retirer le praticien propriétaire' });
     }
 
-    // Desactiver (soft delete) plutot que supprimer
+    // Désactiver (soft delete) plutôt que supprimer
     const { error } = await admin()
       .from('dentiste_pro_team')
       .update({
@@ -370,7 +370,7 @@ router.delete('/:id', requireCabinet(), async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ ok: true, message: 'Membre retire de l\'equipe' });
+    res.json({ ok: true, message: 'Membre retiré de l\'équipe' });
   } catch (err) {
     console.error('[team] DELETE /:id', err.message);
     res.status(500).json({ error: 'Erreur suppression membre' });
@@ -399,19 +399,19 @@ router.post('/accept-invitation', async (req, res) => {
 
     if (mErr) throw mErr;
     if (!member) {
-      return res.status(404).json({ error: 'Invitation introuvable ou expiree' });
+      return res.status(404).json({ error: 'Invitation introuvable ou expirée' });
     }
 
-    // Verifier l'expiration
+    // Vérifier l'expiration
     if (member.invitation_expires_at && new Date(member.invitation_expires_at) < new Date()) {
-      return res.status(410).json({ error: 'Cette invitation a expire. Demandez une nouvelle invitation.' });
+      return res.status(410).json({ error: 'Cette invitation a expiré. Demandez une nouvelle invitation.' });
     }
 
     if (member.invitation_accepted) {
-      return res.status(409).json({ error: 'Cette invitation a deja ete acceptee' });
+      return res.status(409).json({ error: 'Cette invitation a déjà été acceptée' });
     }
 
-    // Tenter de recuperer le user_id depuis le header Authorization si present
+    // Tenter de récupérer le user_id depuis le header Authorization si présent
     let resolvedUserId = user_id || null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -448,7 +448,7 @@ router.post('/accept-invitation', async (req, res) => {
 
     res.json({
       ok: true,
-      message: 'Invitation acceptee',
+      message: 'Invitation acceptée',
       member: sanitizeMember(updated),
       cabinet_id: updated.cabinet_id
     });
@@ -464,11 +464,11 @@ router.post('/accept-invitation', async (req, res) => {
 router.get('/my-permissions', requireCabinet(), async (req, res) => {
   try {
     const cabinetId = req.cabinet?.id;
-    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configure' });
+    if (!cabinetId) return res.status(400).json({ error: 'Cabinet non configuré' });
 
     const userId = req.user.id;
 
-    // Verifier si c'est le proprietaire de la societe
+    // Vérifier si c'est le propriétaire de la société
     const { data: cabinet } = await admin()
       .from('dentiste_pro_cabinets')
       .select('societe_id')
@@ -484,7 +484,7 @@ router.get('/my-permissions', requireCabinet(), async (req, res) => {
         .maybeSingle();
 
       if (societeRole && (societeRole.role === 'owner' || societeRole.role === 'admin')) {
-        // Proprietaire : toutes les permissions
+        // Propriétaire : toutes les permissions
         return res.json({
           ok: true,
           role: 'praticien',
@@ -494,7 +494,7 @@ router.get('/my-permissions', requireCabinet(), async (req, res) => {
       }
     }
 
-    // Chercher dans l'equipe
+    // Chercher dans l'équipe
     const { data: member, error } = await admin()
       .from('dentiste_pro_team')
       .select('id, role, permissions, actif, invitation_accepted')
@@ -506,14 +506,14 @@ router.get('/my-permissions', requireCabinet(), async (req, res) => {
     if (error) throw error;
 
     if (!member) {
-      return res.status(403).json({ error: 'Vous ne faites pas partie de cette equipe' });
+      return res.status(403).json({ error: 'Vous ne faites pas partie de cette équipe' });
     }
 
     if (!member.invitation_accepted) {
-      return res.status(403).json({ error: 'Votre invitation n\'a pas encore ete acceptee' });
+      return res.status(403).json({ error: 'Votre invitation n\'a pas encore été acceptée' });
     }
 
-    // Mettre a jour la derniere connexion
+    // Mettre à jour la dernière connexion
     await admin()
       .from('dentiste_pro_team')
       .update({ derniere_connexion: new Date().toISOString() })
@@ -556,11 +556,11 @@ async function sendInvitationEmail(member, cabinet) {
       }
     });
 
-    const memberName = [member.prenom, member.nom].filter(Boolean).join(' ') || 'Collegue';
+    const memberName = [member.prenom, member.nom].filter(Boolean).join(' ') || 'Collègue';
     const roleFR = {
       praticien: 'Praticien',
-      associe: 'Associe',
-      secretaire: 'Secretaire',
+      associe: 'Associé',
+      secretaire: 'Secrétaire',
       assistante: 'Assistante',
       comptable: 'Comptable',
       stagiaire: 'Stagiaire'
@@ -569,7 +569,7 @@ async function sendInvitationEmail(member, cabinet) {
     await transporter.sendMail({
       from: `"${cabinetName}" <${process.env.SMTP_USER || 'noreply@jadomi.fr'}>`,
       to: member.email,
-      subject: `Invitation a rejoindre ${cabinetName} sur JADOMI`,
+      subject: `Invitation à rejoindre ${cabinetName} sur JADOMI`,
       html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#0f1f3d;font-family:Arial,sans-serif;color:#f1f5f9;">
@@ -578,12 +578,12 @@ async function sendInvitationEmail(member, cabinet) {
     <div style="font-size:18px;font-weight:700;color:#f1f5f9;">${cabinetName}</div>
   </div>
   <div style="padding:24px;">
-    <h2 style="font-size:20px;color:#f1f5f9;margin:0 0 16px;">Invitation a rejoindre l'equipe</h2>
+    <h2 style="font-size:20px;color:#f1f5f9;margin:0 0 16px;">Invitation à rejoindre l'équipe</h2>
     <p style="font-size:14px;color:#cbd5e1;margin:0 0 20px;">
       Bonjour ${memberName},
     </p>
     <p style="font-size:14px;color:#cbd5e1;margin:0 0 20px;">
-      Vous avez ete invite a rejoindre l'equipe de <strong style="color:#f1f5f9;">${cabinetName}</strong>
+      Vous avez été invité à rejoindre l'équipe de <strong style="color:#f1f5f9;">${cabinetName}</strong>
       en tant que <strong style="color:#6366f1;">${roleFR}</strong>.
     </p>
     <div style="text-align:center;margin:24px 0;">
@@ -592,19 +592,19 @@ async function sendInvitationEmail(member, cabinet) {
       </a>
     </div>
     <p style="font-size:12px;color:#94a3b8;margin:24px 0 0;">
-      Cette invitation expire dans 7 jours. Si vous n'avez pas demande cette invitation, ignorez cet email.
+      Cette invitation expire dans 7 jours. Si vous n'avez pas demandé cette invitation, ignorez cet email.
     </p>
   </div>
   <div style="text-align:center;padding:16px 24px;border-top:1px solid rgba(99,102,241,0.15);font-size:11px;color:#64748b;">
-    Envoye via <a href="https://jadomi.fr" style="color:#6366f1;">JADOMI</a>
+    Envoyé via <a href="https://jadomi.fr" style="color:#6366f1;">JADOMI</a>
   </div>
 </div>
 </body></html>`
     });
 
-    console.log('[team] Invitation email envoyee a', member.email);
+    console.log('[team] Invitation email envoyée à', member.email);
   } catch (emailErr) {
-    // Ne pas faire echouer l'invitation si l'email echoue
+    // Ne pas faire échouer l'invitation si l'email échoue
     console.warn('[team] Echec envoi email invitation:', emailErr.message);
   }
 }

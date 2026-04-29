@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================
 // JADOMI — Enrichissement COMPLET toutes categories dentaires
-// Passe 51 — Sous-categorisation + traduction FR + nettoyage
+// Passe 51 — Sous-catégorisation + traduction FR + nettoyage
 //
 // Usage :
 //   node scripts/enrich-all-dental.js [--limit 2000] [--category Implants]
@@ -39,7 +39,7 @@ const ALL_SUBCATEGORIES = {
     { name: 'Arcs orthodontiques', regex: /archwire|arch\s*wire|wire.*ortho|niti\b|stainless.*wire|beta.*titanium/i },
     { name: 'Aligneurs', regex: /aligner|clear.*tray|invisible.*ortho|thermoform/i },
     { name: 'Bagues orthodontiques', regex: /\bband\b.*ortho|molar.*band|ortho.*band/i },
-    { name: 'Elastiques', regex: /elastic|power\s*chain|ligature.*elastic|o-ring/i },
+    { name: 'Élastiques', regex: /elastic|power\s*chain|ligature.*elastic|o-ring/i },
     { name: 'Fils et ligatures', regex: /ligature|tie.*wire|kobayashi/i },
     { name: 'Ciment orthodontique', regex: /cement.*ortho|bond.*ortho|adhesive.*ortho|primer.*ortho/i },
     { name: 'Mini-vis', regex: /mini.*screw|micro.*screw|tad\b|temporary.*anchor/i },
@@ -50,9 +50,9 @@ const ALL_SUBCATEGORIES = {
   ],
   'Prothese': [
     { name: 'Zircone', regex: /zircon|yttria|y-tzp|prettau|bruxzir/i },
-    { name: 'Ceramique', regex: /ceramic|porcelain|feldspath|leucite|lithium.*disil|e\.max|emax|empress/i },
-    { name: 'Resine dentaire', regex: /resin|acrylic|pmma|denture.*base|provisional|temporary.*crown/i },
-    { name: 'Metal et alliages', regex: /alloy|cobalt.*chrom|nickel.*chrom|co-cr|ni-cr|gold.*alloy|palladium/i },
+    { name: 'Céramique', regex: /ceramic|porcelain|feldspath|leucite|lithium.*disil|e\.max|emax|empress/i },
+    { name: 'Résine dentaire', regex: /resin|acrylic|pmma|denture.*base|provisional|temporary.*crown/i },
+    { name: 'Métal et alliages', regex: /alloy|cobalt.*chrom|nickel.*chrom|co-cr|ni-cr|gold.*alloy|palladium/i },
     { name: 'Cire dentaire', regex: /\bwax\b|pattern.*wax|casting.*wax|inlay.*wax|modelling/i },
     { name: 'Platre dentaire', regex: /plaster|gypsum|die.*stone|dental.*stone/i },
     { name: 'Articulateurs', regex: /articulator|facebow|face.*bow|mounting/i },
@@ -60,8 +60,8 @@ const ALL_SUBCATEGORIES = {
     { name: 'Piliers implantaires', regex: /abutment|pilier|healing.*cap|scan.*body|analog/i },
     { name: 'Couronnes et bridges', regex: /crown|bridge|pontic|coping|framework|pfm/i },
     { name: 'Facettes et inlays', regex: /veneer|inlay|onlay|overlay|laminate/i },
-    { name: 'Fours et equipement labo', regex: /furnace|oven|burnout|pressing|sintering|casting.*machine/i },
-    { name: 'CAD/CAM prothese', regex: /cad.*cam|milling.*prosth|digital.*prosth|3d.*print/i },
+    { name: 'Fours et équipement labo', regex: /furnace|oven|burnout|pressing|sintering|casting.*machine/i },
+    { name: 'CAD/CAM prothèse', regex: /cad.*cam|milling.*prosth|digital.*prosth|3d.*print/i },
   ],
   'Implants': [
     { name: 'Implants endo-osseux', regex: /implant.*endo|endo.*osseous|root.*form|screw.*type.*impl/i },
@@ -76,23 +76,23 @@ const ALL_SUBCATEGORIES = {
   'Instruments': [
     { name: 'Turbines et contre-angles', regex: /handpiece|turbine|contra.*angle|slow.*speed|high.*speed|electric.*motor/i },
     { name: 'Fraises', regex: /\bbur\b|diamond|carbide|finishing|polishing.*bur|round.*bur|fissure/i },
-    { name: 'Detartreurs', regex: /scaler|ultrasonic.*tip|piezo.*tip|magnetostrictive/i },
+    { name: 'Détartreurs', regex: /scaler|ultrasonic.*tip|piezo.*tip|magnetostrictive/i },
     { name: 'Curettes', regex: /curette|gracey|columbia|langer|mccall|universal.*cur/i },
     { name: 'Miroirs et sondes', regex: /mirror|sonde|explorer|probe|periodontal.*probe/i },
-    { name: 'Precelles et pinces', regex: /tweezer|forcep|pince|cotton.*plier|college/i },
+    { name: 'Précelles et pinces', regex: /tweezer|forcep|pince|cotton.*plier|college/i },
     { name: 'Spatules et fouloirs', regex: /spatula|plugger|condenser|carver|burnisher|hollenback/i },
     { name: 'Ciseaux et bistouris', regex: /scissor|scalpel|blade|bistouri|dissect/i },
     { name: 'Instruments rotatifs', regex: /mandrel|disc|strip.*polish|interproximal|finishing.*strip/i },
   ],
   'Chirurgie': [
     { name: 'Daviers', regex: /forcep.*extract|extraction.*forcep|davier|cowhorn|bayonet/i },
-    { name: 'Elevateurs', regex: /elevator|luxat|syndesmotome|periosteal|coupland|cryer/i },
+    { name: 'Élévateurs', regex: /elevator|luxat|syndesmotome|periosteal|coupland|cryer/i },
     { name: 'Bistouris et lames', regex: /scalpel|blade|surgical.*knife|lance|electrosurg/i },
     { name: 'Sutures', regex: /suture|fil.*resorbable|vicryl|silk.*suture|nylon.*suture|aiguille.*suture/i },
-    { name: 'Hemostatiques', regex: /hemostat|collag.*sponge|surgicel|gelfoam|bone.*wax.*surg/i },
+    { name: 'Hémostatiques', regex: /hemostat|collag.*sponge|surgicel|gelfoam|bone.*wax.*surg/i },
     { name: 'Instruments chirurgicaux', regex: /rongeur|rasp|file.*surg|retract|ecarteur|clamp/i },
     { name: 'Piezo-chirurgie', regex: /piezo.*surg|piezotome|ultrasonic.*surg/i },
-    { name: 'Regeneration osseuse', regex: /bone.*graft|xenograft|allograft|bio.*oss|membrane.*surg|prp\b|prf\b/i },
+    { name: 'Régénération osseuse', regex: /bone.*graft|xenograft|allograft|bio.*oss|membrane.*surg|prp\b|prf\b/i },
   ],
   'Endodontie': [
     { name: 'Limes endodontiques', regex: /\bfile\b.*endo|endo.*file|k-file|h-file|hedstrom|protaper|reciproc|waveone|niti.*file/i },
@@ -112,8 +112,8 @@ const ALL_SUBCATEGORIES = {
     { name: 'Laser parodontal', regex: /laser.*paro|diode.*paro|er:yag|nd:yag/i },
   ],
   'Composites': [
-    { name: 'Composite anterieur', regex: /composite.*anter|anter.*composite|estheti.*composite|nano.*fill/i },
-    { name: 'Composite posterieur', regex: /composite.*poster|poster.*composite|packable|bulk.*fill/i },
+    { name: 'Composite antérieur', regex: /composite.*anter|anter.*composite|estheti.*composite|nano.*fill/i },
+    { name: 'Composite postérieur', regex: /composite.*poster|poster.*composite|packable|bulk.*fill/i },
     { name: 'Composite flow', regex: /flow|flowable|injectable.*compos/i },
     { name: 'Adhesifs', regex: /adhesive|bonding|primer|etch.*rinse|self.*etch|universal.*bond/i },
     { name: 'Mordancage', regex: /etch|phosphoric|acid.*etch|gel.*etch/i },

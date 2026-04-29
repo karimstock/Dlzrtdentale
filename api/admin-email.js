@@ -1,7 +1,7 @@
 // =============================================
 // JADOMI Admin — Module Email complet
-// Boite reception IMAP + Campagnes mailing + Stats
-// Ne touche PAS admin.js — fichier separe
+// Boîte réception IMAP + Campagnes mailing + Stats
+// Ne touche PAS admin.js — fichier séparé
 // =============================================
 
 const express = require('express');
@@ -10,7 +10,7 @@ const { simpleParser } = require('mailparser');
 const nodemailer = require('nodemailer');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'jadomi_admin_karim_2026';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'karim_bahmed@yahoo.fr';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@jadomi.fr';
 
 async function requireAdmin(req, res, next) {
   // Method 1: legacy X-Admin-Token header or query param
@@ -39,7 +39,7 @@ async function requireAdmin(req, res, next) {
   return res.status(401).json({ error: 'admin_token_required' });
 }
 
-// Mailer reutilisable
+// Mailer réutilisable
 let _mailer = null;
 function getMailer() {
   if (_mailer) return _mailer;
@@ -164,13 +164,13 @@ function mountAdminEmail(app, supabase) {
 
   // ------- BOITE RECEPTION -------
 
-  // GET /api/admin/email/inbox — Lire boite reception
+  // GET /api/admin/email/inbox — Lire boîte réception
   app.get('/api/admin/email/inbox', requireAdmin, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 50;
       const since = req.query.since || null;
       const messages = await fetchInbox({ limit, since });
-      // Trier par date decroissante
+      // Trier par date décroissante
       messages.sort((a, b) => new Date(b.date) - new Date(a.date));
       const unread = messages.filter(m => !m.seen).length;
       res.json({ success: true, messages, total: messages.length, unread });
@@ -180,13 +180,13 @@ function mountAdminEmail(app, supabase) {
     }
   });
 
-  // POST /api/admin/email/reply — Repondre a un email
+  // POST /api/admin/email/reply — Répondre à un email
   app.post('/api/admin/email/reply', requireAdmin, async (req, res) => {
     try {
       const { to, subject, html, in_reply_to } = req.body;
       if (!to || !html) return res.status(400).json({ error: 'to et html requis' });
       const mailer = getMailer();
-      if (!mailer) return res.status(503).json({ error: 'SMTP non configure' });
+      if (!mailer) return res.status(503).json({ error: 'SMTP non configuré' });
 
       const info = await mailer.sendMail({
         from: `"JADOMI" <contact@jadomi.fr>`,
@@ -251,9 +251,9 @@ function mountAdminEmail(app, supabase) {
       const segments = {
         chirurgien_dentiste: { label: 'Chirurgiens-dentistes', icon: '🦷', users: [] },
         orthodontiste: { label: 'Orthodontistes', icon: '🦴', users: [] },
-        prothesiste: { label: 'Prothesistes', icon: '🔬', users: [] },
-        veterinaire: { label: 'Veterinaires', icon: '🐾', users: [] },
-        dirigeant: { label: 'Dirigeants societe', icon: '🏢', users: [] },
+        prothesiste: { label: 'Prothésistes', icon: '🔬', users: [] },
+        veterinaire: { label: 'Vétérinaires', icon: '🐾', users: [] },
+        dirigeant: { label: 'Dirigeants société', icon: '🏢', users: [] },
         auto_entrepreneur: { label: 'Auto-entrepreneurs', icon: '📊', users: [] },
         autre: { label: 'Autres', icon: '👥', users: [] }
       };
@@ -278,7 +278,7 @@ function mountAdminEmail(app, supabase) {
         else segments.autre.users.push(entry);
       }
 
-      // Stats resume
+      // Stats résumé
       const stats = Object.entries(segments).map(([key, seg]) => ({
         segment: key,
         label: seg.label,
@@ -306,7 +306,7 @@ function mountAdminEmail(app, supabase) {
       if (!sujet || !html) return res.status(400).json({ error: 'sujet et html requis' });
 
       const mailer = getMailer();
-      if (!mailer) return res.status(503).json({ error: 'SMTP non configure' });
+      if (!mailer) return res.status(503).json({ error: 'SMTP non configuré' });
 
       // Si destinataires explicites, les utiliser
       let destinataires = destinataires_override || [];
@@ -391,7 +391,7 @@ function mountAdminEmail(app, supabase) {
         envoyes,
         erreurs,
         total: destinataires.length,
-        resultats: resultats.slice(0, 20) // Limiter la reponse
+        resultats: resultats.slice(0, 20) // Limiter la réponse
       });
     } catch (e) {
       console.error('[ADMIN email campagne]', e.message);
@@ -454,7 +454,7 @@ function mountAdminEmail(app, supabase) {
     }
   });
 
-  console.log('[JADOMI] Module Admin Email monte (inbox, campagnes, segments, export)');
+  console.log('[JADOMI] Module Admin Email monté (inbox, campagnes, segments, export)');
 }
 
 module.exports = { mountAdminEmail };

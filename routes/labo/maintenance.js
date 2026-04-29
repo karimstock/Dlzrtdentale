@@ -147,7 +147,7 @@ router.put('/machines/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/labo/maintenance/machines/:id — Desactiver (soft delete)
+// DELETE /api/labo/maintenance/machines/:id — Désactiver (soft delete)
 router.delete('/machines/:id', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
@@ -157,7 +157,7 @@ router.delete('/machines/:id', async (req, res) => {
     if (error) throw error;
     if (!data) return res.status(404).json({ error: 'Machine introuvable' });
 
-    res.json({ ok: true, message: 'Machine desactivee' });
+    res.json({ ok: true, message: 'Machine désactivée' });
   } catch (e) {
     console.error('[LABO maintenance] DELETE machine', e.message);
     res.status(500).json({ error: 'Erreur interne' });

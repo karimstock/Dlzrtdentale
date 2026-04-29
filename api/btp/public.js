@@ -10,7 +10,7 @@ module.exports = function (router) {
         .select('id, nom_entreprise, slug, ville, departement, metiers, description, photo_url, certifications, assurance_decennale, siret, annee_creation, zone_intervention, telephone_public, email_public, site_web, horaires, note_moyenne, nb_avis')
         .eq('slug', req.params.slug).eq('actif', true).maybeSingle();
       if (error) throw error;
-      if (!data) return res.status(404).json({ error: 'Artisan non trouve' });
+      if (!data) return res.status(404).json({ error: 'Artisan non trouvé' });
       res.json({ success: true, profil: data });
     } catch (e) { res.status(500).json({ success: false, error: 'Erreur interne' }); }
   });
@@ -20,7 +20,7 @@ module.exports = function (router) {
     try {
       const { data: profil } = await admin().from('btp_profil')
         .select('id').eq('slug', req.params.slug).eq('actif', true).maybeSingle();
-      if (!profil) return res.status(404).json({ error: 'Artisan non trouve' });
+      if (!profil) return res.status(404).json({ error: 'Artisan non trouvé' });
 
       const { data: avis, error } = await admin().from('btp_avis')
         .select('id, auteur_nom, note, commentaire, type_travaux, created_at')
@@ -54,12 +54,12 @@ module.exports = function (router) {
         await mailer.send({
           to: profil.email_notification,
           subject: `Nouvelle demande de devis - ${nom} ${prenom || ''}`,
-          html: `<p>Vous avez recu une nouvelle demande de devis via JADOMI.</p>
+          html: `<p>Vous avez reçu une nouvelle demande de devis via JADOMI.</p>
                  <p><strong>Client :</strong> ${prenom || ''} ${nom}<br>
                  <strong>Email :</strong> ${email}<br>
-                 <strong>Telephone :</strong> ${telephone || 'Non renseigne'}<br>
-                 <strong>Type de travaux :</strong> ${type_travaux || 'Non precise'}<br>
-                 <strong>Description :</strong> ${description || 'Non precisee'}</p>`
+                 <strong>Téléphone :</strong> ${telephone || 'Non renseigné'}<br>
+                 <strong>Type de travaux :</strong> ${type_travaux || 'Non précisé'}<br>
+                 <strong>Description :</strong> ${description || 'Non précisée'}</p>`
         });
       }
 

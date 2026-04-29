@@ -34,6 +34,12 @@ C'est INACCEPTABLE.
 - Responsive mobile/tablet/desktop obligatoire
 - Accessibilite : aria-label, focus-visible, WCAG AA contraste
 
+## Emails officiels — OBLIGATOIRE
+- contact@jadomi.fr : tout ce qui est visible publiquement (pages, footer, CGV, support)
+- noreply@jadomi.fr : tout ce qui est envoye automatiquement (notifications, confirmations)
+- karim_bahmed@yahoo.fr : UNIQUEMENT pour l'admin auth check dans le code
+- JAMAIS afficher l'email perso du fondateur sur une page publique
+
 ## Fichiers intouchables
 Ne JAMAIS modifier sans demande explicite :
 - mobile.html
@@ -53,11 +59,25 @@ Ne JAMAIS modifier sans demande explicite :
 ## Methode Builder/Reviewer OBLIGATOIRE
 Pour chaque tache non-triviale dans une passe :
 1. Lancer des agents BUILDERS en parallele (1 par tache)
-2. Des qu'un builder finit, lancer un agent REVIEWER derriere
+2. Des qu'un builder finit, lancer un agent REVIEWER derriere (dans la minute)
 3. Le reviewer verifie : securite, bugs, perf, edge cases, XSS, IDOR
 4. Le reviewer corrige directement + node -c apres chaque fix
 5. Bilan des corrections dans le rapport de passe
 Instauree Passe 52. Resultats : 57 bugs rattrapes sur 3 passes (52-54).
+
+## Orthographe et accents — ZERO TOLERANCE
+Regle instauree Passe 66 par le fondateur. L'orthographe est CRITIQUE
+pour la credibilite B2B aupres des professionnels de sante et avocats.
+1. A chaque passe, deployer des agents CORRECTEURS D'ORTHOGRAPHE
+   sur TOUS les fichiers modifies (HTML, JS strings, emails, docs)
+2. Tous les textes en francais DOIVENT avoir les accents corrects
+   (e, e, e, a, u, c, i, o) — JAMAIS "specialite" toujours "spécialité"
+3. Verifier : accents, grammaire, accord, conjugaison, vouvoiement
+4. NE PAS toucher : noms de variables, classes CSS, IDs, attributs HTML
+5. Les documents BASEPLAN (avocat, business plan) doivent etre PARFAITS
+6. Chaque passe doit inclure dans le rapport : "Orthographe verifiee —
+   X corrections sur Y fichiers"
+Resultats Passe 66 : 20 agents deployes, corrections massives sur tout le site.
 
 ## BASEPLAN — Documents fondateur OBLIGATOIRE
 La BASEPLAN regroupe TOUS les documents fondateur du projet :

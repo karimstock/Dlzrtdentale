@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI LABO — Calculateur TVA
-// Legislation : art. 261, 4, 1 CGI + BOFiP
+// Législation : art. 261, 4, 1 CGI + BOFiP
 // =============================================
 
 const TAUX_TVA_STANDARD = 20;
@@ -58,7 +58,7 @@ function calculerTotaux(lignes, remise_globale_pct = 0) {
   return { total_ht_exonere, total_ht_taxable, total_tva, total_ttc };
 }
 
-// Mentions legales selon regime TVA
+// Mentions légales selon régime TVA
 function mentionsLegales(regime_tva, has_exonere, has_taxable) {
   const mentions = [];
 
@@ -66,15 +66,15 @@ function mentionsLegales(regime_tva, has_exonere, has_taxable) {
     mentions.push('TVA non applicable - art. 293 B du CGI');
   } else {
     if (has_exonere) {
-      mentions.push('Exoneration TVA art. 261, 4, 1° du CGI (protheses dentaires)');
+      mentions.push('Exonération TVA art. 261, 4, 1° du CGI (prothèses dentaires)');
     }
     if (has_taxable) {
-      mentions.push('TVA 20% applicable (ortheses dentaires)');
+      mentions.push('TVA 20% applicable (orthèses dentaires)');
     }
   }
 
-  mentions.push('En cas de retard de paiement, une penalite de 3 fois le taux d\'interet legal sera appliquee (art. L441-6 Code de Commerce).');
-  mentions.push('Indemnite forfaitaire pour frais de recouvrement : 40 EUR (art. D441-5).');
+  mentions.push('En cas de retard de paiement, une pénalité de 3 fois le taux d\'intérêt légal sera appliquée (art. L441-6 Code de Commerce).');
+  mentions.push('Indemnité forfaitaire pour frais de recouvrement : 40 EUR (art. D441-5).');
 
   return mentions;
 }

@@ -28,7 +28,7 @@ module.exports = function mountGpo(app) {
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Trop de requetes, reessayez dans 1 minute' }
+    message: { error: 'Trop de requêtes, réessayez dans 1 minute' }
   });
 
   // --- REQUESTS (dentiste, auth) ---
@@ -46,5 +46,5 @@ module.exports = function mountGpo(app) {
   // --- RATINGS ---
   require('./ratings')(app, admin, auth);
 
-  console.log('[JADOMI] Module GPO Smart Queue monte');
+  console.log('[JADOMI] Module GPO Smart Queue monté');
 };

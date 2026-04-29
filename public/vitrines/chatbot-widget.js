@@ -222,7 +222,7 @@
       '</div>',
       '<div class="jcb-messages" id="jcb-messages"></div>',
       '<div class="jcb-input-area">',
-      '  <input class="jcb-input" id="jcb-input" type="text" placeholder="Ecrivez votre message..." autocomplete="off">',
+      '  <input class="jcb-input" id="jcb-input" type="text" placeholder="Écrivez votre message..." autocomplete="off">',
       '  <button class="jcb-send" id="jcb-send" aria-label="Envoyer">' + ICON_SEND + '</button>',
       '</div>'
     ].join('\n');
@@ -263,7 +263,7 @@
     var config = {
       greeting: 'Bonjour, comment puis-je vous aider ?',
       cabinetName: 'Cabinet',
-      escalationText: 'Souhaitez-vous etre mis en relation avec un membre de notre équipe ?',
+      escalationText: 'Souhaitez-vous être mis en relation avec un membre de notre équipe ?',
       contactUrl: '#contact'
     };
 
@@ -385,7 +385,7 @@
           hideTyping();
           isWaiting = false;
           sendBtn.disabled = false;
-          addBotMessage('Nous rencontrons un problème technique. Veuillez reessayer ou nous contacter directement.');
+          addBotMessage('Nous rencontrons un problème technique. Veuillez réessayer ou nous contacter directement.');
         });
     }
 

@@ -10,7 +10,7 @@ function createPaiementRouter(supabase) {
   const router = express.Router();
 
   function getStripe() {
-    if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY non configure');
+    if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY non configuré');
     return require('stripe')(process.env.STRIPE_SECRET_KEY);
   }
 
@@ -22,9 +22,9 @@ function createPaiementRouter(supabase) {
 
       const { data: demande } = await supabase
         .from('rush_demandes').select('*').eq('id', demande_id).single();
-      if (!demande) return res.status(404).json({ error: 'Demande non trouvee' });
+      if (!demande) return res.status(404).json({ error: 'Demande non trouvée' });
       if (demande.statut !== 'attribuee') {
-        return res.status(400).json({ error: 'Demande doit etre attribuee avant paiement' });
+        return res.status(400).json({ error: 'Demande doit être attribuée avant paiement' });
       }
 
       const stripe = getStripe();
@@ -121,7 +121,7 @@ function createPaiementRouter(supabase) {
         statut_detail: 'paiement_confirme'
       }).eq('id', demande_id);
 
-      res.json({ success: true, message: 'Paiement confirme — fabrication peut commencer' });
+      res.json({ success: true, message: 'Paiement confirmé — fabrication peut commencer' });
     } catch (e) {
       console.error('[RUSH paiement confirmer]', e.message);
       res.status(500).json({ error: 'Erreur interne' });
@@ -141,7 +141,7 @@ function createPaiementRouter(supabase) {
         .single();
 
       if (!paiement || paiement.statut !== 'paye') {
-        return res.status(400).json({ error: 'Paiement non trouve ou pas en attente de capture' });
+        return res.status(400).json({ error: 'Paiement non trouvé ou pas en attente de capture' });
       }
 
       // Capturer le paiement Stripe
@@ -177,7 +177,7 @@ function createPaiementRouter(supabase) {
         });
       }
 
-      res.json({ success: true, message: 'Livraison validee — paiement capture, virement sous-traitant sous 48h' });
+      res.json({ success: true, message: 'Livraison validée — paiement capturé, virement sous-traitant sous 48h' });
     } catch (e) {
       console.error('[RUSH valider-livraison]', e.message);
       res.status(500).json({ error: 'Erreur interne' });
@@ -202,7 +202,7 @@ function createPaiementRouter(supabase) {
       // TODO: Envoyer alerte admin JADOMI
       console.warn(`[RUSH LITIGE] Demande #${demande_id} — ${motif || 'sans motif'}`);
 
-      res.json({ success: true, message: 'Litige ouvert — escrow gele — admin JADOMI notifie' });
+      res.json({ success: true, message: 'Litige ouvert — escrow gelé — admin JADOMI notifié' });
     } catch (e) {
       console.error('[RUSH litige]', e.message);
       res.status(500).json({ error: 'Erreur interne' });

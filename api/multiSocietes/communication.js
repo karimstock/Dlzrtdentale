@@ -443,5 +443,5 @@ module.exports = function mountCommunication(app) {
     }
   });
 
-  console.log('[JADOMI] Module Communication Cabinet monte');
+  console.log('[JADOMI] Module Communication Cabinet monté');
 };

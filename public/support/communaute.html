@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Communaut&eacute; — JADOMI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--bg-surface:#111118;--bg-card:rgba(255,255,255,.035);
+  --bg-card-hover:rgba(255,255,255,.06);--bg-glass:rgba(255,255,255,.04);
+  --gold:#c9a961;--gold-light:#e8c77b;--gold-dim:rgba(201,169,97,.12);
+  --green:#10b981;--green-dim:rgba(16,185,129,.12);
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,.12);
+  --orange:#f59e0b;--orange-dim:rgba(245,158,11,.12);
+  --purple:#8b5cf6;--pink:#ec4899;
+  --text:#e8e6e1;--text-dim:rgba(232,230,225,.55);--text-muted:rgba(232,230,225,.3);
+  --border:rgba(255,255,255,.06);--border-hover:rgba(201,169,97,.2);
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --sidebar-w:260px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+
+/* ── Layout ── */
+.forum-wrap{display:flex;min-height:100vh}
+
+/* ── Sidebar ── */
+.forum-sidebar{
+  width:var(--sidebar-w);background:var(--bg-surface);border-right:1px solid var(--border);
+  position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:20;
+  display:flex;flex-direction:column;
+}
+.sidebar-logo{
+  padding:24px 20px 16px;border-bottom:1px solid var(--border);
+}
+.sidebar-logo a{
+  text-decoration:none;font-family:'Fraunces',serif;font-size:1.3rem;
+  font-weight:800;color:var(--gold);letter-spacing:-.02em;
+}
+.sidebar-logo span{
+  display:block;font-family:'Inter',sans-serif;font-size:.7rem;
+  color:var(--text-muted);font-weight:400;margin-top:2px;letter-spacing:.03em;
+  text-transform:uppercase;
+}
+.sidebar-nav{flex:1;padding:16px 12px}
+.sidebar-section{margin-bottom:24px}
+.sidebar-section h4{
+  font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text-muted);padding:0 10px;margin-bottom:8px;
+}
+.nav-btn{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:9px 12px;border-radius:var(--radius-xs);border:none;
+  background:transparent;color:var(--text-dim);font-size:.85rem;
+  font-family:inherit;cursor:pointer;transition:all .25s var(--ease);
+  margin-bottom:2px;
+}
+.nav-btn:hover{background:var(--bg-card-hover);color:var(--text)}
+.nav-btn.active{background:var(--gold-dim);color:var(--gold);font-weight:600}
+.nav-btn .nav-icon{
+  width:18px;height:18px;border-radius:5px;display:flex;align-items:center;
+  justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;
+}
+.nav-btn .nav-count{
+  margin-left:auto;font-size:.7rem;color:var(--text-muted);font-weight:500;
+  background:var(--bg-card);padding:2px 7px;border-radius:50px;
+}
+.sidebar-footer{
+  padding:16px 12px;border-top:1px solid var(--border);
+}
+.sidebar-footer .nav-btn{color:var(--text-muted);font-size:.8rem}
+
+/* ── Main ── */
+.forum-main{
+  margin-left:var(--sidebar-w);flex:1;min-height:100vh;
+  display:flex;flex-direction:column;
+}
+
+/* ── Hero ── */
+.forum-hero{
+  padding:48px 40px 36px;
+  background:linear-gradient(180deg,rgba(201,169,97,.06) 0%,transparent 100%);
+  border-bottom:1px solid var(--border);
+}
+.forum-hero h1{
+  font-family:'Fraunces',serif;font-size:clamp(1.6rem,3vw,2.2rem);
+  font-weight:800;letter-spacing:-.03em;margin-bottom:6px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.forum-hero p{color:var(--text-dim);font-size:.95rem;margin-bottom:20px}
+
+/* ── Stats bar ── */
+.stats-bar{
+  display:flex;gap:24px;flex-wrap:wrap;
+}
+.stat-item{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:50px;
+  background:var(--bg-card);border:1px solid var(--border);
+  font-size:.82rem;color:var(--text-dim);
+}
+.stat-value{font-weight:700;color:var(--text);font-size:.95rem}
+
+/* ── Content area ── */
+.forum-content{padding:32px 40px;flex:1}
+
+/* ── Category grid ── */
+.cat-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:16px;margin-bottom:40px;
+}
+.cat-card{
+  padding:22px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);
+  cursor:pointer;transition:all .35s var(--ease);position:relative;overflow:hidden;
+}
+.cat-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.02),transparent);
+  pointer-events:none;
+}
+.cat-card:hover{
+  border-color:var(--border-hover);transform:translateY(-2px);
+  box-shadow:0 8px 30px rgba(0,0,0,.3);
+}
+.cat-card-icon{
+  width:36px;height:36px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:.9rem;font-weight:700;margin-bottom:12px;
+}
+.cat-card h3{
+  font-family:'Fraunces',serif;font-size:1rem;font-weight:700;
+  margin-bottom:6px;letter-spacing:-.01em;
+}
+.cat-card p{font-size:.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:10px}
+.cat-card .cat-meta{font-size:.72rem;color:var(--text-muted);font-weight:500}
+
+/* ── Topic list ── */
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;flex-wrap:wrap;gap:12px;
+}
+.section-header h2{
+  font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;
+  letter-spacing:-.02em;
+}
+.section-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-gold{
+  padding:10px 22px;border-radius:50px;border:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:#0a0a0f;font-size:.85rem;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:all .3s var(--ease);
+}
+.btn-gold:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(201,169,97,.35)}
+.btn-outline{
+  padding:8px 18px;border-radius:50px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-dim);font-size:.82rem;font-family:inherit;cursor:pointer;
+  transition:all .25s var(--ease);
+}
+.btn-outline:hover{border-color:var(--text-dim);color:var(--text)}
+.btn-outline.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+
+/* Search */
+.search-box{
+  position:relative;width:100%;max-width:360px;margin-bottom:20px;
+}
+.search-box input{
+  width:100%;padding:10px 16px 10px 38px;border-radius:50px;
+  background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text);font-size:.85rem;font-family:inherit;outline:none;
+  transition:border .3s var(--ease);
+}
+.search-box input::placeholder{color:var(--text-muted)}
+.search-box input:focus{border-color:var(--gold)}
+.search-box .s-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:.85rem;pointer-events:none;
+}
+
+/* Topic card */
+.topic-card{
+  padding:18px 22px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);
+  margin-bottom:10px;cursor:pointer;transition:all .3s var(--ease);
+  display:flex;align-items:flex-start;gap:14px;
+}
+.topic-card:hover{border-color:var(--border-hover);background:var(--bg-card-hover)}
+.topic-avatar{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;color:#fff;
+}
+.topic-body{flex:1;min-width:0}
+.topic-title{
+  font-size:.95rem;font-weight:600;margin-bottom:4px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.topic-title span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{
+  display:inline-flex;padding:2px 10px;border-radius:50px;
+  font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+  flex-shrink:0;
+}
+.badge-solved{background:var(--green-dim);color:var(--green)}
+.badge-open{background:var(--blue-dim);color:var(--blue)}
+.badge-pinned{background:var(--orange-dim);color:var(--orange)}
+.badge-popular{background:var(--orange-dim);color:var(--orange)}
+.topic-excerpt{font-size:.8rem;color:var(--text-dim);margin-bottom:8px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.topic-meta{
+  display:flex;align-items:center;gap:16px;font-size:.72rem;color:var(--text-muted);
+  flex-wrap:wrap;
+}
+.topic-meta strong{color:var(--text-dim);font-weight:500}
+.topic-stats{display:flex;gap:14px;margin-left:auto;flex-shrink:0}
+.topic-stat{
+  display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--text-muted);
+}
+
+/* ── Topic detail ── */
+.breadcrumb{
+  display:flex;align-items:center;gap:6px;margin-bottom:24px;
+  font-size:.8rem;color:var(--text-muted);flex-wrap:wrap;
+}
+.breadcrumb a{color:var(--gold);text-decoration:none;transition:color .2s}
+.breadcrumb a:hover{color:var(--gold-light)}
+.breadcrumb .sep{opacity:.4}
+
+.topic-detail-card{
+  padding:28px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);margin-bottom:24px;
+}
+.topic-detail-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+.topic-detail-title{
+  font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;
+  letter-spacing:-.02em;margin-bottom:4px;
+}
+.topic-detail-meta{font-size:.78rem;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap}
+.topic-detail-content{
+  font-size:.9rem;line-height:1.8;color:var(--text-dim);
+  white-space:pre-wrap;word-break:break-word;
+}
+
+/* Reply card */
+.reply-card{
+  padding:20px 24px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);
+  margin-bottom:10px;transition:border-color .3s var(--ease);
+}
+.reply-card.is-solution{
+  border-color:var(--green);background:rgba(16,185,129,.04);
+}
+.reply-header{
+  display:flex;align-items:center;gap:12px;margin-bottom:12px;
+}
+.reply-author{font-size:.85rem;font-weight:600}
+.reply-date{font-size:.72rem;color:var(--text-muted)}
+.reply-content{
+  font-size:.88rem;line-height:1.7;color:var(--text-dim);
+  white-space:pre-wrap;word-break:break-word;margin-bottom:12px;
+}
+.reply-actions{display:flex;align-items:center;gap:12px}
+.reply-actions button{
+  padding:5px 14px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--text-muted);font-size:.75rem;
+  font-family:inherit;cursor:pointer;transition:all .25s var(--ease);
+  display:flex;align-items:center;gap:5px;
+}
+.reply-actions button:hover{border-color:var(--text-dim);color:var(--text)}
+.reply-actions button.upvoted{border-color:var(--gold);color:var(--gold)}
+.reply-actions .solution-badge{
+  padding:4px 12px;border-radius:50px;background:var(--green-dim);
+  color:var(--green);font-size:.72rem;font-weight:600;border:none;
+}
+
+/* Reply form */
+.reply-form{
+  margin-top:20px;padding:24px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);
+}
+.reply-form h3{
+  font-family:'Fraunces',serif;font-size:1rem;font-weight:700;margin-bottom:14px;
+}
+.reply-form textarea{
+  width:100%;min-height:120px;padding:14px 16px;border-radius:var(--radius-sm);
+  background:var(--bg-surface);border:1px solid var(--border);resize:vertical;
+  color:var(--text);font-size:.88rem;font-family:inherit;outline:none;
+  transition:border .3s var(--ease);line-height:1.6;
+}
+.reply-form textarea::placeholder{color:var(--text-muted)}
+.reply-form textarea:focus{border-color:var(--gold)}
+.reply-form .form-actions{
+  display:flex;justify-content:flex-end;margin-top:12px;
+}
+
+/* ── New topic modal ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(4px);
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--bg-surface);border:1px solid var(--border);
+  border-radius:var(--radius);width:100%;max-width:600px;
+  max-height:90vh;overflow-y:auto;padding:32px;
+}
+.modal h2{
+  font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;
+  margin-bottom:20px;letter-spacing:-.02em;
+}
+.modal .field{margin-bottom:16px}
+.modal label{
+  display:block;font-size:.8rem;font-weight:600;color:var(--text-dim);
+  margin-bottom:6px;
+}
+.modal select,.modal input[type="text"],.modal textarea{
+  width:100%;padding:12px 14px;border-radius:var(--radius-xs);
+  background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text);font-size:.88rem;font-family:inherit;outline:none;
+  transition:border .3s var(--ease);
+}
+.modal select:focus,.modal input[type="text"]:focus,.modal textarea:focus{border-color:var(--gold)}
+.modal textarea{min-height:160px;resize:vertical;line-height:1.6}
+.modal .modal-actions{
+  display:flex;gap:10px;justify-content:flex-end;margin-top:20px;
+}
+.modal .btn-cancel{
+  padding:10px 20px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--text-dim);font-size:.85rem;
+  font-family:inherit;cursor:pointer;transition:all .25s var(--ease);
+}
+.modal .btn-cancel:hover{border-color:var(--text-dim);color:var(--text)}
+
+/* ── Login prompt ── */
+.login-prompt{
+  text-align:center;padding:60px 20px;
+}
+.login-prompt h2{
+  font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:12px;
+}
+.login-prompt p{color:var(--text-dim);margin-bottom:24px;font-size:.95rem}
+.login-prompt a{
+  display:inline-block;padding:12px 32px;border-radius:50px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:#0a0a0f;font-weight:600;text-decoration:none;font-size:.9rem;
+  transition:all .3s var(--ease);
+}
+.login-prompt a:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(201,169,97,.35)}
+
+/* ── Empty state ── */
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-muted);
+  font-size:.9rem;
+}
+.empty-state .empty-icon{font-size:2.5rem;margin-bottom:12px;opacity:.3}
+
+/* ── Loading ── */
+.loading-spinner{
+  display:flex;align-items:center;justify-content:center;padding:60px;
+}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--border);
+  border-top-color:var(--gold);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Pagination ── */
+.pagination{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:24px;
+}
+.pagination button{
+  padding:8px 16px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--text-dim);font-size:.8rem;
+  font-family:inherit;cursor:pointer;transition:all .25s var(--ease);
+}
+.pagination button:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+.pagination button:disabled{opacity:.3;cursor:default}
+
+/* ── Mobile ── */
+.mobile-toggle{
+  display:none;position:fixed;top:16px;left:16px;z-index:30;
+  width:40px;height:40px;border-radius:10px;border:1px solid var(--border);
+  background:var(--bg-surface);color:var(--text);font-size:1.1rem;
+  cursor:pointer;align-items:center;justify-content:center;
+}
+@media(max-width:900px){
+  #topicGrid,.home-grid{grid-template-columns:1fr !important}
+}
+@media(max-width:768px){
+  .mobile-toggle{display:flex}
+  .forum-sidebar{transform:translateX(-100%);transition:transform .35s var(--ease)}
+  .forum-sidebar.open{transform:translateX(0)}
+  .forum-main{margin-left:0}
+  .forum-hero{padding:32px 20px 24px}
+  .forum-content{padding:20px 16px}
+  .cat-grid{grid-template-columns:1fr}
+  .topic-stats{margin-left:0;margin-top:4px}
+  .leaderboard{display:none}
+  .related-topics{display:none}
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15)}
+
+/* ── Reputation badge ── */
+.rep-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:50px;
+  background:var(--gold-dim);color:var(--gold);
+  font-size:.65rem;font-weight:600;flex-shrink:0;
+}
+.rep-badge .rep-star{font-size:.6rem}
+
+/* ── Profession badge ── */
+.prof-badge{
+  display:inline-flex;padding:2px 8px;border-radius:50px;
+  font-size:.6rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;flex-shrink:0;
+  background:var(--purple);background:rgba(139,92,246,.15);color:#a78bfa;
+}
+.prof-badge.prof-cabinet_dentaire{background:rgba(16,185,129,.12);color:var(--green)}
+.prof-badge.prof-sci{background:var(--blue-dim);color:var(--blue)}
+.prof-badge.prof-societe_commerciale{background:var(--orange-dim);color:var(--orange)}
+
+/* ── Tags ── */
+.tag-chip{
+  display:inline-flex;padding:2px 10px;border-radius:50px;
+  font-size:.65rem;font-weight:600;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg-card);
+  color:var(--text-dim);transition:all .25s var(--ease);
+  text-transform:lowercase;
+}
+.tag-chip:hover,.tag-chip.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+.tag-inline{
+  display:inline-flex;padding:1px 8px;border-radius:50px;
+  font-size:.6rem;font-weight:500;
+  background:rgba(255,255,255,.05);color:var(--text-muted);
+  border:1px solid var(--border);
+}
+.tags-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tags-picker{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tags-picker .tag-chip{font-size:.72rem;padding:4px 12px}
+.tags-picker .tag-chip.selected{border-color:var(--gold);color:var(--gold);background:var(--gold-dim)}
+
+/* ── Leaderboard ── */
+.leaderboard{
+  padding:22px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);margin-bottom:24px;
+}
+.leaderboard h3{
+  font-family:'Fraunces',serif;font-size:1rem;font-weight:700;
+  margin-bottom:14px;letter-spacing:-.01em;
+}
+.leader-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;border-bottom:1px solid var(--border);
+}
+.leader-item:last-child{border-bottom:none}
+.leader-rank{
+  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;
+  background:var(--bg-card-hover);color:var(--text-muted);
+}
+.leader-rank.top-1{background:linear-gradient(135deg,#c9a961,#e8c77b);color:#0a0a0f}
+.leader-rank.top-2{background:rgba(192,192,192,.2);color:#c0c0c0}
+.leader-rank.top-3{background:rgba(205,127,50,.15);color:#cd7f32}
+.leader-name{flex:1;font-size:.82rem;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leader-score{font-size:.75rem;font-weight:700;color:var(--gold)}
+
+/* ── Related topics ── */
+.related-topics{
+  padding:22px;border-radius:var(--radius);
+  background:var(--bg-card);border:1px solid var(--border);margin-top:24px;
+}
+.related-topics h3{
+  font-family:'Fraunces',serif;font-size:1rem;font-weight:700;
+  margin-bottom:14px;
+}
+.related-item{
+  padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;
+  transition:color .2s var(--ease);
+}
+.related-item:last-child{border-bottom:none}
+.related-item:hover{color:var(--gold)}
+.related-item .r-title{font-size:.82rem;font-weight:500;margin-bottom:3px}
+.related-item .r-meta{font-size:.7rem;color:var(--text-muted)}
+
+/* ── Markdown content ── */
+.md-content strong{font-weight:700;color:var(--text)}
+.md-content em{font-style:italic;color:var(--text-dim)}
+.md-content code{
+  background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;
+  font-size:.85em;font-family:'SF Mono','Fira Code',monospace;
+}
+
+/* ── Formatting help ── */
+.format-help{
+  position:relative;display:inline-flex;
+}
+.format-help-btn{
+  padding:4px 10px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--text-muted);font-size:.72rem;
+  font-family:inherit;cursor:pointer;transition:all .25s var(--ease);
+}
+.format-help-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.format-help-tooltip{
+  display:none;position:absolute;bottom:calc(100% + 8px);left:0;
+  background:var(--bg-surface);border:1px solid var(--border);
+  border-radius:var(--radius-xs);padding:14px;width:280px;z-index:50;
+  font-size:.75rem;color:var(--text-dim);line-height:1.8;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);
+}
+.format-help-tooltip.show{display:block}
+.format-help-tooltip code{
+  background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;
+  font-family:'SF Mono',monospace;font-size:.7rem;
+}
+
+/* ── Fade in ── */
+.fade-in{animation:fadeIn .4s var(--ease) both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- Mobile toggle -->
+<button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+
+<!-- Sidebar -->
+<aside class="forum-sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <a href="/">JADOMI</a>
+    <span>Communaut&#233; professionnelle</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section">
+      <h4>Navigation</h4>
+      <button class="nav-btn active" data-view="home" onclick="showHome()">
+        <span class="nav-icon" style="background:var(--gold-dim);color:var(--gold)">&#9776;</span>
+        Accueil
+      </button>
+    </div>
+    <div class="sidebar-section" id="sidebarCategories">
+      <h4>Catégories</h4>
+      <!-- Filled by JS -->
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="nav-btn" onclick="window.location.href='/vitrines/aide'">
+      <span class="nav-icon" style="background:var(--blue-dim);color:var(--blue)">?</span>
+      Centre d'aide
+    </button>
+    <button class="nav-btn" onclick="window.location.href='/'">
+      <span class="nav-icon" style="background:var(--bg-card);color:var(--text-muted)">&larr;</span>
+      Retour à JADOMI
+    </button>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="forum-main">
+
+  <!-- Hero -->
+  <header class="forum-hero" id="heroSection">
+    <h1>Communaut&#233; JADOMI</h1>
+    <p>Entraide entre professionnels de sant&#233; et du droit</p>
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-item"><span class="stat-value" id="statTopics">--</span> discussions</div>
+      <div class="stat-item"><span class="stat-value" id="statReplies">--</span> r&#233;ponses</div>
+      <div class="stat-item"><span class="stat-value" id="statSolved">--</span>% r&#233;solus</div>
+      <div class="stat-item"><span class="stat-value" id="statUsers">--</span> membres actifs</div>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="forum-content" id="forumContent">
+    <!-- Dynamic content injected by JS -->
+    <div class="loading-spinner" id="loader"><div class="spinner"></div></div>
+  </div>
+
+</div>
+
+<!-- New topic modal -->
+<div class="modal-overlay" id="newTopicModal">
+  <div class="modal">
+    <h2>Nouvelle discussion</h2>
+    <div class="field">
+      <label for="topicCategory">Cat&#233;gorie</label>
+      <select id="topicCategory"></select>
+    </div>
+    <div class="field">
+      <label for="topicTitle">Titre</label>
+      <input type="text" id="topicTitle" placeholder="D&#233;crivez votre question en une phrase..." maxlength="200">
+    </div>
+    <div class="field">
+      <label for="topicContent">Contenu</label>
+      <textarea id="topicContent" placeholder="D&#233;taillez votre question ou partagez votre exp&#233;rience..."></textarea>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+        <div class="format-help">
+          <button type="button" class="format-help-btn" onclick="toggleFormatHelp(event)">Mise en forme</button>
+          <div class="format-help-tooltip" id="formatHelpTooltip">
+            <strong>Formatage disponible :</strong><br>
+            <code>**texte**</code> &rarr; <strong>gras</strong><br>
+            <code>*texte*</code> &rarr; <em>italique</em><br>
+            <code>`code`</code> &rarr; <code>code</code><br>
+            Retour a la ligne : touche Entr&#233;e
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Tags (3 maximum)</label>
+      <div class="tags-picker" id="tagsPicker"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeNewTopicModal()">Annuler</button>
+      <button class="btn-gold" id="submitTopicBtn" onclick="submitNewTopic()">Publier</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Config ── */
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwNDkzMjMsImV4cCI6MjA1MjYyNTMyM30.RtE_U_BjkMun86MdMYCbVJIZt-a0VG84mnhYOKOcfOc';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let session = null;
+let categories = [];
+let currentView = 'home'; // home, category, topic
+let currentCategorySlug = null;
+let currentTopicId = null;
+let currentSort = 'recent';
+let currentSearch = '';
+let currentOffset = 0;
+let currentTagFilter = null;
+const PAGE_SIZE = 20;
+
+/* ── Auth ── */
+async function initAuth() {
+  const { data } = await sb.auth.getSession();
+  session = data?.session || null;
+  sb.auth.onAuthStateChange((ev, s) => { session = s; });
+}
+function getToken() { return session?.access_token || null; }
+function getUserEmail() { return session?.user?.email || ''; }
+async function apiFetch(url, opts = {}) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(url, { ...opts, headers });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error || 'Erreur ' + r.status);
+  }
+  return r.json();
+}
+
+/* ── Color helpers ── */
+const COLORS = ['#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#f97316','#c9a961','#14b8a6','#e11d48'];
+function avatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < (name||'').length; i++) h = ((h << 5) - h) + name.charCodeAt(i);
+  return COLORS[Math.abs(h) % COLORS.length];
+}
+function initials(name) {
+  const parts = (name||'P').split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+/* ── Markdown renderer (client-side) ── */
+function renderMd(text) {
+  if (!text) return '';
+  let html = escHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+/* ── Tags ── */
+const VALID_TAGS = ['stock', 'urgent', 'astuce', 'bug', 'resolu', 'facturation', 'juridique', 'patient', 'question', 'partage'];
+const TAG_COLORS = {
+  stock: 'var(--blue)', urgent: '#ef4444', astuce: 'var(--green)', bug: '#ef4444',
+  resolu: 'var(--green)', facturation: 'var(--orange)', juridique: 'var(--purple)',
+  patient: 'var(--pink)', question: 'var(--blue)', partage: 'var(--gold)'
+};
+let selectedTags = [];
+
+function renderTagChip(tag, small) {
+  const c = TAG_COLORS[tag] || 'var(--text-muted)';
+  const cls = small ? 'tag-inline' : 'tag-chip';
+  return '<span class="' + cls + '" style="border-color:' + c + '30;color:' + c + '">' + escHtml(tag) + '</span>';
+}
+
+function renderTagsPicker() {
+  const el = document.getElementById('tagsPicker');
+  if (!el) return;
+  el.innerHTML = VALID_TAGS.map(t => {
+    const sel = selectedTags.includes(t);
+    return '<button type="button" class="tag-chip' + (sel ? ' selected' : '') + '" onclick="toggleTag(\'' + t + '\')">' + t + '</button>';
+  }).join('');
+}
+
+function toggleTag(tag) {
+  const idx = selectedTags.indexOf(tag);
+  if (idx >= 0) selectedTags.splice(idx, 1);
+  else if (selectedTags.length < 3) selectedTags.push(tag);
+  renderTagsPicker();
+}
+
+/* ── Format help toggle ── */
+function toggleFormatHelp(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  // Find the closest tooltip sibling
+  const btn = e.currentTarget || e.target;
+  const tooltip = btn.parentElement.querySelector('.format-help-tooltip');
+  if (tooltip) tooltip.classList.toggle('show');
+}
+
+/* ── Profession labels ── */
+const PROF_LABELS = {
+  'cabinet_dentaire': 'Chirurgien-dentiste',
+  'sci': 'SCI / Immobilier',
+  'societe_commerciale': 'Entreprise'
+};
+const _profCache = {};
+
+/* ── Reputation cache ── */
+const _repCache = {};
+
+/* ── Icon map ── */
+const ICONS = {
+  chat: '&#9993;', package: '&#9744;', globe: '&#9788;', 'file-text': '&#9997;',
+  'pen-tool': '&#9998;', activity: '&#9829;', lightbulb: '&#9728;', bulb: '&#9733;'
+};
+
+/* ── Time ago ── */
+function timeAgo(d) {
+  if (!d) return '';
+  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+  if (s < 60) return 'a l\'instant';
+  if (s < 3600) return Math.floor(s/60) + ' min';
+  if (s < 86400) return Math.floor(s/3600) + ' h';
+  if (s < 2592000) return Math.floor(s/86400) + ' j';
+  return new Date(d).toLocaleDateString('fr-FR');
+}
+
+/* ── Load categories ── */
+async function loadCategories() {
+  try {
+    categories = await apiFetch('/api/forum/categories');
+    renderSidebarCategories();
+  } catch (e) {
+    console.error('categories:', e);
+  }
+}
+function renderSidebarCategories() {
+  const el = document.getElementById('sidebarCategories');
+  let html = '<h4>Catégories</h4>';
+  categories.forEach(c => {
+    html += '<button class="nav-btn' + (currentCategorySlug === c.slug ? ' active' : '') + '" data-slug="' + c.slug + '" onclick="showCategory(\'' + c.slug + '\')">';
+    html += '<span class="nav-icon" style="background:' + c.color + '20;color:' + c.color + '">' + (ICONS[c.icon] || '&#9670;') + '</span>';
+    html += escHtml(c.name);
+    html += '<span class="nav-count">' + (c.topics_count || 0) + '</span>';
+    html += '</button>';
+  });
+  el.innerHTML = html;
+}
+
+/* ── Load stats ── */
+async function loadStats() {
+  try {
+    const s = await apiFetch('/api/forum/stats');
+    document.getElementById('statTopics').textContent = s.total_topics;
+    document.getElementById('statReplies').textContent = s.total_replies;
+    document.getElementById('statSolved').textContent = s.solved_pct;
+    document.getElementById('statUsers').textContent = s.active_users;
+  } catch (e) {}
+}
+
+/* ── Home view ── */
+async function showHome() {
+  currentView = 'home';
+  currentCategorySlug = null;
+  currentOffset = 0;
+  updateSidebarActive('home');
+  document.getElementById('heroSection').style.display = '';
+  const el = document.getElementById('forumContent');
+  el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+
+  await loadCategories();
+  await loadStats();
+
+  let html = '';
+  // Category grid
+  html += '<div class="cat-grid fade-in">';
+  categories.forEach(c => {
+    html += '<div class="cat-card" onclick="showCategory(\'' + c.slug + '\')">';
+    html += '<div class="cat-card-icon" style="background:' + c.color + '15;color:' + c.color + '">' + (ICONS[c.icon] || '&#9670;') + '</div>';
+    html += '<h3>' + escHtml(c.name) + '</h3>';
+    html += '<p>' + escHtml(c.description) + '</p>';
+    html += '<div class="cat-meta">' + (c.topics_count || 0) + ' discussion' + ((c.topics_count||0) > 1 ? 's' : '') + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Leaderboard + Recent topics layout
+  html += '<div style="display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start" class="fade-in home-grid">';
+  html += '<div>';
+
+  // Recent topics
+  html += '<div class="section-header"><h2>Discussions r\u00e9centes</h2>';
+  html += '<div class="section-actions">';
+  if (session) html += '<button class="btn-gold" onclick="openNewTopicModal()">Nouvelle discussion</button>';
+  html += '</div></div>';
+
+  try {
+    const { topics } = await apiFetch('/api/forum/topics?limit=10&sort=recent');
+    if (topics.length === 0) {
+      html += '<div class="empty-state"><div class="empty-icon">&#9998;</div>Aucune discussion pour le moment. Soyez le premier à partager.</div>';
+    } else {
+      html += renderTopicList(topics);
+    }
+  } catch (e) {
+    html += '<div class="empty-state">Erreur de chargement</div>';
+  }
+
+  html += '</div>';
+
+  // Leaderboard sidebar
+  html += '<div class="leaderboard fade-in" style="animation-delay:200ms">';
+  html += '<h3>Top contributeurs</h3>';
+  html += '<div id="leaderboardContent"><div class="loading-spinner" style="padding:20px"><div class="spinner"></div></div></div>';
+  html += '</div>';
+
+  html += '</div>'; // close grid
+
+  el.innerHTML = html;
+
+  // Load leaderboard async
+  loadLeaderboard();
+}
+
+/* ── Category view ── */
+async function showCategory(slug) {
+  currentView = 'category';
+  currentCategorySlug = slug;
+  currentOffset = 0;
+  currentSearch = '';
+  currentSort = 'recent';
+  updateSidebarActive(slug);
+  document.getElementById('heroSection').style.display = 'none';
+  const el = document.getElementById('forumContent');
+  el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+
+  const cat = categories.find(c => c.slug === slug);
+  if (!cat) return showHome();
+
+  let html = '';
+  // Breadcrumb
+  html += '<div class="breadcrumb fade-in"><a href="#" onclick="showHome();return false">Accueil</a><span class="sep">/</span><span>' + escHtml(cat.name) + '</span></div>';
+
+  // Header
+  html += '<div class="section-header fade-in">';
+  html += '<div><h2>' + escHtml(cat.name) + '</h2><p style="font-size:.85rem;color:var(--text-dim);margin-top:4px">' + escHtml(cat.description) + '</p></div>';
+  html += '<div class="section-actions">';
+  if (session) html += '<button class="btn-gold" onclick="openNewTopicModal(\'' + slug + '\')">Nouvelle discussion</button>';
+  html += '</div></div>';
+
+  // Search + sort
+  html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px" class="fade-in">';
+  html += '<div class="search-box"><span class="s-icon">&#128269;</span><input type="text" id="catSearch" placeholder="Rechercher..." oninput="debounceCatSearch()"></div>';
+  html += '<button class="btn-outline' + (currentSort==='recent'?' active':'') + '" onclick="setCatSort(\'recent\')">Récent</button>';
+  html += '<button class="btn-outline' + (currentSort==='popular'?' active':'') + '" onclick="setCatSort(\'popular\')">Populaire</button>';
+  html += '<button class="btn-outline' + (currentSort==='unsolved'?' active':'') + '" onclick="setCatSort(\'unsolved\')">Non résolus</button>';
+  html += '</div>';
+
+  // Tag filter chips
+  html += '<div class="tags-row fade-in" style="margin-bottom:20px">';
+  html += '<span style="font-size:.72rem;color:var(--text-muted);font-weight:600;align-self:center;margin-right:4px">Tags :</span>';
+  VALID_TAGS.forEach(function(tag) {
+    html += '<span class="tag-chip' + (currentTagFilter === tag ? ' active' : '') + '" onclick="toggleTagFilter(\'' + tag + '\')">' + tag + '</span>';
+  });
+  html += '</div>';
+
+  html += '<div id="catTopicList"></div>';
+  html += '<div id="catPagination"></div>';
+  el.innerHTML = html;
+
+  await loadCategoryTopics();
+}
+
+async function loadCategoryTopics() {
+  const list = document.getElementById('catTopicList');
+  if (!list) return;
+  list.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+
+  try {
+    let url = '/api/forum/topics?category=' + currentCategorySlug + '&sort=' + currentSort + '&limit=' + PAGE_SIZE + '&offset=' + currentOffset;
+    if (currentSearch) url += '&search=' + encodeURIComponent(currentSearch);
+    if (currentTagFilter) url += '&tag=' + encodeURIComponent(currentTagFilter);
+    const { topics, total } = await apiFetch(url);
+
+    if (topics.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9998;</div>Aucune discussion dans cette cat\u00e9gorie.</div>';
+    } else {
+      list.innerHTML = renderTopicList(topics);
+    }
+    renderPagination(total);
+  } catch (e) {
+    list.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+  }
+}
+
+let _searchTimeout = null;
+function debounceCatSearch() {
+  clearTimeout(_searchTimeout);
+  _searchTimeout = setTimeout(() => {
+    currentSearch = document.getElementById('catSearch')?.value || '';
+    currentOffset = 0;
+    loadCategoryTopics();
+  }, 400);
+}
+function setCatSort(s) {
+  currentSort = s;
+  currentOffset = 0;
+  // Re-render category (easiest way to update active buttons)
+  showCategory(currentCategorySlug);
+}
+
+function renderPagination(total) {
+  const el = document.getElementById('catPagination');
+  if (!el || total <= PAGE_SIZE) { if (el) el.innerHTML = ''; return; }
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
+  let html = '<div class="pagination">';
+  html += '<button onclick="goPage(' + (currentPage-1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>&laquo; Pr\u00e9c\u00e9dent</button>';
+  html += '<span style="font-size:.8rem;color:var(--text-muted)">Page ' + currentPage + ' / ' + totalPages + '</span>';
+  html += '<button onclick="goPage(' + (currentPage+1) + ')"' + (currentPage >= totalPages ? ' disabled' : '') + '>Suivant &raquo;</button>';
+  html += '</div>';
+  el.innerHTML = html;
+}
+function goPage(p) {
+  currentOffset = (p - 1) * PAGE_SIZE;
+  loadCategoryTopics();
+}
+
+/* ── Topic list renderer ── */
+function renderTopicList(topics) {
+  let html = '';
+  topics.forEach((t, i) => {
+    const color = avatarColor(t.author_display_name);
+    const catName = t.forum_categories?.name || '';
+    const tags = Array.isArray(t.tags) ? t.tags : [];
+    html += '<div class="topic-card fade-in" style="animation-delay:' + (i * 40) + 'ms" onclick="showTopic(\'' + t.id + '\')">';
+    html += '<div class="topic-avatar" style="background:' + color + '22;color:' + color + '">' + initials(t.author_display_name) + '</div>';
+    html += '<div class="topic-body">';
+    html += '<div class="topic-title"><span>' + escHtml(t.title) + '</span>';
+    if (t.is_pinned) html += '<span class="badge badge-pinned">Épinglé</span>';
+    if (t.is_solved) html += '<span class="badge badge-solved">Résolu</span>';
+    else html += '<span class="badge badge-open">Ouvert</span>';
+    // Tags inline
+    tags.forEach(function(tag) { html += renderTagChip(tag, true); });
+    html += '</div>';
+    html += '<div class="topic-excerpt">' + escHtml(t.content) + '</div>';
+    html += '<div class="topic-meta"><strong>' + escHtml(t.author_display_name) + '</strong>';
+    if (catName) html += '<span style="color:' + (t.forum_categories?.color||'var(--text-muted)') + '">' + escHtml(catName) + '</span>';
+    html += '<span>' + timeAgo(t.created_at) + '</span>';
+    html += '<div class="topic-stats">';
+    html += '<span class="topic-stat">' + (t.replies_count || 0) + ' rép.</span>';
+    html += '<span class="topic-stat">' + (t.views_count || 0) + ' vues</span>';
+    html += '</div></div></div></div>';
+  });
+  return html;
+}
+
+/* ── Topic detail ── */
+async function showTopic(id) {
+  currentView = 'topic';
+  currentTopicId = id;
+  document.getElementById('heroSection').style.display = 'none';
+  const el = document.getElementById('forumContent');
+  el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+
+  // Increment view
+  apiFetch('/api/forum/topics/' + id + '/view', { method: 'POST' }).catch(() => {});
+
+  try {
+    const { topic, replies } = await apiFetch('/api/forum/topics/' + id);
+    const cat = topic.forum_categories || {};
+    const color = avatarColor(topic.author_display_name);
+    const isAuthor = getUserEmail() === topic.author_email;
+    const topicTags = Array.isArray(topic.tags) ? topic.tags : [];
+
+    let html = '';
+    // Breadcrumb
+    html += '<div class="breadcrumb fade-in"><a href="#" onclick="showHome();return false">Accueil</a><span class="sep">/</span>';
+    if (cat.slug) html += '<a href="#" onclick="showCategory(\'' + cat.slug + '\');return false">' + escHtml(cat.name) + '</a><span class="sep">/</span>';
+    html += '<span>' + escHtml(topic.title) + '</span></div>';
+
+    // Main content + related sidebar layout
+    html += '<div style="display:grid;grid-template-columns:1fr 280px;gap:24px;align-items:start" id="topicGrid">';
+    html += '<div>';
+
+    // Topic card
+    html += '<div class="topic-detail-card fade-in">';
+    html += '<div class="topic-detail-header">';
+    html += '<div class="topic-avatar" style="background:' + color + '22;color:' + color + ';width:44px;height:44px;font-size:.85rem">' + initials(topic.author_display_name) + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div class="topic-detail-title">' + escHtml(topic.title);
+    if (topic.is_solved) html += ' <span class="badge badge-solved">Résolu</span>';
+    if (topic.is_pinned) html += ' <span class="badge badge-pinned">Épinglé</span>';
+    html += '</div>';
+    html += '<div class="topic-detail-meta">';
+    html += '<span>' + escHtml(topic.author_display_name) + '</span>';
+    html += '<span class="rep-badge" id="rep-topic-author"><span class="rep-star">&#9733;</span> --</span>';
+    html += '<span class="prof-badge" id="prof-topic-author" style="display:none"></span>';
+    html += '<span>' + new Date(topic.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</span>';
+    html += '<span>' + (topic.views_count||0) + ' vues</span>';
+    html += '</div></div></div>';
+    // Tags
+    if (topicTags.length > 0) {
+      html += '<div class="tags-row" style="margin-top:12px">';
+      topicTags.forEach(function(tag) { html += renderTagChip(tag, false); });
+      html += '</div>';
+    }
+    html += '<div class="topic-detail-content md-content">' + renderMd(topic.content) + '</div>';
+    html += '</div>';
+
+    // Replies
+    html += '<div class="section-header fade-in"><h2>' + (replies.length || 0) + ' réponse' + (replies.length > 1 ? 's' : '') + '</h2></div>';
+
+    replies.forEach((r, i) => {
+      const rc = avatarColor(r.author_display_name);
+      html += '<div class="reply-card' + (r.is_solution ? ' is-solution' : '') + ' fade-in" style="animation-delay:' + (i*30) + 'ms" id="reply-' + r.id + '">';
+      html += '<div class="reply-header">';
+      html += '<div class="topic-avatar" style="background:' + rc + '22;color:' + rc + ';width:32px;height:32px;font-size:.65rem">' + initials(r.author_display_name) + '</div>';
+      html += '<span class="reply-author">' + escHtml(r.author_display_name) + '</span>';
+      html += '<span class="rep-badge rep-reply-badge" data-email="' + escHtml(r.author_email) + '"><span class="rep-star">&#9733;</span> --</span>';
+      html += '<span class="prof-badge prof-reply-badge" data-email="' + escHtml(r.author_email) + '" style="display:none"></span>';
+      html += '<span class="reply-date">' + timeAgo(r.created_at) + '</span>';
+      if (r.is_solution) html += '<span class="badge badge-solved" style="margin-left:auto">Solution</span>';
+      html += '</div>';
+      html += '<div class="reply-content md-content">' + renderMd(r.content) + '</div>';
+      html += '<div class="reply-actions">';
+      if (session) {
+        html += '<button onclick="event.stopPropagation();toggleUpvote(\'' + r.id + '\')" id="upvote-' + r.id + '">';
+        html += '&#9650; ' + (r.upvotes_count || 0);
+        html += '</button>';
+        if (isAuthor && !r.is_solution) {
+          html += '<button onclick="event.stopPropagation();markSolution(\'' + r.id + '\')">Marquer comme solution</button>';
+        }
+      }
+      html += '</div></div>';
+    });
+
+    // Reply form
+    if (session) {
+      if (topic.is_locked) {
+        html += '<div class="empty-state fade-in">Cette discussion est verrouillée.</div>';
+      } else {
+        html += '<div class="reply-form fade-in">';
+        html += '<h3>Votre réponse</h3>';
+        html += '<textarea id="replyContent" placeholder="Partagez votre expérience ou apportez votre aide..."></textarea>';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">';
+        html += '<div class="format-help">';
+        html += '<button type="button" class="format-help-btn" onclick="toggleFormatHelp(event)">Mise en forme</button>';
+        html += '<div class="format-help-tooltip" id="formatHelpTooltip2">';
+        html += '<strong>Formatage disponible :</strong><br>';
+        html += '<code>**texte**</code> &rarr; <strong>gras</strong><br>';
+        html += '<code>*texte*</code> &rarr; <em>italique</em><br>';
+        html += '<code>`code`</code> &rarr; <code>code</code>';
+        html += '</div></div>';
+        html += '<button class="btn-gold" onclick="submitReply()">Publier la réponse</button>';
+        html += '</div></div>';
+      }
+    } else {
+      html += '<div class="login-prompt fade-in"><h2>Rejoignez la discussion</h2>';
+      html += '<p>Connectez-vous pour répondre et aider vos confrères</p>';
+      html += '<a href="/login">Se connecter</a></div>';
+    }
+
+    html += '</div>'; // close left column
+
+    // Right sidebar: related topics
+    html += '<div>';
+    html += '<div class="related-topics fade-in" style="animation-delay:200ms">';
+    html += '<h3>Discussions similaires</h3>';
+    html += '<div id="relatedTopicsContent"><div class="loading-spinner" style="padding:10px"><div class="spinner"></div></div></div>';
+    html += '</div></div>';
+
+    html += '</div>'; // close grid
+
+    el.innerHTML = html;
+
+    // Load reputation + profession for topic author
+    loadReputationBadge(topic.author_email, 'rep-topic-author');
+    loadProfessionBadge(topic.author_email, 'prof-topic-author');
+
+    // Load reputation + profession for reply authors
+    const uniqueReplyEmails = [...new Set(replies.map(function(r) { return r.author_email; }))];
+    uniqueReplyEmails.forEach(function(email) {
+      document.querySelectorAll('.rep-reply-badge[data-email="' + email + '"]').forEach(function(el) {
+        loadReputationBadgeEl(email, el);
+      });
+      document.querySelectorAll('.prof-reply-badge[data-email="' + email + '"]').forEach(function(el) {
+        loadProfessionBadgeEl(email, el);
+      });
+    });
+
+    // Load related topics
+    loadRelatedTopics(id);
+  } catch (e) {
+    el.innerHTML = '<div class="empty-state">Discussion introuvable ou erreur de chargement</div>';
+  }
+}
+
+/* ── Actions ── */
+async function toggleUpvote(replyId) {
+  try {
+    const { upvoted } = await apiFetch('/api/forum/replies/' + replyId + '/upvote', { method: 'POST' });
+    // Reload topic
+    showTopic(currentTopicId);
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function markSolution(replyId) {
+  try {
+    await apiFetch('/api/forum/replies/' + replyId + '/solution', { method: 'POST' });
+    showTopic(currentTopicId);
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function submitReply() {
+  const content = document.getElementById('replyContent')?.value?.trim();
+  if (!content) return;
+  try {
+    await apiFetch('/api/forum/topics/' + currentTopicId + '/replies', {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    });
+    showTopic(currentTopicId);
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+/* ── Tag filter ── */
+function toggleTagFilter(tag) {
+  currentTagFilter = (currentTagFilter === tag) ? null : tag;
+  currentOffset = 0;
+  showCategory(currentCategorySlug);
+}
+
+/* ── Leaderboard ── */
+async function loadLeaderboard() {
+  const el = document.getElementById('leaderboardContent');
+  if (!el) return;
+  try {
+    const leaders = await apiFetch('/api/forum/leaderboard');
+    if (!leaders || leaders.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem">Aucun contributeur pour le moment</div>';
+      return;
+    }
+    let html = '';
+    leaders.forEach(function(l, i) {
+      const rankCls = i === 0 ? ' top-1' : i === 1 ? ' top-2' : i === 2 ? ' top-3' : '';
+      html += '<div class="leader-item">';
+      html += '<div class="leader-rank' + rankCls + '">' + (i + 1) + '</div>';
+      html += '<span class="leader-name">' + escHtml(l.display_name) + '</span>';
+      if (l.solutions > 0) html += '<span style="font-size:.65rem;color:var(--green);margin-right:4px">' + l.solutions + ' sol.</span>';
+      html += '<span class="leader-score">' + l.reputation + ' pts</span>';
+      html += '</div>';
+    });
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;text-align:center">--</div>';
+  }
+}
+
+/* ── Reputation badge loader ── */
+async function loadReputationBadge(email, elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  try {
+    if (_repCache[email]) {
+      el.innerHTML = '<span class="rep-star">&#9733;</span> ' + _repCache[email];
+      return;
+    }
+    const data = await apiFetch('/api/forum/reputation/' + encodeURIComponent(email));
+    _repCache[email] = data.reputation;
+    el.innerHTML = '<span class="rep-star">&#9733;</span> ' + data.reputation;
+  } catch (e) {
+    el.style.display = 'none';
+  }
+}
+
+async function loadReputationBadgeEl(email, el) {
+  try {
+    if (_repCache[email]) {
+      el.innerHTML = '<span class="rep-star">&#9733;</span> ' + _repCache[email];
+      return;
+    }
+    const data = await apiFetch('/api/forum/reputation/' + encodeURIComponent(email));
+    _repCache[email] = data.reputation;
+    el.innerHTML = '<span class="rep-star">&#9733;</span> ' + data.reputation;
+  } catch (e) {
+    el.style.display = 'none';
+  }
+}
+
+/* ── Profession badge loader ── */
+async function loadProfessionBadge(email, elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  try {
+    if (_profCache[email] !== undefined) {
+      if (_profCache[email]) {
+        el.textContent = _profCache[email].label;
+        el.className = 'prof-badge prof-' + _profCache[email].type;
+        el.style.display = '';
+      }
+      return;
+    }
+    const data = await apiFetch('/api/forum/profession/' + encodeURIComponent(email));
+    if (data.profession) {
+      _profCache[email] = { label: data.profession, type: data.type };
+      el.textContent = data.profession;
+      el.className = 'prof-badge prof-' + data.type;
+      el.style.display = '';
+    } else {
+      _profCache[email] = null;
+    }
+  } catch (e) {
+    _profCache[email] = null;
+  }
+}
+
+async function loadProfessionBadgeEl(email, el) {
+  try {
+    if (_profCache[email] !== undefined) {
+      if (_profCache[email]) {
+        el.textContent = _profCache[email].label;
+        el.className = 'prof-badge prof-' + _profCache[email].type;
+        el.style.display = '';
+      }
+      return;
+    }
+    const data = await apiFetch('/api/forum/profession/' + encodeURIComponent(email));
+    if (data.profession) {
+      _profCache[email] = { label: data.profession, type: data.type };
+      el.textContent = data.profession;
+      el.className = 'prof-badge prof-' + data.type;
+      el.style.display = '';
+    } else {
+      _profCache[email] = null;
+    }
+  } catch (e) {
+    _profCache[email] = null;
+  }
+}
+
+/* ── Related topics loader ── */
+async function loadRelatedTopics(topicId) {
+  const el = document.getElementById('relatedTopicsContent');
+  if (!el) return;
+  try {
+    const related = await apiFetch('/api/forum/topics/' + topicId + '/related');
+    if (!related || related.length === 0) {
+      el.innerHTML = '<div style="font-size:.8rem;color:var(--text-muted)">Aucune discussion similaire</div>';
+      return;
+    }
+    let html = '';
+    related.forEach(function(r) {
+      html += '<div class="related-item" onclick="showTopic(\'' + r.id + '\')">';
+      html += '<div class="r-title">' + escHtml(r.title) + '</div>';
+      html += '<div class="r-meta">' + (r.replies_count || 0) + ' rép. ';
+      if (r.is_solved) html += '<span style="color:var(--green)">Résolu</span>';
+      html += ' - ' + timeAgo(r.created_at) + '</div>';
+      html += '</div>';
+    });
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div style="font-size:.8rem;color:var(--text-muted)">--</div>';
+  }
+}
+
+/* ── New topic modal ── */
+function openNewTopicModal(presetSlug) {
+  if (!session) { window.location.href = '/login'; return; }
+  const sel = document.getElementById('topicCategory');
+  sel.innerHTML = categories.map(c =>
+    '<option value="' + c.id + '"' + (c.slug === presetSlug ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'
+  ).join('');
+  document.getElementById('topicTitle').value = '';
+  document.getElementById('topicContent').value = '';
+  selectedTags = [];
+  renderTagsPicker();
+  document.getElementById('newTopicModal').classList.add('show');
+}
+function closeNewTopicModal() {
+  document.getElementById('newTopicModal').classList.remove('show');
+}
+async function submitNewTopic() {
+  const category_id = document.getElementById('topicCategory').value;
+  const title = document.getElementById('topicTitle').value.trim();
+  const content = document.getElementById('topicContent').value.trim();
+  if (!title || !content) { alert('Veuillez remplir tous les champs.'); return; }
+  const btn = document.getElementById('submitTopicBtn');
+  btn.disabled = true; btn.textContent = 'Publication...';
+  try {
+    const t = await apiFetch('/api/forum/topics', {
+      method: 'POST',
+      body: JSON.stringify({ category_id, title, content, tags: selectedTags })
+    });
+    closeNewTopicModal();
+    showTopic(t.id);
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Publier';
+  }
+}
+
+/* ── Sidebar ── */
+function updateSidebarActive(key) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (key === 'home') {
+    document.querySelector('.nav-btn[data-view="home"]')?.classList.add('active');
+  } else {
+    document.querySelector('.nav-btn[data-slug="' + key + '"]')?.classList.add('active');
+  }
+}
+
+/* ── Mobile toggle ── */
+document.getElementById('mobileToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+/* ── Close modal on overlay click ── */
+document.getElementById('newTopicModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeNewTopicModal();
+});
+
+/* ── Close modal on Escape key ── */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeNewTopicModal();
+});
+
+/* ── Init ── */
+(async () => {
+  await initAuth();
+  await loadCategories();
+  showHome();
+})();
+</script>
+</body>
+</html>

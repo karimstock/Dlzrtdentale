@@ -25,10 +25,10 @@ const upload = multer({
   }
 });
 
-// Auth middleware — verification JWT via Supabase (pas juste decode)
+// Auth middleware — vérification JWT via Supabase (pas juste decode)
 async function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Non authentifie' });
+  if (!token) return res.status(401).json({ error: 'Non authentifié' });
   try {
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data?.user) return res.status(401).json({ error: 'Token invalide' });

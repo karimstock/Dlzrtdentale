@@ -18,7 +18,7 @@ const upload = multer({
     const allowed = ['.stl', '.ply', '.obj', '.dcm', '.3mf', '.step', '.iges'];
     const ext = '.' + file.originalname.split('.').pop().toLowerCase();
     if (allowed.includes(ext)) cb(null, true);
-    else cb(new Error('Type de fichier non supporte. Formats acceptes: STL, PLY, OBJ, DCM, 3MF, STEP, IGES'));
+    else cb(new Error('Type de fichier non supporté. Formats acceptés: STL, PLY, OBJ, DCM, 3MF, STEP, IGES'));
   }
 });
 
@@ -55,7 +55,7 @@ async function validatePortailToken(token) {
 // ── GET /api/labo/fichiers3d — Liste des fichiers 3D ──
 router.get('/', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
 
     const { cas_production_id, dentiste_id, type_fichier, statut_validation } = req.query;
 
@@ -92,7 +92,7 @@ router.get('/', async (req, res) => {
 // ── GET /api/labo/fichiers3d/validations — Toutes les validations ──
 router.get('/validations', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
 
     const { statut } = req.query;
 
@@ -120,7 +120,7 @@ router.get('/validations', async (req, res) => {
 // ── GET /api/labo/fichiers3d/:id — Detail d'un fichier 3D ──
 router.get('/:id', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
 
     const { data: fichier, error } = await admin().from('labo_fichiers3d')
       .select('*, labo_validations_3d(*)')
@@ -128,7 +128,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !fichier) return res.status(404).json({ error: 'Fichier non trouve' });
+    if (error || !fichier) return res.status(404).json({ error: 'Fichier non trouvé' });
 
     // Get version history (other versions of the same file)
     let versions = [];
@@ -151,7 +151,7 @@ router.get('/:id', async (req, res) => {
 // ── POST /api/labo/fichiers3d — Upload un fichier 3D ──
 router.post('/', upload.single('fichier'), async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
     if (!req.file) return res.status(400).json({ error: 'Fichier requis' });
 
     const { cas_production_id, dentiste_id, type_fichier, description, version_notes } = req.body;
@@ -207,7 +207,7 @@ router.post('/', upload.single('fichier'), async (req, res) => {
 // ── POST /api/labo/fichiers3d/:id/version — Nouvelle version ──
 router.post('/:id/version', upload.single('fichier'), async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
     if (!req.file) return res.status(400).json({ error: 'Fichier requis' });
 
     // Get parent file
@@ -217,7 +217,7 @@ router.post('/:id/version', upload.single('fichier'), async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (parentErr || !parent) return res.status(404).json({ error: 'Fichier parent non trouve' });
+    if (parentErr || !parent) return res.status(404).json({ error: 'Fichier parent non trouvé' });
 
     // Determine root and next version number
     const rootId = parent.parent_id || parent.id;
@@ -282,7 +282,7 @@ router.post('/:id/version', upload.single('fichier'), async (req, res) => {
 // ── DELETE /api/labo/fichiers3d/:id — Supprimer un fichier ──
 router.delete('/:id', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
 
     // Verify ownership
     const { data: fichier, error: fetchErr } = await admin().from('labo_fichiers3d')
@@ -291,7 +291,7 @@ router.delete('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (fetchErr || !fichier) return res.status(404).json({ error: 'Fichier non trouve' });
+    if (fetchErr || !fichier) return res.status(404).json({ error: 'Fichier non trouvé' });
 
     // Delete from storage (extract path from URL)
     try {
@@ -321,7 +321,7 @@ router.delete('/:id', async (req, res) => {
 // ── POST /api/labo/fichiers3d/:id/soumettre-validation — Soumettre au dentiste ──
 router.post('/:id/soumettre-validation', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil prothésiste requis' });
 
     // Verify file exists and belongs to this lab
     const { data: fichier, error: fetchErr } = await admin().from('labo_fichiers3d')
@@ -330,8 +330,8 @@ router.post('/:id/soumettre-validation', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (fetchErr || !fichier) return res.status(404).json({ error: 'Fichier non trouve' });
-    if (!fichier.dentiste_id) return res.status(400).json({ error: 'Aucun dentiste associe a ce fichier' });
+    if (fetchErr || !fichier) return res.status(404).json({ error: 'Fichier non trouvé' });
+    if (!fichier.dentiste_id) return res.status(400).json({ error: 'Aucun dentiste associé à ce fichier' });
 
     // Generate unique token, valid 14 days
     const token = crypto.randomBytes(32).toString('hex');
@@ -388,7 +388,7 @@ portailRouter.use(async (req, res, next) => {
       .limit(1)
       .maybeSingle();
 
-    if (!validation) return res.status(401).json({ error: 'Token invalide ou expire' });
+    if (!validation) return res.status(401).json({ error: 'Token invalide ou expiré' });
 
     // Get dentiste info
     const { data: dentiste } = await admin()
@@ -446,7 +446,7 @@ portailRouter.get('/validations/:id', async (req, res) => {
       .eq('dentiste_id', req.dentisteId)
       .single();
 
-    if (error || !validation) return res.status(404).json({ error: 'Validation non trouvee' });
+    if (error || !validation) return res.status(404).json({ error: 'Validation non trouvée' });
 
     // Generate a signed download URL (valid 1 hour)
     let download_url = null;
@@ -489,10 +489,10 @@ portailRouter.post('/validations/:id/repondre', async (req, res) => {
       .eq('dentiste_id', req.dentisteId)
       .single();
 
-    if (fetchErr || !validation) return res.status(404).json({ error: 'Validation non trouvee' });
+    if (fetchErr || !validation) return res.status(404).json({ error: 'Validation non trouvée' });
 
     if (validation.statut !== 'en_attente') {
-      return res.status(400).json({ error: 'Cette validation a deja ete traitee', statut: validation.statut });
+      return res.status(400).json({ error: 'Cette validation a déjà été traitée', statut: validation.statut });
     }
 
     // Update validation

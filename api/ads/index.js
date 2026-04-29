@@ -37,7 +37,7 @@ const upload = multer({
 
 // --- Constantes ---
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-if (!ADMIN_TOKEN) console.warn('[ADS] ADMIN_TOKEN absent — routes admin desactivees');
+if (!ADMIN_TOKEN) console.warn('[ADS] ADMIN_TOKEN absent — routes admin désactivées');
 const TIER_PRIORITY = { enterprise: 3, pro: 2, starter: 1, free: 0 };
 const CAMPAIGN_REQUIRED_FIELDS = ['name', 'objective', 'budget_total', 'bid_amount', 'slot_type'];
 const VALID_STATUSES = ['draft', 'pending_review', 'active', 'paused', 'completed', 'rejected', 'archived'];
@@ -89,7 +89,7 @@ async function uploadFile(buffer, filename, mimetype, subdir = 'creatives') {
  * Demande Claude IA (helper)
  */
 async function claudeAsk(anthropic, prompt, maxTokens = 2000) {
-  if (!anthropic) return { content: 'IA indisponible (anthropic non initialisé)' };
+  if (!anthropic) return { content: 'IA indisponible (Anthropic non initialisé)' };
   try {
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',

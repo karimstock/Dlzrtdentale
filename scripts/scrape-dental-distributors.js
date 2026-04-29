@@ -59,7 +59,7 @@ async function scrapeDistributor(distributor) {
 
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'JADOMI-Catalog-Indexer/1.0 (contact: karim_bahmed@yahoo.fr)',
+          'User-Agent': 'JADOMI-Catalog-Indexer/1.0 (contact: contact@jadomi.fr)',
           'Accept': 'text/html',
           'Accept-Language': 'fr-FR,fr;q=0.9'
         }

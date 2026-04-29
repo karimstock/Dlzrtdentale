@@ -1,9 +1,9 @@
 // =============================================
 // JADOMI RUSH — Calcul transport automatique
-// Estimation basee sur code postal + poids
+// Estimation basée sur code postal + poids
 // =============================================
 
-// Poids estime par type d'acte (en grammes)
+// Poids estimé par type d'acte (en grammes)
 const POIDS_PAR_TYPE = {
   couronne: 50,
   couronne_zircone: 50,
@@ -27,7 +27,7 @@ const POIDS_PAR_TYPE = {
   default: 150
 };
 
-// Zones Colissimo par departement
+// Zones Colissimo par département
 function getZone(cp) {
   if (!cp) return 'A';
   const dept = cp.slice(0, 2);
@@ -35,24 +35,24 @@ function getZone(cp) {
   if (['97', '98'].includes(dept)) return 'OM';
   // Corse
   if (['20'].includes(dept)) return 'B';
-  // France metropolitaine
+  // France métropolitaine
   return 'A';
 }
 
-// Distance estimee entre 2 codes postaux (simplifiee)
+// Distance estimée entre 2 codes postaux (simplifiée)
 function estimerDistance(cp1, cp2) {
   if (!cp1 || !cp2) return 400;
   const d1 = parseInt(cp1.slice(0, 2));
   const d2 = parseInt(cp2.slice(0, 2));
-  if (d1 === d2) return 30; // meme departement
+  if (d1 === d2) return 30; // même département
   const diff = Math.abs(d1 - d2);
-  if (diff <= 3) return 100; // departements proches
+  if (diff <= 3) return 100; // départements proches
   if (diff <= 10) return 300;
   if (diff <= 20) return 500;
   return 700;
 }
 
-// Tarifs Colissimo estimes (2024-2025)
+// Tarifs Colissimo estimés (2024-2025)
 const TARIFS_COLISSIMO = {
   // poids_max_g: prix_eur
   250: 6.40,

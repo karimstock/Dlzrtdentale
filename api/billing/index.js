@@ -46,7 +46,7 @@ const PLAN_PRICES = {
 
 // =============================================
 // GET /api/billing/status
-// Retourne l'abonnement de l'utilisateur connecte
+// Retourne l'abonnement de l'utilisateur connecté
 // =============================================
 router.get('/status', authSupabase(), async (req, res) => {
   try {
@@ -117,7 +117,7 @@ router.get('/status', authSupabase(), async (req, res) => {
       }
     }
 
-    // 4) Si aucun abonnement trouve, retourner etat par defaut
+    // 4) Si aucun abonnement trouvé, retourner état par défaut
     if (!subscription) {
       return res.json({
         subscription: {
@@ -130,7 +130,7 @@ router.get('/status', authSupabase(), async (req, res) => {
       });
     }
 
-    // Normaliser la reponse
+    // Normaliser la réponse
     res.json({
       subscription: {
         plan_name: subscription.plan_name || subscription.plan || 'Standard',
@@ -148,15 +148,15 @@ router.get('/status', authSupabase(), async (req, res) => {
 
 // =============================================
 // POST /api/billing/portail
-// Cree une session Stripe Customer Portal
+// Crée une session Stripe Customer Portal
 // =============================================
 router.post('/portail', authSupabase(), async (req, res) => {
   try {
-    // Verifier que Stripe est configure
+    // Vérifier que Stripe est configuré
     if (!stripe) {
       return res.status(503).json({
-        error: 'Service de paiement non configure',
-        message: 'Le portail de paiement sera bientot disponible. Veuillez contacter contact@jadomi.fr pour toute question relative a votre abonnement.'
+        error: 'Service de paiement non configuré',
+        message: 'Le portail de paiement sera bientôt disponible. Veuillez contacter contact@jadomi.fr pour toute question relative à votre abonnement.'
       });
     }
 
@@ -218,12 +218,12 @@ router.post('/portail', authSupabase(), async (req, res) => {
 
     if (!stripeCustomerId) {
       return res.status(400).json({
-        error: 'Aucun compte de paiement associe',
-        message: 'Votre compte ne dispose pas encore d\'un identifiant de paiement. Veuillez d\'abord souscrire a un abonnement ou contacter contact@jadomi.fr.'
+        error: 'Aucun compte de paiement associé',
+        message: 'Votre compte ne dispose pas encore d\'un identifiant de paiement. Veuillez d\'abord souscrire à un abonnement ou contacter contact@jadomi.fr.'
       });
     }
 
-    // Creer la session portail Stripe
+    // Créer la session portail Stripe
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
       return_url: BASE_URL + '/billing.html'

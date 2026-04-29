@@ -23,8 +23,8 @@ function createMessagesRouter(supabase) {
       // Verifier si le message doit etre bloque
       if (doitBloquer(filtrage.detections)) {
         return res.status(403).json({
-          error: 'Message bloque',
-          raison: 'JADOMI IA protege votre anonymat — le message contient des informations personnelles (telephone, email). Retirez ces informations et reessayez.',
+          error: 'Message bloqué',
+          raison: 'JADOMI IA protège votre anonymat — le message contient des informations personnelles (téléphone, email). Retirez ces informations et réessayez.',
           detections: filtrage.detections.map(d => d.type)
         });
       }
@@ -57,7 +57,7 @@ function createMessagesRouter(supabase) {
           created_at: data.created_at
         },
         avertissement: filtrage.infos_masquees
-          ? 'JADOMI IA a masque certaines informations pour proteger votre anonymat.'
+          ? 'JADOMI IA a masqué certaines informations pour protéger votre anonymat.'
           : null
       });
     } catch (e) {

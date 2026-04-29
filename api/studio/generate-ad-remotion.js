@@ -163,13 +163,13 @@ router.post('/', async (req, res) => {
       template,
       status: videoUrl ? 'completed' : 'rendering_unavailable',
       message: videoUrl
-        ? 'Video generee avec succes'
-        : 'Remotion rendering non disponible sur ce serveur. La video sera generee ulterieurement.',
+        ? 'Vidéo générée avec succès'
+        : 'Remotion rendering non disponible sur ce serveur. La vidéo sera générée ultérieurement.',
     });
 
   } catch (err) {
     console.error('[Remotion API] Error:', err);
-    res.status(500).json({ error: 'Erreur lors de la generation video' });
+    res.status(500).json({ error: 'Erreur lors de la génération vidéo' });
   }
 });
 
@@ -182,8 +182,8 @@ router.get('/templates', (req, res) => {
     templates: [
       {
         id: 'AdTemplate',
-        name: 'Publicite Annonceur',
-        description: 'Video publicitaire personnalisable (formation, produit, evenement)',
+        name: 'Publicité Annonceur',
+        description: 'Vidéo publicitaire personnalisable (formation, produit, événement)',
         duration: '6 secondes',
         cost_coins: VIDEO_COST_COINS,
         props: ['title', 'price', 'duration', 'location', 'logoUrl', 'brandColor', 'ctaText'],
@@ -198,8 +198,8 @@ router.get('/templates', (req, res) => {
       },
       {
         id: 'StatsAnimation',
-        name: 'Stats Animees',
-        description: 'Chiffres cles animes pour reseaux sociaux',
+        name: 'Stats Animées',
+        description: 'Chiffres clés animés pour réseaux sociaux',
         duration: '4 secondes',
         cost_coins: VIDEO_COST_COINS,
         props: [],

@@ -86,7 +86,7 @@ function decompresserSiSTL(buffer, format) {
     try {
       return zlib.gunzipSync(buffer);
     } catch (e) {
-      // Pas compresse, retourner tel quel
+      // Pas compressé, retourner tel quel
       return buffer;
     }
   }
@@ -97,7 +97,7 @@ function decompresserSiSTL(buffer, format) {
 async function uploadToR2(buffer, options = {}) {
   const client = getClient();
   if (!client) {
-    throw new Error('Cloudflare R2 non configure — ajoutez CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY dans .env');
+    throw new Error('Cloudflare R2 non configuré — ajoutez CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY dans .env');
   }
 
   const {
@@ -108,7 +108,7 @@ async function uploadToR2(buffer, options = {}) {
     encrypt = true
   } = options;
 
-  // Nom fichier = UUID aleatoire (jamais de nom original)
+  // Nom fichier = UUID aléatoire (jamais de nom original)
   const fileId = crypto.randomUUID();
   const ext = format.toLowerCase();
   const key = `${demandeId}/${fileId}.${ext}${compress ? '.gz' : ''}${encrypt ? '.enc' : ''}`;
@@ -144,7 +144,7 @@ async function uploadToR2(buffer, options = {}) {
   };
 }
 
-// ===== Lien presigne temporaire (48h) =====
+// ===== Lien présigné temporaire (48h) =====
 async function getPresignedUrl(key, expiresInSeconds = 48 * 60 * 60) {
   const client = getClient();
   if (!client) return null;
@@ -158,10 +158,10 @@ async function getPresignedUrl(key, expiresInSeconds = 48 * 60 * 60) {
   return url;
 }
 
-// ===== Download depuis R2 (avec dechiffrement + decompression) =====
+// ===== Download depuis R2 (avec déchiffrement + décompression) =====
 async function downloadFromR2(key, format = 'stl') {
   const client = getClient();
-  if (!client) throw new Error('R2 non configure');
+  if (!client) throw new Error('R2 non configuré');
 
   const command = new GetObjectCommand({
     Bucket: getBucket(),
@@ -175,7 +175,7 @@ async function downloadFromR2(key, format = 'stl') {
   }
   let buffer = Buffer.concat(chunks);
 
-  // Pipeline inverse : dechiffrement → decompression
+  // Pipeline inverse : déchiffrement → décompression
   const isEncrypted = key.endsWith('.enc') || (response.Metadata && response.Metadata.encrypted === 'true');
   const isCompressed = key.includes('.gz') || (response.Metadata && response.Metadata.compressed === 'true');
 
@@ -199,11 +199,11 @@ async function deleteFromR2(key) {
   return true;
 }
 
-// ===== Nettoyage fichiers expires (> 72h) =====
+// ===== Nettoyage fichiers expirés (> 72h) =====
 async function nettoyerFichiersExpires() {
   const client = getClient();
   if (!client) {
-    console.warn('[R2 cleanup] R2 non configure, skip');
+    console.warn('[R2 cleanup] R2 non configuré, skip');
     return { deleted: 0 };
   }
 
@@ -237,11 +237,11 @@ async function nettoyerFichiersExpires() {
     continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
   } while (continuationToken);
 
-  console.log(`[R2 cleanup] ${deleted} fichiers expires supprimes`);
+  console.log(`[R2 cleanup] ${deleted} fichiers expirés supprimés`);
   return { deleted };
 }
 
-// ===== Verifier si R2 est disponible =====
+// ===== Vérifier si R2 est disponible =====
 function isR2Available() {
   return !!getConfig();
 }

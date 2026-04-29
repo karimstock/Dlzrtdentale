@@ -46,7 +46,7 @@ function createTransportRouter(supabase) {
         date_expedition: new Date().toISOString()
       }).eq('id', demande_id);
 
-      res.json({ success: true, message: 'Expedition enregistree', numero_suivi });
+      res.json({ success: true, message: 'Expédition enregistrée', numero_suivi });
     } catch (e) {
       console.error('[RUSH expedition]', e.message);
       res.status(500).json({ error: 'Erreur interne' });
@@ -67,7 +67,7 @@ function createTransportRouter(supabase) {
 
       res.json({
         success: true,
-        message: 'Reception confirmee — vous avez 48h pour valider ou signaler un problème'
+        message: 'Réception confirmée — vous avez 48h pour valider ou signaler un problème'
       });
     } catch (e) {
       console.error('[RUSH reception]', e.message);

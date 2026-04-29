@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI — Client Portal API
-// Portail securise pour les clients d'avocats
+// Portail sécurisé pour les clients d'avocats
 // Login, dossiers, documents, messages
 // =============================================
 
@@ -67,9 +67,9 @@ function verifyToken(token) {
 // ===== Auth Middleware =====
 function requireClient(req, res, next) {
   const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Non autorise' });
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Non autorisé' });
   const payload = verifyToken(auth.slice(7));
-  if (!payload) return res.status(401).json({ error: 'Token invalide ou expire' });
+  if (!payload) return res.status(401).json({ error: 'Token invalide ou expiré' });
   req.client = payload;
   next();
 }
@@ -85,7 +85,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Champs obligatoires: site_id, email, password, name' });
     }
 
-    // Verifier si le client existe deja
+    // Vérifier si le client existe déjà
     const { data: existing } = await admin()
       .from('client_accounts')
       .select('id')
@@ -94,10 +94,10 @@ router.post('/register', async (req, res) => {
       .maybeSingle();
 
     if (existing) {
-      return res.status(409).json({ error: 'Un compte avec cet email existe deja' });
+      return res.status(409).json({ error: 'Un compte avec cet email existe déjà' });
     }
 
-    // Creer le compte
+    // Créer le compte
     const hashed = hashPassword(password);
     const { data: client, error } = await admin()
       .from('client_accounts')
@@ -114,7 +114,7 @@ router.post('/register', async (req, res) => {
 
     if (error) {
       console.error('[client-portal] register insert error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la creation du compte' });
+      return res.status(500).json({ error: 'Erreur lors de la création du compte' });
     }
 
     const token = createToken({ id: client.id, site_id, email: client.email, name: client.name });
@@ -182,7 +182,7 @@ router.get('/dossiers', requireClient, async (req, res) => {
 
     if (error) {
       console.error('[client-portal] dossiers list error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la recuperation des dossiers' });
+      return res.status(500).json({ error: 'Erreur lors de la récupération des dossiers' });
     }
 
     res.json({ success: true, dossiers: dossiers || [] });
@@ -194,14 +194,14 @@ router.get('/dossiers', requireClient, async (req, res) => {
 
 // =========================================================
 // GET /dossiers/:id (auth)
-// Detail d'un dossier avec documents et messages
+// Détail d'un dossier avec documents et messages
 // =========================================================
 router.get('/dossiers/:id', requireClient, async (req, res) => {
   try {
     const { id: client_id, site_id } = req.client;
     const dossierId = req.params.id;
 
-    // Recuperer le dossier
+    // Récupérer le dossier
     const { data: dossier, error: dErr } = await admin()
       .from('client_dossiers')
       .select('*')
@@ -216,17 +216,17 @@ router.get('/dossiers/:id', requireClient, async (req, res) => {
     }
 
     if (!dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
-    // Recuperer les documents
+    // Récupérer les documents
     const { data: documents } = await admin()
       .from('client_documents')
       .select('id, nom, type, taille, uploaded_by, created_at')
       .eq('dossier_id', dossierId)
       .order('created_at', { ascending: false });
 
-    // Recuperer les messages
+    // Récupérer les messages
     const { data: messages } = await admin()
       .from('client_messages')
       .select('id, content, sender_type, sender_name, created_at')
@@ -258,7 +258,7 @@ router.post('/dossiers/:id/documents', requireClient, upload.single('file'), asy
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
 
-    // Verifier que le dossier appartient au client
+    // Vérifier que le dossier appartient au client
     const { data: dossier } = await admin()
       .from('client_dossiers')
       .select('id')
@@ -268,7 +268,7 @@ router.post('/dossiers/:id/documents', requireClient, upload.single('file'), asy
       .maybeSingle();
 
     if (!dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
     // Upload vers R2
@@ -313,14 +313,14 @@ router.post('/dossiers/:id/documents', requireClient, upload.single('file'), asy
 
 // =========================================================
 // GET /documents/:id/download (auth)
-// Presigned URL pour telecharger un document
+// Presigned URL pour télécharger un document
 // =========================================================
 router.get('/documents/:id/download', requireClient, async (req, res) => {
   try {
     const { id: client_id, site_id } = req.client;
     const documentId = req.params.id;
 
-    // Recuperer le document et verifier l'acces
+    // Récupérer le document et vérifier l'accès
     const { data: doc, error } = await admin()
       .from('client_documents')
       .select('id, nom, r2_key, dossier_id')
@@ -334,10 +334,10 @@ router.get('/documents/:id/download', requireClient, async (req, res) => {
     }
 
     if (!doc) {
-      return res.status(404).json({ error: 'Document non trouve' });
+      return res.status(404).json({ error: 'Document non trouvé' });
     }
 
-    // Verifier que le dossier appartient au client
+    // Vérifier que le dossier appartient au client
     const { data: dossier } = await admin()
       .from('client_dossiers')
       .select('id')
@@ -346,13 +346,13 @@ router.get('/documents/:id/download', requireClient, async (req, res) => {
       .maybeSingle();
 
     if (!dossier) {
-      return res.status(403).json({ error: 'Acces refuse' });
+      return res.status(403).json({ error: 'Accès refusé' });
     }
 
-    // Generer URL presignee (1h)
+    // Générer URL présignée (1h)
     const url = await getPresignedUrl(doc.r2_key, 3600);
     if (!url) {
-      return res.status(500).json({ error: 'Impossible de generer le lien de telechargement' });
+      return res.status(500).json({ error: 'Impossible de générer le lien de téléchargement' });
     }
 
     res.json({ success: true, url, nom: doc.nom });
@@ -376,7 +376,7 @@ router.post('/dossiers/:id/messages', requireClient, async (req, res) => {
       return res.status(400).json({ error: 'Le contenu du message est obligatoire' });
     }
 
-    // Verifier que le dossier appartient au client
+    // Vérifier que le dossier appartient au client
     const { data: dossier } = await admin()
       .from('client_dossiers')
       .select('id')
@@ -386,7 +386,7 @@ router.post('/dossiers/:id/messages', requireClient, async (req, res) => {
       .maybeSingle();
 
     if (!dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
     const { data: message, error } = await admin()
@@ -424,7 +424,7 @@ router.get('/dossiers/:id/messages', requireClient, async (req, res) => {
     const { id: client_id, site_id } = req.client;
     const dossierId = req.params.id;
 
-    // Verifier que le dossier appartient au client
+    // Vérifier que le dossier appartient au client
     const { data: dossier } = await admin()
       .from('client_dossiers')
       .select('id')
@@ -434,7 +434,7 @@ router.get('/dossiers/:id/messages', requireClient, async (req, res) => {
       .maybeSingle();
 
     if (!dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
     const { data: messages, error } = await admin()
@@ -445,7 +445,7 @@ router.get('/dossiers/:id/messages', requireClient, async (req, res) => {
 
     if (error) {
       console.error('[client-portal] messages list error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la recuperation des messages' });
+      return res.status(500).json({ error: 'Erreur lors de la récupération des messages' });
     }
 
     res.json({ success: true, messages: messages || [] });

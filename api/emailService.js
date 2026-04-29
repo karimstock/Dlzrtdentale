@@ -18,7 +18,7 @@ let ready = false;
 
 function initTransporter() {
   if (!SMTP_PASS || SMTP_PASS === 'AREMPLACER') {
-    console.log('[emailService] SMTP_PASS non configure — envoi en mode simulation');
+    console.log('[emailService] SMTP_PASS non configuré — envoi en mode simulation');
     ready = false;
     return null;
   }
@@ -31,7 +31,7 @@ function initTransporter() {
       tls: { rejectUnauthorized: true }
     });
     ready = true;
-    console.log(`[emailService] Transport OVH Pro initialise (${SMTP_HOST}:${SMTP_PORT} user=${SMTP_USER})`);
+    console.log(`[emailService] Transport OVH Pro initialisé (${SMTP_HOST}:${SMTP_PORT} user=${SMTP_USER})`);
     return transporter;
   } catch (e) {
     console.error('[emailService] Init transport failed:', e.message);
@@ -43,7 +43,7 @@ function initTransporter() {
 initTransporter();
 
 async function verify() {
-  if (!transporter) return { ok: false, error: 'Transporter non initialise (SMTP_PASS manquant ?)' };
+  if (!transporter) return { ok: false, error: 'Transporter non initialisé (SMTP_PASS manquant ?)' };
   try {
     await transporter.verify();
     return { ok: true };
@@ -86,14 +86,14 @@ function welcomeHtml({ prenom, nom, cabinet, plan }) {
   <div style="padding:30px;">
     <h2 style="color:#10b981;font-size:20px;margin:0 0 16px 0;">Bienvenue ${name || 'sur JADOMI'} !</h2>
     <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
-      Votre compte JADOMI est actif. Vous pouvez des maintenant acceder a votre tableau de bord
-      et commencer a gerer votre stock dentaire avec l'IA.
+      Votre compte JADOMI est actif. Vous pouvez dès maintenant accéder à votre tableau de bord
+      et commencer à gérer votre stock dentaire avec l'IA.
     </p>
     ${cabinet ? `<p style="font-size:13px;color:#9c9890;">Cabinet : <strong style="color:#e8e6e0;">${cabinet}</strong></p>` : ''}
     ${plan ? `<p style="font-size:13px;color:#9c9890;">Formule : <strong style="color:#10b981;">${plan}</strong></p>` : ''}
     <div style="text-align:center;margin:30px 0;">
       <a href="https://jadomi.fr/index.html" style="display:inline-block;padding:14px 28px;background:#10b981;color:#0f0e0d;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">
-        Acceder a mon tableau de bord
+        Accéder à mon tableau de bord
       </a>
     </div>
     <p style="font-size:12px;color:#9c9890;line-height:1.6;">

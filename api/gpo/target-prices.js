@@ -13,7 +13,7 @@ module.exports = function mountTargetPrices(app, admin, auth) {
 
       if (error) throw error;
       if (!prices || prices.length === 0) {
-        return res.json({ success: true, computed: 0, message: 'Aucun prix marche en base' });
+        return res.json({ success: true, computed: 0, message: 'Aucun prix marché en base' });
       }
 
       // Regrouper par product_name_normalized
@@ -39,14 +39,14 @@ module.exports = function mountTargetPrices(app, admin, auth) {
         const avg = group.prices.reduce((s, v) => s + v, 0) / group.prices.length;
         const targetPrice = Math.round(avg * 0.85 * 100) / 100;
 
-        // Verifier si override manuel existe
+        // Vérifier si override manuel existe
         const { data: existing } = await admin()
           .from('target_prices')
           .select('id, manual_override')
           .eq('product_name_normalized', key)
           .maybeSingle();
 
-        if (existing && existing.manual_override) continue; // Ne pas ecraser les overrides
+        if (existing && existing.manual_override) continue; // Ne pas écraser les overrides
 
         await admin()
           .from('target_prices')

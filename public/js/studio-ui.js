@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI Studio — Frontend UI Logic
-// Gere tabs, modals, generations, bibliotheque
+// Gère tabs, modals, générations, bibliothèque
 // =============================================
 
 class StudioUI {
@@ -19,7 +19,7 @@ class StudioUI {
   }
 
   getToken() {
-    // Meme pattern que dashboard-annonceur
+    // Même pattern que dashboard-annonceur
     const raw = localStorage.getItem('sb-vsbomwjzehnfinfjvhqp-auth-token');
     if (raw) {
       try { return JSON.parse(raw).access_token; } catch(e) {}
@@ -185,17 +185,17 @@ class StudioUI {
     const titles = {
       'image-standard': 'Image IA Standard (DALL-E 3)',
       'image-banner': 'Image Banner Pro (DALL-E 3 HD)',
-      'image-luxury': 'Image Ultra Realiste',
-      'video-4s': 'Video IA 4 sec (Sora 2)',
-      'video-8s': 'Video IA 8 sec (Sora 2)',
-      'video-12s': 'Video IA 12 sec (Sora 2)',
-      'video-pro': 'Video Pro HD (Sora 2 Pro)',
+      'image-luxury': 'Image Ultra Réaliste',
+      'video-4s': 'Vidéo IA 4 sec (Sora 2)',
+      'video-8s': 'Vidéo IA 8 sec (Sora 2)',
+      'video-12s': 'Vidéo IA 12 sec (Sora 2)',
+      'video-pro': 'Vidéo Pro HD (Sora 2 Pro)',
       'voice-basic': 'Voix Standard (OpenAI TTS)',
       'voice-premium': 'Voix Premium (ElevenLabs)',
       'avatar-heygen': 'Avatar IA Parlant (HeyGen)',
     };
 
-    document.getElementById('studioModalTitle').textContent = titles[type] || 'Generation IA';
+    document.getElementById('studioModalTitle').textContent = titles[type] || 'Génération IA';
 
     // Afficher/masquer sections selon le type
     const isVoice = type && type.startsWith('voice');
@@ -241,7 +241,7 @@ class StudioUI {
       document.getElementById('recapCost').textContent = cost + ' coins';
     } else {
       const brief = document.getElementById('studioBriefInput')?.value?.trim();
-      if (!brief) { alert('Veuillez decrire ce que vous souhaitez creer.'); return; }
+      if (!brief) { alert('Veuillez décrire ce que vous souhaitez créer.'); return; }
 
       // Optimiser le prompt
       try {
@@ -258,7 +258,7 @@ class StudioUI {
         });
         document.getElementById('recapPrompt').textContent = result.optimized_prompt;
       } catch(err) {
-        document.getElementById('recapPrompt').textContent = '(Optimisation indisponible — prompt original utilise)';
+        document.getElementById('recapPrompt').textContent = '(Optimisation indisponible — prompt original utilisé)';
       }
 
       const cost = this.estimateCost();
@@ -284,21 +284,21 @@ class StudioUI {
     this.showStep(3);
 
     try {
-      this.updateLoader('Preparation...', 1);
+      this.updateLoader('Préparation...', 1);
 
       const isVoice = type && type.startsWith('voice');
       const isAvatar = type && type.startsWith('avatar');
       let result;
 
       if (isVoice) {
-        this.updateLoader('Generation de la voix...', 2);
+        this.updateLoader('Génération de la voix...', 2);
         const text = document.getElementById('studioTextInput').value.trim();
         const voice = document.querySelector('#studioVoiceSection .voice-card.active')?.dataset.voice || 'nova';
         const provider = type === 'voice-premium' ? 'elevenlabs' : 'openai';
         result = await this.callAPI('/api/studio/generate-voice', 'POST', { text, voice, provider });
 
       } else if (isAvatar) {
-        this.updateLoader('Creation de l\'avatar parlant...', 2);
+        this.updateLoader('Création de l\'avatar parlant...', 2);
         const text = document.getElementById('studioTextInput').value.trim();
         result = await this.callAPI('/api/studio/generate-avatar', 'POST', { text });
 
@@ -309,14 +309,14 @@ class StudioUI {
         const prompt = optimizedPrompt && !optimizedPrompt.includes('indisponible') ? optimizedPrompt : brief;
 
         if (type.startsWith('video')) {
-          this.updateLoader('Generation de la video IA...', 2);
+          this.updateLoader('Génération de la vidéo IA...', 2);
           const durations = { 'video-4s': 4, 'video-8s': 8, 'video-12s': 12, 'video-pro': 12 };
           const quality = type === 'video-pro' ? 'pro' : 'standard';
           result = await this.callAPI('/api/studio/generate-video', 'POST', {
             prompt, duration: durations[type] || 4, quality, user_brief: brief
           });
         } else {
-          this.updateLoader('Generation de l\'image IA...', 2);
+          this.updateLoader('Génération de l\'image IA...', 2);
           const sizes = { 'image-standard': '1024x1024', 'image-banner': '1792x1024', 'image-luxury': '1024x1024' };
           const qualities = { 'image-standard': 'standard', 'image-banner': 'hd', 'image-luxury': 'luxury' };
           result = await this.callAPI('/api/studio/generate-image', 'POST', {
@@ -349,7 +349,7 @@ class StudioUI {
       preview.innerHTML = '<img src="' + url + '" alt="Generation JADOMI Studio" style="width:100%;max-height:500px;object-fit:contain;">';
     }
 
-    document.getElementById('studioResultCost').textContent = (result.cost_coins || 0) + ' coins debites';
+    document.getElementById('studioResultCost').textContent = (result.cost_coins || 0) + ' coins débités';
     this.loadWallet();
   }
 
@@ -357,7 +357,7 @@ class StudioUI {
     const msgEl = document.getElementById('studioLoaderMsg');
     const progressEl = document.getElementById('studioLoaderProgress');
     if (msgEl) msgEl.textContent = message;
-    if (progressEl) progressEl.textContent = 'Etape ' + step + '/4';
+    if (progressEl) progressEl.textContent = 'Étape ' + step + '/4';
   }
 
   // === Library ===
@@ -366,10 +366,10 @@ class StudioUI {
     try {
       await this.callAPI('/api/studio/library/save', 'POST', {
         generation_id: this.currentGeneration.generation_id,
-        name: document.getElementById('studioBriefInput')?.value?.substring(0, 100) || 'Creation Studio',
+        name: document.getElementById('studioBriefInput')?.value?.substring(0, 100) || 'Création Studio',
         tags: ['studio'],
       });
-      alert('Sauvegarde dans votre bibliotheque !');
+      alert('Sauvegardé dans votre bibliothèque !');
     } catch(err) {
       alert('Erreur : ' + err.message);
     }
@@ -383,7 +383,7 @@ class StudioUI {
       const items = await this.callAPI('/api/studio/library?type=' + (filter || 'all'));
 
       if (!items.length) {
-        grid.innerHTML = '<div class="library-empty"><div class="empty-icon">📁</div><p>Votre bibliotheque est vide.<br>Generez du contenu pour commencer !</p></div>';
+        grid.innerHTML = '<div class="library-empty"><div class="empty-icon">📁</div><p>Votre bibliothèque est vide.<br>Générez du contenu pour commencer !</p></div>';
         return;
       }
 
@@ -409,7 +409,7 @@ class StudioUI {
   }
 
   async deleteLibraryItem(id) {
-    if (!confirm('Supprimer cet element ?')) return;
+    if (!confirm('Supprimer cet élément ?')) return;
     try {
       await this.callAPI('/api/studio/library/' + id, 'DELETE');
       this.loadLibrary();
@@ -419,18 +419,18 @@ class StudioUI {
   }
 
   useLibraryItem(id) {
-    // Fermer le modal studio et passer l'item a la campagne
-    alert('Fonctionnalite bientot disponible : integration directe dans vos campagnes.');
+    // Fermer le modal studio et passer l'item à la campagne
+    alert('Fonctionnalité bientôt disponible : intégration directe dans vos campagnes.');
   }
 
   usInCampaign() {
     if (!this.currentGeneration) return;
     this.closeModal();
-    // Naviguer vers le panel creatives avec l'URL pre-remplie
+    // Naviguer vers le panel creatives avec l'URL pré-remplie
     if (typeof switchPanel === 'function') {
       switchPanel('creatives');
     }
-    alert('Creatif pret ! Vous pouvez maintenant l\'utiliser dans une campagne.');
+    alert('Créatif prêt ! Vous pouvez maintenant l\'utiliser dans une campagne.');
   }
 
   // === Stock search ===
@@ -449,7 +449,7 @@ class StudioUI {
       const results = await this.callAPI(endpoint + '?q=' + encodeURIComponent(query) + '&per_page=20');
 
       if (!results.results || !results.results.length) {
-        grid.innerHTML = '<p style="text-align:center;color:var(--studio-text-muted);padding:40px;">Aucun resultat pour "' + query + '"</p>';
+        grid.innerHTML = '<p style="text-align:center;color:var(--studio-text-muted);padding:40px;">Aucun résultat pour "' + query + '"</p>';
         return;
       }
 
@@ -467,14 +467,14 @@ class StudioUI {
 
   useStockItem(url) {
     if (!url) return;
-    // Sauvegarder dans bibliotheque
+    // Sauvegarder dans bibliothèque
     this.callAPI('/api/studio/library/save', 'POST', {
       r2_url: url,
       media_type: 'stock',
       name: 'Stock media',
       tags: ['stock'],
     }).then(() => {
-      alert('Media ajoute a votre bibliotheque !');
+      alert('Média ajouté à votre bibliothèque !');
     }).catch(err => alert('Erreur : ' + err.message));
   }
 }

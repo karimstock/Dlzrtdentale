@@ -21,7 +21,7 @@ interface AdProps {
 }
 
 export const AdTemplate: React.FC<AdProps> = ({
-  title = 'Formation Implantologie Avancee',
+  title = 'Formation Implantologie Avancée',
   subtitle = 'Devenez expert en 3 jours',
   price = '1 500 EUR',
   duration = '3 jours intensifs',
@@ -101,7 +101,7 @@ export const AdTemplate: React.FC<AdProps> = ({
               fontSize: 20, color: 'rgba(255,255,255,0.5)',
               letterSpacing: '0.2em', marginTop: 12,
             }}>
-              PRESENTE
+              PRÉSENTE
             </div>
           </div>
         </AbsoluteFill>
@@ -189,7 +189,7 @@ export const AdTemplate: React.FC<AdProps> = ({
           fontFamily: 'Syne, sans-serif', fontSize: 16, fontWeight: 700,
           color: `${brandColor}60`, letterSpacing: '0.15em',
         }}>
-          Cree avec JADOMI Studio — jadomi.fr
+          Créé avec JADOMI Studio — jadomi.fr
         </span>
       </div>
     </AbsoluteFill>

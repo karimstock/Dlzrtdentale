@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================
-// JADOMI — Enrichissement selectif Orthodontie + Prothese
-// Passe 51 — Sous-categorisation precise + traduction FR
+// JADOMI — Enrichissement sélectif Orthodontie + Prothèse
+// Passe 51 — Sous-catégorisation précise + traduction FR
 //
 // Usage :
 //   node scripts/enrich-ortho-prosth.js [--limit 5000] [--category ortho|prosth|both]
@@ -38,14 +38,14 @@ const ORTHO_SUBCATEGORIES = [
   { name: 'Arcs orthodontiques', regex: /archwire|arch\s*wire|wire.*ortho|niti|stainless.*wire|beta.*titanium|tha.*wire/i },
   { name: 'Aligneurs', regex: /aligner|clear.*tray|invisible.*ortho|thermoform/i },
   { name: 'Bagues orthodontiques', regex: /\bband\b.*ortho|molar.*band|ortho.*band|band.*molar/i },
-  { name: 'Elastiques orthodontiques', regex: /elastic|rubber.*band|power\s*chain|ligature.*elastic|o-ring/i },
+  { name: 'Élastiques orthodontiques', regex: /elastic|rubber.*band|power\s*chain|ligature.*elastic|o-ring/i },
   { name: 'Fils et ligatures', regex: /ligature|tie.*wire|kobayashi|steel.*ligature/i },
   { name: 'Ciment orthodontique', regex: /cement.*ortho|ortho.*cement|bond.*ortho|ortho.*bond|adhesive.*ortho|ortho.*adhesive|primer.*ortho/i },
   { name: 'Mini-vis orthodontiques', regex: /mini.*screw|micro.*screw|tad\b|temporary.*anchor|skeletal.*anchor/i },
   { name: 'Tubes orthodontiques', regex: /\btube\b.*ortho|buccal.*tube|molar.*tube|ortho.*tube/i },
   { name: 'Ressorts orthodontiques', regex: /spring.*ortho|coil.*spring|open.*coil|closed.*coil|niti.*spring/i },
   { name: 'Plaques et appareils', regex: /expander|expansion|palatal|quad.*helix|hyrax|pendulum|distalizer|herbst|twin.*block|activator/i },
-  { name: 'Retenueurs', regex: /retainer|retention|hawley|essix|vivera|bonded.*retainer/i },
+  { name: 'Rétenteurs', regex: /retainer|retention|hawley|essix|vivera|bonded.*retainer/i },
   { name: 'Instruments orthodontiques', regex: /plier|pince|cutter.*ortho|ortho.*plier|weingart|distal.*end|bird.*beak|how.*plier/i },
   { name: 'Cire orthodontique', regex: /wax.*ortho|ortho.*wax|relief.*wax|comfort.*wax/i },
   { name: 'Scanner et CFAO ortho', regex: /scanner.*ortho|3d.*print.*ortho|digital.*ortho|cad.*ortho|ortho.*scan/i },
@@ -57,9 +57,9 @@ const ORTHO_SUBCATEGORIES = [
 // ════════════════════════════════════════════
 const PROSTH_SUBCATEGORIES = [
   { name: 'Zircone', regex: /zircon|zirconia|yttria|y-tzp|prettau|katana|bruxzir|lava.*zir/i },
-  { name: 'Ceramique', regex: /ceramic|porcelain|feldspath|leucite|lithium.*disil|e\.max|emax|ips.*empress|vita.*mark|ivoclar/i },
-  { name: 'Resine dentaire', regex: /resin|acrylic|pmma|denture.*base|provisional|temporary.*crown|bis.*gma|composite.*prosth/i },
-  { name: 'Metal et alliages', regex: /alloy|cobalt.*chrom|nickel.*chrom|co-cr|ni-cr|gold.*alloy|palladium|titanium.*prosth|cast.*metal/i },
+  { name: 'Céramique', regex: /ceramic|porcelain|feldspath|leucite|lithium.*disil|e\.max|emax|ips.*empress|vita.*mark|ivoclar/i },
+  { name: 'Résine dentaire', regex: /resin|acrylic|pmma|denture.*base|provisional|temporary.*crown|bis.*gma|composite.*prosth/i },
+  { name: 'Métal et alliages', regex: /alloy|cobalt.*chrom|nickel.*chrom|co-cr|ni-cr|gold.*alloy|palladium|titanium.*prosth|cast.*metal/i },
   { name: 'Cire dentaire', regex: /\bwax\b|pattern.*wax|casting.*wax|inlay.*wax|dip.*wax|modelling.*wax|carving.*wax/i },
   { name: 'Platre dentaire', regex: /plaster|gypsum|die.*stone|dental.*stone|type\s*[34]|vel-mix|fuji.*rock/i },
   { name: 'Silicone dentaire', regex: /silicone|polyvinyl|addition.*silicone|condensation|pvs|vinyl.*polysiloxane|impression.*mat/i },
@@ -70,10 +70,10 @@ const PROSTH_SUBCATEGORIES = [
   { name: 'Couronnes et bridges', regex: /crown|bridge|pontic|coping|framework|substructure|pfm|full.*contour/i },
   { name: 'Facettes et inlays', regex: /veneer|inlay|onlay|overlay|laminate|facette/i },
   { name: 'Fraises de laboratoire', regex: /\bbur\b.*lab|lab.*bur|carbide.*lab|diamond.*lab|finishing.*bur|polishing.*bur|trimmer/i },
-  { name: 'Fours et equipement labo', regex: /furnace|oven|burnout|pressing|sintering|casting.*machine|centrifug|vacuum.*mixer|polymeriz/i },
+  { name: 'Fours et équipement labo', regex: /furnace|oven|burnout|pressing|sintering|casting.*machine|centrifug|vacuum.*mixer|polymeriz/i },
   { name: 'CAD/CAM prothese', regex: /cad.*cam|milling|scan.*prosth|digital.*prosth|3d.*print.*prosth|stl|dentin.*disc/i },
   { name: 'Ciments de scellement', regex: /luting|cement.*prosth|prosth.*cement|glass.*ionomer.*cem|resin.*cement|self.*adhesive.*cem/i },
-  { name: 'Soudure et ceramisation', regex: /solder|brazing|opaque|glaze|stain.*ceramic|liner.*ceramic|wash.*ceramic|build.*up/i },
+  { name: 'Soudure et céramisation', regex: /solder|brazing|opaque|glaze|stain.*ceramic|liner.*ceramic|wash.*ceramic|build.*up/i },
 ];
 
 // ════════════════════════════════════════════
@@ -96,7 +96,7 @@ function isFalsePositive(product) {
 
 async function main() {
   log('╔══════════════════════════════════════════════╗');
-  log('║  JADOMI — Enrichissement Ortho + Prothese   ║');
+  log('║  JADOMI — Enrichissement Ortho + Prothèse   ║');
   log(`║  Limit: ${LIMIT} | Categories: ${CAT_FILTER}        ║`);
   log('╚══════════════════════════════════════════════╝');
 
@@ -105,7 +105,7 @@ async function main() {
 
   const categories = [];
   if (CAT_FILTER === 'ortho' || CAT_FILTER === 'both') categories.push('Orthodontie');
-  if (CAT_FILTER === 'prosth' || CAT_FILTER === 'both') categories.push('Prothese');
+  if (CAT_FILTER === 'prosth' || CAT_FILTER === 'both') categories.push('Prothèse');
 
   let totalEnriched = 0;
   let totalCleaned = 0;
@@ -118,7 +118,7 @@ async function main() {
 
     const subcatList = category === 'Orthodontie' ? ORTHO_SUBCATEGORIES : PROSTH_SUBCATEGORIES;
 
-    // Recuperer les produits non enrichis
+    // Récupérer les produits non enrichis
     const { data: products, error } = await supabase.from('products_database')
       .select('id, gtin, name, brand, manufacturer, gmdn_code, subcategory, name_fr, source_metadata')
       .eq('category', category)
@@ -126,9 +126,9 @@ async function main() {
       .limit(LIMIT);
 
     if (error) { log('ERREUR: ' + error.message); continue; }
-    if (!products?.length) { log('Aucun produit a enrichir'); continue; }
+    if (!products?.length) { log('Aucun produit à enrichir'); continue; }
 
-    log(`${products.length} produits a traiter`);
+    log(`${products.length} produits à traiter`);
 
     // ETAPE 1 : Nettoyage faux positifs
     log('\n--- Etape 1: Nettoyage faux positifs ---');
@@ -141,12 +141,12 @@ async function main() {
         cleanedCount++;
       }
     }
-    log(`${cleanedCount} faux positifs retires de ${category}`);
+    log(`${cleanedCount} faux positifs retirés de ${category}`);
     totalCleaned += cleanedCount;
 
     // Filtrer les vrais produits
     const realProducts = products.filter(p => !isFalsePositive(p));
-    log(`${realProducts.length} vrais produits ${category} a enrichir`);
+    log(`${realProducts.length} vrais produits ${category} à enrichir`);
 
     // ETAPE 2 : Sous-categorisation par regex
     log('\n--- Etape 2: Sous-categorisation ---');
@@ -156,12 +156,12 @@ async function main() {
       p._subcat = subcat;
       subcatStats[subcat] = (subcatStats[subcat] || 0) + 1;
     }
-    log('Repartition sous-categories:');
+    log('Répartition sous-catégories:');
     Object.entries(subcatStats).sort((a, b) => b[1] - a[1]).forEach(([sub, count]) => {
       log(`  ${sub}: ${count} (${Math.round(count / realProducts.length * 100)}%)`);
     });
 
-    // Sauvegarder les sous-categories dans Supabase (pas besoin d'IA pour ca)
+    // Sauvegarder les sous-catégories dans Supabase (pas besoin d'IA pour ça)
     for (const p of realProducts) {
       if (p._subcat && p._subcat !== 'Autre') {
         await supabase.from('products_database')
@@ -169,7 +169,7 @@ async function main() {
           .eq('id', p.id);
       }
     }
-    log('Sous-categories sauvegardees dans Supabase');
+    log('Sous-catégories sauvegardées dans Supabase');
 
     // ETAPE 3 : Enrichissement IA (nom FR + description)
     log('\n--- Etape 3: Enrichissement IA Claude ---');
@@ -183,8 +183,8 @@ async function main() {
 
       try {
         const systemPrompt = category === 'Orthodontie'
-          ? `Tu es un orthodontiste francais expert. Tu traduis et enrichis des produits d'orthodontie pour un logiciel de gestion de cabinet. Sous-categories possibles : ${ORTHO_SUBCATEGORIES.map(s => s.name).join(', ')}. Reponds UNIQUEMENT avec un JSON array.`
-          : `Tu es un prothesiste dentaire francais expert. Tu traduis et enrichis des produits de prothese dentaire pour un logiciel de laboratoire. Sous-categories possibles : ${PROSTH_SUBCATEGORIES.map(s => s.name).join(', ')}. Reponds UNIQUEMENT avec un JSON array.`;
+          ? `Tu es un orthodontiste français expert. Tu traduis et enrichis des produits d'orthodontie pour un logiciel de gestion de cabinet. Sous-catégories possibles : ${ORTHO_SUBCATEGORIES.map(s => s.name).join(', ')}. Réponds UNIQUEMENT avec un JSON array.`
+          : `Tu es un prothésiste dentaire français expert. Tu traduis et enrichis des produits de prothèse dentaire pour un logiciel de laboratoire. Sous-catégories possibles : ${PROSTH_SUBCATEGORIES.map(s => s.name).join(', ')}. Réponds UNIQUEMENT avec un JSON array.`;
 
         const msg = await anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
@@ -192,7 +192,7 @@ async function main() {
           system: systemPrompt,
           messages: [{
             role: 'user',
-            content: `Enrichis ces ${batch.length} produits en francais.\n\n${productsList}\n\nPour chaque produit :\n{\n  "idx": 1,\n  "name_fr": "Nom francais precis du produit",\n  "subcategory": "Sous-categorie precise",\n  "description_fr": "Description 1-2 phrases en francais pour un praticien",\n  "keywords": ["mot1","mot2","mot3","mot4","mot5"],\n  "usage": "Indication d'utilisation en 1 phrase"\n}\n\nJSON array strict :`
+            content: `Enrichis ces ${batch.length} produits en français.\n\n${productsList}\n\nPour chaque produit :\n{\n  "idx": 1,\n  "name_fr": "Nom français précis du produit",\n  "subcategory": "Sous-catégorie précise",\n  "description_fr": "Description 1-2 phrases en français pour un praticien",\n  "keywords": ["mot1","mot2","mot3","mot4","mot5"],\n  "usage": "Indication d'utilisation en 1 phrase"\n}\n\nJSON array strict :`
           }]
         });
 
@@ -235,15 +235,15 @@ async function main() {
     }
 
     totalEnriched += enriched;
-    log(`\n${category} termine: ${enriched} enrichis, ${cleanedCount} nettoyes`);
+    log(`\n${category} terminé: ${enriched} enrichis, ${cleanedCount} nettoyés`);
   }
 
   const costEstimate = (totalTokens / 1000000 * 1.0).toFixed(2);
   log(`\n${'='.repeat(50)}`);
-  log(`ENRICHISSEMENT TERMINE`);
+  log(`ENRICHISSEMENT TERMINÉ`);
   log(`  Enrichis: ${totalEnriched}`);
-  log(`  Nettoyes (faux positifs): ${totalCleaned}`);
-  log(`  Tokens utilises: ${totalTokens} (~${costEstimate}$)`);
+  log(`  Nettoyés (faux positifs): ${totalCleaned}`);
+  log(`  Tokens utilisés: ${totalTokens} (~${costEstimate}$)`);
   log('='.repeat(50));
 }
 

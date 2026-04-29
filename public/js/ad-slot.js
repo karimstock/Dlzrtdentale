@@ -350,7 +350,7 @@
           </div>
           <div class="jad-footer">
             ${showLabel ? '<span class="jad-label">Suggestion JADOMI</span>' : '<span></span>'}
-            <button class="jad-cta" data-jad-click>${esc(ad.cta_text || 'Decouvrir')}</button>
+            <button class="jad-cta" data-jad-click>${esc(ad.cta_text || 'Découvrir')}</button>
           </div>
         </div>`;
     }

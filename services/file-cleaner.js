@@ -1,15 +1,15 @@
 // =============================================
-// JADOMI RUSH — Nettoyage metadonnees fichiers
+// JADOMI RUSH — Nettoyage métadonnées fichiers
 // Supprime EXIF photos, metadata STL/3MF
 // =============================================
 
 const crypto = require('crypto');
 
-// Supprimer metadonnees EXIF d'une image JPEG
-// Methode simple : trouver et retirer les segments APP1 (EXIF)
+// Supprimer métadonnées EXIF d'une image JPEG
+// Méthode simple : trouver et retirer les segments APP1 (EXIF)
 function stripExifJpeg(buffer) {
   if (!buffer || buffer.length < 4) return buffer;
-  // Verifier magic bytes JPEG
+  // Vérifier magic bytes JPEG
   if (buffer[0] !== 0xFF || buffer[1] !== 0xD8) return buffer;
 
   const chunks = [];
@@ -21,7 +21,7 @@ function stripExifJpeg(buffer) {
 
     const marker = buffer[i + 1];
 
-    // APP1 (0xE1) = EXIF, APP2-APP15 = autres metadonnees
+    // APP1 (0xE1) = EXIF, APP2-APP15 = autres métadonnées
     if (marker >= 0xE1 && marker <= 0xEF) {
       // Skip ce segment
       if (i + 3 < buffer.length) {
@@ -44,7 +44,7 @@ function stripExifJpeg(buffer) {
       continue;
     }
 
-    // SOS (0xDA) = debut des donnees image, copier le reste
+    // SOS (0xDA) = début des données image, copier le reste
     if (marker === 0xDA) {
       chunks.push(buffer.slice(i));
       break;
@@ -64,10 +64,10 @@ function stripExifJpeg(buffer) {
   return Buffer.concat(chunks);
 }
 
-// Supprimer metadonnees PNG (tEXt, iTXt, zTXt chunks)
+// Supprimer métadonnées PNG (tEXt, iTXt, zTXt chunks)
 function stripMetadataPng(buffer) {
   if (!buffer || buffer.length < 8) return buffer;
-  // Verifier PNG signature
+  // Vérifier PNG signature
   const sig = buffer.slice(0, 8);
   if (sig.toString('hex') !== '89504e470d0a1a0a') return buffer;
 
@@ -93,7 +93,7 @@ function stripMetadataPng(buffer) {
   return Buffer.concat(chunks);
 }
 
-// Nettoyer les metadonnees d'un fichier selon son format
+// Nettoyer les métadonnées d'un fichier selon son format
 function nettoyerMetadonnees(buffer, format) {
   if (!buffer) return buffer;
 
@@ -118,7 +118,7 @@ function nettoyerMetadonnees(buffer, format) {
     return cleaned;
   }
 
-  // 3MF/OBJ/PLY : pas de nettoyage specifique necessaire
+  // 3MF/OBJ/PLY : pas de nettoyage spécifique nécessaire
   return buffer;
 }
 
@@ -127,7 +127,7 @@ function calculerChecksum(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
-// Detecter le format depuis le nom de fichier
+// Détecter le format depuis le nom de fichier
 function detecterFormat(filename) {
   if (!filename) return 'autre';
   const ext = filename.split('.').pop().toLowerCase();
@@ -139,7 +139,7 @@ function detecterFormat(filename) {
   return formats[ext] || 'autre';
 }
 
-// Detecter le type MIME
+// Détecter le type MIME
 function detecterMime(filename) {
   const ext = (filename || '').split('.').pop().toLowerCase();
   const mimes = {

@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI — Coach Welcome Modal
-// Personnalised onboarding 3 steps
+// Personalised onboarding 3 steps
 // Passe 25
 // =============================================
 
@@ -145,7 +145,7 @@
               <div class="cw-sub">${d.sous_titre}</div>
               <div class="cw-desc">${d.description}</div>
               <div class="cw-actions">
-                <button class="cw-btn-primary" data-action="next">Decouvrir en 2 minutes</button>
+                <button class="cw-btn-primary" data-action="next">Découvrir en 2 minutes</button>
                 <button class="cw-btn-ghost" data-action="skip">Passer l'introduction</button>
               </div>
             </div>
@@ -159,10 +159,10 @@
             </div>
             <div class="cw-step" data-step="3">
               <div class="cw-greeting" style="font-size:clamp(1.4rem,3vw,2rem);animation:none;opacity:1;">Vos 3 prochaines actions</div>
-              <div class="cw-desc" style="animation:none;opacity:1;">Commencez par ces etapes pour demarrer fort.</div>
+              <div class="cw-desc" style="animation:none;opacity:1;">Commencez par ces étapes pour démarrer fort.</div>
               <ol class="cw-quickwins">${quickwinsHtml}</ol>
               <div class="cw-actions">
-                <button class="cw-btn-primary" data-action="complete">Lancer mon experience JADOMI</button>
+                <button class="cw-btn-primary" data-action="complete">Lancer mon expérience JADOMI</button>
               </div>
             </div>
             <div class="cw-dots">

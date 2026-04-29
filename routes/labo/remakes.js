@@ -8,8 +8,8 @@ const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 
 // -----------------------------------------------
-// GET /api/labo/remakes/stats — Analytics qualite
-// (doit etre AVANT /:id pour eviter conflit route)
+// GET /api/labo/remakes/stats — Analytics qualité
+// (doit être AVANT /:id pour éviter conflit route)
 // -----------------------------------------------
 router.get('/stats', async (req, res) => {
   try {
@@ -231,7 +231,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !remake) return res.status(404).json({ error: 'Remake non trouve' });
+    if (error || !remake) return res.status(404).json({ error: 'Remake non trouvé' });
 
     // Charger info case production si lie
     let caseProduction = null;
@@ -337,9 +337,9 @@ router.put('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!existing) return res.status(404).json({ error: 'Remake non trouve' });
+    if (!existing) return res.status(404).json({ error: 'Remake non trouvé' });
     if (existing.statut === 'ferme') {
-      return res.status(400).json({ error: 'Remake ferme, modification impossible' });
+      return res.status(400).json({ error: 'Remake fermé, modification impossible' });
     }
 
     const b = req.body;
@@ -382,9 +382,9 @@ router.post('/:id/resoudre', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!existing) return res.status(404).json({ error: 'Remake non trouve' });
+    if (!existing) return res.status(404).json({ error: 'Remake non trouvé' });
     if (existing.statut === 'ferme') {
-      return res.status(400).json({ error: 'Remake deja ferme' });
+      return res.status(400).json({ error: 'Remake déjà fermé' });
     }
 
     const b = req.body;

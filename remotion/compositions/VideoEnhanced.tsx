@@ -140,7 +140,7 @@ const Outro: React.FC<{
             textTransform: 'uppercase',
           }}
         >
-          Propulse par JADOMI IA
+          Propulsé par JADOMI IA
         </div>
       </div>
     </AbsoluteFill>

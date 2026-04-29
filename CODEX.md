@@ -621,6 +621,12 @@ JADOMI pour les achats : mise en relation + paiement + facturation.
 - Cloudflare R2
 - SMTP (OVH Pro : pro1.mail.ovh.net)
 
+## Emails officiels JADOMI
+- **contact@jadomi.fr** : email public (pages contact, CGV, mentions legales, footer, support utilisateur)
+- **noreply@jadomi.fr** : emails automatiques (notifications, confirmations, factures, mailing)
+- **karim_bahmed@yahoo.fr** : admin auth uniquement (NE JAMAIS afficher publiquement)
+- REGLE : aucune page publique ne doit afficher l'email personnel du fondateur
+
 ## Repertoires
 - /home/ubuntu/jadomi/ (repo principal)
 - /home/ubuntu/jadomi/api/ (endpoints backend)
@@ -1180,6 +1186,88 @@ MOYENS corriges (8) :
 - Chatbot public rate limit 10/min/IP
 Pages legales creees : cgv.html, mentions-legales.html, contact.html.
 19 fichiers modifies, 757 lignes ajoutees.
+
+## Passe 66 (28 avril 2026) -- Aide/FAQ/Forum + Dashboard infirmier + Rappels + Orthographe
+La plus grosse passe de l'histoire du projet. 4 vagues d'agents (builders, reviewers,
+analystes concurrence, correcteurs orthographe).
+
+### Modules aide et support (4 modules)
+1. Tickets Support : SQL 66, API /api/support (8 user + 4 admin endpoints), frontend
+   /support/index.html + admin.html, satisfaction rating, SLA indicators
+2. Tutoriels Video : 15 tutos interactifs, API /api/support/tutorials (4 endpoints),
+   frontend /support/tutoriels.html, progress dashboard, step animations
+3. Aide Contextuelle : widget JS /js/contextual-help.js, 9 contextes (stock, orga,
+   signature, timeline, facturation, etc.), FAQ accordion inline, integre sur 11 pages
+4. Forum Communaute : SQL 67, API /api/forum (12 endpoints), frontend /communaute,
+   8 categories, reputation, tags, markdown, leaderboard, badges profession
+
+### Analystes concurrence (18 features ajoutees)
+- Zendesk/Freshdesk : auto-suggestions FAQ, detection priorite, reponses pre-ecrites
+  admin, SLA indicators (vert/orange/rouge), FAQ inline contextuel
+- Discourse/Stack : reputation points, tags/labels, markdown, topics lies, notifications
+  sur reponse, badges profession (avantage concurrentiel JADOMI)
+- Notion/Loom/Stripe : progress ring SVG, difficulty meter, step animations CSS,
+  search groupee Algolia-style, feedback pouces, checklist onboarding, breadcrumbs
+
+### Dashboard infirmier complet
+- Dashboard /ide/dashboard.html (1800+ lignes), 9 onglets : Tableau de bord,
+  Planning du jour, Patients, Soins recurrents, Ordonnances, Comptabilite,
+  Mon cabinet, Infirmieres, Absences
+- 33 endpoints API /api/ide/* deja existants branches
+- 3 formules tarifaires : Essentiel 29EUR, Pro 49EUR, Premium 89EUR
+- Feature gating : delai notifications (30/5/0 min), patients (30/illimite),
+  tournees (1/multi/IA), rayon (5/15/30 km), acceptations (2/10/illimite)
+- Flux patient -> infirmiere : page /ide/demande-soins.html (upload ordonnance,
+  geocodage, recherche infirmiere par rayon, premiere arrivee premiere servie)
+- SQL 68 : ide_demandes_soins + ide_abonnements
+- Pages SEO par ville : /soins/:ville (dynamique, Schema.org MedicalBusiness)
+- QR code + flyer imprimable dans le dashboard infirmiere
+
+### Listes de diffusion mailing
+- SQL 69 : mailing_lists, mailing_list_contacts, mailing_list_campaigns, mailing_packs
+- API /api/mailing/lists (12 endpoints : CRUD, contacts, import CSV, envoi, stats, quota)
+- UI 4 onglets dans mailing.html (Campagnes, Listes, Bases, Forfait)
+- Pricing : 500 gratuit, 2500 a 5EUR, 10K a 15EUR, 50K a 49EUR, illimite 99EUR
+
+### Rappels automatiques + SMS + Web Push
+- SQL 70 : rappels_config, rappels_envois, sms_wallet, sms_packs, push_subscriptions
+- lib/rappels-scheduler.js : cron 15 min, 9 templates (J-2, J-1, H-2, post-soin,
+  recall 6 mois/1 an, anniversaire, avis Google, ordonnance expiration)
+- lib/sms-sender.js : OVH SMS API avec mode simulation
+- api/rappels.js : 9 endpoints (config, historique, stats, wallet SMS, packs)
+- api/push.js : Web Push notifications (VAPID, service worker)
+- Cascade intelligente : email (gratuit) -> push 6h (gratuit) -> SMS urgent (payant)
+- Tracking pixel + bouton "Je confirme" / "J'annule" dans les emails
+- 4 packs SMS : 100 a 8EUR, 500 a 35EUR, 1000 a 59EUR, 5000 a 249EUR
+- Dashboard /rappels.html : config, historique, wallet SMS
+
+### AIPD CNIL + documents juridiques
+- docs/AIPD-JADOMI.html : analyse impact 10 pages, 5 risques, plan action HDS
+- 15 questions pour l'avocate (eIDAS, HDS, B2B mailing, DPO, assurances...)
+- CGV enrichies : Article 10 "Donnees de sante" (base legale, conservation, droits)
+- Card AIPD dans dashboard Documents (organisation.html)
+
+### Corrections orthographiques massives
+- 40 agents deployes, ~3100 corrections d'accents sur tout le site
+- Regle inscrite dans CLAUDE.md : zero tolerance orthographe a chaque passe
+- Documents BASEPLAN (avocat, business plan) : ~1250 corrections
+
+### Remplacement emails
+- 28 occurrences karim_bahmed@yahoo.fr remplacees par contact@jadomi.fr / noreply@jadomi.fr
+- Convention : contact@ (public), noreply@ (auto), perso (admin auth uniquement)
+- Inscrit dans CODEX + CLAUDE.md
+
+### Corrections reviewers (129 fixes)
+- Tickets Support reviewer : 13 fixes (UUID validation, FK cascade, aria, keyboard)
+- Tutoriels reviewer : 13 fixes (XSS, slug validation, loading/error states)
+- Aide Contextuelle reviewer : 7 fixes (double-init, inline onclick, focus trap, z-index)
+- Forum reviewer : 14 fixes (search injection, XSS sanitizer, view count inflation)
+- Dashboard infirmier reviewer : 63 fixes (59 accents + 1 XSS + 2 bugs + 1 perf)
+- Flux patient reviewer : 19 fixes (5 secu critiques + 1 bug + 13 accents)
+
+Totaux Passe 66 : ~150 nouveaux endpoints API, ~20 nouvelles pages/composants,
+5 migrations SQL (66-70), ~3100 corrections orthographe, 129 bugs/vulns corriges,
+18 features concurrentielles, ~15000 lignes de code ajoutees.
 
 ## Passe 65 (28 avril 2026) -- Plateforme prothesiste complete + reseau solidarite
 La plus grosse passe du projet. 15 nouveaux modules labo + dashboard complet.

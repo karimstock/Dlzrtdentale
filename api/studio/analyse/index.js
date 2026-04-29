@@ -8,7 +8,7 @@ const router = express.Router();
 const cheerio = require('cheerio');
 
 module.exports = function mountAnalyse(app, supabase) {
-  // --- Auth middleware (meme pattern que studio/index.js) ---
+  // --- Auth middleware (même pattern que studio/index.js) ---
   async function requireAuth(req, res, next) {
     try {
       const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -26,7 +26,7 @@ module.exports = function mountAnalyse(app, supabase) {
       req.societeId = membership ? membership.societe_id : null;
       next();
     } catch (err) {
-      return res.status(401).json({ error: 'Authentification echouee' });
+      return res.status(401).json({ error: 'Authentification échouée' });
     }
   }
 
@@ -43,12 +43,12 @@ module.exports = function mountAnalyse(app, supabase) {
       let targetUrl = url.trim();
       if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
 
-      // SECURITE : bloquer SSRF (reseau interne)
+      // SÉCURITÉ : bloquer SSRF (réseau interne)
       try {
         const parsed = new URL(targetUrl);
         const h = parsed.hostname;
         if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.startsWith('10.') || h.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h === '169.254.169.254' || parsed.protocol === 'file:') {
-          return res.status(400).json({ error: 'URL non autorisee (reseau interne)' });
+          return res.status(400).json({ error: 'URL non autorisée (réseau interne)' });
         }
       } catch { return res.status(400).json({ error: 'URL invalide' }); }
 
@@ -94,13 +94,13 @@ module.exports = function mountAnalyse(app, supabase) {
       } catch (fetchErr) {
         return res.status(400).json({
           error: 'site_inaccessible',
-          message: 'Impossible d\'acceder au site : ' + fetchErr.message
+          message: 'Impossible d\'accéder au site : ' + fetchErr.message
         });
       }
 
       const $ = cheerio.load(html);
 
-      // 2. Detection plateforme
+      // 2. Détection plateforme
       const htmlLower = html.toLowerCase();
 
       if (htmlLower.includes('/wp-content/') || htmlLower.includes('/wp-json/') || htmlLower.includes('wp-embed.min.js')) {
@@ -180,7 +180,7 @@ module.exports = function mountAnalyse(app, supabase) {
         rapport.type_site = 'custom';
       }
 
-      // 3. Detection paiement
+      // 3. Détection paiement
       if (htmlLower.includes('stripe.com') || htmlLower.includes('stripe.js')) {
         rapport.has_stripe = true;
       }
@@ -188,7 +188,7 @@ module.exports = function mountAnalyse(app, supabase) {
         rapport.details.has_paypal = true;
       }
 
-      // 3b. Detection hebergeur (DNS/headers)
+      // 3b. Détection hébergeur (DNS/headers)
       try {
         const serverHeader = (rapport.details.server_header || '').toLowerCase();
         const htmlCheck = htmlLower;
@@ -230,7 +230,7 @@ module.exports = function mountAnalyse(app, supabase) {
         });
       } catch { /* skip image extraction */ }
 
-      // 3d. Detection videos (direct + iframes YouTube/Vimeo)
+      // 3d. Détection vidéos (direct + iframes YouTube/Vimeo)
       rapport.videos = [];
       try {
         $('video').each((i, el) => {
@@ -251,7 +251,7 @@ module.exports = function mountAnalyse(app, supabase) {
         });
       } catch { /* skip video extraction */ }
 
-      // 3e. Detection PDFs
+      // 3e. Détection PDFs
       rapport.documents = [];
       try {
         $('a[href]').each((i, el) => {
@@ -283,7 +283,7 @@ module.exports = function mountAnalyse(app, supabase) {
       rapport.score_seo = Math.min(100, seoScore);
       rapport.details.seo = { title, meta_description: metaDesc, h1_count: h1s, images_count: images, images_with_alt: imagesWithAlt };
 
-      // 5. Score performance (simplifie)
+      // 5. Score performance (simplifié)
       let perfScore = 70;
       const loadTime = rapport.details.load_time_ms || 0;
       const pageSize = rapport.details.page_size_kb || 0;
@@ -305,7 +305,7 @@ module.exports = function mountAnalyse(app, supabase) {
 
       rapport.score_performance = Math.max(0, Math.min(100, perfScore));
 
-      // 6. Score complexite
+      // 6. Score complexité
       let complexite = 0;
 
       // Nombre de pages
@@ -333,7 +333,7 @@ module.exports = function mountAnalyse(app, supabase) {
       if (rapport.plugins_detectes.length > 10) complexite += 10;
       if (rapport.plateforme_detectee === 'custom') complexite += 15;
 
-      // Detecter app web complexe (React, Angular, Vue)
+      // Détecter app web complexe (React, Angular, Vue)
       if (htmlLower.includes('__next') || htmlLower.includes('react') || htmlLower.includes('angular') || htmlLower.includes('vue-app')) {
         complexite += 20;
         rapport.details.is_spa = true;
@@ -345,7 +345,7 @@ module.exports = function mountAnalyse(app, supabase) {
       if (complexite <= 30) {
         rapport.recommandation = 'reconstruire';
       } else if (complexite <= 70) {
-        rapport.recommandation = 'ameliorer';
+        rapport.recommandation = 'améliorer';
       } else {
         rapport.recommandation = 'refuser';
       }
@@ -409,7 +409,7 @@ module.exports = function mountAnalyse(app, supabase) {
 
   // ================================================
   // GET /api/studio/analyse/:id
-  // Recupere une analyse sauvegardee
+  // Récupère une analyse sauvegardée
   // ================================================
   router.get('/:id', requireAuth, async (req, res) => {
     try {
@@ -419,7 +419,7 @@ module.exports = function mountAnalyse(app, supabase) {
         .eq('id', req.params.id)
         .single();
 
-      if (error || !data) return res.status(404).json({ error: 'Analyse non trouvee' });
+      if (error || !data) return res.status(404).json({ error: 'Analyse non trouvée' });
       return res.json(data);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });

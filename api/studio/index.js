@@ -1,7 +1,7 @@
 // =============================================
 // JADOMI Studio — API Endpoints
 // Routes /api/studio/*
-// Monte sur l'app principale via require('./api/studio')(app, supabase, anthropic)
+// Monté sur l'app principale via require('./api/studio')(app, supabase, anthropic)
 // =============================================
 const express = require('express');
 const { generateCreative, getProvider, getWallet, getProvidersStatus, uploadToR2 } = require('../../lib/ai-studio/router');
@@ -34,7 +34,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
 
       next();
     } catch (err) {
-      return res.status(401).json({ error: 'Authentification echouee' });
+      return res.status(401).json({ error: 'Authentification échouée' });
     }
   }
 
@@ -271,7 +271,7 @@ module.exports = function mountStudio(app, supabase, anthropic) {
 
       if (generation_id) {
         item.source_generation_id = generation_id;
-        // Recuperer infos de la generation
+        // Récupérer infos de la génération
         const { data: gen } = await supabase
           .from('ai_generations_log')
           .select('r2_url, generation_type')
@@ -353,5 +353,5 @@ module.exports = function mountStudio(app, supabase, anthropic) {
 
   // Mount
   app.use('/api/studio', router);
-  console.log('[JADOMI] Module Studio (hub IA creatif) monte — 12 endpoints');
+  console.log('[JADOMI] Module Studio (hub IA créatif) monté — 12 endpoints');
 };

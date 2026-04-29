@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI — Dentiste Pro : authentification patient
-// Phone + OTP, creation auto de compte, JWT 30j
+// Phone + OTP, création auto de compte, JWT 30j
 // =============================================
 const express = require('express');
 const { admin, createPatientToken, requirePatient } = require('./shared');
@@ -9,7 +9,7 @@ const { generateCode, sendOTP } = require('../../services/otp-sender');
 const router = express.Router();
 
 // ===== Rate limiting OTP (in-memory) =====
-// Cle: IP, Valeur: { count, resetAt }
+// Clé: IP, Valeur: { count, resetAt }
 const otpRateMap = new Map();
 const OTP_RATE_LIMIT = 5;
 const OTP_RATE_WINDOW = 15 * 60 * 1000; // 15 min
@@ -26,7 +26,7 @@ function checkOtpRateLimit(ip) {
   return true;
 }
 
-// Nettoyage periodique (toutes les 30 min)
+// Nettoyage périodique (toutes les 30 min)
 setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of otpRateMap) {
@@ -37,7 +37,7 @@ setInterval(() => {
 // =========================================================
 // POST /auth/request-otp
 // Body: { cabinet_id, telephone }
-// Genere un code 6 chiffres, le stocke, l'envoie par SMS
+// Génère un code 6 chiffres, le stocke, l'envoie par SMS
 // =========================================================
 router.post('/request-otp', async (req, res) => {
   try {
@@ -49,10 +49,10 @@ router.post('/request-otp', async (req, res) => {
     // Rate limit
     const ip = req.ip || req.connection?.remoteAddress || 'unknown';
     if (!checkOtpRateLimit(ip)) {
-      return res.status(429).json({ error: 'Trop de demandes. Veuillez reessayer dans quelques minutes.' });
+      return res.status(429).json({ error: 'Trop de demandes. Veuillez réessayer dans quelques minutes.' });
     }
 
-    // Verifier que le cabinet existe
+    // Vérifier que le cabinet existe
     const { data: cabinet, error: cabErr } = await admin()
       .from('dentiste_pro_cabinets')
       .select('id, nom')
@@ -64,14 +64,14 @@ router.post('/request-otp', async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
     if (!cabinet) {
-      return res.status(404).json({ error: 'Cabinet non trouve' });
+      return res.status(404).json({ error: 'Cabinet non trouvé' });
     }
 
-    // Generer le code OTP
+    // Générer le code OTP
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min
 
-    // Chercher ou creer le patient
+    // Chercher ou créer le patient
     const tel = telephone.trim().replace(/\s/g, '');
     const { data: existing } = await admin()
       .from('dentiste_pro_patients')
@@ -81,13 +81,13 @@ router.post('/request-otp', async (req, res) => {
       .maybeSingle();
 
     if (existing) {
-      // Mettre a jour le code OTP
+      // Mettre à jour le code OTP
       await admin()
         .from('dentiste_pro_patients')
         .update({ otp_code: code, otp_expires_at: expiresAt })
         .eq('id', existing.id);
     } else {
-      // Creer un patient provisoire
+      // Créer un patient provisoire
       await admin()
         .from('dentiste_pro_patients')
         .insert({
@@ -103,10 +103,10 @@ router.post('/request-otp', async (req, res) => {
     const result = await sendOTP('sms', tel, code, cabinet.nom);
     if (!result.success) {
       console.warn('[dentiste-pro] OTP send failed:', result.error);
-      // On ne bloque pas — le code est stocke en base pour le dev/test
+      // On ne bloque pas — le code est stocké en base pour le dev/test
     }
 
-    res.json({ success: true, message: 'Code envoye' });
+    res.json({ success: true, message: 'Code envoyé' });
   } catch (err) {
     console.error('[dentiste-pro] request-otp:', err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -116,7 +116,7 @@ router.post('/request-otp', async (req, res) => {
 // =========================================================
 // POST /auth/verify-otp
 // Body: { cabinet_id, telephone, code }
-// Verifie le code, cree le compte si nouveau, renvoie JWT
+// Vérifie le code, crée le compte si nouveau, renvoie JWT
 // =========================================================
 router.post('/verify-otp', async (req, res) => {
   try {
@@ -141,17 +141,17 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     if (!patient) {
-      return res.status(404).json({ error: 'Aucun code demande pour ce numero' });
+      return res.status(404).json({ error: 'Aucun code demandé pour ce numéro' });
     }
 
-    // Verifier le code
+    // Vérifier le code
     if (patient.otp_code !== code) {
       return res.status(401).json({ error: 'Code incorrect' });
     }
 
-    // Verifier l'expiration
+    // Vérifier l'expiration
     if (new Date(patient.otp_expires_at) < new Date()) {
-      return res.status(401).json({ error: 'Code expire. Veuillez en demander un nouveau.' });
+      return res.status(401).json({ error: 'Code expiré. Veuillez en demander un nouveau.' });
     }
 
     // Invalider le code OTP
@@ -165,7 +165,7 @@ router.post('/verify-otp', async (req, res) => {
       })
       .eq('id', patient.id);
 
-    // Generer le JWT
+    // Générer le JWT
     const token = createPatientToken(patient.id, cabinet_id);
 
     // Retourner les infos patient (sans OTP)
@@ -186,7 +186,7 @@ router.post('/refresh', requirePatient(), async (req, res) => {
   try {
     const { id, cabinet_id } = req.patient;
 
-    // Verifier que le patient existe toujours
+    // Vérifier que le patient existe toujours
     const { data: patient, error } = await admin()
       .from('dentiste_pro_patients')
       .select('id, cabinet_id, telephone, nom, prenom, email, verified')
@@ -199,7 +199,7 @@ router.post('/refresh', requirePatient(), async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
     if (!patient) {
-      return res.status(404).json({ error: 'Patient non trouve' });
+      return res.status(404).json({ error: 'Patient non trouvé' });
     }
 
     const token = createPatientToken(patient.id, patient.cabinet_id);
@@ -212,7 +212,7 @@ router.post('/refresh', requirePatient(), async (req, res) => {
 
 // =========================================================
 // GET /auth/me
-// Profil du patient connecte (requirePatient)
+// Profil du patient connecté (requirePatient)
 // =========================================================
 router.get('/me', requirePatient(), async (req, res) => {
   try {
@@ -230,7 +230,7 @@ router.get('/me', requirePatient(), async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
     if (!patient) {
-      return res.status(404).json({ error: 'Patient non trouve' });
+      return res.status(404).json({ error: 'Patient non trouvé' });
     }
 
     res.json({ success: true, patient });
@@ -242,7 +242,7 @@ router.get('/me', requirePatient(), async (req, res) => {
 
 // =========================================================
 // PUT /auth/profile
-// Mise a jour du profil patient (nom, email, push)
+// Mise à jour du profil patient (nom, email, push)
 // =========================================================
 router.put('/profile', requirePatient(), async (req, res) => {
   try {
@@ -257,7 +257,7 @@ router.put('/profile', requirePatient(), async (req, res) => {
     updates.updated_at = new Date().toISOString();
 
     if (Object.keys(updates).length <= 1) {
-      return res.status(400).json({ error: 'Aucun champ a mettre a jour' });
+      return res.status(400).json({ error: 'Aucun champ à mettre à jour' });
     }
 
     const { data: patient, error } = await admin()
@@ -270,7 +270,7 @@ router.put('/profile', requirePatient(), async (req, res) => {
 
     if (error) {
       console.error('[dentiste-pro] profile update error:', error);
-      return res.status(500).json({ error: 'Erreur lors de la mise a jour du profil' });
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour du profil' });
     }
 
     res.json({ success: true, patient });
@@ -308,7 +308,7 @@ router.post('/push-subscribe', requirePatient(), async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de l\'enregistrement push' });
     }
 
-    res.json({ success: true, message: 'Souscription push enregistree' });
+    res.json({ success: true, message: 'Souscription push enregistrée' });
   } catch (err) {
     console.error('[dentiste-pro] push-subscribe:', err);
     res.status(500).json({ error: 'Erreur serveur' });

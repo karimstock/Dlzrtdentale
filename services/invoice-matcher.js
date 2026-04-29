@@ -10,9 +10,9 @@
 // 5. On genere des insights d'economies
 // 6. On enrichit la base pour les futurs scans
 //
-// Resultat : JADOMI sait que Henry Schein vend le meme
+// Résultat : JADOMI sait que Henry Schein vend le meme
 // produit 12EUR a un cabinet et 14EUR a un autre.
-// → Negociation groupee → Panier le moins cher.
+// → Négociation groupée → Panier le moins cher.
 // =============================================
 
 const { admin } = require('../api/multiSocietes/middleware');
@@ -249,7 +249,7 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
 
     // 2d. Creer dans products_database si inconnu (enrichissement auto)
     if (!productId) {
-      // Generer un GTIN si on n'en a pas
+      // Générer un GTIN si on n'en a pas
       if (!gtin || gtin.length < 4) {
         gtin = `JADOMI-${supplierName.substring(0,4).toUpperCase()}-${Date.now()}-${results.created}`;
       }
@@ -407,7 +407,7 @@ async function matchInvoiceToProducts(invoiceData, societeId, userId) {
  */
 async function generatePriceInsight(productId, gtin, currentPrice, currentSupplier, societeId, productName) {
   try {
-    // Recuperer tous les prix connus pour ce produit
+    // Récupérer tous les prix connus pour ce produit
     const { data: allPrices } = await admin().from('supplier_prices')
       .select('supplier_name, price_negotiated, price_catalog, societe_id, observed_at')
       .eq('gtin', gtin)
@@ -439,8 +439,8 @@ async function generatePriceInsight(productId, gtin, currentPrice, currentSuppli
       const insightType = isSameSupplier ? 'same_supplier_cheaper' : 'better_supplier';
 
       const message = isSameSupplier
-        ? `${currentSupplier} vend ce produit ${bestPrice.toFixed(2)}EUR a un autre cabinet (vous payez ${currentPrice.toFixed(2)}EUR). Negociez -${savingsPercent}% !`
-        : `${productName || 'Ce produit'} est disponible a ${bestPrice.toFixed(2)}EUR (vous payez ${currentPrice.toFixed(2)}EUR chez ${currentSupplier}). Economie: -${savingsPercent}%`;
+        ? `${currentSupplier} vend ce produit ${bestPrice.toFixed(2)}EUR a un autre cabinet (vous payez ${currentPrice.toFixed(2)}EUR). Négociez -${savingsPercent}% !`
+        : `${productName || 'Ce produit'} est disponible a ${bestPrice.toFixed(2)}EUR (vous payez ${currentPrice.toFixed(2)}EUR chez ${currentSupplier}). Économie: -${savingsPercent}%`;
 
       const insight = {
         societe_id: societeId,
@@ -479,7 +479,7 @@ async function generatePriceInsight(productId, gtin, currentPrice, currentSuppli
         best_supplier: `${currentSupplier} (prix precedent)`,
         potential_savings: +increase.toFixed(2),
         savings_percent: +increasePct,
-        message: `${currentSupplier} a augmente le prix de ${productName || 'ce produit'} de +${increasePct}% (${previousSameSupplier.price.toFixed(2)}EUR → ${currentPrice.toFixed(2)}EUR)`,
+        message: `${currentSupplier} a augmenté le prix de ${productName || 'ce produit'} de +${increasePct}% (${previousSameSupplier.price.toFixed(2)}EUR → ${currentPrice.toFixed(2)}EUR)`,
         action_recommended: 'surveiller'
       };
 
@@ -533,7 +533,7 @@ async function generateCheapestBasket(productGtins, societeId) {
 
 // ── Helpers ────────────────────────────────────
 
-// Categorise automatiquement le distributeur
+// Catégorise automatiquement le distributeur
 function classifySupplier(name) {
   const n = name.toLowerCase();
   if (/henry\s*schein/i.test(n)) return 'distributor';
@@ -562,7 +562,7 @@ function extractBrand(designation) {
   return null;
 }
 
-// Deviner la categorie depuis la designation francaise
+// Deviner la catégorie depuis la désignation française
 function guessCategory(designation) {
   const d = designation.toLowerCase();
   if (/composite|compo\b/i.test(d)) return 'Composites';

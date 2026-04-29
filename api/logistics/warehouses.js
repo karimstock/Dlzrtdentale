@@ -1,11 +1,11 @@
 // =============================================
-// JADOMI — Entrepots fournisseurs
+// JADOMI — Entrepôts fournisseurs
 // =============================================
 const rateLimit = require('express-rate-limit');
 
 module.exports = function mountWarehouses(app, admin, auth) {
 
-  // GET /api/logistics/warehouses — lister entrepots d'un fournisseur
+  // GET /api/logistics/warehouses — lister entrepôts d'un fournisseur
   app.get('/api/logistics/warehouses', auth, async (req, res) => {
     try {
       const supplierId = req.query.supplier_id;
@@ -25,7 +25,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
     }
   });
 
-  // POST /api/logistics/warehouses — creer un entrepot (auth)
+  // POST /api/logistics/warehouses — créer un entrepôt (auth)
   app.post('/api/logistics/warehouses', auth, async (req, res) => {
     try {
       const { supplier_id, name, address, city, postal_code, region, lat, lng, is_primary } = req.body;
@@ -33,7 +33,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
         return res.status(400).json({ error: 'supplier_id, name, address requis' });
       }
 
-      // Si is_primary, demarquer les autres
+      // Si is_primary, démarquer les autres
       if (is_primary) {
         await admin()
           .from('supplier_warehouses')
@@ -79,11 +79,11 @@ module.exports = function mountWarehouses(app, admin, auth) {
   });
 
   // POST /api/logistics/warehouses/public/:token — fournisseur ajoute entrepot via token (SANS AUTH)
-  const publicLimiter = rateLimit({ windowMs: 60000, max: 10, message: { error: 'Trop de requetes' } });
+  const publicLimiter = rateLimit({ windowMs: 60000, max: 10, message: { error: 'Trop de requêtes' } });
 
   app.post('/api/logistics/warehouses/public/:token', publicLimiter, async (req, res) => {
     try {
-      // Verifier le token dans gpo_request_attempts
+      // Vérifier le token dans gpo_request_attempts
       const { data: attempt } = await admin()
         .from('gpo_request_attempts')
         .select('supplier_id')
@@ -95,7 +95,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
       const { name, address, postal_code, city, lat, lng } = req.body;
       if (!address) return res.status(400).json({ error: 'address requis' });
 
-      // Demarquer les autres
+      // Démarquer les autres
       await admin()
         .from('supplier_warehouses')
         .update({ is_primary: false })
@@ -105,7 +105,7 @@ module.exports = function mountWarehouses(app, admin, auth) {
         .from('supplier_warehouses')
         .insert({
           supplier_id: attempt.supplier_id,
-          name: name || 'Entrepot principal',
+          name: name || 'Entrepôt principal',
           address,
           postal_code,
           city,

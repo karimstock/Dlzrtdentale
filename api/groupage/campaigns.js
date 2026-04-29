@@ -1,11 +1,11 @@
 // =============================================
-// JADOMI — Campagnes de groupage regional
+// JADOMI — Campagnes de groupage régional
 // =============================================
 const { sendMail } = require('../multiSocietes/mailer');
 
 module.exports = function mountCampaigns(app, admin, auth) {
 
-  // POST /api/groupage/campaigns — creer une campagne
+  // POST /api/groupage/campaigns — créer une campagne
   app.post('/api/groupage/campaigns', auth, async (req, res) => {
     try {
       const societeId = req.headers['x-societe-id'] || req.body.societe_id;
@@ -18,7 +18,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
       const deadline = new Date(Date.now() + hours * 3600000).toISOString();
       const minCabinets = min_cabinets_required || 5;
 
-      // Creer la campagne
+      // Créer la campagne
       const { data: campaign, error } = await admin()
         .from('group_purchase_campaigns')
         .insert({
@@ -38,11 +38,11 @@ module.exports = function mountCampaigns(app, admin, auth) {
 
       if (error) throw error;
 
-      // Auto-inscrire le createur
+      // Auto-inscrire le créateur
       const items = suggested_items || [];
       const subtotal = items.reduce((s, i) => s + ((i.quantity || 1) * (i.unit_price_eur || 17)), 0);
 
-      // Recuperer adresse societe
+      // Récupérer adresse société
       const { data: societe } = await admin()
         .from('societes')
         .select('address, city, postal_code, lat, lng')
@@ -64,7 +64,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
           shipping_free: subtotal >= 150
         });
 
-      // Mettre a jour le volume
+      // Mettre à jour le volume
       await admin()
         .from('group_purchase_campaigns')
         .update({ total_volume_eur: subtotal })
@@ -119,7 +119,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
 
       if (error || !campaign) return res.status(404).json({ error: 'Campagne introuvable' });
 
-      // Recuperer les items (anonymises : pas de nom de cabinet pour les autres)
+      // Récupérer les items (anonymisés : pas de nom de cabinet pour les autres)
       const { data: items } = await admin()
         .from('group_purchase_items')
         .select('id, items, subtotal_eur, cabinet_city, status, joined_at')
@@ -148,14 +148,14 @@ module.exports = function mountCampaigns(app, admin, auth) {
       if (!campaign) return res.status(404).json({ error: 'Campagne introuvable' });
       if (campaign.status !== 'collecting') return res.status(400).json({ error: 'Campagne plus ouverte' });
       if (new Date(campaign.collection_deadline) < new Date()) {
-        return res.status(400).json({ error: 'Delai de collecte depasse' });
+        return res.status(400).json({ error: 'Délai de collecte dépassé' });
       }
 
       const { items } = req.body;
       const itemsList = items || campaign.suggested_items || [];
       const subtotal = itemsList.reduce((s, i) => s + ((i.quantity || 1) * (i.unit_price_eur || 17)), 0);
 
-      // Recuperer adresse societe
+      // Récupérer adresse société
       const { data: societe } = await admin()
         .from('societes')
         .select('address, city, postal_code, lat, lng')
@@ -179,11 +179,11 @@ module.exports = function mountCampaigns(app, admin, auth) {
         });
 
       if (insErr) {
-        if (insErr.code === '23505') return res.status(400).json({ error: 'Déjà inscrit a cette campagne' });
+        if (insErr.code === '23505') return res.status(400).json({ error: 'Déjà inscrit à cette campagne' });
         throw insErr;
       }
 
-      // Incrementer compteurs
+      // Incrémenter compteurs
       const newCount = campaign.current_cabinets_count + 1;
       const newVolume = (campaign.total_volume_eur || 0) + subtotal;
 
@@ -195,7 +195,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
         })
         .eq('id', campaign.id);
 
-      // Declenchement automatique si seuil atteint
+      // Déclenchement automatique si seuil atteint
       let triggered = false;
       if (newCount >= campaign.min_cabinets_required) {
         const { triggerCampaign } = require('./actions');
@@ -228,7 +228,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
         .single();
 
       if (!campaign || campaign.status !== 'collecting') {
-        return res.status(400).json({ error: 'Retrait impossible (campagne deja lancee)' });
+        return res.status(400).json({ error: 'Retrait impossible (campagne déjà lancée)' });
       }
 
       const { data: item } = await admin()
@@ -246,7 +246,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
         .update({ status: 'withdrawn', withdrawn_at: new Date().toISOString() })
         .eq('id', item.id);
 
-      // Decremente
+      // Décrémente
       await admin().rpc('decrement_campaign_count', { cid: req.params.id, amount: item.subtotal_eur || 0 })
         .catch(() => {
           // Fallback sans RPC
@@ -272,7 +272,7 @@ module.exports = function mountCampaigns(app, admin, auth) {
     }
   });
 
-  // POST /api/groupage/campaigns/:id/invite — inviter un confrere par email
+  // POST /api/groupage/campaigns/:id/invite — inviter un confrère par email
   app.post('/api/groupage/campaigns/:id/invite', auth, async (req, res) => {
     try {
       const { email } = req.body;

@@ -26,7 +26,7 @@ function createDevisRouter(supabase) {
 
       // Verifier que le prothesiste ne repond pas a sa propre demande
       if (demande.demandeur_id === parseInt(prothesiste_id)) {
-        return res.status(400).json({ error: 'Vous ne pouvez pas repondre a votre propre demande' });
+        return res.status(400).json({ error: 'Vous ne pouvez pas répondre à votre propre demande' });
       }
 
       // Generer alias stable
@@ -147,7 +147,7 @@ function createDevisRouter(supabase) {
 
       res.json({
         success: true,
-        message: 'Devis accepte — paiement requis',
+        message: 'Devis accepté — paiement requis',
         devis,
         paiement_requis: {
           montant_total: devis.prix_total_estime,

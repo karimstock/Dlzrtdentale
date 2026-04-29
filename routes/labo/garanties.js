@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 
-// Durees par defaut (en mois)
+// Durées par défaut (en mois)
 const DUREES_DEFAUT = {
   couronne: 60,
   ccm: 36,
@@ -160,7 +160,7 @@ router.put('/config', async (req, res) => {
     // Valider que les valeurs sont des entiers positifs
     for (const [key, val] of Object.entries(durees)) {
       if (typeof val !== 'number' || val < 1 || !Number.isInteger(val)) {
-        return res.status(400).json({ error: `Duree invalide pour "${key}": doit etre un entier positif` });
+        return res.status(400).json({ error: `Durée invalide pour "${key}" : doit être un entier positif` });
       }
     }
 
@@ -230,7 +230,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !garantie) return res.status(404).json({ error: 'Garantie non trouvee' });
+    if (error || !garantie) return res.status(404).json({ error: 'Garantie non trouvée' });
 
     // Charger BL lie
     let bl = null;
@@ -273,7 +273,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/labo/garanties — Creer une garantie
+// POST /api/labo/garanties — Créer une garantie
 router.post('/', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
@@ -283,7 +283,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'type_travail requis' });
     }
 
-    // Determiner la duree
+    // Déterminer la durée
     const dureeMois = b.duree_mois || await getDureeForType(req.prothesisteId, b.type_travail);
     const dateDebut = b.date_debut || new Date().toISOString().split('T')[0];
     const dateFin = calculerDateFin(dateDebut, dureeMois);
@@ -353,7 +353,7 @@ router.put('/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Garantie non trouvee' });
+    if (!data) return res.status(404).json({ error: 'Garantie non trouvée' });
     res.json({ garantie: data });
   } catch (e) {
     console.error('[LABO GARANTIES PUT]', e.message);
@@ -361,12 +361,12 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// POST /api/labo/garanties/:id/reclamation — Deposer une reclamation
+// POST /api/labo/garanties/:id/reclamation — Déposer une réclamation
 router.post('/:id/reclamation', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
 
-    // Verifier que la garantie existe et appartient au prothesiste
+    // Vérifier que la garantie existe et appartient au prothésiste
     const { data: garantie, error: gErr } = await admin()
       .from('labo_garanties')
       .select('id, statut, date_fin')
@@ -374,14 +374,14 @@ router.post('/:id/reclamation', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (gErr || !garantie) return res.status(404).json({ error: 'Garantie non trouvee' });
+    if (gErr || !garantie) return res.status(404).json({ error: 'Garantie non trouvée' });
 
     const b = req.body;
     if (!b.description) {
       return res.status(400).json({ error: 'description requise' });
     }
 
-    // Creer la reclamation
+    // Créer la réclamation
     const { data: reclamation, error: rErr } = await admin()
       .from('labo_garantie_reclamations')
       .insert({

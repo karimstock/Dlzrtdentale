@@ -5,16 +5,16 @@
 
 const { admin } = require('../api/multiSocietes/middleware');
 
-// Categories dentaires
+// Catégories dentaires
 const DENTAL_CATEGORIES = [
   'Orthodontie','Prothese','Implants','Instruments','Chirurgie',
   'Endodontie','Parodontie','Composites','Empreintes','Equipement',
   'CFAO','Radiologie','Anesthesie','Hygiene','Sterilisation','Esthetique'
 ];
 
-// 3 metiers reels qui commandent du materiel dentaire
-// Chacun cherche D'ABORD dans ses categories prioritaires, PUIS elargit a tout
-// Un dentiste avec une usineuse commande aussi du matos prothesiste → on elargit toujours
+// 3 métiers réels qui commandent du matériel dentaire
+// Chacun cherche D'ABORD dans ses catégories prioritaires, PUIS élargit à tout
+// Un dentiste avec une usineuse commande aussi du matos prothésiste → on élargit toujours
 const PRIORITY_BY_PROFESSION = {
   // Chirurgien-dentiste = omnipraticien, fait TOUT (endo, paro, implants, compo, chirurgie)
   'dentiste': [
@@ -22,12 +22,12 @@ const PRIORITY_BY_PROFESSION = {
     'Chirurgie', 'Parodontie', 'Implants', 'Hygiene', 'Radiologie',
     'Equipement', 'CFAO', 'Sterilisation', 'Prothese', 'Esthetique'
   ],
-  // Prothesiste dentaire = labo, mais partage des produits avec les dentistes
+  // Prothésiste dentaire = labo, mais partage des produits avec les dentistes
   'prothesiste': [
     'Prothese', 'CFAO', 'Empreintes', 'Instruments', 'Equipement',
     'Composites', 'Sterilisation', 'Implants', 'Radiologie'
   ],
-  // Orthodontiste = specialise mais commande aussi du materiel general
+  // Orthodontiste = spécialisé mais commande aussi du matériel général
   'orthodontiste': [
     'Orthodontie', 'Instruments', 'CFAO', 'Equipement', 'Empreintes',
     'Composites', 'Sterilisation', 'Radiologie', 'Anesthesie'
@@ -37,31 +37,31 @@ const PRIORITY_BY_PROFESSION = {
 /**
  * Waterfall ULTRA-RAPIDE pour identifier un produit par GTIN
  *
- * Strategie : DENTAL FIRST
- *   1. labo_stock cabinet (stock interne) → instantane
+ * Stratégie : DENTAL FIRST
+ *   1. labo_stock cabinet (stock interne) → instantané
  *   2. products_database GTIN exact (1.3M produits dentaires) → <5ms
- *   3. products_database reference fabricant → <10ms
+ *   3. products_database référence fabricant → <10ms
  *   4. products_database recherche floue (GTIN partiel, variantes) → <20ms
  *   5. OpenFoodFacts (fallback non-dental) → ~200ms
  *   6. Claude IA (dernier recours) → ~1-2s
  *
- * 99%+ des scans dentaires resolus en <10ms (niveaux 1-3)
+ * 99%+ des scans dentaires résolus en <10ms (niveaux 1-3)
  */
 async function lookupProduct(code, prothesisteId, options = {}) {
   const startTime = Date.now();
   let waterfallLevels = 0;
 
-  // Normaliser le code (retirer espaces, tirets, caracteres PostgREST dangereux)
+  // Normaliser le code (retirer espaces, tirets, caractères PostgREST dangereux)
   const cleanCode = code.replace(/[\s\-]/g, '').replace(/[,().%_]/g, '').trim();
 
-  // Categories prioritaires selon le metier du praticien
+  // Catégories prioritaires selon le métier du praticien
   // Orthodontiste → cherche d'abord dans Orthodontie
-  // Prothesiste → cherche d'abord dans Prothese, etc.
+  // Prothésiste → cherche d'abord dans Prothèse, etc.
   const profession = options.profession || 'omnipraticien';
   const priorityCategories = PRIORITY_BY_PROFESSION[profession] || DENTAL_CATEGORIES;
 
   // ══════════════════════════════════════════
-  // NIVEAU 1 : Stock interne cabinet (instantane)
+  // NIVEAU 1 : Stock interne cabinet (instantané)
   // ══════════════════════════════════════════
   waterfallLevels++;
   if (prothesisteId) {
@@ -101,7 +101,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
   } catch (e) { /* table may not exist yet */ }
 
   // ══════════════════════════════════════════
-  // NIVEAU 3 : Base JADOMI — Reference fabricant (<10ms)
+  // NIVEAU 3 : Base JADOMI — Référence fabricant (<10ms)
   // ══════════════════════════════════════════
   waterfallLevels++;
   if (cleanCode.length >= 4) {
@@ -129,7 +129,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
 
   // ══════════════════════════════════════════
   // NIVEAU 4 : Base JADOMI — Recherche floue GTIN (<20ms)
-  // Variantes : EAN-8 dans EAN-13, zero-padding, prefixe
+  // Variantes : EAN-8 dans EAN-13, zero-padding, préfixe
   // ══════════════════════════════════════════
   waterfallLevels++;
   if (cleanCode.length >= 6) {
@@ -160,13 +160,13 @@ async function lookupProduct(code, prothesisteId, options = {}) {
         }
       }
 
-      // Recherche par prefixe — PRIORITE METIER
-      // Orthodontiste → cherche d'abord dans Orthodontie, puis elargit
-      // Prothesiste → cherche d'abord dans Prothese, puis elargit
+      // Recherche par préfixe — PRIORITÉ MÉTIER
+      // Orthodontiste → cherche d'abord dans Orthodontie, puis élargit
+      // Prothésiste → cherche d'abord dans Prothèse, puis élargit
       if (cleanCode.length >= 8) {
         const prefix = cleanCode.substring(0, 8);
 
-        // Etape 4a : chercher dans les categories prioritaires du metier
+        // Étape 4a : chercher dans les catégories prioritaires du métier
         const { data: priorityMatch } = await admin().from('products_database')
           .select('id,gtin,name,name_fr,brand,manufacturer,category,subcategory,image_url,confidence_score,metadata')
           .like('gtin', `${prefix}%`)
@@ -190,7 +190,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
           };
         }
 
-        // Etape 4b : elargir a TOUTES les categories dentaires
+        // Étape 4b : élargir à TOUTES les catégories dentaires
         const { data: broadMatch } = await admin().from('products_database')
           .select('id,gtin,name,name_fr,brand,manufacturer,category,subcategory,image_url,confidence_score,metadata')
           .like('gtin', `${prefix}%`)
@@ -217,7 +217,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
   }
 
   // ══════════════════════════════════════════
-  // NIVEAU 4bis : Recherche par NOM si code non-numerique
+  // NIVEAU 4bis : Recherche par NOM si code non-numérique
   // (quand le dentiste tape "equia forte" au lieu de scanner)
   // ══════════════════════════════════════════
   if (cleanCode.length >= 3 && !/^\d+$/.test(cleanCode)) {
@@ -234,7 +234,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
         data = res.data;
       } catch (e) { /* fulltext pas dispo, continue */ }
 
-      // Fallback : chercher dans toutes categories
+      // Fallback : chercher dans toutes catégories
       if (!data) {
         try {
           const res = await admin().from('products_database')
@@ -309,7 +309,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
       const msg = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
-        system: 'Tu es un assistant expert en produits dentaires, medicaux et de laboratoire prothetique. Identifie le produit a partir de son code-barres. Reponds UNIQUEMENT en JSON strict.',
+        system: 'Tu es un assistant expert en produits dentaires, médicaux et de laboratoire prothétique. Identifie le produit à partir de son code-barres. Réponds UNIQUEMENT en JSON strict.',
         messages: [{
           role: 'user',
           content: `Code-barres: ${cleanCode}. Identifie ce produit. JSON strict: {"nom":"...","marque":"...","categorie":"...","sous_categorie":"...","fournisseur":null,"confidence":0.0,"is_dental":true}`
@@ -329,7 +329,7 @@ async function lookupProduct(code, prothesisteId, options = {}) {
     } catch (e) { /* continue */ }
   }
 
-  // Rien trouve
+  // Rien trouvé
   logScan(cleanCode, 'unknown', 0, waterfallLevels, Date.now() - startTime, options);
   return { source: 'unknown', produit: null, existe_stock: false, waterfall_levels: waterfallLevels, duration_ms: Date.now() - startTime };
 }
@@ -669,7 +669,7 @@ async function enrichScanResult(result, societeId, existingPrices = null) {
         result.cheapest_equivalent = {
           product_name: best.product, brand: best.brand,
           price: best.price, supplier: best.supplier,
-          message: `Meme produit disponible sous la marque "${best.brand}" a ${best.price.toFixed(2)} EUR chez ${best.supplier}`
+          message: `Même produit disponible sous la marque "${best.brand}" à ${best.price.toFixed(2)} EUR chez ${best.supplier}`
         };
       }
     }

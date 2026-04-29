@@ -24,5 +24,5 @@ module.exports = function mountLogistics(app) {
   require('./warehouses')(app, admin, auth);
   require('./labels')(app, admin, auth);
 
-  console.log('[JADOMI] Module Logistique monte');
+  console.log('[JADOMI] Module Logistique monté');
 };

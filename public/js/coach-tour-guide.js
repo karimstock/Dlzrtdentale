@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI — Tour Guide Interactif (Intercom-style)
-// Spotlight overlay + bulles explicatives + navigation etapes
+// Spotlight overlay + bulles explicatives + navigation étapes
 // Passe 31
 // =============================================
 (function() {
@@ -167,7 +167,7 @@
       await new Promise(r => setTimeout(r, 450));
 
       // Update tooltip content
-      this.tooltip.querySelector('.jt-step-count').textContent = `Etape ${idx + 1} / ${this.steps.length}`;
+      this.tooltip.querySelector('.jt-step-count').textContent = `Étape ${idx + 1} / ${this.steps.length}`;
       this.tooltip.querySelector('.jt-icon').textContent = step.icon || '✨';
       this.tooltip.querySelector('.jt-title').textContent = step.title || '';
       this.tooltip.querySelector('.jt-desc').textContent = step.description || '';
@@ -278,9 +278,9 @@
               <path class="jt-check-tick" d="M28 50l14 14 26-28" stroke="#c9a961" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
             </svg>
           </div>
-          <h3>Tout est pret.</h3>
-          <div class="jt-user-name">Votre espace professionnel est configure.</div>
-          <p>Vous pouvez relancer cette visite guidee depuis vos parametres.</p>
+          <h3>Tout est prêt.</h3>
+          <div class="jt-user-name">Votre espace professionnel est configuré.</div>
+          <p>Vous pouvez relancer cette visite guidée depuis vos paramètres.</p>
         </div>`;
       document.body.appendChild(toast);
       requestAnimationFrame(() => toast.classList.add('visible'));

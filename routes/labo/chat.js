@@ -42,7 +42,7 @@ async function validateDentisteToken(token) {
 // GET /chat/conversations — List conversations
 router.get('/conversations', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothésiste requis' });
 
     let query = admin()
       .from('labo_conversations')
@@ -120,7 +120,7 @@ router.get('/conversations', async (req, res) => {
 // GET /chat/conversations/:id/messages — Get messages (paginated)
 router.get('/conversations/:id/messages', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothésiste requis' });
 
     // Verify conversation belongs to this lab
     const { data: conv } = await admin()
@@ -160,7 +160,7 @@ router.get('/conversations/:id/messages', async (req, res) => {
 // POST /chat/conversations — Create conversation
 router.post('/conversations', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothésiste requis' });
 
     const { dentiste_id, case_production_id, sujet } = req.body;
     if (!dentiste_id) return res.status(400).json({ error: 'dentiste_id requis' });
@@ -173,7 +173,7 @@ router.post('/conversations', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .maybeSingle();
 
-    if (!dentiste) return res.status(404).json({ error: 'Dentiste non trouve' });
+    if (!dentiste) return res.status(404).json({ error: 'Dentiste non trouvé' });
 
     const { data: conv, error } = await admin()
       .from('labo_conversations')
@@ -198,7 +198,7 @@ router.post('/conversations', async (req, res) => {
 // POST /chat/conversations/:id/messages — Send message (lab side)
 router.post('/conversations/:id/messages', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothésiste requis' });
 
     // Verify conversation belongs to this lab
     const { data: conv } = await admin()
@@ -246,7 +246,7 @@ router.post('/conversations/:id/messages', async (req, res) => {
 // POST /chat/conversations/:id/lire — Mark messages as read (lab side)
 router.post('/conversations/:id/lire', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothésiste requis' });
 
     // Verify conversation belongs to this lab
     const { data: conv } = await admin()
@@ -276,7 +276,7 @@ router.post('/conversations/:id/lire', async (req, res) => {
 // GET /chat/unread — Total unread count
 router.get('/unread', async (req, res) => {
   try {
-    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothesiste requis' });
+    if (!req.prothesisteId) return res.status(400).json({ error: 'Profil prothésiste requis' });
 
     // Get all conversation IDs for this lab
     const { data: convs } = await admin()
@@ -316,7 +316,7 @@ portailRouter.use(async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Token requis' });
 
     const dentiste = await validateDentisteToken(token);
-    if (!dentiste) return res.status(401).json({ error: 'Token invalide ou expire' });
+    if (!dentiste) return res.status(401).json({ error: 'Token invalide ou expiré' });
 
     req.dentisteId = dentiste.id;
     req.dentisteNom = `Dr ${dentiste.prenom || ''} ${dentiste.nom || ''}`.trim();

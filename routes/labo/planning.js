@@ -303,7 +303,7 @@ router.post('/affecter', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .maybeSingle();
     if (techErr) throw techErr;
-    if (!tech) return res.status(404).json({ error: 'Technicien non trouve' });
+    if (!tech) return res.status(404).json({ error: 'Technicien non trouvé' });
 
     const techNom = `${tech.prenom || ''} ${tech.nom}`.trim();
 
@@ -327,7 +327,7 @@ router.post('/affecter', async (req, res) => {
     if (error) throw error;
 
     res.json({
-      message: `${(data || []).length} cas affecte(s) a ${techNom}`,
+      message: `${(data || []).length} cas affecté(s) à ${techNom}`,
       cas_mis_a_jour: data || []
     });
   } catch (e) {
@@ -337,7 +337,7 @@ router.post('/affecter', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// POST /api/labo/planning/reorganiser — Deplacer un cas
+// POST /api/labo/planning/reorganiser — Déplacer un cas
 // ─────────────────────────────────────────────
 router.post('/reorganiser', async (req, res) => {
   try {
@@ -361,7 +361,7 @@ router.post('/reorganiser', async (req, res) => {
         .eq('prothesiste_id', req.prothesisteId)
         .maybeSingle();
       if (techErr) throw techErr;
-      if (!tech) return res.status(404).json({ error: 'Nouveau technicien non trouve' });
+      if (!tech) return res.status(404).json({ error: 'Nouveau technicien non trouvé' });
 
       updateData.technicien_id = tech.id;
       updateData.technicien_nom = `${tech.prenom || ''} ${tech.nom}`.trim();
@@ -379,10 +379,10 @@ router.post('/reorganiser', async (req, res) => {
       .select('id, reference, technicien_id, technicien_nom, date_livraison_prevue');
 
     if (error) throw error;
-    if (!data || data.length === 0) return res.status(404).json({ error: 'Cas non trouve' });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Cas non trouvé' });
 
     res.json({
-      message: 'Cas reorganise',
+      message: 'Cas réorganisé',
       cas: data[0]
     });
   } catch (e) {
@@ -540,12 +540,12 @@ router.post('/conges', async (req, res) => {
     }
 
     if (new Date(date_fin) < new Date(date_debut)) {
-      return res.status(400).json({ error: 'date_fin doit etre apres date_debut' });
+      return res.status(400).json({ error: 'date_fin doit être après date_debut' });
     }
 
     const validMotifs = ['conge', 'maladie', 'formation', 'autre'];
     if (motif && !validMotifs.includes(motif)) {
-      return res.status(400).json({ error: `Motif invalide. Valeurs acceptees: ${validMotifs.join(', ')}` });
+      return res.status(400).json({ error: `Motif invalide. Valeurs acceptées : ${validMotifs.join(', ')}` });
     }
 
     // Verifier technicien appartient au labo
@@ -556,7 +556,7 @@ router.post('/conges', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .maybeSingle();
     if (techErr) throw techErr;
-    if (!tech) return res.status(404).json({ error: 'Technicien non trouve' });
+    if (!tech) return res.status(404).json({ error: 'Technicien non trouvé' });
 
     const { data, error } = await admin()
       .from('labo_planning_conges')
@@ -574,7 +574,7 @@ router.post('/conges', async (req, res) => {
     if (error) throw error;
 
     res.status(201).json({
-      message: `Absence enregistree pour ${tech.nom}`,
+      message: `Absence enregistrée pour ${tech.nom}`,
       conge: data
     });
   } catch (e) {
@@ -600,9 +600,9 @@ router.delete('/conges/:id', async (req, res) => {
       .select();
 
     if (error) throw error;
-    if (!data || data.length === 0) return res.status(404).json({ error: 'Absence non trouvee' });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Absence non trouvée' });
 
-    res.json({ message: 'Absence supprimee', conge: data[0] });
+    res.json({ message: 'Absence supprimée', conge: data[0] });
   } catch (e) {
     console.error('[LABO planning conges DELETE]', e.message);
     res.status(500).json({ error: 'Erreur interne' });

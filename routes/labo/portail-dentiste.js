@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI LABO — Portail dentiste (acces externe)
+// JADOMI LABO — Portail dentiste (accès externe)
 // Magic link auth pour dentistes clients
 // =============================================
 
@@ -8,7 +8,7 @@ const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 const crypto = require('crypto');
 
-// POST /api/labo/portail-dentiste/magic-link — Generer magic link
+// POST /api/labo/portail-dentiste/magic-link — Générer magic link
 router.post('/magic-link', async (req, res) => {
   try {
     const { dentiste_id } = req.body;
@@ -21,13 +21,13 @@ router.post('/magic-link', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!dentiste) return res.status(404).json({ error: 'Dentiste non trouve' });
+    if (!dentiste) return res.status(404).json({ error: 'Dentiste non trouvé' });
 
-    // Generer token unique
+    // Générer token unique
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
 
-    // Stocker dans metadata dentiste (simple, sans table supplementaire)
+    // Stocker dans metadata dentiste (simple, sans table supplémentaire)
     await admin().from('dentistes_clients')
       .update({
         notes: JSON.stringify({
@@ -49,7 +49,7 @@ router.post('/magic-link', async (req, res) => {
 // GET /api/labo/portail-dentiste/factures — Factures du dentiste (via token)
 router.get('/factures', async (req, res) => {
   try {
-    // Pour le portail, on utilise le contexte du dentiste connecte via le middleware
+    // Pour le portail, on utilise le contexte du dentiste connecté via le middleware
     // En attendant auth dentiste, on utilise dentiste_id en query
     const dentisteId = req.query.dentiste_id;
     if (!dentisteId) return res.status(400).json({ error: 'dentiste_id requis' });

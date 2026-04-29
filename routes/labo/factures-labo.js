@@ -87,7 +87,7 @@ router.get('/a-facturer', async (req, res) => {
   }
 });
 
-// POST /api/labo/factures/generer — Generer toutes les factures du mois
+// POST /api/labo/factures/generer — Générer toutes les factures du mois
 router.post('/generer', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
@@ -115,7 +115,7 @@ router.post('/generer', async (req, res) => {
     if (blErr) throw blErr;
 
     if (!bls || bls.length === 0) {
-      return res.json({ success: true, factures: [], message: 'Aucun BL a facturer' });
+      return res.json({ success: true, factures: [], message: 'Aucun BL à facturer' });
     }
 
     // Grouper par dentiste
@@ -183,7 +183,7 @@ router.post('/generer', async (req, res) => {
           .eq('id', bl.id);
       }
 
-      // Generer PDF
+      // Générer PDF
       const { data: dentiste, error: dentErr } = await admin()
         .from('dentistes_clients')
         .select('*')
@@ -208,7 +208,7 @@ router.post('/generer', async (req, res) => {
         }
       }
 
-      // Generer PDF avec XML Factur-X embarque (conformite Sept 2026)
+      // Générer PDF avec XML Factur-X embarque (conformite Sept 2026)
       const pdfBuffer = await genererFacturePdfFacturX({
         prothesiste, dentiste, facture,
         bonsLivraison: bonsAvecLignes,
@@ -311,7 +311,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !facture) return res.status(404).json({ error: 'Facture non trouvee' });
+    if (error || !facture) return res.status(404).json({ error: 'Facture non trouvée' });
 
     // Recuperer les BL lies
     const { data: bls } = await admin()
@@ -362,7 +362,7 @@ router.post('/:id/avoir', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!facture) return res.status(404).json({ error: 'Facture non trouvee' });
+    if (!facture) return res.status(404).json({ error: 'Facture non trouvée' });
 
     const { motif, montant } = req.body;
     const totalAvoir = montant || facture.total_ttc;
@@ -431,7 +431,7 @@ router.get('/:id/facturx', async (req, res) => {
       .eq('id', req.params.id)
       .eq('prothesiste_id', req.prothesisteId)
       .single();
-    if (!facture) return res.status(404).json({ error: 'Facture non trouvee' });
+    if (!facture) return res.status(404).json({ error: 'Facture non trouvée' });
 
     const { data: proth } = await admin().from('labo_prothesistes')
       .select('*').eq('id', req.prothesisteId).single();

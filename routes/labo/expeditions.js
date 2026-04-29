@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 
-// ─── Helper: generer numero de suivi interne ───
+// ─── Helper: générer numéro de suivi interne ───
 function genererNumeroSuivi() {
   const ts = Date.now().toString(36).toUpperCase();
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -15,7 +15,7 @@ function genererNumeroSuivi() {
 }
 
 // ─── GET /api/labo/expeditions/stats ───
-// Stats expeditions (doit etre AVANT /:id)
+// Stats expéditions (doit être AVANT /:id)
 router.get('/stats', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
@@ -153,7 +153,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !expedition) return res.status(404).json({ error: 'Expedition non trouvee' });
+    if (error || !expedition) return res.status(404).json({ error: 'Expédition non trouvée' });
 
     // Tracking events
     const { data: events } = await admin()
@@ -272,7 +272,7 @@ router.post('/', async (req, res) => {
       .insert({
         expedition_id: expedition.id,
         statut: 'prepare',
-        commentaire: 'Expedition creee',
+        commentaire: 'Expédition créée',
         date_evenement: new Date().toISOString()
       });
 
@@ -297,7 +297,7 @@ router.put('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!existing) return res.status(404).json({ error: 'Expedition non trouvee' });
+    if (!existing) return res.status(404).json({ error: 'Expédition non trouvée' });
 
     const updates = {};
     const allowed = [
@@ -348,7 +348,7 @@ router.post('/:id/tracking', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!expedition) return res.status(404).json({ error: 'Expedition non trouvee' });
+    if (!expedition) return res.status(404).json({ error: 'Expédition non trouvée' });
 
     // Creer l'event
     const { data: event, error } = await admin()
@@ -397,7 +397,7 @@ router.post('/:id/confirmer-livraison', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (!expedition) return res.status(404).json({ error: 'Expedition non trouvee' });
+    if (!expedition) return res.status(404).json({ error: 'Expédition non trouvée' });
 
     const dateLivraison = b.date_livraison || new Date().toISOString();
 
@@ -419,7 +419,7 @@ router.post('/:id/confirmer-livraison', async (req, res) => {
       .insert({
         expedition_id: req.params.id,
         statut: 'livre',
-        commentaire: b.commentaire || 'Livraison confirmee',
+        commentaire: b.commentaire || 'Livraison confirmée',
         date_evenement: dateLivraison
       });
 
@@ -440,7 +440,7 @@ router.post('/:id/confirmer-livraison', async (req, res) => {
 });
 
 // ─── POST /api/labo/expeditions/:id/etiquette ───
-// Generer les donnees d'etiquette d'expedition
+// Générer les données d'étiquette d'expédition
 router.post('/:id/etiquette', async (req, res) => {
   try {
     const { data: expedition, error } = await admin()
@@ -450,7 +450,7 @@ router.post('/:id/etiquette', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !expedition) return res.status(404).json({ error: 'Expedition non trouvee' });
+    if (error || !expedition) return res.status(404).json({ error: 'Expédition non trouvée' });
 
     const expediteur = expedition.adresse_expediteur || {};
     const destinataire = expedition.adresse_destination || {};

@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Rappels automatiques</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/ms-switcher.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f1f3d;--bg2:#1a2d50;--surface:#1e3460;--surface2:#243870;--surface3:#2a4080;
+  --border:rgba(99,102,241,0.15);--border2:rgba(99,102,241,0.08);
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --gold:#d4a843;--gold2:#c9973a;--gold-glow:rgba(212,168,67,0.15);
+  --glow:0 0 20px rgba(99,102,241,0.3);--glow2:0 0 30px rgba(99,102,241,0.15);
+  --shadow:0 4px 24px rgba(0,0,0,0.4);
+  --radius:14px;--rs:10px;
+}
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 15% 15%,rgba(99,102,241,0.07) 0%,transparent 50%),
+             radial-gradient(circle at 85% 80%,rgba(139,92,246,0.05) 0%,transparent 50%);}
+a{color:var(--accent3);text-decoration:none;}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.2);border-radius:3px;}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:100;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(15,31,61,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+.header h1{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-right{display:flex;gap:12px;align-items:center;}
+.header-right a{color:var(--text2);font-size:13px;padding:8px 14px;border-radius:8px;transition:all .2s;}
+.header-right a:hover{color:var(--text);background:var(--surface);}
+
+/* TABS */
+.tabs{display:flex;gap:4px;padding:16px 32px 0;border-bottom:1px solid var(--border);}
+.tab{padding:12px 24px;font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .25s cubic-bezier(.16,1,.3,1);}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* CONTENT */
+.content{max-width:1200px;margin:0 auto;padding:24px 32px;}
+.tp{display:none;animation:fadeIn .3s cubic-bezier(.16,1,.3,1);}
+.tp.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;
+  transition:all .25s cubic-bezier(.16,1,.3,1);}
+.card:hover{border-color:rgba(99,102,241,0.3);box-shadow:var(--glow2);}
+.card-title{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text);}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;}
+.stat-val{font-size:32px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-label{font-size:12px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+
+/* TOGGLE SWITCH */
+.toggle{position:relative;width:48px;height:26px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle .slider{position:absolute;inset:0;background:var(--surface3);border-radius:26px;cursor:pointer;transition:all .3s;}
+.toggle .slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:all .3s;}
+.toggle input:checked+.slider{background:var(--accent);}
+.toggle input:checked+.slider::before{transform:translateX(22px);}
+
+/* CONFIG ROW */
+.config-row{display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--border2);transition:all .2s;}
+.config-row:last-child{border-bottom:none;}
+.config-row:hover{background:rgba(99,102,241,0.03);}
+.config-info{flex:1;min-width:0;}
+.config-name{font-weight:600;font-size:14px;margin-bottom:4px;}
+.config-desc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.config-type{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600;}
+.config-type.email{background:rgba(99,102,241,0.15);color:var(--accent);}
+.config-type.sms{background:rgba(16,185,129,0.15);color:var(--success);}
+.config-type.both{background:rgba(139,92,246,0.15);color:var(--accent2);}
+.config-actions{display:flex;gap:8px;}
+.config-actions button{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;transition:all .2s;}
+
+/* BUTTONS */
+.btn{padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;transition:all .25s cubic-bezier(.16,1,.3,1);}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,0.4);}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text2);}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.15);color:var(--danger);}
+.btn-danger:hover{background:rgba(239,68,68,0.25);}
+.btn-sm{padding:6px 14px;font-size:12px;}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:12px 16px;font-weight:600;color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+  border-bottom:1px solid var(--border);background:rgba(99,102,241,0.03);}
+td{padding:12px 16px;border-bottom:1px solid var(--border2);}
+tr:hover td{background:rgba(99,102,241,0.03);}
+
+/* BADGES */
+.badge{display:inline-flex;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-success{background:rgba(16,185,129,0.15);color:var(--success);}
+.badge-danger{background:rgba(239,68,68,0.15);color:var(--danger);}
+.badge-warning{background:rgba(245,158,11,0.15);color:var(--warning);}
+.badge-info{background:rgba(99,102,241,0.15);color:var(--accent);}
+
+/* FILTERS */
+.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.filters select,.filters input{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:8px 14px;border-radius:8px;font-size:13px;font-family:inherit;}
+.filters select:focus,.filters input:focus{outline:none;border-color:var(--accent);}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:90%;max-width:560px;max-height:85vh;overflow-y:auto;
+  padding:32px;animation:modalIn .3s cubic-bezier(.16,1,.3,1);}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal h3{font-size:18px;font-weight:700;margin-bottom:20px;}
+.modal label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;margin-top:14px;}
+.modal select,.modal input,.modal textarea{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:10px 14px;border-radius:8px;font-size:13px;font-family:inherit;}
+.modal textarea{min-height:100px;resize:vertical;}
+.modal-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:24px;}
+
+/* SMS PACKS (gold accents) */
+.packs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px;}
+.pack-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;position:relative;
+  transition:all .3s cubic-bezier(.16,1,.3,1);}
+.pack-card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+.pack-card.popular{border-color:var(--gold);box-shadow:0 0 20px var(--gold-glow);}
+.pack-card.popular::before{content:'Populaire';position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1a2e;font-size:11px;font-weight:700;
+  padding:4px 14px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+.pack-name{font-size:18px;font-weight:700;margin-bottom:8px;}
+.pack-credits{font-size:36px;font-weight:800;background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.pack-credits span{font-size:14px;font-weight:400;-webkit-text-fill-color:var(--text2);}
+.pack-price{font-size:24px;font-weight:700;color:var(--text);margin:12px 0;}
+.pack-price span{font-size:12px;font-weight:400;color:var(--text2);}
+.pack-unit{font-size:12px;color:var(--text3);margin-bottom:16px;}
+.pack-btn{width:100%;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .25s;}
+.pack-btn.gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1a2e;border:none;}
+.pack-btn.gold:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--gold-glow);}
+.pack-btn.default{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
+.pack-btn.default:hover{border-color:var(--accent);color:var(--accent);}
+
+/* WALLET */
+.wallet-card{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--gold);border-radius:var(--radius);
+  padding:32px;margin-bottom:24px;position:relative;overflow:hidden;}
+.wallet-card::before{content:'';position:absolute;top:0;right:0;width:200px;height:200px;
+  background:radial-gradient(circle,var(--gold-glow) 0%,transparent 70%);pointer-events:none;}
+.wallet-balance{font-size:48px;font-weight:900;background:linear-gradient(135deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.wallet-label{font-size:14px;color:var(--text2);margin-top:4px;}
+.wallet-stats{display:flex;gap:32px;margin-top:20px;}
+.wallet-stat{text-align:center;}
+.wallet-stat-val{font-size:20px;font-weight:700;color:var(--text);}
+.wallet-stat-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
+
+/* CHART */
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px;}
+.chart-wrap h3{font-size:15px;font-weight:700;margin-bottom:16px;}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--text2);font-size:14px;}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px;color:var(--text3);}
+.empty-ico{font-size:48px;margin-bottom:12px;}
+.empty-title{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:8px;}
+.empty-desc{font-size:13px;max-width:400px;margin:0 auto 20px;}
+
+/* PAGINATION */
+.pagination{display:flex;gap:8px;justify-content:center;margin-top:20px;}
+.pagination button{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;
+  background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .2s;}
+.pagination button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.pagination button:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .header{padding:12px 16px;}
+  .tabs{padding:12px 16px 0;overflow-x:auto;}
+  .content{padding:16px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .packs-grid{grid-template-columns:1fr 1fr;}
+  .wallet-stats{flex-wrap:wrap;gap:16px;}
+  .config-row{flex-wrap:wrap;}
+}
+@media(max-width:480px){
+  .packs-grid{grid-template-columns:1fr;}
+  .stats-grid{grid-template-columns:1fr;}
+}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;
+  transform:translateY(100px);opacity:0;transition:all .35s cubic-bezier(.16,1,.3,1);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:rgba(16,185,129,0.9);color:#fff;}
+.toast.error{background:rgba(239,68,68,0.9);color:#fff;}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>JADOMI</h1>
+  <div class="header-right">
+    <a href="/organisation">Dashboard</a>
+    <a href="/rappels" style="color:var(--accent);">Rappels</a>
+    <a href="#" onclick="logout()">Quitter</a>
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="config" onclick="switchTab('config',this)">Configuration</div>
+  <div class="tab" data-tab="historique" onclick="switchTab('historique',this)">Historique</div>
+  <div class="tab" data-tab="sms" onclick="switchTab('sms',this)">SMS</div>
+</div>
+
+<!-- TAB 1: CONFIGURATION -->
+<div class="content">
+<div class="tp active" id="t-config">
+  <div class="stats-grid" id="statsOverview">
+    <div class="stat-card"><div class="stat-val" id="statTotal">0</div><div class="stat-label">Total envoyés</div></div>
+    <div class="stat-card"><div class="stat-val" id="statMois">0</div><div class="stat-label">Ce mois</div></div>
+    <div class="stat-card"><div class="stat-val" id="statTaux">100%</div><div class="stat-label">Taux de succès</div></div>
+    <div class="stat-card"><div class="stat-val" id="statSms">0</div><div class="stat-label">SMS envoyés</div></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="card-title" style="margin-bottom:0;">Rappels configurés</div>
+      <button class="btn btn-primary btn-sm" onclick="openConfigModal()">Ajouter un rappel</button>
+    </div>
+    <div id="configList"><div class="loading">Chargement...</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Rappels disponibles (non configurés)</div>
+    <div id="availableList"><div class="loading">Chargement...</div></div>
+  </div>
+</div>
+
+<!-- TAB 2: HISTORIQUE -->
+<div class="tp" id="t-historique">
+  <div class="filters">
+    <select id="filtreType" onchange="loadHistorique()">
+      <option value="">Tous les types</option>
+      <option value="email">Email</option>
+      <option value="sms">SMS</option>
+    </select>
+    <select id="filtreStatut" onchange="loadHistorique()">
+      <option value="">Tous les statuts</option>
+      <option value="envoye">Envoyé</option>
+      <option value="echoue">Échoué</option>
+      <option value="programme">Programmé</option>
+      <option value="annule">Annulé</option>
+    </select>
+    <input type="date" id="filtreDebut" onchange="loadHistorique()" placeholder="Date début">
+    <input type="date" id="filtreFin" onchange="loadHistorique()" placeholder="Date fin">
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Patient</th>
+            <th>Type</th>
+            <th>Statut</th>
+            <th>Contenu</th>
+          </tr>
+        </thead>
+        <tbody id="historiqueBody">
+          <tr><td colspan="5" class="loading">Chargement...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- TAB 3: SMS -->
+<div class="tp" id="t-sms">
+  <div class="wallet-card">
+    <div class="wallet-balance" id="walletBalance">0</div>
+    <div class="wallet-label">Crédits SMS disponibles</div>
+    <div class="wallet-stats">
+      <div class="wallet-stat"><div class="wallet-stat-val" id="walletAchete">0</div><div class="wallet-stat-lbl">Total achetés</div></div>
+      <div class="wallet-stat"><div class="wallet-stat-val" id="walletEnvoye">0</div><div class="wallet-stat-lbl">Total envoyés</div></div>
+      <div class="wallet-stat"><div class="wallet-stat-val" id="walletRestant">0</div><div class="wallet-stat-lbl">Restants</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Acheter des crédits SMS</div>
+    <div class="packs-grid" id="packsGrid"><div class="loading">Chargement des packs...</div></div>
+  </div>
+
+  <div class="chart-wrap">
+    <h3>Utilisation SMS — 30 derniers jours</h3>
+    <canvas id="smsChart" height="80"></canvas>
+  </div>
+</div>
+</div>
+
+<!-- MODAL CONFIG -->
+<div class="modal-overlay" id="configModal">
+  <div class="modal">
+    <h3 id="modalTitle">Configurer un rappel</h3>
+    <input type="hidden" id="configId">
+
+    <label>Type de déclencheur</label>
+    <select id="cfgDeclencheur" onchange="onDeclencheurChange()">
+      <option value="rdv_j2">Rappel J-2 (2 jours avant le RDV)</option>
+      <option value="rdv_j1">Rappel J-1 (veille du RDV)</option>
+      <option value="rdv_h2">Rappel H-2 (2 heures avant)</option>
+      <option value="post_soin_j1">Suivi post-soin (lendemain)</option>
+      <option value="recall_6mois">Rappel 6 mois</option>
+      <option value="recall_1an">Rappel annuel</option>
+      <option value="anniversaire">Anniversaire patient</option>
+      <option value="avis_google">Demande d'avis Google</option>
+      <option value="ordonnance_expiration">Expiration ordonnance</option>
+      <option value="custom">Personnalisé</option>
+    </select>
+
+    <label>Canal d'envoi</label>
+    <select id="cfgType">
+      <option value="email">Email uniquement</option>
+      <option value="sms">SMS uniquement</option>
+      <option value="both">Email + SMS</option>
+    </select>
+
+    <label>Objet (email)</label>
+    <input type="text" id="cfgSujet" placeholder="Objet du rappel">
+
+    <label>Message</label>
+    <textarea id="cfgCorps" placeholder="Corps du message..."></textarea>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;">
+      Variables disponibles : {{prenom}}, {{nom}}, {{date}}, {{heure}}, {{praticien}}, {{cabinet}}, {{adresse}}, {{lien_google}}, {{jours}}
+    </div>
+
+    <label>Actif</label>
+    <label class="toggle" style="margin-top:4px;">
+      <input type="checkbox" id="cfgActif" checked>
+      <span class="slider"></span>
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeConfigModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveConfig()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// JADOMI Rappels — Dashboard
+// =============================================
+
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+
+let supabase, token, societeId, currentPage = 1;
+
+// Declencheur labels
+const DECLENCHEUR_LABELS = {
+  rdv_j2: 'Rappel J-2 (2 jours avant)',
+  rdv_j1: 'Rappel J-1 (veille)',
+  rdv_h2: 'Rappel H-2 (2 heures avant)',
+  post_soin_j1: 'Suivi post-soin (J+1)',
+  recall_6mois: 'Rappel 6 mois',
+  recall_1an: 'Rappel annuel',
+  anniversaire: 'Anniversaire',
+  avis_google: 'Demande avis Google',
+  ordonnance_expiration: 'Expiration ordonnance',
+  custom: 'Personnalisé'
+};
+
+async function init() {
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { window.location.href = '/login'; return; }
+    token = session.access_token;
+
+    // Utiliser jadomiMS (ms-switcher) si disponible
+    if (window.jadomiMS && window.jadomiMS.active) {
+      societeId = window.jadomiMS.active;
+      token = window.jadomiMS.token || token;
+    } else {
+      // Fallback: recuperer societe_id depuis localStorage ou la premiere societe
+      societeId = localStorage.getItem('jadomi_societe_id');
+      if (!societeId) {
+        const { data: roles } = await supabase.from('user_societe_roles').select('societe_id').eq('user_id', session.user.id).limit(1);
+        if (roles && roles.length > 0) {
+          societeId = roles[0].societe_id;
+          localStorage.setItem('jadomi_societe_id', societeId);
+        }
+      }
+    }
+
+    if (!societeId) {
+      document.querySelector('.content').innerHTML = '<div class="empty"><div class="empty-title">Aucune société configurée</div><div class="empty-desc">Veuillez créer une société depuis le dashboard principal.</div></div>';
+      return;
+    }
+
+    loadStats();
+    loadConfigs();
+  } catch (e) {
+    console.error('Init error:', e);
+  }
+}
+
+function headers() {
+  return {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json',
+    'X-Societe-Id': societeId
+  };
+}
+
+// =============================================
+// TABS
+// =============================================
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tp').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('t-' + tab).classList.add('active');
+
+  if (tab === 'historique') loadHistorique();
+  if (tab === 'sms') { loadWallet(); loadPacks(); }
+}
+
+// =============================================
+// STATS
+// =============================================
+async function loadStats() {
+  try {
+    const res = await fetch('/api/rappels/stats?societe_id=' + societeId, { headers: headers() });
+    const data = await res.json();
+    if (data.error) return;
+    document.getElementById('statTotal').textContent = data.total_envoyes || 0;
+    document.getElementById('statMois').textContent = data.ce_mois || 0;
+    document.getElementById('statTaux').textContent = (data.taux_succes || 100) + '%';
+    document.getElementById('statSms').textContent = data.par_sms || 0;
+  } catch (e) { console.error('loadStats:', e); }
+}
+
+// =============================================
+// CONFIGS
+// =============================================
+async function loadConfigs() {
+  try {
+    const res = await fetch('/api/rappels/config?societe_id=' + societeId, { headers: headers() });
+    const data = await res.json();
+    if (data.error) { document.getElementById('configList').innerHTML = '<div class="empty"><div class="empty-title">Erreur de chargement</div></div>'; return; }
+
+    // Configured
+    const listEl = document.getElementById('configList');
+    if (!data.configs || data.configs.length === 0) {
+      listEl.innerHTML = '<div class="empty"><div class="empty-title">Aucun rappel configuré</div><div class="empty-desc">Cliquez sur "Ajouter un rappel" pour commencer.</div></div>';
+    } else {
+      listEl.innerHTML = data.configs.map(c => `
+        <div class="config-row">
+          <label class="toggle">
+            <input type="checkbox" ${c.actif ? 'checked' : ''} onchange="toggleConfig('${c.id}', this.checked)">
+            <span class="slider"></span>
+          </label>
+          <div class="config-info">
+            <div class="config-name">${DECLENCHEUR_LABELS[c.declencheur] || c.declencheur}</div>
+            <div class="config-desc">${escHtml(c.template_corps || '')}</div>
+          </div>
+          <span class="config-type ${c.type}">${c.type.toUpperCase()}</span>
+          <div class="config-actions">
+            <button class="btn btn-outline btn-sm" onclick="editConfig(${JSON.stringify(c).replace(/"/g, '&quot;')})">Modifier</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteConfig('${c.id}')">Supprimer</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Available
+    const availEl = document.getElementById('availableList');
+    if (!data.available || data.available.length === 0) {
+      availEl.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px;">Tous les types de rappels sont configurés.</div>';
+    } else {
+      availEl.innerHTML = data.available.map(a => `
+        <div class="config-row">
+          <div class="config-info">
+            <div class="config-name">${DECLENCHEUR_LABELS[a.declencheur] || a.declencheur}</div>
+            <div class="config-desc">${escHtml(a.template_corps || '')}</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="quickAdd('${a.declencheur}')">Activer</button>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.error('loadConfigs:', e);
+    document.getElementById('configList').innerHTML = '<div class="empty"><div class="empty-title">Erreur de chargement</div></div>';
+  }
+}
+
+async function toggleConfig(id, actif) {
+  try {
+    await fetch('/api/rappels/config/' + id, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ actif })
+    });
+    showToast(actif ? 'Rappel activé' : 'Rappel désactivé', 'success');
+  } catch (e) { showToast('Erreur', 'error'); }
+}
+
+async function deleteConfig(id) {
+  if (!confirm('Supprimer ce rappel ?')) return;
+  try {
+    await fetch('/api/rappels/config/' + id, { method: 'DELETE', headers: headers() });
+    showToast('Rappel supprimé', 'success');
+    loadConfigs();
+  } catch (e) { showToast('Erreur', 'error'); }
+}
+
+async function quickAdd(declencheur) {
+  try {
+    await fetch('/api/rappels/config', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ societe_id: societeId, type: 'email', declencheur, actif: true })
+    });
+    showToast('Rappel ajouté', 'success');
+    loadConfigs();
+  } catch (e) { showToast('Erreur', 'error'); }
+}
+
+// =============================================
+// MODAL
+// =============================================
+function openConfigModal(data) {
+  document.getElementById('configModal').classList.add('show');
+  if (data) {
+    document.getElementById('modalTitle').textContent = 'Modifier le rappel';
+    document.getElementById('configId').value = data.id || '';
+    document.getElementById('cfgDeclencheur').value = data.declencheur || 'rdv_j1';
+    document.getElementById('cfgType').value = data.type || 'email';
+    document.getElementById('cfgSujet').value = data.template_sujet || '';
+    document.getElementById('cfgCorps').value = data.template_corps || '';
+    document.getElementById('cfgActif').checked = data.actif !== false;
+  } else {
+    document.getElementById('modalTitle').textContent = 'Ajouter un rappel';
+    document.getElementById('configId').value = '';
+    document.getElementById('cfgDeclencheur').value = 'rdv_j1';
+    document.getElementById('cfgType').value = 'email';
+    document.getElementById('cfgSujet').value = '';
+    document.getElementById('cfgCorps').value = '';
+    document.getElementById('cfgActif').checked = true;
+    onDeclencheurChange();
+  }
+}
+
+function closeConfigModal() {
+  document.getElementById('configModal').classList.remove('show');
+}
+
+function editConfig(data) {
+  openConfigModal(data);
+}
+
+function onDeclencheurChange() {
+  // Pre-fill templates if empty
+  const declencheur = document.getElementById('cfgDeclencheur').value;
+  if (!document.getElementById('cfgCorps').value) {
+    loadDefaultTemplate(declencheur);
+  }
+}
+
+async function loadDefaultTemplate(declencheur) {
+  try {
+    const res = await fetch('/api/rappels/templates', { headers: headers() });
+    const data = await res.json();
+    if (data.templates && data.templates[declencheur]) {
+      document.getElementById('cfgSujet').value = data.templates[declencheur].sujet || '';
+      document.getElementById('cfgCorps').value = data.templates[declencheur].corps || '';
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function saveConfig() {
+  const id = document.getElementById('configId').value;
+  const body = {
+    societe_id: societeId,
+    declencheur: document.getElementById('cfgDeclencheur').value,
+    type: document.getElementById('cfgType').value,
+    template_sujet: document.getElementById('cfgSujet').value,
+    template_corps: document.getElementById('cfgCorps').value,
+    actif: document.getElementById('cfgActif').checked
+  };
+  if (id) body.id = id;
+
+  try {
+    const res = await fetch('/api/rappels/config', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Configuration enregistrée', 'success');
+      closeConfigModal();
+      loadConfigs();
+      loadStats();
+    } else {
+      showToast(data.error || 'Erreur', 'error');
+    }
+  } catch (e) { showToast('Erreur serveur', 'error'); }
+}
+
+// =============================================
+// HISTORIQUE
+// =============================================
+async function loadHistorique(page) {
+  currentPage = page || 1;
+  const type = document.getElementById('filtreType').value;
+  const statut = document.getElementById('filtreStatut').value;
+  const debut = document.getElementById('filtreDebut').value;
+  const fin = document.getElementById('filtreFin').value;
+
+  let url = `/api/rappels/historique?societe_id=${societeId}&page=${currentPage}&limit=20`;
+  if (type) url += '&type=' + type;
+  if (statut) url += '&statut=' + statut;
+  if (debut) url += '&date_debut=' + debut;
+  if (fin) url += '&date_fin=' + fin;
+
+  try {
+    const res = await fetch(url, { headers: headers() });
+    const data = await res.json();
+
+    const tbody = document.getElementById('historiqueBody');
+    if (!data.envois || data.envois.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty"><div class="empty-title">Aucun envoi</div></td></tr>';
+    } else {
+      tbody.innerHTML = data.envois.map(e => `
+        <tr>
+          <td>${formatDate(e.envoye_at || e.created_at)}</td>
+          <td>${escHtml(e.patient_nom || e.patient_email || e.patient_telephone || '-')}</td>
+          <td><span class="badge badge-info">${e.type.toUpperCase()}</span></td>
+          <td><span class="badge ${badgeClass(e.statut)}">${statutLabel(e.statut)}</span></td>
+          <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(e.contenu || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Pagination
+    const pagEl = document.getElementById('pagination');
+    if (data.pages > 1) {
+      let html = '';
+      for (let i = 1; i <= Math.min(data.pages, 10); i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="loadHistorique(${i})">${i}</button>`;
+      }
+      pagEl.innerHTML = html;
+    } else {
+      pagEl.innerHTML = '';
+    }
+  } catch (e) {
+    console.error('loadHistorique:', e);
+    document.getElementById('historiqueBody').innerHTML = '<tr><td colspan="5" class="loading">Erreur de chargement</td></tr>';
+  }
+}
+
+// =============================================
+// SMS WALLET
+// =============================================
+async function loadWallet() {
+  try {
+    const res = await fetch('/api/sms/wallet?societe_id=' + societeId, { headers: headers() });
+    const data = await res.json();
+    if (data.wallet) {
+      document.getElementById('walletBalance').textContent = (data.wallet.credits_sms || 0).toLocaleString('fr-FR');
+      document.getElementById('walletAchete').textContent = (data.wallet.total_achete || 0).toLocaleString('fr-FR');
+      document.getElementById('walletEnvoye').textContent = (data.wallet.total_envoye || 0).toLocaleString('fr-FR');
+      document.getElementById('walletRestant').textContent = (data.wallet.credits_sms || 0).toLocaleString('fr-FR');
+    }
+  } catch (e) { console.error('loadWallet:', e); }
+}
+
+async function loadPacks() {
+  try {
+    const res = await fetch('/api/sms/packs', { headers: headers() });
+    const data = await res.json();
+    if (!data.packs || data.packs.length === 0) {
+      document.getElementById('packsGrid').innerHTML = '<div class="loading">Aucun pack disponible</div>';
+      return;
+    }
+    document.getElementById('packsGrid').innerHTML = data.packs.map(p => `
+      <div class="pack-card ${p.populaire ? 'popular' : ''}">
+        <div class="pack-name">${escHtml(p.nom)}</div>
+        <div class="pack-credits">${p.credits.toLocaleString('fr-FR')} <span>SMS</span></div>
+        <div class="pack-price">${Number(p.prix_eur).toLocaleString('fr-FR', { minimumFractionDigits: 0 })} EUR <span>HT</span></div>
+        <div class="pack-unit">${Number(p.prix_unitaire_eur).toLocaleString('fr-FR', { minimumFractionDigits: 3 })} EUR / SMS</div>
+        <button class="pack-btn ${p.populaire ? 'gold' : 'default'}" onclick="buyPack('${p.id}', '${escHtml(p.nom)}', ${p.credits})">
+          Acheter
+        </button>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('loadPacks:', e);
+    document.getElementById('packsGrid').innerHTML = '<div class="loading">Erreur de chargement</div>';
+  }
+}
+
+async function buyPack(packId, packName, credits) {
+  if (!confirm(`Acheter le pack ${packName} (${credits} SMS) ?`)) return;
+  try {
+    const res = await fetch('/api/sms/wallet/acheter', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ societe_id: societeId, pack_id: packId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Pack ${packName} ajouté : +${credits} crédits SMS`, 'success');
+      loadWallet();
+    } else {
+      showToast(data.error || 'Erreur lors de l\'achat', 'error');
+    }
+  } catch (e) { showToast('Erreur serveur', 'error'); }
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function escHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+         d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function badgeClass(statut) {
+  const map = { envoye: 'badge-success', echoue: 'badge-danger', programme: 'badge-warning', annule: 'badge-info' };
+  return map[statut] || 'badge-info';
+}
+
+function statutLabel(statut) {
+  const map = { envoye: 'Envoyé', echoue: 'Échoué', programme: 'Programmé', annule: 'Annulé' };
+  return map[statut] || statut;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function logout() {
+  if (supabase) supabase.auth.signOut();
+  window.location.href = '/login';
+}
+
+// Click outside modal to close
+document.getElementById('configModal').addEventListener('click', function(e) {
+  if (e.target === this) closeConfigModal();
+});
+
+// Init
+init();
+</script>
+</body>
+</html>

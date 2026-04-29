@@ -2,7 +2,7 @@
 // JADOMI Studio CMS — API CRUD contenus/photos/demandes
 // Passe 36 — 24 avril 2026
 // Routes /api/studio/cms/*
-// Middleware forfait + quotas integre
+// Middleware forfait + quotas intégré
 // =============================================
 const express = require('express');
 const router = express.Router();
@@ -37,7 +37,7 @@ module.exports = function mountCMS(app, supabase) {
         }
       }
       if (!req.societeId) {
-        // Fallback : prendre la premiere societe du user
+        // Fallback : prendre la première société du user
         const { data: firstRole } = await supabase
           .from('user_societe_roles')
           .select('societe_id, role')
@@ -49,15 +49,15 @@ module.exports = function mountCMS(app, supabase) {
           req.userRole = firstRole.role;
         }
       }
-      if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation trouvee' });
+      if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation trouvée' });
       next();
     } catch (err) {
       console.error('[cms/auth]', err.message);
-      return res.status(401).json({ error: 'Authentification echouee' });
+      return res.status(401).json({ error: 'Authentification échouée' });
     }
   }
 
-  // --- Middleware verification forfait ---
+  // --- Middleware vérification forfait ---
   async function requireForfait(req, res, next) {
     try {
       const { data: abo, error } = await supabase
@@ -72,7 +72,7 @@ module.exports = function mountCMS(app, supabase) {
       if (error || !abo) {
         return res.status(403).json({
           error: 'no_subscription',
-          message: 'Aucun abonnement JADOMI Studio actif. Souscrivez pour acceder au CMS.',
+          message: 'Aucun abonnement JADOMI Studio actif. Souscrivez pour accéder au CMS.',
           upgrade_url: '/tarifs'
         });
       }
@@ -85,17 +85,17 @@ module.exports = function mountCMS(app, supabase) {
       next();
     } catch (err) {
       console.error('[cms/forfait]', err.message);
-      return res.status(500).json({ error: 'Erreur verification forfait' });
+      return res.status(500).json({ error: 'Erreur vérification forfait' });
     }
   }
 
-  // --- Middleware verification acces CMS (bloque Classic) ---
+  // --- Middleware vérification accès CMS (bloque Classic) ---
   function requireCMS(req, res, next) {
     if (!req.features?.cms) {
       return res.status(403).json({
         error: 'upgrade_required',
         current: req.forfaitCode,
-        message: 'Passez en JADOMI Studio Pro pour modifier votre site vous-meme.',
+        message: 'Passez en JADOMI Studio Pro pour modifier votre site vous-même.',
         upgrade_to: 'pro',
         upgrade_url: '/tarifs'
       });
@@ -103,7 +103,7 @@ module.exports = function mountCMS(app, supabase) {
     next();
   }
 
-  // --- Middleware verification quotas ---
+  // --- Middleware vérification quotas ---
   function requireQuota(quotaKey) {
     return async (req, res, next) => {
       try {
@@ -142,7 +142,7 @@ module.exports = function mountCMS(app, supabase) {
 
         const max = parseInt(maxQuota) || 0;
         if (currentCount >= max) {
-          // Determiner le forfait superieur
+          // Déterminer le forfait supérieur
           let upgradeTo = 'expert';
           if (req.forfaitCode === 'classic') upgradeTo = 'pro';
 
@@ -152,7 +152,7 @@ module.exports = function mountCMS(app, supabase) {
             current: currentCount,
             max: max,
             upgrade_to: upgradeTo,
-            message: `Quota ${quotaKey} atteint (${currentCount}/${max}). Passez en ${upgradeTo} pour plus de capacite.`
+            message: `Quota ${quotaKey} atteint (${currentCount}/${max}). Passez en ${upgradeTo} pour plus de capacité.`
           });
         }
 
@@ -160,7 +160,7 @@ module.exports = function mountCMS(app, supabase) {
         next();
       } catch (err) {
         console.error('[cms/quota]', err.message);
-        return res.status(500).json({ error: 'Erreur verification quota. Reessayez.' });
+        return res.status(500).json({ error: 'Erreur vérification quota. Réessayez.' });
       }
     };
   }
@@ -258,7 +258,7 @@ module.exports = function mountCMS(app, supabase) {
   router.post('/contenus', requireAuth, requireForfait, requireCMS, async (req, res) => {
     try {
       const { section, cle, valeur, type } = req.body || {};
-      if (!section || !cle) return res.status(400).json({ error: 'section et cle requis' });
+      if (!section || !cle) return res.status(400).json({ error: 'section et clé requis' });
 
       const { data, error } = await supabase
         .from('site_contenus')
@@ -293,7 +293,7 @@ module.exports = function mountCMS(app, supabase) {
         .eq('societe_id', req.societeId)
         .single();
 
-      if (readErr || !current) return res.status(404).json({ error: 'Contenu non trouve' });
+      if (readErr || !current) return res.status(404).json({ error: 'Contenu non trouvé' });
 
       // Sauvegarder dans l'historique
       await supabase.from('site_contenus_historique').insert({
@@ -304,7 +304,7 @@ module.exports = function mountCMS(app, supabase) {
         modifie_par: req.userId
       });
 
-      // Mettre a jour le contenu
+      // Mettre à jour le contenu
       const { data: updated, error: updateErr } = await supabase
         .from('site_contenus')
         .update({
@@ -355,9 +355,9 @@ module.exports = function mountCMS(app, supabase) {
         .eq('societe_id', req.societeId)
         .single();
 
-      if (readErr || !current) return res.status(404).json({ error: 'Contenu non trouve' });
+      if (readErr || !current) return res.status(404).json({ error: 'Contenu non trouvé' });
 
-      // Chercher la version demandee dans l'historique
+      // Chercher la version demandée dans l'historique
       const { data: historyEntries } = await supabase
         .from('site_contenus_historique')
         .select('*')
@@ -369,7 +369,7 @@ module.exports = function mountCMS(app, supabase) {
         return res.status(400).json({ error: 'Pas d\'historique disponible' });
       }
 
-      // On prend la valeur_avant de l'entree demandee (ou la plus recente si pas de version specifiee)
+      // On prend la valeur_avant de l'entrée demandée (ou la plus récente si pas de version spécifiée)
       const targetIndex = version ? Math.min(version - 1, historyEntries.length - 1) : 0;
       const targetEntry = historyEntries[targetIndex];
       const restoredValue = targetEntry.valeur_avant;
@@ -397,7 +397,7 @@ module.exports = function mountCMS(app, supabase) {
         .single();
 
       if (updateErr) return res.status(500).json({ error: updateErr.message });
-      return res.json({ message: 'Rollback effectue', contenu: updated });
+      return res.json({ message: 'Rollback effectué', contenu: updated });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
     }
@@ -428,7 +428,7 @@ module.exports = function mountCMS(app, supabase) {
     fileFilter: (req, file, cb) => {
       const allowed = /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i;
       if (allowed.test(file.originalname)) return cb(null, true);
-      cb(new Error('Type de fichier non autorise. Formats acceptes : JPG, PNG, GIF, WebP, SVG'));
+      cb(new Error('Type de fichier non autorisé. Formats acceptés : JPG, PNG, GIF, WebP, SVG'));
     }
   });
 
@@ -471,12 +471,12 @@ module.exports = function mountCMS(app, supabase) {
   // POST /api/studio/cms/photos/upload
   router.post('/photos/upload', requireAuth, requireForfait, requireCMS, requireQuota('photos'), upload.single('photo'), async (req, res) => {
     try {
-      if (!req.file) return res.status(400).json({ error: 'Aucun fichier recu' });
+      if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
 
       const { section, titre, description } = req.body || {};
       const fileUrl = '/uploads/' + (req.societeId || 'unknown') + '/' + req.file.filename;
 
-      // TODO: Cloudflare R2 upload si configure (fallback local OK)
+      // TODO: Cloudflare R2 upload si configuré (fallback local OK)
 
       const { data, error } = await supabase
         .from('site_photos')
@@ -540,7 +540,7 @@ module.exports = function mountCMS(app, supabase) {
         .single();
 
       if (error) return res.status(500).json({ error: 'Erreur interne' });
-      return res.json({ message: 'Photo desactivee', photo: data });
+      return res.json({ message: 'Photo désactivée', photo: data });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
     }
@@ -555,7 +555,7 @@ module.exports = function mountCMS(app, supabase) {
     try {
       const { description } = req.body || {};
       if (!description || description.trim().length < 10) {
-        return res.status(400).json({ error: 'Description trop courte (10 caracteres minimum)' });
+        return res.status(400).json({ error: 'Description trop courte (10 caractères minimum)' });
       }
 
       const { data, error } = await supabase
@@ -622,17 +622,17 @@ module.exports = function mountCMS(app, supabase) {
   // POST /api/studio/cms/modification-ponctuelle
   router.post('/modification-ponctuelle', requireAuth, requireForfait, async (req, res) => {
     try {
-      // Verifier que le pro est en Classic
+      // Vérifier que le pro est en Classic
       if (req.forfaitCode !== 'classic') {
         return res.status(400).json({
           error: 'not_classic',
-          message: 'Les modifications ponctuelles sont reservees aux abonnes Classic. Vous avez le CMS illimite.'
+          message: 'Les modifications ponctuelles sont réservées aux abonnés Classic. Vous avez le CMS illimité.'
         });
       }
 
       const { description } = req.body || {};
       if (!description || description.trim().length < 10) {
-        return res.status(400).json({ error: 'Description trop courte (10 caracteres minimum)' });
+        return res.status(400).json({ error: 'Description trop courte (10 caractères minimum)' });
       }
 
       const montant = req.quotas?.modification_ponctuelle_eur || 49;
@@ -655,7 +655,7 @@ module.exports = function mountCMS(app, supabase) {
         ...data,
         // Placeholder Stripe — sera branche en Passe 38
         stripe_checkout_url: null,
-        message: `Modification creee. Montant : ${montant} EUR. Paiement Stripe a venir.`
+        message: `Modification créée. Montant : ${montant} EUR. Paiement Stripe à venir.`
       });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });

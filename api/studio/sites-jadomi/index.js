@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI Studio — API Sites crees chez JADOMI
+// JADOMI Studio — API Sites créés chez JADOMI
 // Passe 38 — 24 avril 2026
 // Routes /api/studio/sites-jadomi/*
 // =============================================
@@ -36,7 +36,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       }
       if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation' });
       next();
-    } catch { return res.status(401).json({ error: 'Auth echouee' }); }
+    } catch { return res.status(401).json({ error: 'Auth échouée' }); }
   }
 
   // Upload config
@@ -53,7 +53,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
     limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
       if (/\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(file.originalname)) cb(null, true);
-      else cb(new Error('Format non autorise'));
+      else cb(new Error('Format non autorisé'));
     }
   });
 
@@ -99,14 +99,14 @@ module.exports = function mountSitesJadomi(app, supabase) {
       const { theme_code, nom_cabinet, slogan, adresse, telephone, email, metier, services, horaires } = req.body || {};
       if (!theme_code || !nom_cabinet) return res.status(400).json({ error: 'theme_code et nom_cabinet requis' });
 
-      // Generer slug
+      // Générer slug
       const slug = nom_cabinet.toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
         .substring(0, 60)
         + '-' + Date.now().toString(36);
 
-      // Creer le site
+      // Créer le site
       const { data: site, error: siteErr } = await supabase.from('sites_jadomi')
         .insert({
           societe_id: req.societeId,
@@ -121,7 +121,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
 
       if (siteErr) return res.status(500).json({ error: siteErr.message });
 
-      // Creer les sections initiales
+      // Créer les sections initiales
       const sectionsInit = [
         { cle: 'hero', type_section: 'hero', ordre: 1, valeur: { slogan: slogan || '', description: '', photo: '' } },
         { cle: 'about', type_section: 'content', ordre: 2, valeur: { texte: '' } },
@@ -138,14 +138,14 @@ module.exports = function mountSitesJadomi(app, supabase) {
         });
       }
 
-      // Generer en arriere-plan
+      // Générer en arrière-plan
       genererSite(site.id, supabase)
         .then(r => console.log('[site-gen] ' + slug + ':', r.success ? 'OK' : 'FAIL'))
         .catch(e => console.error('[site-gen] Error:', e.message));
 
       return res.status(201).json({
         site_id: site.id, slug, url_preview: '/sites/' + slug + '/',
-        message: 'Site en cours de generation...'
+        message: 'Site en cours de génération...'
       });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
@@ -158,7 +158,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
   router.post('/:id/upload-photo', requireAuth, async (req, res, next) => {
     const { data: site } = await supabase.from('sites_jadomi')
       .select('slug').eq('id', req.params.id).eq('societe_id', req.societeId).single();
-    if (!site) return res.status(404).json({ error: 'Site non trouve' });
+    if (!site) return res.status(404).json({ error: 'Site non trouvé' });
     req.siteSlug = site.slug;
     next();
   }, upload.single('photo'), async (req, res) => {
@@ -185,7 +185,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
         .select().single();
       if (error) return res.status(500).json({ error: 'Erreur interne' });
 
-      // Regenerer async
+      // Régénérer async
       regenererSite(req.params.id, supabase, 'Modification section')
         .catch(e => console.error('[regen]', e.message));
 
@@ -202,7 +202,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
     try {
       const issues = await verifierSite(req.params.id, supabase);
       const errors = issues.filter(i => i.type === 'error');
-      if (errors.length) return res.status(400).json({ error: 'Verification echouee', issues });
+      if (errors.length) return res.status(400).json({ error: 'Vérification échouée', issues });
 
       const result = await genererSite(req.params.id, supabase);
       return res.json({ ...result, issues });
@@ -234,7 +234,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
     try {
       const { data: version } = await supabase.from('sites_jadomi_versions')
         .select('*').eq('id', req.params.version_id).eq('site_id', req.params.id).eq('societe_id', req.societeId).single();
-      if (!version || !version.snapshot?.sections) return res.status(404).json({ error: 'Version non trouvee' });
+      if (!version || !version.snapshot?.sections) return res.status(404).json({ error: 'Version non trouvée' });
 
       // Supprimer sections actuelles et restaurer
       await supabase.from('sites_jadomi_sections').delete().eq('site_id', req.params.id).eq('societe_id', req.societeId);
@@ -246,7 +246,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
       }
 
       await regenererSite(req.params.id, supabase, 'Rollback vers version ' + req.params.version_id);
-      return res.json({ success: true, message: 'Version restauree' });
+      return res.json({ success: true, message: 'Version restaurée' });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur interne' });
     }
@@ -331,7 +331,7 @@ module.exports = function mountSitesJadomi(app, supabase) {
   router.post('/:id/migrer-ovh', requireAuth, (req, res) => {
     return res.json({
       disponible: false,
-      raison: 'API OVH pas configuree. Migration disponible prochainement.'
+      raison: 'API OVH pas configurée. Migration disponible prochainement.'
     });
   });
 

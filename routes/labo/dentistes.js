@@ -128,7 +128,7 @@ router.get('/:id', async (req, res) => {
       .eq('prothesiste_id', req.prothesisteId)
       .single();
 
-    if (error || !data) return res.status(404).json({ error: 'Dentiste non trouve' });
+    if (error || !data) return res.status(404).json({ error: 'Dentiste non trouvé' });
     res.json({ dentiste: data });
   } catch (e) {
     console.error('[LABO dentiste detail]', e.message);

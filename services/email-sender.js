@@ -21,7 +21,7 @@ function getTransporter() {
   return _transporter;
 }
 
-// Envoi facture a un dentiste
+// Envoi facture à un dentiste
 async function envoyerFacture({ dentiste, facture, prothesiste, pdfBuffer }) {
   const transport = getTransporter();
   const nomDr = `${dentiste.titre || 'Dr'} ${dentiste.prenom || ''} ${dentiste.nom}`.trim();
@@ -38,7 +38,7 @@ async function envoyerFacture({ dentiste, facture, prothesiste, pdfBuffer }) {
         </div>
         <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
           <p>Bonjour ${nomDr},</p>
-          <p>Veuillez trouver en piece jointe votre facture pour la periode
+          <p>Veuillez trouver en pièce jointe votre facture pour la période
           du ${new Date(facture.periode_debut).toLocaleDateString('fr-FR')}
           au ${new Date(facture.periode_fin).toLocaleDateString('fr-FR')}.</p>
           <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">

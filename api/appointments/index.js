@@ -122,7 +122,7 @@ async function sendConfirmationEmail(appointment, siteInfo) {
   </div>
   <div style="background: #fff; border: 1px solid #e2e8f0; border-top: none; padding: 32px; border-radius: 0 0 12px 12px;">
     <p style="font-size: 16px; line-height: 1.6;">Bonjour <strong>${appointment.client_name}</strong>,</p>
-    <p style="font-size: 15px; line-height: 1.6; color: #475569;">Votre rendez-vous a bien ete enregistre. Voici les details :</p>
+    <p style="font-size: 15px; line-height: 1.6; color: #475569;">Votre rendez-vous a bien été enregistré. Voici les détails :</p>
 
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 24px 0;">
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -140,7 +140,7 @@ async function sendConfirmationEmail(appointment, siteInfo) {
         </tr>
         ${appointment.mode ? `<tr>
           <td style="padding: 8px 0; color: #64748b;">Mode</td>
-          <td style="padding: 8px 0; font-weight: 500;">${appointment.mode === 'visio' ? 'Visioconference' : appointment.mode === 'phone' ? 'Telephone' : 'En cabinet'}</td>
+          <td style="padding: 8px 0; font-weight: 500;">${appointment.mode === 'visio' ? 'Visioconférence' : appointment.mode === 'phone' ? 'Téléphone' : 'En cabinet'}</td>
         </tr>` : ''}
         ${appointment.location ? `<tr>
           <td style="padding: 8px 0; color: #64748b;">Lieu</td>
@@ -150,8 +150,8 @@ async function sendConfirmationEmail(appointment, siteInfo) {
     </div>
 
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${gcalUrl}" target="_blank" style="display: inline-block; background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; margin: 4px;">Ajouter a Google Calendar</a>
-      <a href="${icsUrl}" style="display: inline-block; background: #fff; color: #0f172a; border: 1px solid #cbd5e1; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; margin: 4px;">Telecharger .ics</a>
+      <a href="${gcalUrl}" target="_blank" style="display: inline-block; background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; margin: 4px;">Ajouter à Google Calendar</a>
+      <a href="${icsUrl}" style="display: inline-block; background: #fff; color: #0f172a; border: 1px solid #cbd5e1; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; margin: 4px;">Télécharger .ics</a>
     </div>
 
     <p style="font-size: 13px; color: #94a3b8; text-align: center; margin-top: 32px;">
@@ -164,13 +164,13 @@ async function sendConfirmationEmail(appointment, siteInfo) {
     await getTransporter().sendMail({
       from: process.env.SMTP_USER,
       to: appointment.client_email,
-      subject: `Confirmation de rendez-vous - ${dateFR} a ${appointment.start_time}`,
+      subject: `Confirmation de rendez-vous - ${dateFR} à ${appointment.start_time}`,
       html
     });
-    console.log('[appointments] Email de confirmation envoye a', appointment.client_email);
+    console.log('[appointments] Email de confirmation envoyé à', appointment.client_email);
   } catch (err) {
     console.error('[appointments] Erreur envoi email:', err.message);
-    // Non-bloquant : on ne fait pas echouer la reservation
+    // Non-bloquant : on ne fait pas échouer la réservation
   }
 }
 
@@ -641,7 +641,7 @@ router.post('/admin/slots', async (req, res) => {
       return res.status(400).json({ error: 'start_time et end_time requis' });
     }
     if (recurring && (day_of_week === undefined || day_of_week === null)) {
-      return res.status(400).json({ error: 'day_of_week requis pour slot recurrent' });
+      return res.status(400).json({ error: 'day_of_week requis pour slot récurrent' });
     }
     if (!recurring && !specific_date) {
       return res.status(400).json({ error: 'specific_date requis pour slot ponctuel' });

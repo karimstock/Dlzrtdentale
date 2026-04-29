@@ -8,9 +8,9 @@ const { sendMail } = require('../multiSocietes/mailer');
 const PUBLIC_URL = process.env.JADOMI_PUBLIC_URL || 'https://jadomi.fr';
 
 /**
- * Declenche une campagne de groupage :
- * 1. Agregue tous les items
- * 2. Cree une gpo_request avec le panier volumineux
+ * Déclenche une campagne de groupage :
+ * 1. Agrège tous les items
+ * 2. Crée une gpo_request avec le panier volumineux
  * 3. Lance le Queue Auction normal
  * 4. Notifie tous les participants
  */
@@ -30,7 +30,7 @@ async function triggerCampaign(admin, campaignId) {
       .update({ status: 'triggered', triggered_at: new Date().toISOString() })
       .eq('id', campaignId);
 
-    // Recuperer tous les items actifs
+    // Récupérer tous les items actifs
     const { data: participants } = await admin()
       .from('group_purchase_items')
       .select('*')
@@ -39,7 +39,7 @@ async function triggerCampaign(admin, campaignId) {
 
     if (!participants || participants.length === 0) return;
 
-    // Agreger les items
+    // Agréger les items
     const allItems = [];
     let totalVolume = 0;
     for (const p of participants) {
@@ -50,7 +50,7 @@ async function triggerCampaign(admin, campaignId) {
       }
     }
 
-    // Creer une gpo_request agrege
+    // Créer une gpo_request agrégé
     const { isBusinessHours, deadline, delayMinutes } = computeDeadline();
     const { data: request, error } = await admin()
       .from('gpo_requests')
@@ -72,7 +72,7 @@ async function triggerCampaign(admin, campaignId) {
       return;
     }
 
-    // Selectionner le 1er fournisseur via Queue Auction
+    // Sélectionner le 1er fournisseur via Queue Auction
     const categories = [...new Set(allItems.map(i => i.category).filter(Boolean))];
     const firstSupplier = await pickNextSupplier({
       requestId: request.id,
@@ -117,7 +117,7 @@ async function triggerCampaign(admin, campaignId) {
           if (user?.user?.email) {
             sendMail({
               to: user.user.email,
-              subject: 'Votre commande groupee JADOMI est lancee',
+              subject: 'Votre commande groupée JADOMI est lancée',
               html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
                 <div style="background:#0f0e0d;padding:24px 28px;"><h1 style="color:#10b981;margin:0;font-size:22px;">JADOMI</h1></div>
                 <div style="padding:28px;">
@@ -142,7 +142,7 @@ async function triggerCampaign(admin, campaignId) {
 }
 
 /**
- * Expire une campagne (pas assez de cabinets apres 48h)
+ * Expire une campagne (pas assez de cabinets après 48h)
  */
 async function expireCampaign(admin, campaignId) {
   try {

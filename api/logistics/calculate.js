@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI — Calcul transport (distance + cout + regle 150EUR)
+// JADOMI — Calcul transport (distance + coût + règle 150EUR)
 // =============================================
 const { haversine } = require('../../lib/gpo-queue');
 
@@ -7,7 +7,7 @@ const FREE_SHIPPING_THRESHOLD = 150;
 
 module.exports = function mountCalculate(app, admin, auth) {
 
-  // POST /api/logistics/calculate — estimer le cout de transport
+  // POST /api/logistics/calculate — estimer le coût de transport
   app.post('/api/logistics/calculate', auth, async (req, res) => {
     try {
       const { supplier_id, societe_id, weight_kg_estimate, subtotal_eur } = req.body;
@@ -18,7 +18,7 @@ module.exports = function mountCalculate(app, admin, auth) {
 
       const weight = weight_kg_estimate || 3;
 
-      // Recuperer entrepot primary du fournisseur
+      // Récupérer entrepôt primary du fournisseur
       const { data: warehouse } = await admin()
         .from('supplier_warehouses')
         .select('*')
@@ -26,7 +26,7 @@ module.exports = function mountCalculate(app, admin, auth) {
         .eq('is_primary', true)
         .maybeSingle();
 
-      // Recuperer adresse societe
+      // Récupérer adresse société
       const { data: societe } = await admin()
         .from('societes')
         .select('nom, address, city, postal_code, lat, lng')

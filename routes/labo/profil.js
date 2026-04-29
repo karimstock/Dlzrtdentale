@@ -1,12 +1,12 @@
 // =============================================
-// JADOMI LABO — Routes profil prothesiste
+// JADOMI LABO — Routes profil prothésiste
 // =============================================
 
 const express = require('express');
 const router = express.Router();
 const { admin } = require('../../api/multiSocietes/middleware');
 
-// GET /api/labo/profil — Recup profil prothesiste
+// GET /api/labo/profil — Récup profil prothésiste
 router.get('/', async (req, res) => {
   try {
     if (!req.prothesiste) {
@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/labo/profil — Creer profil prothesiste
+// POST /api/labo/profil — Créer profil prothésiste
 router.post('/', async (req, res) => {
   try {
     if (req.prothesiste) {
@@ -67,11 +67,11 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/labo/profil — Modifier profil prothesiste
+// PUT /api/labo/profil — Modifier profil prothésiste
 router.put('/', async (req, res) => {
   try {
     if (!req.prothesisteId) {
-      return res.status(404).json({ error: 'Profil non trouve' });
+      return res.status(404).json({ error: 'Profil non trouvé' });
     }
 
     const body = req.body;
@@ -109,7 +109,7 @@ router.post('/template-catalogue', async (req, res) => {
   try {
     if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
 
-    // Verifier si deja des produits template
+    // Vérifier si déjà des produits template
     const { count } = await admin()
       .from('catalogue_produits')
       .select('*', { count: 'exact', head: true })
@@ -127,7 +127,7 @@ router.post('/template-catalogue', async (req, res) => {
     let sql = fs.readFileSync(sqlPath, 'utf8');
     sql = sql.replace(/__PROTHESISTE_ID__/g, `${req.prothesisteId}`);
 
-    // Executer via admin
+    // Exécuter via admin
     const { error } = await admin().rpc('exec_sql', { sql_text: sql }).catch(() => {
       // Fallback : parser les INSERTs et executer un par un
       return { error: 'rpc_unavailable' };
@@ -148,7 +148,7 @@ router.post('/template-catalogue', async (req, res) => {
       if (insErr) throw insErr;
     }
 
-    res.json({ success: true, message: 'Template catalogue installe' });
+    res.json({ success: true, message: 'Template catalogue installé' });
   } catch (e) {
     console.error('[LABO template]', e.message);
     res.status(500).json({ error: 'Erreur interne' });

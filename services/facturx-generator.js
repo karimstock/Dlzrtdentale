@@ -1,11 +1,11 @@
 // =============================================
 // JADOMI LABO — Generateur Factur-X (PDF + XML)
-// Conformite facture electronique 2026
+// Conformité facture électronique 2026
 // Format : Factur-X (EN 16931 / ZUGFeRD)
 // =============================================
 
 /**
- * Genere le XML Factur-X (CII Cross Industry Invoice)
+ * Génère le XML Factur-X (CII Cross Industry Invoice)
  * conforme EN 16931 + Factur-X profil BASIC
  *
  * @param {Object} facture - Donnees facture
@@ -21,7 +21,7 @@ function genererFacturXml({ facture, prothesiste, dentiste, lignes }) {
 
   const escXml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  // Determiner le code TVA : AE = exonere, S = standard
+  // Déterminer le code TVA : AE = exonere, S = standard
   const totalHtExo = Number(facture.total_ht_exonere) || 0;
   const totalHtTax = Number(facture.total_ht_taxable) || 0;
   const totalTva = Number(facture.total_tva) || 0;
@@ -33,7 +33,7 @@ function genererFacturXml({ facture, prothesiste, dentiste, lignes }) {
         <ram:ApplicableTradeTax>
           <ram:CalculatedAmount>${totalHtExo.toFixed(2)}</ram:CalculatedAmount>
           <ram:TypeCode>VAT</ram:TypeCode>
-          <ram:ExemptionReason>Exoneration TVA art. 261, 4, 1 du CGI - Protheses dentaires</ram:ExemptionReason>
+          <ram:ExemptionReason>Exonération TVA art. 261, 4, 1 du CGI - Prothèses dentaires</ram:ExemptionReason>
           <ram:BasisAmount>${totalHtExo.toFixed(2)}</ram:BasisAmount>
           <ram:CategoryCode>E</ram:CategoryCode>
           <ram:RateApplicablePercent>0.00</ram:RateApplicablePercent>
@@ -85,7 +85,7 @@ function genererFacturXml({ facture, prothesiste, dentiste, lignes }) {
       </ram:IncludedSupplyChainTradeLineItem>`;
   });
 
-  // Regime TVA du vendeur
+  // Régime TVA du vendeur
   let sellerTaxScheme = '';
   if (prothesiste.regime_tva === 'franchise_base') {
     sellerTaxScheme = '<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">FR00000000000</ram:ID></ram:SpecifiedTaxRegistration>';
@@ -159,7 +159,7 @@ function genererFacturXml({ facture, prothesiste, dentiste, lignes }) {
 }
 
 /**
- * Genere les metadonnees Factur-X pour integration dans le PDF
+ * Génère les métadonnées Factur-X pour integration dans le PDF
  * (XMP metadata + fichier XML attache)
  */
 function getFacturXMetadata() {
@@ -172,7 +172,7 @@ function getFacturXMetadata() {
 }
 
 /**
- * Mentions legales facture electronique conforme
+ * Mentions légales facture électronique conforme
  */
 function mentionsFactureElectronique(prothesiste) {
   const mentions = [];
@@ -181,12 +181,12 @@ function mentionsFactureElectronique(prothesiste) {
   if (prothesiste.regime_tva === 'franchise_base') {
     mentions.push('TVA non applicable — art. 293 B du CGI.');
   } else {
-    mentions.push('Exoneration TVA sur protheses dentaires — art. 261, 4, 1° du CGI.');
+    mentions.push('Exonération TVA sur prothèses dentaires — art. 261, 4, 1° du CGI.');
   }
 
-  mentions.push('Delai de paiement : 30 jours a compter de la reception.');
-  mentions.push('Penalites de retard : 3 fois le taux d\'interet legal (art. L441-6 C. com.).');
-  mentions.push('Indemnite forfaitaire de recouvrement : 40 EUR (art. D441-5 C. com.).');
+  mentions.push('Délai de paiement : 30 jours à compter de la réception.');
+  mentions.push('Pénalités de retard : 3 fois le taux d\'intérêt légal (art. L441-6 C. com.).');
+  mentions.push('Indemnité forfaitaire de recouvrement : 40 EUR (art. D441-5 C. com.).');
 
   if (prothesiste.siren) {
     mentions.push(`SIREN : ${prothesiste.siren} — APE : ${prothesiste.code_ape || '3250A'}`);

@@ -16,13 +16,13 @@ module.exports = function mountRatings(app, admin, auth) {
       // Validation des scores (0-5)
       const scores = [quality_score, delivery_score, service_score, overall_score].filter(s => s !== undefined && s !== null);
       if (scores.some(s => typeof s !== 'number' || s < 0 || s > 5 || isNaN(s))) {
-        return res.status(400).json({ error: 'Scores doivent etre entre 0 et 5' });
+        return res.status(400).json({ error: 'Scores doivent être entre 0 et 5' });
       }
       if (overall_score === undefined || overall_score === null) {
         return res.status(400).json({ error: 'overall_score requis' });
       }
 
-      // Verifier pas de doublon
+      // Vérifier pas de doublon
       const { data: existing } = await admin()
         .from('supplier_ratings')
         .select('id')
@@ -30,7 +30,7 @@ module.exports = function mountRatings(app, admin, auth) {
         .eq('societe_id', societe_id)
         .maybeSingle();
 
-      if (existing) return res.status(400).json({ error: 'Deja note pour cette commande' });
+      if (existing) return res.status(400).json({ error: 'Déjà noté pour cette commande' });
 
       const { data, error } = await admin()
         .from('supplier_ratings')

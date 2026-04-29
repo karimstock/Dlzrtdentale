@@ -15,7 +15,7 @@ const upload = multer({
   limits: { fileSize: 100 * 1024 * 1024 }, // 100Mo max (reduced from 500Mo for memory safety)
   fileFilter: (req, file, cb) => {
     const ok = /\.(stl|obj|ply|3mf|dcm|jpg|jpeg|png|webp|zip)$/i.test(file.originalname);
-    cb(ok ? null : new Error('Format non accepte (STL, OBJ, PLY, 3MF, DCM, JPG, PNG, WEBP, ZIP)'), ok);
+    cb(ok ? null : new Error('Format non accepté (STL, OBJ, PLY, 3MF, DCM, JPG, PNG, WEBP, ZIP)'), ok);
   }
 });
 
@@ -56,7 +56,7 @@ function createFichiersRouter(supabase) {
         tailleStockee = r2Result.taille_stockee;
         console.log(`[RUSH R2] Upload OK: ${nomStockage} (${Math.round(tailleOriginale/1024)}Ko → ${Math.round(tailleStockee/1024)}Ko)`);
       } else {
-        // Fallback local si R2 non configure
+        // Fallback local si R2 non configuré
         const fs = require('fs');
         const path = require('path');
         nomStockage = `${demande_id}/${crypto.randomUUID()}.${ext}`;
@@ -64,7 +64,7 @@ function createFichiersRouter(supabase) {
         fs.mkdirSync(localDir, { recursive: true });
         fs.writeFileSync(path.join(localDir, nomStockage.split('/').pop()), bufferNettoye);
         tailleStockee = tailleOriginale;
-        console.warn('[RUSH] R2 non configure — fallback stockage local');
+        console.warn('[RUSH] R2 non configuré — fallback stockage local');
       }
 
       // 3. Enregistrer en DB
@@ -133,7 +133,7 @@ function createFichiersRouter(supabase) {
         .is('supprime_at', null)
         .single();
 
-      if (!fichier) return res.status(404).json({ error: 'Fichier non trouve ou expire' });
+      if (!fichier) return res.status(404).json({ error: 'Fichier non trouvé ou expiré' });
 
       if (isR2Available()) {
         // Lien presigne R2 (48h)
@@ -146,7 +146,7 @@ function createFichiersRouter(supabase) {
             nom_original: fichier.nom_original,
             chiffre: fichier.chiffre,
             note: fichier.chiffre
-              ? 'Fichier chiffre AES-256 — le dechiffrement est automatique via JADOMI'
+              ? 'Fichier chiffré AES-256 — le déchiffrement est automatique via JADOMI'
               : null
           });
         }
@@ -177,7 +177,7 @@ function createFichiersRouter(supabase) {
         .is('supprime_at', null)
         .single();
 
-      if (!fichier) return res.status(404).json({ error: 'Fichier non trouve' });
+      if (!fichier) return res.status(404).json({ error: 'Fichier non trouvé' });
 
       if (isR2Available() && fichier.chiffre) {
         // Telecharger depuis R2, dechiffrer, decompresser, streamer
@@ -207,7 +207,7 @@ function createFichiersRouter(supabase) {
         .eq('id', req.params.id)
         .single();
 
-      if (!fichier) return res.status(404).json({ error: 'Fichier non trouve' });
+      if (!fichier) return res.status(404).json({ error: 'Fichier non trouvé' });
 
       // Supprimer de R2
       if (isR2Available()) {

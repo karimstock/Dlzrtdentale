@@ -119,7 +119,7 @@
       root.innerHTML = '';
 
       if (!this._cases.length) {
-        root.innerHTML = '<div class="jp-empty">Aucun cas a afficher pour le moment.</div>';
+        root.innerHTML = '<div class="jp-empty">Aucun cas à afficher pour le moment.</div>';
         return;
       }
 
@@ -175,7 +175,7 @@
         card.innerHTML = `
           <div class="jp-card-slider">
             <img class="jp-card-img jp-card-before" src="${self._esc(beforeSrc)}" alt="Avant" loading="lazy">
-            <img class="jp-card-img jp-card-after" src="${self._esc(afterSrc)}" alt="Apres" loading="lazy">
+            <img class="jp-card-img jp-card-after" src="${self._esc(afterSrc)}" alt="Après" loading="lazy">
             <div class="jp-card-handle"></div>
             <div class="jp-card-handle-arrows">&#9664;&#9654;</div>
           </div>
@@ -220,12 +220,12 @@
         <button class="jp-modal-close" aria-label="Fermer">&#10005;</button>
         <div class="jp-modal-container" id="jp-modal-container">
           <img class="jp-modal-img jp-modal-before" id="jp-modal-before" alt="Avant">
-          <img class="jp-modal-img jp-modal-after" id="jp-modal-after" alt="Apres">
+          <img class="jp-modal-img jp-modal-after" id="jp-modal-after" alt="Après">
           <div class="jp-modal-handle" id="jp-modal-handle"></div>
           <div class="jp-modal-arrows">&#9664;&#9654;</div>
           <div class="jp-modal-dates">
             <span class="jp-modal-date" id="jp-modal-date-before">Avant</span>
-            <span class="jp-modal-date" id="jp-modal-date-after">Apres</span>
+            <span class="jp-modal-date" id="jp-modal-date-after">Après</span>
           </div>
         </div>
         <div class="jp-modal-info" id="jp-modal-info"></div>`;
@@ -258,7 +258,7 @@
       document.getElementById('jp-modal-before').src = beforeSrc;
       document.getElementById('jp-modal-after').src = afterSrc;
       document.getElementById('jp-modal-date-before').textContent = this._fmtDate(c.dateStart || c.date_start) || 'Avant';
-      document.getElementById('jp-modal-date-after').textContent = this._fmtDate(c.dateEnd || c.date_end) || 'Apres';
+      document.getElementById('jp-modal-date-after').textContent = this._fmtDate(c.dateEnd || c.date_end) || 'Après';
 
       const label = c.label || c.title || 'Cas ' + (idx + 1);
       const type = c.treatmentType || c.treatment_type || '';

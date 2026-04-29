@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Administration Support — JADOMI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg-card:rgba(255,255,255,.04);--bg-card-hover:rgba(255,255,255,.07);
+  --gold:#c9a961;--gold-light:#e8c77b;--gold-dim:rgba(201,169,97,.15);
+  --text:#e8e6e1;--text-dim:rgba(232,230,225,.55);--text-muted:rgba(232,230,225,.35);
+  --border:rgba(255,255,255,.06);--border-hover:rgba(201,169,97,.25);
+  --blue:#3b82f6;--orange:#f59e0b;--green:#10b981;--gray:#6b7280;--red:#ef4444;
+  --radius:14px;--radius-sm:10px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:'Fraunces',serif}
+
+.container{max-width:1100px;margin:0 auto;padding:32px 40px}
+@media(max-width:768px){.container{padding:20px 16px}}
+
+/* Header */
+.admin-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:32px;flex-wrap:wrap;gap:12px;
+}
+.admin-header h1{font-size:clamp(1.3rem,3vw,1.7rem);font-weight:700}
+.admin-header a{
+  padding:8px 18px;border-radius:50px;background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text-dim);font-size:.82rem;text-decoration:none;transition:all .2s;
+}
+.admin-header a:hover{border-color:var(--gold);color:var(--gold)}
+
+/* KPI cards */
+.kpi-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:14px;margin-bottom:28px;
+}
+.kpi{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;text-align:center;transition:border-color .3s var(--ease);
+}
+.kpi:hover{border-color:var(--border-hover)}
+.kpi-val{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--gold)}
+.kpi-label{font-size:.75rem;color:var(--text-muted);margin-top:4px}
+
+/* Filters */
+.filters{
+  display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;
+}
+.filters select,.filters input{
+  padding:8px 14px;border-radius:50px;background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text);font-size:.82rem;font-family:inherit;cursor:pointer;outline:none;
+}
+.filters select:focus,.filters input:focus{border-color:var(--gold)}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{
+  background:var(--bg-card);padding:12px 14px;text-align:left;font-size:.72rem;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+td{
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+tr:hover td{background:var(--bg-card-hover)}
+tr{cursor:pointer;transition:background .15s}
+.badge{
+  display:inline-flex;padding:3px 10px;border-radius:50px;font-size:.68rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.badge-ouvert{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-en_cours{background:rgba(245,158,11,.15);color:var(--orange)}
+.badge-resolu{background:rgba(16,185,129,.15);color:var(--green)}
+.badge-ferme{background:rgba(107,114,128,.15);color:var(--gray)}
+.badge-urgent{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-high{background:rgba(245,158,11,.15);color:var(--orange)}
+
+/* Detail panel (overlay) */
+.panel-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  z-index:100;display:none;justify-content:flex-end;
+}
+.panel-overlay.show{display:flex}
+.panel{
+  width:560px;max-width:100%;background:var(--bg2);border-left:1px solid var(--border);
+  height:100vh;overflow-y:auto;padding:28px;position:relative;
+  animation:slideIn .35s var(--ease);
+}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.panel-close{
+  position:absolute;top:16px;right:16px;border:none;background:transparent;
+  color:var(--text-muted);font-size:1.3rem;cursor:pointer;transition:color .2s;
+}
+.panel-close:hover{color:var(--text)}
+.panel h2{font-size:1.1rem;margin-bottom:16px}
+.panel-meta{margin-bottom:20px}
+.panel-meta .row{display:flex;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.panel-meta label{font-size:.75rem;color:var(--text-muted);width:80px;flex-shrink:0}
+.panel-meta select{
+  padding:6px 12px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text);font-size:.82rem;font-family:inherit;outline:none;
+}
+.panel-meta select:focus{border-color:var(--gold)}
+
+/* Messages in panel */
+.p-messages{
+  display:flex;flex-direction:column;gap:10px;margin-bottom:20px;
+  max-height:400px;overflow-y:auto;padding-right:8px;
+}
+.p-msg{
+  padding:10px 14px;border-radius:var(--radius-sm);font-size:.82rem;line-height:1.5;
+}
+.p-msg-user{background:var(--gold-dim);border:1px solid var(--border-hover);align-self:flex-end;max-width:85%}
+.p-msg-admin{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);align-self:flex-start;max-width:85%}
+.p-msg-system{background:var(--bg-card);border:1px solid var(--border);align-self:center;font-style:italic;color:var(--text-muted);max-width:90%;text-align:center;font-size:.78rem}
+.p-msg-head{font-size:.7rem;font-weight:600;color:var(--text-muted);margin-bottom:3px}
+.p-msg-time{font-size:.65rem;color:var(--text-muted);text-align:right;margin-top:4px}
+
+.p-reply{margin-top:12px}
+.p-reply textarea{
+  width:100%;padding:10px;border-radius:var(--radius-sm);
+  background:var(--bg);border:1px solid var(--border);
+  color:var(--text);font-size:.85rem;font-family:inherit;
+  min-height:70px;resize:vertical;outline:none;
+}
+.p-reply textarea:focus{border-color:var(--gold)}
+.p-reply-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border-radius:50px;
+  border:none;cursor:pointer;background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  color:#0a0a0f;font-size:.82rem;font-weight:600;font-family:inherit;transition:all .3s var(--ease);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(201,169,97,.3)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-outline{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:50px;
+  cursor:pointer;background:transparent;border:1px solid var(--border);
+  color:var(--text-dim);font-size:.82rem;font-family:inherit;transition:all .2s;
+}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+
+.toast{
+  position:fixed;bottom:24px;right:24px;padding:14px 24px;
+  border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);font-size:.85rem;z-index:200;
+  transform:translateY(20px);opacity:0;transition:all .4s var(--ease);pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.success{border-color:var(--green);color:var(--green)}
+
+.loading{text-align:center;padding:40px;color:var(--text-muted);font-size:.88rem}
+
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="admin-header">
+    <h1>Administration Support</h1>
+    <div style="display:flex;gap:10px">
+      <a href="/support">Vue utilisateur</a>
+      <a href="/organisation">Dashboard</a>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpis">
+    <div class="kpi"><div class="kpi-val" id="kpi-open">-</div><div class="kpi-label">Tickets ouverts</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-encours">-</div><div class="kpi-label">En cours</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-total">-</div><div class="kpi-label">Total</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-avgtime">-</div><div class="kpi-label">Temps moyen (h)</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-satisfaction">-</div><div class="kpi-label">Satisfaction</div></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <select id="f-status" onchange="loadAdminTickets()">
+      <option value="">Tous statuts</option>
+      <option value="ouvert">Ouvert</option>
+      <option value="en_cours">En cours</option>
+      <option value="resolu">Résolu</option>
+      <option value="ferme">Fermé</option>
+    </select>
+    <select id="f-category" onchange="loadAdminTickets()">
+      <option value="">Toutes catégories</option>
+      <option value="bug">Bug</option>
+      <option value="question">Question</option>
+      <option value="demande_fonctionnalite">Fonctionnalité</option>
+      <option value="facturation">Facturation</option>
+      <option value="technique">Technique</option>
+      <option value="autre">Autre</option>
+    </select>
+    <select id="f-priority" onchange="loadAdminTickets()">
+      <option value="">Toutes priorités</option>
+      <option value="low">Basse</option>
+      <option value="medium">Moyenne</option>
+      <option value="high">Haute</option>
+      <option value="urgent">Urgente</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Statut</th>
+          <th>Sujet</th>
+          <th>Catégorie</th>
+          <th>Priorité</th>
+          <th>Email</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="tickets-body">
+        <tr><td colspan="6" class="loading">Chargement...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Detail panel -->
+<div class="panel-overlay" id="panel-overlay" onclick="if(event.target===this)closePanel()">
+  <div class="panel" id="panel">
+    <button class="panel-close" onclick="closePanel()" aria-label="Fermer le panneau">&times;</button>
+    <div id="panel-content"><div class="loading">Chargement...</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzYm9td2p6ZWhuZmluZmp2aHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTE4NDQsImV4cCI6MjA0OTMyNzg0NH0.sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const ADMIN_EMAIL = 'contact@jadomi.fr';
+
+const CATEGORY_LABELS = {bug:'Bug',question:'Question',demande_fonctionnalite:'Fonctionnalité',facturation:'Facturation',technique:'Technique',autre:'Autre'};
+const STATUS_LABELS = {ouvert:'Ouvert',en_cours:'En cours',resolu:'Résolu',ferme:'Fermé'};
+const PRIORITY_LABELS = {low:'Basse',medium:'Moyenne',high:'Haute',urgent:'Urgente'};
+
+let currentPanelTicketId = null;
+
+async function getToken() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = '/login.html'; return null; }
+  if (session.user.email !== ADMIN_EMAIL) {
+    document.body.innerHTML = '<div style="text-align:center;padding:100px;color:#ef4444;font-size:1.2rem">Accès réservé à l\'administrateur.</div>';
+    return null;
+  }
+  return session.access_token;
+}
+
+async function api(path, opts = {}) {
+  let token = await getToken();
+  if (!token) return null;
+  const headers = {
+    'Content-Type':'application/json',
+    'Authorization':'Bearer ' + token,
+    ...(opts.headers || {})
+  };
+  let res = await fetch('/api/support' + path, { ...opts, headers });
+  if (res.status === 401) {
+    const { data: r } = await db.auth.refreshSession();
+    if (r?.session) {
+      headers['Authorization'] = 'Bearer ' + r.session.access_token;
+      res = await fetch('/api/support' + path, { ...opts, headers });
+    } else { window.location.href = '/login.html'; return null; }
+  }
+  return res;
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || '');
+  setTimeout(() => el.className = 'toast', 3500);
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) +
+    ' ' + dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- Load KPIs ---
+async function loadKPIs() {
+  try {
+    const res = await api('/admin/stats');
+    if (!res) return;
+    const d = await res.json();
+    document.getElementById('kpi-open').textContent = d.open || 0;
+    document.getElementById('kpi-encours').textContent = d.enCours || 0;
+    document.getElementById('kpi-total').textContent = d.total || 0;
+    document.getElementById('kpi-avgtime').textContent = d.avgResolutionHours !== null ? d.avgResolutionHours : '-';
+    document.getElementById('kpi-satisfaction').textContent = d.avgSatisfaction !== null ? d.avgSatisfaction + '/5' : '-';
+  } catch (e) { console.error('[kpis]', e); }
+}
+
+// --- Load tickets table ---
+async function loadAdminTickets() {
+  const tbody = document.getElementById('tickets-body');
+  tbody.innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
+
+  try {
+    let qs = '?limit=100';
+    const s = document.getElementById('f-status').value;
+    const c = document.getElementById('f-category').value;
+    const p = document.getElementById('f-priority').value;
+    if (s) qs += '&status=' + s;
+    if (c) qs += '&category=' + c;
+    if (p) qs += '&priority=' + p;
+
+    const res = await api('/admin/tickets' + qs);
+    if (!res) return;
+    const data = await res.json();
+
+    if (!data.tickets || data.tickets.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px">Aucun ticket.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.tickets.map(t => `
+      <tr onclick="openPanel('${t.id}')">
+        <td><span class="badge badge-${t.status}">${STATUS_LABELS[t.status]||t.status}</span></td>
+        <td style="font-weight:500;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.subject)}</td>
+        <td style="font-size:.78rem">${CATEGORY_LABELS[t.category]||t.category}</td>
+        <td>${t.priority==='urgent'?'<span class="badge badge-urgent">Urgent</span>':t.priority==='high'?'<span class="badge badge-high">Haute</span>':'<span style="font-size:.78rem;color:var(--text-muted)">'+(PRIORITY_LABELS[t.priority]||t.priority)+'</span>'}</td>
+        <td style="font-size:.78rem;color:var(--text-dim)">${esc(t.user_email)}</td>
+        <td style="font-size:.78rem;color:var(--text-muted);white-space:nowrap">${fmtDate(t.created_at)}${getSlaHtml(t.priority, t.created_at, t.status)}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('[loadAdminTickets]', e);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--red)">Erreur de chargement.</td></tr>';
+  }
+}
+
+// --- Open panel ---
+async function openPanel(id) {
+  currentPanelTicketId = id;
+  document.getElementById('panel-overlay').classList.add('show');
+  const container = document.getElementById('panel-content');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+
+  try {
+    const res = await api('/tickets/' + id);
+    if (!res) return;
+    const data = await res.json();
+    const t = data.ticket;
+    const msgs = data.messages || [];
+
+    container.innerHTML = `
+      <h2>${esc(t.subject)}</h2>
+
+      <div class="panel-meta">
+        <div class="row">
+          <label>Statut</label>
+          <select id="p-status" onchange="updateTicket()">
+            ${['ouvert','en_cours','resolu','ferme'].map(s =>
+              '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+STATUS_LABELS[s]+'</option>'
+            ).join('')}
+          </select>
+        </div>
+        <div class="row">
+          <label>Priorité</label>
+          <select id="p-priority" onchange="updateTicket()">
+            ${['low','medium','high','urgent'].map(p =>
+              '<option value="'+p+'"'+(t.priority===p?' selected':'')+'>'+PRIORITY_LABELS[p]+'</option>'
+            ).join('')}
+          </select>
+        </div>
+        <div class="row">
+          <label>Email</label>
+          <span style="font-size:.82rem;color:var(--text-dim)">${esc(t.user_email)}</span>
+        </div>
+        <div class="row">
+          <label>Créé</label>
+          <span style="font-size:.82rem;color:var(--text-dim)">${fmtDate(t.created_at)}</span>
+        </div>
+        <div class="row">
+          <label>SLA</label>
+          <span>${getSlaHtml(t.priority, t.created_at, t.status) || '<span style="font-size:.82rem;color:var(--text-muted)">Ticket clos</span>'}</span>
+        </div>
+      </div>
+
+      <div class="p-messages" id="p-messages">
+        ${msgs.map(m => `
+          <div class="p-msg p-msg-${m.sender_type}">
+            ${m.sender_type!=='system'?'<div class="p-msg-head">'+(m.sender_type==='admin'?'Admin':'Utilisateur')+' — '+esc(m.sender_email)+'</div>':''}
+            <div>${esc(m.message)}</div>
+            <div class="p-msg-time">${fmtDate(m.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="p-reply">
+        <div style="margin-bottom:8px">
+          <label style="font-size:.72rem;font-weight:600;color:rgba(232,230,225,.35);text-transform:uppercase;letter-spacing:.05em">Réponses prédéfinies</label>
+          <select id="p-canned" onchange="applyCannedResponse()" style="margin-top:4px;width:100%;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);color:#e8e6e1;font-size:.82rem;font-family:inherit;cursor:pointer;outline:none">
+            <option value="">-- Sélectionner un modèle de réponse --</option>
+            <option value="bienvenue">Bienvenue / Prise en charge</option>
+            <option value="investigation">En cours d\'investigation</option>
+            <option value="besoin_info">Besoin d\'informations complémentaires</option>
+            <option value="resolu">Problème résolu</option>
+            <option value="bug_confirme">Bug confirmé</option>
+            <option value="contournement">Solution de contournement</option>
+            <option value="mise_a_jour">Mise à jour prévue</option>
+            <option value="fonctionnalite_prevue">Fonctionnalité prévue</option>
+            <option value="documentation">Redirection vers documentation</option>
+            <option value="cloture">Clôture sans réponse</option>
+          </select>
+        </div>
+        <textarea id="p-reply-text" placeholder="Répondre au ticket..."></textarea>
+        <div class="p-reply-actions">
+          <button class="btn-primary" onclick="adminReply()" id="btn-admin-reply">Envoyer la réponse</button>
+        </div>
+      </div>
+    `;
+
+    // Scroll messages to bottom
+    const msgBox = document.getElementById('p-messages');
+    msgBox.scrollTop = msgBox.scrollHeight;
+  } catch (e) {
+    console.error('[openPanel]', e);
+    container.innerHTML = '<div style="color:var(--red);padding:20px">Erreur de chargement.</div>';
+  }
+}
+
+function closePanel() {
+  document.getElementById('panel-overlay').classList.remove('show');
+  currentPanelTicketId = null;
+}
+
+// --- Update ticket status/priority ---
+async function updateTicket() {
+  try {
+    const status = document.getElementById('p-status').value;
+    const priority = document.getElementById('p-priority').value;
+    const res = await api('/admin/tickets/' + currentPanelTicketId, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, priority })
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur.', 'error'); return; }
+    toast('Ticket mis à jour.', 'success');
+    loadAdminTickets();
+    loadKPIs();
+  } catch (e) { toast('Erreur.', 'error'); }
+}
+
+// --- Admin reply ---
+async function adminReply() {
+  const text = document.getElementById('p-reply-text').value.trim();
+  if (!text) { toast('Veuillez saisir un message.', 'error'); return; }
+  const btn = document.getElementById('btn-admin-reply');
+  btn.disabled = true;
+
+  try {
+    const res = await api('/admin/tickets/' + currentPanelTicketId + '/messages', {
+      method: 'POST',
+      body: JSON.stringify({ message: text })
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur.', 'error'); return; }
+    toast('Réponse envoyée.', 'success');
+    openPanel(currentPanelTicketId);
+    loadAdminTickets();
+  } catch (e) { toast('Erreur.', 'error'); }
+  finally { btn.disabled = false; }
+}
+
+// --- Canned responses (Zendesk/Freshdesk pattern) ---
+const CANNED_RESPONSES = {
+  bienvenue: "Bonjour,\n\nMerci de nous avoir contactés. Votre demande a bien été prise en charge par notre équipe technique.\n\nNous reviendrons vers vous dans les meilleurs délais avec une réponse détaillée.\n\nCordialement,\nL'équipe Support JADOMI",
+  investigation: "Bonjour,\n\nNous avons bien pris connaissance de votre signalement. Notre équipe technique est actuellement en cours d'investigation sur ce sujet.\n\nNous vous tiendrons informé de l'avancement.\n\nCordialement,\nL'équipe Support JADOMI",
+  besoin_info: "Bonjour,\n\nAfin de traiter votre demande dans les meilleures conditions, nous aurions besoin d'informations complémentaires :\n\n- Quel navigateur utilisez-vous (Chrome, Firefox, Safari) ?\n- Pouvez-vous décrire les étapes exactes pour reproduire le problème ?\n- Y a-t-il un message d'erreur affiché ?\n\nMerci pour votre collaboration.\n\nCordialement,\nL'équipe Support JADOMI",
+  resolu: "Bonjour,\n\nNous avons identifié et corrigé le problème que vous avez signalé. La correction est désormais en place.\n\nPouvez-vous vérifier de votre côté que tout fonctionne correctement ? N'hésitez pas à nous recontacter si le problème persiste.\n\nCordialement,\nL'équipe Support JADOMI",
+  bug_confirme: "Bonjour,\n\nNous confirmons qu'il s'agit bien d'un bug dans notre système. Celui-ci a été répertorié dans notre suivi interne et sera traité en priorité.\n\nNous vous informerons dès que le correctif sera déployé.\n\nCordialement,\nL'équipe Support JADOMI",
+  contournement: "Bonjour,\n\nEn attendant la correction définitive, voici une solution de contournement qui devrait vous permettre de continuer à utiliser la fonctionnalité :\n\n[Détaillez la solution ici]\n\nNous travaillons activement sur une correction permanente.\n\nCordialement,\nL'équipe Support JADOMI",
+  mise_a_jour: "Bonjour,\n\nNous vous informons qu'une mise à jour incluant l'amélioration demandée est prévue prochainement.\n\nVous serez notifié par email dès que celle-ci sera disponible.\n\nCordialement,\nL'équipe Support JADOMI",
+  fonctionnalite_prevue: "Bonjour,\n\nMerci pour cette suggestion pertinente. Cette fonctionnalité fait partie de notre feuille de route et sera intégrée dans une prochaine version de JADOMI.\n\nNous prenons note de votre intérêt et vous tiendrons informé de sa disponibilité.\n\nCordialement,\nL'équipe Support JADOMI",
+  documentation: "Bonjour,\n\nVous trouverez la réponse à votre question dans notre centre d'aide :\nhttps://jadomi.fr/vitrines/aide.html\n\nSi vous avez besoin de précisions supplémentaires après consultation de cette documentation, n'hésitez pas à revenir vers nous.\n\nCordialement,\nL'équipe Support JADOMI",
+  cloture: "Bonjour,\n\nNous n'avons pas reçu de retour de votre part concernant cette demande. Nous procédons donc à la clôture de ce ticket.\n\nSi le problème persiste ou si vous avez de nouvelles questions, n'hésitez pas à ouvrir un nouveau ticket.\n\nCordialement,\nL'équipe Support JADOMI"
+};
+
+function applyCannedResponse() {
+  const select = document.getElementById('p-canned');
+  const textarea = document.getElementById('p-reply-text');
+  const key = select.value;
+  if (key && CANNED_RESPONSES[key]) {
+    textarea.value = CANNED_RESPONSES[key];
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }
+  select.value = '';
+}
+
+// --- SLA indicators (Freshdesk pattern) ---
+const SLA_CONFIG = {
+  low: { label: 'SLA 48h', hours: 48 },
+  medium: { label: 'SLA 24h', hours: 24 },
+  high: { label: 'SLA 4h', hours: 4 },
+  urgent: { label: 'SLA 1h', hours: 1 }
+};
+
+function getSlaHtml(priority, createdAt, status) {
+  if (status === 'resolu' || status === 'ferme') return '';
+  var sla = SLA_CONFIG[priority] || SLA_CONFIG.medium;
+  var elapsed = (Date.now() - new Date(createdAt).getTime()) / 3600000;
+  var ratio = elapsed / sla.hours;
+  var color = '#10b981';
+  if (ratio >= 1) color = '#ef4444';
+  else if (ratio >= 0.75) color = '#f59e0b';
+  var elapsedStr = elapsed < 1 ? Math.round(elapsed * 60) + 'min' : Math.round(elapsed * 10) / 10 + 'h';
+  return '<span style="font-size:.68rem;color:' + color + '"> ' + sla.label + ' (' + elapsedStr + ')</span>';
+}
+
+// --- Keyboard accessibility ---
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closePanel();
+});
+
+// --- Init ---
+(async function init() {
+  const token = await getToken();
+  if (!token) return;
+  loadKPIs();
+  loadAdminTickets();
+})();
+</script>
+</body>
+</html>

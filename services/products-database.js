@@ -6,7 +6,7 @@
 const { admin } = require('../api/multiSocietes/middleware');
 
 /**
- * Recherche full-text en francais
+ * Recherche full-text en français
  */
 async function searchProducts(query, options = {}) {
   const { limit = 10, category, source } = options;
@@ -23,7 +23,7 @@ async function searchProducts(query, options = {}) {
     if (error) throw error;
     return data || [];
   } catch (e) {
-    // Fallback ilike si full-text echoue
+    // Fallback ilike si full-text échoue
     try {
       const { data } = await admin().from('products_database')
         .select('id, gtin, name, name_fr, brand, manufacturer, category, image_url, confidence_score, scan_count')
@@ -83,7 +83,7 @@ async function getDatabaseStats() {
 }
 
 /**
- * Import batch de produits (utilise par les scripts)
+ * Import batch de produits (utilisé par les scripts)
  */
 async function bulkInsertProducts(products, source) {
   const results = { inserted: 0, updated: 0, errors: 0 };
@@ -134,7 +134,7 @@ async function bulkInsertProducts(products, source) {
 }
 
 /**
- * Obtenir les categories distinctes
+ * Obtenir les catégories distinctes
  * Performance: uses get_database_stats RPC (includes distinct_categories).
  * Fallback: DISTINCT query instead of loading 10K rows + dedup in JS.
  */

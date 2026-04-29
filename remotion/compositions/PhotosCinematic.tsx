@@ -12,7 +12,7 @@ interface PhotosCinematicProps {
   accentColor?: string;
 }
 
-const DURATION_PER_PHOTO = 150; // 5s a 30fps
+const DURATION_PER_PHOTO = 150; // 5s à 30fps
 const CROSSFADE = 30; // 1s crossfade
 
 const KenBurnsPhoto: React.FC<{ src: string; index: number }> = ({ src, index }) => {

@@ -5,16 +5,16 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 
-const PROMPT_EXTRACTION = `Tu analyses une grille tarifaire de laboratoire de prothese dentaire francaise.
+const PROMPT_EXTRACTION = `Tu analyses une grille tarifaire de laboratoire de prothèse dentaire française.
 Extrais TOUS les produits avec leurs prix.
 Pour chaque produit :
-- nom : denomination exacte telle que ecrite dans le document
+- nom : dénomination exacte telle qu'écrite dans le document
 - prix_ht : prix en euros (nombre decimal, sans symbole)
 - categorie_suggeree : parmi [amovible_resine, amovible_metallique, fixe_metal, fixe_ceramique, implant, orthese, odf, reparation, accessoire, dents, autre]
 - type_produit : prothese|orthese|accessoire|reparation
-- tva_applicable : false si prothese (art. 261 CGI), true si orthese (gouttiere, ODF, aligneur)
-- code_ccam : si present dans le document
-- notes : caracteristiques techniques eventuelles
+- tva_applicable : false si prothèse (art. 261 CGI), true si orthèse (gouttière, ODF, aligneur)
+- code_ccam : si présent dans le document
+- notes : caractéristiques techniques éventuelles
 
 Retourne un JSON valide avec la structure :
 {
@@ -38,7 +38,7 @@ Retourne un JSON valide avec la structure :
 
 IMPORTANT :
 - Ne manque AUCUN produit
-- Si plusieurs variantes (ex: 1 dent, 2 dents, 3 dents), cree une ligne par variante
+- Si plusieurs variantes (ex: 1 dent, 2 dents, 3 dents), crée une ligne par variante
 - Prix en HT uniquement
 - JSON strict, pas de commentaires
 - Si un prix est ambigu, mets la valeur la plus probable`;
@@ -95,7 +95,7 @@ async function extraireDepuisPdfTexte(pdfText) {
 }
 
 function parseResponse(content) {
-  // Extraire le JSON de la reponse
+  // Extraire le JSON de la réponse
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Pas de JSON dans la réponse IA');
 

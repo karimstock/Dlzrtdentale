@@ -17,15 +17,15 @@ async function requireAuth(req, res, next) {
     if (error || !user) return res.status(401).json({ error: 'Token invalide' });
     req.userId = user.id;
     next();
-  } catch { return res.status(401).json({ error: 'Auth echouee' }); }
+  } catch { return res.status(401).json({ error: 'Auth échouée' }); }
 }
 
 // POST /api/studio/enhance-photos
 router.post('/enhance-photos', requireAuth, async (req, res) => {
   // TODO: integration Remotion pour slideshow Ken Burns
   return res.status(501).json({
-    error: 'Fonctionnalite en cours de developpement',
-    message: 'L\'amelioration photo (slideshow cinematique) sera disponible prochainement.'
+    error: 'Fonctionnalité en cours de développement',
+    message: 'L\'amélioration photo (slideshow cinématique) sera disponible prochainement.'
   });
 });
 
@@ -33,8 +33,8 @@ router.post('/enhance-photos', requireAuth, async (req, res) => {
 router.post('/enhance-video', requireAuth, async (req, res) => {
   // TODO: integration Remotion pour intro + outro cinematiques
   return res.status(501).json({
-    error: 'Fonctionnalite en cours de developpement',
-    message: 'L\'amelioration video sera disponible prochainement.'
+    error: 'Fonctionnalité en cours de développement',
+    message: 'L\'amélioration vidéo sera disponible prochainement.'
   });
 });
 

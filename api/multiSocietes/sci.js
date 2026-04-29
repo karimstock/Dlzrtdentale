@@ -612,7 +612,7 @@ module.exports = function mountSci(app) {
         .select('*, locataire:locataire_id(nom, prenom, raison_sociale)')
         .eq('societe_id', req.societe.id).eq('annee', annee)
         .order('mois').order('numero');
-      const rows = [['Numero','Mois','Annee','Locataire','Loyer HT','Charges','Total','Statut','Date paiement']];
+      const rows = [['Numéro','Mois','Année','Locataire','Loyer HT','Charges','Total','Statut','Date paiement']];
       for (const q of (data || [])) {
         const loc = q.locataire || {};
         const nom = loc.raison_sociale || `${loc.prenom || ''} ${loc.nom || ''}`.trim();

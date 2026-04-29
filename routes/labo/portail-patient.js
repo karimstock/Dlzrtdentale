@@ -86,7 +86,7 @@ async function validerToken(token) {
 
 // ─────────────────────────────────────────────
 // POST /api/labo/portail-patient/generer-lien
-// Genere un lien patient (cote labo, auth requise)
+// Génère un lien patient (côté labo, auth requise)
 // Note: cette route est montee DANS le router auth
 // ─────────────────────────────────────────────
 const authRouter = express.Router();
@@ -103,7 +103,7 @@ authRouter.post('/generer-lien', async (req, res) => {
       return res.status(400).json({ error: 'cas_production_id requis' });
     }
 
-    // Verifier que le cas appartient au prothesiste
+    // Vérifier que le cas appartient au prothésiste
     const { data: cas, error: casErr } = await admin()
       .from('labo_production_cases')
       .select('id, prothesiste_id')
@@ -115,7 +115,7 @@ authRouter.post('/generer-lien', async (req, res) => {
       return res.status(404).json({ error: 'Cas de production non trouvé' });
     }
 
-    // Generer token unique (64 chars hex)
+    // Générer token unique (64 chars hex)
     const token = crypto.randomBytes(32).toString('hex');
     const expire_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 jours
 

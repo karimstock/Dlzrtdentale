@@ -241,6 +241,483 @@ module.exports = function mountMailing(app) {
     }
   });
 
+  // =====================================================================
+  // LISTES DE DIFFUSION — CRUD + contacts + envoi campagne ciblée
+  // =====================================================================
+
+  // --- Rate limiter pour l'envoi ---
+  const sendLimiter = {};
+  function checkSendLimit(societeId) {
+    const now = Date.now();
+    const key = societeId;
+    if (!sendLimiter[key]) sendLimiter[key] = [];
+    sendLimiter[key] = sendLimiter[key].filter(ts => now - ts < 60000);
+    if (sendLimiter[key].length >= 5) return false; // max 5 envois/minute
+    sendLimiter[key].push(now);
+    return true;
+  }
+
+  // --- Sanitisation XSS basique ---
+  function sanitize(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[<>"']/g, c => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function sanitizeObj(obj, fields) {
+    const out = {};
+    for (const f of fields) {
+      if (obj[f] !== undefined && obj[f] !== null) out[f] = sanitize(String(obj[f]).trim());
+      else out[f] = obj[f];
+    }
+    return out;
+  }
+
+  // GET /api/mailing/lists — toutes les listes de la société
+  router.get('/lists', requireSociete(), async (req, res) => {
+    try {
+      const { data, error } = await admin().from('mailing_lists').select('*')
+        .eq('societe_id', req.societe.id).order('created_at', { ascending: false });
+      if (error) throw error;
+      res.json({ success: true, lists: data || [] });
+    } catch (e) {
+      console.error('[mailing/lists GET]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // POST /api/mailing/lists — créer une liste
+  router.post('/lists', requireSociete(), async (req, res) => {
+    try {
+      const { nom, description, type } = req.body || {};
+      if (!nom || !nom.trim()) return res.status(400).json({ error: 'Le nom de la liste est requis.' });
+      const validTypes = ['custom', 'patients', 'professionnels', 'fournisseurs', 'prospects'];
+      const safeType = validTypes.includes(type) ? type : 'custom';
+      const { data, error } = await admin().from('mailing_lists').insert({
+        societe_id: req.societe.id,
+        nom: sanitize(nom.trim()),
+        description: description ? sanitize(description.trim()) : null,
+        type: safeType
+      }).select('*').single();
+      if (error) throw error;
+      await auditLog({ userId: req.user.id, societeId: req.societe.id,
+        action: 'create_mailing_list', entity: 'mailing_list', entityId: data.id, req });
+      res.json({ success: true, list: data });
+    } catch (e) {
+      console.error('[mailing/lists POST]', e.message);
+      res.status(400).json({ success: false, error: 'Erreur lors de la création.' });
+    }
+  });
+
+  // GET /api/mailing/lists/:id — détail d'une liste
+  router.get('/lists/:id', requireSociete(), async (req, res) => {
+    try {
+      const { data, error } = await admin().from('mailing_lists').select('*')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Liste introuvable.' });
+      // Comptage contacts actifs
+      const { count } = await admin().from('mailing_list_contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('list_id', data.id).eq('statut', 'actif');
+      data.contacts_count = count || 0;
+      res.json({ success: true, list: data });
+    } catch (e) {
+      console.error('[mailing/lists/:id GET]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // PATCH /api/mailing/lists/:id — modifier une liste
+  router.patch('/lists/:id', requireSociete(), async (req, res) => {
+    try {
+      const { nom, description, type } = req.body || {};
+      const payload = {};
+      if (nom !== undefined) payload.nom = sanitize(nom.trim());
+      if (description !== undefined) payload.description = description ? sanitize(description.trim()) : null;
+      if (type !== undefined) {
+        const validTypes = ['custom', 'patients', 'professionnels', 'fournisseurs', 'prospects'];
+        if (validTypes.includes(type)) payload.type = type;
+      }
+      if (Object.keys(payload).length === 0) return res.status(400).json({ error: 'Aucune donnée à modifier.' });
+      const { data, error } = await admin().from('mailing_lists')
+        .update(payload).eq('id', req.params.id).eq('societe_id', req.societe.id)
+        .select('*').single();
+      if (error) throw error;
+      res.json({ success: true, list: data });
+    } catch (e) {
+      console.error('[mailing/lists/:id PATCH]', e.message);
+      res.status(400).json({ success: false, error: 'Erreur lors de la modification.' });
+    }
+  });
+
+  // DELETE /api/mailing/lists/:id — supprimer une liste (cascade contacts)
+  router.delete('/lists/:id', requireSociete(), async (req, res) => {
+    try {
+      const { error } = await admin().from('mailing_lists')
+        .delete().eq('id', req.params.id).eq('societe_id', req.societe.id);
+      if (error) throw error;
+      await auditLog({ userId: req.user.id, societeId: req.societe.id,
+        action: 'delete_mailing_list', entity: 'mailing_list', entityId: req.params.id, req });
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[mailing/lists/:id DELETE]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // GET /api/mailing/lists/:id/contacts — contacts avec filtres et pagination
+  router.get('/lists/:id/contacts', requireSociete(), async (req, res) => {
+    try {
+      // Vérifier que la liste appartient à la société
+      const { data: list } = await admin().from('mailing_lists').select('id')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (!list) return res.status(404).json({ error: 'Liste introuvable.' });
+
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+      const offset = (page - 1) * limit;
+
+      let q = admin().from('mailing_list_contacts').select('*', { count: 'exact' })
+        .eq('list_id', req.params.id);
+
+      // Filtres
+      if (req.query.search) {
+        const s = `%${req.query.search}%`;
+        q = q.or(`email.ilike.${s},nom.ilike.${s},prenom.ilike.${s}`);
+      }
+      if (req.query.profession) q = q.ilike('profession', `%${req.query.profession}%`);
+      if (req.query.ville) q = q.ilike('ville', `%${req.query.ville}%`);
+      if (req.query.statut && ['actif', 'desabonne', 'bounced'].includes(req.query.statut)) {
+        q = q.eq('statut', req.query.statut);
+      }
+
+      q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+      const { data, count, error } = await q;
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        contacts: data || [],
+        total: count || 0,
+        page, limit,
+        pages: Math.ceil((count || 0) / limit)
+      });
+    } catch (e) {
+      console.error('[mailing/lists/:id/contacts GET]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // POST /api/mailing/lists/:id/contacts — ajouter un ou plusieurs contacts
+  router.post('/lists/:id/contacts', requireSociete(), async (req, res) => {
+    try {
+      const { data: list } = await admin().from('mailing_lists').select('id')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (!list) return res.status(404).json({ error: 'Liste introuvable.' });
+
+      let contacts = Array.isArray(req.body) ? req.body : (req.body.contacts || [req.body]);
+      let inserted = 0, skipped = 0;
+
+      for (const c of contacts) {
+        const email = (c.email || '').toLowerCase().trim();
+        if (!email || !email.includes('@')) { skipped++; continue; }
+        const row = sanitizeObj(c, ['nom', 'prenom', 'telephone', 'profession', 'ville']);
+        try {
+          await admin().from('mailing_list_contacts').insert({
+            list_id: req.params.id, email,
+            nom: row.nom || null, prenom: row.prenom || null,
+            telephone: row.telephone || null, profession: row.profession || null,
+            ville: row.ville || null,
+            tags: Array.isArray(c.tags) ? c.tags : [],
+            source: c.source || 'manuel'
+          });
+          inserted++;
+        } catch (err) {
+          // Duplicate email — skip
+          if (err.code === '23505') { skipped++; continue; }
+          throw err;
+        }
+      }
+
+      // Mettre à jour le compteur
+      const { count } = await admin().from('mailing_list_contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('list_id', req.params.id).eq('statut', 'actif');
+      await admin().from('mailing_lists').update({ contacts_count: count || 0 }).eq('id', req.params.id);
+
+      res.json({ success: true, inserted, skipped, total: count || 0 });
+    } catch (e) {
+      console.error('[mailing/lists/:id/contacts POST]', e.message);
+      res.status(400).json({ success: false, error: 'Erreur lors de l\'ajout.' });
+    }
+  });
+
+  // POST /api/mailing/lists/:id/contacts/import — import CSV
+  router.post('/lists/:id/contacts/import', requireSociete(), upload.single('file'), async (req, res) => {
+    try {
+      const { data: list } = await admin().from('mailing_lists').select('id')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (!list) return res.status(404).json({ error: 'Liste introuvable.' });
+      if (!req.file) return res.status(400).json({ error: 'Fichier CSV requis.' });
+
+      const rows = csvParse(req.file.buffer, { columns: true, skip_empty_lines: true, trim: true });
+      let inserted = 0, skipped = 0;
+
+      for (const r of rows) {
+        const email = (r.email || r.Email || r.EMAIL || '').toLowerCase().trim();
+        if (!email || !email.includes('@')) { skipped++; continue; }
+        try {
+          await admin().from('mailing_list_contacts').insert({
+            list_id: req.params.id, email,
+            nom: sanitize(r.nom || r.Nom || '') || null,
+            prenom: sanitize(r.prenom || r.Prenom || r.prénom || r.Prénom || '') || null,
+            telephone: sanitize(r.telephone || r.tel || r.Telephone || '') || null,
+            profession: sanitize(r.profession || r.Profession || '') || null,
+            ville: sanitize(r.ville || r.Ville || r.city || '') || null,
+            source: 'csv_import'
+          });
+          inserted++;
+        } catch (err) {
+          if (err.code === '23505') { skipped++; continue; }
+          skipped++;
+        }
+      }
+
+      // Mettre à jour le compteur
+      const { count } = await admin().from('mailing_list_contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('list_id', req.params.id).eq('statut', 'actif');
+      await admin().from('mailing_lists').update({ contacts_count: count || 0 }).eq('id', req.params.id);
+
+      res.json({ success: true, inserted, skipped, total: count || 0 });
+    } catch (e) {
+      console.error('[mailing/lists/:id/contacts/import]', e.message);
+      res.status(400).json({ success: false, error: 'Erreur lors de l\'import.' });
+    }
+  });
+
+  // DELETE /api/mailing/lists/:id/contacts/:contactId — supprimer un contact
+  router.delete('/lists/:id/contacts/:contactId', requireSociete(), async (req, res) => {
+    try {
+      const { data: list } = await admin().from('mailing_lists').select('id')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (!list) return res.status(404).json({ error: 'Liste introuvable.' });
+
+      const { error } = await admin().from('mailing_list_contacts')
+        .delete().eq('id', req.params.contactId).eq('list_id', req.params.id);
+      if (error) throw error;
+
+      // Mettre à jour le compteur
+      const { count } = await admin().from('mailing_list_contacts')
+        .select('id', { count: 'exact', head: true })
+        .eq('list_id', req.params.id).eq('statut', 'actif');
+      await admin().from('mailing_lists').update({ contacts_count: count || 0 }).eq('id', req.params.id);
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[mailing/lists/:id/contacts/:contactId DELETE]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // POST /api/mailing/lists/:id/send — envoyer une campagne à cette liste
+  router.post('/lists/:id/send', requireSociete(), async (req, res) => {
+    try {
+      // Rate limiting
+      if (!checkSendLimit(req.societe.id)) {
+        return res.status(429).json({ error: 'Trop d\'envois simultanés. Veuillez patienter une minute.' });
+      }
+
+      const { data: list } = await admin().from('mailing_lists').select('*')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (!list) return res.status(404).json({ error: 'Liste introuvable.' });
+
+      const { subject, html_content, from_name } = req.body || {};
+      if (!subject || !subject.trim()) return res.status(400).json({ error: 'L\'objet de l\'email est requis.' });
+      if (!html_content || !html_content.trim()) return res.status(400).json({ error: 'Le contenu de l\'email est requis.' });
+
+      // Vérifier le quota mailing
+      const moisCourant = new Date().toISOString().slice(0, 7);
+      let { data: pack } = await admin().from('mailing_packs').select('*')
+        .eq('societe_id', req.societe.id).eq('actif', true).maybeSingle();
+
+      // Pack par défaut : gratuit 500/mois
+      if (!pack) {
+        const { data: newPack } = await admin().from('mailing_packs').insert({
+          societe_id: req.societe.id, pack: 'gratuit',
+          emails_inclus: 500, prix_mensuel: 0,
+          emails_envoyes_mois: 0, mois_courant: moisCourant
+        }).select('*').single();
+        pack = newPack;
+      }
+
+      // Reset compteur si nouveau mois
+      if (pack.mois_courant !== moisCourant) {
+        await admin().from('mailing_packs').update({
+          emails_envoyes_mois: 0, mois_courant: moisCourant
+        }).eq('id', pack.id);
+        pack.emails_envoyes_mois = 0;
+      }
+
+      // Récupérer les contacts actifs de la liste
+      const { data: contacts } = await admin().from('mailing_list_contacts')
+        .select('email, nom, prenom')
+        .eq('list_id', req.params.id).eq('statut', 'actif');
+
+      if (!contacts || contacts.length === 0) {
+        return res.status(400).json({ error: 'Aucun contact actif dans cette liste.' });
+      }
+
+      // Vérifier quota
+      const remaining = pack.emails_inclus - (pack.emails_envoyes_mois || 0);
+      if (remaining < contacts.length) {
+        return res.status(402).json({
+          error: `Quota insuffisant. Il vous reste ${remaining} email(s) ce mois-ci, mais la liste contient ${contacts.length} contact(s). Veuillez passer à un forfait supérieur.`,
+          quota: { remaining, needed: contacts.length, pack: pack.pack }
+        });
+      }
+
+      // Créer la campagne associée
+      const { data: campagne } = await admin().from('campagnes_mailing').insert({
+        societe_id: req.societe.id,
+        titre: sanitize(subject.trim()),
+        objet_email: sanitize(subject.trim()),
+        contenu_html: html_content,
+        cible: 'base_importee',
+        statut: 'envoyee',
+        date_envoi: new Date().toISOString()
+      }).select('*').single();
+
+      let envoyes = 0, bounces = 0;
+      const fromAddr = from_name
+        ? `"${sanitize(from_name)}" <${process.env.SMTP_USER || 'noreply@jadomi.fr'}>`
+        : undefined;
+
+      for (const contact of contacts) {
+        // Créer l'envoi pour le tracking
+        const { data: env } = await admin().from('campagne_envois').insert({
+          campagne_id: campagne.id, societe_id: req.societe.id,
+          email: contact.email, envoye_at: new Date().toISOString()
+        }).select('*').single();
+
+        if (!env) { bounces++; continue; }
+        const html = renderHtmlForEnvoi({ contenu_html: html_content, objet_email: subject }, env);
+        const r = await mailer.sendMail({ to: contact.email, subject: subject.trim(), html, from: fromAddr });
+        if (r.ok || r.simulated) envoyes++;
+        else bounces++;
+      }
+
+      // Mettre à jour la campagne
+      await admin().from('campagnes_mailing').update({
+        nb_envoyes: envoyes
+      }).eq('id', campagne.id);
+
+      // Mettre à jour le quota
+      await admin().from('mailing_packs').update({
+        emails_envoyes_mois: (pack.emails_envoyes_mois || 0) + envoyes
+      }).eq('id', pack.id);
+
+      // Enregistrer dans l'historique liste-campagne
+      await admin().from('mailing_list_campaigns').insert({
+        list_id: req.params.id, campagne_id: campagne.id,
+        societe_id: req.societe.id, nb_envoyes: envoyes
+      }).catch(() => {});
+
+      await auditLog({ userId: req.user.id, societeId: req.societe.id,
+        action: 'send_list_campaign', entity: 'mailing_list', entityId: req.params.id,
+        meta: { nb: envoyes, bounces, campagne_id: campagne.id }, req });
+
+      res.json({ success: true, envoyes, bounces, campagne_id: campagne.id });
+    } catch (e) {
+      console.error('[mailing/lists/:id/send]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // GET /api/mailing/lists/:id/stats — statistiques d'une liste
+  router.get('/lists/:id/stats', requireSociete(), async (req, res) => {
+    try {
+      const { data: list } = await admin().from('mailing_lists').select('*')
+        .eq('id', req.params.id).eq('societe_id', req.societe.id).maybeSingle();
+      if (!list) return res.status(404).json({ error: 'Liste introuvable.' });
+
+      // Contacts par statut
+      const { data: contacts } = await admin().from('mailing_list_contacts')
+        .select('statut').eq('list_id', req.params.id);
+      const statuts = { actif: 0, desabonne: 0, bounced: 0 };
+      for (const c of (contacts || [])) statuts[c.statut] = (statuts[c.statut] || 0) + 1;
+
+      // Historique campagnes
+      const { data: campaigns } = await admin().from('mailing_list_campaigns')
+        .select('*').eq('list_id', req.params.id).order('sent_at', { ascending: false }).limit(20);
+
+      // Totaux
+      let totalEnvoyes = 0, totalOuverts = 0, totalClics = 0, totalDesabonnes = 0;
+      for (const camp of (campaigns || [])) {
+        totalEnvoyes += camp.nb_envoyes || 0;
+        totalOuverts += camp.nb_ouverts || 0;
+        totalClics += camp.nb_clics || 0;
+        totalDesabonnes += camp.nb_desabonnes || 0;
+      }
+
+      res.json({
+        success: true,
+        stats: {
+          contacts: statuts,
+          total_contacts: (contacts || []).length,
+          campaigns_count: (campaigns || []).length,
+          total_envoyes: totalEnvoyes,
+          total_ouverts: totalOuverts,
+          total_clics: totalClics,
+          total_desabonnes: totalDesabonnes,
+          taux_ouverture: totalEnvoyes > 0 ? Math.round(100 * totalOuverts / totalEnvoyes) : 0,
+          taux_clic: totalEnvoyes > 0 ? Math.round(100 * totalClics / totalEnvoyes) : 0
+        },
+        campaigns: campaigns || []
+      });
+    } catch (e) {
+      console.error('[mailing/lists/:id/stats GET]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
+  // GET /api/mailing/quota — quota mailing de la société
+  router.get('/quota', requireSociete(), async (req, res) => {
+    try {
+      const moisCourant = new Date().toISOString().slice(0, 7);
+      let { data: pack } = await admin().from('mailing_packs').select('*')
+        .eq('societe_id', req.societe.id).eq('actif', true).maybeSingle();
+
+      if (!pack) {
+        pack = { pack: 'gratuit', emails_inclus: 500, prix_mensuel: 0, emails_envoyes_mois: 0 };
+      } else if (pack.mois_courant !== moisCourant) {
+        pack.emails_envoyes_mois = 0;
+      }
+
+      const packs = [
+        { id: 'gratuit', nom: 'Gratuit', emails: 500, prix: 0 },
+        { id: 'pack_2500', nom: 'Pack 2 500', emails: 2500, prix: 5 },
+        { id: 'pack_10000', nom: 'Pack 10 000', emails: 10000, prix: 15 },
+        { id: 'pack_50000', nom: 'Pack 50 000', emails: 50000, prix: 49 },
+        { id: 'illimite', nom: 'Illimité', emails: 999999, prix: 99 }
+      ];
+
+      res.json({
+        success: true,
+        current: {
+          pack: pack.pack,
+          emails_inclus: pack.emails_inclus,
+          emails_envoyes: pack.emails_envoyes_mois || 0,
+          restant: pack.emails_inclus - (pack.emails_envoyes_mois || 0),
+          prix: pack.prix_mensuel || 0
+        },
+        packs
+      });
+    } catch (e) {
+      console.error('[mailing/quota GET]', e.message);
+      res.status(500).json({ success: false, error: 'Erreur interne' });
+    }
+  });
+
   app.use('/api/mailing', router);
 
   // =====================================================================

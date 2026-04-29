@@ -59,7 +59,7 @@ module.exports = function mountVitrines(app) {
   const publicRouter = express.Router();
   require('./public')(publicRouter);
   try { require('./chatbot-public')(publicRouter); } catch (e) {
-    console.warn('[vitrines] chatbot-public non charge:', e.message);
+    console.warn('[vitrines] chatbot-public non chargé :', e.message);
   }
   app.use('/api/vitrines/public', publicRouter);
   // Alias : frontend appelle sans /public/ — rediriger vers les routes publiques
@@ -93,13 +93,13 @@ module.exports = function mountVitrines(app) {
   require('./onboarding-ai')(router);
   require('./logo-ai')(router);
   try { require('./ai-assistants')(router); } catch (e) {
-    console.warn('[vitrines] ai-assistants non charge:', e.message);
+    console.warn('[vitrines] ai-assistants non chargé :', e.message);
   }
   try { require('./generate-section')(router); } catch (e) {
-    console.warn('[vitrines] generate-section non charge:', e.message);
+    console.warn('[vitrines] generate-section non chargé :', e.message);
   }
   try { require('./staging')(router); } catch (e) {
-    console.warn('[vitrines] staging non charge:', e.message);
+    console.warn('[vitrines] staging non chargé :', e.message);
   }
 
   // Crawl multi-pages (Passe 44A)
@@ -138,5 +138,5 @@ module.exports = function mountVitrines(app) {
   app.get('/site/:slug/rendez-vous', (req, res) => res.sendFile(siteHtml));
   app.get('/site/:slug/espace-client', (req, res) => res.sendFile(siteHtml));
 
-  console.log('[JADOMI] Routes /api/vitrines montees');
+  console.log('[JADOMI] Routes /api/vitrines montées');
 };

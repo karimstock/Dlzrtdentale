@@ -82,9 +82,9 @@ async function requireClient(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '') || req.query.token;
   if (!token) return res.status(401).json({ error: 'Token client requis' });
   const clientId = verifyClientToken(token);
-  if (!clientId) return res.status(401).json({ error: 'Session expiree, reconnectez-vous' });
+  if (!clientId) return res.status(401).json({ error: 'Session expirée, reconnectez-vous' });
   const { data: client } = await admin().from('avocat_clients').select('*').eq('id', clientId).single();
-  if (!client || client.statut === 'archive') return res.status(401).json({ error: 'Compte desactive' });
+  if (!client || client.statut === 'archive') return res.status(401).json({ error: 'Compte désactivé' });
   req.clientId = clientId;
   req.client = client;
   next();
@@ -107,7 +107,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const ext = '.' + (file.originalname.split('.').pop() || '').toLowerCase();
     if (ALLOWED_EXTENSIONS_CLIENT.includes(ext)) return cb(null, true);
-    cb(new Error('Type de fichier non autorise'));
+    cb(new Error('Type de fichier non autorisé'));
   }
 });
 
@@ -121,9 +121,9 @@ router.get('/invitation/:token', async (req, res) => {
     .select('*, avocat_clients(nom, prenom, email, avocat_societe_id)')
     .eq('token', req.params.token).single();
 
-  if (!invite) return res.status(404).json({ error: 'Invitation invalide ou expiree' });
-  if (invite.used) return res.json({ valid: true, used: true, client_email: invite.avocat_clients?.email, message: 'Cette invitation a deja ete utilisee. Connectez-vous avec vos identifiants.' });
-  if (new Date(invite.expires_at) < new Date()) return res.status(410).json({ error: 'Invitation expiree. Contactez votre avocat.' });
+  if (!invite) return res.status(404).json({ error: 'Invitation invalide ou expirée' });
+  if (invite.used) return res.json({ valid: true, used: true, client_email: invite.avocat_clients?.email, message: 'Cette invitation a déjà été utilisée. Connectez-vous avec vos identifiants.' });
+  if (new Date(invite.expires_at) < new Date()) return res.status(410).json({ error: 'Invitation expirée. Contactez votre avocat.' });
 
   return res.json({
     valid: true,
@@ -151,7 +151,7 @@ router.post('/login', async (req, res) => {
 
   // Check lock
   if (client.locked_until && new Date(client.locked_until) > new Date()) {
-    return res.status(423).json({ error: 'Compte temporairement verrouille. Reessayez dans quelques minutes.' });
+    return res.status(423).json({ error: 'Compte temporairement verrouillé. Réessayez dans quelques minutes.' });
   }
 
   // Verifier password
@@ -160,7 +160,7 @@ router.post('/login', async (req, res) => {
     const lockUntil = attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
     await admin().from('avocat_clients').update({ failed_login_attempts: attempts, locked_until: lockUntil }).eq('id', client.id);
     await logAudit(client.id, 'client', 'login_fail', 'client', client.id, req, false, { attempt: attempts });
-    return res.status(401).json({ error: 'Mot de passe incorrect' + (attempts >= 4 ? '. Attention, compte bientot verrouille.' : '') });
+    return res.status(401).json({ error: 'Mot de passe incorrect' + (attempts >= 4 ? '. Attention, compte bientôt verrouillé.' : '') });
   }
 
   // Si invitation_token : marquer comme utilise
@@ -192,7 +192,7 @@ router.post('/login', async (req, res) => {
 // POST /espace-client/change-password
 router.post('/change-password', requireClient, async (req, res) => {
   const { new_password } = req.body || {};
-  if (!new_password || new_password.length < 8) return res.status(400).json({ error: 'Nouveau mot de passe requis (8+ caracteres)' });
+  if (!new_password || new_password.length < 8) return res.status(400).json({ error: 'Nouveau mot de passe requis (8+ caractères)' });
 
   await admin().from('avocat_clients').update({
     password_hash: hashPassword(new_password),
@@ -243,7 +243,7 @@ router.get('/mes-dossiers', requireClient, async (req, res) => {
 router.get('/dossier/:id', requireClient, async (req, res) => {
   const { data: dossier } = await admin().from('avocat_dossiers')
     .select('*').eq('id', req.params.id).eq('client_id', req.clientId).single();
-  if (!dossier) return res.status(404).json({ error: 'Dossier non trouve' });
+  if (!dossier) return res.status(404).json({ error: 'Dossier non trouvé' });
 
   const { data: docs } = await admin().from('avocat_coffre_documents')
     .select('id, filename, file_type, file_size_kb, mime_type, note_client, statut_validation, uploaded_by_role, created_at')
@@ -274,7 +274,7 @@ router.post('/documents/upload', requireClient, upload.single('file'), async (re
 
     // Verifier que le dossier appartient au client
     const { data: dossier } = await admin().from('avocat_dossiers').select('id, avocat_societe_id').eq('id', dossier_id).eq('client_id', req.clientId).single();
-    if (!dossier) return res.status(403).json({ error: 'Dossier non autorise' });
+    if (!dossier) return res.status(403).json({ error: 'Dossier non autorisé' });
 
     // Chiffrer
     const { encrypted, iv, tag } = encryptBuffer(req.file.buffer);
@@ -307,11 +307,11 @@ router.post('/documents/upload', requireClient, upload.single('file'), async (re
 router.get('/documents/:id/download', requireClient, async (req, res) => {
   try {
     const { data: doc } = await admin().from('avocat_coffre_documents').select('*').eq('id', req.params.id).single();
-    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!doc) return res.status(404).json({ error: 'Document non trouvé' });
 
     // Verifier que le client a acces au dossier
     const { data: dossier } = await admin().from('avocat_dossiers').select('id').eq('id', doc.dossier_id).eq('client_id', req.clientId).single();
-    if (!dossier) return res.status(403).json({ error: 'Acces refuse' });
+    if (!dossier) return res.status(403).json({ error: 'Accès refusé' });
 
     const encrypted = fs.readFileSync(doc.storage_path);
     const decrypted = decryptBuffer(encrypted, doc.encryption_iv, doc.encryption_tag);

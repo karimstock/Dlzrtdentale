@@ -1,12 +1,12 @@
 // =============================================
 // JADOMI RUSH — Filtrage anonymat IA
-// Detecte et masque infos personnelles dans messages
+// Détecte et masque infos personnelles dans messages
 // Utilise JADOMI IA (Claude Haiku)
 // =============================================
 
 const Anthropic = require('@anthropic-ai/sdk');
 
-// Regex patterns pour detection rapide
+// Regex patterns pour détection rapide
 const PATTERNS = {
   telephone: /(?:\+33|0033|0)\s*[1-9](?:[\s.-]*\d{2}){4}/g,
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
@@ -14,7 +14,7 @@ const PATTERNS = {
   cp_complet: /\b\d{5}\b/g, // code postal seul = risque identification
 };
 
-// Pre-filtre regex rapide
+// Pré-filtre regex rapide
 function preFilterRegex(texte) {
   if (!texte) return { texte, detections: [] };
   const detections = [];
@@ -24,27 +24,27 @@ function preFilterRegex(texte) {
   const tels = filtre.match(PATTERNS.telephone);
   if (tels) {
     detections.push({ type: 'telephone', values: tels });
-    filtre = filtre.replace(PATTERNS.telephone, '[INFO MASQUEE]');
+    filtre = filtre.replace(PATTERNS.telephone, '[INFO MASQUÉE]');
   }
 
   // Email
   const emails = filtre.match(PATTERNS.email);
   if (emails) {
     detections.push({ type: 'email', values: emails });
-    filtre = filtre.replace(PATTERNS.email, '[INFO MASQUEE]');
+    filtre = filtre.replace(PATTERNS.email, '[INFO MASQUÉE]');
   }
 
   // URLs
   const urls = filtre.match(PATTERNS.url);
   if (urls) {
     detections.push({ type: 'url', values: urls });
-    filtre = filtre.replace(PATTERNS.url, '[INFO MASQUEE]');
+    filtre = filtre.replace(PATTERNS.url, '[INFO MASQUÉE]');
   }
 
   return { texte: filtre, detections };
 }
 
-// Filtre IA avance (noms propres, adresses, references identifiantes)
+// Filtre IA avancé (noms propres, adresses, références identifiantes)
 let _anthropic = null;
 function getClient() {
   if (!_anthropic) {
@@ -65,26 +65,26 @@ async function filterIA(texte) {
       max_tokens: 500,
       messages: [{
         role: 'user',
-        content: `Tu es un filtre d'anonymat pour une plateforme de sous-traitance entre prothesistes dentaires.
-Les prothesistes ne doivent JAMAIS connaitre l'identite de l'autre.
+        content: `Tu es un filtre d'anonymat pour une plateforme de sous-traitance entre prothésistes dentaires.
+Les prothésistes ne doivent JAMAIS connaître l'identité de l'autre.
 
-Analyse ce message et remplace par [INFO MASQUEE] :
+Analyse ce message et remplace par [INFO MASQUÉE] :
 - Noms propres de personnes ou entreprises
-- Adresses postales (rue, numero)
-- Numeros de telephone
+- Adresses postales (rue, numéro)
+- Numéros de téléphone
 - Adresses email
-- Noms de villes specifiques (garde le departement si present)
-- Toute reference permettant d'identifier un laboratoire
+- Noms de villes spécifiques (garde le département si présent)
+- Toute référence permettant d'identifier un laboratoire
 
 NE MASQUE PAS :
-- Termes techniques dentaires (teintes, materiaux, marques de produits dentaires)
+- Termes techniques dentaires (teintes, matériaux, marques de produits dentaires)
 - Descriptions de travaux
-- Prix et delais
+- Prix et délais
 
-Reponds UNIQUEMENT avec le message filtre, sans commentaire.
-Si rien a masquer, reponds avec le message original tel quel.
+Réponds UNIQUEMENT avec le message filtré, sans commentaire.
+Si rien à masquer, réponds avec le message original tel quel.
 
-Message a filtrer :
+Message à filtrer :
 "${texte.replace(/"/g, '\\"')}"`
       }]
     });
@@ -107,10 +107,10 @@ Message a filtrer :
 async function filtrerMessage(texte) {
   if (!texte) return { contenu_filtre: '', filtre_applique: false, infos_masquees: false, tentative_identification: false };
 
-  // Etape 1 : pre-filtre regex
+  // Étape 1 : pré-filtre regex
   const { texte: texteRegex, detections: detectionsRegex } = preFilterRegex(texte);
 
-  // Etape 2 : filtre IA
+  // Étape 2 : filtre IA
   const { texte: texteIA, iaApplied, detections: detectionsIA } = await filterIA(texteRegex);
 
   const allDetections = [...detectionsRegex, ...detectionsIA];
@@ -126,22 +126,22 @@ async function filtrerMessage(texte) {
   };
 }
 
-// Verifier si un message doit etre bloque (trop d'infos personnelles)
+// Vérifier si un message doit être bloqué (trop d'infos personnelles)
 function doitBloquer(detections) {
   if (!detections || detections.length === 0) return false;
   const telOrEmail = detections.filter(d => d.type === 'telephone' || d.type === 'email');
   return telOrEmail.length > 0;
 }
 
-// Generer alias gemme stable pour un prothesiste
+// Générer alias gemme stable pour un prothésiste
 const GEMMES = [
-  'Emeraude', 'Saphir', 'Rubis', 'Topaze', 'Amethyste', 'Opale',
+  'Émeraude', 'Saphir', 'Rubis', 'Topaze', 'Améthyste', 'Opale',
   'Jade', 'Onyx', 'Grenat', 'Turquoise', 'Aigue-Marine', 'Citrine',
-  'Peridot', 'Tanzanite', 'Morganite', 'Alexandrite', 'Spinelle',
+  'Péridot', 'Tanzanite', 'Morganite', 'Alexandrite', 'Spinelle',
   'Tourmaline', 'Zircon', 'Lapis-Lazuli', 'Cornaline', 'Agate',
   'Jaspe', 'Obsidienne', 'Quartz', 'Diamant', 'Perle', 'Ambre',
   'Chrysoprase', 'Kunzite', 'Larimar', 'Rhodonite', 'Sodalite',
-  'Beryl', 'Iolite', 'Prehnite', 'Fluorite', 'Calcedoine',
+  'Béryl', 'Iolite', 'Préhnite', 'Fluorite', 'Calcédoine',
   'Aventurine', 'Moldavite'
 ];
 

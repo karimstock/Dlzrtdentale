@@ -144,8 +144,10 @@ button{font-family:var(--font);cursor:pointer;}
 </nav>
 
 <div class="tabs">
-  <button class="tab active" data-panel="campagnes">📧 Campagnes</button>
-  <button class="tab" data-panel="bases">📇 Bases emails</button>
+  <button class="tab active" data-panel="campagnes">Campagnes</button>
+  <button class="tab" data-panel="listes">Listes de diffusion</button>
+  <button class="tab" data-panel="bases">Bases emails</button>
+  <button class="tab" data-panel="quota">Forfait mailing</button>
 </div>
 
 <main class="main">
@@ -161,6 +163,52 @@ button{font-family:var(--font);cursor:pointer;}
       <button class="btn btn-primary" onclick="openCampModal()">+ Nouvelle campagne</button>
     </div>
     <div id="camp-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+  </div>
+
+  <!-- LISTES DE DIFFUSION -->
+  <div class="panel" data-panel="listes">
+    <div class="rgpd-note">
+      <strong>Listes de diffusion</strong> — Créez des listes de contacts segmentées par profession, ville ou type.
+      Chaque liste peut recevoir des campagnes ciblées. Tous les emails incluent automatiquement un lien de désabonnement conforme au RGPD.
+    </div>
+    <div class="toolbar">
+      <input class="search" id="search-lists" placeholder="Rechercher une liste…">
+      <button class="btn btn-primary" onclick="openListModal()">+ Nouvelle liste</button>
+    </div>
+    <div id="lists-wrap"><div class="loader"><div class="spinner"></div>Chargement...</div></div>
+  </div>
+
+  <!-- DETAIL LISTE (contacts) -->
+  <div class="panel" data-panel="list-detail" style="display:none;">
+    <div class="toolbar" style="margin-bottom:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="backToLists()" style="margin-right:8px;">&larr; Retour aux listes</button>
+      <span id="list-detail-title" style="font-family:var(--display);font-size:16px;font-weight:700;flex:1;"></span>
+      <span id="list-detail-type" class="chip custom" style="margin-left:8px;"></span>
+    </div>
+    <div id="list-detail-desc" style="font-size:12px;color:var(--muted);margin-bottom:16px;"></div>
+
+    <div class="toolbar">
+      <input class="search" id="search-contacts" placeholder="Rechercher par nom, email...">
+      <select id="filter-profession" class="search" style="flex:0 0 150px;"><option value="">Toutes professions</option></select>
+      <select id="filter-ville" class="search" style="flex:0 0 130px;"><option value="">Toutes villes</option></select>
+      <select id="filter-statut" class="search" style="flex:0 0 110px;">
+        <option value="">Tous statuts</option>
+        <option value="actif">Actif</option>
+        <option value="desabonne">Désabonné</option>
+        <option value="bounced">Bounced</option>
+      </select>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary btn-sm" onclick="openAddContactModal()">+ Ajouter un contact</button>
+      <button class="btn btn-ghost btn-sm" onclick="openImportCsvModal()">Importer CSV</button>
+      <button class="btn btn-primary btn-sm" style="background:var(--green);" onclick="openSendListModal()">Envoyer une campagne</button>
+      <button class="btn btn-ghost btn-sm" onclick="viewListStats()">Statistiques</button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="contacts-wrap"><div class="loader"><div class="spinner"></div>Chargement...</div></div>
+    </div>
+    <div id="contacts-pagination" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;"></div>
   </div>
 
   <!-- BASES -->
@@ -179,6 +227,17 @@ button{font-family:var(--font);cursor:pointer;}
 
     <div class="card" style="padding:0;overflow:hidden;">
       <div id="bases-wrap"><div class="loader"><div class="spinner"></div>Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- FORFAIT MAILING -->
+  <div class="panel" data-panel="quota">
+    <div class="card">
+      <div class="card-title">Votre forfait mailing</div>
+      <div class="card-sub">Gérez votre quota d'envoi mensuel. Chaque plan JADOMI inclut 500 emails gratuits par mois.</div>
+      <div id="quota-current" style="margin-bottom:24px;"></div>
+      <div class="card-title" style="margin-top:20px;">Nos forfaits</div>
+      <div id="quota-packs" class="camp-grid" style="margin-top:12px;"></div>
     </div>
   </div>
 
@@ -224,6 +283,99 @@ button{font-family:var(--font);cursor:pointer;}
     <div id="stats-body"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-stats')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LISTE -->
+<div class="modal-bg" id="modal-list">
+  <div class="modal">
+    <div class="modal-title" id="list-modal-title">Nouvelle liste de diffusion</div>
+    <div class="form-grid">
+      <div class="field full"><label>Nom de la liste *</label><input id="l-nom" placeholder="Dentistes Paris"></div>
+      <div class="field full"><label>Description</label><input id="l-description" placeholder="Liste des dentistes de la région parisienne"></div>
+      <div class="field">
+        <label>Type</label>
+        <select id="l-type">
+          <option value="custom">Personnalisée</option>
+          <option value="patients">Patients</option>
+          <option value="professionnels">Professionnels</option>
+          <option value="fournisseurs">Fournisseurs</option>
+          <option value="prospects">Prospects</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-list')">Annuler</button>
+      <button class="btn btn-primary" id="list-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AJOUTER CONTACT -->
+<div class="modal-bg" id="modal-add-contact">
+  <div class="modal">
+    <div class="modal-title">Ajouter un contact</div>
+    <div class="form-grid">
+      <div class="field full"><label>Email *</label><input id="ac-email" type="email" placeholder="contact@exemple.fr"></div>
+      <div class="field"><label>Nom</label><input id="ac-nom" placeholder="Dupont"></div>
+      <div class="field"><label>Prénom</label><input id="ac-prenom" placeholder="Marie"></div>
+      <div class="field"><label>Téléphone</label><input id="ac-telephone" placeholder="06 12 34 56 78"></div>
+      <div class="field"><label>Profession</label><input id="ac-profession" placeholder="Chirurgien-dentiste"></div>
+      <div class="field"><label>Ville</label><input id="ac-ville" placeholder="Paris"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-contact')">Annuler</button>
+      <button class="btn btn-primary" id="contact-save">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORT CSV -->
+<div class="modal-bg" id="modal-import-csv">
+  <div class="modal">
+    <div class="modal-title">Importer des contacts (CSV)</div>
+    <div class="card-sub" style="margin-bottom:16px;">
+      Fichier CSV avec en-têtes. Colonnes reconnues : <code>email</code> (obligatoire), <code>nom</code>, <code>prenom</code>, <code>telephone</code>, <code>profession</code>, <code>ville</code>.
+      Les doublons par email seront automatiquement ignorés.
+    </div>
+    <div class="field"><label>Fichier CSV</label><input id="import-csv-file" type="file" accept=".csv,text/csv"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-import-csv')">Annuler</button>
+      <button class="btn btn-primary" id="import-csv-btn">Importer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ENVOYER CAMPAGNE LISTE -->
+<div class="modal-bg" id="modal-send-list">
+  <div class="modal">
+    <div class="modal-title">Envoyer une campagne à cette liste</div>
+    <div class="form-grid">
+      <div class="field full"><label>Objet de l'email *</label><input id="sl-subject" placeholder="Votre invitation exclusive"></div>
+      <div class="field full"><label>Nom d'expéditeur</label><input id="sl-from" placeholder="JADOMI"></div>
+      <div class="field full">
+        <label>Contenu de l'email *</label>
+        <div id="sl-html-editor" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;min-height:220px;color:var(--text);"></div>
+        <textarea id="sl-html" style="display:none;"></textarea>
+        <div class="hint">Variables disponibles : <code>{{desabo_url}}</code>. Un footer RGPD est ajouté automatiquement.</div>
+      </div>
+    </div>
+    <div id="sl-quota-info" style="margin-top:12px;font-size:12px;color:var(--muted);"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-send-list')">Annuler</button>
+      <button class="btn btn-primary" id="send-list-btn" style="background:var(--green);">Envoyer maintenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STATS LISTE -->
+<div class="modal-bg" id="modal-list-stats">
+  <div class="modal">
+    <div class="modal-title" id="list-stats-title">Statistiques de la liste</div>
+    <div id="list-stats-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-list-stats')">Fermer</button>
     </div>
   </div>
 </div>
@@ -279,14 +431,31 @@ async function apiUpload(path, file, fields={}){
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       t.classList.add('active');
       const key = t.dataset.panel;
-      document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.dataset.panel===key));
+      document.querySelectorAll('.panel').forEach(p=>{
+        if(p.dataset.panel===key) p.classList.add('active');
+        else if(p.dataset.panel!=='list-detail') p.classList.remove('active');
+        else p.style.display='none';
+      });
       if(key==='campagnes') loadCampagnes();
       if(key==='bases') loadBases();
+      if(key==='listes') loadLists();
+      if(key==='quota') loadQuota();
     };
   });
   $('search-c').oninput = renderCampagnes;
   $('camp-save').onclick = saveCampagne;
   $('base-upload').onclick = uploadBase;
+
+  // Lists bindings
+  $('search-lists').oninput = renderLists;
+  $('list-save').onclick = saveList;
+  $('contact-save').onclick = saveContact;
+  $('import-csv-btn').onclick = importCsvContacts;
+  $('send-list-btn').onclick = sendListCampaign;
+  $('search-contacts').oninput = ()=>loadContacts(currentListId);
+  $('filter-profession').onchange = ()=>loadContacts(currentListId);
+  $('filter-ville').onchange = ()=>loadContacts(currentListId);
+  $('filter-statut').onchange = ()=>loadContacts(currentListId);
 
   loadCampagnes();
   loadBases({silent:true});
@@ -483,6 +652,347 @@ async function delBase(id){
   const r = await api('/api/mailing/bases/'+id,{method:'DELETE'});
   if(r.success){ toast('Base supprimée','ok'); await loadBases(); }
   else toast(r.error||'erreur',true);
+}
+
+// ===== LISTES DE DIFFUSION =====
+let lists=[], editingList=null, currentListId=null, currentListData=null;
+let contactsPage=1;
+
+const TYPE_LBL = {custom:'Personnalisée',patients:'Patients',professionnels:'Professionnels',fournisseurs:'Fournisseurs',prospects:'Prospects'};
+
+async function loadLists(){
+  $('lists-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement...</div>';
+  const r = await api('/api/mailing/lists');
+  lists = r.lists || [];
+  renderLists();
+}
+
+function renderLists(){
+  const q = ($('search-lists').value||'').toLowerCase();
+  const rows = lists.filter(l => !q || (l.nom||'').toLowerCase().includes(q) || (l.description||'').toLowerCase().includes(q));
+  if(rows.length===0){
+    $('lists-wrap').innerHTML='<div class="empty">Aucune liste de diffusion. Créez votre première liste pour organiser vos contacts.</div>';
+    return;
+  }
+  $('lists-wrap').innerHTML = `<div class="camp-grid">${rows.map(l=>`
+    <div class="camp" onclick="openListDetail('${l.id}')">
+      <div class="camp-head">
+        <div class="camp-title">${esc(l.nom)}</div>
+        <span class="chip ${l.type||'custom'}" style="background:var(--accent-soft);color:var(--accent);">${TYPE_LBL[l.type]||l.type}</span>
+      </div>
+      <div class="camp-obj">${esc(l.description||'Aucune description')}</div>
+      <div class="camp-stats" style="grid-template-columns:1fr;">
+        <div class="camp-stat"><div class="camp-stat-val">${l.contacts_count||0}</div><div class="camp-stat-lbl">contacts</div></div>
+      </div>
+      <div class="camp-actions">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editList('${l.id}')">Modifier</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delList('${l.id}')">Supprimer</button>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+function openListModal(){
+  editingList=null;
+  $('list-modal-title').textContent='Nouvelle liste de diffusion';
+  $('l-nom').value=''; $('l-description').value=''; $('l-type').value='custom';
+  openModal('modal-list');
+}
+
+function editList(id){
+  const l = lists.find(x=>x.id===id); if(!l) return;
+  editingList=id;
+  $('list-modal-title').textContent='Modifier la liste';
+  $('l-nom').value=l.nom||''; $('l-description').value=l.description||''; $('l-type').value=l.type||'custom';
+  openModal('modal-list');
+}
+
+async function saveList(){
+  const payload = {
+    nom: $('l-nom').value.trim(),
+    description: $('l-description').value.trim(),
+    type: $('l-type').value
+  };
+  if(!payload.nom){ toast('Le nom est requis.','error'); return; }
+  const path = editingList ? '/api/mailing/lists/'+editingList : '/api/mailing/lists';
+  const method = editingList ? 'PATCH' : 'POST';
+  const r = await api(path,{method,body:JSON.stringify(payload)});
+  if(!r.success){ toast(r.error||'Erreur','error'); return; }
+  toast(editingList ? 'Liste modifiée' : 'Liste créée','ok');
+  closeModal('modal-list');
+  await loadLists();
+}
+
+async function delList(id){
+  if(!confirm('Supprimer cette liste et tous ses contacts ? Cette action est irréversible.')) return;
+  const r = await api('/api/mailing/lists/'+id,{method:'DELETE'});
+  if(r.success){ toast('Liste supprimée','ok'); await loadLists(); }
+  else toast(r.error||'Erreur','error');
+}
+
+// ===== DETAIL LISTE =====
+async function openListDetail(id){
+  currentListId=id; contactsPage=1;
+  // Masquer le panel listes, afficher le détail
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const detailPanel = document.querySelector('[data-panel="list-detail"]');
+  detailPanel.style.display='block';
+  detailPanel.classList.add('active');
+
+  // Charger les infos de la liste
+  const r = await api('/api/mailing/lists/'+id);
+  if(!r.success){ toast(r.error||'Erreur','error'); return; }
+  currentListData = r.list;
+  $('list-detail-title').textContent = r.list.nom;
+  $('list-detail-type').textContent = TYPE_LBL[r.list.type]||r.list.type;
+  $('list-detail-desc').textContent = r.list.description || '';
+
+  await loadContacts(id);
+}
+
+function backToLists(){
+  currentListId=null; currentListData=null;
+  document.querySelector('[data-panel="list-detail"]').style.display='none';
+  document.querySelector('[data-panel="listes"]').classList.add('active');
+  loadLists();
+}
+
+async function loadContacts(listId, page){
+  if(!listId) return;
+  const p = page || contactsPage || 1;
+  contactsPage = p;
+  const params = new URLSearchParams({page:p, limit:50});
+  const search = $('search-contacts').value.trim();
+  if(search) params.set('search', search);
+  const profession = $('filter-profession').value;
+  if(profession) params.set('profession', profession);
+  const ville = $('filter-ville').value;
+  if(ville) params.set('ville', ville);
+  const statut = $('filter-statut').value;
+  if(statut) params.set('statut', statut);
+
+  $('contacts-wrap').innerHTML='<div class="loader"><div class="spinner"></div>Chargement...</div>';
+  const r = await api('/api/mailing/lists/'+listId+'/contacts?'+params.toString());
+  if(!r.success){ $('contacts-wrap').innerHTML='<div class="empty">Erreur de chargement.</div>'; return; }
+
+  const contacts = r.contacts || [];
+  if(contacts.length===0){
+    $('contacts-wrap').innerHTML='<div class="empty">Aucun contact dans cette liste. Ajoutez des contacts manuellement ou importez un CSV.</div>';
+    $('contacts-pagination').innerHTML='';
+    return;
+  }
+
+  const STATUT_CHIP = {actif:'<span class="chip envoyee">Actif</span>',desabonne:'<span class="chip brouillon">Désabonné</span>',bounced:'<span class="chip" style="background:rgba(240,80,80,0.15);color:var(--red);">Bounced</span>'};
+
+  $('contacts-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Email</th><th>Nom</th><th>Prénom</th><th>Profession</th><th>Ville</th><th>Statut</th><th>Source</th><th></th></tr></thead>
+      <tbody>${contacts.map(c=>`
+        <tr>
+          <td><strong>${esc(c.email)}</strong></td>
+          <td>${esc(c.nom||'—')}</td>
+          <td>${esc(c.prenom||'—')}</td>
+          <td>${esc(c.profession||'—')}</td>
+          <td>${esc(c.ville||'—')}</td>
+          <td>${STATUT_CHIP[c.statut]||c.statut}</td>
+          <td style="font-size:11px;color:var(--muted);">${esc(c.source||'—')}</td>
+          <td class="actions"><button class="btn btn-danger btn-sm" onclick="delContact('${c.id}')">Retirer</button></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+
+  // Pagination
+  const totalPages = r.pages || 1;
+  let paginationHtml = '';
+  if(totalPages > 1){
+    paginationHtml += `<span style="font-size:12px;color:var(--muted);">${r.total} contact(s) — page ${r.page} / ${totalPages}</span>`;
+    if(r.page > 1) paginationHtml += `<button class="btn btn-ghost btn-sm" onclick="loadContacts('${listId}',${r.page-1})">&larr; Précédent</button>`;
+    if(r.page < totalPages) paginationHtml += `<button class="btn btn-ghost btn-sm" onclick="loadContacts('${listId}',${r.page+1})">Suivant &rarr;</button>`;
+  } else {
+    paginationHtml = `<span style="font-size:12px;color:var(--muted);">${r.total} contact(s)</span>`;
+  }
+  $('contacts-pagination').innerHTML = paginationHtml;
+}
+
+// Ajouter un contact
+function openAddContactModal(){
+  ['ac-email','ac-nom','ac-prenom','ac-telephone','ac-profession','ac-ville'].forEach(id=>$(id).value='');
+  openModal('modal-add-contact');
+}
+async function saveContact(){
+  const email = $('ac-email').value.trim();
+  if(!email || !email.includes('@')){ toast('Email invalide.','error'); return; }
+  const payload = {
+    email, nom: $('ac-nom').value.trim()||null, prenom: $('ac-prenom').value.trim()||null,
+    telephone: $('ac-telephone').value.trim()||null, profession: $('ac-profession').value.trim()||null,
+    ville: $('ac-ville').value.trim()||null
+  };
+  const r = await api('/api/mailing/lists/'+currentListId+'/contacts',{method:'POST',body:JSON.stringify(payload)});
+  if(!r.success){ toast(r.error||'Erreur','error'); return; }
+  if(r.skipped > 0){ toast('Ce contact existe déjà dans la liste.','error'); return; }
+  toast('Contact ajouté','ok');
+  closeModal('modal-add-contact');
+  await loadContacts(currentListId);
+}
+
+// Import CSV
+function openImportCsvModal(){
+  $('import-csv-file').value='';
+  openModal('modal-import-csv');
+}
+async function importCsvContacts(){
+  const f = $('import-csv-file').files[0];
+  if(!f){ toast('Sélectionnez un fichier CSV.','error'); return; }
+  const btn = $('import-csv-btn'); btn.disabled=true; btn.textContent='Import en cours...';
+  try{
+    const r = await apiUpload('/api/mailing/lists/'+currentListId+'/contacts/import', f);
+    if(!r.success) throw new Error(r.error||'Erreur');
+    toast(`Import terminé : ${r.inserted} ajouté(s), ${r.skipped} ignoré(s). Total : ${r.total}`,'ok');
+    closeModal('modal-import-csv');
+    await loadContacts(currentListId);
+  }catch(e){ toast(e.message,'error'); }
+  finally{ btn.disabled=false; btn.textContent='Importer'; }
+}
+
+// Supprimer un contact
+async function delContact(contactId){
+  if(!confirm('Retirer ce contact de la liste ?')) return;
+  const r = await api('/api/mailing/lists/'+currentListId+'/contacts/'+contactId,{method:'DELETE'});
+  if(r.success){ toast('Contact retiré','ok'); await loadContacts(currentListId); }
+  else toast(r.error||'Erreur','error');
+}
+
+// Envoyer campagne à la liste
+let sendListQuill = null;
+function openSendListModal(){
+  $('sl-subject').value=''; $('sl-from').value='';
+  if(sendListQuill){ sendListQuill.root.innerHTML=''; }
+  $('sl-html').value='';
+  // Afficher quota
+  api('/api/mailing/quota').then(r=>{
+    if(r.success){
+      const c = r.current;
+      $('sl-quota-info').innerHTML = `Quota : <strong>${c.restant}</strong> email(s) restant(s) ce mois-ci (forfait ${c.pack}). Cette liste contient <strong>${currentListData?.contacts_count||'?'}</strong> contact(s) actif(s).`;
+    }
+  });
+  openModal('modal-send-list');
+  setTimeout(initSendListQuill, 50);
+}
+function initSendListQuill(){
+  if(sendListQuill || typeof Quill === 'undefined') return;
+  try{
+    sendListQuill = new Quill('#sl-html-editor', {
+      theme:'snow',
+      modules:{ toolbar:[
+        [{header:[2,3,false]}],
+        ['bold','italic','underline','strike'],
+        [{color:[]},{background:[]}],
+        [{list:'ordered'},{list:'bullet'}],
+        ['link','image','blockquote'],
+        ['clean']
+      ]},
+      placeholder:'Rédigez votre message...'
+    });
+  }catch(e){ console.warn('Quill send-list init:', e.message); }
+}
+async function sendListCampaign(){
+  const subject = $('sl-subject').value.trim();
+  const from_name = $('sl-from').value.trim();
+  const html_content = sendListQuill ? sendListQuill.root.innerHTML : $('sl-html').value;
+  if(!subject){ toast('L\'objet est requis.','error'); return; }
+  if(!html_content || html_content==='<p><br></p>'){ toast('Le contenu est requis.','error'); return; }
+  if(!confirm(`Envoyer cette campagne à ${currentListData?.contacts_count||'tous les'} contact(s) de la liste "${currentListData?.nom}" ?\n\nCette action est irréversible.`)) return;
+
+  const btn = $('send-list-btn'); btn.disabled=true; btn.textContent='Envoi en cours...';
+  try{
+    const r = await api('/api/mailing/lists/'+currentListId+'/send',{method:'POST',body:JSON.stringify({subject,html_content,from_name:from_name||null})});
+    if(!r.success) throw new Error(r.error||'Erreur');
+    toast(`Campagne envoyée : ${r.envoyes} email(s) délivrés.`,'ok');
+    closeModal('modal-send-list');
+  }catch(e){ toast(e.message,'error'); }
+  finally{ btn.disabled=false; btn.textContent='Envoyer maintenant'; }
+}
+
+// Stats liste
+async function viewListStats(){
+  const r = await api('/api/mailing/lists/'+currentListId+'/stats');
+  if(!r.success){ toast(r.error||'Erreur','error'); return; }
+  const s = r.stats;
+  $('list-stats-title').textContent = 'Statistiques — ' + (currentListData?.nom||'');
+  $('list-stats-body').innerHTML = `
+    <div class="camp-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+      <div class="camp-stat"><div class="camp-stat-val">${s.total_contacts}</div><div class="camp-stat-lbl">Contacts</div></div>
+      <div class="camp-stat"><div class="camp-stat-val" style="color:var(--green);">${s.contacts.actif||0}</div><div class="camp-stat-lbl">Actifs</div></div>
+      <div class="camp-stat"><div class="camp-stat-val" style="color:var(--orange);">${s.contacts.desabonne||0}</div><div class="camp-stat-lbl">Désabonnés</div></div>
+      <div class="camp-stat"><div class="camp-stat-val" style="color:var(--red);">${s.contacts.bounced||0}</div><div class="camp-stat-lbl">Bounced</div></div>
+    </div>
+    <div class="card-title" style="margin-top:20px;margin-bottom:12px;">Performance des campagnes (${s.campaigns_count} campagne(s))</div>
+    <div class="camp-stats" style="grid-template-columns:repeat(4,1fr);">
+      <div class="camp-stat"><div class="camp-stat-val">${s.total_envoyes}</div><div class="camp-stat-lbl">Envoyés</div></div>
+      <div class="camp-stat"><div class="camp-stat-val">${s.total_ouverts}</div><div class="camp-stat-lbl">Ouverts (${s.taux_ouverture}%)</div></div>
+      <div class="camp-stat"><div class="camp-stat-val">${s.total_clics}</div><div class="camp-stat-lbl">Clics (${s.taux_clic}%)</div></div>
+      <div class="camp-stat"><div class="camp-stat-val">${s.total_desabonnes}</div><div class="camp-stat-lbl">Désabonnés</div></div>
+    </div>
+    ${r.campaigns && r.campaigns.length > 0 ? `
+    <div class="card-title" style="margin-top:20px;margin-bottom:12px;">Historique des envois</div>
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Envoyés</th><th>Ouverts</th><th>Clics</th></tr></thead>
+      <tbody>${r.campaigns.map(c=>`
+        <tr>
+          <td>${c.sent_at ? new Date(c.sent_at).toLocaleString('fr-FR') : '—'}</td>
+          <td class="num">${c.nb_envoyes||0}</td>
+          <td class="num">${c.nb_ouverts||0}</td>
+          <td class="num">${c.nb_clics||0}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>` : ''}
+  `;
+  openModal('modal-list-stats');
+}
+
+// ===== FORFAIT MAILING =====
+async function loadQuota(){
+  const r = await api('/api/mailing/quota');
+  if(!r.success){ $('quota-current').innerHTML='<div class="empty">Impossible de charger le forfait.</div>'; return; }
+  const c = r.current;
+  const pct = c.emails_inclus > 0 ? Math.min(100, Math.round(100*c.emails_envoyes/c.emails_inclus)) : 0;
+  const barColor = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--orange)' : 'var(--green)';
+
+  $('quota-current').innerHTML = `
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Forfait actuel</div>
+        <div style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--accent);">
+          ${r.packs.find(p=>p.id===c.pack)?.nom || c.pack}
+          ${c.prix > 0 ? `<span style="font-size:14px;color:var(--muted);font-weight:400;"> — ${c.prix} EUR/mois</span>` : `<span style="font-size:14px;color:var(--green);font-weight:400;"> — Inclus</span>`}
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Utilisation ce mois</div>
+        <div style="font-family:var(--display);font-size:22px;font-weight:700;">${c.emails_envoyes} <span style="font-size:14px;color:var(--muted);font-weight:400;">/ ${c.emails_inclus}</span></div>
+        <div style="margin-top:6px;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width 0.5s var(--trans);"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">${c.restant} email(s) restant(s)</div>
+      </div>
+    </div>
+  `;
+
+  $('quota-packs').innerHTML = r.packs.map(p=>`
+    <div class="camp" style="cursor:default;${p.id===c.pack?'border-color:var(--accent);background:var(--accent-soft);':''}">
+      <div class="camp-head">
+        <div class="camp-title">${esc(p.nom)}</div>
+        ${p.id===c.pack ? '<span class="chip envoyee">Actif</span>' : ''}
+      </div>
+      <div style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--accent);margin:12px 0;">
+        ${p.prix === 0 ? 'Gratuit' : p.prix + ' EUR<span style="font-size:14px;font-weight:400;color:var(--muted);">/mois</span>'}
+      </div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8;">
+        ${p.emails >= 999999 ? 'Emails illimités' : p.emails.toLocaleString('fr-FR') + ' emails/mois'}
+      </div>
+      ${p.id !== c.pack && p.id !== 'gratuit' ? `<div style="margin-top:14px;"><button class="btn btn-ghost btn-sm" disabled title="Bientôt disponible">Choisir ce forfait</button></div>` : ''}
+    </div>
+  `).join('');
 }
 </script>
 </body>

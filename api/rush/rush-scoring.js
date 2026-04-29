@@ -102,7 +102,7 @@ function createScoringRouter(supabase) {
       }).select().single();
 
       if (error) {
-        if (error.code === '23505') return res.status(409).json({ error: 'Evaluation deja soumise pour cette demande' });
+        if (error.code === '23505') return res.status(409).json({ error: 'Évaluation déjà soumise pour cette demande' });
         throw error;
       }
 

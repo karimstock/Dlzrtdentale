@@ -1,5 +1,5 @@
 // =============================================
-// JADOMI — Import factures fournisseurs scannées vers societé
+// JADOMI — Import factures fournisseurs scannées vers société
 // - Route POST /api/commerce/factures-fournisseurs/import
 // - Module réutilisable pour CRON scan email
 // =============================================
@@ -182,10 +182,10 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
     // Message enrichi avec intelligence prix
     let notifMessage = `${doc.fournisseur || 'Fournisseur inconnu'} · ${Number(payload.montant_ttc).toFixed(2)} EUR`;
     if (suivra > 0) notifMessage += ` · ${suivra} produit${suivra > 1 ? 's' : ''} en attente livraison`;
-    if (pricesRecorded > 0) notifMessage += ` · ${pricesRecorded} prix enregistres`;
+    if (pricesRecorded > 0) notifMessage += ` · ${pricesRecorded} prix enregistrés`;
     if (priceInsights.length > 0) {
       const totalSavings = priceInsights.reduce((sum, i) => sum + (i.potential_savings || 0), 0);
-      notifMessage += ` · ${priceInsights.length} economies detectees (${totalSavings.toFixed(2)} EUR)`;
+      notifMessage += ` · ${priceInsights.length} économies détectées (${totalSavings.toFixed(2)} EUR)`;
     }
 
     for (const m of members || []) {
@@ -193,8 +193,8 @@ async function importerFactureFournisseur({ societe_id, user_id = null, doc }) {
         user_id: m.user_id, societe_id,
         type: 'autre', urgence: priceInsights.length > 0 ? 'haute' : 'normale',
         titre: priceInsights.length > 0
-          ? `Facture importee — ${priceInsights.length} economies detectees !`
-          : `Nouvelle facture fournisseur importee`,
+          ? `Facture importée — ${priceInsights.length} économies détectées !`
+          : `Nouvelle facture fournisseur importée`,
         message: notifMessage,
         entity_type: 'facture_fournisseur', entity_id: facture.id,
         cta_label: 'Voir', cta_url: '/commerce.html?tab=fournisseurs'

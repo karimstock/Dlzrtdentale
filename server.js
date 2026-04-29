@@ -52,14 +52,14 @@ app.use('/labo-pro', (req, res) => {
 // === Security: Helmet (HTTP headers) ===
 const helmet = require('helmet');
 app.use(helmet({
-  contentSecurityPolicy: false, // desactive CSP pour ne pas casser les CDN (jsdelivr, unpkg, google fonts)
+  contentSecurityPolicy: false, // désactivé CSP pour ne pas casser les CDN (jsdelivr, unpkg, google fonts)
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
 // === Security: CORS strict ===
-// En production, seules les origines jadomi.fr/.be sont autorisees.
-// En dev/local (sans NODE_ENV=production), toutes origines acceptees.
+// En production, seules les origines jadomi.fr/.be sont autorisées.
+// En dev/local (sans NODE_ENV=production), toutes origines acceptées.
 const allowedOrigins = [
   'https://jadomi.fr', 'https://www.jadomi.fr',
   'https://jadomi.be', 'https://www.jadomi.be',
@@ -75,7 +75,7 @@ app.use(cors({
   credentials: true
 }));
 
-// ===== SECURITE JADOMI — Headers protection niveau etatique =====
+// ===== SÉCURITÉ JADOMI — Headers protection niveau étatique =====
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -114,7 +114,7 @@ app.use('/api/auth/login', rateLimit({
   message: { error: 'Trop de tentatives, réessayez dans 15 minutes' }
 }));
 
-// Strict register : 3 creations / heure / IP
+// Strict register : 3 créations / heure / IP
 app.use('/api/auth/register', rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
@@ -210,6 +210,8 @@ app.get('/professions-paramedicales', (req, res) => res.sendFile(path.join(__dir
 app.get('/services-bien-etre', (req, res) => res.sendFile(path.join(__dirname, 'public/services-bien-etre.html')));
 // JADOMI Dentiste Pro Dashboard
 app.get('/admin/dentiste-pro', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/dentiste-pro.html')));
+// JADOMI Rappels automatiques (Passe 70)
+app.get('/rappels', (req, res) => res.sendFile(path.join(__dirname, 'public/rappels.html')));
 // JADOMI Ads (Passe 34)
 app.get('/jadomi-ads', (req, res) => res.sendFile(path.join(__dirname, 'public/jadomi-ads.html')));
 app.get('/dashboard-annonceur', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard-annonceur.html')));
@@ -225,10 +227,19 @@ app.get('/studio/sites-existants/', (req, res) => res.sendFile(path.join(__dirna
 // Dashboard mes-sites enrichi (Passe 38)
 app.get('/studio/mes-sites', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
 app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mes-sites/index.html')));
-// Dashboard mon-site cockpit + wizard creation (Passe 38)
+// Dashboard mon-site cockpit + wizard création (Passe 38)
 app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
+// SEO Landing pages — Soins infirmiers par ville (dynamic route)
+app.get('/soins/:ville', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/ide/soins-ville.html'));
+});
+app.get('/soins', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/ide/soins-ville.html'));
+});
+// JADOMI Community Forum (Passe 67)
+app.get('/communaute', (req, res) => res.sendFile(path.join(__dirname, 'public/support/communaute.html')));
 // JADOMI Equipment — Offres groupees (Passe 59)
 app.get('/equipment/offres', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/offres.html')));
 app.get('/equipment/propose', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/propose.html')));
@@ -245,7 +256,7 @@ app.use('/sites-staging/:slug', (req, res, next) => {
   if (require('fs').existsSync(stagingPath)) {
     express.static(stagingPath)(req, res, next);
   } else {
-    res.status(404).send('Staging non trouve');
+    res.status(404).send('Staging non trouvé');
   }
 });
 // Sites clients JADOMI — routage dynamique /sites/:slug (Passe 38)
@@ -256,7 +267,7 @@ app.use('/sites/:slug', (req, res, next) => {
   if (require('fs').existsSync(sitePath)) {
     express.static(sitePath)(req, res, next);
   } else {
-    res.status(404).send('<!DOCTYPE html><html><head><title>Site introuvable</title></head><body style="font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fafaf8;"><div style="text-align:center;"><h1 style="font-size:24px;color:#1a1a2e;">Site introuvable</h1><p style="color:#5c5c70;">Ce site n\'existe pas ou n\'est pas encore en ligne.</p><a href="https://jadomi.fr" style="color:#4F5BD5;">Retour a JADOMI</a></div></body></html>');
+    res.status(404).send('<!DOCTYPE html><html><head><title>Site introuvable</title></head><body style="font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fafaf8;"><div style="text-align:center;"><h1 style="font-size:24px;color:#1a1a2e;">Site introuvable</h1><p style="color:#5c5c70;">Ce site n\'existe pas ou n\'est pas encore en ligne.</p><a href="https://jadomi.fr" style="color:#4F5BD5;">Retour à JADOMI</a></div></body></html>');
   }
 });
 // Sites demo Studio (Passe 37)
@@ -287,7 +298,7 @@ app.use('/docs', (req, res, next) => {
   const blocked = ['/signed', '/audit', '/certificates'];
   const lower = req.path.toLowerCase();
   if (blocked.some(b => lower.startsWith(b))) {
-    return res.status(403).json({ error: 'Acces refuse' });
+    return res.status(403).json({ error: 'Accès refusé' });
   }
   next();
 }, express.static(path.join(__dirname, 'docs'), { maxAge: '1d' }));
@@ -486,7 +497,7 @@ app.post('/api/commerce/checkout/webhook', express.raw({ type: 'application/json
 <div style="max-width:560px;margin:0 auto;background:#1a1917;border:1px solid #2f2c28;border-radius:12px;overflow:hidden;">
   <div style="padding:30px 30px 10px 30px;border-bottom:1px solid #2f2c28;">
     <div style="font-size:28px;font-weight:800;color:#10b981;letter-spacing:-1px;">JADOMI</div>
-    <div style="font-size:12px;color:#9c9890;margin-top:4px;">Marketplace equipement dentaire</div>
+    <div style="font-size:12px;color:#9c9890;margin-top:4px;">Marketplace équipement dentaire</div>
   </div>
   <div style="padding:30px;">
     <h2 style="color:#10b981;font-size:20px;margin:0 0 16px 0;">${title}</h2>
@@ -528,7 +539,7 @@ app.post('/api/commerce/checkout/webhook', express.raw({ type: 'application/json
                       Total TTC : ${Number(order.total_ttc).toFixed(2)} EUR
                     </p>
                     <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
-                      Votre fournisseur a ete notifie et preparera votre commande dans les meilleurs delais.
+                      Votre fournisseur a été notifié et préparera votre commande dans les meilleurs délais.
                     </p>
                     <p style="line-height:1.6;font-size:14px;color:#e8e6e0;">
                       Nous vous remercions pour votre confiance.
@@ -845,7 +856,7 @@ app.post('/api/voice/resend-document', authSupabase(), async (req, res) => {
       .eq('id', document_id)
       .eq('societe_id', societeId)
       .single();
-    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!doc) return res.status(404).json({ error: 'Document non trouvé' });
 
     const targetEmail = email || doc.signer_email;
     if (!targetEmail) return res.status(400).json({ error: 'Aucun email disponible' });
@@ -856,7 +867,7 @@ app.post('/api/voice/resend-document', authSupabase(), async (req, res) => {
       await sendMail({
         to: targetEmail,
         subject: 'JADOMI — Document : ' + (doc.title || 'Sans titre'),
-        html: '<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#10b981;">JADOMI</h2><p>Bonjour,</p><p>Veuillez trouver ci-joint le document <strong>' + (doc.title || 'Sans titre') + '</strong> (categorie : ' + (doc.category || '-') + ').</p><p>Pour verifier l\'authenticite de ce document :</p><p><a href="https://jadomi.fr/verify-signature?id=' + doc.id + '" style="color:#10b981;">Verifier le document</a></p><p>Cordialement,<br>JADOMI</p></div>'
+        html: '<div style="font-family:sans-serif;padding:20px;"><h2 style="color:#10b981;">JADOMI</h2><p>Bonjour,</p><p>Veuillez trouver ci-joint le document <strong>' + (doc.title || 'Sans titre') + '</strong> (catégorie : ' + (doc.category || '-') + ').</p><p>Pour vérifier l\'authenticité de ce document :</p><p><a href="https://jadomi.fr/verify-signature?id=' + doc.id + '" style="color:#10b981;">Vérifier le document</a></p><p>Cordialement,<br>JADOMI</p></div>'
       });
     } catch (emailErr) {
       console.warn('[voice/resend] Email error:', emailErr.message);
@@ -868,7 +879,7 @@ app.post('/api/voice/resend-document', authSupabase(), async (req, res) => {
   }
 });
 
-// POST /api/voice/generate-letter — Generer un courrier (relance, mise en demeure, etc.)
+// POST /api/voice/generate-letter — Générer un courrier (relance, mise en demeure, etc.)
 app.post('/api/voice/generate-letter', authSupabase(), async (req, res) => {
   try {
     const { type, context, recipient_name, recipient_email, amount, details } = req.body;
@@ -880,13 +891,13 @@ app.post('/api/voice/generate-letter', authSupabase(), async (req, res) => {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-      system: `Tu es le generateur de courriers professionnels de JADOMI, plateforme pour professionnels de sante.
-Tu generes des courriers en HTML propre, professionnels, en francais, avec vouvoiement.
+      system: `Tu es le générateur de courriers professionnels de JADOMI, plateforme pour professionnels de santé.
+Tu génères des courriers en HTML propre, professionnels, en français, avec vouvoiement.
 Types de courriers :
-- relance_paiement : Relance amiable pour facture impayee
-- mise_en_demeure : Mise en demeure formelle (plus severe)
+- relance_paiement : Relance amiable pour facture impayée
+- mise_en_demeure : Mise en demeure formelle (plus sévère)
 - relance_remplacement : Relance pour paiement de remplacement professionnel
-- confirmation : Confirmation de reception/accord
+- confirmation : Confirmation de réception/accord
 - remerciement : Lettre de remerciement professionnelle
 
 Le courrier doit inclure :
@@ -913,11 +924,11 @@ ${details ? 'Informations supplementaires : ' + details : ''}`
     res.json({ ok: true, html: letterHtml, type });
   } catch (e) {
     console.error('[voice/generate-letter]', e.message);
-    res.status(500).json({ error: 'Erreur generation courrier' });
+    res.status(500).json({ error: 'Erreur génération courrier' });
   }
 });
 
-// POST /api/voice/send-letter — Envoyer un courrier genere par email
+// POST /api/voice/send-letter — Envoyer un courrier généré par email
 app.post('/api/voice/send-letter', authSupabase(), async (req, res) => {
   try {
     const { to, subject, html } = req.body;
@@ -926,7 +937,7 @@ app.post('/api/voice/send-letter', authSupabase(), async (req, res) => {
     await sendMail({
       to,
       subject: subject || 'JADOMI — Courrier',
-      html: '<div style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;">' + html + '<hr style="margin-top:30px;border:none;border-top:1px solid #eee;"><p style="font-size:11px;color:#999;">Envoye via JADOMI — jadomi.fr</p></div>'
+      html: '<div style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;">' + html + '<hr style="margin-top:30px;border:none;border-top:1px solid #eee;"><p style="font-size:11px;color:#999;">Envoyé via JADOMI — jadomi.fr</p></div>'
     });
     res.json({ ok: true, sent_to: to });
   } catch (e) {
@@ -934,7 +945,7 @@ app.post('/api/voice/send-letter', authSupabase(), async (req, res) => {
   }
 });
 
-// === JADOMI Studio — Hub IA creation publicitaire (Passe 34.2) ===
+// === JADOMI Studio — Hub IA création publicitaire (Passe 34.2) ===
 try {
   const mountStudio = require('./api/studio');
   mountStudio(app, supabase, anthropic);
@@ -970,7 +981,7 @@ try {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
 }
 
-// === JADOMI AVOCAT EXPERT — Coffre-fort securise (Passe 44C) ===
+// === JADOMI AVOCAT EXPERT — Coffre-fort sécurisé (Passe 44C) ===
 try {
   app.use('/api/avocat', require('./api/avocat/coffre'));
   app.use('/api/avocat/espace-client', require('./api/avocat/espace-client'));
@@ -988,7 +999,7 @@ try {
   console.warn('[JADOMI] Module Studio Enhance Media non charge:', e.message);
 }
 
-// === JADOMI Studio Sites Jadomi — Creation sites + IA assistant (Passe 38) ===
+// === JADOMI Studio Sites Jadomi — Création sites + IA assistant (Passe 38) ===
 try {
   const mountSitesJadomi = require('./api/studio/sites-jadomi');
   mountSitesJadomi(app, supabaseAdmin || supabase);
@@ -1057,6 +1068,22 @@ try {
   console.warn('[JADOMI] Module Appointments non chargé:', e.message);
 }
 
+// === JADOMI Support Ticket System ===
+try {
+  app.use('/api/support', require('./api/support'));
+  console.log('[JADOMI] Module Support Tickets monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Support Tickets non chargé:', e.message);
+}
+
+// === JADOMI Community Forum (entraide professionnels) ===
+try {
+  app.use('/api/forum', require('./api/support/forum'));
+  console.log('[JADOMI] Module Community Forum monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Community Forum non chargé:', e.message);
+}
+
 // === JADOMI Dentiste Pro — Smart Batch Slot-Finder ===
 try {
   app.use('/api/dentiste-pro/batch-slots', require('./api/dentiste-pro/batch-slots'));
@@ -1074,6 +1101,132 @@ try {
     console.log('[CRON] Dentiste Pro rappels: every 15 min');
   }
 } catch(e) { console.log('[CRON] Dentiste Pro rappels not loaded:', e.message); }
+
+// Rate limiting SMS achat (5 / heure / IP)
+app.use('/api/sms/wallet/acheter', rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes d\'achat SMS, réessayez dans 1 heure' }
+}));
+
+// === JADOMI Push Notifications — Web Push ===
+try {
+  const pushRouter = require('./api/push');
+  // Rate limit : 10 souscriptions / heure / IP
+  app.use('/api/push/subscribe', rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Trop de souscriptions push, réessayez dans 1 heure' }
+  }));
+  app.use('/api/push', pushRouter);
+  console.log('[JADOMI] Module Push Notifications monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Push non chargé:', e.message);
+}
+
+// === JADOMI Rappels automatiques (email + SMS + push) — Passe 70 ===
+try {
+  const rappelsRouter = require('./api/rappels');
+  app.use('/api/rappels', rappelsRouter);
+  app.use('/api/sms', rappelsRouter);
+  console.log('[JADOMI] Module Rappels automatiques monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Rappels non chargé:', e.message);
+}
+
+// === Tracking pixel + confirmation pour rappels (public, pas d'auth) ===
+try {
+  const { createClient: _sc } = require('@supabase/supabase-js');
+  const _sKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  let _trackAdmin = null;
+  function trackAdmin() {
+    if (!_trackAdmin && _sKey) {
+      _trackAdmin = _sc(process.env.SUPABASE_URL, _sKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    }
+    return _trackAdmin;
+  }
+
+  // Pixel 1x1 transparent PNG
+  const PIXEL_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB' +
+    'Nl7BcQAAAABJRU5ErkJggg==', 'base64'
+  );
+
+  // GET /api/rappels/track/:id/pixel.png — Pixel ouverture (public)
+  app.get('/api/rappels/track/:id/pixel.png', async (req, res) => {
+    try {
+      const ta = trackAdmin();
+      if (ta) {
+        await ta.from('rappels_envois')
+          .update({ opened: true })
+          .eq('tracking_id', req.params.id)
+          .is('opened', false);
+      }
+    } catch (_) {}
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.end(PIXEL_PNG);
+  });
+
+  // GET /api/rappels/track/:id/confirm — Confirmation de présence (public)
+  app.get('/api/rappels/track/:id/confirm', async (req, res) => {
+    try {
+      const ta = trackAdmin();
+      if (ta) {
+        await ta.from('rappels_envois')
+          .update({ opened: true, confirmed: true })
+          .eq('tracking_id', req.params.id);
+      }
+    } catch (_) {}
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirmation — JADOMI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#f8fafb;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+.card{background:#fff;border-radius:16px;padding:48px 32px;max-width:440px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.06);}
+.icon{width:64px;height:64px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.icon svg{color:#10b981;}
+h1{font-size:22px;font-weight:700;color:#1a2e2b;margin-bottom:12px;}
+p{font-size:15px;color:#6b7f7b;line-height:1.6;}
+.footer{margin-top:24px;font-size:12px;color:#999;}
+</style></head><body>
+<div class="card">
+  <div class="icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+  <h1>Merci, votre présence est confirmée</h1>
+  <p>Nous avons bien enregistré votre confirmation. Nous vous attendons à la date et l'heure indiquées dans votre rappel.</p>
+  <div class="footer">JADOMI SAS</div>
+</div>
+</body></html>`);
+  });
+
+  console.log('[JADOMI] Tracking rappels (pixel + confirmation) monté');
+} catch (e) {
+  console.warn('[JADOMI] Tracking rappels non chargé:', e.message);
+}
+
+// Rappels scheduler (every 15 minutes) + escalade cascade (every hour)
+try {
+  const { checkAndSendRappels, checkEscalations } = require('./lib/rappels-scheduler');
+  setInterval(checkAndSendRappels, 15 * 60 * 1000);
+  // Premier check 30s apres le demarrage
+  setTimeout(checkAndSendRappels, 30 * 1000);
+  console.log('[CRON] Rappels automatiques: every 15 min');
+
+  // Cascade d'escalade : toutes les heures (Email -> Push -> SMS)
+  setInterval(checkEscalations, 60 * 60 * 1000);
+  // Premier check escalade 2 min apres le demarrage
+  setTimeout(checkEscalations, 2 * 60 * 1000);
+  console.log('[CRON] Escalade rappels (push/SMS): every 1h');
+} catch (e) {
+  console.warn('[CRON] Rappels scheduler non chargé:', e.message);
+}
 
 // === JADOMI Admin Email (inbox IMAP + campagnes mailing) ===
 try {
@@ -1130,7 +1283,7 @@ app.post('/api/auth/welcome', async (req, res) => {
 
 // ===== MFA / TOTP — Authentification a deux facteurs pour utilisateurs JADOMI =====
 
-// POST /api/auth/mfa/enroll — Generer un secret TOTP (QR code)
+// POST /api/auth/mfa/enroll — Générer un secret TOTP (QR code)
 app.post('/api/auth/mfa/enroll', requireAuth(), async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -1152,7 +1305,7 @@ app.post('/api/auth/mfa/enroll', requireAuth(), async (req, res) => {
   }
 });
 
-// POST /api/auth/mfa/verify — Verifier le code TOTP et activer le facteur
+// POST /api/auth/mfa/verify — Vérifier le code TOTP et activer le facteur
 app.post('/api/auth/mfa/verify', requireAuth(), async (req, res) => {
   try {
     const { factor_id, code } = req.body || {};
@@ -1167,7 +1320,7 @@ app.post('/api/auth/mfa/verify', requireAuth(), async (req, res) => {
       code
     });
     if (error) return res.status(400).json({ error: 'Code invalide' });
-    res.json({ success: true, message: 'MFA active avec succes' });
+    res.json({ success: true, message: 'MFA activé avec succès' });
   } catch (e) {
     console.error('[mfa/verify]', e.message);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -1205,7 +1358,7 @@ app.get('/api/auth/mfa/factors', requireAuth(), async (req, res) => {
   }
 });
 
-// DELETE /api/auth/mfa/unenroll — Desactiver un facteur MFA
+// DELETE /api/auth/mfa/unenroll — Désactiver un facteur MFA
 app.delete('/api/auth/mfa/unenroll', requireAuth(), async (req, res) => {
   try {
     const { factor_id } = req.body || {};
@@ -1213,7 +1366,7 @@ app.delete('/api/auth/mfa/unenroll', requireAuth(), async (req, res) => {
 
     const { error } = await supabase.auth.mfa.unenroll({ factorId: factor_id });
     if (error) return res.status(400).json({ error: 'Erreur validation' });
-    res.json({ success: true, message: 'Facteur MFA supprime' });
+    res.json({ success: true, message: 'Facteur MFA supprimé' });
   } catch (e) {
     console.error('[mfa/unenroll]', e.message);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -2021,7 +2174,7 @@ Reponds UNIQUEMENT en JSON:
 // GET /api/suggestions/admin — List all suggestions
 // =============================================
 app.get('/api/suggestions/admin', requireAuth(), async (req, res) => {
-  if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) return res.status(403).json({error:'Acces refuse'});
+  if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) return res.status(403).json({error:'Accès refusé'});
   try {
     const { data: suggestions, error } = await supabase
       .from('suggestions')
@@ -2138,10 +2291,10 @@ try {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// JADOMI Voice LABO — Creer BL par commande vocale
+// JADOMI Voice LABO — Créer BL par commande vocale
 // ═══════════════════════════════════════════════════════════════
 
-// POST /api/voice/labo/creer-bl — IA parse la phrase → cree le bon automatiquement
+// POST /api/voice/labo/creer-bl — IA parse la phrase → crée le bon automatiquement
 app.post('/api/voice/labo/creer-bl', authSupabase(), async (req, res) => {
   try {
     const { phrase } = req.body;
@@ -2150,11 +2303,11 @@ app.post('/api/voice/labo/creer-bl', authSupabase(), async (req, res) => {
     const societeId = req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis' });
 
-    // 1. Trouver le profil prothesiste
+    // 1. Trouver le profil prothésiste
     const { data: proth } = await sb.from('labo_prothesistes')
       .select('id, prochain_numero_bl, prefix_bl')
       .eq('societe_id', societeId).single();
-    if (!proth) return res.status(404).json({ error: 'Profil prothesiste requis' });
+    if (!proth) return res.status(404).json({ error: 'Profil prothésiste requis' });
 
     // 2. Charger dentistes + catalogue pour le contexte IA
     const { data: dentistes } = await sb.from('dentistes_clients')
@@ -2173,7 +2326,7 @@ app.post('/api/voice/labo/creer-bl', authSupabase(), async (req, res) => {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 800,
-      system: `Tu es l'IA de JADOMI LABO. Tu analyses une phrase du prothesiste pour creer un bon de livraison.
+      system: `Tu es l'IA de JADOMI LABO. Tu analyses une phrase du prothésiste pour créer un bon de livraison.
 
 DENTISTES CLIENTS :
 ${dentistesCtx}
@@ -2183,19 +2336,19 @@ ${catalogueCtx}
 
 Tu dois extraire de la phrase :
 - dentiste_id : trouver le dentiste par son nom (chercher dans la liste)
-- lignes : les produits/actes realises (CCM = Couronne Ceramo-Metallique, etc.)
-- teinte : si mentionnee (A1, A2, A3, B1, B2, C1, etc. = VITA Classical)
-- patient_initiales : si mentionnees
-- quantite : par ligne (defaut 1)
+- lignes : les produits/actes réalisés (CCM = Couronne Céramo-Métallique, etc.)
+- teinte : si mentionnée (A1, A2, A3, B1, B2, C1, etc. = VITA Classical)
+- patient_initiales : si mentionnées
+- quantité : par ligne (défaut 1)
 
-ABREVIATIONS DENTAIRES COURANTES :
-CCM = Couronne Ceramo-Metallique | CCC = Couronne Ceramo-Ceramique | CC = Couronne Ceramique
+ABRÉVIATIONS DENTAIRES COURANTES :
+CCM = Couronne Céramo-Métallique | CCC = Couronne Céramo-Céramique | CC = Couronne Céramique
 IEC = Inlay/Endocouronne | Inlay-Core = Inlay-Core | Bridge = Bridge
-Facette = Facette ceramique | Onlay = Onlay | Gouttiere = Gouttiere occlusale
-PPA = Prothese Partielle Amovible | PAC = Prothese Adjointe Complete | Stellite = Chassis metallique
+Facette = Facette céramique | Onlay = Onlay | Gouttière = Gouttière occlusale
+PPA = Prothèse Partielle Amovible | PAC = Prothèse Adjointe Complète | Stellite = Châssis métallique
 
 JSON OBLIGATOIRE :
-{"dentiste_id":"uuid","dentiste_nom":"nom trouve","lignes":[{"produit_id":"uuid ou null","designation":"nom complet du produit","quantite":1,"prix_unitaire":0}],"teinte_principale":"A2 ou null","teintier_utilise":"VITA Classical ou null","patient_initiales":"XX ou null","notes_techniques":"","message":"Bon cree : 1x CCM A2 pour Dr Scortichi"}`,
+{"dentiste_id":"uuid","dentiste_nom":"nom trouvé","lignes":[{"produit_id":"uuid ou null","designation":"nom complet du produit","quantite":1,"prix_unitaire":0}],"teinte_principale":"A2 ou null","teintier_utilise":"VITA Classical ou null","patient_initiales":"XX ou null","notes_techniques":"","message":"Bon créé : 1x CCM A2 pour Dr Scortichi"}`,
       messages: [{ role: 'user', content: phrase }]
     });
 
@@ -2232,10 +2385,10 @@ JSON OBLIGATOIRE :
     });
     const totaux = calculerTotaux(lignesCalc);
 
-    // 6. Generer numero BL
+    // 6. Générer numéro BL
     const numeroBl = (proth.prefix_bl || 'BL') + '-' + String(proth.prochain_numero_bl || 1).padStart(4, '0');
 
-    // 7. Creer le BL
+    // 7. Créer le BL
     const { data: newBl, error: blErr } = await sb.from('bons_livraison')
       .insert({
         prothesiste_id: proth.id,
@@ -2266,11 +2419,11 @@ JSON OBLIGATOIRE :
       numero_bl: numeroBl,
       dentiste_nom: parsed.dentiste_nom,
       lignes: lignesCalc.length,
-      message: parsed.message || `Bon ${numeroBl} cree`
+      message: parsed.message || `Bon ${numeroBl} créé`
     });
   } catch (e) {
     console.error('[voice/labo/creer-bl]', e.message);
-    res.status(500).json({ error: 'Erreur creation BL vocal' });
+    res.status(500).json({ error: 'Erreur création BL vocal' });
   }
 });
 
@@ -2431,11 +2584,11 @@ app.get('/api/scan/lookup', requireAuth(), scanLookupLimiter, async (req, res) =
                     user_id: m.user_id, societe_id: societeId,
                     type: 'autre', urgence: compareR.potential_savings > 5 ? 'haute' : 'normale',
                     titre: compareR.is_white_label
-                      ? `Alternative verifiee : ${result.produit?.nom || 'Produit'}`
-                      : `Economie detectee : ${result.produit?.nom || 'Produit'}`,
-                    message: compareR.market_insight || 'Consultez vos economies JADOMI.',
+                      ? `Alternative vérifiée : ${result.produit?.nom || 'Produit'}`
+                      : `Économie détectée : ${result.produit?.nom || 'Produit'}`,
+                    message: compareR.market_insight || 'Consultez vos économies JADOMI.',
                     entity_type: 'economies_alert', entity_id: productDbId,
-                    cta_label: 'Voir mes economies', cta_url: '/index.html?tab=economies',
+                    cta_label: 'Voir mes économies', cta_url: '/index.html?tab=economies',
                   });
                 } catch (_) {}
               }
@@ -2630,7 +2783,7 @@ app.get('/api/scan/search', requireAuth(), scanSearchLimiter, async (req, res) =
 // PRICE WATCH — Alertes prix produits
 // =============================================
 
-// POST /api/achats/price-watch — Creer une alerte prix
+// POST /api/achats/price-watch — Créer une alerte prix
 app.post('/api/achats/price-watch', requireAuth(), async (req, res) => {
   try {
     const { admin } = require('./api/multiSocietes/middleware');
@@ -2638,7 +2791,7 @@ app.post('/api/achats/price-watch', requireAuth(), async (req, res) => {
     const societeId = req.headers['x-societe-id'] || req.body.societe_id;
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
     const hasAccess = await _verifySocieteAccess(admin(), userId, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { product_id, gtin, product_name, target_price } = req.body;
     if (!product_name) return res.status(400).json({ error: 'product_name requis' });
@@ -2675,7 +2828,7 @@ app.get('/api/achats/price-watches', requireAuth(), async (req, res) => {
     const societeId = req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
     const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { data: watches, error } = await admin()
       .from('price_watches')
@@ -2748,14 +2901,14 @@ app.get('/api/achats/price-watches', requireAuth(), async (req, res) => {
   }
 });
 
-// DELETE /api/achats/price-watch/:id — Desactiver une alerte (soft delete)
+// DELETE /api/achats/price-watch/:id — Désactiver une alerte (soft delete)
 app.delete('/api/achats/price-watch/:id', requireAuth(), async (req, res) => {
   try {
     const { admin } = require('./api/multiSocietes/middleware');
     const societeId = req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
     const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { data, error } = await admin()
       .from('price_watches')
@@ -2774,14 +2927,14 @@ app.delete('/api/achats/price-watch/:id', requireAuth(), async (req, res) => {
   }
 });
 
-// POST /api/achats/check-price-watches — Verifier toutes les alertes actives
+// POST /api/achats/check-price-watches — Vérifier toutes les alertes actives
 app.post('/api/achats/check-price-watches', requireAuth(), async (req, res) => {
   try {
     const { admin } = require('./api/multiSocietes/middleware');
     const societeId = req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'societe_id requis (header X-Societe-Id)' });
     const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { data: watches, error } = await admin()
       .from('price_watches')
@@ -2854,7 +3007,7 @@ app.post('/api/achats/check-price-watches', requireAuth(), async (req, res) => {
 // ACHATS — Spend Analytics & Price History (Passe Achats)
 // =============================================
 
-// Helper: verify user has access to the requested societe_id (IDOR protection)
+// Helper: verify user has access to the requested société_id (IDOR protection)
 async function _verifySocieteAccess(db, userId, societeId) {
   if (!userId || !societeId) return false;
   try {
@@ -3183,7 +3336,7 @@ app.get('/api/achats/benchmark', requireAuth(), async (req, res) => {
         categories.push({
           category: cat, my_avg: avg,
           segment_avg: null, segment_median: null,
-          position: null, verdict: 'Pas de donnees de comparaison'
+          position: null, verdict: 'Pas de données de comparaison'
         });
       }
     }
@@ -3201,7 +3354,7 @@ app.get('/api/achats/benchmark', requireAuth(), async (req, res) => {
       response.warning = 'Moins de 5 cabinets dans votre segment — les comparaisons sont indicatives';
     }
     if (segmentData.length === 0 && Object.keys(myAvgs).length > 0) {
-      response.warning = 'Aucune donnee de benchmark disponible pour votre segment';
+      response.warning = 'Aucune donnée de benchmark disponible pour votre segment';
     }
 
     res.json(response);
@@ -3342,7 +3495,7 @@ async function sendMandateSigningEmail(supplier, mandate) {
   `;
   return sendMailMandate({
     to: supplier.email,
-    subject: 'JADOMI — Mandat de facturation a signer',
+    subject: 'JADOMI — Mandat de facturation à signer',
     html
   });
 }
@@ -3356,15 +3509,15 @@ async function sendMandateConfirmationEmail(supplier, mandate, signerName) {
       </div>
       <div style="padding:36px 40px;border:1px solid #e8e8ee;border-top:none;border-radius:0 0 12px 12px;">
         <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-          <p style="margin:0;font-size:15px;color:#065f46;font-weight:600;">Mandat signe avec succes</p>
+          <p style="margin:0;font-size:15px;color:#065f46;font-weight:600;">Mandat signé avec succès</p>
         </div>
         <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
-          Le mandat de facturation pour <strong>${_escHtml(supplier.name)}</strong> a ete signe par <strong>${_escHtml(signerName)}</strong> le ${new Date().toLocaleDateString('fr-FR')}.
+          Le mandat de facturation pour <strong>${_escHtml(supplier.name)}</strong> a été signé par <strong>${_escHtml(signerName)}</strong> le ${new Date().toLocaleDateString('fr-FR')}.
         </p>
         <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
-          JADOMI est desormais autorisee a emettre des factures pour les commandes realisees via la plateforme.
+          JADOMI est désormais autorisée à émettre des factures pour les commandes réalisées via la plateforme.
         </p>
-        <p style="font-size:12px;color:#9a9ab0;margin-top:24px;">Reference mandat : ${_escHtml(mandate.id)}</p>
+        <p style="font-size:12px;color:#9a9ab0;margin-top:24px;">Référence mandat : ${_escHtml(mandate.id)}</p>
       </div>
     </div>
   `;
@@ -3377,7 +3530,7 @@ async function sendMandateConfirmationEmail(supplier, mandate, signerName) {
   // Send to JADOMI admin
   await sendMailMandate({
     to: process.env.EMAIL_CONTACT || 'contact@jadomi.fr',
-    subject: `Mandat signe — ${supplier.name}`,
+    subject: `Mandat signé — ${supplier.name}`,
     html
   });
 }
@@ -3387,17 +3540,17 @@ async function sendMandateConfirmationEmailWithDocs(supplier, mandate, signerNam
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;">
       <div style="background:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0;">
         <h1 style="margin:0;font-size:22px;font-weight:600;color:#ffffff;letter-spacing:-.3px;">JADOMI</h1>
-        <p style="margin:4px 0 0;font-size:12px;color:#8888a8;">Signature electronique</p>
+        <p style="margin:4px 0 0;font-size:12px;color:#8888a8;">Signature électronique</p>
       </div>
       <div style="padding:36px 40px;border:1px solid #e8e8ee;border-top:none;border-radius:0 0 12px 12px;">
         <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-          <p style="margin:0;font-size:15px;color:#065f46;font-weight:600;">Mandat signe avec succes (AES eIDAS)</p>
+          <p style="margin:0;font-size:15px;color:#065f46;font-weight:600;">Mandat signé avec succès (AES eIDAS)</p>
         </div>
         <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
-          Le mandat de facturation pour <strong>${_escHtml(supplier.name)}</strong> a ete signe electroniquement par <strong>${_escHtml(signerName)}</strong> le ${new Date().toLocaleDateString('fr-FR')}.
+          Le mandat de facturation pour <strong>${_escHtml(supplier.name)}</strong> a été signé électroniquement par <strong>${_escHtml(signerName)}</strong> le ${new Date().toLocaleDateString('fr-FR')}.
         </p>
         <p style="font-size:14px;line-height:1.7;color:#3c3c50;">
-          JADOMI est desormais autorisee a emettre des factures au nom de ${_escHtml(supplier.name)} pour les commandes realisees via la plateforme.
+          JADOMI est désormais autorisée à émettre des factures au nom de ${_escHtml(supplier.name)} pour les commandes réalisées via la plateforme.
         </p>
         ${attachments && attachments.length > 0 ? `
         <div style="background:#f8f8fc;border:1px solid #e2e2ee;border-radius:8px;padding:16px 20px;margin:20px 0;">
@@ -3407,7 +3560,7 @@ async function sendMandateConfirmationEmailWithDocs(supplier, mandate, signerNam
           </ul>
         </div>` : ''}
         <div style="margin-top:20px;padding:12px 16px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;">
-          <p style="margin:0;font-size:12px;color:#1e40af;">Signature electronique avancee (AES) conforme a l'article 26 du reglement eIDAS (UE) n°910/2014. Le document signe au format PAdES PKCS#7 est verifiable dans Adobe Acrobat Reader.</p>
+          <p style="margin:0;font-size:12px;color:#1e40af;">Signature électronique avancee (AES) conforme a l'article 26 du reglement eIDAS (UE) n°910/2014. Le document signe au format PAdES PKCS#7 est verifiable dans Adobe Acrobat Reader.</p>
         </div>
         <p style="font-size:12px;color:#9a9ab0;margin-top:24px;">Reference mandat : ${_escHtml(mandate.id)}</p>
       </div>
@@ -3415,19 +3568,19 @@ async function sendMandateConfirmationEmailWithDocs(supplier, mandate, signerNam
   `;
   await sendMailMandate({
     to: supplier.email,
-    subject: 'JADOMI — Mandat signe (AES eIDAS) — ' + supplier.name,
+    subject: 'JADOMI — Mandat signé (AES eIDAS) — ' + supplier.name,
     html,
     attachments: attachments || []
   });
   await sendMailMandate({
     to: process.env.EMAIL_CONTACT || 'contact@jadomi.fr',
-    subject: 'Mandat signe — ' + supplier.name + ' (AES)',
+    subject: 'Mandat signé — ' + supplier.name + ' (AES)',
     html,
     attachments: attachments || []
   });
 }
 
-// POST /api/facturation/mandate/create — Creer un mandat et envoyer l'email
+// POST /api/facturation/mandate/create — Créer un mandat et envoyer l'email
 app.post('/api/facturation/mandate/create', requireAuth(), async (req, res) => {
   try {
     const { supplier_id, commission_percent = 3, payment_delay_days = 30 } = req.body;
@@ -3469,7 +3622,7 @@ app.post('/api/facturation/mandate/create', requireAuth(), async (req, res) => {
       .single();
     if (mErr) {
       console.error('[mandate/create] insert:', mErr.message);
-      return res.status(500).json({ error: 'Erreur creation mandat', details: mErr.message });
+      return res.status(500).json({ error: 'Erreur création mandat', details: mErr.message });
     }
 
     // Send signing email
@@ -3536,7 +3689,7 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
     if (!accepted) return res.status(400).json({ error: 'Vous devez accepter les termes du mandat' });
     if (!signer_name || !String(signer_name).trim()) return res.status(400).json({ error: 'Nom du signataire requis' });
     if (!iban || String(iban).replace(/\s/g, '').length < 15) return res.status(400).json({ error: 'IBAN requis pour le reversement des paiements' });
-    if (!warehouse_address || !warehouse_city) return res.status(400).json({ error: 'Adresse entrepot requise pour le calcul des frais de livraison' });
+    if (!warehouse_address || !warehouse_city) return res.status(400).json({ error: 'Adresse entrepôt requise pour le calcul des frais de livraison' });
 
     // Fetch mandate (use service role to bypass RLS)
     const sbClient2 = supabaseAdmin || supabase;
@@ -3547,7 +3700,7 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       .maybeSingle();
     if (error || !mandate) return res.status(404).json({ error: 'Mandat introuvable' });
     if (mandate.status !== 'sent' && mandate.status !== 'viewed') {
-      return res.status(409).json({ error: 'Ce mandat a deja ete signe ou est invalide', status: mandate.status });
+      return res.status(409).json({ error: 'Ce mandat a déjà été signé ou est invalide', status: mandate.status });
     }
 
     // Record signature — atomic: WHERE status IN ('sent','viewed') prevents double-sign race condition
@@ -3591,7 +3744,7 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
     }
     // If no rows updated, another request already signed it (race condition)
     if (!updated || updated.length === 0) {
-      return res.status(409).json({ error: 'Ce mandat a deja ete signe (requete concurrente)', status: 'signed' });
+      return res.status(409).json({ error: 'Ce mandat a déjà été signé (requête concurrente)', status: 'signed' });
     }
 
     // Try to generate PDF (optional — lib may not be ready yet)
@@ -3627,24 +3780,24 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
         doc.fontSize(22).font('Helvetica-Bold').text('JADOMI', { align: 'center' });
         doc.fontSize(14).font('Helvetica').text('Mandat de facturation', { align: 'center' });
         doc.moveDown(0.5);
-        doc.fontSize(10).fillColor('#666').text('Article 289 I-2 du Code General des Impots', { align: 'center' });
+        doc.fontSize(10).fillColor('#666').text('Article 289 I-2 du Code Général des Impôts', { align: 'center' });
         doc.fillColor('#000');
         doc.moveDown();
 
         // --- PARTIES ---
         doc.fontSize(10).font('Helvetica-Bold').text('ENTRE :');
         doc.font('Helvetica').text('JADOMI SAS — Plateforme marketplace B2B');
-        doc.text('(ci-apres « le Mandataire »)');
+        doc.text('(ci-après « le Mandataire »)');
         doc.moveDown(0.5);
         doc.font('Helvetica-Bold').text('ET :');
         doc.font('Helvetica').text(supplierName);
-        doc.text('(ci-apres « le Mandant »)');
+        doc.text('(ci-après « le Mandant »)');
         doc.moveDown(0.5);
         doc.font('Helvetica-Bold').text('Date de signature : ' + signDate);
-        doc.text('Signe par : ' + signerFullName + (signerTitleStr ? ' — ' + signerTitleStr : ''));
+        doc.text('Signé par : ' + signerFullName + (signerTitleStr ? ' — ' + signerTitleStr : ''));
         doc.moveDown();
 
-        // --- Ligne separatrice ---
+        // --- Ligne séparatrice ---
         doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
         doc.moveDown();
 
@@ -3654,89 +3807,89 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
         function bullet(t) { doc.text('  •  ' + t, { lineGap: 2 }); }
 
         articleTitle('Article 1 — Objet du mandat');
-        para('Par le present mandat, la societe ' + supplierName + ' (le Mandant) autorise JADOMI SAS (le Mandataire) a etablir, en son nom et pour son compte, les factures relatives aux commandes realisees par les professionnels de sante via la plateforme JADOMI.');
-        para('Ce mandat est conclu dans le cadre de l\'article 289 I-2 du Code General des Impots, autorisant un tiers a emettre des factures au nom et pour le compte d\'un assujetti.');
+        para('Par le présent mandat, la société ' + supplierName + ' (le Mandant) autorise JADOMI SAS (le Mandataire) à établir, en son nom et pour son compte, les factures relatives aux commandes réalisées par les professionnels de santé via la plateforme JADOMI.');
+        para('Ce mandat est conclu dans le cadre de l\'article 289 I-2 du Code Général des Impôts, autorisant un tiers à émettre des factures au nom et pour le compte d\'un assujetti.');
 
         articleTitle('Article 2 — Obligations du mandataire (JADOMI)');
-        para('JADOMI s\'engage a :');
-        bullet('Emettre les factures conformement aux dispositions legales et reglementaires en vigueur (articles 289 et 242 nonies A du CGI).');
-        bullet('Transmettre une copie de chaque facture emise au Mandant dans un delai raisonnable.');
-        bullet('Assurer la numerotation sequentielle et unique des factures.');
-        bullet('Conserver les factures emises pendant la duree legale (10 ans).');
-        bullet('Respecter les obligations de facturation electronique (reforme 2026).');
+        para('JADOMI s\'engage à :');
+        bullet('Émettre les factures conformément aux dispositions légales et réglementaires en vigueur (articles 289 et 242 nonies A du CGI).');
+        bullet('Transmettre une copie de chaque facture émise au Mandant dans un délai raisonnable.');
+        bullet('Assurer la numérotation séquentielle et unique des factures.');
+        bullet('Conserver les factures émises pendant la durée légale (10 ans).');
+        bullet('Respecter les obligations de facturation électronique (réforme 2026).');
 
         articleTitle('Article 3 — Obligations du mandant (Fournisseur)');
-        para('Le Mandant s\'engage a :');
-        bullet('Ne pas emettre de factures pour les operations couvertes par le present mandat.');
-        bullet('Informer JADOMI de toute modification de ses informations legales.');
-        bullet('Verifier les factures emises et signaler toute anomalie sous 15 jours.');
-        bullet('Fournir les informations necessaires a l\'emission correcte des factures.');
+        para('Le Mandant s\'engage à :');
+        bullet('Ne pas émettre de factures pour les opérations couvertes par le présent mandat.');
+        bullet('Informer JADOMI de toute modification de ses informations légales.');
+        bullet('Vérifier les factures émises et signaler toute anomalie sous 15 jours.');
+        bullet('Fournir les informations nécessaires à l\'émission correcte des factures.');
 
-        articleTitle('Article 4 — Conditions financieres');
-        para('Commission JADOMI : ' + commissionPct + '% du montant HT de chaque commande facturee via la plateforme.');
-        para('Delai de reversement : ' + delayDays + ' jours a compter de la date de facture.');
-        para('Mode de paiement : Virement bancaire sur le compte communique par le Mandant.');
-        para('La commission est deduite automatiquement du montant encaisse. Un releve detaille accompagne chaque virement.');
+        articleTitle('Article 4 — Conditions financières');
+        para('Commission JADOMI : ' + commissionPct + '% du montant HT de chaque commande facturée via la plateforme.');
+        para('Délai de reversement : ' + delayDays + ' jours à compter de la date de facture.');
+        para('Mode de paiement : Virement bancaire sur le compte communiqué par le Mandant.');
+        para('La commission est déduite automatiquement du montant encaissé. Un relevé détaillé accompagne chaque virement.');
 
         articleTitle('Article 4b — Frais de livraison');
-        para('Commande >= 150EUR HT : livraison gratuite pour le client. Frais de transport a la charge du Mandant.');
+        para('Commande >= 150EUR HT : livraison gratuite pour le client. Frais de transport à la charge du Mandant.');
         para('Commande < 150EUR HT : le Mandant propose ses frais de livraison au client via JADOMI. Le client valide ou refuse.');
-        para('Le Mandant assure l\'expedition avec le transporteur de son choix et a ses frais.');
+        para('Le Mandant assure l\'expédition avec le transporteur de son choix et à ses frais.');
 
-        articleTitle('Article 4c — Non-demarchage et protection commerciale');
-        para('Le Mandant reconnait que les clients mis en relation via JADOMI constituent un actif commercial de la plateforme.');
-        bullet('Interdiction de demarcher directement les clients acquis via JADOMI pendant la duree du mandat et 12 mois apres resiliation.');
-        bullet('Interdiction d\'inclure dans les colis tout document commercial invitant a commander en direct.');
-        bullet('En cas de violation : suspension immediate et penalite forfaitaire de 5 000EUR par infraction.');
+        articleTitle('Article 4c — Non-démarchage et protection commerciale');
+        para('Le Mandant reconnaît que les clients mis en relation via JADOMI constituent un actif commercial de la plateforme.');
+        bullet('Interdiction de démarcher directement les clients acquis via JADOMI pendant la durée du mandat et 12 mois après résiliation.');
+        bullet('Interdiction d\'inclure dans les colis tout document commercial invitant à commander en direct.');
+        bullet('En cas de violation : suspension immédiate et pénalité forfaitaire de 5 000EUR par infraction.');
 
-        articleTitle('Article 5 — Coordonnees bancaires du Mandant');
+        articleTitle('Article 5 — Coordonnées bancaires du Mandant');
         para('IBAN : ' + ibanMasked);
-        para('Toute modification de RIB devra etre signalee par ecrit a JADOMI avec un delai de 5 jours ouvrables.');
+        para('Toute modification de RIB devra être signalée par écrit à JADOMI avec un délai de 5 jours ouvrables.');
 
         // Saut de page si besoin
         if (doc.y > 650) doc.addPage();
 
-        articleTitle('Article 6 — Duree et resiliation');
-        para('Le present mandat est conclu pour une duree indeterminee. Il entre en vigueur a la date de signature electronique.');
-        para('Chaque partie peut resilier a tout moment par notification ecrite, sous reserve d\'un preavis de 30 jours.');
+        articleTitle('Article 6 — Durée et résiliation');
+        para('Le présent mandat est conclu pour une durée indéterminée. Il entre en vigueur à la date de signature électronique.');
+        para('Chaque partie peut résilier à tout moment par notification écrite, sous réserve d\'un préavis de 30 jours.');
 
-        articleTitle('Article 7 — Acceptation electronique');
-        para('Conformement aux articles 1366 et 1367 du Code civil, la signature electronique du present mandat a la meme valeur juridique qu\'une signature manuscrite.');
-        para('Signature realisee via JADOMI Sign (AES conforme eIDAS Article 26).');
+        articleTitle('Article 7 — Acceptation électronique');
+        para('Conformément aux articles 1366 et 1367 du Code civil, la signature électronique du présent mandat a la même valeur juridique qu\'une signature manuscrite.');
+        para('Signature réalisée via JADOMI Sign (AES conforme eIDAS Article 26).');
 
         articleTitle('Article 8 — Loi applicable et juridiction');
-        para('Le present mandat est regi par le droit francais. Tout litige sera soumis aux tribunaux competents du siege social de JADOMI SAS.');
+        para('Le présent mandat est régi par le droit français. Tout litige sera soumis aux tribunaux compétents du siège social de JADOMI SAS.');
 
-        articleTitle('Article 9 — Service apres-vente');
-        para('Le Mandant assure l\'integralite du SAV des produits vendus via JADOMI.');
-        para('Le Mandant s\'engage a repondre aux demandes transmises par JADOMI sous 48 heures ouvrees.');
-        para('En cas de non-reponse repetee (3 demandes consecutives sans reponse sous 48h), JADOMI se reserve le droit de suspendre le mandat.');
+        articleTitle('Article 9 — Service après-vente');
+        para('Le Mandant assure l\'intégralité du SAV des produits vendus via JADOMI.');
+        para('Le Mandant s\'engage à répondre aux demandes transmises par JADOMI sous 48 heures ouvrées.');
+        para('En cas de non-réponse répétée (3 demandes consécutives sans réponse sous 48h), JADOMI se réserve le droit de suspendre le mandat.');
 
         articleTitle('Article 10 — Paiement et reversement');
         para('Le client paye par carte bancaire ou PayPal via JADOMI (prestataire : Stripe).');
         para('Palier Bronze : 0EUR/mois — commission 12% HT');
         para('Palier Silver : 299EUR/mois — commission 5% HT');
         para('Palier Gold : 799EUR/mois — commission 0%');
-        para('Reversement sous 14 jours apres confirmation de livraison.');
+        para('Reversement sous 14 jours après confirmation de livraison.');
 
-        articleTitle('Article 11 — Expedition et suivi');
-        para('Le Mandant s\'engage a expedier chaque commande sous 48 heures ouvrees.');
-        para('Le Mandant saisit le numero de suivi du transporteur dans son espace JADOMI des l\'expedition.');
+        articleTitle('Article 11 — Expédition et suivi');
+        para('Le Mandant s\'engage à expédier chaque commande sous 48 heures ouvrées.');
+        para('Le Mandant saisit le numéro de suivi du transporteur dans son espace JADOMI dès l\'expédition.');
 
         // --- SIGNATURE ---
         doc.moveDown();
         doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#ccc');
         doc.moveDown();
-        doc.fontSize(10).font('Helvetica-Bold').text('Signature electronique');
+        doc.fontSize(10).font('Helvetica-Bold').text('Signature électronique');
         doc.font('Helvetica');
-        doc.text('Signe par : ' + signerFullName + (signerTitleStr ? ', ' + signerTitleStr : ''));
+        doc.text('Signé par : ' + signerFullName + (signerTitleStr ? ', ' + signerTitleStr : ''));
         doc.text('Date : ' + signDate);
-        doc.text('Verification d\'identite : OTP SMS verifie');
+        doc.text('Vérification d\'identité : OTP SMS vérifié');
         doc.moveDown();
         doc.fontSize(8).fillColor('#666');
-        doc.text('Signature electronique avancee (AES) conforme a l\'article 26 du reglement eIDAS (UE) n°910/2014.');
-        doc.text('Format PAdES PKCS#7 — JADOMI Sign v2.0 — Document verifiable dans Adobe Acrobat Reader.');
-        doc.text('Reference : ' + (mandate.id || ''));
+        doc.text('Signature électronique avancée (AES) conforme à l\'article 26 du règlement eIDAS (UE) n°910/2014.');
+        doc.text('Format PAdES PKCS#7 — JADOMI Sign v2.0 — Document vérifiable dans Adobe Acrobat Reader.');
+        doc.text('Référence : ' + (mandate.id || ''));
         doc.end();
       });
       const pdfBuffer = Buffer.concat(chunks);
@@ -3780,7 +3933,7 @@ app.post('/api/facturation/mandate/:token/sign', async (req, res) => {
       try { await sendMandateConfirmationEmail(supplier, mandate, updateData.metadata?.signer_name || String(signer_name).trim()); } catch(_e) {}
     }
 
-    res.json({ ok: true, message: 'Mandat signe avec succes' });
+    res.json({ ok: true, message: 'Mandat signé avec succès' });
   } catch (e) {
     console.error('[POST /api/facturation/mandate/:token/sign]', e.message);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -3842,14 +3995,14 @@ app.get('/api/entreprises/search', async (req, res) => {
   }
 });
 
-// POST /api/facturation/mandates/send — Envoyer un mandat a un fournisseur par nom+email
+// POST /api/facturation/mandates/send — Envoyer un mandat à un fournisseur par nom+email
 app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
   try {
     const { supplier_name, supplier_email, supplier_siret, supplier_ville, commission_percent, payment_delay_days } = req.body;
     if (!supplier_name || !supplier_email) return res.status(400).json({ error: 'Nom et email requis' });
 
     const signature_token = require('crypto').randomUUID();
-    const supplier_id = require('crypto').randomUUID(); // ID fournisseur auto-genere
+    const supplier_id = require('crypto').randomUUID(); // ID fournisseur auto-généré
     const insertData = {
       supplier_id,
       supplier_name,
@@ -3868,7 +4021,7 @@ app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
       .select('id, signature_token, commission_percent, payment_delay_days')
       .single();
 
-    if (error) { console.error('[mandates/send]', error.message); return res.status(500).json({ error: 'Erreur creation mandat' }); }
+    if (error) { console.error('[mandates/send]', error.message); return res.status(500).json({ error: 'Erreur création mandat' }); }
 
     await sendMandateSigningEmail({ name: supplier_name, email: supplier_email }, mandate);
     res.json({ ok: true, success: true, mandate_id: mandate.id });
@@ -3915,6 +4068,12 @@ app.get('/bien-etre-dashboard/', (req, res) => res.sendFile(path.join(__dirname,
 app.get('/prothesiste-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
 app.get('/prothesiste-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
 
+// === Support Ticket System — Pages statiques ===
+app.get('/support', (req, res) => res.sendFile(path.join(__dirname, 'public/support/index.html')));
+app.get('/support/', (req, res) => res.sendFile(path.join(__dirname, 'public/support/index.html')));
+app.get('/support/admin', (req, res) => res.sendFile(path.join(__dirname, 'public/support/admin.html')));
+app.get('/support/admin/', (req, res) => res.sendFile(path.join(__dirname, 'public/support/admin.html')));
+
 // GET /api/facturation/mandate/:id/pdf — Telecharger le contrat PDF
 app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
   try {
@@ -3935,7 +4094,7 @@ app.get('/api/facturation/mandate/:id/pdf', requireAuth(), async (req, res) => {
     res.send(pdfBuffer);
   } catch (e) {
     console.error('[mandate/pdf]', e.message);
-    res.status(500).json({ error: 'Erreur generation PDF' });
+    res.status(500).json({ error: 'Erreur génération PDF' });
   }
 });
 
@@ -3960,17 +4119,17 @@ app.get('/api/facturation/mandate-template/pdf', requireAuth(), async (req, res)
     res.send(pdfBuffer);
   } catch (e) {
     console.error('[mandate-template/pdf]', e.message);
-    res.status(500).json({ error: 'Erreur generation PDF' });
+    res.status(500).json({ error: 'Erreur génération PDF' });
   }
 });
 
-// ===== JADOMI SECURITE — API Rapports + Scan manuel =====
+// ===== JADOMI SÉCURITÉ — API Rapports + Scan manuel =====
 
 // POST /api/admin/security-report — Recevoir rapport scan nocturne
 app.post('/api/admin/security-report', requireAuth(), async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+      return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
     }
     const report = req.body;
     if (!report || !report.date) return res.status(400).json({ error: 'Rapport invalide' });
@@ -4004,7 +4163,7 @@ app.post('/api/admin/security-report', requireAuth(), async (req, res) => {
 app.get('/api/admin/security-report', requireAuth(), async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+      return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
     }
     const { data } = await supabase.from('security_reports')
       .select('*').order('report_date', { ascending: false }).limit(1).single();
@@ -4018,7 +4177,7 @@ app.get('/api/admin/security-report', requireAuth(), async (req, res) => {
 app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+      return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
     }
     const limit = Math.min(parseInt(req.query.limit) || 30, 90);
     const { data } = await supabase.from('security_reports')
@@ -4034,7 +4193,7 @@ app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
 app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+      return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
     }
     const { exec } = require('child_process');
     exec('/home/ubuntu/jadomi/scripts/security-scan.sh', { timeout: 300000 }, (err, stdout, stderr) => {
@@ -4050,11 +4209,11 @@ app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
 app.post('/api/admin/send-documents', requireAuth(), async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ error: 'Acces refuse - admin uniquement' });
+      return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
     }
     const { sendMail } = require('./api/multiSocietes/mailer');
     const fs = require('fs');
-    const target = req.body.email || 'karim_bahmed@yahoo.fr';
+    const target = req.body.email || 'contact@jadomi.fr';
 
     const attachments = [];
     const docFiles = [
@@ -4062,7 +4221,7 @@ app.post('/api/admin/send-documents', requireAuth(), async (req, res) => {
       { path: 'docs/business-plan-jadomi.html', name: 'BUSINESS-PLAN-JADOMI.html', label: 'Business Plan' },
       { path: 'docs/dossier-avocat-jadomi.html', name: 'Dossier-Juridique-Complet.html', label: 'Dossier Juridique Complet' },
       { path: 'docs/Modele-Mandat-Facturation-JADOMI.pdf', name: 'Contrat-Mandat-Facturation-JADOMI.pdf', label: 'Contrat Mandat Facturation (PDF)' },
-      { path: 'docs/emails-fabricants-equipment.html', name: 'Emails-Fabricants-Equipment-JADOMI.html', label: 'Emails type fabricants equipement' },
+      { path: 'docs/emails-fabricants-equipment.html', name: 'Emails-Fabricants-Equipment-JADOMI.html', label: 'Emails type fabricants équipement' },
     ];
 
     for (const doc of docFiles) {
@@ -4110,7 +4269,7 @@ app.post('/api/facturation/emettre', requireAuth(), async (req, res) => {
 
     // IDOR protection: verify user belongs to this societe
     const hasAccess = await _verifySocieteAccess(admin(), userId, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { gpo_order_id } = req.body;
     if (!gpo_order_id) return res.status(400).json({ error: 'gpo_order_id requis' });
@@ -4121,7 +4280,7 @@ app.post('/api/facturation/emettre', requireAuth(), async (req, res) => {
       .select('id, invoice_number')
       .eq('gpo_order_id', gpo_order_id)
       .maybeSingle();
-    if (existingInv) return res.status(409).json({ error: 'Une facture existe deja pour cette commande', invoice_number: existingInv.invoice_number });
+    if (existingInv) return res.status(409).json({ error: 'Une facture existe déjà pour cette commande', invoice_number: existingInv.invoice_number });
 
     // 1. Fetch gpo_orders record and verify societe_id access
     const { data: order, error: orderErr } = await admin()
@@ -4130,7 +4289,7 @@ app.post('/api/facturation/emettre', requireAuth(), async (req, res) => {
       .eq('id', gpo_order_id)
       .eq('societe_id', societeId)
       .single();
-    if (orderErr || !order) return res.status(404).json({ error: 'Commande GPO introuvable ou acces refuse' });
+    if (orderErr || !order) return res.status(404).json({ error: 'Commande GPO introuvable ou accès refusé' });
 
     // 2. Fetch active supplier_mandate for this supplier
     const { data: mandate, error: mandateErr } = await admin()
@@ -4278,7 +4437,7 @@ app.get('/api/facturation/factures', requireAuth(), async (req, res) => {
 
     // IDOR protection: verify user belongs to this societe
     const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { data: factures, error } = await admin()
       .from('jadomi_invoices')
@@ -4303,7 +4462,7 @@ app.get('/api/facturation/facture/:id/pdf', requireAuth(), async (req, res) => {
 
     // IDOR protection: verify user belongs to this societe
     const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     const { data: invoice, error } = await admin()
       .from('jadomi_invoices')
@@ -4312,7 +4471,7 @@ app.get('/api/facturation/facture/:id/pdf', requireAuth(), async (req, res) => {
       .eq('societe_id', societeId)
       .single();
 
-    if (error || !invoice) return res.status(404).json({ error: 'Facture introuvable ou acces refuse' });
+    if (error || !invoice) return res.status(404).json({ error: 'Facture introuvable ou accès refusé' });
 
     if (!invoice.pdf_data) {
       // Try to generate on the fly
@@ -4400,7 +4559,7 @@ app.post('/api/facturation/facture/:id/mark-paid', requireAuth(), async (req, re
 
     // IDOR protection: verify user belongs to this societe
     const hasAccess = await _verifySocieteAccess(admin(), req.user.id, societeId);
-    if (!hasAccess) return res.status(403).json({ error: 'Acces refuse a cette societe' });
+    if (!hasAccess) return res.status(403).json({ error: 'Accès refusé à cette société' });
 
     // Verify access
     const { data: invoice, error: fetchErr } = await admin()
@@ -4409,11 +4568,11 @@ app.post('/api/facturation/facture/:id/mark-paid', requireAuth(), async (req, re
       .eq('id', req.params.id)
       .eq('societe_id', societeId)
       .single();
-    if (fetchErr || !invoice) return res.status(404).json({ error: 'Facture introuvable ou acces refuse' });
+    if (fetchErr || !invoice) return res.status(404).json({ error: 'Facture introuvable ou accès refusé' });
 
     // Guard against double-marking
     if (invoice.status === 'paid_by_cabinet') {
-      return res.json({ ok: true, status: 'paid_by_cabinet', message: 'Facture deja marquee comme payee' });
+      return res.json({ ok: true, status: 'paid_by_cabinet', message: 'Facture déjà marquée comme payée' });
     }
 
     // Update invoice status
@@ -4441,7 +4600,7 @@ app.post('/api/facturation/facture/:id/mark-paid', requireAuth(), async (req, re
 });
 
 // =============================================
-// COMPTABILITE — Analyse document (facture, charge, note de frais...)
+// COMPTABILITÉ — Analyse document (facture, charge, note de frais...)
 // =============================================
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
@@ -4463,7 +4622,7 @@ async function analyserDocumentIA(base64Data, mediaType) {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2000,
-    system: 'Tu es un expert-comptable cabinet dentaire FR. Tu reponds UNIQUEMENT en JSON valide commencant par { et finissant par }. Jamais de texte avant ou apres, jamais d\'explication en francais.',
+    system: 'Tu es un expert-comptable cabinet dentaire FR. Tu réponds UNIQUEMENT en JSON valide commençant par { et finissant par }. Jamais de texte avant ou après, jamais d\'explication en français.',
     messages: [{
       role: 'user',
       content: [
@@ -4675,7 +4834,7 @@ function createLimiter(max) {
 }
 const claudeLimiter = createLimiter(20);
 
-// Analyse le corps textuel d'un mail quand l'expediteur est un fournisseur connu
+// Analyse le corps textuel d'un mail quand l'expéditeur est un fournisseur connu
 // (EDF, Free Pro, Orange Pro...) qui n'attachent pas toujours la facture en PJ
 async function analyserTexteDocument(texte, fromText, subject) {
   if (!texte || texte.length < 100) return null;
@@ -4704,7 +4863,7 @@ RAPPEL : TA REPONSE EST UNIQUEMENT LE JSON, RIEN D'AUTRE.`;
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
-      system: 'Tu es un expert-comptable cabinet dentaire FR. Tu reponds UNIQUEMENT en JSON valide commencant par { et finissant par }. Jamais de texte avant ou apres, jamais d\'explication en francais.',
+      system: 'Tu es un expert-comptable cabinet dentaire FR. Tu réponds UNIQUEMENT en JSON valide commençant par { et finissant par }. Jamais de texte avant ou après, jamais d\'explication en français.',
       messages: [{ role: 'user', content: [{ type:'text', text: prompt }] }]
     });
     const raw = (r.content[0] && r.content[0].text) || '';
@@ -5010,7 +5169,7 @@ app.get('/api/mail/attachment/:token', (req, res) => {
     // Validate token format (hex, 32 chars) to prevent enumeration
     if (!/^[0-9a-f]{32}$/i.test(req.params.token)) return res.status(400).json({ error: 'Token invalide' });
     const entry = scanAttachments.get(req.params.token);
-    if (!entry) return res.status(404).json({ error: 'Piece jointe introuvable ou expiree' });
+    if (!entry) return res.status(404).json({ error: 'Pièce jointe introuvable ou expirée' });
     if (!entry.buffer) return res.status(500).json({ error: 'contenu_manquant' });
     const filename = entry.filename || 'attachment';
     // Sanitize Content-Type to prevent XSS via malicious content types
@@ -5314,7 +5473,7 @@ async function scanInboxForDocs(imapConfig, periode, mois, annee, provider, user
           sendProgress(userId, { status:'scanning', total: toProcess.length, done, found: documents.length, current: subj });
         } catch(e) { done++; console.error('IMAP parse error:', e.message); }
       }
-      sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Termine' });
+      sendProgress(userId, { status:'done', total: toProcess.length, done: toProcess.length, found: documents.length, current:'Terminé' });
     } finally {
       lock.release();
     }
@@ -5617,7 +5776,7 @@ app.post('/api/mail/import', requireAuth(), async (req, res) => {
 });
 
 // =============================================
-// COMPTABILITE — Analyse releve bancaire
+// COMPTABILITÉ — Analyse relevé bancaire
 // =============================================
 app.post('/api/analyser-releve', requireAuth(), async (req, res) => {
   try {
@@ -5985,7 +6144,7 @@ app.get('/api/signatures/verify', async (req, res) => {
       .single();
 
     if (error || !doc) {
-      return res.json({ valid: false, error: 'Document non trouve' });
+      return res.json({ valid: false, error: 'Document non trouvé' });
     }
 
     // Read audit trail if exists
@@ -6149,7 +6308,7 @@ app.post('/api/signatures/aes/init', requireAuth(), async (req, res) => {
     const { data: doc } = await supabase.from('signed_documents')
       .select('metadata').eq('id', document_id).single();
 
-    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!doc) return res.status(404).json({ error: 'Document non trouvé' });
 
     const metadata = {
       ...(doc.metadata || {}),
@@ -6184,7 +6343,7 @@ app.post('/api/signatures/aes/identity', requireAuth(), async (req, res) => {
     const { data: doc } = await supabase.from('signed_documents')
       .select('metadata').eq('id', document_id).single();
 
-    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!doc) return res.status(404).json({ error: 'Document non trouvé' });
 
     const meta = doc.metadata || {};
     if (meta.signing_token !== signing_token) {
@@ -6238,7 +6397,7 @@ app.post('/api/signatures/aes/complete', requireAuth(), async (req, res) => {
     const { data: doc } = await supabase.from('signed_documents')
       .select('*').eq('id', document_id).single();
 
-    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
+    if (!doc) return res.status(404).json({ error: 'Document non trouvé' });
 
     const meta = doc.metadata || {};
 
@@ -6323,8 +6482,8 @@ app.get('/api/signatures/aes/status/:id', requireAuth(), async (req, res) => {
     const { data: doc } = await supabase.from('signed_documents')
       .select('metadata, status, user_id, societe_id, signer_email').eq('id', req.params.id).single();
 
-    if (!doc) return res.status(404).json({ error: 'Document non trouve' });
-    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Acces refuse' });
+    if (!doc) return res.status(404).json({ error: 'Document non trouvé' });
+    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Accès refusé' });
 
     const meta = doc.metadata || {};
     const aesProof = meta.aes_proof || {};
@@ -6450,8 +6609,8 @@ app.get('/api/documents/signed', requireAuth(), async (req, res) => {
 app.get('/api/documents/signed/:id', requireAuth(), async (req, res) => {
   try {
     const { data, error } = await supabase.from('signed_documents').select('*').eq('id', req.params.id).single();
-    if (error || !data) return res.status(404).json({ error: 'Document non trouve' });
-    if (!canAccessSignedDoc(req.user, data)) return res.status(403).json({ error: 'Acces refuse' });
+    if (error || !data) return res.status(404).json({ error: 'Document non trouvé' });
+    if (!canAccessSignedDoc(req.user, data)) return res.status(403).json({ error: 'Accès refusé' });
     res.json({ ok: true, document: data });
   } catch (e) {
     console.error('[GET /api/documents/signed/:id]', e.message);
@@ -6463,8 +6622,8 @@ app.get('/api/documents/signed/:id', requireAuth(), async (req, res) => {
 app.get('/api/documents/signed/:id/download', requireAuth(), async (req, res) => {
   try {
     const { data, error } = await supabase.from('signed_documents').select('*').eq('id', req.params.id).single();
-    if (error || !data) return res.status(404).json({ error: 'Document non trouve' });
-    if (!canAccessSignedDoc(req.user, data)) return res.status(403).json({ error: 'Acces refuse' });
+    if (error || !data) return res.status(404).json({ error: 'Document non trouvé' });
+    if (!canAccessSignedDoc(req.user, data)) return res.status(403).json({ error: 'Accès refusé' });
 
     const fs = require('fs');
     // Path traversal protection: resolve and ensure within __dirname
@@ -6503,8 +6662,8 @@ app.get('/api/documents/signed/:id/certificate', requireAuth(), async (req, res)
   try {
     const { data: doc, error } = await supabase.from('signed_documents')
       .select('*').eq('id', req.params.id).single();
-    if (error || !doc) return res.status(404).json({ error: 'Document non trouve' });
-    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Acces refuse' });
+    if (error || !doc) return res.status(404).json({ error: 'Document non trouvé' });
+    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Accès refusé' });
 
     const sigId = doc.metadata && doc.metadata.signature_id;
     if (sigId) {
@@ -6556,9 +6715,9 @@ app.post('/api/documents/signed/:id/resend', requireAuth(), async (req, res) => 
   try {
     const { data: doc, error } = await supabase.from('signed_documents')
       .select('*').eq('id', req.params.id).single();
-    if (error || !doc) return res.status(404).json({ error: 'Document non trouve' });
-    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Acces refuse' });
-    if (doc.status === 'signed') return res.status(400).json({ error: 'Document deja signe' });
+    if (error || !doc) return res.status(404).json({ error: 'Document non trouvé' });
+    if (!canAccessSignedDoc(req.user, doc)) return res.status(403).json({ error: 'Accès refusé' });
+    if (doc.status === 'signed') return res.status(400).json({ error: 'Document déjà signé' });
 
     // Resend via DocuSeal if we have a submission ID
     if (doc.docuseal_submission_id) {
@@ -6575,7 +6734,7 @@ app.post('/api/documents/signed/:id/resend', requireAuth(), async (req, res) => 
       .update({ status: 'sent', sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', doc.id);
 
-    res.json({ ok: true, message: 'Demande de signature renvoyee' });
+    res.json({ ok: true, message: 'Demande de signature renvoyée' });
   } catch (e) {
     console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
   }
@@ -6629,7 +6788,7 @@ app.post('/api/documents/signed/send-email', requireAuth(), async (req, res) => 
         <h2 style="color:#1e1b4b;">Vos documents signes</h2>
         <p>Vous trouverez en piece jointe ${attachments.length} document(s) signe(s) electroniquement via JADOMI.</p>
         <ul>${accessibleDocs.map(d => `<li><strong>${escapeHtml(d.title)}</strong> — signe le ${d.signed_at ? new Date(d.signed_at).toLocaleDateString('fr-FR') : 'N/A'}</li>`).join('')}</ul>
-        <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — Signature electronique securisee via DocuSeal</p>
+        <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — Signature électronique securisee via DocuSeal</p>
       </div>`,
       attachments
     });
@@ -6745,7 +6904,7 @@ app.post('/api/webhooks/docuseal', async (req, res) => {
                 <p>Le document <strong>"${safeTitle}"</strong> a ete signe electroniquement le ${new Date().toLocaleDateString('fr-FR')}.</p>
                 <p>Vous trouverez votre copie signee en piece jointe.</p>
                 ${attachments.length === 0 ? '<p>Le PDF signe sera disponible dans votre espace JADOMI sous peu.</p>' : ''}
-                <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — Signature electronique securisee via DocuSeal</p>
+                <p style="color:#64748b;font-size:12px;margin-top:24px;">JADOMI — Signature électronique securisee via DocuSeal</p>
               </div>`,
               attachments
             });
@@ -6925,7 +7084,7 @@ const uploadMiddleware = multer({
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype) || !ALLOWED_EXTENSIONS.includes(ext)) {
-      return cb(new Error('Type de fichier non autorise. Formats acceptes : PDF, JPG, PNG, DOCX.'));
+      return cb(new Error('Type de fichier non autorisé. Formats acceptés : PDF, JPG, PNG, DOCX.'));
     }
     cb(null, true);
   }
@@ -7002,7 +7161,7 @@ app.post('/api/documents/upload', requireAuth(), (req, res) => {
   });
 });
 
-// DELETE /api/documents/signed/:id — Supprimer un document
+// DELETE /api/documents/signed/:id — Supprimer un document signé
 app.delete('/api/documents/signed/:id', requireAuth(), async (req, res) => {
   try {
     const docId = req.params.id;
@@ -7026,7 +7185,7 @@ app.delete('/api/documents/signed/:id', requireAuth(), async (req, res) => {
     const isOwner = doc.user_id === req.user.id;
     const sameSociete = doc.societe_id != null && req.user.societe_id != null && doc.societe_id === req.user.societe_id;
     if (!isOwner && !sameSociete) {
-      return res.status(403).json({ error: 'Acces refuse.' });
+      return res.status(403).json({ error: 'Accès refusé.' });
     }
 
     // Delete file from disk if it exists (with path containment check)
@@ -7181,7 +7340,7 @@ const equipmentUpload = multer({
     const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     const allowedExt = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
     if (!allowedMime.includes(file.mimetype) || !allowedExt.includes(ext)) {
-      return cb(new Error('Type de fichier non autorise. Formats acceptes : JPG, PNG, WebP, PDF.'));
+      return cb(new Error('Type de fichier non autorisé. Formats acceptés : JPG, PNG, WebP, PDF.'));
     }
     cb(null, true);
   }
@@ -7291,7 +7450,7 @@ app.post('/api/equipment/propose', equipmentProposeLimiter, (req, res) => {
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;">
   <div style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:24px 32px;text-align:center;">
     <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">JADOMI</div>
-    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Nouvelle proposition equipement</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px;">Nouvelle proposition équipement</div>
   </div>
   <div style="padding:28px 32px;">
     <h2 style="color:#0f172a;font-size:18px;margin:0 0 16px;">Nouvelle proposition recue</h2>
@@ -7338,9 +7497,9 @@ app.post('/api/equipment/propose', equipmentProposeLimiter, (req, res) => {
         }).catch(e => console.error('[Equipment] Admin email error:', e.message));
 
         // Also notify karim
-        if (adminEmail !== 'karim_bahmed@yahoo.fr') {
+        if (adminEmail !== 'contact@jadomi.fr') {
           await sendMail({
-            to: 'karim_bahmed@yahoo.fr',
+            to: 'contact@jadomi.fr',
             subject: `[Equipment] Nouvelle proposition : ${cleanData.product_name} — ${cleanData.company_name}`,
             html: adminHtml
           }).catch(e => console.error('[Equipment] Karim email error:', e.message));
@@ -7439,7 +7598,7 @@ app.patch('/api/equipment/proposals/:id/status', requireAuth(), async (req, res)
       .single();
 
     if (fetchError || !doc) {
-      return res.status(404).json({ error: 'Proposition non trouvee.' });
+      return res.status(404).json({ error: 'Proposition non trouvée.' });
     }
 
     const { error: updateError } = await sbClient.from('signed_documents')
@@ -7461,7 +7620,7 @@ app.patch('/api/equipment/proposals/:id/status', requireAuth(), async (req, res)
   }
 });
 
-// GET /api/equipment/offres — Public/auth: offres equipement approuvees avec compteurs
+// GET /api/equipment/offres — Public/auth: offres équipement approuvées avec compteurs
 app.get('/api/equipment/offres', async (req, res) => {
   try {
     const sbClient = supabaseAdmin || supabase;
@@ -7571,7 +7730,7 @@ app.post('/api/equipment/join', requireAuth(), async (req, res) => {
       .single();
 
     if (pErr || !proposal) {
-      return res.status(404).json({ error: 'Offre non trouvee ou non disponible.' });
+      return res.status(404).json({ error: 'Offre non trouvée ou non disponible.' });
     }
 
     // Check if already enrolled (any status — to handle reactivation of cancelled)
@@ -7582,7 +7741,7 @@ app.post('/api/equipment/join', requireAuth(), async (req, res) => {
       .maybeSingle();
 
     if (existing && existing.status === 'active') {
-      return res.status(409).json({ error: 'Vous etes deja inscrit a cette offre.' });
+      return res.status(409).json({ error: 'Vous êtes déjà inscrit à cette offre.' });
     }
 
     const isReactivation = !!(existing && (existing.status === 'cancelled' || existing.status === 'refunded'));
@@ -7640,7 +7799,7 @@ app.post('/api/equipment/join', requireAuth(), async (req, res) => {
     if (insertErr) {
       console.error('[Equipment Join] Insert/update error:', insertErr.message);
       if (insertErr.message.includes('unique') || insertErr.message.includes('duplicate')) {
-        return res.status(409).json({ error: 'Vous etes deja inscrit a cette offre.' });
+        return res.status(409).json({ error: 'Vous êtes déjà inscrit à cette offre.' });
       }
       return res.status(500).json({ error: 'Erreur lors de l\'inscription.' });
     }
@@ -7656,7 +7815,7 @@ app.post('/api/equipment/join', requireAuth(), async (req, res) => {
 
       // Create notification for tier milestone
       try {
-        const productName = (proposal.metadata || {}).product_name || 'Equipement';
+        const productName = (proposal.metadata || {}).product_name || 'Équipement';
         const notifMessage = 'Nouveau palier atteint pour ' + productName + ' ! '
           + 'Avec ' + newCount + ' cabinets inscrits, le prix passe de '
           + previousTierPrice + ' EUR a ' + tierPrice + ' EUR.';
@@ -7690,7 +7849,7 @@ app.post('/api/equipment/join', requireAuth(), async (req, res) => {
           const enrolledUsers = (users?.users || []).filter(u => userIds.includes(u.id) && u.email);
 
           const { sendMail } = require('./api/multiSocietes/mailer');
-          const rawProductName = (proposal.metadata || {}).product_name || 'Equipement';
+          const rawProductName = (proposal.metadata || {}).product_name || 'Équipement';
           // Escape HTML to prevent XSS in email
           const productName = rawProductName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -7805,11 +7964,11 @@ app.post('/api/equipment/acompte', requireAuth(), async (req, res) => {
       .single();
 
     if (eErr || !enrollment) {
-      return res.status(404).json({ error: 'Inscription non trouvee.' });
+      return res.status(404).json({ error: 'Inscription non trouvée.' });
     }
 
     if (enrollment.acompte_paid) {
-      return res.status(409).json({ error: 'L\'acompte a deja ete enregistre.' });
+      return res.status(409).json({ error: 'L\'acompte a déjà été enregistré.' });
     }
 
     // Mark acompte as paid
@@ -7916,7 +8075,7 @@ app.post('/api/patients/unban', requireAuth(), async (req, res) => {
       .select('id')
       .single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Ban non trouve ou acces refuse' });
+    if (!data) return res.status(404).json({ error: 'Ban non trouvé ou accès refusé' });
     res.json({ ok: true });
   } catch (e) {
     console.error('[API Error]', e.message); res.status(500).json({ error: 'Erreur serveur' });
@@ -7939,7 +8098,7 @@ app.get('/api/patients/banned', requireAuth(), async (req, res) => {
   }
 });
 
-// GET /api/patients/check-ban?name=... — Verifier si un patient est banni
+// GET /api/patients/check-ban?name=... — Vérifier si un patient est banni
 app.get('/api/patients/check-ban', requireAuth(), async (req, res) => {
   try {
     const name = String(req.query.name || '').trim().toLowerCase();
@@ -7974,7 +8133,7 @@ function _sosHaversineKm(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-// POST /api/sos-urgence/create — Creer une demande d'urgence
+// POST /api/sos-urgence/create — Créer une demande d'urgence
 app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -7990,7 +8149,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'patient_initials et urgency_type requis.' });
     }
 
-    // Recuperer la societe de l'envoyeur (pour GPS + ville)
+    // Récupérer la société de l'envoyeur (pour GPS + ville)
     const { data: senderSociete } = await db.from('societes').select('*').eq('id', societeId).single();
     const senderLat = latitude || senderSociete?.lat || senderSociete?.latitude || null;
     const senderLng = longitude || senderSociete?.lng || senderSociete?.longitude || null;
@@ -8049,7 +8208,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
       });
     }
 
-    // Creer une notification pour chaque cabinet cible
+    // Créer une notification pour chaque cabinet cible
     if (targets.length > 0) {
       const notifications = targets.map(c => ({
         request_id: request.id,
@@ -8125,7 +8284,7 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
-    // Verifier que la request est encore open ET mettre a jour atomiquement
+    // Vérifier que la request est encore open ET mettre à jour atomiquement
     // (le filtre .eq('status','open') empeche la race condition: seul le 1er gagne)
     const { data: updatedReq, error: updateErr } = await db.from('sos_urgence_requests')
       .update({
@@ -8144,17 +8303,17 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
       // Soit introuvable, soit deja acceptee
       const { data: check } = await db.from('sos_urgence_requests').select('status').eq('id', requestId).maybeSingle();
       if (!check) return res.status(404).json({ error: 'Demande introuvable.' });
-      return res.status(409).json({ error: 'Cette demande n\'est plus disponible (deja ' + check.status + ').' });
+      return res.status(409).json({ error: 'Cette demande n\'est plus disponible (déjà ' + check.status + ').' });
     }
     const sosReq = updatedReq;
 
-    // Mettre a jour la notification correspondante
+    // Mettre à jour la notification correspondante
     await db.from('sos_urgence_notifications')
       .update({ status: 'accepted' })
       .eq('request_id', requestId)
       .eq('target_societe_id', societeId);
 
-    // Recuperer les infos de l'envoyeur pour l'email
+    // Récupérer les infos de l'envoyeur pour l'email
     const { data: senderSociete } = await db.from('societes').select('nom').eq('id', sosReq.sender_societe_id).single();
     const { data: senderUser } = await db.from('auth_users_view').select('email').eq('id', sosReq.sender_user_id).maybeSingle();
     // Fallback: chercher dans profiles
@@ -8164,7 +8323,7 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
       senderEmail = profile?.email;
     }
 
-    // Recuperer le nom du confrere qui accepte
+    // Récupérer le nom du confrère qui accepte
     const { data: acceptorSociete } = await db.from('societes').select('nom').eq('id', societeId).single();
     const acceptorName = acceptorSociete?.nom || 'Un confrere';
 
@@ -8197,7 +8356,7 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
       }
     }
 
-    // Retourner les coordonnees du cabinet envoyeur pour le confrere acceptant
+    // Retourner les coordonnées du cabinet envoyeur pour le confrère acceptant
     const { data: senderFullSociete } = await db.from('societes')
       .select('nom, adresse, telephone, email, city, ville')
       .eq('id', sosReq.sender_societe_id).single();
@@ -8249,7 +8408,7 @@ app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
-    // Verifier que c'est bien MA demande ET qu'elle est encore open
+    // Vérifier que c'est bien MA demande ET qu'elle est encore open
     const { data: sosReq, error: fetchErr } = await db.from('sos_urgence_requests')
       .select('sender_societe_id, status')
       .eq('id', requestId)
@@ -8349,7 +8508,7 @@ async function _ideGeocode(adresse) {
   }
 }
 
-// 1. POST /api/ide/cabinet — Creer/mettre a jour le cabinet IDE
+// 1. POST /api/ide/cabinet — Créer/mettre à jour le cabinet IDE
 app.post('/api/ide/cabinet', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -8366,7 +8525,7 @@ app.post('/api/ide/cabinet', requireAuth(), _ideGeocodeLimiter, async (req, res)
     const fullAddress = [adresse, code_postal, ville].filter(Boolean).join(' ');
     const geo = await _ideGeocode(fullAddress);
 
-    // Upsert: check if cabinet exists for this societe
+    // Upsert: check if cabinet exists for this société
     const { data: existing } = await db.from('ide_cabinets').select('id').eq('societe_id', societeId).single();
 
     if (existing) {
@@ -8393,7 +8552,7 @@ app.post('/api/ide/cabinet', requireAuth(), _ideGeocodeLimiter, async (req, res)
   }
 });
 
-// 2. GET /api/ide/cabinet — Recuperer le cabinet de l'user connecte
+// 2. GET /api/ide/cabinet — Récupérer le cabinet de l'user connecté
 app.get('/api/ide/cabinet', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -8423,7 +8582,7 @@ app.post('/api/ide/nurses', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve. Creez votre cabinet d\'abord.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé. Créez votre cabinet d\'abord.' });
 
     const nom = _ideSanitize(req.body.nom, 200);
     const prenom = _ideSanitize(req.body.prenom, 200);
@@ -8456,7 +8615,7 @@ app.get('/api/ide/nurses', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data, error } = await db.from('ide_nurses').select('*').eq('cabinet_id', cabinetId).order('nom');
     if (error) throw error;
@@ -8475,7 +8634,7 @@ app.patch('/api/ide/nurses/:id', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const updates = {};
     if (req.body.nom !== undefined) updates.nom = _ideSanitize(req.body.nom, 200);
@@ -8490,7 +8649,7 @@ app.patch('/api/ide/nurses/:id', requireAuth(), async (req, res) => {
     const { data, error } = await db.from('ide_nurses').update(updates)
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Infirmiere non trouvee.' });
+    if (!data) return res.status(404).json({ error: 'Infirmière non trouvée.' });
     res.json({ ok: true, nurse: data });
   } catch (e) {
     console.error('[IDE Nurses PATCH] Error:', e.message);
@@ -8506,7 +8665,7 @@ app.post('/api/ide/patients', requireAuth(), _ideGeocodeLimiter, async (req, res
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const nom = _ideSanitize(req.body.nom, 200);
     const prenom = _ideSanitize(req.body.prenom, 200);
@@ -8544,7 +8703,7 @@ app.get('/api/ide/patients', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     let query = db.from('ide_patients').select('*').eq('cabinet_id', cabinetId);
     const qRaw = req.query.q;
@@ -8574,7 +8733,7 @@ app.patch('/api/ide/patients/:id', requireAuth(), _ideGeocodeLimiter, async (req
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const updates = {};
     if (req.body.nom !== undefined) updates.nom = _ideSanitize(req.body.nom, 200);
@@ -8601,7 +8760,7 @@ app.patch('/api/ide/patients/:id', requireAuth(), _ideGeocodeLimiter, async (req
     const { data, error } = await db.from('ide_patients').update(updates)
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Patient non trouve.' });
+    if (!data) return res.status(404).json({ error: 'Patient non trouvé.' });
     res.json({ ok: true, patient: data });
   } catch (e) {
     console.error('[IDE Patients PATCH] Error:', e.message);
@@ -8617,12 +8776,12 @@ app.post('/api/ide/patients/:id/ban', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data, error } = await db.from('ide_patients').update({ is_banned: true, updated_at: new Date().toISOString() })
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Patient non trouve.' });
+    if (!data) return res.status(404).json({ error: 'Patient non trouvé.' });
     res.json({ ok: true, patient: data });
   } catch (e) {
     console.error('[IDE Patient Ban] Error:', e.message);
@@ -8638,12 +8797,12 @@ app.post('/api/ide/patients/:id/unban', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data, error } = await db.from('ide_patients').update({ is_banned: false, updated_at: new Date().toISOString() })
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Patient non trouve.' });
+    if (!data) return res.status(404).json({ error: 'Patient non trouvé.' });
     res.json({ ok: true, patient: data });
   } catch (e) {
     console.error('[IDE Patient Unban] Error:', e.message);
@@ -8659,7 +8818,7 @@ app.post('/api/ide/soins', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { patient_id, soins_type, duree_minutes, tournee, jours_semaine, nurse_preferee_id, heure_preferee, ordonnance_expire_at } = req.body;
     if (!patient_id || !soins_type) return res.status(400).json({ error: 'patient_id et soins_type requis.' });
@@ -8671,12 +8830,12 @@ app.post('/api/ide/soins', requireAuth(), async (req, res) => {
 
     // Verify patient belongs to this cabinet
     const { data: patient } = await db.from('ide_patients').select('id').eq('id', patient_id).eq('cabinet_id', cabinetId).single();
-    if (!patient) return res.status(404).json({ error: 'Patient non trouve dans votre cabinet.' });
+    if (!patient) return res.status(404).json({ error: 'Patient non trouvé dans votre cabinet.' });
 
     // SECURITY: Verify nurse_preferee_id belongs to this cabinet (IDOR fix)
     if (nurse_preferee_id) {
       const { data: nurseCheck } = await db.from('ide_nurses').select('id').eq('id', nurse_preferee_id).eq('cabinet_id', cabinetId).single();
-      if (!nurseCheck) return res.status(404).json({ error: 'Infirmiere preferee non trouvee dans votre cabinet.' });
+      if (!nurseCheck) return res.status(404).json({ error: 'Infirmière préférée non trouvée dans votre cabinet.' });
     }
 
     // Warn if jours_semaine is empty (soin will never generate visits)
@@ -8712,7 +8871,7 @@ app.get('/api/ide/soins/:patient_id', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data, error } = await db.from('ide_soins_recurrents').select('*')
       .eq('cabinet_id', cabinetId).eq('patient_id', req.params.patient_id).order('created_at');
@@ -8724,7 +8883,7 @@ app.get('/api/ide/soins/:patient_id', requireAuth(), async (req, res) => {
   }
 });
 
-// 13. DELETE /api/ide/soins/:id — Supprimer un soin recurrent
+// 13. DELETE /api/ide/soins/:id — Supprimer un soin récurrent
 app.delete('/api/ide/soins/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -8732,7 +8891,7 @@ app.delete('/api/ide/soins/:id', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { error } = await db.from('ide_soins_recurrents').delete()
       .eq('id', req.params.id).eq('cabinet_id', cabinetId);
@@ -8752,7 +8911,7 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const dateStr = req.params.date; // YYYY-MM-DD
     if (!_ideValidDate(dateStr)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
@@ -8821,7 +8980,7 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
   }
 });
 
-// 15. POST /api/ide/planning/generate — Generer les visites pour une periode
+// 15. POST /api/ide/planning/generate — Générer les visites pour une période
 app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -8829,7 +8988,7 @@ app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { date_debut, date_fin } = req.body;
     if (!date_debut || !date_fin) return res.status(400).json({ error: 'date_debut et date_fin requis.' });
@@ -8916,7 +9075,7 @@ app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { nurse_id, date, tournee } = req.body;
     if (!nurse_id || !date || !tournee) return res.status(400).json({ error: 'nurse_id, date et tournee requis.' });
@@ -8925,11 +9084,11 @@ app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
 
     // SECURITY: Verify nurse belongs to this cabinet (IDOR fix)
     const { data: nurseCheck } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
-    if (!nurseCheck) return res.status(404).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
+    if (!nurseCheck) return res.status(404).json({ error: 'Infirmière non trouvée dans votre cabinet.' });
 
     // Get cabinet position
     const { data: cabinet } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
-    if (!cabinet || !cabinet.latitude) return res.status(400).json({ error: 'Cabinet sans coordonnees GPS.' });
+    if (!cabinet || !cabinet.latitude) return res.status(400).json({ error: 'Cabinet sans coordonnées GPS.' });
 
     // Get visits for this nurse/date/tournee with patient coords
     const { data: visites } = await db.from('ide_visites').select('id, patient_id')
@@ -9024,7 +9183,7 @@ app.post('/api/ide/patient/place', requireAuth(), _ideGeocodeLimiter, async (req
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { patient_name, address, soins_type, duree_minutes, date, tournee_pref } = req.body;
     if (!address || !date) return res.status(400).json({ error: 'address et date requis.' });
@@ -9038,7 +9197,7 @@ app.post('/api/ide/patient/place', requireAuth(), _ideGeocodeLimiter, async (req
 
     // 2. Get all nurses
     const { data: nurses } = await db.from('ide_nurses').select('id, nom, prenom').eq('cabinet_id', cabinetId);
-    if (!nurses || nurses.length === 0) return res.status(400).json({ error: 'Aucune infirmiere dans le cabinet.' });
+    if (!nurses || nurses.length === 0) return res.status(400).json({ error: 'Aucune infirmière dans le cabinet.' });
 
     // Get cabinet position
     const { data: cabinet } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
@@ -9126,7 +9285,7 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { patient_id, nurse_id, date, tournee, position, soins_type, duree_minutes } = req.body;
     if (!patient_id || !nurse_id || !date || !tournee) return res.status(400).json({ error: 'patient_id, nurse_id, date et tournee requis.' });
@@ -9136,11 +9295,11 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
 
     // SECURITY: Verify patient belongs to this cabinet (IDOR fix)
     const { data: patientCheck } = await db.from('ide_patients').select('id').eq('id', patient_id).eq('cabinet_id', cabinetId).single();
-    if (!patientCheck) return res.status(404).json({ error: 'Patient non trouve dans votre cabinet.' });
+    if (!patientCheck) return res.status(404).json({ error: 'Patient non trouvé dans votre cabinet.' });
 
     // SECURITY: Verify nurse belongs to this cabinet (IDOR fix)
     const { data: nurseCheck } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
-    if (!nurseCheck) return res.status(404).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
+    if (!nurseCheck) return res.status(404).json({ error: 'Infirmière non trouvée dans votre cabinet.' });
 
     // Insert the visit
     const { data: visite, error } = await db.from('ide_visites').insert({
@@ -9205,7 +9364,7 @@ app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { status, heure_arrivee, heure_depart, notes_visite } = req.body;
     const soins_realises = _ideSanitize(req.body.soins_realises, 2000);
@@ -9232,7 +9391,7 @@ app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
     const { data, error } = await db.from('ide_visites').update(updates)
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Visite non trouvee.' });
+    if (!data) return res.status(404).json({ error: 'Visite non trouvée.' });
     res.json({ ok: true, visite: data });
   } catch (e) {
     console.error('[IDE Visite Status] Error:', e.message);
@@ -9247,7 +9406,7 @@ app.patch('/api/ide/visite/:id/notes', requireAuth(), async (req, res) => {
     const societeId = req.user.societe_id;
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
     const { notes } = req.body;
     if (notes === undefined) return res.status(400).json({ error: 'notes requis' });
     const sanitizedNotes = typeof notes === 'string' ? notes.substring(0, 5000) : '';
@@ -9258,7 +9417,7 @@ app.patch('/api/ide/visite/:id/notes', requireAuth(), async (req, res) => {
       .select('id, notes')
       .single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Visite non trouvee.' });
+    if (!data) return res.status(404).json({ error: 'Visite non trouvée.' });
     res.json({ ok: true, visite: data });
   } catch (e) {
     console.error('[IDE Visite Notes] Error:', e.message);
@@ -9283,7 +9442,7 @@ app.get('/api/ide/visite/:id/tracking', rateLimit({ windowMs: 60 * 1000, max: 30
     // Verify the tracking token
     const { data: visite, error } = await db.from('ide_visites').select('id, nurse_id, status, tracking_token')
       .eq('id', visiteId).single();
-    if (error || !visite) return res.status(404).json({ error: 'Visite non trouvee.' });
+    if (error || !visite) return res.status(404).json({ error: 'Visite non trouvée.' });
 
     // Timing-safe token comparison to prevent timing attacks
     if (!visite.tracking_token || token.length !== visite.tracking_token.length) return res.status(403).json({ error: 'Token invalide.' });
@@ -9318,7 +9477,7 @@ app.post('/api/ide/absence', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { nurse_id, date_debut, date_fin } = req.body;
     const motif = _ideSanitize(req.body.motif, 500);
@@ -9330,7 +9489,7 @@ app.post('/api/ide/absence', requireAuth(), async (req, res) => {
 
     // Verify nurse belongs to cabinet
     const { data: nurse } = await db.from('ide_nurses').select('id').eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
-    if (!nurse) return res.status(404).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
+    if (!nurse) return res.status(404).json({ error: 'Infirmière non trouvée dans votre cabinet.' });
 
     const { data, error } = await db.from('ide_absences').insert({
       cabinet_id: cabinetId,
@@ -9355,7 +9514,7 @@ app.get('/api/ide/absences', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data, error } = await db.from('ide_absences').select('*').eq('cabinet_id', cabinetId).order('date_debut', { ascending: false });
     if (error) throw error;
@@ -9389,7 +9548,7 @@ app.get('/api/ide/dashboard', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const today = new Date().toISOString().slice(0, 10);
     const weekStart = new Date();
@@ -9459,7 +9618,7 @@ const ordonnanceUpload = multer({
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!IDE_ORDONNANCE_MIME.includes(file.mimetype) || !IDE_ORDONNANCE_EXT.includes(ext)) {
-      return cb(new Error('Type de fichier non autorise. Formats acceptes : PDF, JPG, PNG.'));
+      return cb(new Error('Type de fichier non autorisé. Formats acceptés : PDF, JPG, PNG.'));
     }
     cb(null, true);
   }
@@ -9483,7 +9642,7 @@ const comptaIdeUpload = multer({
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!IDE_ORDONNANCE_MIME.includes(file.mimetype) || !IDE_ORDONNANCE_EXT.includes(ext)) {
-      return cb(new Error('Type de fichier non autorise. Formats acceptes : PDF, JPG, PNG.'));
+      return cb(new Error('Type de fichier non autorisé. Formats acceptés : PDF, JPG, PNG.'));
     }
     cb(null, true);
   }
@@ -9510,7 +9669,7 @@ app.post('/api/ide/ordonnances/upload', requireAuth(), (req, res) => {
       if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
       const cabinetId = await _ideGetCabinetId(db, societeId);
-      if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+      if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
       const patient_id = _ideSanitize(req.body.patient_id, 100);
       if (!patient_id) return res.status(400).json({ error: 'patient_id requis.' });
@@ -9518,7 +9677,7 @@ app.post('/api/ide/ordonnances/upload', requireAuth(), (req, res) => {
       // Verify patient belongs to this cabinet
       const { data: patient } = await db.from('ide_patients').select('id')
         .eq('id', patient_id).eq('cabinet_id', cabinetId).single();
-      if (!patient) return res.status(403).json({ error: 'Patient non trouve dans votre cabinet.' });
+      if (!patient) return res.status(403).json({ error: 'Patient non trouvé dans votre cabinet.' });
 
       const medecin_nom = _ideSanitize(req.body.medecin_nom, 200);
       const medecin_rpps = _ideSanitize(req.body.medecin_rpps, 20);
@@ -9577,7 +9736,7 @@ app.get('/api/ide/ordonnances', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     let query = db.from('ide_ordonnances').select('*, ide_patients(nom, prenom)')
       .eq('cabinet_id', cabinetId);
@@ -9618,7 +9777,7 @@ app.get('/api/ide/ordonnances/expiring', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const now = new Date();
     const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -9662,11 +9821,11 @@ app.get('/api/ide/ordonnances/:id/download', requireAuth(), async (req, res) => 
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data: ord } = await db.from('ide_ordonnances').select('fichier_path, fichier_nom, fichier_mimetype')
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).single();
-    if (!ord || !ord.fichier_path) return res.status(404).json({ error: 'Ordonnance non trouvee.' });
+    if (!ord || !ord.fichier_path) return res.status(404).json({ error: 'Ordonnance non trouvée.' });
 
     const uploadDir = path.join(__dirname, 'docs', 'uploads', 'ordonnances');
     const filePath = path.join(uploadDir, ord.fichier_path);
@@ -9686,7 +9845,7 @@ app.get('/api/ide/ordonnances/:id/download', requireAuth(), async (req, res) => 
   }
 });
 
-// 4. PATCH /api/ide/ordonnances/:id — Mettre a jour une ordonnance
+// 4. PATCH /api/ide/ordonnances/:id — Mettre à jour une ordonnance
 app.patch('/api/ide/ordonnances/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -9694,7 +9853,7 @@ app.patch('/api/ide/ordonnances/:id', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const updates = {};
     if (req.body.nb_seances_realisees !== undefined) {
@@ -9722,7 +9881,7 @@ app.patch('/api/ide/ordonnances/:id', requireAuth(), async (req, res) => {
     const { data, error } = await db.from('ide_ordonnances').update(updates)
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Ordonnance non trouvee.' });
+    if (!data) return res.status(404).json({ error: 'Ordonnance non trouvée.' });
     res.json({ ok: true, ordonnance: data });
   } catch (e) {
     console.error('[IDE Ordonnances PATCH] Error:', e.message);
@@ -9738,7 +9897,7 @@ app.post('/api/ide/ordonnances/:id/email', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const to_email = _ideSanitize(req.body.to_email, 200);
     if (!to_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to_email)) {
@@ -9747,7 +9906,7 @@ app.post('/api/ide/ordonnances/:id/email', requireAuth(), async (req, res) => {
 
     const { data: ord } = await db.from('ide_ordonnances').select('*, ide_patients(nom, prenom)')
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).single();
-    if (!ord) return res.status(404).json({ error: 'Ordonnance non trouvee.' });
+    if (!ord) return res.status(404).json({ error: 'Ordonnance non trouvée.' });
 
     const patientName = ord.ide_patients ? `${ord.ide_patients.prenom} ${ord.ide_patients.nom}` : 'Patient';
     const subject = (_ideSanitize(req.body.subject, 200) || `Ordonnance — ${patientName} — ${ord.date_prescription}`).replace(/[\r\n]/g, ' ');
@@ -9800,7 +9959,7 @@ app.post('/api/ide/compta/upload', requireAuth(), (req, res) => {
       if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
       const cabinetId = await _ideGetCabinetId(db, societeId);
-      if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+      if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
       const nurse_id = _ideSanitize(req.body.nurse_id, 100);
       const type = IDE_VALID_COMPTA_TYPE.includes(req.body.type) ? req.body.type : null;
@@ -9824,21 +9983,21 @@ app.post('/api/ide/compta/upload', requireAuth(), (req, res) => {
       if (nurse_id) {
         const { data: nurse } = await db.from('ide_nurses').select('id')
           .eq('id', nurse_id).eq('cabinet_id', cabinetId).single();
-        if (!nurse) return res.status(403).json({ error: 'Infirmiere non trouvee dans votre cabinet.' });
+        if (!nurse) return res.status(403).json({ error: 'Infirmière non trouvée dans votre cabinet.' });
       }
 
       // Verify patient belongs to cabinet if provided
       if (patient_id) {
         const { data: pat } = await db.from('ide_patients').select('id')
           .eq('id', patient_id).eq('cabinet_id', cabinetId).single();
-        if (!pat) return res.status(403).json({ error: 'Patient non trouve dans votre cabinet.' });
+        if (!pat) return res.status(403).json({ error: 'Patient non trouvé dans votre cabinet.' });
       }
 
       // Verify ordonnance belongs to cabinet if provided
       if (ordonnance_id) {
         const { data: ord } = await db.from('ide_ordonnances').select('id')
           .eq('id', ordonnance_id).eq('cabinet_id', cabinetId).single();
-        if (!ord) return res.status(403).json({ error: 'Ordonnance non trouvee dans votre cabinet.' });
+        if (!ord) return res.status(403).json({ error: 'Ordonnance non trouvée dans votre cabinet.' });
       }
 
       const insertData = {
@@ -9883,7 +10042,7 @@ app.get('/api/ide/compta', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     let query = db.from('ide_compta').select('*').eq('cabinet_id', cabinetId);
 
@@ -9927,11 +10086,11 @@ app.get('/api/ide/compta/:id/download', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { data: ecriture } = await db.from('ide_compta').select('fichier_path, fichier_nom, fichier_mimetype')
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).single();
-    if (!ecriture || !ecriture.fichier_path) return res.status(404).json({ error: 'Ecriture non trouvee.' });
+    if (!ecriture || !ecriture.fichier_path) return res.status(404).json({ error: 'Écriture non trouvée.' });
 
     const uploadDir = path.join(__dirname, 'docs', 'uploads', 'compta-ide');
     const filePath = path.join(uploadDir, ecriture.fichier_path);
@@ -9959,7 +10118,7 @@ app.get('/api/ide/compta/bilan/:mois', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const mois = _ideSanitize(req.params.mois, 7);
     if (!/^\d{4}-\d{2}$/.test(mois)) return res.status(400).json({ error: 'Format mois invalide (YYYY-MM).' });
@@ -10014,7 +10173,7 @@ app.get('/api/ide/compta/bilan/:mois', requireAuth(), async (req, res) => {
   }
 });
 
-// 10. PATCH /api/ide/compta/:id — Mettre a jour statut comptable
+// 10. PATCH /api/ide/compta/:id — Mettre à jour statut comptable
 app.patch('/api/ide/compta/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -10022,7 +10181,7 @@ app.patch('/api/ide/compta/:id', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const updates = {};
     if (req.body.status && IDE_VALID_COMPTA_STATUS.includes(req.body.status)) {
@@ -10040,7 +10199,7 @@ app.patch('/api/ide/compta/:id', requireAuth(), async (req, res) => {
     const { data, error } = await db.from('ide_compta').update(updates)
       .eq('id', req.params.id).eq('cabinet_id', cabinetId).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Ecriture non trouvee.' });
+    if (!data) return res.status(404).json({ error: 'Écriture non trouvée.' });
     res.json({ ok: true, ecriture: data });
   } catch (e) {
     console.error('[IDE Compta PATCH] Error:', e.message);
@@ -10057,12 +10216,12 @@ app.post('/api/commerce/connect/onboard-supplier', requireAuth(), async (req, re
   try {
     const { mandate_id } = req.body;
     if (!mandate_id) return res.status(400).json({ error: 'mandate_id requis' });
-    if (!stripe) return res.status(503).json({ error: 'Stripe non configure' });
+    if (!stripe) return res.status(503).json({ error: 'Stripe non configuré' });
 
     const sbClient = supabaseAdmin || supabase;
     const { data: mandate } = await sbClient.from('supplier_mandates')
       .select('*').eq('id', mandate_id).single();
-    if (!mandate) return res.status(404).json({ error: 'Mandat non trouve' });
+    if (!mandate) return res.status(404).json({ error: 'Mandat non trouvé' });
     if (mandate.status !== 'signed' && mandate.status !== 'active') {
       return res.status(400).json({ error: 'Le mandat doit etre signe' });
     }
@@ -10436,7 +10595,7 @@ app.post('/api/commerce/payout/schedule', requireAuth(), async (req, res) => {
     const sbClient = supabaseAdmin || supabase;
     const { data: order } = await sbClient.from('jadomi_orders')
       .select('*').eq('id', order_id).eq('status', 'paid').single();
-    if (!order) return res.status(404).json({ error: 'Commande non trouvee ou non payee' });
+    if (!order) return res.status(404).json({ error: 'Commande non trouvée ou non payée' });
 
     // Group by supplier and transfer
     const items = order.items || [];
@@ -10743,7 +10902,7 @@ app.post('/api/ide/remplacement/search', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { date_debut, date_fin } = req.body;
     if (!date_debut || !date_fin) return res.status(400).json({ error: 'date_debut et date_fin requis.' });
@@ -10751,7 +10910,7 @@ app.post('/api/ide/remplacement/search', requireAuth(), async (req, res) => {
 
     // Get current cabinet info for region matching
     const { data: myCabinet } = await db.from('ide_cabinets').select('id, ville, code_postal').eq('id', cabinetId).single();
-    if (!myCabinet) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!myCabinet) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const cpPrefix = (myCabinet.code_postal || '').substring(0, 2);
 
@@ -10779,7 +10938,7 @@ app.post('/api/ide/remplacement/search', requireAuth(), async (req, res) => {
     if (nurseError) throw nurseError;
 
     if (!nurses || nurses.length === 0) {
-      return res.json({ ok: true, remplacants: [], message: 'Aucune infirmiere disponible dans votre departement.' });
+      return res.json({ ok: true, remplacants: [], message: 'Aucune infirmière disponible dans votre département.' });
     }
 
     const nurseIds = nurses.map(n => n.id);
@@ -10825,7 +10984,7 @@ app.post('/api/ide/remplacement/request', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { absence_id, remplacant_nurse_id } = req.body;
     const message = _ideSanitize(req.body.message, 1000);
@@ -10838,19 +10997,19 @@ app.post('/api/ide/remplacement/request', requireAuth(), async (req, res) => {
     // Verify absence belongs to this cabinet
     const { data: absence } = await db.from('ide_absences').select('id, cabinet_id, status')
       .eq('id', absence_id).eq('cabinet_id', cabinetId).single();
-    if (!absence) return res.status(404).json({ error: 'Absence non trouvee dans votre cabinet.' });
-    if (absence.status === 'pourvu') return res.status(400).json({ error: 'Cette absence a deja un remplacant.' });
+    if (!absence) return res.status(404).json({ error: 'Absence non trouvée dans votre cabinet.' });
+    if (absence.status === 'pourvu') return res.status(400).json({ error: 'Cette absence a déjà un remplaçant.' });
 
     // Verify target nurse exists and belongs to another cabinet
     const { data: targetNurse } = await db.from('ide_nurses').select('id, cabinet_id, nom, prenom, email')
       .eq('id', remplacant_nurse_id).single();
-    if (!targetNurse) return res.status(404).json({ error: 'Infirmier(e) remplacant(e) non trouve(e).' });
+    if (!targetNurse) return res.status(404).json({ error: 'Infirmier(e) remplaçant(e) non trouvé(e).' });
     if (targetNurse.cabinet_id === cabinetId) return res.status(400).json({ error: 'Vous ne pouvez pas demander un remplacement a un(e) infirmier(e) de votre propre cabinet.' });
 
     // Check no duplicate pending request
     const { data: existing } = await db.from('ide_remplacement_requests')
       .select('id').eq('absence_id', absence_id).eq('target_nurse_id', remplacant_nurse_id).eq('status', 'pending').single();
-    if (existing) return res.status(400).json({ error: 'Une demande est deja en cours pour cette infirmiere.' });
+    if (existing) return res.status(400).json({ error: 'Une demande est déjà en cours pour cette infirmière.' });
 
     const { data: request, error } = await db.from('ide_remplacement_requests').insert({
       absence_id,
@@ -10880,7 +11039,7 @@ app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { request_id } = req.body;
     if (!request_id) return res.status(400).json({ error: 'request_id requis.' });
@@ -10891,7 +11050,7 @@ app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
     const { data: rReq } = await db.from('ide_remplacement_requests')
       .select('*, ide_absences(*)')
       .eq('id', request_id).eq('status', 'pending').single();
-    if (!rReq) return res.status(404).json({ error: 'Demande non trouvee ou deja traitee.' });
+    if (!rReq) return res.status(404).json({ error: 'Demande non trouvée ou déjà traitée.' });
 
     // Verify that the target nurse belongs to the current user's cabinet
     const { data: targetNurse } = await db.from('ide_nurses')
@@ -10902,7 +11061,7 @@ app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
 
     // Race condition guard: check absence is not already pourvu
     if (rReq.ide_absences && rReq.ide_absences.status === 'pourvu') {
-      return res.status(400).json({ error: 'Cette absence a deja un remplacant assigne.' });
+      return res.status(400).json({ error: 'Cette absence a déjà un remplaçant assigné.' });
     }
 
     // Update request to accepted — optimistic lock on status=pending to prevent double-accept
@@ -10912,7 +11071,7 @@ app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
       updated_at: new Date().toISOString()
     }).eq('id', request_id).eq('status', 'pending').select().single();
     if (updateReqErr || !updated) {
-      return res.status(409).json({ error: 'Demande deja traitee par un autre utilisateur.' });
+      return res.status(409).json({ error: 'Demande déjà traitée par un autre utilisateur.' });
     }
 
     // Update absence with remplacant and status
@@ -10944,7 +11103,7 @@ app.post('/api/ide/remplacement/decline', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { request_id } = req.body;
     if (!request_id) return res.status(400).json({ error: 'request_id requis.' });
@@ -10954,7 +11113,7 @@ app.post('/api/ide/remplacement/decline', requireAuth(), async (req, res) => {
     const { data: rReq } = await db.from('ide_remplacement_requests')
       .select('id, absence_id, status, target_nurse_id')
       .eq('id', request_id).eq('status', 'pending').single();
-    if (!rReq) return res.status(404).json({ error: 'Demande non trouvee ou deja traitee.' });
+    if (!rReq) return res.status(404).json({ error: 'Demande non trouvée ou déjà traitée.' });
 
     const { data: targetNurse } = await db.from('ide_nurses')
       .select('cabinet_id').eq('id', rReq.target_nurse_id).single();
@@ -10984,7 +11143,7 @@ app.post('/api/ide/remplacement/decline', requireAuth(), async (req, res) => {
   }
 });
 
-// 34. POST /api/ide/remplacement/contrat — Generer le contrat de remplacement
+// 34. POST /api/ide/remplacement/contrat — Générer le contrat de remplacement
 app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
@@ -10992,7 +11151,7 @@ app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { absence_id } = req.body;
     const retrocession_pct = parseFloat(req.body.retrocession_pct);
@@ -11004,18 +11163,18 @@ app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
     const { data: absence } = await db.from('ide_absences')
       .select('*')
       .eq('id', absence_id).eq('cabinet_id', cabinetId).single();
-    if (!absence) return res.status(404).json({ error: 'Absence non trouvee.' });
-    if (!absence.remplacant_id) return res.status(400).json({ error: 'Aucun remplacant assigne a cette absence.' });
+    if (!absence) return res.status(404).json({ error: 'Absence non trouvée.' });
+    if (!absence.remplacant_id) return res.status(400).json({ error: 'Aucun remplaçant assigné à cette absence.' });
 
     // Get titulaire nurse info
     const { data: titulaire } = await db.from('ide_nurses').select('id, nom, prenom, rpps, telephone, email, cabinet_id')
       .eq('id', absence.nurse_id).single();
-    if (!titulaire) return res.status(404).json({ error: 'Infirmier(e) titulaire non trouve(e).' });
+    if (!titulaire) return res.status(404).json({ error: 'Infirmier(e) titulaire non trouvé(e).' });
 
     // Get remplacant nurse info
     const { data: remplacant } = await db.from('ide_nurses').select('id, nom, prenom, rpps, telephone, email, cabinet_id')
       .eq('id', absence.remplacant_id).single();
-    if (!remplacant) return res.status(404).json({ error: 'Infirmier(e) remplacant(e) non trouve(e).' });
+    if (!remplacant) return res.status(404).json({ error: 'Infirmier(e) remplaçant(e) non trouvé(e).' });
 
     // Get cabinet info for both
     const { data: cabTitulaire } = await db.from('ide_cabinets').select('nom, adresse, ville, code_postal').eq('id', titulaire.cabinet_id).single();
@@ -11092,7 +11251,7 @@ app.post('/api/ide/remplacement/envoyer-ordre', requireAuth(), async (req, res) 
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const { absence_id } = req.body;
     if (!absence_id) return res.status(400).json({ error: 'absence_id requis.' });
@@ -11102,13 +11261,13 @@ app.post('/api/ide/remplacement/envoyer-ordre', requireAuth(), async (req, res) 
     const { data: absence } = await db.from('ide_absences')
       .select('*')
       .eq('id', absence_id).eq('cabinet_id', cabinetId).single();
-    if (!absence) return res.status(404).json({ error: 'Absence non trouvee.' });
-    if (!absence.contrat_document_id) return res.status(400).json({ error: 'Aucun contrat genere pour cette absence. Generez le contrat d\'abord.' });
-    if (absence.contrat_envoye_ordre) return res.status(400).json({ error: 'Le contrat a deja ete envoye a l\'Ordre.' });
+    if (!absence) return res.status(404).json({ error: 'Absence non trouvée.' });
+    if (!absence.contrat_document_id) return res.status(400).json({ error: 'Aucun contrat généré pour cette absence. Générez le contrat d\'abord.' });
+    if (absence.contrat_envoye_ordre) return res.status(400).json({ error: 'Le contrat a déjà été envoyé à l\'Ordre.' });
 
     // Get contract document
     const { data: doc } = await db.from('signed_documents').select('*').eq('id', absence.contrat_document_id).single();
-    if (!doc) return res.status(404).json({ error: 'Document contrat non trouve.' });
+    if (!doc) return res.status(404).json({ error: 'Document contrat non trouvé.' });
 
     // Get cabinet info for the email
     const { data: cabinet } = await db.from('ide_cabinets').select('nom, ville, code_postal').eq('id', cabinetId).single();
@@ -11184,7 +11343,7 @@ app.get('/api/ide/remplacement/requests', requireAuth(), async (req, res) => {
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
-    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouve.' });
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
 
     const absenceId = req.query.absence_id;
     if (absenceId && !_ideValidUuid(absenceId)) return res.status(400).json({ error: 'Format d\'identifiant invalide.' });
@@ -11218,13 +11377,507 @@ app.get('/api/ide/remplacement/requests', requireAuth(), async (req, res) => {
   }
 });
 
+// ============================================================
+// JADOMI IDE — Demandes de soins patients (page publique)
+// ============================================================
+
+// Multer config for ordonnance uploads (10MB, JPG/PNG/PDF only)
+const _ideOrdoMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+const _ideOrdoExtensions = ['.jpg', '.jpeg', '.png', '.pdf'];
+const _ideOrdoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'uploads', 'ordonnances');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
+    cb(null, uniqueName);
+  }
+});
+const _ideOrdoUpload = multer({
+  storage: _ideOrdoStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!_ideOrdoMimeTypes.includes(file.mimetype) || !_ideOrdoExtensions.includes(ext)) {
+      return cb(new Error('Type de fichier non autorisé. Formats acceptés : JPG, PNG, PDF.'));
+    }
+    cb(null, true);
+  }
+}).single('ordonnance_file');
+
+// Rate limiter: 3 requests per hour per IP (public endpoint)
+const _ideDemandesSoinsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes. Vous pouvez soumettre 3 demandes par heure maximum.' }
+});
+
+// Geocode via API adresse.data.gouv.fr (French government API, no rate limit issues)
+async function _ideGeocodeGouv(adresse) {
+  try {
+    const resp = await fetch('https://api-adresse.data.gouv.fr/search/?q=' + encodeURIComponent(adresse) + '&limit=1', {
+      headers: { 'User-Agent': 'JADOMI/1.0' }
+    });
+    const data = await resp.json();
+    if (data && data.features && data.features.length > 0) {
+      const coords = data.features[0].geometry.coordinates;
+      return { latitude: coords[1], longitude: coords[0], label: data.features[0].properties.label || adresse };
+    }
+    return { latitude: null, longitude: null, label: adresse };
+  } catch (e) {
+    console.error('[IDE Geocode Gouv] Error:', e.message);
+    return { latitude: null, longitude: null, label: adresse };
+  }
+}
+
+// Haversine distance in km
+function _ideHaversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Subscription tier defaults
+const _ideFormuleDefaults = {
+  essentiel: { delai_minutes: 30, max_acceptations_jour: 2, rayon_km: 5 },
+  pro: { delai_minutes: 5, max_acceptations_jour: 10, rayon_km: 15 },
+  premium: { delai_minutes: 0, max_acceptations_jour: 999, rayon_km: 30 }
+};
+
+// Helper: get cabinet subscription
+async function _ideGetAbonnement(db, cabinetId) {
+  try {
+    const { data } = await db.from('ide_abonnements').select('*').eq('cabinet_id', cabinetId).eq('active', true).order('created_at', { ascending: false }).limit(1).single();
+    if (data) return data;
+  } catch (e) {
+    // Table may not exist yet, fallback
+  }
+  // Default: essentiel
+  return { formule: 'essentiel', ..._ideFormuleDefaults.essentiel };
+}
+
+// 37. POST /api/ide/demandes-soins — Demande de soins patient (PUBLIC)
+app.post('/api/ide/demandes-soins', _ideDemandesSoinsLimiter, (req, res) => {
+  _ideOrdoUpload(req, res, async function(err) {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Fichier trop volumineux (10 Mo maximum).' });
+      return res.status(400).json({ error: err.message || 'Erreur lors de l\'envoi du fichier.' });
+    }
+    try {
+      const nom = _ideSanitize(req.body.nom, 100);
+      const prenom = _ideSanitize(req.body.prenom, 100);
+      const telephone = _ideSanitize(req.body.telephone, 20);
+      const adresse = _ideSanitize(req.body.adresse, 500);
+      const type_soin = _ideSanitize(req.body.type_soin, 100);
+      const rgpd_consent = req.body.rgpd_consent === 'true' || req.body.rgpd_consent === true;
+
+      // Validation
+      if (!nom || !prenom) return res.status(400).json({ error: 'Nom et prénom sont requis.' });
+      if (!telephone || !/^[\d\s+.\-()]{8,20}$/.test(telephone.replace(/&[^;]+;/g, ''))) {
+        return res.status(400).json({ error: 'Numéro de téléphone invalide.' });
+      }
+      if (!adresse) return res.status(400).json({ error: 'Adresse requise.' });
+      if (!type_soin) return res.status(400).json({ error: 'Type de soin requis.' });
+      const validSoins = ['prise_de_sang','pansement','injection','perfusion','toilette_medicalisee','soins_post_operatoires','chimiotherapie','surveillance_diabete','autre'];
+      const rawTypeSoin = String(req.body.type_soin || '').trim();
+      if (!validSoins.includes(rawTypeSoin)) return res.status(400).json({ error: 'Type de soin invalide.' });
+      if (!rgpd_consent) return res.status(400).json({ error: 'Le consentement RGPD est obligatoire.' });
+      if (!req.file) return res.status(400).json({ error: 'La photo de l\'ordonnance est obligatoire.' });
+
+      // Geocode address (use raw address for better geocoding accuracy)
+      const geo = await _ideGeocodeGouv(String(req.body.adresse || '').trim());
+
+      const ordonnance_path = req.file ? req.file.filename : null;
+      const id = crypto.randomUUID();
+
+      // Try database insert, fallback to demo mode
+      let dbSuccess = false;
+      try {
+        const db = supaAdminOrThrow();
+        const { error: insertErr } = await db.from('ide_demandes_soins').insert({
+          id,
+          nom, prenom, telephone, adresse,
+          latitude: geo.latitude, longitude: geo.longitude,
+          type_soin: rawTypeSoin,
+          ordonnance_path,
+          rgpd_consent: true,
+          status: 'en_attente'
+        });
+        if (insertErr) throw insertErr;
+        dbSuccess = true;
+      } catch (dbErr) {
+        console.warn('[IDE Demandes Soins POST] DB insert failed (demo mode):', dbErr.message);
+      }
+
+      console.log(`[IDE Demandes Soins] Nouvelle demande ${id} - ${type_soin} - ${adresse} (db=${dbSuccess})`);
+
+      res.json({
+        ok: true,
+        id,
+        status: 'en_attente',
+        message: 'Votre demande de soins a bien été enregistrée. Les infirmières de votre secteur seront notifiées.'
+      });
+    } catch (e) {
+      console.error('[IDE Demandes Soins POST] Error:', e.message);
+      res.status(500).json({ error: 'Erreur serveur. Veuillez réessayer.' });
+    }
+  });
+});
+
+// 38. GET /api/ide/demandes-soins/disponibles — Demandes disponibles pour une infirmière (AUTH)
+app.get('/api/ide/demandes-soins/disponibles', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune société associée.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
+
+    // Get cabinet geo
+    const { data: cabinet } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
+    if (!cabinet || !cabinet.latitude) return res.status(400).json({ error: 'Votre cabinet n\'a pas d\'adresse géocodée.' });
+
+    // Get subscription tier
+    const abo = await _ideGetAbonnement(db, cabinetId);
+    const formule = abo.formule || 'essentiel';
+    const defaults = _ideFormuleDefaults[formule] || _ideFormuleDefaults.essentiel;
+    const delaiMinutes = abo.delai_notification_minutes ?? defaults.delai_minutes;
+    const rayonKm = abo.rayon_km ?? defaults.rayon_km;
+
+    // Query pending requests with delay filter
+    const cutoff = new Date(Date.now() - delaiMinutes * 60 * 1000).toISOString();
+    let query = db.from('ide_demandes_soins')
+      .select('id, type_soin, adresse, latitude, longitude, created_at, status')
+      .eq('status', 'en_attente')
+      .gt('expires_at', new Date().toISOString());
+
+    if (delaiMinutes > 0) {
+      query = query.lt('created_at', cutoff);
+    }
+
+    const { data: demandes, error: dErr } = await query.order('created_at', { ascending: false }).limit(50);
+    if (dErr) throw dErr;
+
+    // Filter by distance and enrich
+    const results = [];
+    for (const d of (demandes || [])) {
+      if (!d.latitude || !d.longitude) continue;
+      const dist = _ideHaversineKm(cabinet.latitude, cabinet.longitude, d.latitude, d.longitude);
+      if (dist > rayonKm) continue;
+
+      const item = {
+        id: d.id,
+        type_soin: d.type_soin,
+        ville: (d.adresse || '').split(',').pop()?.trim() || d.adresse,
+        distance_km: Math.round(dist * 10) / 10,
+        created_at: d.created_at,
+        il_y_a: _ideTimeAgo(d.created_at)
+      };
+
+      // Premium extra info
+      if (formule === 'premium') {
+        item.duree_estimee = _ideEstimerDuree(d.type_soin);
+        item.frequence = _ideEstimerFrequence(d.type_soin);
+      }
+
+      results.push(item);
+    }
+
+    // Sort by distance
+    results.sort((a, b) => a.distance_km - b.distance_km);
+
+    res.json({
+      ok: true,
+      formule,
+      delai_minutes: delaiMinutes,
+      rayon_km: rayonKm,
+      demandes: results,
+      count: results.length
+    });
+  } catch (e) {
+    console.error('[IDE Demandes Soins Disponibles] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Helper: time ago in French
+function _ideTimeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'à l\'instant';
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours}h`;
+  return `il y a ${Math.floor(hours / 24)}j`;
+}
+
+// Helper: estimated duration by care type
+function _ideEstimerDuree(typeSoin) {
+  const durees = {
+    prise_de_sang: '15 min', pansement: '20 min', injection: '10 min',
+    perfusion: '45 min', toilette_medicalisee: '30 min', soins_post_operatoires: '25 min',
+    chimiotherapie: '60 min', surveillance_diabete: '15 min', autre: '20 min'
+  };
+  return durees[typeSoin] || '20 min';
+}
+
+// Helper: estimated frequency
+function _ideEstimerFrequence(typeSoin) {
+  const freq = {
+    prise_de_sang: 'ponctuel', pansement: 'quotidien', injection: 'ponctuel',
+    perfusion: 'quotidien', toilette_medicalisee: 'quotidien', soins_post_operatoires: 'quotidien',
+    chimiotherapie: 'hebdomadaire', surveillance_diabete: 'quotidien', autre: 'à définir'
+  };
+  return freq[typeSoin] || 'à définir';
+}
+
+// Rate limiter for cancelling care requests
+const _ideDeleteDemandesLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives d\'annulation. Réessayez plus tard.' }
+});
+
+// Rate limiter for accepting care requests
+const _ideAccepterLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans 1 minute.' }
+});
+
+// 39. POST /api/ide/demandes-soins/:id/accepter — Accepter une demande (AUTH)
+app.post('/api/ide/demandes-soins/:id/accepter', requireAuth(), _ideAccepterLimiter, async (req, res) => {
+  try {
+    const demandeId = req.params.id;
+    if (!_ideValidUuid(demandeId)) return res.status(400).json({ error: 'Identifiant invalide.' });
+
+    const db = supaAdminOrThrow();
+    const societeId = req.user.societe_id;
+    if (!societeId) return res.status(400).json({ error: 'Aucune société associée.' });
+
+    const cabinetId = await _ideGetCabinetId(db, societeId);
+    if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
+
+    // Check subscription tier limits
+    const abo = await _ideGetAbonnement(db, cabinetId);
+    const formule = abo.formule || 'essentiel';
+    const defaults = _ideFormuleDefaults[formule] || _ideFormuleDefaults.essentiel;
+    const maxAccept = abo.max_acceptations_jour ?? defaults.max_acceptations_jour;
+
+    // Count today's acceptations
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: todayAccepted, error: countErr } = await db.from('ide_demandes_soins')
+      .select('id')
+      .eq('cabinet_id', cabinetId)
+      .eq('status', 'acceptee')
+      .gte('accepted_at', todayStart.toISOString());
+    if (!countErr && todayAccepted && todayAccepted.length >= maxAccept) {
+      return res.status(429).json({
+        error: `Limite d'acceptations atteinte pour la formule ${formule} (${maxAccept}/jour). Passez à une formule supérieure pour accepter plus de demandes.`
+      });
+    }
+
+    // Get the nurse_id (first active nurse of the cabinet, or from body)
+    const nurseId = req.body.nurse_id ? parseInt(req.body.nurse_id) : null;
+    let selectedNurseId = nurseId;
+    if (!selectedNurseId) {
+      const { data: nurses } = await db.from('ide_nurses').select('id').eq('cabinet_id', cabinetId).limit(1);
+      selectedNurseId = nurses && nurses.length > 0 ? nurses[0].id : null;
+    }
+
+    // Accept the request (atomic: check status is still en_attente)
+    const { data: updated, error: upErr } = await db.from('ide_demandes_soins')
+      .update({
+        status: 'acceptee',
+        nurse_id: selectedNurseId,
+        cabinet_id: cabinetId,
+        accepted_at: new Date().toISOString()
+      })
+      .eq('id', demandeId)
+      .eq('status', 'en_attente')
+      .select()
+      .single();
+
+    if (upErr || !updated) {
+      return res.status(409).json({ error: 'Cette demande a déjà été acceptée par un autre cabinet ou a expiré.' });
+    }
+
+    // Try to auto-place the patient in the best tournee
+    let placementResult = null;
+    try {
+      if (selectedNurseId && updated.latitude && updated.longitude) {
+        // Create a temporary patient entry for placement
+        const patientData = {
+          cabinet_id: cabinetId,
+          nom: updated.nom,
+          prenom: updated.prenom,
+          adresse: updated.adresse,
+          telephone: updated.telephone,
+          latitude: updated.latitude,
+          longitude: updated.longitude,
+          statut: 'actif'
+        };
+
+        const { data: newPatient, error: patErr } = await db.from('ide_patients').insert(patientData).select().single();
+        if (!patErr && newPatient) {
+          placementResult = { patient_id: newPatient.id, message: 'Patient ajouté au cabinet.' };
+        }
+      }
+    } catch (placeErr) {
+      console.warn('[IDE Demandes Soins Accepter] Placement auto échoué:', placeErr.message);
+    }
+
+    // Get nurse info for response
+    let nurseInfo = {};
+    if (selectedNurseId) {
+      const { data: nurse } = await db.from('ide_nurses').select('prenom, telephone').eq('id', selectedNurseId).single();
+      if (nurse) nurseInfo = { nurse_prenom: nurse.prenom, nurse_telephone: nurse.telephone };
+    }
+
+    console.log(`[IDE Demandes Soins] Demande ${demandeId} acceptee par cabinet ${cabinetId} (formule: ${formule})`);
+
+    res.json({
+      ok: true,
+      demande: {
+        id: updated.id,
+        status: 'acceptee',
+        nom: updated.nom,
+        prenom: updated.prenom,
+        telephone: updated.telephone,
+        adresse: updated.adresse,
+        type_soin: updated.type_soin,
+        ordonnance_path: updated.ordonnance_path,
+        ...nurseInfo
+      },
+      placement: placementResult
+    });
+  } catch (e) {
+    console.error('[IDE Demandes Soins Accepter] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// 40. GET /api/ide/demandes-soins/:id/status — Statut d'une demande (PUBLIC)
+app.get('/api/ide/demandes-soins/:id/status', async (req, res) => {
+  try {
+    const demandeId = req.params.id;
+    if (!_ideValidUuid(demandeId)) return res.status(400).json({ error: 'Identifiant invalide.' });
+
+    const db = supaAdminOrThrow();
+    const { data, error } = await db.from('ide_demandes_soins')
+      .select('id, status, created_at, accepted_at, nurse_id')
+      .eq('id', demandeId)
+      .single();
+
+    if (error || !data) {
+      // Demo mode fallback
+      return res.json({ ok: true, id: demandeId, status: 'en_attente', nurse_prenom: null, nurse_telephone: null });
+    }
+
+    const result = {
+      ok: true,
+      id: data.id,
+      status: data.status,
+      created_at: data.created_at,
+      accepted_at: data.accepted_at,
+      nurse_prenom: null,
+      nurse_telephone: null
+    };
+
+    // If accepted, reveal nurse info
+    if (data.status === 'acceptee' && data.nurse_id) {
+      const { data: nurse } = await db.from('ide_nurses').select('prenom, telephone').eq('id', data.nurse_id).single();
+      if (nurse) {
+        result.nurse_prenom = nurse.prenom;
+        result.nurse_telephone = nurse.telephone;
+      }
+    }
+
+    res.json(result);
+  } catch (e) {
+    console.error('[IDE Demandes Soins Status] Error:', e.message);
+    // Demo fallback
+    res.json({ ok: true, id: req.params.id, status: 'en_attente', nurse_prenom: null, nurse_telephone: null });
+  }
+});
+
+// 41. DELETE /api/ide/demandes-soins/:id — Annuler/supprimer une demande (PUBLIC, RGPD)
+app.delete('/api/ide/demandes-soins/:id', _ideDeleteDemandesLimiter, async (req, res) => {
+  try {
+    const demandeId = req.params.id;
+    if (!_ideValidUuid(demandeId)) return res.status(400).json({ error: 'Identifiant invalide.' });
+
+    const db = supaAdminOrThrow();
+
+    // Get ordonnance path before deleting
+    const { data: demande } = await db.from('ide_demandes_soins')
+      .select('id, ordonnance_path, status')
+      .eq('id', demandeId)
+      .single();
+
+    if (!demande) {
+      return res.status(404).json({ error: 'Demande non trouvée.' });
+    }
+
+    // Only allow cancellation of pending requests (not accepted ones)
+    if (demande.status === 'acceptee') {
+      return res.status(400).json({ error: 'Cette demande a déjà été acceptée et ne peut plus être annulée.' });
+    }
+
+    // Delete ordonnance file if exists (with path traversal protection)
+    if (demande.ordonnance_path) {
+      const uploadsDir = path.resolve(__dirname, 'uploads', 'ordonnances');
+      const filePath = path.resolve(uploadsDir, path.basename(demande.ordonnance_path));
+      try {
+        if (filePath.startsWith(uploadsDir + path.sep) && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (delErr) {
+        console.warn('[IDE Demandes Soins DELETE] Fichier non supprimé:', delErr.message);
+      }
+    }
+
+    // Update status to annulee (soft delete for audit) + clear personal data
+    const { error: upErr } = await db.from('ide_demandes_soins')
+      .update({
+        status: 'annulee',
+        nom: '[supprimé]',
+        prenom: '[supprimé]',
+        telephone: '[supprimé]',
+        ordonnance_path: null
+      })
+      .eq('id', demandeId);
+
+    if (upErr) throw upErr;
+
+    console.log(`[IDE Demandes Soins] Demande ${demandeId} annulée (RGPD suppression)`);
+    res.json({ ok: true, message: 'Votre demande a été annulée et vos données personnelles supprimées.' });
+  } catch (e) {
+    console.error('[IDE Demandes Soins DELETE] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // =============================================
 // CRON IDE — Confirmation automatique patients J-1 (19h Europe/Paris)
 // =============================================
 
 /**
  * Fonction principale : interroge ide_visites pour demain (status='planifie'),
- * recupere les patients, logue la confirmation et marque confirmation_envoyee.
+ * récupère les patients, logue la confirmation et marque confirmation_envoyee.
  * Utilise supabaseAdmin (service_role) car pas de contexte utilisateur.
  */
 async function cronConfirmPatientsIDE() {
@@ -11238,16 +11891,16 @@ async function cronConfirmPatientsIDE() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dateStr = tomorrow.toISOString().slice(0, 10); // YYYY-MM-DD
 
-    // 1. Recuperer les visites planifiees pour demain, non encore confirmees
+    // 1. Récupérer les visites planifiées pour demain, non encore confirmées
     const { data: visites, error: vErr } = await adminDb
       .from('ide_visites')
       .select('id, patient_id, cabinet_id, nurse_id, date_visite, tournee, soins_type')
       .eq('date_visite', dateStr)
       .eq('status', 'planifie')
-      .is('confirmation_envoyee', null); // pas encore traitees
+      .is('confirmation_envoyee', null); // pas encore traitées
 
     if (vErr) {
-      // Fallback: si la colonne confirmation_envoyee n'existe pas, reessayer sans filtre
+      // Fallback: si la colonne confirmation_envoyee n'existe pas, réessayer sans filtre
       if (vErr.message && vErr.message.includes('confirmation_envoyee')) {
         console.warn(`${tag} Colonne confirmation_envoyee absente, query sans filtre...`);
         const { data: v2, error: v2Err } = await adminDb
@@ -11280,7 +11933,7 @@ async function cronConfirmPatientsIDE() {
 async function _processConfirmations(adminDb, visites, dateStr, tag) {
   console.log(`${tag} Processing ${visites.length} visits for ${dateStr}`);
 
-  // 2. Recuperer les patients concernes (batch unique)
+  // 2. Récupérer les patients concernés (batch unique)
   const patientIds = [...new Set(visites.map(v => v.patient_id))];
   const { data: patients, error: pErr } = await adminDb
     .from('ide_patients')
@@ -11307,7 +11960,7 @@ async function _processConfirmations(adminDb, visites, dateStr, tag) {
       }
 
       // 3. Loguer la confirmation (future: envoi SMS)
-      // SECURITE: pas de donnees patient dans les logs, juste l'ID visite
+      // SÉCURITÉ: pas de données patient dans les logs, juste l'ID visite
       console.log(`${tag} Confirmation logged for visit ${visite.id} (date: ${dateStr})`);
 
       // 4. Marquer la visite comme confirmee
@@ -11342,7 +11995,7 @@ try {
   cronConfirm.schedule('0 19 * * *', cronConfirmPatientsIDE, { timezone: 'Europe/Paris' });
   console.log('[JADOMI] CRON IDE confirmation patients programme (19h00 Europe/Paris)');
 } catch (cronConfirmErr) {
-  // Fallback setInterval si node-cron indisponible : toutes les 5 min, check si 19h Paris
+  // Fallback setInterval si node-cron indisponible : toutes les 5 min, vérifier si 19h Paris
   console.warn('[JADOMI] node-cron indisponible pour IDE confirm, fallback setInterval:', cronConfirmErr.message);
   setInterval(async () => {
     try {
@@ -11376,6 +12029,16 @@ app.post('/api/ide/cron/confirm-patients', requireAuth(), _ideCronConfirmLimiter
     res.status(500).json({ error: 'Erreur lors du declenchement.' });
   }
 });
+
+// === JADOMI Support Tutorials (tutoriels interactifs) ===
+try {
+  app.use('/api/support/tutorials', require('./api/support/tutorials'));
+  console.log('[JADOMI] Module Support Tutorials monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Support Tutorials non charge:', e.message);
+}
+// Page tutoriels
+app.get('/support/tutoriels', (req, res) => res.sendFile(path.join(__dirname, 'public/support/tutoriels.html')));
 
 // =============================================
 // Fallback : servir .html correspondant pour URLs sans extension

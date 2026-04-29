@@ -101,16 +101,16 @@ function extractPdfs($, baseUrl) {
 function detectCompromission(html) {
   const alerts = [];
   if (/i am not a robot.*cloudflare.*powershell/i.test(html) || /verify you are human.*ctrl\+v/i.test(html) || /captcha.*powershell/i.test(html)) {
-    alerts.push({ severity: 'critical', type: 'fake_captcha_clickfix', message: 'Fake CAPTCHA malveillant detecte (arnaque ClickFix). Votre site est probablement pirate.' });
+    alerts.push({ severity: 'critical', type: 'fake_captcha_clickfix', message: 'Fake CAPTCHA malveillant détecté (arnaque ClickFix). Votre site est probablement piraté.' });
   }
   if (/eval\s*\(\s*base64_decode|eval\s*\(\s*gzuncompress|eval\s*\(\s*str_rot13/i.test(html)) {
-    alerts.push({ severity: 'critical', type: 'obfuscated_code', message: 'Code malveillant obfusque detecte dans le HTML.' });
+    alerts.push({ severity: 'critical', type: 'obfuscated_code', message: 'Code malveillant obfusqué détecté dans le HTML.' });
   }
   if (/<meta[^>]*refresh[^>]*https?:\/\/[^"']*\.(xyz|tk|top|buzz|click)/i.test(html)) {
     alerts.push({ severity: 'high', type: 'suspicious_redirect', message: 'Redirection suspecte vers un domaine douteux.' });
   }
   if (/document\.write\s*\(\s*unescape|String\.fromCharCode.*eval/i.test(html)) {
-    alerts.push({ severity: 'high', type: 'js_injection', message: 'Injection JavaScript suspecte detectee.' });
+    alerts.push({ severity: 'high', type: 'js_injection', message: 'Injection JavaScript suspecte détectée.' });
   }
   return { compromis: alerts.length > 0, alerts };
 }
