@@ -4034,39 +4034,48 @@ app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
 // Route statique page signature mandat
 app.get('/mandate-sign', (req, res) => res.sendFile(path.join(__dirname, 'public/mandate-sign.html')));
 
+// Middleware: redirect to login if no JWT token present (HTML page protection)
+const requireAuthPage = (req, res, next) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/, '') || req.cookies?.['sb-access-token'] || '';
+  if (!token) {
+    return res.redirect('/login.html?redirect=' + encodeURIComponent(req.originalUrl));
+  }
+  next();
+};
+
 // Route module IDE (Infirmiere)
-app.get('/ide', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
-app.get('/ide/', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
+app.get('/ide', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
+app.get('/ide/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
 
 // Route module Orthodontiste
-app.get('/orthodontiste', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
-app.get('/orthodontiste/', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
+app.get('/orthodontiste', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
+app.get('/orthodontiste/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontiste/dashboard.html')));
 
 // Route module Medecin generaliste
-app.get('/medecin', (req, res) => res.sendFile(path.join(__dirname, 'public/medecin/dashboard.html')));
-app.get('/medecin/', (req, res) => res.sendFile(path.join(__dirname, 'public/medecin/dashboard.html')));
-app.get('/kine', (req, res) => res.sendFile(path.join(__dirname, 'public/kine/dashboard.html')));
-app.get('/kine/', (req, res) => res.sendFile(path.join(__dirname, 'public/kine/dashboard.html')));
-app.get('/sage-femme', (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
-app.get('/sage-femme/', (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
-app.get('/podologue', (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
-app.get('/podologue/', (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
-app.get('/osteopathe', (req, res) => res.sendFile(path.join(__dirname, 'public/osteopathe/dashboard.html')));
-app.get('/osteopathe/', (req, res) => res.sendFile(path.join(__dirname, 'public/osteopathe/dashboard.html')));
-app.get('/orthophoniste', (req, res) => res.sendFile(path.join(__dirname, 'public/orthophoniste/dashboard.html')));
-app.get('/orthophoniste/', (req, res) => res.sendFile(path.join(__dirname, 'public/orthophoniste/dashboard.html')));
-app.get('/psychomotricien', (req, res) => res.sendFile(path.join(__dirname, 'public/psychomotricien/dashboard.html')));
-app.get('/psychomotricien/', (req, res) => res.sendFile(path.join(__dirname, 'public/psychomotricien/dashboard.html')));
-app.get('/dieteticien', (req, res) => res.sendFile(path.join(__dirname, 'public/dieteticien/dashboard.html')));
-app.get('/dieteticien/', (req, res) => res.sendFile(path.join(__dirname, 'public/dieteticien/dashboard.html')));
-app.get('/sci-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/sci-dashboard/dashboard.html')));
-app.get('/sci-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/sci-dashboard/dashboard.html')));
-app.get('/createur', (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
-app.get('/createur/', (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
-app.get('/bien-etre-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
-app.get('/bien-etre-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
-app.get('/prothesiste-dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
-app.get('/prothesiste-dashboard/', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
+app.get('/medecin', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/medecin/dashboard.html')));
+app.get('/medecin/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/medecin/dashboard.html')));
+app.get('/kine', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/kine/dashboard.html')));
+app.get('/kine/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/kine/dashboard.html')));
+app.get('/sage-femme', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
+app.get('/sage-femme/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/sage-femme/dashboard.html')));
+app.get('/podologue', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
+app.get('/podologue/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/podologue/dashboard.html')));
+app.get('/osteopathe', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/osteopathe/dashboard.html')));
+app.get('/osteopathe/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/osteopathe/dashboard.html')));
+app.get('/orthophoniste', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/orthophoniste/dashboard.html')));
+app.get('/orthophoniste/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/orthophoniste/dashboard.html')));
+app.get('/psychomotricien', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/psychomotricien/dashboard.html')));
+app.get('/psychomotricien/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/psychomotricien/dashboard.html')));
+app.get('/dieteticien', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/dieteticien/dashboard.html')));
+app.get('/dieteticien/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/dieteticien/dashboard.html')));
+app.get('/sci-dashboard', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/sci-dashboard/dashboard.html')));
+app.get('/sci-dashboard/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/sci-dashboard/dashboard.html')));
+app.get('/createur', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
+app.get('/createur/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/createur/dashboard.html')));
+app.get('/bien-etre-dashboard', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
+app.get('/bien-etre-dashboard/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/bien-etre/dashboard.html')));
+app.get('/prothesiste-dashboard', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
+app.get('/prothesiste-dashboard/', requireAuthPage, (req, res) => res.sendFile(path.join(__dirname, 'public/prothesiste/dashboard.html')));
 
 // === Support Ticket System — Pages statiques ===
 app.get('/support', (req, res) => res.sendFile(path.join(__dirname, 'public/support/index.html')));

@@ -627,6 +627,26 @@ JADOMI pour les achats : mise en relation + paiement + facturation.
 - **karim_bahmed@yahoo.fr** : admin auth uniquement (NE JAMAIS afficher publiquement)
 - REGLE : aucune page publique ne doit afficher l'email personnel du fondateur
 
+## REGLE ABSOLUE — NE JAMAIS CASSER / SUPPRIMER (instauree Passe 67)
+Apres l'incident catastrophique de la Passe 66 (audit 9 agents qui a
+casse 60+ fichiers, routes, dashboards, navigation, securite), le
+fondateur impose cette regle INVIOLABLE :
+1. **NE JAMAIS supprimer** une route, un lien, un onglet, un dashboard
+   ou une fonctionnalite existante sans demande EXPLICITE du fondateur.
+2. **NE JAMAIS reorganiser** les middlewares Express ou l'ordre des routes
+   dans server.js — l'ordre existant est FONCTIONNEL, le changer casse tout.
+3. **NE JAMAIS faire d'audit massif** touchant 60+ fichiers en une seule
+   passe — les audits doivent etre INCREMENTAUX (max 10 fichiers par audit).
+4. **TOUJOURS tester** les routes critiques apres modification :
+   / (landing), /index.html (dashboard), /ide, /orthodontiste,
+   /prothesiste-dashboard, /chirurgiens-dentistes, /tarifs, /docs.
+5. **TOUJOURS creer un backup** avant de modifier server.js, index.html,
+   landing.html, organisation.html.
+6. **Un audit ne doit JAMAIS** modifier la navigation, les liens, les
+   redirections ou le comportement visible de l'application — seulement
+   la securite interne (headers, validation, auth).
+Violation = incident de production. Zero tolerance.
+
 ## Repertoires
 - /home/ubuntu/jadomi/ (repo principal)
 - /home/ubuntu/jadomi/api/ (endpoints backend)

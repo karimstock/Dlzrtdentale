@@ -567,7 +567,8 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const TYPES = [
-  { k:'cabinet_dentaire',    ico:'🦷', label:'Cabinet de chirurgie dentaire', desc:'Chirurgien-dentiste · Orthodontiste · Prothésiste dentaire', accent:'#10b981' },
+  { k:'cabinet_dentaire',    ico:'🦷', label:'Cabinet de chirurgie dentaire', desc:'Chirurgien-dentiste · Orthodontiste', accent:'#10b981' },
+  { k:'prothesiste',         ico:'🔬', label:'Laboratoire de prothèse dentaire', desc:'Prothésiste dentaire · Labo dentaire', accent:'#8b5cf6' },
   { k:'paramedical',         ico:'🩺', label:'Cabinet paramédical',  desc:'Kiné · Ostéo · Podologue · Orthophoniste · IDEL', accent:'#0d9488' },
   { k:'juridique',           ico:'⚖️', label:'Professions juridiques', desc:'Avocat · Notaire · Expert-comptable', accent:'#6366f1' },
   { k:'services',            ico:'💆', label:'Services & Bien-être', desc:'Coiffure · Esthétique · Onglerie · Massage', accent:'#ec4899' },
@@ -591,13 +592,23 @@ const TYPES = [
 // Champs par type
 const FIELDS = {
   cabinet_dentaire: [
-    { k:'nom', label:'Nom du cabinet', req:true, ph:'Precision Dentaire' },
+    { k:'nom', label:'Nom du cabinet', req:true, ph:'Ex: Cabinet Dr Martin' },
     { k:'adresse', label:'Adresse', full:true, req:true, ph:'12 rue de la Paix', hint:'Adresse du cabinet — obligatoire sur ordonnances et factures' },
     { k:'code_postal', label:'Code postal', req:true, ph:'75002' },
     { k:'ville', label:'Ville', req:true, ph:'Paris' },
     { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@cabinet.fr', hint:'Utilisé pour les notifications et documents officiels' },
     { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
     { k:'siren', label:'SIREN', ph:'9 chiffres' }
+  ],
+  prothesiste: [
+    { k:'nom', label:'Nom du laboratoire', req:true, ph:'Ex: Précision Dentaire' },
+    { k:'adresse', label:'Adresse du laboratoire', full:true, req:true, ph:'12 rue de la Paix', hint:'Adresse du labo — figurera sur vos bons de livraison et factures' },
+    { k:'code_postal', label:'Code postal', req:true, ph:'75002' },
+    { k:'ville', label:'Ville', req:true, ph:'Paris' },
+    { k:'email', label:'Email principal', type:'email', req:true, ph:'contact@labo.fr', hint:'Utilisé pour les notifications, commandes et documents officiels' },
+    { k:'telephone', label:'Téléphone', req:true, ph:'01 23 45 67 89' },
+    { k:'siren', label:'SIREN', ph:'9 chiffres' },
+    { k:'sous_type', label:'Spécialité principale', type:'select', options:[['generaliste','Prothèse généraliste'],['fixe','Prothèse fixe (couronnes, bridges)'],['amovible','Prothèse amovible'],['implantaire','Prothèse implantaire'],['orthodontie','Orthodontie / Aligneurs'],['cfao','CFAO / Usinage numérique'],['ceramique','Céramique / Esthétique'],['autre','Autre spécialité']] }
   ],
   paramedical: [
     { k:'nom', label:'Nom du cabinet', req:true, ph:'Cabinet Lefebvre Kinésithérapie' },
@@ -778,6 +789,7 @@ const TYPES_AVEC_CIBLAGE = new Set([
 // Modules par type
 const MODULES_BY_TYPE = {
   cabinet_dentaire: ['stock_ia','factures_fournisseurs','compta','devis_factures','mailing'],
+  prothesiste: ['devis_factures','compta','stock_ia','scanner_factures'],
   sci: ['locatif','compta','devis_factures'],
   paramedical: ['consultations','compta','dossiers'],
   juridique: ['consultations','compta','dossiers'],
@@ -1200,7 +1212,7 @@ const THEMES = [
 const SITE_SECTIONS = [
   { id:'accueil', name:'Accueil', desc:'Page principale avec vidéo hero', required:true, default:true },
   { id:'cabinet', name:'Le cabinet', desc:'Histoire, valeurs et engagements', default:true },
-  { id:'expertises', name:'Expertises', desc:'Domaines de droit pratiqués', default:true },
+  { id:'expertises', name:'Expertises', desc:'Domaines de droit pratiques', default:true },
   { id:'equipe', name:'L\'équipe', desc:'Avocats avec photo et biographie', default:true },
   { id:'actualites', name:'Actualités / Blog', desc:'Articles et veille juridique', default:true },
   { id:'contact', name:'Contact', desc:'Formulaire + carte + coordonnées', default:true },
@@ -1209,7 +1221,7 @@ const SITE_SECTIONS = [
   { id:'publications', name:'Publications', desc:'Dossiers résolus et études de cas' },
   { id:'faq', name:'FAQ juridique', desc:'Questions fréquentes par domaine' },
   { id:'tarifs', name:'Tarifs / Honoraires', desc:'Transparence sur les honoraires' },
-  { id:'podcast', name:'Podcast / Vidéos', desc:'Contenus multimédias' }
+  { id:'podcast', name:'Podcast / Videos', desc:'Contenus multimedia' }
 ];
 const OPTIONAL_MODULES = [
   { id:'chatbot', name:'Chatbot IA 24/7', desc:'Assistant virtuel intelligent qui répond aux visiteurs. Configuré avec vos FAQ et le ton de votre cabinet.', ico:'🤖' },
@@ -1340,7 +1352,7 @@ function renderOptionalModules() {
 
 function handleVideoFile(file) {
   if (!file) return;
-  if (file.size > 100 * 1024 * 1024) { toast('Vidéo > 100 MB', true); return; }
+  if (file.size > 100 * 1024 * 1024) { toast('Video > 100 MB', true); return; }
   lawyerData.videoFile = file;
   lawyerData.videoUrl = URL.createObjectURL(file);
   const preview = $('video-preview');
@@ -1462,7 +1474,7 @@ function useFreeSubdomain() {
   const name = ($('domain-name')?.value || form.nom || 'cabinet').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
   lawyerData.domain = name + '.jadomi.fr';
   lawyerData.domainType = 'free';
-  toast('Domaine gratuit sélectionné : ' + lawyerData.domain);
+  toast('Domaine gratuit sélectionné :' + lawyerData.domain);
 }
 
 // Lawyer wizard navigation — SIMPLIFIED (Passe 33)

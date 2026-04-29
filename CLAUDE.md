@@ -56,6 +56,21 @@ Ne JAMAIS modifier sans demande explicite :
 - pm2 reload (pas restart) pour zero downtime
 - Validation etape par etape, pas de big bang
 
+## REGLE ABSOLUE — NE JAMAIS CASSER / SUPPRIMER (Passe 67)
+Instauree apres l'incident catastrophique Passe 66 (audit 9 agents,
+60+ fichiers casses, routes detruites, dashboards appauvris).
+1. NE JAMAIS supprimer une route, un lien, un onglet, un dashboard
+   ou une fonctionnalite existante sans demande EXPLICITE du fondateur
+2. NE JAMAIS reorganiser les middlewares Express ou l'ordre des routes
+   dans server.js — l'ordre existant est FONCTIONNEL
+3. NE JAMAIS faire d'audit massif touchant 60+ fichiers — max 10 par audit
+4. TOUJOURS tester les routes critiques apres modification
+5. TOUJOURS creer un backup avant de modifier server.js, index.html,
+   landing.html, organisation.html
+6. Un audit ne doit JAMAIS modifier la navigation, les liens, les
+   redirections ou le comportement visible — seulement la securite interne
+Violation = incident de production. Zero tolerance.
+
 ## Methode Builder/Reviewer OBLIGATOIRE
 Pour chaque tache non-triviale dans une passe :
 1. Lancer des agents BUILDERS en parallele (1 par tache)

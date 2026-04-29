@@ -142,8 +142,10 @@
       }.bind(this));
 
       var track = this.container.querySelector('.tc-track');
+      var viewport = this.container.querySelector('.tc-viewport');
       var cardWidth = 420 + 24;
-      var centerOffset = window.innerWidth / 2 - (420 * 1.12 / 2);
+      var viewportWidth = viewport ? viewport.offsetWidth : window.innerWidth;
+      var centerOffset = viewportWidth / 2 - (420 * 1.12 / 2);
       var offset = -(this.currentIndex * cardWidth) + centerOffset;
       track.style.transform = 'translateX(' + offset + 'px)';
       track.style.transition = 'transform 600ms cubic-bezier(.16, 1, .3, 1)';
@@ -210,16 +212,18 @@
         var card = e.target.closest('.tc-card');
         if (!card) return;
         var index = parseInt(card.dataset.index, 10);
-        if (self.isMobile || index === self.currentIndex) {
+        if (self.isMobile) {
+          self.currentIndex = index;
+          self.applyThemeToBackground();
           self.select(card.dataset.themeSlug);
-          // On mobile, also apply theme
-          if (self.isMobile) {
-            self.currentIndex = index;
-            self.applyThemeToBackground();
-          }
+        } else if (index === self.currentIndex) {
+          // Second click on already-active card: select it
+          self.select(card.dataset.themeSlug);
         } else {
+          // First click on non-active card: navigate to it AND select it
           self.currentIndex = index;
           self.updatePositions();
+          self.select(card.dataset.themeSlug);
         }
       });
 
@@ -697,7 +701,11 @@
     zone.appendChild(fileInput);
     gui.appendChild(zone);
 
-    zone.addEventListener('click', function() { fileInput.click(); });
+    zone.addEventListener('click', function(e) {
+      // Don't trigger file input if clicking the skip button
+      if (e.target.closest('.ob-cta-ghost')) return;
+      fileInput.click();
+    });
 
     fileInput.addEventListener('change', async function() {
       if (!fileInput.files || !fileInput.files[0]) return;
@@ -726,6 +734,22 @@
 
       setTimeout(function() { self.next(); }, 400);
     });
+
+    // Skip button so user is never stuck
+    var skipWrap = document.createElement('div');
+    skipWrap.style.cssText = 'text-align:center;margin-top:1.2rem;';
+    var skipBtn = document.createElement('button');
+    skipBtn.className = 'ob-cta-ghost';
+    skipBtn.textContent = 'Passer cette étape';
+    skipBtn.setAttribute('aria-label', 'Passer le téléchargement du logo');
+    skipBtn.style.cssText = 'font-size:0.85rem;padding:0.6rem 1.5rem;';
+    skipBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      self.addUserMessage('Logo ajouté plus tard');
+      self.next();
+    });
+    skipWrap.appendChild(skipBtn);
+    gui.appendChild(skipWrap);
   };
 
   OnboardingOrchestrator.prototype.showLogoUniverseInput = function(gui) {
@@ -840,16 +864,17 @@
     grid.className = 'logo-variants-grid';
 
     logos.forEach(function(logo) {
-      if (!logo.url) return;
+      var logoUrl = logo.url || logo.image_url || null;
+      if (!logoUrl) return;
       var variant = document.createElement('div');
       variant.className = 'logo-variant';
-      variant.dataset.url = logo.url;
+      variant.dataset.url = logoUrl;
       variant.setAttribute('role', 'radio');
       variant.setAttribute('aria-checked', 'false');
       variant.setAttribute('tabindex', '0');
 
       var img = document.createElement('img');
-      img.src = logo.url;
+      img.src = logoUrl;
       img.alt = 'Logo variante ' + (logo.style || '');
       img.loading = 'lazy';
       variant.appendChild(img);
@@ -866,7 +891,7 @@
         });
         variant.classList.add('selected');
         variant.setAttribute('aria-checked', 'true');
-        selectedUrl = logo.url;
+        selectedUrl = logoUrl;
         validateBtn.style.opacity = '1';
         validateBtn.style.pointerEvents = 'auto';
       });
@@ -912,8 +937,17 @@
       setTimeout(function() { self.next(); }, 400);
     });
 
+    var skipBtn = document.createElement('button');
+    skipBtn.className = 'ob-cta-ghost';
+    skipBtn.textContent = 'Continuer sans logo';
+    skipBtn.setAttribute('aria-label', 'Passer cette étape et continuer sans logo');
+    skipBtn.addEventListener('click', function() {
+      self.next();
+    });
+
     actions.appendChild(regenBtn);
     actions.appendChild(validateBtn);
+    actions.appendChild(skipBtn);
     panel.appendChild(actions);
     gui.appendChild(panel);
   };

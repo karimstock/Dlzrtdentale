@@ -1875,7 +1875,11 @@ function msOpen(module) {
   if (module === 'mailing') target = window.jadomiMultiSocietes.active || socs[0];
   if (target) {
     localStorage.setItem('societe_active_id', target.id);
-    location.href = module + '.html';
+    if (module === 'sci') {
+      location.href = '/sci-dashboard';
+    } else {
+      location.href = module + '.html';
+    }
   } else {
     location.href = 'organisation.html';
   }
@@ -2203,6 +2207,33 @@ function upgraderPlan(plan) {
 // INIT
 // ═══════════════════════════════════
 async function init() {
+  // AUTH CHECK — autoriser le mode démo via ?demo=true
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDemoMode = urlParams.get('demo') === 'true';
+  if (!isDemoMode) {
+    try {
+      let hasSession = false;
+      if (db) {
+        const { data: { session } } = await db.auth.getSession();
+        if (session) hasSession = true;
+      }
+      if (!hasSession) {
+        const localSession = localStorage.getItem('jadomi_session') || localStorage.getItem('sb-auth-token');
+        if (!localSession) {
+          window.location.href = '/login.html';
+          return;
+        }
+      }
+    } catch(e) {
+      // En cas d'erreur réseau, vérifier le fallback localStorage
+      const localSession = localStorage.getItem('jadomi_session') || localStorage.getItem('sb-auth-token');
+      if (!localSession) {
+        window.location.href = '/login.html';
+        return;
+      }
+    }
+  }
+
   // ÉTAPE 1 : Affichage INSTANTANÉ depuis localStorage
   const saved = localStorage.getItem('amilo_produits');
   produits = saved ? JSON.parse(saved) : getProduitsDefaut().map((p,i)=>({...p,id:i+1}));
@@ -3991,6 +4022,11 @@ function restoreNavGroupState() {
     // Si le state est corrompu, le supprimer
     try { localStorage.removeItem('jadomi_nav_groups'); } catch(_) {}
   }
+  // Toujours garder Tableau de bord ouvert (sécurité anti-sidebar vide)
+  const tbItems = document.querySelector('[data-nav-group="tableau-de-bord"] .nav-group-items');
+  if (tbItems) tbItems.style.display = 'block';
+  const tbArrow = document.querySelector('[data-nav-group="tableau-de-bord"] .nav-group-arrow');
+  if (tbArrow) tbArrow.classList.add('open');
 }
 function openParentNavGroup(el) {
   if (!el) return;
