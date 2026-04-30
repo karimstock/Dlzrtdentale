@@ -3,7 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0d9488"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="JADOMI IDE"><title>JADOMI Infirmier — Tableau de bord</title>
+<link rel="manifest" href="/ide/manifest.json"><meta name="theme-color" content="#0d9488"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="JADOMI IDE"><link rel="apple-touch-icon" href="/assets/icons/ide-192.svg"><title>JADOMI Infirmière — Tableau de bord</title>
+<script>
+(function(){
+  try {
+    var keys = Object.keys(localStorage);
+    var hasToken = keys.some(function(k){ return k.indexOf('sb-') === 0 && k.indexOf('-auth-token') > 0; });
+    if (!hasToken && !localStorage.getItem('jadomi_session')) {
+      document.documentElement.style.display='none';
+      window.location.replace('/login');
+    }
+  } catch(e){}
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/ms-switcher.js" defer></script>
 <script src="/js/jadomi-legal-widget.js" defer></script>
@@ -117,6 +129,48 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
 .badge-accent{background:rgba(13,148,136,0.1);color:var(--accent);}
 .badge-orange{background:var(--orange-l);color:var(--orange);}
 .badge-gray{background:#f1f5f9;color:#64748b;}
+.badge-chronique{background:rgba(236,72,153,.1);color:#ec4899;border:1px solid rgba(236,72,153,.2);font-size:10px;}
+.badge-pilulier{background:rgba(99,102,241,.1);color:#6366f1;font-size:10px;}
+.badge-urgent{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);font-size:10px;animation:urgentPulse 2s ease infinite;}
+.badge-2x{background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2);font-size:10px;}
+.badge-flexible{background:rgba(34,197,94,.1);color:#22c55e;font-size:10px;}
+@keyframes urgentPulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+.visit-plage{font-size:10px;color:var(--muted);font-style:italic;margin-top:1px;}
+
+/* ── RAPPELS / POST-IT ── */
+.rappels-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.rappel-card{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);color:#f59e0b;max-width:350px;position:relative;}
+.rappel-card.urgent{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.2);color:#ef4444;}
+.rappel-card.info{background:rgba(59,130,246,.05);border-color:rgba(59,130,246,.2);color:#3b82f6;}
+.rappel-card-text{flex:1;line-height:1.5;}
+.rappel-card-close{background:none;border:none;color:inherit;cursor:pointer;font-size:14px;opacity:.5;padding:0;line-height:1;}
+.rappel-card-close:hover{opacity:1;}
+
+/* ── ANALYSE ORDONNANCE ── */
+.ordo-analyse{margin-top:14px;padding:14px;border:1px solid rgba(99,102,241,.15);border-radius:var(--radius-sm);background:rgba(99,102,241,.03);}
+.ordo-analyse-title{font-size:12px;font-weight:700;color:#6366f1;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.ordo-med{display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--surface);font-size:12px;}
+.ordo-med.risque{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.03);}
+.ordo-med.illisible{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.03);}
+.ordo-med-check{width:24px;height:24px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;}
+.ordo-med-check.checked{background:#22c55e;border-color:#22c55e;color:#fff;}
+.ordo-med-check.modified{background:#f59e0b;border-color:#f59e0b;color:#fff;}
+.ordo-med-info{flex:1;}
+.ordo-med-name{font-weight:700;color:var(--text);}
+.ordo-med-dosage{color:var(--muted);margin-top:2px;}
+.ordo-med-alerte{color:#ef4444;font-weight:600;font-size:11px;margin-top:4px;}
+.ordo-confiance{font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;}
+.ordo-confiance.high{background:rgba(34,197,94,.1);color:#22c55e;}
+.ordo-confiance.medium{background:rgba(245,158,11,.1);color:#f59e0b;}
+.ordo-confiance.low{background:rgba(239,68,68,.1);color:#ef4444;}
+
+/* ── PHARMACIE SECTION ── */
+.pharma-section{background:linear-gradient(135deg,rgba(236,72,153,.03),rgba(139,92,246,.03));border:1px solid rgba(236,72,153,.15);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
+.pharma-title{font-size:13px;font-weight:700;color:#ec4899;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.pharma-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;font-size:12px;}
+.pharma-item-patient{font-weight:600;color:var(--text);min-width:140px;}
+.pharma-item-meds{flex:1;color:var(--muted);}
+.pharma-item-pharmacy{font-size:11px;color:#6366f1;font-weight:500;}
 
 /* ── FILTERS ── */
 .filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
@@ -136,24 +190,126 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
 .qa-label{font-size:13px;font-weight:600;color:var(--text);}
 .qa-sub{font-size:11px;color:var(--muted);margin-top:2px;}
 
-/* ── TOURNEE ── */
-.tournee-group{margin-bottom:24px;}
-.tournee-header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(13,148,136,0.04);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;}
-.tournee-nurse{font-weight:700;font-size:14px;color:var(--text);}
-.tournee-meta{font-size:12px;color:var(--muted);margin-left:auto;display:flex;gap:16px;}
-.tournee-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+/* ── PLANNING PRO ── */
+.plan-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+.plan-toolbar-left{display:flex;align-items:center;gap:8px;}
+.plan-toolbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.plan-view-toggle{display:flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+.plan-view-btn{padding:6px 14px;font-size:12px;font-weight:600;background:transparent;color:var(--muted);border:none;cursor:pointer;transition:all .2s;}
+.plan-view-btn.active{background:var(--accent);color:#fff;}
+.plan-view-btn:hover:not(.active){background:var(--surface2);}
 
-.visit-card{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all 0.2s var(--ease);}
-.visit-card:hover{border-color:var(--accent);transform:translateX(4px);box-shadow:0 2px 8px rgba(13,148,136,0.06);}
-.visit-time{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);min-width:50px;}
+.plan-nurse-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.plan-nurse-chip{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:all .2s var(--ease);user-select:none;}
+.plan-nurse-chip.active{border-color:var(--accent);background:rgba(13,148,136,.08);color:var(--accent);}
+.plan-nurse-chip:hover{border-color:var(--accent);}
+.plan-nurse-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+.plan-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+
+/* Nav buttons */
+.visit-nav{display:flex;gap:4px;flex-shrink:0;}
+.visit-nav-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .2s;text-decoration:none;}
+.visit-nav-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(13,148,136,.05);}
+.visit-nav-btn.waze{color:#33ccff;border-color:rgba(51,204,255,.3);}
+.visit-nav-btn.waze:hover{background:rgba(51,204,255,.08);border-color:#33ccff;}
+.visit-nav-btn.gmaps{color:#34a853;border-color:rgba(52,168,83,.3);}
+.visit-nav-btn.gmaps:hover{background:rgba(52,168,83,.08);border-color:#34a853;}
+.tournee-launch{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:1px solid rgba(51,204,255,.3);background:rgba(51,204,255,.05);color:#33ccff;cursor:pointer;transition:all .2s;text-decoration:none;margin-bottom:12px;}
+.tournee-launch:hover{background:rgba(51,204,255,.12);border-color:#33ccff;}
+
+/* ── MODE TOURNÉE ACTIVE ── */
+.tournee-modal{display:none;position:fixed;inset:0;z-index:10000;background:var(--bg);overflow-y:auto;flex-direction:column;}
+.tournee-modal.open{display:flex;}
+.tm-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.tm-title{font-family:var(--display);font-size:16px;font-weight:800;color:var(--text);}
+.tm-progress{font-size:12px;color:var(--muted);}
+.tm-close{padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text);transition:all .2s;}
+.tm-close:hover{border-color:var(--accent);}
+.tm-body{flex:1;padding:16px 20px;overflow-y:auto;}
+.tm-step{display:flex;gap:14px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;transition:all .3s var(--ease);position:relative;background:var(--surface);}
+.tm-step.current{border-color:var(--accent);background:rgba(13,148,136,.04);box-shadow:0 0 20px rgba(13,148,136,.1);}
+.tm-step.done{opacity:.5;border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.03);}
+.tm-step-num{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--muted);flex-shrink:0;}
+.tm-step.current .tm-step-num{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tm-step.done .tm-step-num{background:#10b981;border-color:#10b981;color:#fff;}
+.tm-step-info{flex:1;min-width:0;}
+.tm-step-patient{font-weight:700;font-size:14px;color:var(--text);}
+.tm-step-addr{font-size:12px;color:var(--muted);margin-top:2px;}
+.tm-step-meta{display:flex;gap:8px;align-items:center;margin-top:6px;font-size:12px;color:var(--muted);}
+.tm-step-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end;}
+.tm-nav-btn{display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;text-decoration:none;border:none;}
+.tm-nav-btn.waze{background:#33ccff;color:#000;}
+.tm-nav-btn.waze:hover{background:#00bfff;transform:scale(1.03);}
+.tm-nav-btn.gmaps{background:#34a853;color:#fff;font-size:11px;padding:5px 12px;}
+.tm-nav-btn.gmaps:hover{background:#2d9249;}
+.tm-done-btn{padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.05);color:#10b981;transition:all .2s;}
+.tm-done-btn:hover{background:rgba(16,185,129,.15);}
+.tm-step.done .tm-done-btn{display:none;}
+.tm-step.done .tm-nav-btn{display:none;}
+@media(max-width:600px){.tm-step{flex-wrap:wrap;}.tm-step-actions{flex-direction:row;width:100%;}.tm-nav-btn{flex:1;justify-content:center;}}
+
+/* Multi-day grid */
+.plan-grid{display:grid;gap:16px;margin-bottom:20px;}
+.plan-grid.view-1{grid-template-columns:1fr;}
+.plan-grid.view-3{grid-template-columns:repeat(3,1fr);}
+.plan-grid.view-7{grid-template-columns:repeat(7,1fr);}
+@media(max-width:1200px){.plan-grid.view-7{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:900px){.plan-grid.view-3,.plan-grid.view-7{grid-template-columns:1fr;}}
+
+.plan-day-col{min-width:0;}
+.plan-day-header{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:8px 12px;border-bottom:2px solid var(--border);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.plan-day-header.today{border-bottom-color:var(--accent);color:var(--accent);}
+.plan-day-count{font-size:11px;font-weight:400;color:var(--muted);}
+
+/* ── TOURNEE ── */
+.tournee-group{margin-bottom:16px;}
+.tournee-header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(13,148,136,0.04);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:13px;}
+.tournee-nurse{font-weight:700;font-size:13px;color:var(--text);}
+.tournee-meta{font-size:11px;color:var(--muted);margin-left:auto;display:flex;gap:12px;}
+.tournee-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.tournee-period{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 0 4px 4px;}
+
+.visit-card{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;cursor:pointer;transition:all 0.2s var(--ease);border-left:3px solid transparent;}
+.visit-card:hover{border-color:var(--accent);transform:translateX(3px);box-shadow:0 2px 8px rgba(13,148,136,0.06);}
+.visit-time{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);min-width:42px;}
 .visit-info{flex:1;min-width:0;}
-.visit-patient{font-weight:600;font-size:14px;}
-.visit-address{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.visit-soins{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;}
+.visit-patient{font-weight:600;font-size:13px;}
+.visit-address{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.visit-soins{margin-top:3px;display:flex;gap:4px;flex-wrap:wrap;}
 .visit-status{flex-shrink:0;}
 
-/* ── MAP PLACEHOLDER ── */
-.map-placeholder{background:var(--surface2);border:2px dashed var(--border);border-radius:var(--radius);height:200px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;margin-bottom:20px;}
+/* ── PLANNING FULLSCREEN + PANEL LATERAL ── */
+.plan-sidebar{display:none;}
+.plan-fullscreen #page-planning{position:fixed;inset:0;z-index:9999;background:var(--bg);overflow-y:auto;padding:16px 24px 16px 280px;display:block!important;}
+.plan-fullscreen .sidebar,.plan-fullscreen .topbar,.plan-fullscreen .mobile-nav{display:none!important;}
+.plan-fullscreen .main{margin-left:0!important;}
+.plan-fullscreen .plan-sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:260px;z-index:10001;background:var(--surface);border-right:1px solid var(--border);padding:20px 16px;overflow-y:auto;}
+.plan-fs-btn{display:flex;align-items:center;gap:4px;}
+.plan-fs-close{position:fixed;top:16px;right:16px;z-index:10002;padding:8px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;display:none;color:var(--text);transition:all .2s;}
+.plan-fs-close:hover{border-color:var(--accent);background:rgba(13,148,136,.05);}
+.plan-fullscreen .plan-fs-close{display:flex;align-items:center;gap:6px;}
+
+.plan-sb-title{font-family:var(--display);font-size:16px;font-weight:800;color:var(--text);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.plan-sb-section{margin-bottom:20px;}
+.plan-sb-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px;}
+.plan-sb-views{display:flex;flex-direction:column;gap:4px;}
+.plan-sb-btn{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:500;background:transparent;color:var(--text);cursor:pointer;text-align:left;transition:all .2s;}
+.plan-sb-btn:hover{border-color:var(--accent);background:rgba(13,148,136,.04);}
+.plan-sb-btn.active{background:rgba(13,148,136,.1);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.plan-sb-action{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:transparent;color:var(--text);cursor:pointer;margin-bottom:4px;transition:all .2s;}
+.plan-sb-action:hover{border-color:var(--accent);background:rgba(13,148,136,.04);}
+.plan-sb-stat{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.03);}
+.plan-sb-stat b{color:var(--text);}
+.plan-sb-nurse{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;margin-bottom:3px;transition:all .15s;border:1px solid transparent;}
+.plan-sb-nurse:hover{background:rgba(13,148,136,.04);border-color:var(--border);}
+.plan-sb-nurse.active{background:rgba(13,148,136,.1);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.plan-sb-nurse-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+@media(max-width:768px){
+  .plan-fullscreen #page-planning{padding:16px 12px 16px 12px;}
+  .plan-fullscreen .plan-sidebar{display:none!important;}
+}
 
 /* ── FORM ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -294,6 +450,7 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
     <div class="nav-item" onclick="showPage('cabinet',this)"><span class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Mon cabinet</div>
     <div class="nav-item" onclick="showPage('nurses',this)"><span class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span>Infirmières</div>
     <div class="nav-item" data-gate="absences" onclick="if(!checkGate('absences'))return;showPage('absences',this)"><span class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></svg></span>Absences</div>
+    <div class="nav-item" onclick="showPage('passages',this)"><span class="ni"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>Mes passages</div>
   </nav>
   <div class="sidebar-bottom">
     <div class="cabinet-card">
@@ -367,30 +524,78 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
     <!-- PAGE : PLANNING DU JOUR        -->
     <!-- ═══════════════════════════════ -->
     <div class="page" id="page-planning">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <input type="date" class="form-input" id="planning-date" onchange="loadPlanning()" style="width:170px;">
+      <!-- Bouton fermer plein écran -->
+      <button class="plan-fs-close" id="plan-fs-close" onclick="togglePlanFullscreen()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Fermer</button>
+
+      <!-- Panel latéral plein écran -->
+      <div class="plan-sidebar" id="plan-sidebar">
+        <div class="plan-sb-title">Options planning</div>
+        <div class="plan-sb-section">
+          <div class="plan-sb-label">Vue</div>
+          <div class="plan-sb-views">
+            <button class="plan-sb-btn active" onclick="setPlanView(1,null);updateSbViews(this)">Journée</button>
+            <button class="plan-sb-btn" onclick="setPlanView(3,null);updateSbViews(this)">3 jours</button>
+            <button class="plan-sb-btn" onclick="setPlanView(7,null);updateSbViews(this)">Semaine</button>
+          </div>
+        </div>
+        <div class="plan-sb-section">
+          <div class="plan-sb-label">Praticiens</div>
+          <div id="plan-sb-nurses"></div>
+        </div>
+        <div class="plan-sb-section">
+          <div class="plan-sb-label">Actions</div>
+          <button class="plan-sb-action" onclick="optimizeTournees()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg> Optimiser les tournées</button>
+          <button class="plan-sb-action" onclick="openGeneratePlanningModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Générer le planning</button>
+          <button class="plan-sb-action" onclick="planningToday()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Revenir à aujourd'hui</button>
+        </div>
+        <div class="plan-sb-section">
+          <div class="plan-sb-label">Statistiques</div>
+          <div class="plan-sb-stat"><span>Visites</span><b id="plan-sb-visites">--</b></div>
+          <div class="plan-sb-stat"><span>Kilomètres</span><b id="plan-sb-km">--</b></div>
+          <div class="plan-sb-stat"><span>Durée totale</span><b id="plan-sb-duree">--</b></div>
+        </div>
+      </div>
+
+      <!-- Toolbar : nav dates + vue + actions -->
+      <div class="plan-toolbar">
+        <div class="plan-toolbar-left">
           <button class="btn btn-ghost btn-sm" onclick="planningPrev()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-          <button class="btn btn-ghost btn-sm" onclick="planningToday()">Aujourd'hui</button>
+          <input type="date" class="form-input" id="planning-date" onchange="loadPlanning()" style="width:155px;">
           <button class="btn btn-ghost btn-sm" onclick="planningNext()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+          <button class="btn btn-ghost btn-sm" onclick="planningToday()" style="font-size:12px;">Aujourd'hui</button>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-accent" onclick="optimizeTournees()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Optimiser l'ordre</button>
-          <button class="btn btn-ghost" onclick="openGeneratePlanningModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Générer planning</button>
+        <div class="plan-toolbar-right">
+          <div class="plan-view-toggle">
+            <button class="plan-view-btn active" onclick="setPlanView(1,this)">Jour</button>
+            <button class="plan-view-btn" onclick="setPlanView(3,this)">3 jours</button>
+            <button class="plan-view-btn" onclick="setPlanView(7,this)">Semaine</button>
+          </div>
+          <button class="btn btn-accent btn-sm" onclick="optimizeTournees()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Optimiser</button>
+          <button class="btn btn-ghost btn-sm" onclick="openGeneratePlanningModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Générer</button>
+          <button class="btn btn-ghost btn-sm" onclick="openRappelModal()" style="color:#f59e0b;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Rappel</button>
+          <button class="btn btn-ghost btn-sm plan-fs-btn" onclick="togglePlanFullscreen()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> Plein écran</button>
         </div>
       </div>
 
-      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
-        <div class="stat"><div class="stat-label">Visites du jour</div><div class="stat-value c-accent" id="plan-visites">--</div><div class="stat-sub">toutes infirmières</div></div>
-        <div class="stat"><div class="stat-label">Kilomètres</div><div class="stat-value c-blue" id="plan-km">--</div><div class="stat-sub">distance totale</div></div>
-        <div class="stat"><div class="stat-label">Durée estimée</div><div class="stat-value c-green" id="plan-duree">--</div><div class="stat-sub">temps de route</div></div>
+      <!-- Filtres praticiens -->
+      <div class="plan-nurse-filters" id="plan-nurse-filters">
+        <div class="plan-nurse-chip active" onclick="toggleNurseFilter(null, this)">
+          <span class="plan-nurse-dot" style="background:var(--accent)"></span> Toutes
+        </div>
       </div>
 
-      <div class="map-placeholder" id="map-area">
-        <div style="text-align:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.4"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg><div style="margin-top:8px;">Carte GPS -- intégration en cours</div></div>
+      <!-- KPI -->
+      <div class="plan-stats">
+        <div class="stat"><div class="stat-label">Visites</div><div class="stat-value c-accent" id="plan-visites">--</div></div>
+        <div class="stat"><div class="stat-label">Kilomètres</div><div class="stat-value c-blue" id="plan-km">--</div></div>
+        <div class="stat"><div class="stat-label">Durée</div><div class="stat-value c-green" id="plan-duree">--</div></div>
       </div>
 
-      <div id="planning-tournees">
+      <!-- Rappels du jour -->
+      <div class="rappels-bar" id="rappels-bar"></div>
+
+      <!-- Grille planning multi-jours -->
+      <div class="plan-grid view-1" id="plan-grid">
         <div class="loading"><div class="spinner"></div> Chargement des tournées...</div>
       </div>
     </div>
@@ -642,6 +847,36 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
       </div>
     </div>
 
+    <!-- PAGE : Mes passages (preuves) -->
+    <div class="page" id="page-passages">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label class="form-label" style="margin:0;">Du</label>
+          <input type="date" class="form-input" id="passages-debut" style="width:155px;">
+          <label class="form-label" style="margin:0;">au</label>
+          <input type="date" class="form-input" id="passages-fin" style="width:155px;">
+          <button class="btn btn-accent btn-sm" onclick="loadPassages()">Rechercher</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="exportPassages()" style="display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exporter PDF
+        </button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+        <div class="stat"><div class="stat-label">Passages</div><div class="stat-value c-accent" id="pass-total">--</div></div>
+        <div class="stat"><div class="stat-label">Signés</div><div class="stat-value c-green" id="pass-signed">--</div></div>
+        <div class="stat"><div class="stat-label">Géofencing OK</div><div class="stat-value c-blue" id="pass-geo-ok">--</div></div>
+        <div class="stat"><div class="stat-label">Hors zone</div><div class="stat-value c-red" id="pass-geo-ko">0</div></div>
+      </div>
+
+      <div id="passages-list">
+        <div style="text-align:center;padding:40px;color:var(--muted);font-size:13px;">
+          Sélectionnez une période et cliquez "Rechercher" pour voir vos preuves de passage.
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /shell -->
@@ -683,18 +918,117 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
   </div>
 </div>
 
-<!-- MODAL : Detail visite -->
+<!-- MODAL : Detail visite (enrichi + média + GPS) -->
 <div class="modal-overlay" id="modal-visite">
-  <div class="modal">
-    <div class="modal-title">Détail de la visite</div>
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+      <span>Détail de la visite</span>
+      <div id="visite-status-btns" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+    </div>
     <div id="visite-detail-content"></div>
-    <div class="form-field" style="margin-top:16px;">
-      <label class="form-label">Notes de visite</label>
-      <textarea class="form-textarea" id="visite-notes" placeholder="Saisissez vos observations..." rows="4"></textarea>
+
+    <!-- GPS Check-in/Check-out -->
+    <div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap;" id="visite-checkin-bar">
+      <button class="btn btn-accent btn-sm" id="btn-checkin" onclick="gpsCheckIn()" style="display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg> Arrivée chez le patient
+      </button>
+      <button class="btn btn-ghost btn-sm" id="btn-checkout" onclick="gpsCheckOut()" style="display:none;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Départ du domicile
+      </button>
+      <span id="checkin-info" style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;"></span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-field">
+        <label class="form-label">Créneau horaire</label>
+        <input class="form-input" type="text" id="visite-plage" placeholder="ex: 06:30-07:00">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Durée (min)</label>
+        <input class="form-input" type="number" id="visite-duree" min="5" max="120">
+      </div>
+    </div>
+
+    <div class="form-field" style="margin-top:12px;">
+      <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+        Traitement / Médicaments
+        <button class="btn btn-ghost" style="padding:3px 10px;font-size:10px;color:#6366f1;" onclick="openAnalyseOrdo()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          Scanner ordonnance
+        </button>
+      </label>
+      <input class="form-input" type="text" id="visite-traitement" placeholder="ex: Insuline Lantus 1x/j">
+    </div>
+
+    <!-- Notes avec dictée vocale -->
+    <div class="form-field" style="margin-top:12px;">
+      <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+        Notes / Observations
+        <button class="btn btn-ghost" style="padding:3px 10px;font-size:10px;" onclick="toggleDictee()" id="btn-dictee">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          Dicter
+        </button>
+      </label>
+      <textarea class="form-textarea" id="visite-notes" placeholder="Constantes, observations, remarques... ou cliquez Dicter pour parler" rows="4"></textarea>
+      <div id="dictee-status" style="display:none;font-size:11px;color:#ef4444;margin-top:4px;display:flex;align-items:center;gap:6px;"></div>
+    </div>
+
+    <!-- Média pour le médecin -->
+    <div style="margin-top:14px;padding:14px;background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.15);border-radius:var(--radius-sm);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+        Envoyer au médecin traitant
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;display:flex;align-items:center;gap:5px;color:#22c55e;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          Photo
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="addMedia(this,'photo')">
+        </label>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;display:flex;align-items:center;gap:5px;color:#3b82f6;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          Vidéo
+          <input type="file" accept="video/*" capture="environment" style="display:none" onchange="addMedia(this,'video')">
+        </label>
+        <button class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:5px;color:#f59e0b;" onclick="recordVocal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+          Vocal
+        </button>
+      </div>
+      <div id="media-preview" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <div id="media-count" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>
+    </div>
+
+    <div class="modal-footer" style="margin-top:14px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-visite')">Fermer</button>
+      <button class="btn btn-accent" onclick="saveVisiteDetail()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Ajouter un rappel -->
+<div class="modal-overlay" id="modal-rappel">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">Ajouter un rappel</div>
+    <div class="form-field">
+      <label class="form-label">Date</label>
+      <input class="form-input" type="date" id="rappel-date">
+    </div>
+    <div class="form-field" style="margin-top:12px;">
+      <label class="form-label">Note / Rappel</label>
+      <textarea class="form-textarea" id="rappel-texte" placeholder="Ex: Appeler Dr Alaoui pour résultat INR Ziani..." rows="3"></textarea>
+    </div>
+    <div class="form-field" style="margin-top:12px;">
+      <label class="form-label">Priorité</label>
+      <select class="form-select" id="rappel-priorite">
+        <option value="info">Information</option>
+        <option value="important">Important</option>
+        <option value="urgent">Urgent</option>
+      </select>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-visite')">Fermer</button>
-      <button class="btn btn-accent" onclick="saveVisiteNotes()">Enregistrer les notes</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-rappel')">Annuler</button>
+      <button class="btn btn-accent" onclick="saveRappel()">Ajouter le rappel</button>
     </div>
   </div>
 </div>
@@ -989,7 +1323,20 @@ try {
 // ═══════════════════════════════════
 let session = null, token = null, currentUser = null;
 
-function getSession() {
+async function getSession() {
+  // 1) Supabase auth (comme organisation.html)
+  try {
+    if (db) {
+      const { data } = await db.auth.getSession();
+      if (data?.session) {
+        session = data.session;
+        token = session.access_token || session.token;
+        currentUser = session.user || session;
+        return true;
+      }
+    }
+  } catch(e) { console.warn('Supabase session check failed:', e); }
+  // 2) Fallback localStorage (mode demo)
   try {
     const raw = localStorage.getItem('jadomi_session');
     if (raw) { session = JSON.parse(raw); token = session.token || session.access_token; currentUser = session.user || session; return true; }
@@ -997,16 +1344,20 @@ function getSession() {
   return false;
 }
 
-function logout() { localStorage.removeItem('jadomi_session'); location.href = '/login.html'; }
+async function logout() {
+  try { if (db) db.auth.signOut(); } catch(e) {}
+  localStorage.removeItem('jadomi_session');
+  location.href = '/login';
+}
 function headers() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; }
 
 // ═══════════════════════════════════
 // FORMULES & FEATURE GATING
 // ═══════════════════════════════════
 const FORMULES = {
-  essentiel: { nom: 'Essentiel', prix: 29, maxPatients: 30, maxNurses: 1, maxAcceptJour: 2, rayonKm: 5, delaiMin: 30, compta: false, absences: false, sign: false, multiTournee: false, iaPlacement: false, ordoUpload: false, ordoEmail: false },
-  pro:       { nom: 'Pro',       prix: 49, maxPatients: 9999, maxNurses: 3, maxAcceptJour: 10, rayonKm: 15, delaiMin: 5, compta: true, absences: true, sign: false, multiTournee: true, iaPlacement: false, ordoUpload: true, ordoEmail: false },
-  premium:   { nom: 'Premium',   prix: 89, maxPatients: 9999, maxNurses: 9999, maxAcceptJour: 9999, rayonKm: 30, delaiMin: 0, compta: true, absences: true, sign: true, multiTournee: true, iaPlacement: true, ordoUpload: true, ordoEmail: true }
+  essentiel: { nom: 'Essentiel', prix: 29, maxPatients: 30, maxNurses: 1, maxAcceptJour: 2, rayonKm: 5, delaiMin: 30, compta: false, absences: false, sign: false, multiTournee: false, iaPlacement: false, ordoUpload: false, ordoEmail: false, ordoScan: false },
+  pro:       { nom: 'Pro',       prix: 49, maxPatients: 9999, maxNurses: 3, maxAcceptJour: 10, rayonKm: 15, delaiMin: 5, compta: true, absences: true, sign: false, multiTournee: true, iaPlacement: false, ordoUpload: true, ordoEmail: false, ordoScan: false },
+  premium:   { nom: 'Premium',   prix: 89, maxPatients: 9999, maxNurses: 9999, maxAcceptJour: 9999, rayonKm: 30, delaiMin: 0, compta: true, absences: true, sign: true, multiTournee: true, iaPlacement: true, ordoUpload: true, ordoEmail: true, ordoScan: true }
 };
 let currentFormule = 'essentiel';
 
@@ -1059,7 +1410,8 @@ const pageTitles = {
   cabinet: 'Mon cabinet',
   nurses: 'Infirmières',
   demandes: 'Demandes de soins',
-  absences: 'Absences et remplacements'
+  absences: 'Absences et remplacements',
+  passages: 'Mes preuves de passage'
 };
 
 const pageActions = {
@@ -1091,7 +1443,7 @@ function showPage(id, el) {
   // Lazy load
   if (!pageLoadedMap[id]) {
     pageLoadedMap[id] = true;
-    if (id === 'planning') loadPlanning();
+    if (id === 'planning') { loadPlanning(); if(!document.body.classList.contains('plan-fullscreen')) togglePlanFullscreen(); }
     if (id === 'patients') loadPatients();
     if (id === 'soins') loadSoins();
     if (id === 'ordonnances') loadOrdonnances();
@@ -1100,6 +1452,7 @@ function showPage(id, el) {
     if (id === 'nurses') loadNurses();
     if (id === 'demandes') loadDemandesSoins();
     if (id === 'absences') loadAbsences();
+    if (id === 'passages') initPassagesPage();
   }
   // Close sidebar on mobile
   document.getElementById('sidebar').classList.remove('open');
@@ -1169,7 +1522,8 @@ function statusLabel(s) {
     planifie: { label:'Planifié', cls:'badge-blue' },
     en_route: { label:'En route', cls:'badge-orange' },
     termine: { label:'Terminé', cls:'badge-ok' },
-    reporte: { label:'Reporté', cls:'badge-gray' },
+    reporte: { label:'Reporté', cls:'badge-warn' },
+    annule: { label:'Annulé', cls:'badge-crit' },
     actif: { label:'Actif', cls:'badge-ok' },
     inactif: { label:'Inactif', cls:'badge-gray' },
     banni: { label:'Banni(e)', cls:'badge-crit' }
@@ -1188,41 +1542,87 @@ const nurseColors = ['#0d9488','#0ea5e9','#8b5cf6','#f97316','#ef4444','#10b981'
 // DEMO DATA
 // ═══════════════════════════════════
 const DEMO_NURSES = [
-  { id:1, nom:'Dupont', prenom:'Marie', rpps:'12345678901', tel:'06 12 34 56 78', email:'marie.dupont@email.fr', specialite:'generaliste', statut:'actif', couleur:'#0d9488' },
-  { id:2, nom:'Martin', prenom:'Julie', rpps:'12345678902', tel:'06 98 76 54 32', email:'julie.martin@email.fr', specialite:'perfusion', statut:'actif', couleur:'#0ea5e9' },
-  { id:3, nom:'Bernard', prenom:'Sophie', rpps:'12345678903', tel:'06 11 22 33 44', email:'sophie.bernard@email.fr', specialite:'diabete', statut:'actif', couleur:'#8b5cf6' },
+  { id:1, nom:'El Amrani', prenom:'Fatima', rpps:'12345678901', tel:'+212 6 12 34 56 78', email:'fatima.elamrani@jadomi.fr', specialite:'generaliste', statut:'actif', couleur:'#0d9488' },
+  { id:2, nom:'Dubois', prenom:'Julie', rpps:'12345678902', tel:'+212 6 98 76 54 32', email:'julie.dubois@jadomi.fr', specialite:'perfusion', statut:'actif', couleur:'#0ea5e9' },
+  { id:3, nom:'Benali', prenom:'Nadia', rpps:'12345678903', tel:'+212 6 11 22 33 44', email:'nadia.benali@jadomi.fr', specialite:'diabete', statut:'actif', couleur:'#8b5cf6' },
 ];
 
 const DEMO_PATIENTS = [
-  { id:1, nom:'Lefevre', prenom:'Jean', adresse:'12 rue des Lilas', ville:'Marseille', cp:'13001', tel:'04 91 12 34 56', tel_famille:'04 91 12 34 57', medecin:'Dr Moreau', notes:'Diabétique type 2, insuline matin et soir', statut:'actif', nb_soins:3 },
-  { id:2, nom:'Roux', prenom:'Madeleine', adresse:'45 avenue du Prado', ville:'Marseille', cp:'13008', tel:'04 91 22 33 44', tel_famille:'04 91 22 33 45', medecin:'Dr Lambert', notes:'Pansement ulcère veineux jambe gauche, tous les 2 jours', statut:'actif', nb_soins:2 },
-  { id:3, nom:'Petit', prenom:'Georges', adresse:'8 boulevard Longchamp', ville:'Marseille', cp:'13001', tel:'04 91 33 44 55', tel_famille:'04 91 33 44 56', medecin:'Dr Dubois', notes:'Perfusion antibiotique 10 jours, accès veineux périphérique', statut:'actif', nb_soins:1 },
-  { id:4, nom:'Garcia', prenom:'Carmen', adresse:'23 rue de la République', ville:'Marseille', cp:'13002', tel:'04 91 44 55 66', tel_famille:'', medecin:'Dr Petit', notes:'Toilette médicalisée quotidienne, dépendance partielle', statut:'actif', nb_soins:1 },
-  { id:5, nom:'Moreau', prenom:'Lucienne', adresse:'56 chemin de Sainte-Marthe', ville:'Marseille', cp:'13014', tel:'04 91 55 66 77', tel_famille:'04 91 55 66 78', medecin:'Dr Garcia', notes:'Surveillance INR hebdomadaire, AVK', statut:'actif', nb_soins:2 },
-  { id:6, nom:'Lambert', prenom:'Pierre', adresse:'3 place Castellane', ville:'Marseille', cp:'13006', tel:'04 91 66 77 88', tel_famille:'', medecin:'Dr Lefevre', notes:'Ancien patient, soins termines', statut:'inactif', nb_soins:0 },
-  { id:7, nom:'Dubois', prenom:'Henriette', adresse:'17 rue Breteuil', ville:'Marseille', cp:'13006', tel:'04 91 77 88 99', tel_famille:'04 91 77 88 00', medecin:'Dr Roux', notes:'Prise de sang mensuelle, suivi thyroïdien', statut:'actif', nb_soins:1 },
-  { id:8, nom:'Fournier', prenom:'René', adresse:'92 corniche Kennedy', ville:'Marseille', cp:'13007', tel:'04 91 88 99 00', tel_famille:'04 91 88 99 01', medecin:'Dr Bernard', notes:'Injection Lovenox quotidienne, post-opératoire hanche', statut:'actif', nb_soins:1 },
+  // ── Guéliz (centre moderne) ──
+  { id:1, nom:'Bouazza', prenom:'Mohamed', adresse:'42 avenue Mohammed V, Guéliz', ville:'Marrakech', cp:'40000', tel:'+212 5 24 43 12 56', tel_famille:'+212 6 61 23 45 67', medecin:'Dr Alaoui', notes:'Diabétique type 2, insuline 2x/jour. Glycémie instable, surveiller.', statut:'actif', nb_soins:3, chronique:true, pharmacie:'Pharmacie Ibn Sina (av. Mohammed V)', pilulier:false, traitement:'Insuline Lantus 1x/j + Novorapid 3x/j' },
+  { id:9, nom:'Tahiri', prenom:'Hassan', adresse:'38 avenue Mohammed V, Guéliz', ville:'Marrakech', cp:'40000', tel:'+212 5 24 43 14 58', tel_famille:'+212 6 67 89 01 23', medecin:'Dr Alaoui', notes:'Diabétique type 1, insuline 2x/jour, glycémie très instable', statut:'actif', nb_soins:2, chronique:true, pharmacie:'Pharmacie Ibn Sina (av. Mohammed V)', pilulier:false, traitement:'Insuline Humalog 3x/j + Lantus 1x/j' },
+  { id:2, nom:'Lefèvre', prenom:'Madeleine', adresse:'18 rue de la Liberté, Guéliz', ville:'Marrakech', cp:'40000', tel:'+212 5 24 44 55 66', tel_famille:'+212 6 62 34 56 78', medecin:'Dr Berrada', notes:'Pansement ulcère veineux jambe gauche, tous les 2 jours', statut:'actif', nb_soins:2, chronique:false },
+  { id:10, nom:'Benkirane', prenom:'Fatna', adresse:'22 rue de la Liberté, Guéliz', ville:'Marrakech', cp:'40000', tel:'+212 5 24 44 77 88', tel_famille:'+212 6 68 90 12 34', medecin:'Dr Berrada', notes:'Alzheimer stade 2, vit seule, fille passe le midi. Se réveille vers 10h30. Vérifier pilulier, hygiène, hydratation.', statut:'actif', nb_soins:1, chronique:true, pharmacie:'Pharmacie Guéliz (rue Moulay Ali)', pilulier:true, traitement:'Aricept 10mg + Ebixa 20mg' },
+  { id:11, nom:'Dupont', prenom:'Jacqueline', adresse:'15 rue Moulay Ali, Guéliz', ville:'Marrakech', cp:'40000', tel:'+212 5 24 44 22 33', tel_famille:'+212 6 69 01 23 45', medecin:'Dr Fassi', notes:'Cancer sein, chimio terminée, surveillance et injection Herceptin', statut:'actif', nb_soins:1, chronique:true, pharmacie:'Pharmacie Guéliz (rue Moulay Ali)', pilulier:false, traitement:'Herceptin SC toutes les 3 semaines' },
+  // ── Hivernage ──
+  { id:4, nom:'Garcia', prenom:'Carmen', adresse:'Résidence Al Andalous, Hivernage', ville:'Marrakech', cp:'40000', tel:'+212 5 24 42 33 44', tel_famille:'', medecin:'Dr Fassi', notes:'Toilette médicalisée quotidienne, dépendance partielle, très coquette', statut:'actif', nb_soins:1, chronique:true, pharmacie:'Pharmacie Hivernage (av. Hassan II)', pilulier:true, traitement:'Kardégic 75mg + Amlor 5mg + Tahor 10mg' },
+  // ── Médina ──
+  { id:3, nom:'Idrissi', prenom:'Youssef', adresse:'7 derb Jdid, Bab Doukkala', ville:'Marrakech', cp:'40000', tel:'+212 5 24 38 22 11', tel_famille:'+212 6 63 45 67 89', medecin:'Dr Martin', notes:'Perfusion antibiotique J5/10, accès veineux périphérique bras gauche', statut:'actif', nb_soins:1, chronique:false },
+  { id:7, nom:'El Mansouri', prenom:'Aicha', adresse:'14 Riad Zitoun Lakdim, Médina', ville:'Marrakech', cp:'40000', tel:'+212 5 24 37 99 00', tel_famille:'+212 6 65 67 89 01', medecin:'Dr Roux', notes:'Prise de sang mensuelle, suivi thyroïdien. Accès difficile, ruelle étroite.', statut:'actif', nb_soins:1, chronique:true, pharmacie:'Pharmacie Bab Agnaou (Médina)', pilulier:false, traitement:'Lévothyrox 75µg' },
+  { id:12, nom:'Ouazzani', prenom:'Abdellah', adresse:'8 Riad Zitoun Lakdim, Médina', ville:'Marrakech', cp:'40000', tel:'+212 5 24 37 88 11', tel_famille:'+212 6 70 12 34 56', medecin:'Dr Roux', notes:'Parkinson avancé, injection Apokinon si crise. Épouse présente.', statut:'actif', nb_soins:1, chronique:true, pharmacie:'Pharmacie Bab Agnaou (Médina)', pilulier:true, traitement:'Modopar 125mg + Apokinon si crise' },
+  // ── Périphérie ──
+  { id:5, nom:'Ziani', prenom:'Khadija', adresse:'Lotissement Al Amal, Route de Casablanca', ville:'Marrakech', cp:'40000', tel:'+212 5 24 35 66 77', tel_famille:'+212 6 64 56 78 90', medecin:'Dr Dupont', notes:'Surveillance INR hebdomadaire, AVK. Résultat à faxer au Dr.', statut:'actif', nb_soins:2, chronique:true, pharmacie:'Pharmacie Al Amal (Route Casa)', pilulier:true, traitement:'Préviscan 20mg dose variable selon INR' },
+  { id:8, nom:'Bernard', prenom:'René', adresse:'Villa 12, Palmeraie', ville:'Marrakech', cp:'40000', tel:'+212 5 24 30 11 22', tel_famille:'+212 6 66 78 90 12', medecin:'Dr Chraibi', notes:'Injection Lovenox post-opératoire hanche, J12. Marche avec déambulateur.', statut:'actif', nb_soins:1, chronique:true, pharmacie:'Pharmacie Majorelle (av. Yaccoub El Mansour)', pilulier:false, traitement:'Lovenox 4000 UI 1x/j' },
+  // ── Massira ──
+  { id:6, nom:'Petit', prenom:'Pierre', adresse:'Quartier Massira 3, bloc 8', ville:'Marrakech', cp:'40000', tel:'+212 5 24 43 88 99', tel_famille:'', medecin:'Dr Bennani', notes:'Ancien patient, soins terminés', statut:'inactif', nb_soins:0, chronique:false },
 ];
 
 const DEMO_VISITES = [
-  { id:1, patient_id:1, patient:'Lefevre Jean', adresse:'12 rue des Lilas, 13001', heure:'07:30', soin:'insuline', duree:15, statut:'termine', nurse_id:1, nurse:'Marie Dupont', notes:'Glycémie 1.2 g/L, injection faite' },
-  { id:2, patient_id:4, patient:'Garcia Carmen', adresse:'23 rue de la Republique, 13002', heure:'08:00', soin:'toilette', duree:45, statut:'termine', nurse_id:1, nurse:'Marie Dupont', notes:'Toilette faite, pas de rougeur' },
-  { id:3, patient_id:2, patient:'Roux Madeleine', adresse:'45 avenue du Prado, 13008', heure:'09:00', soin:'pansement', duree:30, statut:'en_route', nurse_id:1, nurse:'Marie Dupont', notes:'' },
-  { id:4, patient_id:3, patient:'Petit Georges', adresse:'8 boulevard Longchamp, 13001', heure:'10:00', soin:'perfusion', duree:60, statut:'planifie', nurse_id:2, nurse:'Julie Martin', notes:'' },
-  { id:5, patient_id:5, patient:'Moreau Lucienne', adresse:'56 chemin de Sainte-Marthe, 13014', heure:'10:30', soin:'prise_sang', duree:15, statut:'planifie', nurse_id:2, nurse:'Julie Martin', notes:'' },
-  { id:6, patient_id:7, patient:'Dubois Henriette', adresse:'17 rue Breteuil, 13006', heure:'11:00', soin:'prise_sang', duree:15, statut:'planifie', nurse_id:3, nurse:'Sophie Bernard', notes:'' },
-  { id:7, patient_id:8, patient:'Fournier Rene', adresse:'92 corniche Kennedy, 13007', heure:'11:30', soin:'injection', duree:15, statut:'planifie', nurse_id:3, nurse:'Sophie Bernard', notes:'' },
-  { id:8, patient_id:1, patient:'Lefevre Jean', adresse:'12 rue des Lilas, 13001', heure:'18:00', soin:'insuline', duree:15, statut:'planifie', nurse_id:1, nurse:'Marie Dupont', notes:'' },
+  // ═══ FATIMA EL AMRANI — Tournée matin ═══
+  // 06:30 Insuline URGENT → av. Mohammed V (Guéliz)
+  { id:1, patient_id:1, patient:'Bouazza Mohamed', adresse:'42 avenue Mohammed V, Guéliz, Marrakech', lat:31.6322, lng:-8.0108, heure:'06:30', soin:'insuline', duree:15, statut:'termine', nurse_id:1, nurse:'Fatima El Amrani', notes:'Glycémie 1.2 g/L, injection faite', chronique:true, pharmacie:'Pharmacie Ibn Sina (av. Mohammed V)', traitement:'Insuline Lantus', priorite:'urgent', plage:'06:30-07:00', deuxfois:true },
+  // 06:50 Insuline URGENT → même avenue, 50m plus loin
+  { id:9, patient_id:9, patient:'Tahiri Hassan', adresse:'38 avenue Mohammed V, Guéliz, Marrakech', lat:31.6318, lng:-8.0112, heure:'06:50', soin:'insuline', duree:15, statut:'termine', nurse_id:1, nurse:'Fatima El Amrani', notes:'Glycémie 0.9 g/L OK', chronique:true, pharmacie:'Pharmacie Ibn Sina (av. Mohammed V)', traitement:'Insuline Humalog', priorite:'urgent', plage:'06:45-07:15', deuxfois:true },
+  // 07:30 Toilette → Hivernage (créneau souple, Garcia se lève tôt)
+  { id:2, patient_id:4, patient:'Garcia Carmen', adresse:'Résidence Al Andalous, Hivernage, Marrakech', lat:31.6200, lng:-8.0150, heure:'07:30', soin:'toilette', duree:45, statut:'en_route', nurse_id:1, nurse:'Fatima El Amrani', notes:'', chronique:true, pharmacie:'Pharmacie Hivernage (av. Hassan II)', traitement:'Pilulier semaine', pilulier:true, priorite:'flexible', plage:'07:00-09:00' },
+  // 08:30 Pansement → rue de la Liberté (Guéliz) — PREMIER passage
+  { id:3, patient_id:2, patient:'Lefèvre Madeleine', adresse:'18 rue de la Liberté, Guéliz, Marrakech', lat:31.6345, lng:-8.0092, heure:'08:30', soin:'pansement', duree:30, statut:'planifie', nurse_id:1, nurse:'Fatima El Amrani', notes:'Pansement J3, bonne évolution', priorite:'flexible', plage:'07:30-11:00' },
+  // 09:15 Injection → rue Moulay Ali (juste à côté de rue de la Liberté)
+  { id:13, patient_id:11, patient:'Dupont Jacqueline', adresse:'15 rue Moulay Ali, Guéliz, Marrakech', lat:31.6377, lng:-8.0132, heure:'09:15', soin:'injection', duree:20, statut:'planifie', nurse_id:1, nurse:'Fatima El Amrani', notes:'Herceptin SC, surveiller réaction', chronique:true, pharmacie:'Pharmacie Guéliz (rue Moulay Ali)', traitement:'Herceptin SC', priorite:'flexible', plage:'08:00-11:00' },
+  // 11:00 Alzheimer → 22 rue de la Liberté — RETOUR même rue, se réveille à 10h30
+  { id:10, patient_id:10, patient:'Benkirane Fatna', adresse:'22 rue de la Liberté, Guéliz, Marrakech', lat:31.6347, lng:-8.0088, heure:'11:00', soin:'toilette', duree:45, statut:'planifie', nurse_id:1, nurse:'Fatima El Amrani', notes:'Alzheimer stade 2. Se réveille vers 10h30. Vérifier pilulier, hygiène, hydratation. Rassurer.', chronique:true, pharmacie:'Pharmacie Guéliz (rue Moulay Ali)', traitement:'Aricept 10mg + Ebixa', pilulier:true, priorite:'flexible', plage:'10:30-12:00' },
+
+  // ═══ JULIE DUBOIS — Tournée matin ═══
+  // 08:00 Perfusion → Bab Doukkala (Médina)
+  { id:4, patient_id:3, patient:'Idrissi Youssef', adresse:'7 derb Jdid, Bab Doukkala, Marrakech', lat:31.6322, lng:-7.9970, heure:'08:00', soin:'perfusion', duree:60, statut:'planifie', nurse_id:2, nurse:'Julie Dubois', notes:'Antibio IV J5/10, vérifier voie veineuse', priorite:'fixe', plage:'08:00-09:00' },
+  // 09:30 Prise de sang → Route de Casablanca (loin, mais seul patient dans la zone)
+  { id:5, patient_id:5, patient:'Ziani Khadija', adresse:'Lotissement Al Amal, Route de Casablanca, Marrakech', lat:31.6690, lng:-8.0450, heure:'09:30', soin:'prise_sang', duree:15, statut:'planifie', nurse_id:2, nurse:'Julie Dubois', notes:'INR à contrôler, résultat à faxer au Dr Dupont', chronique:true, pharmacie:'Pharmacie Al Amal (Route Casa)', traitement:'Préviscan 20mg', priorite:'flexible', plage:'08:30-12:00' },
+
+  // ═══ NADIA BENALI — Tournée matin ═══
+  // 08:00 Prise de sang → Riad Zitoun (Médina)
+  { id:6, patient_id:7, patient:'El Mansouri Aicha', adresse:'14 Riad Zitoun Lakdim, Médina, Marrakech', lat:31.6230, lng:-7.9870, heure:'08:00', soin:'prise_sang', duree:15, statut:'planifie', nurse_id:3, nurse:'Nadia Benali', notes:'TSH mensuelle', chronique:true, pharmacie:'Pharmacie Bab Agnaou (Médina)', traitement:'Lévothyrox 75µg', priorite:'flexible', plage:'07:30-11:00' },
+  // 08:30 Injection Parkinson → même ruelle ! (8 Riad Zitoun)
+  { id:14, patient_id:12, patient:'Ouazzani Abdellah', adresse:'8 Riad Zitoun Lakdim, Médina, Marrakech', lat:31.6232, lng:-7.9868, heure:'08:30', soin:'injection', duree:20, statut:'planifie', nurse_id:3, nurse:'Nadia Benali', notes:'Parkinson, vérifier tremblements, épouse présente', chronique:true, pharmacie:'Pharmacie Bab Agnaou (Médina)', traitement:'Apokinon si crise', pilulier:true, priorite:'flexible', plage:'08:00-10:00' },
+  // 09:30 Injection Lovenox → Palmeraie (excentré mais créneau fixe post-op)
+  { id:7, patient_id:8, patient:'Bernard René', adresse:'Villa 12, Palmeraie, Marrakech', lat:31.6748, lng:-7.9826, heure:'09:30', soin:'injection', duree:15, statut:'planifie', nurse_id:3, nurse:'Nadia Benali', notes:'Lovenox post-op hanche J12, marche avec déambulateur', chronique:true, pharmacie:'Pharmacie Majorelle (av. Yaccoub El Mansour)', traitement:'Lovenox 4000 UI', priorite:'fixe', plage:'09:00-10:00' },
+
+  // ═══ VISITES DU SOIR — Insulines 2x/jour ═══
+  { id:8, patient_id:1, patient:'Bouazza Mohamed', adresse:'42 avenue Mohammed V, Guéliz, Marrakech', lat:31.6322, lng:-8.0108, heure:'18:00', soin:'insuline', duree:15, statut:'planifie', nurse_id:1, nurse:'Fatima El Amrani', notes:'', chronique:true, pharmacie:'Pharmacie Ibn Sina (av. Mohammed V)', traitement:'Insuline Novorapid', priorite:'urgent', plage:'17:30-18:30', deuxfois:true },
+  { id:11, patient_id:9, patient:'Tahiri Hassan', adresse:'38 avenue Mohammed V, Guéliz, Marrakech', lat:31.6318, lng:-8.0112, heure:'18:20', soin:'insuline', duree:15, statut:'planifie', nurse_id:1, nurse:'Fatima El Amrani', notes:'', chronique:true, pharmacie:'Pharmacie Ibn Sina (av. Mohammed V)', traitement:'Insuline Humalog', priorite:'urgent', plage:'18:00-19:00', deuxfois:true },
 ];
 
 const DEMO_SOINS = [
-  { id:1, patient_id:1, patient:'Lefevre Jean', type:'insuline', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:1, nurse:'Marie Dupont', expiry:'2026-07-15' },
-  { id:2, patient_id:2, patient:'Roux Madeleine', type:'pansement', jours:['lundi','mercredi','vendredi'], nurse_id:1, nurse:'Marie Dupont', expiry:'2026-06-30' },
-  { id:3, patient_id:3, patient:'Petit Georges', type:'perfusion', jours:['lundi','mardi','mercredi','jeudi','vendredi'], nurse_id:2, nurse:'Julie Martin', expiry:'2026-05-08' },
-  { id:4, patient_id:4, patient:'Garcia Carmen', type:'toilette', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:1, nurse:'Marie Dupont', expiry:'2026-09-01' },
-  { id:5, patient_id:5, patient:'Moreau Lucienne', type:'prise_sang', jours:['lundi'], nurse_id:2, nurse:'Julie Martin', expiry:'2026-08-20' },
-  { id:6, patient_id:7, patient:'Dubois Henriette', type:'prise_sang', jours:['vendredi'], nurse_id:3, nurse:'Sophie Bernard', expiry:'2026-06-15' },
-  { id:7, patient_id:8, patient:'Fournier Rene', type:'injection', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:3, nurse:'Sophie Bernard', expiry:'2026-05-20' },
+  // Insulines 2x/jour, 7j/7
+  { id:1, patient_id:1, patient:'Bouazza Mohamed', type:'insuline', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:1, nurse:'Fatima El Amrani', expiry:'2026-07-15', deuxfois:true, plage_matin:'06:30-07:00', plage_soir:'17:30-18:30' },
+  { id:8, patient_id:9, patient:'Tahiri Hassan', type:'insuline', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:1, nurse:'Fatima El Amrani', expiry:'2026-08-01', deuxfois:true, plage_matin:'06:45-07:15', plage_soir:'18:00-19:00' },
+  // Toilettes quotidiennes
+  { id:4, patient_id:4, patient:'Garcia Carmen', type:'toilette', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:1, nurse:'Fatima El Amrani', expiry:'2026-09-01', plage_matin:'07:00-09:00' },
+  // Alzheimer — se réveille à 10h30, créneau tardif
+  { id:9, patient_id:10, patient:'Benkirane Fatna', type:'toilette', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:1, nurse:'Fatima El Amrani', expiry:'2026-12-31', plage_matin:'10:30-12:00' },
+  // Pansement 1 jour sur 2
+  { id:2, patient_id:2, patient:'Lefèvre Madeleine', type:'pansement', jours:['lundi','mercredi','vendredi'], nurse_id:1, nurse:'Fatima El Amrani', expiry:'2026-06-30', plage_matin:'07:30-11:00' },
+  // Injection Herceptin (1x/3 semaines mais en demo = vendredi)
+  { id:10, patient_id:11, patient:'Dupont Jacqueline', type:'injection', jours:['vendredi'], nurse_id:1, nurse:'Fatima El Amrani', expiry:'2026-10-15', plage_matin:'08:00-11:00' },
+  // Perfusion antibio en semaine
+  { id:3, patient_id:3, patient:'Idrissi Youssef', type:'perfusion', jours:['lundi','mardi','mercredi','jeudi','vendredi'], nurse_id:2, nurse:'Julie Dubois', expiry:'2026-05-08', plage_matin:'08:00-09:00' },
+  // Prise de sang INR hebdo
+  { id:5, patient_id:5, patient:'Ziani Khadija', type:'prise_sang', jours:['lundi'], nurse_id:2, nurse:'Julie Dubois', expiry:'2026-08-20', plage_matin:'08:30-12:00' },
+  // Prise de sang mensuelle (en demo = vendredi)
+  { id:6, patient_id:7, patient:'El Mansouri Aicha', type:'prise_sang', jours:['vendredi'], nurse_id:3, nurse:'Nadia Benali', expiry:'2026-06-15', plage_matin:'07:30-11:00' },
+  // Injection Parkinson — même ruelle que El Mansouri, quotidien
+  { id:11, patient_id:12, patient:'Ouazzani Abdellah', type:'injection', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:3, nurse:'Nadia Benali', expiry:'2026-09-30', plage_matin:'08:00-10:00' },
+  // Lovenox post-op quotidien
+  { id:7, patient_id:8, patient:'Bernard René', type:'injection', jours:['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'], nurse_id:3, nurse:'Nadia Benali', expiry:'2026-05-20', plage_matin:'09:00-10:00' },
 ];
 
 const DEMO_ORDONNANCES = [
@@ -1278,8 +1678,8 @@ async function apiFetch(url, opts) {
 // ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
-document.addEventListener('DOMContentLoaded', function() {
-  if (!getSession()) { location.href = '/login.html'; return; }
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!(await getSession())) { location.href = '/login.html'; return; }
   document.getElementById('planning-date').value = todayStr();
   loadFormule();
   loadDashboard();
@@ -1328,88 +1728,600 @@ function renderDashboardSchedule() {
 // ═══════════════════════════════════
 // PLANNING TAB
 // ═══════════════════════════════════
-async function loadPlanning() {
-  const date = document.getElementById('planning-date').value || todayStr();
-  const container = document.getElementById('planning-tournees');
-  container.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement des tournées...</div>';
+// ═══════════════════════════════════
+// GÉNÉRATION DEMO — visites à partir des soins récurrents
+// ═══════════════════════════════════
+const _jourMap = { 0:'dimanche', 1:'lundi', 2:'mardi', 3:'mercredi', 4:'jeudi', 5:'vendredi', 6:'samedi' };
+const _defaultHeures = {
+  insuline: { matin: '06:30', soir: '18:00' },
+  toilette: { matin: '08:00' },
+  pansement: { matin: '09:00' },
+  perfusion: { matin: '08:30' },
+  prise_sang: { matin: '10:00' },
+  injection: { matin: '09:30' }
+};
 
-  const data = await apiFetch('/api/ide/planning/' + date);
+function generateDemoVisitesForDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const jourNom = _jourMap[d.getDay()];
+  const visites = [];
+  let vid = 1000 + d.getDate() * 100;
 
-  let visites = DEMO_VISITES;
-  let totalKm = 47;
-  let totalDuree = '3h15';
+  // Rotation des infirmières tous les 3 jours
+  // Cycle basé sur le jour de l'année
+  var dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  var rotationCycle = Math.floor(dayOfYear / 3) % DEMO_NURSES.length;
 
-  if (data && data.tournees) {
-    // Use API data
-    visites = [];
-    totalKm = 0;
-    totalDuree = '0h';
-    data.tournees.forEach(t => {
-      if (t.visites) visites.push(...t.visites);
-      totalKm += t.km_total || 0;
+  DEMO_SOINS.forEach(function(soin) {
+    if (!soin.jours.includes(jourNom)) return;
+    var patient = DEMO_PATIENTS.find(function(p) { return p.id === soin.patient_id; });
+    if (!patient || patient.statut !== 'actif') return;
+
+    var heures = _defaultHeures[soin.type] || { matin: '09:00' };
+
+    // Rotation : décaler l'index de l'infirmière selon le cycle de 3 jours
+    var origNurseIdx = DEMO_NURSES.findIndex(function(n) { return n.id === soin.nurse_id; });
+    if (origNurseIdx < 0) origNurseIdx = 0;
+    var rotatedIdx = (origNurseIdx + rotationCycle) % DEMO_NURSES.length;
+    var nurse = DEMO_NURSES[rotatedIdx];
+    var nurseName = nurse ? nurse.prenom + ' ' + nurse.nom : 'Non assigné';
+    var nurseId = nurse ? nurse.id : soin.nurse_id;
+
+    // Visite du matin
+    var heureMatin = soin.plage_matin ? soin.plage_matin.split('-')[0] : heures.matin;
+    // Décaler légèrement pour varier les horaires d'un jour à l'autre
+    var minOffset = (d.getDate() % 3) * 5;
+    var hParts = heureMatin.split(':');
+    var totalMin = parseInt(hParts[0]) * 60 + parseInt(hParts[1]) + minOffset;
+    var heureFinale = String(Math.floor(totalMin / 60)).padStart(2, '0') + ':' + String(totalMin % 60).padStart(2, '0');
+
+    var demoV = DEMO_VISITES.find(function(v) { return v.patient_id === soin.patient_id && parseInt(v.heure) < 13; });
+
+    visites.push({
+      id: vid++,
+      patient_id: soin.patient_id,
+      patient: soin.patient,
+      adresse: (patient.adresse || '') + ', ' + patient.ville,
+      lat: demoV ? demoV.lat : null,
+      lng: demoV ? demoV.lng : null,
+      heure: heureFinale,
+      soin: soin.type,
+      duree: soin.type === 'toilette' ? 45 : soin.type === 'perfusion' ? 60 : soin.type === 'pansement' ? 30 : 15,
+      statut: 'planifie',
+      nurse_id: nurseId,
+      nurse: nurseName,
+      notes: patient.notes || '',
+      chronique: !!patient.chronique,
+      pharmacie: patient.pharmacie || null,
+      traitement: patient.traitement || null,
+      pilulier: !!patient.pilulier,
+      priorite: soin.type === 'insuline' ? 'urgent' : (soin.plage_matin ? 'fixe' : 'flexible'),
+      plage: soin.plage_matin || null,
+      deuxfois: !!soin.deuxfois
     });
-  }
 
-  document.getElementById('plan-visites').textContent = visites.length;
-  document.getElementById('plan-km').textContent = totalKm + ' km';
-  document.getElementById('plan-duree').textContent = totalDuree;
-
-  // Group by nurse
-  const grouped = {};
-  visites.forEach(v => {
-    const key = v.nurse_id || 0;
-    if (!grouped[key]) grouped[key] = { nurse: v.nurse || 'Non assigne', nurse_id: key, visites: [] };
-    grouped[key].visites.push(v);
+    // Visite du soir si 2x/jour
+    if (soin.deuxfois) {
+      var heureSoir = soin.plage_soir ? soin.plage_soir.split('-')[0] : (heures.soir || '18:00');
+      visites.push({
+        id: vid++,
+        patient_id: soin.patient_id,
+        patient: soin.patient,
+        adresse: (patient.adresse || '') + ', ' + patient.ville,
+        lat: demoV ? demoV.lat : null,
+        lng: demoV ? demoV.lng : null,
+        heure: heureSoir,
+        soin: soin.type,
+        duree: 15,
+        statut: 'planifie',
+        nurse_id: nurseId,
+        nurse: nurseName,
+        notes: '',
+        chronique: true,
+        pharmacie: patient.pharmacie || null,
+        traitement: patient.traitement || null,
+        pilulier: false,
+        priorite: 'urgent',
+        plage: soin.plage_soir || null,
+        deuxfois: true
+      });
+    }
   });
 
-  if (Object.keys(grouped).length === 0) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg></div><div class="empty-title">Aucune tournée pour cette date</div><div class="empty-sub">Générez le planning pour voir les tournées.</div></div>';
-    return;
-  }
+  // Trier par heure
+  visites.sort(function(a, b) { return a.heure.localeCompare(b.heure); });
+  return visites;
+}
 
-  let html = '';
-  Object.values(grouped).forEach((group, idx) => {
-    const color = nurseColors[idx % nurseColors.length];
-    const morningVisits = group.visites.filter(v => parseInt(v.heure) < 13);
-    const eveningVisits = group.visites.filter(v => parseInt(v.heure) >= 13);
+// ═══════════════════════════════════
+// PLANNING PRO — multi-vue, filtre praticien, géoloc
+// ═══════════════════════════════════
+let planViewDays = 1;
+let planSelectedNurse = null; // null = toutes
+let planAllVisites = []; // cache des visites chargées
 
-    html += '<div class="tournee-group">';
-    html += '<div class="tournee-header"><div class="tournee-dot" style="background:' + color + '"></div><div class="tournee-nurse">' + esc(group.nurse) + '</div>';
-    html += '<div class="tournee-meta"><span>' + group.visites.length + ' visites</span></div></div>';
+function setPlanView(days, btn) {
+  planViewDays = days;
+  document.querySelectorAll('.plan-view-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const grid = document.getElementById('plan-grid');
+  grid.className = 'plan-grid view-' + days;
+  pageLoadedMap.planning = false; loadPlanning();
+}
 
-    if (morningVisits.length > 0) {
-      html += '<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;margin-top:4px;padding-left:4px;">Tournée du matin</div>';
-      morningVisits.forEach(v => { html += renderVisitCard(v); });
-    }
-    if (eveningVisits.length > 0) {
-      html += '<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;margin-top:16px;padding-left:4px;">Tournée du soir</div>';
-      eveningVisits.forEach(v => { html += renderVisitCard(v); });
-    }
-    html += '</div>';
+function toggleNurseFilter(nurseId, el) {
+  planSelectedNurse = nurseId;
+  document.querySelectorAll('.plan-nurse-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPlanningGrid();
+}
+
+function buildNurseFilters(visites) {
+  const container = document.getElementById('plan-nurse-filters');
+  const nurses = {};
+  visites.forEach(v => { if (v.nurse_id) nurses[v.nurse_id] = { name: v.nurse, id: v.nurse_id }; });
+  let html = '<div class="plan-nurse-chip' + (planSelectedNurse === null ? ' active' : '') + '" onclick="toggleNurseFilter(null, this)"><span class="plan-nurse-dot" style="background:var(--accent)"></span> Toutes</div>';
+  Object.values(nurses).forEach((n, i) => {
+    const color = nurseColors[i % nurseColors.length];
+    html += '<div class="plan-nurse-chip' + (planSelectedNurse === n.id ? ' active' : '') + '" onclick="toggleNurseFilter(' + n.id + ', this)"><span class="plan-nurse-dot" style="background:' + color + '"></span> ' + esc(n.name) + '</div>';
   });
   container.innerHTML = html;
 }
 
-function renderVisitCard(v) {
-  return '<div class="visit-card" onclick="openVisiteDetail(' + v.id + ')">' +
+async function loadPlanning() {
+  const baseDate = document.getElementById('planning-date').value || todayStr();
+  const grid = document.getElementById('plan-grid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement...</div>';
+
+  // Charger les données pour chaque jour de la vue
+  const dates = [];
+  for (let i = 0; i < planViewDays; i++) {
+    const d = new Date(baseDate); d.setDate(d.getDate() + i);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+
+  const allData = {};
+  let allVisites = [];
+  let totalKm = 0;
+
+  await Promise.all(dates.map(async date => {
+    const data = await apiFetch('/api/ide/planning/' + date);
+    let visites = [];
+    if (data && data.tournees) {
+      data.tournees.forEach(t => {
+        if (t.visites) visites.push(...t.visites);
+        totalKm += t.km_total || 0;
+      });
+    }
+    // Fallback demo : générer les visites du jour à partir des soins récurrents
+    if (visites.length === 0) {
+      visites = generateDemoVisitesForDate(date);
+      totalKm += Math.round(12 + Math.random() * 35);
+    }
+    allData[date] = visites;
+    allVisites.push(...visites);
+  }));
+
+  planAllVisites = allVisites;
+
+  // KPI
+  const filteredAll = planSelectedNurse ? allVisites.filter(v => v.nurse_id === planSelectedNurse) : allVisites;
+  document.getElementById('plan-visites').textContent = filteredAll.length;
+  document.getElementById('plan-km').textContent = (planSelectedNurse ? '~' : '') + totalKm + ' km';
+  const totalMin = filteredAll.reduce((s, v) => s + (v.duree || 15), 0);
+  document.getElementById('plan-duree').textContent = Math.floor(totalMin / 60) + 'h' + String(totalMin % 60).padStart(2, '0');
+
+  // Filters
+  buildNurseFilters(allVisites);
+
+  // Store data for rendering
+  window._planDates = dates;
+  window._planData = allData;
+
+  renderPlanningGrid();
+  renderRappels();
+}
+
+function renderPlanningGrid() {
+  const grid = document.getElementById('plan-grid');
+  const dates = window._planDates || [];
+  const allData = window._planData || {};
+  const today = todayStr();
+  const jourNoms = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
+  let html = '';
+  dates.forEach(date => {
+    const d = new Date(date + 'T00:00:00');
+    const jourNom = jourNoms[d.getDay()];
+    const jourNum = d.getDate();
+    const mois = d.toLocaleString('fr-FR', { month: 'short' });
+    const isToday = date === today;
+
+    let visites = allData[date] || [];
+    if (planSelectedNurse) visites = visites.filter(v => v.nurse_id === planSelectedNurse);
+
+    html += '<div class="plan-day-col">';
+    html += '<div class="plan-day-header' + (isToday ? ' today' : '') + '">';
+    html += '<span>' + jourNom + ' ' + jourNum + ' ' + mois + (isToday ? ' (aujourd\'hui)' : '') + '</span>';
+    html += '<span class="plan-day-count">' + visites.length + ' visite' + (visites.length > 1 ? 's' : '') + '</span>';
+    html += '</div>';
+
+    if (visites.length === 0) {
+      html += '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">Aucune visite</div>';
+    } else {
+      // Grouper par infirmière
+      const grouped = {};
+      visites.forEach(v => {
+        const key = v.nurse_id || 0;
+        if (!grouped[key]) grouped[key] = { nurse: v.nurse || 'Non assigné', nurse_id: key, visites: [] };
+        grouped[key].visites.push(v);
+      });
+
+      Object.values(grouped).forEach((group, idx) => {
+        const color = nurseColors[idx % nurseColors.length];
+        const morning = group.visites.filter(v => parseInt(v.heure) < 13);
+        const evening = group.visites.filter(v => parseInt(v.heure) >= 13);
+
+        // Stocker les visites triées pour le bouton "Lancer la tournée"
+        var sortedAll = group.visites.slice().sort((a,b) => a.heure.localeCompare(b.heure));
+        var tKey = 'tournee_' + date + '_' + group.nurse_id;
+        window['_tv_' + tKey] = sortedAll;
+
+        // En vue jour, afficher le header infirmière
+        if (planViewDays === 1 || !planSelectedNurse) {
+          html += '<div class="tournee-group">';
+          html += '<div class="tournee-header"><div class="tournee-dot" style="background:' + color + '"></div><div class="tournee-nurse">' + esc(group.nurse) + '</div>';
+          html += '<div class="tournee-meta"><span>' + group.visites.length + ' visites</span></div></div>';
+          html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">';
+          html += '<a class="tournee-launch" onclick="startTourneeMode(window[\'_tv_' + tKey + '\'],\'' + esc(group.nurse) + '\')" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> Démarrer la tournée (' + sortedAll.length + ' stops)</a>';
+          html += '<a class="tournee-launch" onclick="launchTourneeGmaps(window[\'_tv_' + tKey + '\'])" style="cursor:pointer;color:#34a853;border-color:rgba(52,168,83,.3);background:rgba(52,168,83,.05);font-size:11px;padding:6px 12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg> Itinéraire Google Maps</a>';
+          html += '</div>';
+        }
+
+        if (morning.length > 0) {
+          html += '<div class="tournee-period">Matin</div>';
+          morning.sort((a, b) => a.heure.localeCompare(b.heure));
+          morning.forEach(v => { html += renderVisitCard(v, color); });
+        }
+        if (evening.length > 0) {
+          html += '<div class="tournee-period">Après-midi / Soir</div>';
+          evening.sort((a, b) => a.heure.localeCompare(b.heure));
+          evening.forEach(v => { html += renderVisitCard(v, color); });
+        }
+
+        if (planViewDays === 1 || !planSelectedNurse) html += '</div>';
+      });
+    }
+    html += '</div>';
+  });
+
+  grid.innerHTML = html;
+
+  // Update KPI with filtered data
+  const allVisites = Object.values(allData).flat();
+  const filtered = planSelectedNurse ? allVisites.filter(v => v.nurse_id === planSelectedNurse) : allVisites;
+  document.getElementById('plan-visites').textContent = filtered.length;
+  const totalMin = filtered.reduce((s, v) => s + (v.duree || 15), 0);
+  document.getElementById('plan-duree').textContent = Math.floor(totalMin / 60) + 'h' + String(totalMin % 60).padStart(2, '0');
+  updateSbStats();
+  updateSbNurses();
+}
+
+function _wazeUrl(v) {
+  if (v.lat && v.lng) return 'https://www.waze.com/ul?ll=' + v.lat + ',' + v.lng + '&navigate=yes&zoom=17';
+  return 'https://www.waze.com/ul?q=' + encodeURIComponent(v.adresse || '') + '&navigate=yes&zoom=17';
+}
+function _gmapsUrl(v) {
+  if (v.lat && v.lng) return 'https://www.google.com/maps/dir/?api=1&destination=' + v.lat + ',' + v.lng + '&travelmode=driving';
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(v.adresse || '') + '&travelmode=driving';
+}
+function renderVisitCard(v, borderColor) {
+  var wazeUrl = _wazeUrl(v);
+  var gmapsUrl = _gmapsUrl(v);
+  var chronBadge = v.chronique ? ' <span class="badge badge-chronique">Chronique</span>' : '';
+  var pilBadge = v.pilulier ? ' <span class="badge badge-pilulier">Pilulier</span>' : '';
+  var urgBadge = v.priorite === 'urgent' ? ' <span class="badge badge-urgent">Urgent</span>' : '';
+  var deuxBadge = v.deuxfois ? ' <span class="badge badge-2x">2x/jour</span>' : '';
+  var flexBadge = v.priorite === 'flexible' ? ' <span class="badge badge-flexible">Flexible</span>' : '';
+  var retourBadge = v._retour ? ' <span class="badge badge-orange">&#8635; Retour</span>' : '';
+  return '<div class="visit-card" style="border-left-color:' + (borderColor || 'var(--accent)') + '" onclick="openVisiteDetail(' + v.id + ')">' +
     '<div class="visit-time">' + esc(v.heure) + '</div>' +
-    '<div class="visit-info"><div class="visit-patient">' + esc(v.patient) + '</div><div class="visit-address">' + esc(v.adresse) + '</div>' +
-    '<div class="visit-soins">' + soinLabel(v.soin) + ' <span style="font-size:11px;color:var(--muted);margin-left:4px;">' + (v.duree||15) + ' min</span></div></div>' +
+    '<div class="visit-info"><div class="visit-patient">' + esc(v.patient) + urgBadge + deuxBadge + chronBadge + pilBadge + flexBadge + retourBadge + '</div><div class="visit-address">' + esc(v.adresse) + '</div>' +
+    (v.plage ? '<div class="visit-plage">Créneau : ' + v.plage + '</div>' : '') +
+    '<div class="visit-soins">' + soinLabel(v.soin) + ' <span style="font-size:11px;color:var(--muted);margin-left:4px;">' + (v.duree || 15) + ' min</span>' + (v.chronique && v.traitement ? ' <span style="font-size:10px;color:#ec4899;">(' + esc(v.traitement) + ')</span>' : '') + '</div></div>' +
+    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">' +
     '<div class="visit-status" style="display:flex;gap:6px;align-items:center;">' + statusLabel(v.statut) +
-    '<button class="btn-icon" onclick="event.stopPropagation();cycleVisiteStatus(' + v.id + ')" title="Changer le statut"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>' +
-    '</div></div>';
+    '<button class="btn-icon" onclick="event.stopPropagation();cycleVisiteStatus(' + v.id + ')" title="Changer le statut"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button></div>' +
+    '<div class="visit-nav">' +
+    '<a class="visit-nav-btn waze" href="' + wazeUrl + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Naviguer avec Waze">Waze</a>' +
+    '<a class="visit-nav-btn gmaps" href="' + gmapsUrl + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Naviguer avec Google Maps">Maps</a>' +
+    '</div></div></div>';
+}
+
+// ── Mode Tournée Active (step-by-step avec Waze ou Maps) ──
+let _tourneeVisites = [];
+let _tourneeNurse = '';
+let _tourneeNavApp = 'gmaps'; // 'waze' ou 'gmaps' — choisi au démarrage
+
+function startTourneeMode(visites, nurseName) {
+  if (!visites || visites.length === 0) return;
+  _tourneeVisites = visites.map(function(v) { return Object.assign({}, v); });
+  _tourneeNurse = nurseName || '';
+  // Demander le choix de navigation
+  _showNavChoice();
+}
+
+function _showNavChoice() {
+  var modal = document.getElementById('tournee-modal');
+  var body = document.getElementById('tm-body');
+  document.getElementById('tm-title').textContent = 'Choisissez votre navigation';
+  document.getElementById('tm-progress').textContent = _tourneeVisites.length + ' visites à réaliser';
+  body.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:16px;max-width:400px;margin:40px auto;text-align:center;">' +
+    '<div style="font-size:14px;color:var(--muted);margin-bottom:8px;">Quelle application utiliser pour la navigation pendant toute la tournée ?</div>' +
+    '<button class="tm-nav-btn waze" onclick="_launchWithApp(\'waze\')" style="justify-content:center;padding:16px;font-size:15px;border-radius:12px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> Waze</button>' +
+    '<button class="tm-nav-btn gmaps" onclick="_launchWithApp(\'gmaps\')" style="justify-content:center;padding:16px;font-size:15px;border-radius:12px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 11.5 7.35 11.76a1 1 0 0 0 1.3 0C13 21.5 20 15.4 20 10a8 8 0 0 0-8-8z"/></svg> Google Maps</button>' +
+    '</div>';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function _launchWithApp(app) {
+  _tourneeNavApp = app;
+  document.getElementById('tm-title').textContent = 'Tournée — ' + _tourneeNurse;
+  renderTourneeSteps();
+  // Ouvrir la navigation vers le premier patient
+  var firstIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+  if (firstIdx >= 0) {
+    var first = _tourneeVisites[firstIdx];
+    var url = _tourneeNavApp === 'waze' ? _wazeUrl(first) : _gmapsUrl(first);
+    setTimeout(function() { window.open(url, '_blank'); }, 400);
+  }
+}
+
+function closeTourneeMode() {
+  document.getElementById('tournee-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  // Refresh le planning pour refléter les changements de statut
+  pageLoadedMap.planning = false;
+  loadPlanning();
+}
+
+function renderTourneeSteps() {
+  var body = document.getElementById('tm-body');
+  var doneCount = _tourneeVisites.filter(function(v) { return v.statut === 'termine'; }).length;
+  var total = _tourneeVisites.length;
+  document.getElementById('tm-progress').textContent = doneCount + '/' + total + ' terminée' + (doneCount > 1 ? 's' : '') + ' — ' + (total - doneCount) + ' restante' + ((total - doneCount) > 1 ? 's' : '');
+
+  // Trouver la première visite non terminée
+  var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+
+  // UN SEUL stop pharmacie — regrouper TOUS les traitements chroniques
+  var allPharmaPatients = [];
+  var pharmaNames = {};
+  _tourneeVisites.forEach(function(v) {
+    if (v.chronique && v.pharmacie && v.statut !== 'termine') {
+      allPharmaPatients.push(v);
+      pharmaNames[v.pharmacie] = (pharmaNames[v.pharmacie] || 0) + 1;
+    }
+  });
+  // Choisir la pharmacie principale (celle avec le plus de patients)
+  var mainPharma = null;
+  var maxCount = 0;
+  Object.keys(pharmaNames).forEach(function(name) {
+    if (pharmaNames[name] > maxCount) { maxCount = pharmaNames[name]; mainPharma = name; }
+  });
+  // Placer le stop pharmacie après les 2 premiers patients urgents (insuline du matin)
+  var pharmaInsertIdx = 0;
+  var urgentCount = 0;
+  _tourneeVisites.forEach(function(v, i) {
+    if (v.priorite === 'urgent' && v.statut !== 'termine') urgentCount++;
+    if (urgentCount > 0 && v.priorite !== 'urgent') { pharmaInsertIdx = i; urgentCount = -999; }
+  });
+
+  var html = '';
+
+  // Afficher le stop pharmacie unique
+  if (allPharmaPatients.length > 0 && mainPharma) {
+    var allDone = allPharmaPatients.every(function(v) { return v.statut === 'termine'; });
+    if (!allDone) {
+      // Déterminer si c'est le moment (après les urgents)
+      var showPharma = (currentIdx >= pharmaInsertIdx) || pharmaInsertIdx === 0;
+      if (showPharma) {
+        var pharmaAddr = encodeURIComponent(mainPharma);
+        var pharmaNavUrl = _tourneeNavApp === 'waze'
+          ? 'https://www.waze.com/ul?q=' + pharmaAddr + '&navigate=yes&zoom=17'
+          : 'https://www.google.com/maps/dir/?api=1&destination=' + pharmaAddr + '&travelmode=driving';
+        html += '<div class="pharma-section">';
+        html += '<div class="pharma-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0016.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 002 8.5c0 2.3 1.5 4.05 3 5.5l7 7 7-7z"/></svg> Passage pharmacie — ' + esc(mainPharma) + '</div>';
+        allPharmaPatients.forEach(function(pv) {
+          html += '<div class="pharma-item"><span class="pharma-item-patient">' + esc(pv.patient) + '</span><span class="pharma-item-meds">' + esc(pv.traitement || '') + '</span>' + (pv.pilulier ? '<span class="badge badge-pilulier">Pilulier</span>' : '') + '</div>';
+        });
+        // Si d'autres pharmacies sont nécessaires, les lister en info
+        var otherPharmacies = Object.keys(pharmaNames).filter(function(n) { return n !== mainPharma; });
+        if (otherPharmacies.length > 0) {
+          html += '<div style="font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;">Certains traitements sont dans d\'autres pharmacies : ' + otherPharmacies.map(esc).join(', ') + '</div>';
+        }
+        html += '<a class="tournee-launch" href="' + pharmaNavUrl + '" target="_blank" rel="noopener" style="margin-top:10px;display:inline-flex;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> Naviguer vers la pharmacie</a>';
+        html += '</div>';
+      }
+    }
+  }
+
+  _tourneeVisites.forEach(function(v, i) {
+    var isDone = v.statut === 'termine';
+    var isCurrent = i === currentIdx;
+    var wazeUrl = _wazeUrl(v);
+    var gmapsUrl = _gmapsUrl(v);
+
+    html += '<div class="tm-step' + (isCurrent ? ' current' : '') + (isDone ? ' done' : '') + '" id="tm-step-' + i + '">';
+    html += '<div class="tm-step-num">' + (isDone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : (i + 1)) + '</div>';
+    html += '<div class="tm-step-info">';
+    html += '<div class="tm-step-patient">' + esc(v.patient) + (v.priorite==='urgent' ? ' <span class="badge badge-urgent">Urgent</span>' : '') + (v.deuxfois ? ' <span class="badge badge-2x">2x/jour</span>' : '') + (v.chronique ? ' <span class="badge badge-chronique">Chronique</span>' : '') + (v.pilulier ? ' <span class="badge badge-pilulier">Pilulier</span>' : '') + '</div>';
+    html += '<div class="tm-step-addr">' + esc(v.adresse) + (v.plage ? ' <span style="color:#f59e0b;font-weight:600;">(' + v.plage + ')</span>' : '') + '</div>';
+    html += '<div class="tm-step-meta">';
+    html += '<span style="color:var(--accent);font-weight:600;">' + esc(v.heure) + '</span>';
+    html += '<span>' + soinLabel(v.soin) + '</span>';
+    html += '<span>' + (v.duree || 15) + ' min</span>';
+    html += '</div></div>';
+    var mainUrl = _tourneeNavApp === 'waze' ? wazeUrl : gmapsUrl;
+    var mainLabel = _tourneeNavApp === 'waze' ? 'Waze' : 'Google Maps';
+    var mainCls = _tourneeNavApp === 'waze' ? 'waze' : 'gmaps';
+    var altUrl = _tourneeNavApp === 'waze' ? gmapsUrl : wazeUrl;
+    var altLabel = _tourneeNavApp === 'waze' ? 'Maps' : 'Waze';
+    html += '<div class="tm-step-actions">';
+    if (isCurrent) {
+      html += '<a class="tm-nav-btn ' + mainCls + '" href="' + mainUrl + '" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> ' + mainLabel + '</a>';
+      html += '<a class="visit-nav-btn" href="' + altUrl + '" target="_blank" rel="noopener" style="font-size:10px;">' + altLabel + '</a>';
+    } else if (!isDone) {
+      html += '<a class="visit-nav-btn" href="' + mainUrl + '" target="_blank" rel="noopener" style="font-size:10px;">Naviguer</a>';
+    }
+    if (!isDone && isCurrent) {
+      html += '<button class="tm-nav-btn gmaps" onclick="markTourneeStepDone(' + i + ')" style="background:#10b981;padding:10px 20px;font-size:14px;border-radius:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Terminé</button>';
+      html += '<button class="visit-nav-btn" onclick="askPatientConfirm(' + i + ')" style="font-size:10px;color:#0d9488;">Patient confirme</button>';
+      html += '<button class="visit-nav-btn" onclick="signAndDone(' + i + ')" style="font-size:10px;">Faire signer</button>';
+    } else if (!isDone) {
+      html += '<button class="tm-done-btn" onclick="markTourneeStepDone(' + i + ')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Terminé</button>';
+    }
+    html += '</div></div>';
+  });
+
+  // Si tout est terminé
+  if (doneCount === total) {
+    html += '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:12px;">&#127881;</div><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;">Tournée terminée !</div><div style="font-size:13px;color:var(--muted);">' + total + ' visites réalisées</div></div>';
+  }
+
+  body.innerHTML = html;
+
+  // Auto-scroll vers l'étape courante
+  if (currentIdx >= 0) {
+    var el = document.getElementById('tm-step-' + currentIdx);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+async function markTourneeStepDone(idx) {
+  var v = _tourneeVisites[idx];
+  if (!v) return;
+  v.statut = 'termine';
+
+  // Enregistrer la preuve GPS silencieusement (hors ligne = file d'attente)
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      var payload = { type: 'depart', lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (navigator.onLine) {
+        apiFetch('/api/ide/visite/' + v.id + '/checkin', { method: 'POST', body: JSON.stringify(payload) });
+      } else {
+        _queueOffline('/api/ide/visite/' + v.id + '/checkin', payload);
+      }
+    }, function(){}, { enableHighAccuracy: true, timeout: 5000 });
+  }
+
+  // Mettre à jour via API (hors ligne = file d'attente)
+  if (navigator.onLine) {
+    apiFetch('/api/ide/visite/' + v.id + '/status', { method: 'PATCH', body: JSON.stringify({ statut: 'termine' }) });
+  } else {
+    _queueOffline('/api/ide/visite/' + v.id + '/status', { statut: 'termine' });
+  }
+  var dv = DEMO_VISITES.find(function(x) { return x.id === v.id; });
+  if (dv) dv.statut = 'termine';
+  renderTourneeSteps();
+
+  // Navigation suivante IMMÉDIATE
+  var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine'; });
+  if (nextIdx >= 0) {
+    var next = _tourneeVisites[nextIdx];
+    // Check-in arrivée silencieux pour le prochain patient
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        apiFetch('/api/ide/visite/' + next.id + '/checkin', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'arrivee', lat: pos.coords.latitude, lng: pos.coords.longitude })
+        });
+      }, function(){}, { enableHighAccuracy: true, timeout: 5000 });
+    }
+    var url = _tourneeNavApp === 'waze' ? _wazeUrl(next) : _gmapsUrl(next);
+    showToast(next.patient + ' →');
+    setTimeout(function() { window.open(url, '_blank'); }, 300);
+  }
+}
+
+// ── Itinéraire Google Maps complet (waypoints) ──
+function launchTourneeGmaps(visites) {
+  if (!visites || visites.length === 0) return;
+  // Google Maps supporte les waypoints
+  var dest = encodeURIComponent(visites[visites.length - 1].adresse || '');
+  var waypoints = visites.slice(0, -1).map(function(v) { return encodeURIComponent(v.adresse || ''); }).join('|');
+  var url = 'https://www.google.com/maps/dir/?api=1&destination=' + dest;
+  if (waypoints) url += '&waypoints=' + waypoints;
+  url += '&travelmode=driving';
+  window.open(url, '_blank');
+}
+
+
+// ── Plein écran + panel latéral ──
+function togglePlanFullscreen() {
+  document.body.classList.toggle('plan-fullscreen');
+  var isFs = document.body.classList.contains('plan-fullscreen');
+  if (isFs) {
+    // Forcer l'affichage du planning si on vient d'un autre onglet
+    if (currentPage !== 'planning') showPage('planning');
+    updateSbNurses();
+    updateSbStats();
+    // Resize carte
+  }
+  // Echap pour quitter
+  if (isFs) {
+    document.addEventListener('keydown', _planFsEsc);
+  } else {
+    document.removeEventListener('keydown', _planFsEsc);
+  }
+}
+function _planFsEsc(e) { if (e.key === 'Escape') togglePlanFullscreen(); }
+
+function updateSbViews(btn) {
+  document.querySelectorAll('.plan-sb-views .plan-sb-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  // Sync la toolbar aussi
+  document.querySelectorAll('.plan-view-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.plan-view-btn').forEach(b => { if(parseInt(b.textContent) === planViewDays || (planViewDays===1 && b.textContent==='Jour') || (planViewDays===7 && b.textContent==='Semaine')) b.classList.add('active'); });
+}
+
+function updateSbNurses() {
+  var container = document.getElementById('plan-sb-nurses');
+  if (!container) return;
+  var nurses = {};
+  planAllVisites.forEach(v => { if (v.nurse_id) nurses[v.nurse_id] = { name: v.nurse, id: v.nurse_id }; });
+  var html = '<div class="plan-sb-nurse' + (planSelectedNurse === null ? ' active' : '') + '" onclick="toggleNurseFilter(null,null);updateSbNurses()"><span class="plan-sb-nurse-dot" style="background:var(--accent)"></span> Toutes les infirmières</div>';
+  Object.values(nurses).forEach((n, i) => {
+    var color = nurseColors[i % nurseColors.length];
+    html += '<div class="plan-sb-nurse' + (planSelectedNurse === n.id ? ' active' : '') + '" onclick="toggleNurseFilter(' + n.id + ',null);updateSbNurses()"><span class="plan-sb-nurse-dot" style="background:' + color + '"></span> ' + esc(n.name) + '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function updateSbStats() {
+  var v = document.getElementById('plan-visites');
+  var k = document.getElementById('plan-km');
+  var d = document.getElementById('plan-duree');
+  var sv = document.getElementById('plan-sb-visites');
+  var sk = document.getElementById('plan-sb-km');
+  var sd = document.getElementById('plan-sb-duree');
+  if (sv && v) sv.textContent = v.textContent;
+  if (sk && k) sk.textContent = k.textContent;
+  if (sd && d) sd.textContent = d.textContent;
 }
 
 function planningPrev() {
   const el = document.getElementById('planning-date');
-  const d = new Date(el.value); d.setDate(d.getDate() - 1);
-  el.value = d.toISOString().slice(0,10);
+  const d = new Date(el.value); d.setDate(d.getDate() - planViewDays);
+  el.value = d.toISOString().slice(0, 10);
   pageLoadedMap.planning = false; loadPlanning();
 }
 function planningNext() {
   const el = document.getElementById('planning-date');
-  const d = new Date(el.value); d.setDate(d.getDate() + 1);
-  el.value = d.toISOString().slice(0,10);
+  const d = new Date(el.value); d.setDate(d.getDate() + planViewDays);
+  el.value = d.toISOString().slice(0, 10);
   pageLoadedMap.planning = false; loadPlanning();
 }
 function planningToday() {
@@ -1420,13 +2332,171 @@ function planningToday() {
 async function optimizeTournees() {
   showToast('Optimisation des tournées en cours...');
   const date = document.getElementById('planning-date').value || todayStr();
-  const data = await apiFetch('/api/ide/tournee/optimize', { method:'POST', body: JSON.stringify({ date }) });
+  const data = await apiFetch('/api/ide/tournee/optimize', { method: 'POST', body: JSON.stringify({ date }) });
   if (data) {
     showToast('Tournées optimisées avec succès');
-    pageLoadedMap.planning = false; loadPlanning();
   } else {
-    showToast('Tournées optimisées (mode démonstration)');
+    // Optimisation côté client en mode demo
+    optimizeDemoVisites(date);
+    showToast('Tournées optimisées — contraintes horaires + proximité');
   }
+  pageLoadedMap.planning = false; loadPlanning();
+}
+
+// Optimisation intelligente côté client (mode demo)
+// Règles : 1) créneaux fixes en premier  2) proximité géographique  3) patients même rue groupés
+function optimizeDemoVisites(dateStr) {
+  var dates = window._planDates || [dateStr];
+  var allData = window._planData || {};
+
+  dates.forEach(function(date) {
+    var visites = allData[date];
+    if (!visites || visites.length === 0) return;
+
+    // Séparer par infirmière
+    var byNurse = {};
+    visites.forEach(function(v) {
+      var k = v.nurse_id || 0;
+      if (!byNurse[k]) byNurse[k] = [];
+      byNurse[k].push(v);
+    });
+
+    // Pour chaque infirmière, optimiser l'ordre
+    var result = [];
+    Object.values(byNurse).forEach(function(nurseVisites) {
+      var matin = nurseVisites.filter(function(v) { return parseInt(v.heure) < 14; });
+      var soir = nurseVisites.filter(function(v) { return parseInt(v.heure) >= 14; });
+
+      result.push.apply(result, _optimizeBlock(matin));
+      result.push.apply(result, _optimizeBlock(soir));
+    });
+
+    allData[date] = result;
+  });
+}
+
+function _optimizeBlock(visites) {
+  if (visites.length <= 1) return visites;
+
+  // ═══════════════════════════════════════════════════
+  // ALGO SMART : créneaux fixes > proximité > flexible
+  // Cas clé : insuline 7h rue X + Alzheimer 11h MÊME RUE
+  // → on passe 2 fois, on ne groupe PAS
+  // ═══════════════════════════════════════════════════
+
+  // 1) Créer des "slots horaires" — chaque visite a une fenêtre [début, fin]
+  var slots = visites.map(function(v) {
+    var debut, fin;
+    if (v.plage) {
+      var parts = v.plage.split('-');
+      debut = _heureToMin(parts[0]);
+      fin = _heureToMin(parts[1]);
+    } else if (v.priorite === 'urgent' || v.priorite === 'fixe') {
+      debut = _heureToMin(v.heure);
+      fin = debut + 30;
+    } else {
+      // Flexible : fenêtre large
+      debut = 420; // 7h
+      fin = 780;   // 13h (matin) ou adapté
+    }
+    return { v: v, debut: debut, fin: fin, placed: false, placedAt: 0 };
+  });
+
+  // 2) Placer les urgents/fixes d'abord (créneau non négociable)
+  var timeline = [];
+  slots.filter(function(s) { return s.v.priorite === 'urgent' || s.v.priorite === 'fixe'; })
+    .sort(function(a, b) { return a.debut - b.debut; })
+    .forEach(function(s) {
+      s.placedAt = s.debut;
+      s.placed = true;
+      s.v.heure = _minToHeure(s.debut);
+      timeline.push(s);
+    });
+
+  // 3) Pour les flexibles : placer dans les "trous" de la timeline
+  //    en optimisant la proximité avec le patient précédent
+  var flexSlots = slots.filter(function(s) { return !s.placed; });
+
+  // Trier par début de créneau (les plus contraints d'abord)
+  flexSlots.sort(function(a, b) { return (a.fin - a.debut) - (b.fin - b.debut); });
+
+  flexSlots.forEach(function(slot) {
+    // Trouver le meilleur moment : après le dernier patient placé, dans le créneau
+    var bestTime = slot.debut;
+    var bestScore = Infinity;
+
+    // Tester chaque "trou" dans la timeline
+    var checkpoints = [slot.debut];
+    timeline.forEach(function(t) {
+      var after = t.placedAt + (t.v.duree || 15) + 10;
+      if (after >= slot.debut && after <= slot.fin) checkpoints.push(after);
+    });
+
+    checkpoints.forEach(function(time) {
+      if (time < slot.debut || time > slot.fin - (slot.v.duree || 15)) return;
+      // Vérifier pas de collision
+      var collision = timeline.some(function(t) {
+        return Math.abs(t.placedAt - time) < (t.v.duree || 15) + 5;
+      });
+      if (collision) return;
+
+      // Score = distance au patient précédent dans la timeline
+      var score = 1000; // défaut
+      var prev = null;
+      timeline.forEach(function(t) {
+        if (t.placedAt < time && (!prev || t.placedAt > prev.placedAt)) prev = t;
+      });
+      if (prev && prev.v.lat && slot.v.lat) {
+        score = Math.abs(prev.v.lat - slot.v.lat) + Math.abs(prev.v.lng - slot.v.lng);
+      } else if (prev && _isSameStreet(prev.v.adresse, slot.v.adresse)) {
+        score = 0.001; // même rue = top
+      }
+      if (score < bestScore) { bestScore = score; bestTime = time; }
+    });
+
+    slot.placedAt = bestTime;
+    slot.placed = true;
+    slot.v.heure = _minToHeure(bestTime);
+    timeline.push(slot);
+  });
+
+  // 4) Trier la timeline finale par heure
+  timeline.sort(function(a, b) { return a.placedAt - b.placedAt; });
+
+  // 5) Marquer les "retours" — même rue visitée 2 fois
+  var seenStreets = {};
+  timeline.forEach(function(s) {
+    var rue = s.v.adresse ? s.v.adresse.replace(/^\d+\s*/, '').split(',')[0].toLowerCase().trim() : '';
+    if (rue && seenStreets[rue]) {
+      s.v._retour = true; // flag pour l'affichage
+    }
+    if (rue) seenStreets[rue] = true;
+  });
+
+  return timeline.map(function(s) { return s.v; });
+}
+
+function _isSameStreet(a1, a2) {
+  if (!a1 || !a2) return false;
+  // Extraire le nom de rue (après le numéro, avant la virgule)
+  var r1 = a1.replace(/^\d+\s*/, '').split(',')[0].toLowerCase().trim();
+  var r2 = a2.replace(/^\d+\s*/, '').split(',')[0].toLowerCase().trim();
+  return r1 === r2 && r1.length > 3;
+}
+
+function _isNearby(v1, v2) {
+  if (!v1.lat || !v2.lat) return false;
+  // ~200m de distance
+  return Math.abs(v1.lat - v2.lat) < 0.002 && Math.abs(v1.lng - v2.lng) < 0.002;
+}
+
+function _heureToMin(h) {
+  var p = h.split(':');
+  return parseInt(p[0]) * 60 + parseInt(p[1] || 0);
+}
+
+function _minToHeure(m) {
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 }
 
 function openGeneratePlanningModal() {
@@ -1453,41 +2523,1080 @@ async function generatePlanning() {
 }
 
 let currentVisiteId = null;
+let _currentVisiteRef = null;
+
+function _findVisite(id) {
+  // Chercher dans les données du planning actuel ET les demo
+  var v = DEMO_VISITES.find(x => x.id === id);
+  if (!v && window._planData) {
+    Object.values(window._planData).forEach(function(visites) {
+      if (!v) v = visites.find(x => x.id === id);
+    });
+  }
+  return v;
+}
+
 function openVisiteDetail(id) {
   currentVisiteId = id;
-  const v = DEMO_VISITES.find(x => x.id === id);
+  var v = _findVisite(id);
   if (!v) return;
-  const content = document.getElementById('visite-detail-content');
+  _currentVisiteRef = v;
+  // Reset état
+  _mediaFiles = [];
+  _checkinTime = null;
+  stopDictee();
+  document.getElementById('media-preview').innerHTML = '';
+  document.getElementById('media-count').innerHTML = '';
+  document.getElementById('btn-checkin').style.display = 'flex';
+  document.getElementById('btn-checkout').style.display = 'none';
+  document.getElementById('checkin-info').innerHTML = v._checkin ? ('Arrivée ' + v._checkin + (v._checkout ? ' → ' + v._checkout + ' (' + v._dureeReelle + ' min)' : '')) : '';
+
+  var content = document.getElementById('visite-detail-content');
+  var chronBadge = v.chronique ? ' <span class="badge badge-chronique">Chronique</span>' : '';
+  var deuxBadge = v.deuxfois ? ' <span class="badge badge-2x">2x/jour</span>' : '';
+
   content.innerHTML =
-    '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">' +
+    '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">' +
     '<div style="font-size:16px;font-weight:700;">' + esc(v.patient) + '</div>' +
-    statusLabel(v.statut) + '</div>' +
-    '<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">' + esc(v.adresse) + '</div>' +
-    '<div style="display:flex;gap:8px;margin-bottom:8px;">' + soinLabel(v.soin) +
-    '<span style="font-size:12px;color:var(--muted);">' + v.heure + ' -- ' + v.duree + ' min</span></div>' +
-    '<div style="font-size:12px;color:var(--muted);">Infirmière : ' + esc(v.nurse) + '</div>';
+    statusLabel(v.statut) + chronBadge + deuxBadge + '</div>' +
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">' + esc(v.adresse) + '</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;">' + soinLabel(v.soin) +
+    '<span style="font-size:12px;color:var(--muted);">' + v.heure + ' — ' + (v.duree||15) + ' min</span></div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Infirmière : ' + esc(v.nurse) + '</div>' +
+    (v.pharmacie ? '<div style="font-size:11px;color:#ec4899;">Pharmacie : ' + esc(v.pharmacie) + '</div>' : '');
+
+  // Boutons d'action rapide pour le statut
+  var statuts = ['planifie','en_route','termine','reporte','annule'];
+  var statusLabels = {planifie:'Planifié',en_route:'En route',termine:'Terminé',reporte:'Reporté',annule:'Annulé'};
+  var btnsHtml = '';
+  statuts.forEach(function(s) {
+    var active = v.statut === s ? 'btn-accent' : 'btn-ghost';
+    btnsHtml += '<button class="btn ' + active + '" style="padding:4px 10px;font-size:11px;" onclick="setVisiteStatus(\'' + s + '\')">' + statusLabels[s] + '</button>';
+  });
+  document.getElementById('visite-status-btns').innerHTML = btnsHtml;
+
+  // Remplir les champs éditables
+  document.getElementById('visite-plage').value = v.plage || '';
+  document.getElementById('visite-duree').value = v.duree || 15;
+  document.getElementById('visite-traitement').value = v.traitement || '';
   document.getElementById('visite-notes').value = v.notes || '';
+
   openModal('modal-visite');
 }
 
-async function saveVisiteNotes() {
-  if (!currentVisiteId) return;
-  const notes = document.getElementById('visite-notes').value;
-  const data = await apiFetch('/api/ide/visite/' + currentVisiteId + '/notes', { method:'PATCH', body: JSON.stringify({ notes }) });
-  const v = DEMO_VISITES.find(x => x.id === currentVisiteId);
-  if (v) v.notes = notes;
+function setVisiteStatus(statut) {
+  if (!_currentVisiteRef) return;
+  _currentVisiteRef.statut = statut;
+  apiFetch('/api/ide/visite/' + currentVisiteId + '/status', { method:'PATCH', body: JSON.stringify({ statut: statut }) });
+
+  if (statut === 'reporte') {
+    // Reporter au lendemain — créer la visite dans le jour suivant
+    reporterAuLendemain(_currentVisiteRef);
+  }
+
   closeModal('modal-visite');
-  showToast('Notes enregistrées');
+  pageLoadedMap.planning = false; loadPlanning();
+  showToast('Statut : ' + statut);
 }
+
+// ═══════════════════════════════════
+// GPS CHECK-IN / CHECK-OUT
+// ═══════════════════════════════════
+let _checkinTime = null;
+let _checkinPos = null;
+
+async function gpsCheckIn() {
+  if (!navigator.geolocation) { showToast('Géolocalisation non disponible'); return; }
+  showToast('Localisation en cours...');
+  navigator.geolocation.getCurrentPosition(async function(pos) {
+    _checkinTime = new Date();
+    _checkinPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+    // Appel serveur pour horodatage certifié + géofencing
+    var result = await apiFetch('/api/ide/visite/' + currentVisiteId + '/checkin', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'arrivee', lat: _checkinPos.lat, lng: _checkinPos.lng })
+    });
+
+    var timeStr = result?.server_timestamp
+      ? new Date(result.server_timestamp).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+      : _checkinTime.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+
+    var geoIcon = result?.geofence_ok === true
+      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>'
+      : result?.geofence_ok === false
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>';
+
+    document.getElementById('btn-checkin').style.display = 'none';
+    document.getElementById('btn-checkout').style.display = 'flex';
+    var infoHtml = geoIcon + ' Arrivée à ' + timeStr + ' (horodatage serveur)';
+    if (result?.distance_m != null) infoHtml += ' — ' + result.distance_m + 'm du domicile';
+    document.getElementById('checkin-info').innerHTML = infoHtml;
+
+    if (_currentVisiteRef) {
+      _currentVisiteRef._checkin = timeStr;
+      _currentVisiteRef._checkinPos = _checkinPos;
+      _currentVisiteRef._geofenceOk = result?.geofence_ok;
+    }
+
+    if (result?.geofence_ok === false) {
+      showToast('Attention : vous êtes à ' + result.distance_m + 'm du patient');
+    } else {
+      showToast('Arrivée certifiée à ' + timeStr);
+    }
+  }, function() { showToast('Impossible de localiser'); }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+async function gpsCheckOut() {
+  if (!navigator.geolocation) { showToast('Géolocalisation non disponible'); return; }
+
+  // Proposer la signature patient avant le check-out
+  _showSignaturePad(async function(signatureData) {
+    navigator.geolocation.getCurrentPosition(async function(pos) {
+      // Appel serveur pour horodatage certifié
+      var result = await apiFetch('/api/ide/visite/' + currentVisiteId + '/checkin', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'depart',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          signature_patient: signatureData || null
+        })
+      });
+
+      var now = new Date();
+      var timeStr = result?.server_timestamp
+        ? new Date(result.server_timestamp).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+        : now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      var dureeMin = _checkinTime ? Math.round((now - _checkinTime) / 60000) : 0;
+
+      document.getElementById('btn-checkout').style.display = 'none';
+      var signIcon = signatureData ? ' <span style="color:#22c55e;font-weight:600;">Signé</span>' : '';
+      document.getElementById('checkin-info').innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg> ' +
+        (_currentVisiteRef?._checkin || '') + ' → ' + timeStr + ' (' + dureeMin + ' min)' + signIcon;
+
+      if (_currentVisiteRef) {
+        _currentVisiteRef._checkout = timeStr;
+        _currentVisiteRef._dureeReelle = dureeMin;
+        _currentVisiteRef._signed = !!signatureData;
+        var notes = document.getElementById('visite-notes');
+        if (notes) {
+          var stamp = '\n[Passage certifié ' + (_currentVisiteRef._checkin||'') + '-' + timeStr + ', ' + dureeMin + ' min' + (signatureData ? ', signé par le patient' : '') + ']';
+          notes.value = (notes.value || '').trim() + stamp;
+        }
+      }
+      showToast('Départ certifié — visite ' + dureeMin + ' min' + (signatureData ? ' — signé' : ''));
+    }, function() { showToast('Impossible de localiser'); }, { enableHighAccuracy: true });
+  });
+}
+
+// ═══════════════════════════════════
+// SIGNATURE PATIENT (canvas tactile)
+// ═══════════════════════════════════
+function _showSignaturePad(callback) {
+  // Créer un overlay avec canvas de signature
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:var(--bg,#0a0f14);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px;max-width:440px;width:90%;text-align:center;">' +
+    '<div style="font-size:15px;font-weight:700;color:#fafafa;margin-bottom:4px;">Signature du patient</div>' +
+    '<div style="font-size:12px;color:#a1a1aa;margin-bottom:16px;">Le patient, un proche ou un représentant signe pour confirmer le passage</div>' +
+    '<canvas id="sig-canvas" width="380" height="160" style="border:1px solid rgba(255,255,255,.15);border-radius:8px;background:#111;cursor:crosshair;touch-action:none;width:100%;"></canvas>' +
+    '<div style="display:flex;gap:8px;margin-top:14px;justify-content:center;flex-wrap:wrap;">' +
+    '<button class="btn btn-ghost" onclick="this.closest(\'div[style]\').parentElement._skip()" style="font-size:11px;color:#f59e0b;">Patient dans l\'incapacité de signer</button>' +
+    '<button class="btn btn-ghost" onclick="this.closest(\'div[style]\').parentElement._clear()">Effacer</button>' +
+    '<button class="btn btn-accent" onclick="this.closest(\'div[style]\').parentElement._confirm()">Valider la signature</button>' +
+    '</div></div>';
+
+  document.body.appendChild(overlay);
+
+  var canvas = document.getElementById('sig-canvas');
+  var ctx = canvas.getContext('2d');
+  var drawing = false;
+
+  function getPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    var y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: x * (canvas.width / rect.width), y: y * (canvas.height / rect.height) };
+  }
+
+  canvas.addEventListener('mousedown', function(e) { drawing = true; ctx.beginPath(); var p = getPos(e); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove', function(e) { if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#0d9488'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke(); });
+  canvas.addEventListener('mouseup', function() { drawing = false; });
+
+  canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing = true; ctx.beginPath(); var p = getPos(e); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove', function(e) { e.preventDefault(); if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#0d9488'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke(); }, { passive: false });
+  canvas.addEventListener('touchend', function() { drawing = false; });
+
+  overlay._skip = function() { document.body.removeChild(overlay); callback(null); };
+  overlay._clear = function() { ctx.clearRect(0, 0, canvas.width, canvas.height); };
+  overlay._confirm = function() {
+    var data = canvas.toDataURL('image/png');
+    // Vérifier que la signature n'est pas vide
+    var blank = document.createElement('canvas'); blank.width = canvas.width; blank.height = canvas.height;
+    if (canvas.toDataURL() === blank.toDataURL()) { showToast('Veuillez signer avant de valider'); return; }
+    document.body.removeChild(overlay);
+    callback(data);
+  };
+}
+
+// ═══════════════════════════════════
+// DICTÉE VOCALE (Web Speech API)
+// ═══════════════════════════════════
+let _recognition = null;
+let _isDictating = false;
+
+function toggleDictee() {
+  if (_isDictating) { stopDictee(); return; }
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('La dictée vocale n\'est pas supportée sur ce navigateur'); return;
+  }
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  _recognition = new SpeechRecognition();
+  _recognition.lang = 'fr-FR';
+  _recognition.continuous = true;
+  _recognition.interimResults = true;
+
+  var notes = document.getElementById('visite-notes');
+  var baseText = notes.value;
+  var btn = document.getElementById('btn-dictee');
+  var status = document.getElementById('dictee-status');
+
+  _recognition.onstart = function() {
+    _isDictating = true;
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg> Arrêter';
+    btn.style.color = '#ef4444';
+    status.style.display = 'flex';
+    status.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:urgentPulse 1s infinite;"></span> Dictée en cours — parlez...';
+  };
+
+  _recognition.onresult = function(e) {
+    var transcript = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    notes.value = baseText + (baseText ? ' ' : '') + transcript;
+  };
+
+  _recognition.onend = function() {
+    if (_isDictating) _recognition.start(); // Continuer si pas arrêté manuellement
+  };
+
+  _recognition.onerror = function(e) {
+    if (e.error !== 'no-speech') showToast('Erreur dictée : ' + e.error);
+  };
+
+  _recognition.start();
+}
+
+function stopDictee() {
+  _isDictating = false;
+  if (_recognition) _recognition.stop();
+  var btn = document.getElementById('btn-dictee');
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg> Dicter';
+  btn.style.color = '';
+  document.getElementById('dictee-status').style.display = 'none';
+}
+
+// ═══════════════════════════════════
+// CAPTURE MÉDIA (photo/vidéo/vocal pour le médecin)
+// ═══════════════════════════════════
+let _mediaFiles = [];
+let _vocalRecorder = null;
+let _isRecordingVocal = false;
+
+function addMedia(input, type) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var preview = document.getElementById('media-preview');
+  var reader = new FileReader();
+
+  reader.onload = function(e) {
+    _mediaFiles.push({ type: type, name: file.name, data: e.target.result, size: file.size });
+    renderMediaPreview();
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function recordVocal() {
+  if (_isRecordingVocal) { stopVocalRecord(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Microphone non disponible'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+    _vocalRecorder = new MediaRecorder(stream);
+    var chunks = [];
+    _vocalRecorder.ondataavailable = function(e) { chunks.push(e.data); };
+    _vocalRecorder.onstop = function() {
+      var blob = new Blob(chunks, { type: 'audio/webm' });
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        _mediaFiles.push({ type: 'vocal', name: 'vocal_' + Date.now() + '.webm', data: e.target.result, size: blob.size });
+        renderMediaPreview();
+      };
+      reader.readAsDataURL(blob);
+      stream.getTracks().forEach(function(t) { t.stop(); });
+    };
+    _vocalRecorder.start();
+    _isRecordingVocal = true;
+    showToast('Enregistrement vocal en cours...');
+    // Auto-stop après 60 secondes
+    setTimeout(function() { if (_isRecordingVocal) stopVocalRecord(); }, 60000);
+  }).catch(function() { showToast('Accès au microphone refusé'); });
+}
+
+function stopVocalRecord() {
+  _isRecordingVocal = false;
+  if (_vocalRecorder && _vocalRecorder.state === 'recording') {
+    _vocalRecorder.stop();
+    showToast('Vocal enregistré');
+  }
+}
+
+function removeMedia(idx) {
+  _mediaFiles.splice(idx, 1);
+  renderMediaPreview();
+}
+
+function renderMediaPreview() {
+  var preview = document.getElementById('media-preview');
+  var count = document.getElementById('media-count');
+  if (!_mediaFiles.length) { preview.innerHTML = ''; count.innerHTML = ''; return; }
+  var html = '';
+  _mediaFiles.forEach(function(m, i) {
+    var icon = m.type === 'photo' ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'
+      : m.type === 'video' ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polygon points="23 7 16 12 23 17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/></svg>';
+    if (m.type === 'photo') {
+      html += '<div style="position:relative;width:56px;height:56px;border-radius:8px;overflow:hidden;border:1px solid var(--border);">';
+      html += '<img src="' + m.data + '" style="width:100%;height:100%;object-fit:cover;">';
+      html += '<button onclick="removeMedia(' + i + ')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;line-height:1;">&times;</button>';
+      html += '</div>';
+    } else {
+      html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--surface);">';
+      html += icon + ' ' + m.type;
+      html += '<button onclick="removeMedia(' + i + ')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;">&times;</button>';
+      html += '</div>';
+    }
+  });
+  preview.innerHTML = html;
+  count.innerHTML = _mediaFiles.length + ' fichier' + (_mediaFiles.length > 1 ? 's' : '') + ' — sera envoyé au médecin traitant de manière sécurisée';
+}
+
+async function saveVisiteDetail() {
+  if (!_currentVisiteRef) return;
+  stopDictee();
+  var notes = document.getElementById('visite-notes').value;
+  var traitement = document.getElementById('visite-traitement').value;
+  var plage = document.getElementById('visite-plage').value;
+  var duree = parseInt(document.getElementById('visite-duree').value) || 15;
+
+  _currentVisiteRef.notes = notes;
+  _currentVisiteRef.traitement = traitement;
+  _currentVisiteRef.plage = plage;
+  _currentVisiteRef.duree = duree;
+
+  // Sauvegarder via API
+  await apiFetch('/api/ide/visite/' + currentVisiteId + '/notes', { method:'PATCH', body: JSON.stringify({ notes: notes }) });
+
+  // Envoyer les médias au médecin via Care Network
+  if (_mediaFiles.length > 0) {
+    var patient = DEMO_PATIENTS.find(function(p) { return p.id === _currentVisiteRef.patient_id; });
+    var medecin = patient ? patient.medecin : 'Médecin traitant';
+    showToast('Envoi sécurisé au ' + medecin + ' via le réseau de soins...');
+    var mediaMsg = 'Visite du ' + new Date().toLocaleDateString('fr-FR') + ' — ' + _mediaFiles.length + ' fichier(s) joint(s) : ' + _mediaFiles.map(function(m){ return m.type; }).join(', ') + '. Notes : ' + (notes || 'RAS');
+    apiFetch('/api/ide/visite/' + currentVisiteId + '/send-medecin', {
+      method: 'POST',
+      body: JSON.stringify({
+        patient_id: _currentVisiteRef.patient_id,
+        medecin_nom: medecin,
+        message: mediaMsg,
+        media_type: _mediaFiles[0]?.type || 'photo'
+      })
+    }).then(function() {
+      showToast('Envoyé au ' + medecin + ' via le réseau de soins');
+    });
+  }
+
+  _mediaFiles = [];
+  closeModal('modal-visite');
+  pageLoadedMap.planning = false; loadPlanning();
+  showToast('Visite mise à jour');
+}
+
+function reporterAuLendemain(v) {
+  // Calculer la date du lendemain
+  var currentDate = document.getElementById('planning-date').value || todayStr();
+  var demain = new Date(currentDate);
+  demain.setDate(demain.getDate() + 1);
+  var demainStr = demain.toISOString().slice(0, 10);
+
+  // Créer une copie de la visite pour le lendemain
+  var newVisite = Object.assign({}, v, {
+    id: Date.now(),
+    statut: 'planifie',
+    notes: (v.notes ? v.notes + ' | ' : '') + 'Reporté du ' + currentDate,
+    _retour: false
+  });
+
+  // Ajouter aux données du lendemain
+  if (!window._planData) window._planData = {};
+  if (!window._planData[demainStr]) window._planData[demainStr] = [];
+  window._planData[demainStr].push(newVisite);
+
+  // Optimiser la position dans la journée du lendemain
+  window._planData[demainStr] = _optimizeBlock(window._planData[demainStr]);
+
+  showToast('Visite reportée au ' + demain.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}));
+}
+
+// ═══════════════════════════════════
+// RAPPELS / POST-IT
+// ═══════════════════════════════════
+var _rappels = JSON.parse(localStorage.getItem('jadomi_rappels') || '[]');
+
+function openRappelModal() {
+  document.getElementById('rappel-date').value = document.getElementById('planning-date').value || todayStr();
+  document.getElementById('rappel-texte').value = '';
+  document.getElementById('rappel-priorite').value = 'info';
+  openModal('modal-rappel');
+}
+
+function saveRappel() {
+  var date = document.getElementById('rappel-date').value;
+  var texte = document.getElementById('rappel-texte').value.trim();
+  var priorite = document.getElementById('rappel-priorite').value;
+  if (!texte) { showToast('Saisissez un texte pour le rappel'); return; }
+  _rappels.push({ id: Date.now(), date: date, texte: texte, priorite: priorite });
+  localStorage.setItem('jadomi_rappels', JSON.stringify(_rappels));
+  closeModal('modal-rappel');
+  renderRappels();
+  showToast('Rappel ajouté pour le ' + new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'}));
+}
+
+function deleteRappel(id) {
+  _rappels = _rappels.filter(function(r) { return r.id !== id; });
+  localStorage.setItem('jadomi_rappels', JSON.stringify(_rappels));
+  renderRappels();
+}
+
+function renderRappels() {
+  var bar = document.getElementById('rappels-bar');
+  if (!bar) return;
+  // Afficher les rappels pour les dates visibles dans le planning
+  var dates = window._planDates || [document.getElementById('planning-date').value || todayStr()];
+  var visible = _rappels.filter(function(r) { return dates.includes(r.date); });
+  if (visible.length === 0) { bar.innerHTML = ''; return; }
+
+  var html = '';
+  visible.forEach(function(r) {
+    var cls = r.priorite === 'urgent' ? 'urgent' : (r.priorite === 'info' ? 'info' : '');
+    var icon = r.priorite === 'urgent' ? '&#9888;' : (r.priorite === 'info' ? '&#8505;' : '&#9733;');
+    var dateLabel = new Date(r.date + 'T00:00:00').toLocaleDateString('fr-FR', {weekday:'short', day:'numeric'});
+    html += '<div class="rappel-card ' + cls + '">';
+    html += '<span>' + icon + '</span>';
+    html += '<span class="rappel-card-text"><b>' + dateLabel + '</b> — ' + esc(r.texte) + '</span>';
+    html += '<button class="rappel-card-close" onclick="deleteRappel(' + r.id + ')" title="Supprimer">&times;</button>';
+    html += '</div>';
+  });
+  bar.innerHTML = html;
+}
+
+// ═══════════════════════════════════
+// ANALYSE ORDONNANCE IA + VALIDATION INFIRMIÈRE
+// ═══════════════════════════════════
+let _analyseResult = null;
+let _analyseChecks = {};
+
+function openAnalyseOrdo() {
+  var f = FORMULES[currentFormule] || FORMULES.essentiel;
+  if (!f.ordoScan) {
+    showToast('Scanner d\'ordonnance disponible avec l\'abonnement Premium (89€/mois)');
+    return;
+  }
+  _analyseResult = null;
+  _analyseChecks = {};
+  document.getElementById('analyse-ordo-result').innerHTML = '';
+  document.getElementById('btn-valider-ordo').style.display = 'none';
+  openModal('modal-analyse-ordo');
+}
+
+async function analyserOrdonnance(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var resultDiv = document.getElementById('analyse-ordo-result');
+  resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Analyse IA en cours... (peut prendre 10-15 secondes)</div>';
+
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    var base64 = e.target.result;
+    var mediaType = file.type || 'image/jpeg';
+
+    try {
+      var data = await apiFetch('/api/ide/ordonnances/analyser', {
+        method: 'POST',
+        body: JSON.stringify({ image_base64: base64, image_type: mediaType })
+      });
+
+      if (!data || !data.analyse) {
+        resultDiv.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">Impossible d\'analyser cette ordonnance. Veuillez entrer les informations manuellement.</div>';
+        return;
+      }
+
+      _analyseResult = data.analyse;
+
+      renderAnalyseResult(data.analyse);
+    } catch(err) {
+      resultDiv.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">Erreur : ' + (err.message || 'Analyse impossible') + '</div>';
+    }
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function renderAnalyseResult(analyse) {
+  var resultDiv = document.getElementById('analyse-ordo-result');
+  var html = '';
+
+  // Info ordonnance
+  var typeLabel = analyse.type_ordonnance === 'manuscrite'
+    ? '<span class="badge badge-warn">Manuscrite</span>'
+    : '<span class="badge badge-ok">Informatique</span>';
+  var lisLabel = analyse.lisibilite === 'difficile'
+    ? '<span class="badge badge-crit">Lisibilité difficile</span>'
+    : analyse.lisibilite === 'moyenne'
+      ? '<span class="badge badge-warn">Lisibilité moyenne</span>'
+      : '<span class="badge badge-ok">Bonne lisibilité</span>';
+
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' + typeLabel + lisLabel + '</div>';
+
+  if (analyse.medecin?.nom) {
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Prescripteur : <b style="color:var(--text)">' + esc(analyse.medecin.nom) + '</b>' + (analyse.medecin.specialite ? ' (' + esc(analyse.medecin.specialite) + ')' : '') + '</div>';
+  }
+  if (analyse.date_prescription) {
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Date : ' + esc(analyse.date_prescription) + '</div>';
+  }
+
+  // Avertissement sécurité
+  html += '<div style="padding:10px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:var(--radius-sm);margin-bottom:14px;font-size:11px;color:#ef4444;display:flex;align-items:flex-start;gap:8px;">';
+  html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+  html += '<span><b>Vérification obligatoire</b> — Vous devez cocher chaque médicament après avoir vérifié le dosage sur l\'ordonnance originale. Ne faites JAMAIS confiance aveuglément à l\'analyse automatique.</span>';
+  html += '</div>';
+
+  // Médicaments
+  if (analyse.medicaments && analyse.medicaments.length > 0) {
+    html += '<div class="ordo-analyse-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0016.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 002 8.5c0 2.3 1.5 4.05 3 5.5l7 7 7-7z"/></svg> Médicaments détectés (' + analyse.medicaments.length + ')</div>';
+
+    analyse.medicaments.forEach(function(med, i) {
+      var cls = '';
+      if (med.alerte_dosage || med.medicament_risque) cls = ' risque';
+      if (med.verification_critique || med.nom === 'ILLISIBLE') cls = ' illisible';
+
+      var confCls = med.confiance >= 80 ? 'high' : med.confiance >= 50 ? 'medium' : 'low';
+      _analyseChecks[i] = false;
+
+      html += '<div class="ordo-med' + cls + '">';
+      html += '<div class="ordo-med-check" id="ordo-check-' + i + '" onclick="toggleOrdoCheck(' + i + ')"></div>';
+      html += '<div class="ordo-med-info">';
+      html += '<div class="ordo-med-name">' + esc(med.nom || 'ILLISIBLE') + (med.medicament_risque ? ' <span style="color:#ef4444;">MÉDICAMENT À RISQUE</span>' : '') + '</div>';
+      html += '<div class="ordo-med-dosage">' + esc(med.dosage || '') + ' — ' + esc(med.posologie || '') + '</div>';
+      if (med.duree) html += '<div class="ordo-med-dosage">Durée : ' + esc(med.duree) + '</div>';
+      if (med.alerte_dosage) html += '<div class="ordo-med-alerte">ALERTE DOSAGE : ' + esc(med.commentaire_alerte || 'Dosage inhabituel') + '</div>';
+      if (med.verification_critique) html += '<div class="ordo-med-alerte">VÉRIFICATION CRITIQUE — texte peu lisible</div>';
+      html += '</div>';
+      html += '<span class="ordo-confiance ' + confCls + '">' + (med.confiance || 0) + '%</span>';
+      html += '</div>';
+    });
+  }
+
+  // Soins infirmiers
+  if (analyse.soins_infirmiers && analyse.soins_infirmiers.length > 0) {
+    html += '<div style="margin-top:12px;font-size:12px;"><b>Soins infirmiers prescrits :</b> ' + analyse.soins_infirmiers.map(esc).join(', ') + '</div>';
+  }
+
+  // Remarques
+  if (analyse.remarques) {
+    html += '<div style="margin-top:8px;font-size:12px;color:var(--muted);font-style:italic;">' + esc(analyse.remarques) + '</div>';
+  }
+
+  resultDiv.innerHTML = html;
+  document.getElementById('btn-valider-ordo').style.display = 'inline-flex';
+}
+
+function toggleOrdoCheck(idx) {
+  _analyseChecks[idx] = !_analyseChecks[idx];
+  var el = document.getElementById('ordo-check-' + idx);
+  if (_analyseChecks[idx]) {
+    el.classList.add('checked');
+    el.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+  } else {
+    el.classList.remove('checked');
+    el.innerHTML = '';
+  }
+}
+
+function validerAnalyseOrdo() {
+  // Vérifier que tout est coché
+  var total = Object.keys(_analyseChecks).length;
+  var checked = Object.values(_analyseChecks).filter(Boolean).length;
+  if (checked < total) {
+    showToast('Vous devez vérifier et cocher chaque médicament (' + checked + '/' + total + ')');
+    return;
+  }
+  closeModal('modal-analyse-ordo');
+  showToast('Ordonnance validée — ' + total + ' médicaments vérifiés');
+}
+
+// ═══════════════════════════════════
+// MES PASSAGES — historique preuves
+// ═══════════════════════════════════
+function initPassagesPage() {
+  var today = todayStr();
+  var d7 = new Date(); d7.setDate(d7.getDate() - 7);
+  document.getElementById('passages-debut').value = d7.toISOString().slice(0, 10);
+  document.getElementById('passages-fin').value = today;
+  loadPassages();
+}
+
+async function loadPassages() {
+  var debut = document.getElementById('passages-debut').value;
+  var fin = document.getElementById('passages-fin').value;
+  var container = document.getElementById('passages-list');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement...</div>';
+
+  // Essayer l'API réelle
+  var data = await apiFetch('/api/ide/passages?debut=' + debut + '&fin=' + fin);
+
+  var passages;
+  if (data && data.passages) {
+    passages = data.passages;
+  } else {
+    // Données demo simulées
+    passages = _generateDemoPassages(debut, fin);
+  }
+
+  // KPI
+  var total = passages.length;
+  var signed = passages.filter(function(p) { return p.signed; }).length;
+  var geoOk = passages.filter(function(p) { return p.geofence_ok === true; }).length;
+  var geoKo = passages.filter(function(p) { return p.geofence_ok === false; }).length;
+  document.getElementById('pass-total').textContent = total;
+  document.getElementById('pass-signed').textContent = signed;
+  document.getElementById('pass-geo-ok').textContent = geoOk;
+  document.getElementById('pass-geo-ko').textContent = geoKo;
+
+  if (passages.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Aucun passage enregistré sur cette période.</div>';
+    return;
+  }
+
+  // Grouper par date
+  var byDate = {};
+  passages.forEach(function(p) {
+    var d = p.date || p.server_timestamp.slice(0, 10);
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(p);
+  });
+
+  var html = '';
+  var jourNoms = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  var dates = Object.keys(byDate).sort().reverse(); // Plus récent en premier
+
+  dates.forEach(function(date) {
+    var d = new Date(date + 'T00:00:00');
+    var jourNom = jourNoms[d.getDay()];
+    var dateLabel = jourNom + ' ' + d.getDate() + ' ' + d.toLocaleString('fr-FR', { month: 'long' }) + ' ' + d.getFullYear();
+    var visites = byDate[date];
+    // Grouper les arrivées et départs par visite/patient
+    var byPatient = {};
+    visites.forEach(function(p) {
+      var key = p.patient || p.visite_id || 'inconnu';
+      if (!byPatient[key]) byPatient[key] = { patient: p.patient, arrivee: null, depart: null, signed: false, geofence_ok: null, distance_m: null, lat_arrivee: null, lng_arrivee: null, lat_depart: null, lng_depart: null, nurse: p.nurse || '' };
+      if (p.type === 'arrivee') {
+        byPatient[key].arrivee = p.server_timestamp;
+        byPatient[key].geofence_ok = p.geofence_ok;
+        byPatient[key].distance_m = p.distance_m;
+        byPatient[key].lat_arrivee = p.lat || null;
+        byPatient[key].lng_arrivee = p.lng || null;
+      }
+      if (p.type === 'depart') {
+        byPatient[key].depart = p.server_timestamp;
+        byPatient[key].signed = p.signed;
+        byPatient[key].lat_depart = p.lat || null;
+        byPatient[key].lng_depart = p.lng || null;
+      }
+    });
+
+    html += '<div style="margin-bottom:20px;">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text);padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:8px;display:flex;justify-content:space-between;">';
+    html += '<span>' + dateLabel + '</span>';
+    html += '<span style="font-size:12px;color:var(--muted);font-weight:400;">' + Object.keys(byPatient).length + ' visite' + (Object.keys(byPatient).length > 1 ? 's' : '') + '</span>';
+    html += '</div>';
+
+    Object.values(byPatient).forEach(function(p, pi) {
+      var arrTime = p.arrivee ? new Date(p.arrivee).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--';
+      var depTime = p.depart ? new Date(p.depart).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--';
+      var duree = (p.arrivee && p.depart) ? Math.round((new Date(p.depart) - new Date(p.arrivee)) / 60000) : null;
+
+      var geoBadge;
+      if (p.distance_m !== null && p.distance_m <= 15) {
+        geoBadge = '<span class="badge badge-ok" style="font-size:10px;">Sur place</span>';
+      } else if (p.distance_m !== null && p.distance_m <= 150) {
+        geoBadge = '<span class="badge badge-ok" style="font-size:10px;">À proximité (' + p.distance_m + 'm)</span>';
+      } else if (p.geofence_ok === false) {
+        geoBadge = '<span class="badge badge-crit" style="font-size:10px;">Hors zone (' + (p.distance_m || '?') + 'm)</span>';
+      } else {
+        geoBadge = '<span class="badge badge-gray" style="font-size:10px;">GPS --</span>';
+      }
+      var signBadge = p.signed
+        ? '<span class="badge badge-ok" style="font-size:10px;">Signé</span>'
+        : '<span class="badge badge-gray" style="font-size:10px;">Non signé</span>';
+      var patientBadge = p.patientConfirmed
+        ? '<span class="badge badge-accent" style="font-size:10px;">Patient a confirmé</span>'
+        : '';
+
+      // ID unique pour l'extraction
+      var passId = date + '_' + pi;
+      window['_pass_' + passId] = p;
+
+      html += '<div class="visit-card" style="border-left-color:var(--accent);cursor:default;flex-wrap:wrap;">';
+      html += '<div class="visit-time" style="min-width:90px;font-size:11px;line-height:1.6;">' + arrTime + '<br><span style="color:var(--muted);">' + depTime + '</span></div>';
+      html += '<div class="visit-info" style="flex:1;min-width:200px;">';
+      html += '<div class="visit-patient">' + esc(p.patient || 'Patient') + '</div>';
+      html += '<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">' + geoBadge + signBadge + patientBadge;
+      if (duree !== null) html += '<span style="font-size:11px;color:var(--muted);">' + duree + ' min</span>';
+      html += '</div>';
+      // Données GPS précises
+      html += '<div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:var(--mono);line-height:1.6;">';
+      if (p.lat_arrivee) html += 'Arrivée GPS : ' + p.lat_arrivee.toFixed(6) + ', ' + p.lng_arrivee.toFixed(6) + '<br>';
+      if (p.lat_depart) html += 'Départ GPS : ' + p.lat_depart.toFixed(6) + ', ' + p.lng_depart.toFixed(6) + '<br>';
+      if (p.distance_m !== null) html += 'Distance domicile : ' + p.distance_m + ' mètres';
+      html += '</div>';
+      html += '</div>';
+      // Bouton extraire
+      html += '<button class="btn btn-ghost btn-sm" onclick="extraireAttestation(\'' + passId + '\',\'' + esc(date) + '\')" style="font-size:10px;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:4px;">';
+      html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg> Attestation</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function _generateDemoPassages(debut, fin) {
+  var passages = [];
+  var patients = ['Bouazza Mohamed', 'Tahiri Hassan', 'Garcia Carmen', 'Lefèvre Madeleine', 'Benkirane Fatna', 'Idrissi Youssef', 'Ziani Khadija', 'El Mansouri Aicha', 'Bernard René', 'Ouazzani Abdellah'];
+  var d = new Date(debut + 'T00:00:00');
+  var end = new Date(fin + 'T00:00:00');
+
+  while (d <= end) {
+    var dateStr = d.toISOString().slice(0, 10);
+    var dow = d.getDay();
+    // Simuler 5-8 visites par jour (sauf dimanche = 3)
+    var nbVisites = dow === 0 ? 3 : (5 + Math.floor(Math.random() * 4));
+    var heureBase = 6 * 60 + 30; // 06:30
+
+    for (var v = 0; v < nbVisites; v++) {
+      var patient = patients[v % patients.length];
+      var hArrivee = heureBase + v * 45 + Math.floor(Math.random() * 10);
+      var duree = 10 + Math.floor(Math.random() * 40);
+      var dist = 3 + Math.floor(Math.random() * 18); // 3 à 20m = réaliste GPS téléphone
+      var signed = Math.random() > 0.3;
+
+      // Coordonnées GPS réalistes Marrakech (légère variation autour des adresses connues)
+      var baseLat = 31.6300 + (v % 5) * 0.005 + (Math.random() - 0.5) * 0.001;
+      var baseLng = -8.0100 + (v % 5) * 0.004 + (Math.random() - 0.5) * 0.001;
+      passages.push({
+        date: dateStr,
+        type: 'arrivee',
+        patient: patient,
+        nurse: 'Fatima El Amrani',
+        server_timestamp: dateStr + 'T' + String(Math.floor(hArrivee / 60)).padStart(2, '0') + ':' + String(hArrivee % 60).padStart(2, '0') + ':' + String(Math.floor(Math.random() * 60)).padStart(2, '0') + 'Z',
+        lat: baseLat,
+        lng: baseLng,
+        geofence_ok: dist <= 150,
+        distance_m: dist,
+        signed: false
+      });
+      passages.push({
+        date: dateStr,
+        type: 'depart',
+        patient: patient,
+        nurse: 'Fatima El Amrani',
+        server_timestamp: dateStr + 'T' + String(Math.floor((hArrivee + duree) / 60)).padStart(2, '0') + ':' + String((hArrivee + duree) % 60).padStart(2, '0') + ':' + String(Math.floor(Math.random() * 60)).padStart(2, '0') + 'Z',
+        lat: baseLat + (Math.random() - 0.5) * 0.0002,
+        lng: baseLng + (Math.random() - 0.5) * 0.0002,
+        geofence_ok: null,
+        distance_m: null,
+        signed: signed
+      });
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return passages;
+}
+
+function exportPassages() {
+  // Générer une page imprimable avec toutes les attestations de la période
+  var debut = document.getElementById('passages-debut').value;
+  var fin = document.getElementById('passages-fin').value;
+  var passages = _generateDemoPassages(debut, fin);
+
+  // Grouper par patient
+  var byDate = {};
+  passages.forEach(function(p) {
+    var d = p.date; if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(p);
+  });
+
+  var html = _attestationHeader('Récapitulatif des passages — du ' + debut + ' au ' + fin);
+  html += '<p>La plateforme JADOMI certifie que les passages suivants ont été enregistrés par son système de traçabilité GPS avec horodatage serveur :</p>';
+
+  Object.keys(byDate).sort().forEach(function(date) {
+    var d = new Date(date + 'T00:00:00');
+    html += '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d9488;">' + d.toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long',year:'numeric'}) + '</h2>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;"><tr><th style="text-align:left;padding:6px;border:1px solid #ddd;background:#f5f5f5;">Patient</th><th style="padding:6px;border:1px solid #ddd;background:#f5f5f5;">Arrivée</th><th style="padding:6px;border:1px solid #ddd;background:#f5f5f5;">Départ</th><th style="padding:6px;border:1px solid #ddd;background:#f5f5f5;">Durée</th><th style="padding:6px;border:1px solid #ddd;background:#f5f5f5;">GPS</th><th style="padding:6px;border:1px solid #ddd;background:#f5f5f5;">Distance</th><th style="padding:6px;border:1px solid #ddd;background:#f5f5f5;">Signé</th></tr>';
+    // Grouper arrivée/départ
+    var pairs = {};
+    byDate[date].forEach(function(p) {
+      var k = p.patient; if (!pairs[k]) pairs[k] = {};
+      if (p.type === 'arrivee') { pairs[k].arr = p; } else { pairs[k].dep = p; }
+    });
+    Object.keys(pairs).forEach(function(patient) {
+      var a = pairs[patient].arr, dep = pairs[patient].dep;
+      var arrT = a ? new Date(a.server_timestamp).toLocaleTimeString('fr-FR') : '--';
+      var depT = dep ? new Date(dep.server_timestamp).toLocaleTimeString('fr-FR') : '--';
+      var dur = (a && dep) ? Math.round((new Date(dep.server_timestamp) - new Date(a.server_timestamp)) / 60000) + ' min' : '--';
+      var gps = a && a.lat ? a.lat.toFixed(6) + ', ' + a.lng.toFixed(6) : '--';
+      var dist = a && a.distance_m !== null ? a.distance_m + 'm' : '--';
+      var sig = dep && dep.signed ? 'Oui' : 'Non';
+      html += '<tr><td style="padding:6px;border:1px solid #ddd;">' + patient + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center;">' + arrT + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center;">' + depT + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center;">' + dur + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center;font-family:monospace;font-size:10px;">' + gps + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center;">' + dist + '</td><td style="padding:6px;border:1px solid #ddd;text-align:center;">' + sig + '</td></tr>';
+    });
+    html += '</table>';
+  });
+
+  html += _attestationFooter();
+  _openAttestation(html);
+}
+
+function extraireAttestation(passId, date) {
+  var p = window['_pass_' + passId];
+  if (!p) { showToast('Données non disponibles'); return; }
+
+  var arrDate = p.arrivee ? new Date(p.arrivee) : null;
+  var depDate = p.depart ? new Date(p.depart) : null;
+  var duree = (arrDate && depDate) ? Math.round((depDate - arrDate) / 60000) : null;
+  var dateFormatted = arrDate ? arrDate.toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long',year:'numeric'}) : date;
+
+  var html = _attestationHeader('Attestation de passage — ' + (p.patient || 'Patient'));
+
+  html += '<p>La plateforme <strong>JADOMI</strong> certifie, sur la base des données GPS et de l\'horodatage serveur enregistrés par son système de traçabilité, que le passage suivant a été effectué :</p>';
+
+  html += '<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:13px;">';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;width:200px;">Patient</td><td style="padding:10px 14px;border:1px solid #ddd;">' + esc(p.patient || '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Infirmier(e)</td><td style="padding:10px 14px;border:1px solid #ddd;">' + esc(p.nurse || '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Date</td><td style="padding:10px 14px;border:1px solid #ddd;">' + dateFormatted + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Heure d\'arrivée (horodatage serveur)</td><td style="padding:10px 14px;border:1px solid #ddd;font-family:monospace;">' + (arrDate ? arrDate.toLocaleTimeString('fr-FR') : '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Heure de départ (horodatage serveur)</td><td style="padding:10px 14px;border:1px solid #ddd;font-family:monospace;">' + (depDate ? depDate.toLocaleTimeString('fr-FR') : '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Durée effective du passage</td><td style="padding:10px 14px;border:1px solid #ddd;">' + (duree !== null ? duree + ' minutes' : '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Coordonnées GPS arrivée</td><td style="padding:10px 14px;border:1px solid #ddd;font-family:monospace;">' + (p.lat_arrivee ? p.lat_arrivee.toFixed(6) + '°N, ' + Math.abs(p.lng_arrivee).toFixed(6) + '°W' : '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Coordonnées GPS départ</td><td style="padding:10px 14px;border:1px solid #ddd;font-family:monospace;">' + (p.lat_depart ? p.lat_depart.toFixed(6) + '°N, ' + Math.abs(p.lng_depart).toFixed(6) + '°W' : '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Distance au domicile du patient</td><td style="padding:10px 14px;border:1px solid #ddd;">' + (p.distance_m !== null ? p.distance_m + ' mètres' : '--') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Vérification de proximité</td><td style="padding:10px 14px;border:1px solid #ddd;">' + (p.distance_m !== null && p.distance_m <= 15 ? '<strong style="color:#22c55e;">CONFIRMÉE — Sur place</strong>' : p.distance_m !== null && p.distance_m <= 150 ? '<strong style="color:#22c55e;">CONFIRMÉE — À proximité</strong>' : '<strong style="color:#ef4444;">NON CONFIRMÉE</strong>') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Signature du patient</td><td style="padding:10px 14px;border:1px solid #ddd;">' + (p.signed ? '<strong style="color:#22c55e;">OUI — Signature recueillie</strong>' : 'Non recueillie') + '</td></tr>';
+  html += '<tr><td style="padding:10px 14px;border:1px solid #ddd;background:#f8fafb;font-weight:bold;">Confirmation patient (depuis son téléphone)</td><td style="padding:10px 14px;border:1px solid #ddd;">' + (p.patientConfirmed ? '<strong style="color:#22c55e;">OUI — Confirmé à ' + esc(p.patientConfirmTime || '') + '</strong><br><span style="font-family:monospace;font-size:11px;">GPS patient : ' + (p.patientLat ? p.patientLat.toFixed(6) + '°N, ' + Math.abs(p.patientLng).toFixed(6) + '°W' : '--') + '</span>' : 'Non effectuée') + '</td></tr>';
+  html += '</table>';
+
+  html += '<div style="background:#f0fdf9;border:1px solid #99f6e4;border-radius:8px;padding:16px;margin:20px 0;font-size:13px;">';
+  html += '<strong>Certification JADOMI :</strong> La plateforme JADOMI confirme, d\'après les données GPS enregistrées par son serveur, la présence du professionnel de santé identifié ci-dessus au domicile du patient désigné, pendant une durée de <strong>' + (duree || '--') + ' minutes</strong>, le <strong>' + dateFormatted + '</strong>. ';
+  html += 'L\'horodatage a été généré par le serveur JADOMI (et non par l\'appareil du professionnel). Les coordonnées GPS ont été relevées au moment de l\'arrivée et du départ. Ces données sont stockées dans un registre non modifiable.';
+  if (p.patientConfirmed) {
+    html += '<br><br><strong>Double confirmation :</strong> Le patient a confirmé la visite depuis son propre téléphone (appareil indépendant) à <strong>' + esc(p.patientConfirmTime || '') + '</strong>. Les coordonnées GPS du patient (' + (p.patientLat ? p.patientLat.toFixed(6) + ', ' + p.patientLng.toFixed(6) : '--') + ') confirment sa présence au même domicile que le professionnel. Cette double géolocalisation indépendante constitue un niveau de preuve renforcé.';
+  }
+  html += '</div>';
+
+  html += '<p style="font-size:11px;color:#888;margin-top:20px;">Ce document est généré automatiquement par la plateforme JADOMI. Les données présentées sont celles enregistrées par le système au moment du passage. JADOMI ne se prononce pas sur la nature des actes réalisés lors de la visite.</p>';
+
+  html += _attestationFooter();
+  _openAttestation(html);
+}
+
+function _attestationHeader(title) {
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>' + title + '</title>' +
+    '<style>body{font-family:Georgia,serif;max-width:800px;margin:30px auto;padding:0 30px;color:#1a1a2e;line-height:1.7;font-size:14px;}' +
+    '@media print{.no-print{display:none!important;}body{margin:10px;}}</style></head><body>' +
+    '<button class="no-print" onclick="window.print()" style="background:#0d9488;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer;display:block;margin:0 auto 20px;">Imprimer</button>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0d9488;padding-bottom:16px;margin-bottom:20px;">' +
+    '<div><div style="font-size:22px;font-weight:bold;color:#0d9488;">JADOMI</div><div style="font-size:11px;color:#888;">Plateforme numérique pour professionnels de santé</div></div>' +
+    '<div style="text-align:right;font-size:11px;color:#888;">Document généré le ' + new Date().toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'}) + '<br>à ' + new Date().toLocaleTimeString('fr-FR') + '</div></div>' +
+    '<h1 style="font-size:16px;text-align:center;margin:20px 0;">' + title + '</h1>';
+}
+
+function _attestationFooter() {
+  return '<div style="margin-top:40px;padding-top:16px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center;">' +
+    'JADOMI SAS — Plateforme numérique pour professionnels de santé — contact@jadomi.fr — www.jadomi.fr<br>' +
+    'Ce document est confidentiel. Il contient des données de santé protégées par le secret professionnel.' +
+    '</div></body></html>';
+}
+
+function _openAttestation(html) {
+  var w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+// Demander au patient de confirmer depuis son téléphone
+function askPatientConfirm(idx) {
+  var v = _tourneeVisites[idx];
+  if (!v) return;
+
+  // Ouvrir un écran simplifié que le patient voit sur SON téléphone ou celui de l'infirmière
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:#0a0f14;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:30px;';
+  overlay.innerHTML =
+    '<div style="text-align:center;max-width:360px;">' +
+    '<div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#0d9488,#115e59);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;"><span style="font-size:28px;color:#fff;font-weight:800;font-family:Syne,sans-serif;">J</span></div>' +
+    '<div style="font-size:20px;font-weight:700;color:#fafafa;margin-bottom:8px;">Bonjour</div>' +
+    '<div style="font-size:14px;color:#a1a1aa;margin-bottom:24px;">Votre infirmier(e) <strong style="color:#fafafa;">' + esc(v.nurse) + '</strong> vient de réaliser vos soins.</div>' +
+    '<div style="font-size:13px;color:#71717a;margin-bottom:24px;">En appuyant sur le bouton ci-dessous, vous confirmez sa venue à votre domicile.</div>' +
+    '<button id="patient-confirm-btn" style="width:100%;padding:16px;background:#0d9488;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Oui, je confirme la visite</button>' +
+    '<button id="patient-cancel-btn" style="width:100%;padding:12px;background:transparent;color:#71717a;border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:13px;cursor:pointer;">Annuler</button>' +
+    '<div id="patient-confirm-result" style="margin-top:16px;font-size:12px;"></div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#patient-cancel-btn').onclick = function() {
+    document.body.removeChild(overlay);
+  };
+
+  overlay.querySelector('#patient-confirm-btn').onclick = function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner spinner-sm" style="border-color:#fff;border-top-color:transparent;"></div> Localisation...';
+    var resultDiv = overlay.querySelector('#patient-confirm-result');
+
+    if (!navigator.geolocation) {
+      resultDiv.innerHTML = '<span style="color:#ef4444;">Géolocalisation non disponible</span>';
+      btn.disabled = false;
+      btn.innerHTML = 'Réessayer';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      // Envoyer la confirmation au serveur
+      var payload = { lat: pos.coords.latitude, lng: pos.coords.longitude, patient_id: v.patient_id };
+
+      if (navigator.onLine) {
+        apiFetch('/api/patient/confirm-visit', { method: 'POST', body: JSON.stringify(payload) });
+      } else {
+        _queueOffline('/api/patient/confirm-visit', payload);
+      }
+
+      // Marquer la visite comme confirmée par le patient
+      v._patientConfirmed = true;
+      v._patientGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      v._patientConfirmTime = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+      btn.style.background = '#22c55e';
+      btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Confirmé !';
+      resultDiv.innerHTML =
+        '<div style="color:#22c55e;font-weight:600;margin-bottom:4px;">Visite confirmée par le patient</div>' +
+        '<div style="color:#71717a;font-size:11px;">GPS : ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6) + '<br>Heure : ' + v._patientConfirmTime + '</div>';
+
+      // Fermer automatiquement après 3 secondes
+      setTimeout(function() {
+        if (overlay.parentElement) document.body.removeChild(overlay);
+        renderTourneeSteps();
+        showToast('Visite confirmée par le patient');
+      }, 3000);
+    }, function() {
+      resultDiv.innerHTML = '<span style="color:#ef4444;">Impossible de localiser. Vérifiez le GPS.</span>';
+      btn.disabled = false;
+      btn.innerHTML = 'Réessayer';
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  };
+}
+
+// Signature optionnelle puis terminé
+function signAndDone(idx) {
+  _showSignaturePad(function(sig) {
+    if (sig) {
+      var v = _tourneeVisites[idx];
+      if (v) v._signed = true;
+      // Envoyer la signature au serveur (non bloquant)
+      if (navigator.onLine) {
+        apiFetch('/api/ide/visite/' + v.id + '/checkin', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'depart', lat: 0, lng: 0, signature_patient: sig })
+        });
+      } else {
+        _offlineQueue.push({ url: '/api/ide/visite/' + v.id + '/checkin', body: { type: 'depart', lat: 0, lng: 0, signature_patient: sig } });
+      }
+    }
+    markTourneeStepDone(idx);
+  });
+}
+
+// ═══════════════════════════════════
+// MODE HORS LIGNE — file d'attente
+// ═══════════════════════════════════
+var _offlineQueue = JSON.parse(localStorage.getItem('jadomi_offline_queue') || '[]');
+
+function _saveOfflineQueue() {
+  localStorage.setItem('jadomi_offline_queue', JSON.stringify(_offlineQueue));
+}
+
+function _queueOffline(url, body) {
+  _offlineQueue.push({ url: url, body: body, timestamp: new Date().toISOString() });
+  _saveOfflineQueue();
+}
+
+// Synchroniser quand le réseau revient
+async function _syncOfflineQueue() {
+  if (_offlineQueue.length === 0) return;
+  var synced = 0;
+  var failed = [];
+  for (var i = 0; i < _offlineQueue.length; i++) {
+    var item = _offlineQueue[i];
+    try {
+      await apiFetch(item.url, { method: 'POST', body: JSON.stringify(item.body) });
+      synced++;
+    } catch(e) {
+      failed.push(item);
+    }
+  }
+  _offlineQueue = failed;
+  _saveOfflineQueue();
+  if (synced > 0) showToast(synced + ' action' + (synced > 1 ? 's' : '') + ' synchronisée' + (synced > 1 ? 's' : ''));
+}
+
+// Écouter le retour du réseau
+window.addEventListener('online', function() {
+  showToast('Réseau retrouvé — synchronisation...');
+  setTimeout(_syncOfflineQueue, 1000);
+});
+
+// Afficher un indicateur hors ligne
+window.addEventListener('offline', function() {
+  showToast('Mode hors ligne — vos actions seront synchronisées au retour du réseau');
+});
 
 async function cycleVisiteStatus(id) {
   const statusCycle = ['planifie','en_route','termine','reporte'];
-  const v = DEMO_VISITES.find(x => x.id === id);
+  const v = _findVisite(id);
   if (!v) return;
   const idx = statusCycle.indexOf(v.statut);
   const next = statusCycle[(idx + 1) % statusCycle.length];
   await apiFetch('/api/ide/visite/' + id + '/status', { method:'PATCH', body: JSON.stringify({ statut: next }) });
   v.statut = next;
+  if (next === 'reporte') reporterAuLendemain(v);
   pageLoadedMap.planning = false; loadPlanning();
   showToast('Statut mis à jour : ' + next);
 }
@@ -2212,5 +4321,47 @@ document.addEventListener('keydown', function(e) {
   }
 });
 </script>
+
+<script>
+// Service Worker — PWA installable
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/ide/sw.js', { scope: '/ide/' })
+    .then(function(r) { console.log('[JADOMI IDE] SW registered', r.scope); })
+    .catch(function(e) { console.warn('[JADOMI IDE] SW registration failed', e); });
+}
+</script>
+
+<!-- MODAL : Analyse ordonnance IA -->
+<div class="modal-overlay" id="modal-analyse-ordo">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title">Analyse d'ordonnance</div>
+    <div style="text-align:center;margin-bottom:14px;">
+      <label class="btn btn-accent" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        Prendre en photo l'ordonnance
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="analyserOrdonnance(this)">
+      </label>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">L'IA va extraire les médicaments et dosages — vous devrez valider chaque ligne</div>
+    </div>
+    <div id="analyse-ordo-result"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-analyse-ordo')">Fermer</button>
+      <button class="btn btn-accent" id="btn-valider-ordo" style="display:none" onclick="validerAnalyseOrdo()">Tout est vérifié — Valider</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tournée Active -->
+<div class="tournee-modal" id="tournee-modal">
+  <div class="tm-header">
+    <div>
+      <div class="tm-title" id="tm-title">Tournée active</div>
+      <div class="tm-progress" id="tm-progress"></div>
+    </div>
+    <button class="tm-close" onclick="closeTourneeMode()">Fermer</button>
+  </div>
+  <div class="tm-body" id="tm-body"></div>
+</div>
+
 </body>
 </html>

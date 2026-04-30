@@ -26,6 +26,14 @@ Router.register('/profil', async (container) => {
         <label>Email</label>
         <input class="input" id="prof-email" type="email" value="${patient.email || ''}" placeholder="votre@email.com" />
       </div>
+      <div class="input-group mb-md">
+        <label>Qui utilise cette application ?</label>
+        <select class="input" id="prof-type-user" style="padding:10px 12px;">
+          <option value="patient" ${(patient.type_utilisateur || 'patient') === 'patient' ? 'selected' : ''}>Je suis le patient (j'habite au domicile)</option>
+          <option value="representant_surplace" ${patient.type_utilisateur === 'representant_surplace' ? 'selected' : ''}>Je suis un proche présent au domicile</option>
+          <option value="representant_distant" ${patient.type_utilisateur === 'representant_distant' ? 'selected' : ''}>Je suis un proche à distance (fils/fille...)</option>
+        </select>
+      </div>
       <button class="btn btn-primary btn-block" id="btn-save-profile">
         Enregistrer
       </button>
@@ -92,15 +100,18 @@ Router.register('/profil', async (container) => {
   container.querySelector('#btn-save-profile').addEventListener('click', async () => {
     const name = container.querySelector('#prof-name').value.trim();
     const email = container.querySelector('#prof-email').value.trim();
+    const typeUser = container.querySelector('#prof-type-user').value;
     const btn = container.querySelector('#btn-save-profile');
 
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner spinner-sm"></div>';
 
     try {
-      await JadomiAPI.patch('/patient/profile', { name, email });
+      await JadomiAPI.patch('/patient/profile', { name, email, type_utilisateur: typeUser });
       patient.name = name;
       patient.email = email;
+      patient.type_utilisateur = typeUser;
+      patient.present_domicile = typeUser !== 'representant_distant';
       localStorage.setItem('jadomi_patient', JSON.stringify(patient));
       btn.textContent = 'Enregistre !';
       btn.style.background = 'var(--success)';

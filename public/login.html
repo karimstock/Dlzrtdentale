@@ -58,16 +58,13 @@ try{const{createClient}=supabase;db=createClient(SUPABASE_URL,SUPABASE_KEY);}cat
 const DENTAL_PROFS = ['chirurgien_dentiste','orthodontiste','veterinaire'];
 function getNextParam(){
   const p = new URLSearchParams(location.search).get('next');
-  // whitelist : chemins relatifs locaux (avec ou sans /)
-  if(p && /^[a-z0-9_/.-]+\.html(\?[^#]*)?$/i.test(p) && !p.includes('//')) return p;
+  if(p && /^\/[a-z0-9_/.-]+$/i.test(p) && !p.includes('//') && !p.includes('..')) return p;
   return null;
 }
 async function destinationPour(user, accessToken){
   const next = getNextParam();
   if(next) return next;
   const prof = user?.user_metadata?.profession || user?.profession || '';
-
-  // Bootstrap silencieux cabinet pour dentistes sans societe
   if(DENTAL_PROFS.includes(prof)){
     try{
       await fetch('/api/societes/bootstrap-cabinet',{
@@ -77,8 +74,7 @@ async function destinationPour(user, accessToken){
       });
     }catch(e){}
   }
-  // Hub principal : organisation.html — toujours
-  return 'organisation.html';
+  return '/organisation';
 }
 (async()=>{
   try{
@@ -108,7 +104,7 @@ async function login(){
     const user=users.find(u=>u.email===email&&u.password===pass);
     if(user){
       localStorage.setItem('jadomi_session',JSON.stringify(user));
-      window.location.href = 'organisation.html';
+      window.location.href = '/organisation';
     }
     else showError(e.message||'Email ou mot de passe incorrect');
   }
@@ -125,7 +121,7 @@ async function loginBiometrique(){
     }});
     // Si biometrie OK, chercher session sauvee
     const session=localStorage.getItem('jadomi_session');
-    if(session){window.location.href='organisation.html';}
+    if(session){window.location.href='/organisation';}
     else showError('Connectez-vous d\'abord avec email/mot de passe');
   }catch(e){showError('Biométrie annulée ou non disponible');}
 }
