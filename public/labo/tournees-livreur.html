@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournées Livreur — JADOMI Labo Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a; --card: #141414; --border: #262626;
+      --text: #fafafa; --text2: #a1a1aa; --text3: #71717a;
+      --primary: #6366f1; --primary-light: #818cf8;
+      --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+      --urgent: #ef4444; --normal: #3b82f6; --light: #8b5cf6;
+      --radius: 12px; --transition: cubic-bezier(.16, 1, .3, 1);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 20px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .header h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .header-actions { display: flex; gap: 8px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; padding: 12px 20px; max-width: 1200px; margin: 0 auto; overflow-x: auto; }
+    .tab { padding: 8px 16px; border-radius: 8px; background: transparent; border: none; color: var(--text2); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all .3s var(--transition); }
+    .tab.active { background: var(--primary); color: white; }
+    .tab:hover:not(.active) { background: var(--border); color: var(--text); }
+
+    /* ── Main ── */
+    .main { max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .stat-card .label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .stat-card .value { font-size: 24px; font-weight: 700; }
+    .stat-card .value.urgent { color: var(--danger); }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-title { font-size: 16px; font-weight: 600; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .3s var(--transition); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { opacity: .9; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-outline:hover { border-color: var(--text3); color: var(--text); }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .btn-lg { padding: 12px 24px; font-size: 15px; }
+
+    /* ── Tournée feuille de route ── */
+    .fdr-container { display: flex; flex-direction: column; gap: 0; }
+    .fdr-arret { background: var(--card); border: 1px solid var(--border); padding: 16px 20px; display: flex; align-items: flex-start; gap: 16px; position: relative; transition: all .3s var(--transition); }
+    .fdr-arret:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+    .fdr-arret:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+    .fdr-arret:only-child { border-radius: var(--radius); }
+    .fdr-arret + .fdr-arret { border-top: none; }
+    .fdr-arret.termine { opacity: .6; }
+    .fdr-arret.en_route { border-left: 3px solid var(--primary); }
+    .fdr-arret.absent { border-left: 3px solid var(--warning); opacity: .5; }
+
+    .fdr-numero { width: 32px; height: 32px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .fdr-arret.termine .fdr-numero { background: var(--success); }
+    .fdr-arret.absent .fdr-numero { background: var(--warning); }
+
+    .fdr-info { flex: 1; min-width: 0; }
+    .fdr-dentiste { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .fdr-adresse { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+    .fdr-details { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .badge-urgent { background: rgba(239,68,68,.15); color: var(--urgent); }
+    .badge-normal { background: rgba(59,130,246,.15); color: var(--normal); }
+    .badge-light { background: rgba(139,92,246,.15); color: var(--light); }
+    .badge-livraison { background: rgba(34,197,94,.15); color: var(--success); }
+    .badge-recuperation { background: rgba(245,158,11,.15); color: var(--warning); }
+    .badge-les_deux { background: rgba(99,102,241,.15); color: var(--primary-light); }
+
+    .fdr-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+
+    /* ── Navigation GPS ── */
+    .nav-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .nav-btn-waze { background: #33ccff; color: #000; }
+    .nav-btn-gmaps { background: #4285f4; color: white; }
+
+    /* ── Demandes liste ── */
+    .demande-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+    .demande-item .info { flex: 1; }
+    .demande-item .nom { font-size: 14px; font-weight: 600; }
+    .demande-item .meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--primary);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 24px; }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+    .empty svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: .5; }
+    .empty p { font-size: 14px; margin-top: 8px; }
+
+    /* ── Livreurs grid ── */
+    .livreurs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .livreur-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .livreur-card .nom { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .livreur-card .nom .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .livreur-card .detail { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+      .fdr-arret { flex-wrap: wrap; }
+      .fdr-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
+      .header-actions { flex-wrap: wrap; }
+    }
+
+    /* ── Loading ── */
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .6s linear infinite; margin: 20px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 300; transform: translateY(100px); opacity: 0; transition: all .4s var(--transition); }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-inner">
+      <h1>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Tournées Livreur
+      </h1>
+      <div class="header-actions">
+        <button class="btn btn-outline btn-sm" onclick="showTab('livreurs')">Livreurs</button>
+        <button class="btn btn-outline btn-sm" onclick="showTab('absences')">Absences</button>
+        <button class="btn btn-primary btn-sm" onclick="openModalDemande()">+ Nouvelle demande</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="dashboard" onclick="showTab('dashboard')">Tableau de bord</button>
+    <button class="tab" data-tab="demandes" onclick="showTab('demandes')">Demandes de passage</button>
+    <button class="tab" data-tab="tournees" onclick="showTab('tournees')">Tournées</button>
+    <button class="tab" data-tab="feuille" onclick="showTab('feuille')">Feuille de route</button>
+    <button class="tab" data-tab="livreurs" onclick="showTab('livreurs')">Livreurs</button>
+    <button class="tab" data-tab="absences" onclick="showTab('absences')">Absences dentistes</button>
+  </div>
+
+  <div class="main">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="tab-dashboard">
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-card"><div class="label">En attente</div><div class="value urgent" id="stat-attente">—</div></div>
+        <div class="stat-card"><div class="label">Tournées aujourd'hui</div><div class="value" id="stat-tournees">—</div></div>
+        <div class="stat-card"><div class="label">Livrées ce mois</div><div class="value" id="stat-livrees">—</div></div>
+        <div class="stat-card"><div class="label">Tournées ce mois</div><div class="value" id="stat-mois">—</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Demandes urgentes en attente</div>
+        </div>
+        <div id="urgentes-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Tournées du jour</div>
+          <button class="btn btn-primary btn-sm" onclick="openModalGenerer()">Générer une tournée</button>
+        </div>
+        <div id="tournees-jour"></div>
+      </div>
+    </div>
+
+    <!-- ═══ DEMANDES ═══ -->
+    <div id="tab-demandes" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Toutes les demandes de passage</div>
+          <div style="display:flex;gap:8px">
+            <select id="filtre-statut" class="btn btn-outline btn-sm" onchange="loadDemandes()" style="background:var(--card);color:var(--text)">
+              <option value="">Tous les statuts</option>
+              <option value="en_attente">En attente</option>
+              <option value="planifiee">Planifiée</option>
+              <option value="en_cours_envoi">En cours d'envoi</option>
+              <option value="livree">Livrée</option>
+              <option value="recuperee">Récupérée</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="openModalDemande()">+ Nouvelle</button>
+          </div>
+        </div>
+        <div id="demandes-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══ TOURNÉES ═══ -->
+    <div id="tab-tournees" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Historique des tournées</div>
+          <button class="btn btn-primary btn-sm" onclick="openModalGenerer()">Générer une tournée</button>
+        </div>
+        <div id="tournees-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══ FEUILLE DE ROUTE ═══ -->
+    <div id="tab-feuille" style="display:none">
+      <div class="card" id="fdr-header-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title" id="fdr-titre">Sélectionnez une tournée</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:4px" id="fdr-subtitle"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select id="fdr-select-tournee" class="btn btn-outline btn-sm" onchange="loadFeuilleDeRoute()" style="background:var(--card);color:var(--text)">
+              <option value="">Choisir une tournée...</option>
+            </select>
+            <select id="fdr-nav-app" class="btn btn-outline btn-sm" style="background:var(--card);color:var(--text)">
+              <option value="waze">Waze</option>
+              <option value="google_maps">Google Maps</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px" id="fdr-actions-bar" style="display:none">
+          <button class="btn btn-success btn-sm" id="btn-demarrer" onclick="demarrerTournee()" style="display:none">Démarrer la tournée</button>
+          <button class="btn btn-primary btn-sm" id="btn-terminer" onclick="terminerTournee()" style="display:none">Terminer la tournée</button>
+        </div>
+      </div>
+
+      <div id="fdr-arrets" class="fdr-container"></div>
+    </div>
+
+    <!-- ═══ LIVREURS ═══ -->
+    <div id="tab-livreurs" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Vos livreurs</div>
+          <button class="btn btn-primary btn-sm" onclick="openModalLivreur()">+ Ajouter un livreur</button>
+        </div>
+        <div id="livreurs-list" class="livreurs-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══ ABSENCES ═══ -->
+    <div id="tab-absences" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Absences des dentistes</div>
+          <button class="btn btn-primary btn-sm" onclick="openModalAbsence()">+ Signaler une absence</button>
+        </div>
+        <div id="absences-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL NOUVELLE DEMANDE ═══ -->
+  <div class="modal-overlay" id="modal-demande">
+    <div class="modal">
+      <div class="modal-title">Nouvelle demande de passage</div>
+      <form onsubmit="submitDemande(event)">
+        <div class="form-group">
+          <label>Dentiste client *</label>
+          <select id="dem-dentiste" required><option value="">Choisir...</option></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type de passage *</label>
+            <select id="dem-type" required>
+              <option value="livraison">Livraison (labo vers dentiste)</option>
+              <option value="recuperation">Récupération (dentiste vers labo)</option>
+              <option value="les_deux">Les deux</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priorité</label>
+            <select id="dem-priorite">
+              <option value="normal">Normal — prochaine tournée</option>
+              <option value="urgent">Urgent — dès que possible</option>
+              <option value="light">Light — quand ça arrange</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date souhaitée</label>
+            <input type="date" id="dem-date">
+          </div>
+          <div class="form-group">
+            <label>Créneau</label>
+            <select id="dem-creneau">
+              <option value="indifferent">Indifférent</option>
+              <option value="matin">Matin</option>
+              <option value="apres_midi">Après-midi</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Références travaux (séparées par des virgules)</label>
+          <input type="text" id="dem-refs" placeholder="CAS-001, CAS-002...">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="dem-desc" rows="2" placeholder="Détails du contenu à récupérer ou livrer..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Nombre de colis</label>
+          <input type="number" id="dem-colis" value="1" min="1">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-demande')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer la demande</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL GÉNÉRER TOURNÉE ═══ -->
+  <div class="modal-overlay" id="modal-generer">
+    <div class="modal">
+      <div class="modal-title">Générer une tournée</div>
+      <form onsubmit="submitGenerer(event)">
+        <div class="form-group">
+          <label>Livreur *</label>
+          <select id="gen-livreur" required><option value="">Choisir...</option></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="gen-date" required>
+          </div>
+          <div class="form-group">
+            <label>Créneau</label>
+            <select id="gen-creneau">
+              <option value="matin">Matin</option>
+              <option value="apres_midi">Après-midi</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Application GPS</label>
+          <select id="gen-nav">
+            <option value="waze">Waze</option>
+            <option value="google_maps">Google Maps</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-generer')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Générer la tournée</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL LIVREUR ═══ -->
+  <div class="modal-overlay" id="modal-livreur">
+    <div class="modal">
+      <div class="modal-title">Ajouter un livreur</div>
+      <form onsubmit="submitLivreur(event)">
+        <div class="form-row">
+          <div class="form-group"><label>Nom *</label><input type="text" id="liv-nom" required></div>
+          <div class="form-group"><label>Prénom *</label><input type="text" id="liv-prenom" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Téléphone</label><input type="tel" id="liv-tel"></div>
+          <div class="form-group"><label>Email</label><input type="email" id="liv-email"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Véhicule</label>
+            <select id="liv-vehicule">
+              <option value="voiture">Voiture</option>
+              <option value="utilitaire">Utilitaire</option>
+              <option value="scooter">Scooter</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rayon max (km)</label>
+            <input type="number" id="liv-rayon" value="50" min="5" max="200">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-livreur')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL ABSENCE ═══ -->
+  <div class="modal-overlay" id="modal-absence">
+    <div class="modal">
+      <div class="modal-title">Signaler une absence dentiste</div>
+      <form onsubmit="submitAbsence(event)">
+        <div class="form-group">
+          <label>Dentiste *</label>
+          <select id="abs-dentiste" required><option value="">Choisir...</option></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Date début *</label><input type="date" id="abs-debut" required></div>
+          <div class="form-group"><label>Date fin *</label><input type="date" id="abs-fin" required></div>
+        </div>
+        <div class="form-group"><label>Motif</label><input type="text" id="abs-motif" placeholder="Vacances, formation..."></div>
+        <div class="form-group"><label>Adresse alternative de livraison</label><input type="text" id="abs-adresse" placeholder="Si le dentiste souhaite recevoir ailleurs..."></div>
+        <div class="form-row">
+          <div class="form-group"><label>Ville alternative</label><input type="text" id="abs-ville"></div>
+          <div class="form-group"><label>Code postal</label><input type="text" id="abs-cp"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-absence')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// JADOMI Tournées Livreur — Frontend
+// ═══════════════════════════════════════
+
+const API = '/api/labo/tournees';
+let societeId = null;
+let currentTourneeId = null;
+let dentistes = [];
+let livreurs = [];
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', async () => {
+  societeId = localStorage.getItem('selectedSocieteId') || localStorage.getItem('societeId');
+  const token = localStorage.getItem('sb-access-token') || localStorage.getItem('supabase.auth.token');
+
+  if (!societeId) {
+    toast('Veuillez sélectionner une société', true);
+    return;
+  }
+
+  // Set today's date as default
+  const today = new Date().toISOString().split('T')[0];
+  const dateInputs = document.querySelectorAll('input[type="date"]');
+  dateInputs.forEach(input => { if (!input.value) input.value = today; });
+
+  await Promise.all([loadStats(), loadDentistes(), loadLivreurs()]);
+  loadDemandesUrgentes();
+  loadTourneesJour();
+});
+
+// ── API helper ──
+async function api(method, path, body) {
+  const token = localStorage.getItem('sb-access-token');
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Societe-Id': societeId,
+      'Authorization': `Bearer ${token}`
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || 'Erreur');
+  return data;
+}
+
+// ── Tabs ──
+function showTab(tab) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tabBtn = document.querySelector(`.tab[data-tab="${tab}"]`);
+  if (tabBtn) tabBtn.classList.add('active');
+
+  // Charger les données de l'onglet
+  if (tab === 'demandes') loadDemandes();
+  if (tab === 'tournees') loadTournees();
+  if (tab === 'feuille') loadFdrSelect();
+  if (tab === 'livreurs') loadLivreursTab();
+  if (tab === 'absences') loadAbsences();
+}
+
+// ── Stats ──
+async function loadStats() {
+  try {
+    const data = await api('GET', '/stats/global');
+    document.getElementById('stat-attente').textContent = data.en_attente || 0;
+    document.getElementById('stat-tournees').textContent = data.tournees_aujourdhui || 0;
+    document.getElementById('stat-livrees').textContent = data.livrees_ce_mois || 0;
+    document.getElementById('stat-mois').textContent = data.tournees_ce_mois || 0;
+  } catch (e) { console.error('Stats:', e); }
+}
+
+// ── Charger dentistes ──
+async function loadDentistes() {
+  try {
+    const token = localStorage.getItem('sb-access-token');
+    const res = await fetch('/api/labo/dentistes', {
+      headers: { 'Authorization': `Bearer ${token}`, 'X-Societe-Id': societeId }
+    });
+    const data = await res.json();
+    dentistes = data.dentistes || data || [];
+    populateDentistesSelect();
+  } catch (e) { console.error('Dentistes:', e); }
+}
+
+function populateDentistesSelect() {
+  ['dem-dentiste', 'abs-dentiste'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Choisir...</option>';
+    dentistes.forEach(d => {
+      const nom = `${d.titre || ''} ${d.prenom || ''} ${d.nom || ''}`.trim();
+      sel.innerHTML += `<option value="${d.id}">${nom} — ${d.ville || ''}</option>`;
+    });
+  });
+}
+
+// ── Charger livreurs ──
+async function loadLivreurs() {
+  try {
+    const data = await api('GET', '/livreurs');
+    livreurs = data.livreurs || [];
+    populateLivreursSelect();
+  } catch (e) { console.error('Livreurs:', e); }
+}
+
+function populateLivreursSelect() {
+  const sel = document.getElementById('gen-livreur');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Choisir...</option>';
+  livreurs.forEach(l => {
+    sel.innerHTML += `<option value="${l.id}">${l.prenom} ${l.nom}</option>`;
+  });
+}
+
+// ── Demandes urgentes (dashboard) ──
+async function loadDemandesUrgentes() {
+  try {
+    const data = await api('GET', '/demandes?statut=en_attente&priorite=urgent&limit=5');
+    const el = document.getElementById('urgentes-list');
+    if (!data.demandes || data.demandes.length === 0) {
+      el.innerHTML = '<div class="empty"><p>Aucune demande urgente en attente</p></div>';
+      return;
+    }
+    el.innerHTML = data.demandes.map(d => renderDemande(d)).join('');
+  } catch (e) { console.error(e); }
+}
+
+// ── Tournées du jour (dashboard) ──
+async function loadTourneesJour() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const data = await api('GET', `/?date=${today}`);
+    const el = document.getElementById('tournees-jour');
+    if (!data.tournees || data.tournees.length === 0) {
+      el.innerHTML = '<div class="empty"><p>Aucune tournée prévue aujourd\'hui</p></div>';
+      return;
+    }
+    el.innerHTML = data.tournees.map(t => `
+      <div class="demande-item" style="cursor:pointer" onclick="voirTournee('${t.id}')">
+        <div class="fdr-numero" style="background:${t.labo_livreurs?.couleur || 'var(--primary)'}">${t.nb_arrets || 0}</div>
+        <div class="info">
+          <div class="nom">${t.labo_livreurs ? t.labo_livreurs.prenom + ' ' + t.labo_livreurs.nom : 'Livreur'} — ${t.creneau === 'matin' ? 'Matin' : 'Après-midi'}</div>
+          <div class="meta">${t.nb_arrets || 0} arrêt(s) · ${t.distance_totale_km ? t.distance_totale_km + ' km' : 'Distance non calculée'} · <span class="badge badge-${t.statut === 'en_cours' ? 'urgent' : 'normal'}">${t.statut}</span></div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();voirTournee('${t.id}')">Feuille de route</button>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); }
+}
+
+// ── Demandes (onglet) ──
+async function loadDemandes() {
+  try {
+    const statut = document.getElementById('filtre-statut')?.value || '';
+    const data = await api('GET', `/demandes?statut=${statut}&limit=50`);
+    const el = document.getElementById('demandes-list');
+    if (!data.demandes || data.demandes.length === 0) {
+      el.innerHTML = '<div class="empty"><p>Aucune demande de passage</p></div>';
+      return;
+    }
+    el.innerHTML = data.demandes.map(d => renderDemande(d)).join('');
+  } catch (e) { console.error(e); }
+}
+
+function renderDemande(d) {
+  const dentiste = d.dentistes_clients;
+  const nom = dentiste ? `${dentiste.titre || ''} ${dentiste.prenom || ''} ${dentiste.nom || ''}`.trim() : 'Dentiste';
+  const refs = (d.references_travaux || []).join(', ');
+  const canNotify = d.statut === 'en_attente' || d.statut === 'planifiee';
+
+  return `
+    <div class="demande-item">
+      <div class="info">
+        <div class="nom">${nom}</div>
+        <div class="meta">
+          ${refs ? `Réf: ${refs} · ` : ''}${d.nb_colis || 1} colis · ${d.date_souhaitee || '—'}
+          <span class="badge badge-${d.priorite}">${d.priorite}</span>
+          <span class="badge badge-${d.type_passage}">${d.type_passage === 'les_deux' ? 'Livr. + Récup.' : d.type_passage === 'livraison' ? 'Livraison' : 'Récupération'}</span>
+          <span class="badge badge-${d.statut === 'en_attente' ? 'normal' : d.statut === 'livree' || d.statut === 'recuperee' ? 'light' : 'urgent'}">${d.statut.replace(/_/g, ' ')}</span>
+        </div>
+      </div>
+      ${canNotify ? `<button class="btn btn-success btn-sm" onclick="notifierEnvoi('${d.id}')">Notifier envoi</button>` : ''}
+    </div>`;
+}
+
+// ── Notifier envoi ──
+async function notifierEnvoi(id) {
+  try {
+    await api('POST', `/demandes/${id}/notifier-envoi`);
+    toast('Dentiste notifié — prothèse en cours d\'envoi');
+    loadDemandes();
+    loadStats();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Tournées (onglet) ──
+async function loadTournees() {
+  try {
+    const data = await api('GET', '/?limit=30');
+    const el = document.getElementById('tournees-list');
+    if (!data.tournees || data.tournees.length === 0) {
+      el.innerHTML = '<div class="empty"><p>Aucune tournée générée</p></div>';
+      return;
+    }
+    el.innerHTML = data.tournees.map(t => `
+      <div class="demande-item" style="cursor:pointer" onclick="voirTournee('${t.id}')">
+        <div class="fdr-numero" style="background:${t.labo_livreurs?.couleur || 'var(--primary)'}">${t.nb_arrets || 0}</div>
+        <div class="info">
+          <div class="nom">${t.date} — ${t.creneau === 'matin' ? 'Matin' : 'Après-midi'} · ${t.labo_livreurs ? t.labo_livreurs.prenom + ' ' + t.labo_livreurs.nom : ''}</div>
+          <div class="meta">${t.nb_arrets} arrêt(s) · <span class="badge badge-${t.statut === 'terminee' ? 'light' : t.statut === 'en_cours' ? 'urgent' : 'normal'}">${t.statut}</span></div>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); }
+}
+
+// ── Feuille de route ──
+async function loadFdrSelect() {
+  try {
+    const data = await api('GET', '/?limit=20');
+    const sel = document.getElementById('fdr-select-tournee');
+    sel.innerHTML = '<option value="">Choisir une tournée...</option>';
+    (data.tournees || []).forEach(t => {
+      const livreur = t.labo_livreurs ? `${t.labo_livreurs.prenom} ${t.labo_livreurs.nom}` : '';
+      sel.innerHTML += `<option value="${t.id}">${t.date} ${t.creneau} — ${livreur} (${t.nb_arrets} arrêts)</option>`;
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function loadFeuilleDeRoute() {
+  const id = document.getElementById('fdr-select-tournee').value;
+  if (!id) return;
+  currentTourneeId = id;
+
+  try {
+    const data = await api('GET', `/${id}`);
+    const t = data.tournee;
+    const arrets = data.arrets || [];
+    const livreur = t.labo_livreurs;
+
+    document.getElementById('fdr-titre').textContent =
+      `Tournée du ${t.date} — ${t.creneau === 'matin' ? 'Matin' : 'Après-midi'}`;
+    document.getElementById('fdr-subtitle').textContent =
+      `${livreur ? livreur.prenom + ' ' + livreur.nom : ''} · ${arrets.length} arrêt(s) · ${t.statut}`;
+
+    // Boutons
+    const btnDem = document.getElementById('btn-demarrer');
+    const btnTer = document.getElementById('btn-terminer');
+    btnDem.style.display = t.statut === 'planifiee' ? 'inline-flex' : 'none';
+    btnTer.style.display = t.statut === 'en_cours' ? 'inline-flex' : 'none';
+
+    // Nav app
+    document.getElementById('fdr-nav-app').value = t.navigation_app || 'waze';
+
+    // Arrêts
+    const el = document.getElementById('fdr-arrets');
+    if (arrets.length === 0) {
+      el.innerHTML = '<div class="empty"><p>Aucun arrêt dans cette tournée</p></div>';
+      return;
+    }
+
+    el.innerHTML = arrets.map(a => {
+      const d = a.dentistes_clients || {};
+      const dem = a.labo_demandes_passage || {};
+      const nom = `${d.titre || ''} ${d.prenom || ''} ${d.nom || ''}`.trim();
+      const adresse = `${d.adresse || ''}, ${d.code_postal || ''} ${d.ville || ''}`.trim();
+      const refs = (dem.references_travaux || []).join(', ');
+      const navApp = document.getElementById('fdr-nav-app').value;
+
+      let navUrl = '';
+      if (d.adresse) {
+        const addr = encodeURIComponent(`${d.adresse} ${d.code_postal} ${d.ville}`);
+        navUrl = navApp === 'waze'
+          ? `https://waze.com/ul?q=${addr}&navigate=yes`
+          : `https://www.google.com/maps/dir/?api=1&destination=${addr}`;
+      }
+
+      const canValidate = a.statut === 'a_faire' || a.statut === 'en_route' || a.statut === 'arrive';
+
+      return `
+        <div class="fdr-arret ${a.statut}">
+          <div class="fdr-numero">${a.statut === 'termine' ? '&#10003;' : a.statut === 'absent' ? '!' : a.ordre}</div>
+          <div class="fdr-info">
+            <div class="fdr-dentiste">${nom || 'Dentiste'}</div>
+            <div class="fdr-adresse">${adresse}</div>
+            ${d.telephone ? `<div class="fdr-adresse"><a href="tel:${d.telephone}" style="color:var(--primary-light)">${d.telephone}</a></div>` : ''}
+            <div class="fdr-details">
+              <span class="badge badge-${dem.priorite || 'normal'}">${dem.priorite || 'normal'}</span>
+              <span class="badge badge-${a.type_passage}">${a.type_passage === 'les_deux' ? 'Livr. + Récup.' : a.type_passage === 'livraison' ? 'Livraison' : 'Récupération'}</span>
+              ${refs ? `<span style="font-size:11px;color:var(--text3)">Réf: ${refs}</span>` : ''}
+              ${dem.nb_colis > 1 ? `<span style="font-size:11px;color:var(--text3)">${dem.nb_colis} colis</span>` : ''}
+            </div>
+          </div>
+          <div class="fdr-actions">
+            ${navUrl ? `<a href="${navUrl}" target="_blank" class="nav-btn ${navApp === 'waze' ? 'nav-btn-waze' : 'nav-btn-gmaps'}">${navApp === 'waze' ? 'Waze' : 'Maps'}</a>` : ''}
+            ${canValidate ? `
+              <button class="btn btn-success btn-sm" onclick="validerArret('${a.id}')">Valider</button>
+              <button class="btn btn-outline btn-sm" onclick="arretAbsent('${a.id}')">Absent</button>
+            ` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) { console.error(e); toast(e.message, true); }
+}
+
+function voirTournee(id) {
+  showTab('feuille');
+  document.getElementById('fdr-select-tournee').value = id;
+  loadFeuilleDeRoute();
+}
+
+async function demarrerTournee() {
+  if (!currentTourneeId) return;
+  try {
+    await api('POST', `/${currentTourneeId}/demarrer`);
+    toast('Tournée démarrée — bonne route !');
+    loadFeuilleDeRoute();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function terminerTournee() {
+  if (!currentTourneeId) return;
+  try {
+    await api('POST', `/${currentTourneeId}/terminer`);
+    toast('Tournée terminée');
+    loadFeuilleDeRoute();
+    loadStats();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function validerArret(id) {
+  try {
+    await api('POST', `/arrets/${id}/valider`, {});
+    toast('Arrêt validé — bon de passage enregistré');
+    loadFeuilleDeRoute();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function arretAbsent(id) {
+  try {
+    await api('POST', `/arrets/${id}/absent`, { notes: 'Cabinet fermé' });
+    toast('Arrêt marqué absent — demande reportée');
+    loadFeuilleDeRoute();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Livreurs (onglet) ──
+async function loadLivreursTab() {
+  await loadLivreurs();
+  const el = document.getElementById('livreurs-list');
+  if (livreurs.length === 0) {
+    el.innerHTML = '<div class="empty"><p>Aucun livreur enregistré. Ajoutez votre premier livreur.</p></div>';
+    return;
+  }
+  el.innerHTML = livreurs.map(l => `
+    <div class="livreur-card">
+      <div class="nom"><span class="dot" style="background:${l.couleur || '#6366f1'}"></span>${l.prenom} ${l.nom}</div>
+      <div class="detail">${l.telephone || '—'} · ${l.vehicule || 'voiture'} · Rayon ${l.zone_rayon_km || 50} km</div>
+      <div style="margin-top:8px">
+        <span class="badge ${l.actif ? 'badge-normal' : 'badge-urgent'}">${l.actif ? 'Actif' : 'Inactif'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Absences (onglet) ──
+async function loadAbsences() {
+  try {
+    const data = await api('GET', '/absences/liste?actives_only=1');
+    const el = document.getElementById('absences-list');
+    if (!data.absences || data.absences.length === 0) {
+      el.innerHTML = '<div class="empty"><p>Aucune absence signalée</p></div>';
+      return;
+    }
+    el.innerHTML = data.absences.map(a => {
+      const d = a.dentistes_clients || {};
+      const nom = `${d.titre || ''} ${d.prenom || ''} ${d.nom || ''}`.trim();
+      return `
+        <div class="demande-item">
+          <div class="info">
+            <div class="nom">${nom}</div>
+            <div class="meta">${a.date_debut} au ${a.date_fin}${a.motif ? ' · ' + a.motif : ''}${a.adresse_alternative ? ' · Adresse alt.: ' + a.adresse_alternative + ' ' + (a.ville_alternative || '') : ''}</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="supprimerAbsence('${a.id}')">Supprimer</button>
+        </div>`;
+    }).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function supprimerAbsence(id) {
+  try {
+    await api('DELETE', `/absences/${id}`);
+    toast('Absence supprimée');
+    loadAbsences();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Modals ──
+function openModalDemande() { document.getElementById('modal-demande').classList.add('show'); }
+function openModalGenerer() { document.getElementById('modal-generer').classList.add('show'); }
+function openModalLivreur() { document.getElementById('modal-livreur').classList.add('show'); }
+function openModalAbsence() { document.getElementById('modal-absence').classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// Fermer modal au clic overlay
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+});
+
+// ── Submit demande ──
+async function submitDemande(e) {
+  e.preventDefault();
+  const refs = document.getElementById('dem-refs').value;
+  try {
+    await api('POST', '/demandes', {
+      dentiste_client_id: document.getElementById('dem-dentiste').value,
+      type_passage: document.getElementById('dem-type').value,
+      priorite: document.getElementById('dem-priorite').value,
+      date_souhaitee: document.getElementById('dem-date').value || null,
+      creneau: document.getElementById('dem-creneau').value,
+      references_travaux: refs ? refs.split(',').map(r => r.trim()).filter(Boolean) : [],
+      description: document.getElementById('dem-desc').value || null,
+      nb_colis: parseInt(document.getElementById('dem-colis').value) || 1,
+      origine: 'prothesiste'
+    });
+    toast('Demande de passage créée');
+    closeModal('modal-demande');
+    loadStats();
+    loadDemandesUrgentes();
+    if (document.getElementById('tab-demandes').style.display !== 'none') loadDemandes();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Submit générer tournée ──
+async function submitGenerer(e) {
+  e.preventDefault();
+  try {
+    const data = await api('POST', '/generer', {
+      livreur_id: document.getElementById('gen-livreur').value,
+      date: document.getElementById('gen-date').value,
+      creneau: document.getElementById('gen-creneau').value,
+      navigation_app: document.getElementById('gen-nav').value
+    });
+    if (data.tournee) {
+      toast(`Tournée générée — ${data.nb_arrets} arrêt(s)`);
+      closeModal('modal-generer');
+      voirTournee(data.tournee.id);
+      loadStats();
+    } else {
+      toast(data.message || 'Aucune demande en attente', true);
+    }
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Submit livreur ──
+async function submitLivreur(e) {
+  e.preventDefault();
+  try {
+    await api('POST', '/livreurs', {
+      nom: document.getElementById('liv-nom').value,
+      prenom: document.getElementById('liv-prenom').value,
+      telephone: document.getElementById('liv-tel').value || null,
+      email: document.getElementById('liv-email').value || null,
+      vehicule: document.getElementById('liv-vehicule').value,
+      zone_rayon_km: parseInt(document.getElementById('liv-rayon').value) || 50
+    });
+    toast('Livreur ajouté');
+    closeModal('modal-livreur');
+    loadLivreursTab();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Submit absence ──
+async function submitAbsence(e) {
+  e.preventDefault();
+  try {
+    await api('POST', '/absences', {
+      dentiste_client_id: document.getElementById('abs-dentiste').value,
+      date_debut: document.getElementById('abs-debut').value,
+      date_fin: document.getElementById('abs-fin').value,
+      motif: document.getElementById('abs-motif').value || null,
+      adresse_alternative: document.getElementById('abs-adresse').value || null,
+      ville_alternative: document.getElementById('abs-ville').value || null,
+      cp_alternative: document.getElementById('abs-cp').value || null
+    });
+    toast('Absence enregistrée');
+    closeModal('modal-absence');
+    loadAbsences();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── Toast ──
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>

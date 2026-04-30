@@ -71,6 +71,7 @@ function createLaboRouter() {
   router.use('/garanties', requireFeature('garanties'), require('./garanties'));
   router.use('/planning', requireFeature('planning'), require('./planning'));
   router.use('/expeditions', requireFeature('expeditions'), require('./expeditions'));
+  router.use('/tournees', requireFeature('tournees_livreur'), require('./tournees-livreur'));
   const { chatRouter, portailChatRouter } = require('./chat');
   router.use('/chat', requireFeature('chat'), chatRouter);
   router.use('/portail-chat', portailChatRouter);

@@ -55,6 +55,7 @@ const FEATURES = {
   chat: 'pro',
   reseau_annuaire: 'pro',
   reseau_soustraitance: 'pro',
+  tournees_livreur: 'pro',
   import_grille_ia: 'pro',
 
   // -- Premium --
