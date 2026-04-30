@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 28 avril 2026
-**Derniere passe** : Passe 65 — Plateforme prothesiste complete + reseau solidarite
+**Derniere mise a jour** : 30 avril 2026
+**Derniere passe** : Passe 68 — Module IDE infirmiere complet + preuve passage GPS
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -287,6 +287,96 @@ et recommander l'approche (reconstruire, ameliorer, refuser).
 - 17 endpoints API /api/studio/cms/* et /api/studio/analyse/*
 - Dashboard frontend : Pro/Expert/Classic avec differenciation visuelle
 - Onglet JADOMI Studio dans sidebar dashboard principal
+
+## 2.26 JADOMI IDE — Module Infirmiere Liberale Complet (Passe 68)
+Plateforme complete pour IDEL (infirmiers diplomes d'etat liberaux).
+Positionnement : aucun concurrent ne fait tout ca.
+
+### Dashboard IDE (/ide/dashboard.html)
+- Planning pro multi-vue : jour / 3 jours / semaine
+- Filtre par praticien (chips cliquables)
+- Mode plein ecran avec panel lateral d'options
+- Rotation automatique des infirmieres tous les 3 jours
+- Optimisation intelligente : creneaux fixes (insuline 6h30) > proximite > flexible (Alzheimer 11h)
+- Patients meme rue groupes, badge "Retour" si 2 passages meme zone
+- Rappels/post-it par date sur le planning
+- Reporter une visite au lendemain avec repositionnement auto
+- Donnees demo Marrakech avec noms mixtes arabes/europeens
+
+### Mode Tournee Active (step-by-step)
+- Choix Waze ou Google Maps au demarrage
+- Liste ordonnee des visites avec etapes numerotees
+- Gros bouton "Termine" → GPS capture silencieusement → navigation suivante automatique
+- Stop pharmacie unique integre dans le parcours (tous traitements regroupes)
+- Patients chroniques badges (rose), pilulier (violet), urgent (rouge clignotant), 2x/jour (orange)
+- Bouton "Patient confirme" → ecran simplifie pour le patient
+- Bouton "Faire signer" → pad signature optionnel
+- Mode hors ligne : file d'attente localStorage, sync auto au retour reseau
+
+### Preuve de Passage Certifiee (table ide_preuves_passage — SQL deploye)
+- API POST /api/ide/visite/:id/checkin — horodatage SERVEUR (pas le telephone)
+- Geolocalisation GPS arrivee + depart
+- Geofencing Haversine : distance exacte au domicile patient (< 15m = "Sur place")
+- Signature patient sur ecran tactile (canvas PNG)
+- Confirmation patient depuis SON telephone (double preuve GPS independante)
+- Log immuable non modifiable apres enregistrement
+- Onglet "Mes passages" : historique par date, badges GPS/signe/confirme
+- Attestation JADOMI extractible par visite ou par periode, prete a imprimer
+- Positionnement : "Votre bouclier en cas de controle" (pas un mouchard)
+
+### Scanner Ordonnance IA (Premium 89EUR/mois)
+- API POST /api/ide/ordonnances/analyser — Claude analyse photo ordonnance
+- Extraction medicaments, dosages, posologie, voie d'administration
+- Score de confiance par medicament (vert > 80%, orange 50-79%, rouge < 50%)
+- Alerte medicaments a risque (insuline, morphine, heparine, methotrexate, digoxine)
+- Manuscrite : tente l'analyse, flag confiance basse si illisible
+- Validation OBLIGATOIRE par l'infirmiere ligne par ligne
+- Gate par formule : ordoScan = true uniquement sur Premium
+
+### Dictee Vocale + Media Medecin
+- Web Speech API (fr-FR) : l'infirmiere dicte ses notes, texte temps reel
+- Photo/video/vocal : capture camera + MediaRecorder
+- Envoi securise au medecin traitant via Care Network (/api/ide/visite/:id/send-medecin)
+- Insertion dans care_partages (cercle de soins existant)
+
+### App Patient enrichie (/patient/)
+- Nouvel onglet "Mes visites" : visites du jour + historique + confirmation GPS
+- Bouton "Confirmer la presence de mon infirmier(e)" → GPS patient enregistre
+- Flag type utilisateur dans profil : patient direct / representant sur place / representant distant
+- Representant distant = PAS de GPS croise (evite faux positifs fils a 200km)
+- API POST /api/patient/confirm-visit
+
+### PWA Installable
+- manifest.json dedie (/ide/manifest.json)
+- Service Worker (/ide/sw.js) : precache + network-first + cache fallback
+- Icone SVG JADOMI IDE
+- Installable sur Android (Chrome) et iOS (Safari)
+
+### Connexions modules existants
+- JADOMI Sign (Passe 55) branche sur contrats de remplacement IDE (AES eIDAS)
+- Care Network (Passe 53) branche sur envoi medias au medecin
+- Comptabilite existante reutilisee (meme scanner IA)
+
+### Courriers officiels (docs/)
+- courrier-ars-preuve-passage.html — presentation systeme tracabilite, langage simple
+- courrier-cpam-tracabilite.html — 5 niveaux de preuve, schema passage type
+
+### Formules tarifaires IDE
+| Formule | Prix | Patients | Infirmiers | Compta | Ordonnances | Scanner IA |
+|---------|------|----------|------------|--------|-------------|------------|
+| Essentiel | 29EUR | 30 | 1 | Non | Non | Non |
+| Pro | 49EUR | Illimite | 3 | Oui | Upload | Non |
+| Premium | 89EUR | Illimite | Illimite | Oui | Upload+Email | Scanner IA |
+
+### Fichiers cles
+- public/ide/dashboard.html (~2700 lignes)
+- public/ide/manifest.json + sw.js
+- public/ide/demande-soins.html + soins-ville.html
+- public/patient/js/pages/mes-visites.js
+- public/infirmiers.html (page vitrine optimisee)
+- docs/courrier-ars-preuve-passage.html
+- docs/courrier-cpam-tracabilite.html
+- server.js : 50+ endpoints /api/ide/*
 
 ## 2.24 JADOMI Care Network — Reseau de Soins interprofessionnel (Passe 53)
 Extension du Triangle Photo : coordination N praticiens autour d'un patient.
@@ -1289,6 +1379,35 @@ Totaux Passe 66 : ~150 nouveaux endpoints API, ~20 nouvelles pages/composants,
 5 migrations SQL (66-70), ~3100 corrections orthographe, 129 bugs/vulns corriges,
 18 features concurrentielles, ~15000 lignes de code ajoutees.
 
+## Passe 68 (30 avril 2026) -- Module IDE infirmiere complet
+La passe la plus ambitieuse pour le vertical infirmier. Aucun concurrent
+francais ne propose l'ensemble de ces features.
+
+Fichiers crees (6) :
+- public/ide/manifest.json + sw.js (PWA installable)
+- public/patient/js/pages/mes-visites.js (confirmation GPS patient)
+- public/assets/icons/ide-192.svg
+- docs/courrier-ars-preuve-passage.html + courrier-cpam-tracabilite.html
+
+Fichiers modifies (22) :
+- public/ide/dashboard.html : planning pro multi-vue, mode tournee active,
+  preuve passage GPS, scanner ordonnance IA, dictee vocale, capture media,
+  mode hors ligne, pharmacie dans tournee, rotation 3 jours, optimisation
+  intelligente insuline/Alzheimer, attestation extractible, donnees demo Marrakech
+- server.js : 4 nouveaux endpoints (checkin, send-medecin, confirm-visit,
+  analyser ordonnance), JADOMI Sign branche sur contrats remplacement
+- public/infirmiers.html : page vitrine refaite 2x (21→6 features + 7→4 killers)
+- public/professions-paramedicales.html : lien infirmiers corrige, topbar supprimee
+- public/login.html : nettoyage auth, redirections propres
+- public/organisation.html : auth guard inline, carte infirmiere mise en valeur,
+  courriers ARS/CPAM dans documents
+- public/patient/index.html + profil.js : onglet visites + flag representant
+- 10 pages vitrines : liens .html nettoyes, topbar supprimee
+
+SQL deploye : CREATE TABLE ide_preuves_passage (prod Supabase)
+
+28 fichiers modifies, 3584 insertions, 473 suppressions.
+
 ## Passe 65 (28 avril 2026) -- Plateforme prothesiste complete + reseau solidarite
 La plus grosse passe du projet. 15 nouveaux modules labo + dashboard complet.
 1. Suivi production 8 etapes + QR code tracking (10 endpoints)
@@ -1492,6 +1611,18 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - [x] Dashboard prothesiste 2267 lignes, 15 onglets (Passe 65)
 - [x] 3 formules tarifaires prothesiste + feature gating middleware (Passe 65)
 - [x] 9 corrections securite (4 CRITICAL IDOR, 2 HIGH, 3 MEDIUM) (Passe 65)
+- [x] Module IDE infirmiere complet : tournees Waze, preuve passage, scanner ordo IA (Passe 68)
+- [x] Preuve passage GPS certifiee : horodatage serveur + geofencing + signature patient (Passe 68)
+- [x] Mode tournee active step-by-step : Waze/Maps, 1 tap termine, nav auto (Passe 68)
+- [x] Scanner ordonnance IA Claude : extraction medicaments, alerte dosage, validation inf (Passe 68)
+- [x] Dictee vocale + photo/video au medecin via Care Network (Passe 68)
+- [x] App patient : confirmation visite GPS + flag representant distant (Passe 68)
+- [x] PWA installable IDE (manifest + service worker) (Passe 68)
+- [x] JADOMI Sign branche sur contrats remplacement IDE (Passe 68)
+- [x] Page vitrine infirmiers optimisee : 6 features + 4 killers (Passe 68)
+- [x] Auth guard inline localStorage (pas de cookie/middleware) (Passe 68)
+- [x] Redirections .html 302 + liens internes nettoyes (Passe 68)
+- [x] Table ide_preuves_passage deployee en prod Supabase (Passe 68)
 - [ ] Executer MIGRATION_COMPLETE_65.sql dans Supabase Dashboard
 
 ## Moyen terme (1 mois)
@@ -1517,6 +1648,7 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - **Abonnement** : Claude Max 20x (200EUR/mois)
 - **DENTALEVOLUTION** : 2 associes (33% chacun)
 - **Epouse** : Avocate (focus group naturel, tres critique)
+- **2 soeurs** : Infirmieres liberales (motivation module IDE, test terrain)
 - **Contact avocat pro** : a appeler pour RDV partenariat CGV
 - **Personnalite** : ACHARNE (14h de code nocturne possible)
 - **Philosophie produit** : Simplicite radicale + WAOUH visuel
