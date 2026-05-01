@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Suivi Production</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0a0a0a;--card:#141414;--border:#262626;--text:#fafafa;
+  --primary:#be185d;--primary-dark:#9f1239;--primary-light:rgba(190,24,93,0.15);
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+  --muted:#a1a1aa;--muted-light:#71717a;
+  --surface2:#1a1a1a;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.4);
+  --font:'Inter',system-ui,sans-serif;
+  --sidebar-w:240px;--topbar-h:60px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+a{color:inherit;text-decoration:none;}
+.shell{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;overflow-y:auto;transition:transform .4s var(--ease);}
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),#e11d74);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+.logo-text{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;line-height:1.2;}
+.logo-sub{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:0.3px;}
+.nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-section-label{padding:10px 22px 4px;font-size:10px;font-weight:600;color:var(--muted-light);text-transform:uppercase;letter-spacing:1.2px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 22px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .2s var(--ease);border-left:2px solid transparent;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-left-color:var(--primary);font-weight:600;}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.sidebar-toggle{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--card);border:1px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:var(--radius-sm);font-size:20px;cursor:pointer;align-items:center;justify-content:center;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;}
+
+/* Main */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.topbar-breadcrumb{font-size:12px;color:var(--muted);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-date{font-size:12px;color:var(--muted);white-space:nowrap;}
+.content{padding:28px;flex:1;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all .2s var(--ease);white-space:nowrap;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{background:var(--surface2);border-color:var(--muted-light);}
+.btn-ghost{background:transparent;color:var(--muted);border:none;}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{background:#16a34a;}
+.btn-warning{background:var(--warning);color:#000;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-danger:hover{background:#dc2626;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);transition:all .3s var(--ease);position:relative;overflow:hidden;}
+.stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;}
+.stat-card.pink::before{background:var(--primary);}
+.stat-card.red::before{background:var(--danger);}
+.stat-card.green::before{background:var(--success);}
+.stat-card.amber::before{background:var(--warning);}
+.stat-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;}
+.stat-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.stat-icon.pink{background:var(--primary-light);}
+.stat-icon.red{background:rgba(239,68,68,0.15);}
+.stat-icon.green{background:rgba(34,197,94,0.15);}
+.stat-icon.amber{background:rgba(245,158,11,0.15);}
+.stat-value{font-size:26px;font-weight:700;color:var(--text);letter-spacing:-0.8px;line-height:1;margin-bottom:6px;}
+.stat-sub{font-size:11px;color:var(--muted);}
+
+/* Card */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:24px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;}
+.card-actions{display:flex;gap:8px;}
+.card-body{padding:20px;}
+
+/* Filters */
+.filters{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+.filters select,.filters input{background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);transition:border-color .2s var(--ease);}
+.filters select:focus,.filters input:focus{outline:none;border-color:var(--primary);}
+
+/* Kanban */
+.kanban{display:grid;grid-template-columns:repeat(8,1fr);gap:12px;overflow-x:auto;padding-bottom:12px;}
+.kanban-col{min-width:180px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.kanban-col-header{padding:12px 14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.kanban-col-header .count{background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.kanban-col-body{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:100px;max-height:400px;overflow-y:auto;}
+.kanban-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;transition:all .2s var(--ease);}
+.kanban-card:hover{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary);}
+.kanban-card-title{font-size:12px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kanban-card-meta{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+.urgency-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;}
+.urgency-normal{background:rgba(59,130,246,0.15);color:#60a5fa;}
+.urgency-urgent{background:rgba(239,68,68,0.15);color:#ef4444;}
+.urgency-express{background:rgba(245,158,11,0.15);color:#f59e0b;}
+
+/* Progress bar */
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px;}
+.progress-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .4s var(--ease);}
+
+/* Table */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tr:hover td{background:var(--surface2);}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-green{background:rgba(34,197,94,0.15);color:#22c55e;}
+.badge-amber{background:rgba(245,158,11,0.15);color:#f59e0b;}
+.badge-red{background:rgba(239,68,68,0.15);color:#ef4444;}
+.badge-blue{background:rgba(59,130,246,0.15);color:#60a5fa;}
+.badge-pink{background:var(--primary-light);color:var(--primary);}
+.badge-gray{background:rgba(161,161,170,0.15);color:#a1a1aa;}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;animation:fadeIn .25s var(--ease);}
+.modal-overlay.active{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:slideUp .35s var(--ease);}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);transition:border-color .2s var(--ease);}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--primary);}
+.form-textarea{min-height:80px;resize:vertical;}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:20px;}
+.pagination button{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:var(--font);transition:all .2s var(--ease);}
+.pagination button:hover{border-color:var(--primary);color:var(--primary);}
+.pagination button.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.pagination button:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeInUp .4s var(--ease) both;}
+.fade-in-d1{animation-delay:.05s;}
+.fade-in-d2{animation-delay:.1s;}
+.fade-in-d3{animation-delay:.15s;}
+.fade-in-d4{animation-delay:.2s;}
+
+/* Responsive */
+@media(max-width:1200px){
+  .kanban{grid-template-columns:repeat(4,1fr);}
+}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-toggle{display:flex;}
+  .overlay.active{display:block;}
+  .main{margin-left:0;}
+  .topbar{padding:0 16px;}
+  .content{padding:16px;}
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+  .kanban{grid-template-columns:1fr 1fr;}
+  .filters{flex-direction:column;}
+}
+@media(max-width:480px){
+  .stats-row{grid-template-columns:1fr;}
+  .kanban{grid-template-columns:1fr;}
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted-light);}
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- Sidebar -->
+  <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+  <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">&#9881;</div>
+      <div><div class="logo-text">JADOMI LABO</div><div class="logo-sub">Espace prothésiste</div></div>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html" class="nav-item"><span class="ni">&#127968;</span> Dashboard</a>
+      <a href="dentistes.html" class="nav-item"><span class="ni">&#128101;</span> Mes dentistes</a>
+      <a href="bons-livraison.html" class="nav-item"><span class="ni">&#128203;</span> Bons de laboratoire</a>
+      <a href="tournees-livreur.html" class="nav-item"><span class="ni">&#128666;</span> Tournées livreur</a>
+      <a href="suivi-livreurs.html" class="nav-item"><span class="ni">&#128205;</span> Suivi en direct</a>
+      <a href="production.html" class="nav-item active"><span class="ni">&#9881;</span> Production</a>
+      <a href="remakes.html" class="nav-item"><span class="ni">&#128260;</span> Remakes</a>
+      <a href="techniciens.html" class="nav-item"><span class="ni">&#128119;</span> Techniciens</a>
+      <a href="garanties.html" class="nav-item"><span class="ni">&#128737;</span> Garanties</a>
+      <a href="expeditions.html" class="nav-item"><span class="ni">&#128230;</span> Expéditions</a>
+      <a href="chat.html" class="nav-item"><span class="ni">&#128172;</span> Chat dentistes</a>
+      <a href="planning.html" class="nav-item"><span class="ni">&#128197;</span> Planning</a>
+      <a href="facturation.html" class="nav-item"><span class="ni">&#128176;</span> Facturation</a>
+      <a href="stock.html" class="nav-item"><span class="ni">&#128230;</span> Stock &amp; Matériaux</a>
+      <a href="catalogue.html" class="nav-item"><span class="ni">&#128202;</span> Catalogue</a>
+      <a href="import-grille.html" class="nav-item"><span class="ni">&#128229;</span> Import grille</a>
+      <a href="shade.html" class="nav-item"><span class="ni">&#127912;</span> Shade IA</a>
+      <a href="maintenance.html" class="nav-item"><span class="ni">&#128295;</span> Maintenance</a>
+      <a href="fichiers3d.html" class="nav-item"><span class="ni">&#128190;</span> Fichiers 3D</a>
+      <a href="reseau.html" class="nav-item"><span class="ni">&#129309;</span> Réseau solidaire</a>
+      <a href="profil-labo.html" class="nav-item"><span class="ni">&#9881;</span> Paramètres</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="topbar-title">Suivi Production</div>
+          <div class="topbar-breadcrumb"><a href="dashboard.html" style="color:var(--primary);">Dashboard</a> <span style="margin:0 6px;">›</span> Production</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="currentDate"></span>
+        <button class="btn btn-primary" onclick="openCreateModal()">+ Nouveau cas</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card pink fade-in">
+          <div class="stat-header"><div class="stat-label">En cours</div><div class="stat-icon pink">&#9881;</div></div>
+          <div class="stat-value" id="statEnCours">--</div>
+          <div class="stat-sub">cas en production</div>
+        </div>
+        <div class="stat-card red fade-in fade-in-d1">
+          <div class="stat-header"><div class="stat-label">En retard</div><div class="stat-icon red">&#9888;</div></div>
+          <div class="stat-value" id="statRetard">--</div>
+          <div class="stat-sub">dépassent la date limite</div>
+        </div>
+        <div class="stat-card green fade-in fade-in-d2">
+          <div class="stat-header"><div class="stat-label">Terminés ce mois</div><div class="stat-icon green">&#10003;</div></div>
+          <div class="stat-value" id="statTermines">--</div>
+          <div class="stat-sub">cas livrés</div>
+        </div>
+        <div class="stat-card amber fade-in fade-in-d3">
+          <div class="stat-header"><div class="stat-label">Temps moyen</div><div class="stat-icon amber">&#9201;</div></div>
+          <div class="stat-value" id="statTempsMoyen">--</div>
+          <div class="stat-sub">jours par cas</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <select id="filterEtape" onchange="loadData()">
+          <option value="">Toutes les étapes</option>
+          <option value="empreinte_recue">Empreinte reçue</option>
+          <option value="modele">Modèle</option>
+          <option value="cire">Cire</option>
+          <option value="essayage">Essayage</option>
+          <option value="fabrication">Fabrication</option>
+          <option value="finition">Finition</option>
+          <option value="controle_qualite">Contrôle qualité</option>
+          <option value="expedition">Expédition</option>
+        </select>
+        <select id="filterDentiste" onchange="loadData()">
+          <option value="">Tous les dentistes</option>
+        </select>
+        <select id="filterUrgence" onchange="loadData()">
+          <option value="">Toutes urgences</option>
+          <option value="normal">Normal</option>
+          <option value="urgent">Urgent</option>
+          <option value="express">Express</option>
+        </select>
+      </div>
+
+      <!-- Kanban Board -->
+      <div class="card fade-in fade-in-d2">
+        <div class="card-header">
+          <div class="card-title">&#128203; Tableau de production (Kanban)</div>
+          <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="loadKanban()">&#8635; Actualiser</button>
+          </div>
+        </div>
+        <div class="card-body" style="overflow-x:auto;">
+          <div class="kanban" id="kanbanBoard">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Cases Table -->
+      <div class="card fade-in fade-in-d3">
+        <div class="card-header">
+          <div class="card-title">&#128196; Liste des cas</div>
+          <div class="card-actions">
+            <span style="font-size:12px;color:var(--muted);" id="totalCount"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Réf.</th>
+                  <th>Patient</th>
+                  <th>Dentiste</th>
+                  <th>Type</th>
+                  <th>Étape</th>
+                  <th>Urgence</th>
+                  <th>Progression</th>
+                  <th>Date limite</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="casesTable">
+                <tr><td colspan="9" class="empty-state"><div class="icon">&#9881;</div><p>Chargement en cours...</p></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="pagination"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Nouveau cas de production</div>
+      <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editCaseId">
+      <div class="form-group">
+        <label class="form-label">Référence / Description</label>
+        <input type="text" class="form-input" id="caseRef" placeholder="Ex: Couronne céramique #12">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nom du patient</label>
+        <input type="text" class="form-input" id="casePatient" placeholder="Nom du patient">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dentiste</label>
+        <select class="form-select" id="caseDentiste">
+          <option value="">Sélectionnez un dentiste</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type de prothèse</label>
+        <select class="form-select" id="caseType">
+          <option value="couronne">Couronne</option>
+          <option value="bridge">Bridge</option>
+          <option value="inlay">Inlay / Onlay</option>
+          <option value="prothese_amovible">Prothèse amovible</option>
+          <option value="implant">Implant</option>
+          <option value="facette">Facette</option>
+          <option value="gouttiere">Gouttière</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Urgence</label>
+        <select class="form-select" id="caseUrgence">
+          <option value="normal">Normal</option>
+          <option value="urgent">Urgent</option>
+          <option value="express">Express</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date limite</label>
+        <input type="date" class="form-input" id="caseDateLimite">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="caseNotes" placeholder="Instructions spécifiques, teinte, remarques..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCase()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title">Détail du cas</div>
+      <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="detailContent">
+      <!-- Filled by JS -->
+    </div>
+    <div class="modal-footer" id="detailFooter">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// Auth
+const token = localStorage.getItem('sb-access-token');
+const societeId = localStorage.getItem('selectedSocieteId') || localStorage.getItem('societeId');
+const API_BASE = '/api/labo/production';
+
+function headers() {
+  const h = { 'Content-Type': 'application/json' };
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  if (societeId) h['X-Societe-Id'] = societeId;
+  return h;
+}
+
+// Steps
+const STEPS = [
+  { key: 'empreinte_recue', label: 'Empreinte reçue', short: 'Empreinte' },
+  { key: 'modele', label: 'Modèle', short: 'Modèle' },
+  { key: 'cire', label: 'Cire', short: 'Cire' },
+  { key: 'essayage', label: 'Essayage', short: 'Essayage' },
+  { key: 'fabrication', label: 'Fabrication', short: 'Fabrication' },
+  { key: 'finition', label: 'Finition', short: 'Finition' },
+  { key: 'controle_qualite', label: 'Contrôle qualité', short: 'CQ' },
+  { key: 'expedition', label: 'Expédition', short: 'Expédition' }
+];
+
+function stepIndex(key) { return STEPS.findIndex(s => s.key === key); }
+function stepLabel(key) { const s = STEPS.find(s => s.key === key); return s ? s.label : key; }
+function stepProgress(key) { const i = stepIndex(key); return i >= 0 ? Math.round(((i + 1) / STEPS.length) * 100) : 0; }
+
+function urgencyBadge(u) {
+  const cls = u === 'urgent' ? 'urgency-urgent' : u === 'express' ? 'urgency-express' : 'urgency-normal';
+  const label = u === 'urgent' ? 'Urgent' : u === 'express' ? 'Express' : 'Normal';
+  return `<span class="urgency-badge ${cls}">${label}</span>`;
+}
+
+// Date display
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+// Sidebar toggle
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('active');
+}
+
+// State
+let currentPage = 1;
+const limit = 20;
+
+// Load data
+async function loadData() {
+  loadStats();
+  loadKanban();
+  loadCases();
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch(API_BASE + '/stats', { headers: headers() });
+    if (!res.ok) throw new Error('Stats error');
+    const data = await res.json();
+    document.getElementById('statEnCours').textContent = data.en_cours ?? 0;
+    document.getElementById('statRetard').textContent = data.en_retard ?? 0;
+    document.getElementById('statTermines').textContent = data.termines_mois ?? 0;
+    document.getElementById('statTempsMoyen').textContent = (data.temps_moyen ?? '--') + (data.temps_moyen ? 'j' : '');
+  } catch (e) {
+    console.warn('Stats:', e);
+    document.getElementById('statEnCours').textContent = '0';
+    document.getElementById('statRetard').textContent = '0';
+    document.getElementById('statTermines').textContent = '0';
+    document.getElementById('statTempsMoyen').textContent = '--';
+  }
+}
+
+async function loadKanban() {
+  const board = document.getElementById('kanbanBoard');
+  try {
+    const res = await fetch(API_BASE + '/tableau', { headers: headers() });
+    if (!res.ok) throw new Error('Kanban error');
+    const data = await res.json();
+    board.innerHTML = STEPS.map(step => {
+      const cases = (data[step.key] || []);
+      return `<div class="kanban-col">
+        <div class="kanban-col-header">${step.short} <span class="count">${cases.length}</span></div>
+        <div class="kanban-col-body">
+          ${cases.length === 0 ? '<div style="text-align:center;padding:20px;color:var(--muted-light);font-size:12px;">Aucun cas</div>' :
+            cases.map(c => `<div class="kanban-card" onclick="showDetail('${c.id}')">
+              <div class="kanban-card-title">${esc(c.reference || c.description || 'Sans titre')}</div>
+              <div class="kanban-card-meta">
+                <span>${esc(c.patient || '')}</span>
+                ${urgencyBadge(c.urgence || 'normal')}
+              </div>
+              <div class="progress-bar"><div class="progress-fill" style="width:${stepProgress(step.key)}%"></div></div>
+            </div>`).join('')
+          }
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.warn('Kanban:', e);
+    board.innerHTML = STEPS.map(step =>
+      `<div class="kanban-col">
+        <div class="kanban-col-header">${step.short} <span class="count">0</span></div>
+        <div class="kanban-col-body"><div style="text-align:center;padding:20px;color:var(--muted-light);font-size:12px;">Aucun cas</div></div>
+      </div>`
+    ).join('');
+  }
+}
+
+async function loadCases() {
+  const tbody = document.getElementById('casesTable');
+  const etape = document.getElementById('filterEtape').value;
+  const dentiste = document.getElementById('filterDentiste').value;
+  const urgence = document.getElementById('filterUrgence').value;
+  let url = `${API_BASE}?page=${currentPage}&limit=${limit}`;
+  if (etape) url += '&statut=' + etape;
+  if (dentiste) url += '&dentiste_id=' + dentiste;
+  if (urgence) url += '&urgence=' + urgence;
+
+  try {
+    const res = await fetch(url, { headers: headers() });
+    if (!res.ok) throw new Error('Cases error');
+    const data = await res.json();
+    const cases = data.data || data.cases || data || [];
+    const total = data.total || cases.length;
+    document.getElementById('totalCount').textContent = total + ' cas au total';
+
+    if (!Array.isArray(cases) || cases.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><div class="icon">&#128196;</div><p>Aucun cas de production trouvé.</p></td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = cases.map(c => {
+      const prog = stepProgress(c.etape || c.statut || 'empreinte_recue');
+      const dateLimite = c.date_limite ? new Date(c.date_limite).toLocaleDateString('fr-FR') : '--';
+      const isLate = c.date_limite && new Date(c.date_limite) < new Date();
+      return `<tr>
+        <td style="font-weight:600;color:var(--primary);">${esc(c.reference || c.id?.slice(0,8) || '--')}</td>
+        <td>${esc(c.patient || '--')}</td>
+        <td>${esc(c.dentiste_nom || '--')}</td>
+        <td>${esc(c.type_prothese || '--')}</td>
+        <td><span class="badge badge-pink">${stepLabel(c.etape || c.statut || 'empreinte_recue')}</span></td>
+        <td>${urgencyBadge(c.urgence || 'normal')}</td>
+        <td style="min-width:120px;">
+          <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">${prog}%</div>
+        </td>
+        <td style="${isLate ? 'color:var(--danger);font-weight:600;' : ''}">${dateLimite}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="showDetail('${c.id}')" title="Détail">&#128065;</button>
+          <button class="btn btn-ghost btn-sm" onclick="advanceStep('${c.id}')" title="Étape suivante">&#9654;</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateQR('${c.id}')" title="QR Code">&#9633;</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    // Pagination
+    const totalPages = Math.ceil(total / limit);
+    renderPagination(totalPages);
+  } catch (e) {
+    console.warn('Cases:', e);
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><div class="icon">&#9888;</div><p>Impossible de charger les cas de production.</p></td></tr>';
+  }
+}
+
+function renderPagination(totalPages) {
+  const pag = document.getElementById('pagination');
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+  let html = `<button ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage-1})">&#8592; Préc.</button>`;
+  for (let i = 1; i <= totalPages && i <= 10; i++) {
+    html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  html += `<button ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage+1})">Suiv. &#8594;</button>`;
+  pag.innerHTML = html;
+}
+
+function goPage(p) { currentPage = p; loadCases(); }
+
+// Detail
+async function showDetail(id) {
+  try {
+    const res = await fetch(API_BASE + '/' + id, { headers: headers() });
+    if (!res.ok) throw new Error('Detail error');
+    const c = await res.json();
+    const prog = stepProgress(c.etape || c.statut || 'empreinte_recue');
+    const si = stepIndex(c.etape || c.statut || 'empreinte_recue');
+
+    document.getElementById('detailContent').innerHTML = `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;">${esc(c.reference || c.description || 'Cas #' + (c.id?.slice(0,8) || ''))}</div>
+        <div style="font-size:13px;color:var(--muted);">Patient : ${esc(c.patient || '--')} | Dentiste : ${esc(c.dentiste_nom || '--')}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;">Type</span><br><strong>${esc(c.type_prothese || '--')}</strong></div>
+        <div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;">Urgence</span><br>${urgencyBadge(c.urgence || 'normal')}</div>
+        <div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;">Étape actuelle</span><br><span class="badge badge-pink">${stepLabel(c.etape || c.statut || 'empreinte_recue')}</span></div>
+        <div><span style="font-size:11px;color:var(--muted);text-transform:uppercase;">Date limite</span><br><strong>${c.date_limite ? new Date(c.date_limite).toLocaleDateString('fr-FR') : '--'}</strong></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <span style="font-size:11px;color:var(--muted);text-transform:uppercase;">Progression</span>
+        <div class="progress-bar" style="height:8px;margin-top:6px;"><div class="progress-fill" style="width:${prog}%"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;">
+          ${STEPS.map((s, i) => `<span style="font-size:9px;color:${i <= si ? 'var(--primary)' : 'var(--muted-light)'};font-weight:${i === si ? '700' : '400'};">${s.short}</span>`).join('')}
+        </div>
+      </div>
+      ${c.notes ? `<div style="margin-bottom:16px;"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;">Notes</span><p style="margin-top:4px;font-size:13px;color:var(--text);background:var(--surface2);padding:10px;border-radius:var(--radius-sm);">${esc(c.notes)}</p></div>` : ''}
+    `;
+
+    const isLast = si >= STEPS.length - 1;
+    document.getElementById('detailFooter').innerHTML = `
+      <button class="btn btn-outline" onclick="editCase('${c.id}')">&#9998; Modifier</button>
+      ${!isLast ? `<button class="btn btn-success" onclick="advanceStep('${c.id}')">&#9654; Étape suivante</button>` : '<span class="badge badge-green">Terminé</span>'}
+      <button class="btn btn-ghost btn-sm" onclick="generateQR('${c.id}')">QR Code</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCase('${c.id}')">Supprimer</button>
+    `;
+    document.getElementById('detailModal').classList.add('active');
+  } catch (e) {
+    console.warn('Detail:', e);
+    alert('Impossible de charger le détail du cas.');
+  }
+}
+
+function closeDetailModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+// Advance step
+async function advanceStep(id) {
+  if (!confirm('Passer à l\'étape suivante ?')) return;
+  try {
+    const res = await fetch(API_BASE + '/' + id + '/etape', { method: 'POST', headers: headers() });
+    if (!res.ok) throw new Error('Advance error');
+    closeDetailModal();
+    loadData();
+  } catch (e) {
+    console.warn('Advance:', e);
+    alert('Erreur lors de l\'avancement de l\'étape.');
+  }
+}
+
+// QR Code
+async function generateQR(id) {
+  try {
+    const res = await fetch(API_BASE + '/' + id + '/qr', { method: 'POST', headers: headers() });
+    if (!res.ok) throw new Error('QR error');
+    const data = await res.json();
+    if (data.qr_url || data.qr_code || data.url) {
+      const url = data.qr_url || data.qr_code || data.url;
+      window.open(url, '_blank');
+    } else {
+      alert('QR code généré avec succès.');
+    }
+  } catch (e) {
+    console.warn('QR:', e);
+    alert('Erreur lors de la génération du QR code.');
+  }
+}
+
+// Create / Edit modal
+function openCreateModal() {
+  document.getElementById('modalTitle').textContent = 'Nouveau cas de production';
+  document.getElementById('editCaseId').value = '';
+  document.getElementById('caseRef').value = '';
+  document.getElementById('casePatient').value = '';
+  document.getElementById('caseDentiste').value = '';
+  document.getElementById('caseType').value = 'couronne';
+  document.getElementById('caseUrgence').value = 'normal';
+  document.getElementById('caseDateLimite').value = '';
+  document.getElementById('caseNotes').value = '';
+  document.getElementById('createModal').classList.add('active');
+}
+
+function closeCreateModal() { document.getElementById('createModal').classList.remove('active'); }
+
+async function editCase(id) {
+  closeDetailModal();
+  try {
+    const res = await fetch(API_BASE + '/' + id, { headers: headers() });
+    const c = await res.json();
+    document.getElementById('modalTitle').textContent = 'Modifier le cas';
+    document.getElementById('editCaseId').value = id;
+    document.getElementById('caseRef').value = c.reference || c.description || '';
+    document.getElementById('casePatient').value = c.patient || '';
+    document.getElementById('caseDentiste').value = c.dentiste_id || '';
+    document.getElementById('caseType').value = c.type_prothese || 'couronne';
+    document.getElementById('caseUrgence').value = c.urgence || 'normal';
+    document.getElementById('caseDateLimite').value = c.date_limite ? c.date_limite.slice(0, 10) : '';
+    document.getElementById('caseNotes').value = c.notes || '';
+    document.getElementById('createModal').classList.add('active');
+  } catch (e) {
+    console.warn('Edit load:', e);
+    alert('Impossible de charger le cas pour modification.');
+  }
+}
+
+async function saveCase() {
+  const id = document.getElementById('editCaseId').value;
+  const body = {
+    reference: document.getElementById('caseRef').value,
+    patient: document.getElementById('casePatient').value,
+    dentiste_id: document.getElementById('caseDentiste').value || undefined,
+    type_prothese: document.getElementById('caseType').value,
+    urgence: document.getElementById('caseUrgence').value,
+    date_limite: document.getElementById('caseDateLimite').value || undefined,
+    notes: document.getElementById('caseNotes').value
+  };
+
+  try {
+    const url = id ? API_BASE + '/' + id : API_BASE;
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: headers(), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('Save error');
+    closeCreateModal();
+    loadData();
+  } catch (e) {
+    console.warn('Save:', e);
+    alert('Erreur lors de l\'enregistrement du cas.');
+  }
+}
+
+// Delete
+async function deleteCase(id) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce cas ? Cette action est irréversible.')) return;
+  try {
+    const res = await fetch(API_BASE + '/' + id, { method: 'DELETE', headers: headers() });
+    if (!res.ok) throw new Error('Delete error');
+    closeDetailModal();
+    loadData();
+  } catch (e) {
+    console.warn('Delete:', e);
+    alert('Erreur lors de la suppression.');
+  }
+}
+
+// Escape HTML
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  if (!token) { window.location.href = '/login.html'; return; }
+  loadData();
+});
+</script>
+</body>
+</html>

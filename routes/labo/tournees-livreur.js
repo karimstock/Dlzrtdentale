@@ -802,4 +802,425 @@ router.get('/stats/global', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// APP LIVREUR — Endpoints publics (auth par token)
+// ─────────────────────────────────────────────
+
+// Helper : trouver livreur par token
+async function findLivreurByToken(token) {
+  if (!token) return null;
+  const { data } = await admin()
+    .from('labo_livreurs')
+    .select('*, labo_prothesistes:prothesiste_id(id, nom_labo, adresse, ville, telephone)')
+    .eq('access_token', token)
+    .eq('actif', true)
+    .maybeSingle();
+  return data;
+}
+
+// POST /api/labo/tournees/livreurs/:id/generer-token — Générer un lien d'accès pour le livreur
+router.post('/livreurs/:id/generer-token', async (req, res) => {
+  try {
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+
+    const { data, error } = await admin()
+      .from('labo_livreurs')
+      .update({
+        access_token: token,
+        token_created_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .eq('prothesiste_id', req.prothesisteId)
+      .select('id, nom, prenom')
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Livreur non trouvé' });
+
+    const baseUrl = process.env.BASE_URL || 'https://jadomi.fr';
+    const lien = `${baseUrl}/labo/livreur-app.html?token=${token}`;
+
+    res.json({
+      success: true,
+      livreur: data,
+      lien,
+      token,
+      message: `Envoyez ce lien à ${data.prenom} ${data.nom} pour qu'il accède à son app de tournées.`
+    });
+  } catch (e) {
+    console.error('[LABO TOURNEES generer-token]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// GET /api/labo/tournees/positions/live — Positions en direct de tous les livreurs (admin)
+router.get('/positions/live', async (req, res) => {
+  try {
+    if (!req.prothesisteId) return res.status(404).json({ error: 'Profil requis' });
+
+    const { data: livreurs } = await admin()
+      .from('labo_livreurs')
+      .select('id, nom, prenom, telephone, couleur, vehicule, derniere_position, position_updated_at, actif, app_installee')
+      .eq('prothesiste_id', req.prothesisteId)
+      .eq('actif', true)
+      .order('nom');
+
+    // Charger les tournées en cours
+    const today = new Date().toISOString().split('T')[0];
+    const { data: tournees } = await admin()
+      .from('labo_tournees_livreur')
+      .select('id, livreur_id, date, creneau, statut, nb_arrets, heure_depart, ordre_arrets')
+      .eq('prothesiste_id', req.prothesisteId)
+      .eq('date', today)
+      .in('statut', ['en_cours', 'planifiee']);
+
+    // Charger les arrêts des tournées en cours
+    const tourneeIds = (tournees || []).map(t => t.id);
+    let arrets = [];
+    if (tourneeIds.length > 0) {
+      const { data: ar } = await admin()
+        .from('labo_arrets_tournee')
+        .select('*, dentistes_clients(nom, prenom, titre, adresse, ville, code_postal, telephone, latitude, longitude), labo_demandes_passage(type_passage, references_travaux, nb_colis, priorite)')
+        .in('tournee_id', tourneeIds)
+        .order('ordre');
+      arrets = ar || [];
+    }
+
+    // Assembler la vue
+    const livreursAvecTournees = (livreurs || []).map(l => {
+      const tournee = (tournees || []).find(t => t.livreur_id === l.id);
+      const arretsLivreur = tournee ? arrets.filter(a => a.tournee_id === tournee.id) : [];
+      const faits = arretsLivreur.filter(a => a.statut === 'termine' || a.statut === 'absent').length;
+      const total = arretsLivreur.length;
+      const prochain = arretsLivreur.find(a => a.statut === 'a_faire' || a.statut === 'en_route');
+
+      // Calcul "en ligne" : position mise à jour il y a moins de 2 minutes
+      const enLigne = l.position_updated_at &&
+        (Date.now() - new Date(l.position_updated_at).getTime()) < 120000;
+
+      return {
+        ...l,
+        en_ligne: enLigne,
+        tournee: tournee || null,
+        progression: { faits, total, pourcentage: total > 0 ? Math.round(faits / total * 100) : 0 },
+        prochain_arret: prochain ? {
+          dentiste: prochain.dentistes_clients,
+          demande: prochain.labo_demandes_passage,
+          ordre: prochain.ordre
+        } : null,
+        arrets: arretsLivreur
+      };
+    });
+
+    res.json({ livreurs: livreursAvecTournees });
+  } catch (e) {
+    console.error('[LABO TOURNEES positions/live]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// ENDPOINTS PUBLICS (auth par token livreur)
+// Pas de middleware Supabase — le livreur n'a pas de compte
+// ─────────────────────────────────────────────
+
+// GET /api/labo/tournees/app/tournee?token=xxx — Tournée du jour du livreur
+router.get('/app/tournee', async (req, res) => {
+  try {
+    const livreur = await findLivreurByToken(req.query.token);
+    if (!livreur) return res.status(401).json({ error: 'Token invalide ou livreur inactif' });
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Chercher la tournée du jour
+    const { data: tournees } = await admin()
+      .from('labo_tournees_livreur')
+      .select('*')
+      .eq('livreur_id', livreur.id)
+      .eq('date', today)
+      .in('statut', ['planifiee', 'en_cours'])
+      .order('created_at', { ascending: false });
+
+    const tournee = (tournees || [])[0];
+    if (!tournee) {
+      return res.json({
+        livreur: { id: livreur.id, nom: livreur.nom, prenom: livreur.prenom },
+        labo: livreur.labo_prothesistes,
+        tournee: null,
+        arrets: [],
+        message: 'Aucune tournée prévue aujourd\'hui.'
+      });
+    }
+
+    // Charger les arrêts
+    const { data: arrets } = await admin()
+      .from('labo_arrets_tournee')
+      .select('*, dentistes_clients(nom, prenom, titre, adresse, ville, code_postal, telephone, latitude, longitude), labo_demandes_passage(type_passage, references_travaux, description, nb_colis, priorite)')
+      .eq('tournee_id', tournee.id)
+      .order('ordre');
+
+    res.json({
+      livreur: { id: livreur.id, nom: livreur.nom, prenom: livreur.prenom, couleur: livreur.couleur },
+      labo: livreur.labo_prothesistes,
+      tournee,
+      arrets: arrets || []
+    });
+  } catch (e) {
+    console.error('[LABO APP tournee]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// POST /api/labo/tournees/app/position — Envoyer position GPS (ping toutes les 30s)
+router.post('/app/position', async (req, res) => {
+  try {
+    const livreur = await findLivreurByToken(req.body.token);
+    if (!livreur) return res.status(401).json({ error: 'Token invalide' });
+
+    const { latitude, longitude, precision, vitesse, heading, batterie, tournee_id } = req.body;
+    if (!latitude || !longitude) return res.status(400).json({ error: 'latitude et longitude requis' });
+
+    const now = new Date().toISOString();
+    const position = { lat: latitude, lng: longitude, precision, vitesse, heading, timestamp: now };
+
+    // Mettre à jour la dernière position du livreur
+    await admin()
+      .from('labo_livreurs')
+      .update({
+        derniere_position: position,
+        position_updated_at: now,
+        app_installee: true
+      })
+      .eq('id', livreur.id);
+
+    // Enregistrer dans l'historique
+    await admin()
+      .from('labo_positions_livreur')
+      .insert({
+        livreur_id: livreur.id,
+        tournee_id: tournee_id || null,
+        latitude,
+        longitude,
+        precision_m: precision || null,
+        vitesse_kmh: vitesse || null,
+        heading: heading || null,
+        batterie: batterie || null
+      });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[LABO APP position]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// POST /api/labo/tournees/app/demarrer — Livreur démarre sa tournée
+router.post('/app/demarrer', async (req, res) => {
+  try {
+    const livreur = await findLivreurByToken(req.body.token);
+    if (!livreur) return res.status(401).json({ error: 'Token invalide' });
+
+    const { tournee_id } = req.body;
+    const { data, error } = await admin()
+      .from('labo_tournees_livreur')
+      .update({ statut: 'en_cours', heure_depart: new Date().toISOString() })
+      .eq('id', tournee_id)
+      .eq('livreur_id', livreur.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, tournee: data });
+  } catch (e) {
+    console.error('[LABO APP demarrer]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// POST /api/labo/tournees/app/arret/:id/valider — Livreur valide un arrêt
+router.post('/app/arret/:id/valider', async (req, res) => {
+  try {
+    const livreur = await findLivreurByToken(req.body.token);
+    if (!livreur) return res.status(401).json({ error: 'Token invalide' });
+
+    const { latitude, longitude, statut_arret } = req.body;
+    const finalStatut = statut_arret || 'termine';
+
+    // Vérifier ownership via tournée
+    const { data: arret } = await admin()
+      .from('labo_arrets_tournee')
+      .select('*, labo_tournees_livreur!inner(livreur_id, prothesiste_id), labo_demandes_passage(id, dentiste_client_id, type_passage, references_travaux)')
+      .eq('id', req.params.id)
+      .single();
+
+    if (!arret || arret.labo_tournees_livreur.livreur_id !== livreur.id) {
+      return res.status(403).json({ error: 'Accès interdit' });
+    }
+
+    // Mettre à jour l'arrêt
+    await admin()
+      .from('labo_arrets_tournee')
+      .update({
+        statut: finalStatut,
+        heure_arrivee: new Date().toISOString(),
+        bon_passage_valide: finalStatut === 'termine',
+        notes: req.body.notes || null
+      })
+      .eq('id', req.params.id);
+
+    // Mettre à jour la demande
+    const demande = arret.labo_demandes_passage;
+    if (demande) {
+      const statutDemande = finalStatut === 'absent' ? 'en_attente' :
+        (demande.type_passage === 'livraison' ? 'livree' : 'recuperee');
+      await admin()
+        .from('labo_demandes_passage')
+        .update({
+          statut: statutDemande,
+          heure_passage: finalStatut !== 'absent' ? new Date().toISOString() : null,
+          bon_passage_valide: finalStatut === 'termine',
+          ...(finalStatut === 'absent' ? { tournee_id: null, livreur_id: null } : {})
+        })
+        .eq('id', demande.id);
+
+      // Notifier le dentiste
+      const action = finalStatut === 'absent' ? 'absent_passage' :
+        (demande.type_passage === 'livraison' ? 'livre' : 'recupere');
+      const msgs = {
+        livre: 'Votre prothèse vient d\'être livrée avec succès. Merci de votre confiance.',
+        recupere: 'Vos empreintes/travaux ont été récupérés. Ils sont en route vers le laboratoire.',
+        absent_passage: 'Notre livreur est passé mais votre cabinet était fermé. Un nouveau passage sera planifié.'
+      };
+
+      // Enregistrer la notification
+      await admin().from('labo_notifications_dentiste').insert({
+        prothesiste_id: arret.labo_tournees_livreur.prothesiste_id,
+        dentiste_client_id: demande.dentiste_client_id,
+        tournee_id: arret.tournee_id,
+        demande_id: demande.id,
+        type: action,
+        message: msgs[action] || 'Passage du livreur effectué.'
+      });
+
+      // Notifier via le système push si le dentiste est sur JADOMI
+      const { data: dentiste } = await admin()
+        .from('dentistes_clients')
+        .select('user_id, nom, prenom')
+        .eq('id', demande.dentiste_client_id)
+        .maybeSingle();
+
+      if (dentiste && dentiste.user_id) {
+        await pushNotification({
+          user_id: dentiste.user_id,
+          type: 'autre',
+          urgence: 'normale',
+          titre: action === 'livre' ? 'Prothèse livrée' : action === 'recupere' ? 'Empreintes récupérées' : 'Passage livreur',
+          message: msgs[action],
+          cta_label: 'Voir le détail',
+          cta_url: '/labo-pro/suivi-livraisons'
+        });
+      }
+    }
+
+    // Vérifier si tous les arrêts sont terminés → terminer la tournée
+    const { data: arretsRestants } = await admin()
+      .from('labo_arrets_tournee')
+      .select('id')
+      .eq('tournee_id', arret.tournee_id)
+      .in('statut', ['a_faire', 'en_route', 'arrive']);
+
+    if (!arretsRestants || arretsRestants.length === 0) {
+      await admin()
+        .from('labo_tournees_livreur')
+        .update({ statut: 'terminee', heure_fin: new Date().toISOString() })
+        .eq('id', arret.tournee_id);
+    }
+
+    res.json({ success: true, statut: finalStatut, tournee_terminee: !arretsRestants || arretsRestants.length === 0 });
+  } catch (e) {
+    console.error('[LABO APP arret valider]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// POST /api/labo/tournees/app/notifier-arrivee — Livreur notifie "j'arrive dans ~X min"
+router.post('/app/notifier-arrivee', async (req, res) => {
+  try {
+    const livreur = await findLivreurByToken(req.body.token);
+    if (!livreur) return res.status(401).json({ error: 'Token invalide' });
+
+    const { arret_id, eta_minutes } = req.body;
+
+    const { data: arret } = await admin()
+      .from('labo_arrets_tournee')
+      .select('*, labo_tournees_livreur!inner(prothesiste_id, livreur_id), dentistes_clients(nom, prenom, user_id), labo_demandes_passage(dentiste_client_id, type_passage)')
+      .eq('id', arret_id)
+      .single();
+
+    if (!arret || arret.labo_tournees_livreur.livreur_id !== livreur.id) {
+      return res.status(403).json({ error: 'Accès interdit' });
+    }
+
+    // Marquer en route
+    await admin()
+      .from('labo_arrets_tournee')
+      .update({ statut: 'en_route' })
+      .eq('id', arret_id);
+
+    const dentiste = arret.dentistes_clients;
+    const msg = eta_minutes
+      ? `Votre livreur arrivera dans environ ${eta_minutes} minutes avec votre prothèse.`
+      : 'Votre livreur est en route vers votre cabinet.';
+
+    // Notification
+    await admin().from('labo_notifications_dentiste').insert({
+      prothesiste_id: arret.labo_tournees_livreur.prothesiste_id,
+      dentiste_client_id: arret.labo_demandes_passage.dentiste_client_id,
+      tournee_id: arret.tournee_id,
+      type: 'en_route',
+      message: msg
+    });
+
+    if (dentiste && dentiste.user_id) {
+      await pushNotification({
+        user_id: dentiste.user_id,
+        type: 'autre',
+        urgence: 'normale',
+        titre: 'Livreur en route',
+        message: msg,
+        cta_label: 'Suivre la livraison',
+        cta_url: '/labo-pro/suivi-livraisons'
+      });
+    }
+
+    res.json({ success: true, message: `Dentiste ${dentiste?.prenom || ''} ${dentiste?.nom || ''} notifié.` });
+  } catch (e) {
+    console.error('[LABO APP notifier-arrivee]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// POST /api/labo/tournees/app/terminer — Livreur termine sa tournée
+router.post('/app/terminer', async (req, res) => {
+  try {
+    const livreur = await findLivreurByToken(req.body.token);
+    if (!livreur) return res.status(401).json({ error: 'Token invalide' });
+
+    const { data, error } = await admin()
+      .from('labo_tournees_livreur')
+      .update({ statut: 'terminee', heure_fin: new Date().toISOString() })
+      .eq('id', req.body.tournee_id)
+      .eq('livreur_id', livreur.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, tournee: data });
+  } catch (e) {
+    console.error('[LABO APP terminer]', e.message);
+    res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
 module.exports = router;

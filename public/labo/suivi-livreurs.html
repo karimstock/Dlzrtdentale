@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suivi en direct — JADOMI Labo Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0a; --card: #141414; --border: #262626;
+      --text: #fafafa; --text2: #a1a1aa; --text3: #71717a;
+      --primary: #6366f1; --primary-light: #818cf8;
+      --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+      --radius: 12px; --transition: cubic-bezier(.16, 1, .3, 1);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 20px; position: sticky; top: 0; z-index: 1000; }
+    .header-inner { max-width: 1600px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .header h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .3s var(--transition); text-decoration: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { opacity: .9; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-outline:hover { border-color: var(--text3); color: var(--text); }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .btn-xs { padding: 4px 8px; font-size: 11px; }
+
+    /* ── Layout ── */
+    .layout { display: flex; height: calc(100vh - 57px); }
+    .map-container { flex: 0 0 60%; position: relative; }
+    .panel { flex: 0 0 40%; overflow-y: auto; border-left: 1px solid var(--border); background: var(--bg); }
+
+    /* ── Map ── */
+    #map { width: 100%; height: 100%; }
+    .leaflet-container { background: #1a1a2e; }
+    .map-refresh-indicator {
+      position: absolute; top: 12px; right: 12px; z-index: 999;
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 12px; font-size: 12px; color: var(--text2);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .map-refresh-indicator .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+    /* ── Panel sections ── */
+    .panel-header {
+      padding: 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .active-badge {
+      background: rgba(34,197,94,.15); color: var(--success); padding: 2px 8px;
+      border-radius: 12px; font-size: 12px; font-weight: 600;
+    }
+
+    .search-container { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+    .search-input {
+      width: 100%; padding: 10px 12px 10px 36px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .search-input:focus { outline: none; border-color: var(--primary); }
+    .search-wrapper { position: relative; }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--text3); pointer-events: none;
+    }
+
+    /* ── Search results ── */
+    .search-results { padding: 0 20px; }
+    .search-result-card {
+      background: var(--card); border: 1px solid var(--primary); border-radius: var(--radius);
+      padding: 16px; margin: 12px 0;
+      animation: slideIn .4s var(--transition);
+    }
+    .search-result-card .result-dentist { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .search-result-card .result-driver { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+    .search-result-card .result-status { font-size: 13px; font-weight: 500; margin-top: 8px; }
+    .search-result-card .result-eta { font-size: 14px; font-weight: 600; color: var(--primary-light); margin-top: 4px; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Driver cards ── */
+    .drivers-list { padding: 12px 20px; }
+    .driver-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px; margin-bottom: 12px; transition: all .3s var(--transition);
+    }
+    .driver-card:hover { border-color: var(--text3); }
+    .driver-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .driver-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .driver-name { font-size: 15px; font-weight: 600; flex: 1; }
+    .driver-vehicle { font-size: 12px; color: var(--text3); }
+    .driver-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .driver-status.online { color: var(--success); }
+    .driver-status.offline { color: var(--text3); }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,.4); } 50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } }
+
+    .driver-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 12px; color: var(--text2); }
+    .driver-meta-item { display: flex; align-items: center; gap: 4px; }
+
+    /* ── Progress bar ── */
+    .progress-container { margin-bottom: 12px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width .6s var(--transition); }
+
+    /* ── Next stop ── */
+    .next-stop { background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+    .next-stop-label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--primary-light); margin-bottom: 4px; font-weight: 600; }
+    .next-stop-name { font-size: 14px; font-weight: 600; }
+    .next-stop-addr { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .next-stop-type { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+    /* ── Driver actions ── */
+    .driver-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ── Stops list (expandable) ── */
+    .stops-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: none; }
+    .stops-list.open { display: block; animation: slideIn .4s var(--transition); }
+    .stop-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 13px; }
+    .stop-item + .stop-item { border-top: 1px solid rgba(255,255,255,.04); }
+    .stop-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .stop-dot.done { background: var(--success); }
+    .stop-dot.next { background: var(--primary); animation: pulse 2s ease-in-out infinite; }
+    .stop-dot.pending { background: var(--text3); }
+    .stop-dot.absent { background: var(--warning); }
+    .stop-info { flex: 1; }
+    .stop-name { font-weight: 500; }
+    .stop-addr { color: var(--text3); font-size: 12px; }
+    .stop-type-badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+
+    /* ── Link modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 480px; padding: 24px; }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .link-display {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; font-size: 13px; color: var(--text2); word-break: break-all;
+      margin-bottom: 12px; user-select: all;
+    }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: .5; }
+    .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* ── ETA badge ── */
+    .eta-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--primary-light); }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 3000; transform: translateY(100px); opacity: 0; transition: all .4s var(--transition); }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: var(--danger); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .layout { flex-direction: column; height: auto; }
+      .map-container { flex: none; height: 50vh; }
+      .panel { flex: none; border-left: none; border-top: 1px solid var(--border); min-height: 50vh; }
+      .header-inner { flex-wrap: wrap; }
+    }
+    @media (max-width: 480px) {
+      .driver-actions { flex-direction: column; }
+      .driver-actions .btn { width: 100%; justify-content: center; }
+    }
+
+    /* ── Custom Leaflet markers ── */
+    .driver-marker-icon {
+      width: 32px; height: 32px; border-radius: 50%; border: 3px solid;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    }
+    .stop-marker-icon {
+      width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.8);
+      box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    }
+
+    /* ── Leaflet overrides dark ── */
+    .leaflet-popup-content-wrapper { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; }
+    .leaflet-popup-tip { background: var(--card); }
+    .leaflet-popup-content { margin: 10px 14px; font-family: 'Inter', sans-serif; font-size: 13px; }
+    .leaflet-control-zoom a { background: var(--card) !important; color: var(--text) !important; border-color: var(--border) !important; }
+    .leaflet-control-attribution { background: rgba(10,10,10,.8) !important; color: var(--text3) !important; font-size: 10px !important; }
+    .leaflet-control-attribution a { color: var(--text3) !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-inner">
+      <h1>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Suivi en direct
+      </h1>
+      <div class="header-actions">
+        <a href="tournees-livreur.html" class="btn btn-outline btn-sm" aria-label="Retour aux tournées">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Retour aux tournées
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="layout">
+    <!-- Map -->
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-refresh-indicator">
+        <span class="dot"></span>
+        <span id="refresh-timer">Actualisation dans 15s</span>
+      </div>
+    </div>
+
+    <!-- Panel -->
+    <div class="panel">
+      <!-- Panel header -->
+      <div class="panel-header">
+        <div class="panel-title">
+          Livreurs actifs
+          <span class="active-badge" id="active-count">0</span>
+        </div>
+        <button class="btn btn-outline btn-xs" onclick="refreshData()" aria-label="Rafraîchir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-container">
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-input" id="search-dentist" placeholder="Rechercher un dentiste..." aria-label="Rechercher un dentiste par nom">
+        </div>
+      </div>
+
+      <!-- Search results (hidden by default) -->
+      <div class="search-results" id="search-results" style="display:none"></div>
+
+      <!-- Drivers list -->
+      <div class="drivers-list" id="drivers-list">
+        <div class="empty-state" id="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <h3>Aucun livreur en tournée</h3>
+          <p>Pour démarrer le suivi, générez un lien d'application pour vos livreurs depuis la page <a href="tournees-livreur.html" style="color:var(--primary-light)">Tournées Livreur</a>. Le livreur ouvrira le lien sur son téléphone et sa position sera visible ici en temps réel.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Magic link -->
+  <div class="modal-overlay" id="modal-link">
+    <div class="modal">
+      <div class="modal-title">Lien d'application livreur</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Partagez ce lien avec le livreur. Il pourra ouvrir l'application de suivi directement sur son téléphone.</p>
+      <div class="link-display" id="link-display">Génération en cours...</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="copyLink()" aria-label="Copier le lien">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copier
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="closeModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+<script>
+// ── Config ──
+const API_BASE = '/api/labo/tournees';
+let societeId = null;
+let map = null;
+let driverMarkers = {};
+let stopMarkers = [];
+let routeLines = [];
+let refreshInterval = null;
+let countdown = 15;
+let countdownInterval = null;
+let currentDriversData = [];
+let generatedLink = '';
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  societeId = localStorage.getItem('selectedSocieteId') || localStorage.getItem('societeId');
+  const token = localStorage.getItem('sb-access-token') || localStorage.getItem('supabase.auth.token');
+
+  if (!societeId) {
+    toast('Veuillez sélectionner une société', true);
+    return;
+  }
+
+  initMap();
+  refreshData();
+  startAutoRefresh();
+
+  // Search input
+  document.getElementById('search-dentist').addEventListener('input', debounce(handleSearch, 300));
+});
+
+// ── Map init ──
+function initMap() {
+  map = L.map('map', {
+    center: [46.603354, 1.888334], // Centre France
+    zoom: 6,
+    zoomControl: true
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+}
+
+// ── API helper ──
+async function api(method, path, body) {
+  const token = localStorage.getItem('sb-access-token');
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Societe-Id': societeId,
+      'Authorization': `Bearer ${token}`
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_BASE + path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || 'Erreur');
+  return data;
+}
+
+// ── Refresh data ──
+async function refreshData() {
+  try {
+    const data = await api('GET', '/positions/live');
+    currentDriversData = data.livreurs || [];
+    renderDrivers(currentDriversData);
+    updateMap(currentDriversData);
+    document.getElementById('active-count').textContent = currentDriversData.filter(d => d.en_ligne).length;
+
+    // Re-run search if active
+    const searchVal = document.getElementById('search-dentist').value.trim();
+    if (searchVal.length >= 2) handleSearch();
+  } catch (e) {
+    console.error('Erreur chargement positions:', e);
+    // Ne pas afficher l'erreur à chaque refresh auto
+  }
+}
+
+// ── Auto refresh ──
+function startAutoRefresh() {
+  countdown = 15;
+  if (countdownInterval) clearInterval(countdownInterval);
+  if (refreshInterval) clearInterval(refreshInterval);
+
+  countdownInterval = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) countdown = 15;
+    document.getElementById('refresh-timer').textContent = `Actualisation dans ${countdown}s`;
+  }, 1000);
+
+  refreshInterval = setInterval(() => {
+    countdown = 15;
+    refreshData();
+  }, 15000);
+}
+
+// ── Render drivers panel ──
+function renderDrivers(drivers) {
+  const container = document.getElementById('drivers-list');
+  const emptyEl = document.getElementById('empty-state');
+
+  if (!drivers || drivers.length === 0) {
+    container.innerHTML = '';
+    container.appendChild(emptyEl);
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  const cards = drivers.map(d => renderDriverCard(d)).join('');
+  container.innerHTML = cards;
+}
+
+function renderDriverCard(d) {
+  const isOnline = d.en_ligne;
+  const statusClass = isOnline ? 'online' : 'offline';
+  const statusText = isOnline ? 'En ligne' : 'Hors ligne';
+  const statusDot = isOnline ? '<span class="pulse-dot"></span>' : '<span style="width:8px;height:8px;border-radius:50%;background:var(--text3)"></span>';
+
+  // Vehicle icon
+  const vehicleIcons = {
+    voiture: '&#x1F697;',
+    scooter: '&#x1F6F5;',
+    velo: '&#x1F6B2;',
+    camionnette: '&#x1F69A;',
+    pied: '&#x1F6B6;'
+  };
+  const vehicleIcon = vehicleIcons[d.vehicule] || '&#x1F697;';
+  const vehicleLabel = d.vehicule ? d.vehicule.charAt(0).toUpperCase() + d.vehicule.slice(1) : '';
+
+  // Progression
+  const prog = d.progression || { faits: 0, total: 0, pourcentage: 0 };
+  const progPct = Math.round(prog.pourcentage || 0);
+
+  // Next stop
+  let nextStopHtml = '';
+  if (d.prochain_arret && d.prochain_arret.dentiste) {
+    const pa = d.prochain_arret;
+    const dentiste = pa.dentiste;
+    const typePassage = pa.demande ? formatTypePassage(pa.demande.type_passage) : '';
+    const refs = pa.demande && pa.demande.references_travaux ? pa.demande.references_travaux.join(', ') : '';
+    nextStopHtml = `
+      <div class="next-stop">
+        <div class="next-stop-label">Prochain arrêt</div>
+        <div class="next-stop-name">${escHtml(dentiste.titre || '')} ${escHtml(dentiste.prenom || '')} ${escHtml(dentiste.nom || '')}</div>
+        <div class="next-stop-addr">${escHtml(dentiste.adresse || '')}${dentiste.ville ? ', ' + escHtml(dentiste.ville) : ''}</div>
+        ${typePassage ? `<div class="next-stop-type">${typePassage}${refs ? ' — Réf. ' + escHtml(refs) : ''}</div>` : ''}
+      </div>`;
+  }
+
+  // ETA
+  const remainingStops = prog.total - prog.faits;
+  const etaMinutes = remainingStops * 15;
+  const etaText = remainingStops > 0 ? formatEta(etaMinutes) : 'Tournée terminée';
+
+  // Speed
+  const speed = d.derniere_position && d.derniere_position.vitesse ? Math.round(d.derniere_position.vitesse) : null;
+
+  // Last update
+  const lastUpdate = d.derniere_position && d.derniere_position.timestamp ? formatTimeAgo(d.derniere_position.timestamp) : 'N/A';
+
+  // Stops list
+  let stopsHtml = '';
+  if (d.arrets && d.arrets.length > 0) {
+    stopsHtml = d.arrets.map((a, i) => {
+      const statut = a.statut || 'en_attente';
+      let dotClass = 'pending';
+      if (statut === 'termine' || statut === 'livree' || statut === 'recuperee') dotClass = 'done';
+      else if (statut === 'en_route' || statut === 'arrive') dotClass = 'next';
+      else if (statut === 'absent') dotClass = 'absent';
+
+      const dentiste = a.dentiste || {};
+      return `
+        <div class="stop-item">
+          <span class="stop-dot ${dotClass}"></span>
+          <div class="stop-info">
+            <div class="stop-name">${i + 1}. ${escHtml(dentiste.titre || '')} ${escHtml(dentiste.prenom || '')} ${escHtml(dentiste.nom || '')}</div>
+            <div class="stop-addr">${escHtml(dentiste.adresse || '')}${dentiste.ville ? ', ' + escHtml(dentiste.ville) : ''}</div>
+          </div>
+          <span class="stop-type-badge" style="background:${getStopColor(statut)}20;color:${getStopColor(statut)}">${formatStatut(statut)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // Phone
+  const phone = d.telephone || null;
+
+  const color = d.couleur || '#6366f1';
+
+  return `
+    <div class="driver-card" data-driver-id="${d.id}">
+      <div class="driver-card-header">
+        <span class="driver-dot" style="background:${escHtml(color)}"></span>
+        <span class="driver-name">${escHtml(d.prenom || '')} ${escHtml(d.nom || '')}</span>
+        <span class="driver-vehicle" title="${escHtml(vehicleLabel)}">${vehicleIcon}</span>
+        <div class="driver-status ${statusClass}">${statusDot} ${statusText}</div>
+      </div>
+
+      <div class="driver-meta">
+        ${speed !== null ? `<span class="driver-meta-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> ${speed} km/h</span>` : ''}
+        <span class="driver-meta-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${lastUpdate}</span>
+        ${remainingStops > 0 ? `<span class="driver-meta-item eta-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> ETA ${etaText}</span>` : `<span class="driver-meta-item" style="color:var(--success)">Tournée terminée</span>`}
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-label">
+          <span>Progression</span>
+          <span>${prog.faits}/${prog.total} arrêts (${progPct}%)</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progPct}%"></div>
+        </div>
+      </div>
+
+      ${nextStopHtml}
+
+      <div class="driver-actions">
+        <button class="btn btn-outline btn-xs" onclick="toggleStops('${d.id}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Voir la tournée
+        </button>
+        <button class="btn btn-primary btn-xs" onclick="generateLink('${d.id}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Générer le lien
+        </button>
+        ${phone ? `<a href="tel:${escHtml(phone)}" class="btn btn-success btn-xs"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Appeler</a>` : ''}
+      </div>
+
+      <div class="stops-list" id="stops-${d.id}">
+        ${stopsHtml || '<p style="color:var(--text3);font-size:13px;padding:8px 0">Aucun arrêt dans cette tournée</p>'}
+      </div>
+    </div>`;
+}
+
+// ── Map update ──
+function updateMap(drivers) {
+  // Clear old stop markers and route lines
+  stopMarkers.forEach(m => map.removeLayer(m));
+  stopMarkers = [];
+  routeLines.forEach(l => map.removeLayer(l));
+  routeLines = [];
+
+  // Track existing driver IDs
+  const activeIds = new Set();
+  const allBounds = [];
+
+  drivers.forEach(d => {
+    if (!d.derniere_position || !d.derniere_position.lat || !d.derniere_position.lng) return;
+    activeIds.add(d.id);
+
+    const lat = d.derniere_position.lat;
+    const lng = d.derniere_position.lng;
+    const color = d.couleur || '#6366f1';
+    allBounds.push([lat, lng]);
+
+    // Driver marker
+    if (driverMarkers[d.id]) {
+      driverMarkers[d.id].setLatLng([lat, lng]);
+    } else {
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="driver-marker-icon" style="background:${color};border-color:${lightenColor(color, 30)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg></div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      driverMarkers[d.id] = L.marker([lat, lng], { icon }).addTo(map);
+    }
+
+    // Popup content
+    const speed = d.derniere_position.vitesse ? Math.round(d.derniere_position.vitesse) + ' km/h' : 'Arrêté';
+    const lastUpdate = d.derniere_position.timestamp ? formatTimeAgo(d.derniere_position.timestamp) : 'N/A';
+    driverMarkers[d.id].bindPopup(`
+      <div style="min-width:140px">
+        <strong style="font-size:14px">${escHtml(d.prenom || '')} ${escHtml(d.nom || '')}</strong><br>
+        <span style="color:var(--text2)">Vitesse : ${speed}</span><br>
+        <span style="color:var(--text3);font-size:11px">Mis à jour : ${lastUpdate}</span>
+      </div>
+    `);
+
+    // Stop markers + route line
+    if (d.arrets && d.arrets.length > 0) {
+      const linePoints = [[lat, lng]]; // Start from driver position
+
+      d.arrets.forEach((a, i) => {
+        if (!a.dentiste || !a.dentiste.lat || !a.dentiste.lng) return;
+        const slat = a.dentiste.lat;
+        const slng = a.dentiste.lng;
+        allBounds.push([slat, slng]);
+        linePoints.push([slat, slng]);
+
+        const statut = a.statut || 'en_attente';
+        let stopColor = '#71717a'; // pending
+        if (statut === 'termine' || statut === 'livree' || statut === 'recuperee') stopColor = '#22c55e';
+        else if (statut === 'en_route' || statut === 'arrive') stopColor = '#3b82f6';
+        else if (statut === 'absent') stopColor = '#f59e0b';
+
+        const stopIcon = L.divIcon({
+          className: '',
+          html: `<div class="stop-marker-icon" style="background:${stopColor}"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        });
+
+        const dentiste = a.dentiste;
+        const m = L.marker([slat, slng], { icon: stopIcon }).addTo(map);
+        m.bindPopup(`
+          <div style="min-width:120px">
+            <strong>${escHtml(dentiste.titre || '')} ${escHtml(dentiste.prenom || '')} ${escHtml(dentiste.nom || '')}</strong><br>
+            <span style="color:var(--text2)">${escHtml(dentiste.adresse || '')}</span><br>
+            <span style="font-size:11px;color:${stopColor};font-weight:600">${formatStatut(statut)}</span>
+          </div>
+        `);
+        stopMarkers.push(m);
+      });
+
+      // Route polyline
+      if (linePoints.length > 1) {
+        const line = L.polyline(linePoints, {
+          color: color,
+          weight: 2,
+          opacity: 0.5,
+          dashArray: '8, 6'
+        }).addTo(map);
+        routeLines.push(line);
+      }
+    }
+  });
+
+  // Remove markers for drivers no longer active
+  Object.keys(driverMarkers).forEach(id => {
+    if (!activeIds.has(id) && !activeIds.has(parseInt(id))) {
+      map.removeLayer(driverMarkers[id]);
+      delete driverMarkers[id];
+    }
+  });
+
+  // Fit bounds
+  if (allBounds.length > 0) {
+    try {
+      map.fitBounds(allBounds, { padding: [40, 40], maxZoom: 14 });
+    } catch (e) { /* ignore */ }
+  }
+}
+
+// ── Search ──
+function handleSearch() {
+  const query = document.getElementById('search-dentist').value.trim().toLowerCase();
+  const resultsEl = document.getElementById('search-results');
+
+  if (query.length < 2) {
+    resultsEl.style.display = 'none';
+    resultsEl.innerHTML = '';
+    return;
+  }
+
+  const results = [];
+  currentDriversData.forEach(d => {
+    if (!d.arrets) return;
+    d.arrets.forEach((a, idx) => {
+      if (!a.dentiste) return;
+      const dent = a.dentiste;
+      const fullName = `${dent.titre || ''} ${dent.prenom || ''} ${dent.nom || ''}`.toLowerCase();
+      if (fullName.includes(query)) {
+        const statut = a.statut || 'en_attente';
+        const isDone = ['termine', 'livree', 'recuperee'].includes(statut);
+        const isNext = ['en_route', 'arrive'].includes(statut);
+        const prog = d.progression || { faits: 0, total: 0 };
+        const stopsAway = idx - prog.faits;
+        const etaMinutes = stopsAway > 0 ? stopsAway * 15 : 0;
+
+        let statusText = '';
+        let statusColor = '';
+        if (isDone) { statusText = 'Déjà livré / récupéré'; statusColor = 'var(--success)'; }
+        else if (isNext) { statusText = 'En cours — le livreur est en route'; statusColor = 'var(--primary-light)'; }
+        else if (statut === 'absent') { statusText = 'Dentiste marqué absent'; statusColor = 'var(--warning)'; }
+        else if (stopsAway > 0) { statusText = `Dans ${stopsAway} arrêt${stopsAway > 1 ? 's' : ''}`; statusColor = 'var(--text2)'; }
+        else { statusText = 'En attente'; statusColor = 'var(--text2)'; }
+
+        results.push({
+          dentiste: `${dent.titre || ''} ${dent.prenom || ''} ${dent.nom || ''}`.trim(),
+          adresse: `${dent.adresse || ''}${dent.ville ? ', ' + dent.ville : ''}`,
+          driver: `${d.prenom || ''} ${d.nom || ''}`.trim(),
+          driverColor: d.couleur || '#6366f1',
+          statusText,
+          statusColor,
+          etaText: !isDone && etaMinutes > 0 ? formatEta(etaMinutes) : (isDone ? '' : 'Imminent'),
+          isDone
+        });
+      }
+    });
+  });
+
+  if (results.length === 0) {
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:13px;text-align:center">Aucun dentiste trouvé dans les tournées actives</div>';
+    return;
+  }
+
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = results.map(r => `
+    <div class="search-result-card">
+      <div class="result-dentist">${escHtml(r.dentiste)}</div>
+      <div style="font-size:12px;color:var(--text3)">${escHtml(r.adresse)}</div>
+      <div class="result-driver">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${r.driverColor};margin-right:4px"></span>
+        Livreur : ${escHtml(r.driver)}
+      </div>
+      <div class="result-status" style="color:${r.statusColor}">${r.statusText}</div>
+      ${r.etaText && !r.isDone ? `<div class="result-eta">ETA estimé : ${r.etaText}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── Toggle stops ──
+function toggleStops(driverId) {
+  const el = document.getElementById('stops-' + driverId);
+  if (el) el.classList.toggle('open');
+}
+
+// ── Generate magic link ──
+async function generateLink(livreurId) {
+  try {
+    const data = await api('POST', `/livreurs/${livreurId}/generer-token`);
+    generatedLink = data.lien || '';
+    document.getElementById('link-display').textContent = generatedLink;
+    document.getElementById('modal-link').classList.add('show');
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+function copyLink() {
+  if (!generatedLink) return;
+  navigator.clipboard.writeText(generatedLink).then(() => {
+    toast('Lien copié dans le presse-papiers');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = generatedLink;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('Lien copié');
+  });
+}
+
+function closeModal() {
+  document.getElementById('modal-link').classList.remove('show');
+}
+
+// Close modal on overlay click
+document.addEventListener('click', e => {
+  if (e.target.id === 'modal-link') closeModal();
+});
+
+// ── Helpers ──
+function formatTypePassage(type) {
+  const labels = {
+    livraison: 'Livraison',
+    recuperation: 'Récupération',
+    les_deux: 'Livraison + Récupération'
+  };
+  return labels[type] || type || '';
+}
+
+function formatStatut(s) {
+  const labels = {
+    en_attente: 'En attente',
+    en_route: 'En route',
+    arrive: 'Arrivé',
+    termine: 'Terminé',
+    livree: 'Livré',
+    recuperee: 'Récupéré',
+    absent: 'Absent'
+  };
+  return labels[s] || s || '';
+}
+
+function getStopColor(statut) {
+  const colors = {
+    en_attente: '#71717a',
+    en_route: '#3b82f6',
+    arrive: '#6366f1',
+    termine: '#22c55e',
+    livree: '#22c55e',
+    recuperee: '#22c55e',
+    absent: '#f59e0b'
+  };
+  return colors[statut] || '#71717a';
+}
+
+function formatEta(minutes) {
+  if (minutes < 60) return `~${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `~${h}h${String(m).padStart(2, '0')}` : `~${h}h`;
+}
+
+function formatTimeAgo(timestamp) {
+  try {
+    const now = new Date();
+    const then = new Date(timestamp);
+    const diff = Math.floor((now - then) / 1000);
+    if (diff < 10) return 'à l\'instant';
+    if (diff < 60) return `il y a ${diff}s`;
+    if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `il y a ${Math.floor(diff / 3600)}h`;
+    return then.toLocaleDateString('fr-FR');
+  } catch (e) { return 'N/A'; }
+}
+
+function lightenColor(hex, percent) {
+  try {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = Math.min(255, (num >> 16) + Math.round(2.55 * percent));
+    const g = Math.min(255, ((num >> 8) & 0x00FF) + Math.round(2.55 * percent));
+    const b = Math.min(255, (num & 0x0000FF) + Math.round(2.55 * percent));
+    return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
+  } catch (e) { return hex; }
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// ── Toast ──
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI LABO — Maintenance Machines</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0a0a0a;--card:#141414;--border:#262626;--text:#fafafa;--primary:#be185d;
+  --primary-dark:#9f1239;--primary-light:rgba(190,24,93,0.15);
+  --surface:#141414;--surface2:#1a1a1a;
+  --muted:#a1a1aa;--muted-light:#71717a;
+  --green:#10b981;--green-bg:rgba(16,185,129,0.15);
+  --amber:#f59e0b;--amber-bg:rgba(245,158,11,0.15);
+  --red:#ef4444;--red-bg:rgba(239,68,68,0.15);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.15);
+  --gold:#f59e0b;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.4);
+  --font:'Inter',system-ui,sans-serif;
+  --sidebar-w:240px;--topbar-h:60px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+.shell{display:flex;min-height:100vh;}
+
+.sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;overflow:hidden;}
+.sidebar-logo{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.3px;}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 22px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--primary);background:var(--primary-light);border-left-color:var(--primary);font-weight:600;}
+.nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.nav-section{padding:16px 22px 6px;font-size:10px;font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:1px;}
+.nav-premium-badge{margin-left:auto;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;letter-spacing:0.5px;}
+.sidebar-user{padding:14px 22px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sidebar-user-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.sidebar-user-info{flex:1;min-width:0;}
+.sidebar-user-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-user-role{font-size:11px;color:var(--muted);}
+
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-title{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.3px;display:flex;align-items:center;gap:10px;}
+.topbar-breadcrumb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.topbar-date{font-size:12px;color:var(--muted);white-space:nowrap;}
+.premium-badge{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:0.5px;}
+.content{padding:28px;flex:1;}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:all 0.15s;white-space:nowrap;text-decoration:none;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-outline:hover{background:var(--surface2);border-color:var(--muted-light);}
+.btn-ghost{background:transparent;color:var(--muted);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#dc2626;}
+.btn[disabled]{opacity:0.5;cursor:not-allowed;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;}
+.card-body{padding:20px;}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;}
+.stat-card.pink::before{background:var(--primary);}
+.stat-card.green::before{background:var(--green);}
+.stat-card.amber::before{background:var(--amber);}
+.stat-card.blue::before{background:var(--blue);}
+.stat-card.red::before{background:var(--red);}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px;}
+.stat-value{font-size:26px;font-weight:700;color:var(--text);letter-spacing:-0.8px;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+/* Alerts bar */
+.alerts-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;display:none;}
+.alerts-bar.visible{display:block;}
+.alerts-bar-title{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.alert-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px;}
+.alert-item.warning{background:var(--amber-bg);color:var(--amber);}
+.alert-item.danger{background:var(--red-bg);color:var(--red);}
+
+/* Machine cards grid */
+.machines-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px;}
+.machine-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.machine-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.machine-card-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
+.machine-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.machine-icon.fire{background:rgba(239,68,68,0.15);color:var(--red);}
+.machine-icon.gear{background:rgba(59,130,246,0.15);color:var(--blue);}
+.machine-icon.cube{background:rgba(168,85,247,0.15);color:#a855f7;}
+.machine-icon.camera{background:rgba(16,185,129,0.15);color:var(--green);}
+.machine-icon.wrench{background:rgba(161,161,170,0.15);color:var(--muted);}
+.machine-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.machine-model{font-size:12px;color:var(--muted);}
+.machine-status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.machine-status.green{background:var(--green-bg);color:var(--green);}
+.machine-status.orange{background:var(--amber-bg);color:var(--amber);}
+.machine-status.red{background:var(--red-bg);color:var(--red);}
+.machine-meta{display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.machine-meta-item{font-size:11px;color:var(--muted);}
+.machine-meta-item strong{color:var(--text);font-weight:600;}
+
+/* Calendar */
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.calendar-header{text-align:center;font-size:11px;font-weight:600;color:var(--muted);padding:8px 0;}
+.calendar-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:var(--text);border-radius:var(--radius-sm);position:relative;background:var(--bg);border:1px solid var(--border);}
+.calendar-day.empty{background:transparent;border-color:transparent;}
+.calendar-day.today{border-color:var(--primary);font-weight:700;}
+.calendar-day .dot{width:6px;height:6px;border-radius:50%;margin-top:3px;}
+.calendar-day .dot.green{background:var(--green);}
+.calendar-day .dot.orange{background:var(--amber);}
+.calendar-day .dot.red{background:var(--red);}
+.calendar-day .dot.blue{background:var(--blue);}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);width:90%;max-width:560px;max-height:90vh;overflow-y:auto;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;}
+.form-input,.form-select,.form-textarea{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:var(--font);transition:border-color 0.15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--primary);}
+.form-textarea{min-height:80px;resize:vertical;}
+.form-select{cursor:pointer;}
+.form-select option{background:var(--card);color:var(--text);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+
+.empty-state{text-align:center;padding:60px 20px;}
+.empty-state-icon{font-size:48px;margin-bottom:16px;opacity:0.4;}
+.empty-state-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;}
+.empty-state-desc{font-size:13px;color:var(--muted);max-width:360px;margin:0 auto;}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600;}
+
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:12px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;color:#fff;background:#333;animation:toastIn 0.3s cubic-bezier(.16,1,.3,1);}
+.toast.success{background:var(--green);}
+.toast.error{background:var(--red);}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+
+.page-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
+.page-loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99;}
+.sidebar-toggle{display:none;}
+
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid var(--border);color:var(--text);}
+tr:hover td{background:var(--surface2);}
+
+@media(max-width:1024px){.stats-row{grid-template-columns:repeat(2,1fr);}.machines-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));}}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s cubic-bezier(.16,1,.3,1);}
+  .sidebar.open{transform:translateX(0);}
+  .overlay.open{display:block;}
+  .main{margin-left:0;}
+  .topbar{padding:0 16px;}
+  .content{padding:16px;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .sidebar-toggle{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:18px;color:var(--muted);}
+}
+@media(max-width:480px){.stats-row{grid-template-columns:1fr;}.machines-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="page-loading" id="pageLoading">
+  <div style="text-align:center;">
+    <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:16px;letter-spacing:-0.3px;">JADOMI LABO</div>
+    <div class="page-loading-spinner"></div>
+  </div>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><span style="font-size:20px;">&#x1F9B7;</span> JADOMI LABO</div>
+    <a href="/organisation" class="nav-item" style="margin:4px 12px 8px;font-size:12px;font-weight:600;border:1px solid var(--border);border-radius:var(--radius-sm);"><span class="nav-icon">&#8592;</span> Retour au dashboard</a>
+    <div class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">&#x1F3E0;</span> Dashboard</a>
+      <a href="dentistes.html" class="nav-item" data-page="dentistes"><span class="nav-icon">&#x1F465;</span> Mes dentistes</a>
+      <a href="bons-livraison.html" class="nav-item" data-page="bons-livraison"><span class="nav-icon">&#x1F4CB;</span> Bons de laboratoire</a>
+      <a href="tournees-livreur.html" class="nav-item" data-page="tournees-livreur"><span class="nav-icon">&#x1F69A;</span> Tournées livreur</a>
+      <a href="suivi-livreurs.html" class="nav-item" data-page="suivi-livreurs"><span class="nav-icon">&#x1F4CD;</span> Suivi en direct</a>
+      <a href="facturation.html" class="nav-item" data-page="facturation"><span class="nav-icon">&#x1F4B0;</span> Facturation</a>
+      <a href="stock.html" class="nav-item" data-page="stock"><span class="nav-icon">&#x1F4E6;</span> Stock &amp; Matériaux</a>
+      <a href="catalogue.html" class="nav-item" data-page="catalogue"><span class="nav-icon">&#x1F4CA;</span> Catalogue</a>
+      <a href="import-grille.html" class="nav-item" data-page="import-grille"><span class="nav-icon">&#x1F4E5;</span> Import grille</a>
+      <a href="profil-labo.html" class="nav-item" data-page="profil-labo"><span class="nav-icon">&#x2699;&#xFE0F;</span> Paramètres labo</a>
+      <div class="nav-section">Premium</div>
+      <a href="shade.html" class="nav-item" data-page="shade"><span class="nav-icon">&#x1F3A8;</span> Shade IA <span class="nav-premium-badge">PREMIUM</span></a>
+      <a href="maintenance.html" class="nav-item active" data-page="maintenance"><span class="nav-icon">&#x1F527;</span> Maintenance <span class="nav-premium-badge">PREMIUM</span></a>
+      <a href="fichiers3d.html" class="nav-item" data-page="fichiers3d"><span class="nav-icon">&#x1F4D0;</span> Fichiers 3D <span class="nav-premium-badge">PREMIUM</span></a>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-user-avatar" id="userAvatar">?</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="userName">Chargement...</div>
+        <div class="sidebar-user-role" id="userRole">Prothésiste</div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+        <div>
+          <div class="topbar-title">Maintenance Machines <span class="premium-badge">PREMIUM</span></div>
+          <div class="topbar-breadcrumb"><span>JADOMI LABO</span> &rsaquo; Maintenance</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-date" id="topbarDate"></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddMachineModal()">&#xFF0B; Ajouter une machine</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" title="Se déconnecter">&#x2715;</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card green"><div class="stat-label">Machines opérationnelles</div><div class="stat-value" id="statOp">0</div><div class="stat-sub" id="statOpSub">sur 0 machines</div></div>
+        <div class="stat-card blue"><div class="stat-label">Interventions ce mois</div><div class="stat-value" id="statInterv">0</div><div class="stat-sub">Maintenance réalisée</div></div>
+        <div class="stat-card amber"><div class="stat-label">Coût maintenance mois</div><div class="stat-value" id="statCost">0 &euro;</div><div class="stat-sub">Pièces + main d'oeuvre</div></div>
+        <div class="stat-card pink"><div class="stat-label">Taux disponibilité</div><div class="stat-value" id="statAvail">0%</div><div class="stat-sub">Ce mois</div></div>
+      </div>
+
+      <!-- Alerts bar -->
+      <div class="alerts-bar" id="alertsBar">
+        <div class="alerts-bar-title">&#x26A0;&#xFE0F; Alertes de maintenance</div>
+        <div id="alertsList"></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('machines')">Machines</div>
+        <div class="tab" onclick="switchTab('interventions')">Interventions</div>
+        <div class="tab" onclick="switchTab('calendrier')">Calendrier</div>
+      </div>
+
+      <!-- Machines tab -->
+      <div id="tabMachines">
+        <div class="machines-grid" id="machinesGrid">
+          <div style="grid-column:1/-1;"><div class="empty-state"><div class="empty-state-icon">&#x1F527;</div><div class="empty-state-title">Aucune machine enregistrée</div><div class="empty-state-desc">Ajoutez vos équipements pour suivre leur maintenance et planifier les interventions</div></div></div>
+        </div>
+      </div>
+
+      <!-- Interventions tab -->
+      <div id="tabInterventions" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">&#x1F4CB; Historique des interventions</div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr><th>Date</th><th>Machine</th><th>Type</th><th>Description</th><th>Durée</th><th>Coût</th><th>Pièces</th></tr></thead>
+              <tbody id="interventionsBody">
+                <tr><td colspan="7"><div class="empty-state" style="padding:40px;"><div class="empty-state-icon">&#x1F4CB;</div><div class="empty-state-title">Aucune intervention</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar tab -->
+      <div id="tabCalendrier" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">&#x1F4C5; Calendrier de maintenance</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">&#x276E;</button>
+              <span id="calendarMonthLabel" style="font-size:14px;font-weight:600;min-width:140px;text-align:center;"></span>
+              <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">&#x276F;</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <div style="display:flex;gap:16px;margin-top:16px;font-size:11px;color:var(--muted);">
+              <div style="display:flex;align-items:center;gap:4px;"><span class="dot green" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span> Préventive</div>
+              <div style="display:flex;align-items:center;gap:4px;"><span class="dot orange" style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block;"></span> Corrective</div>
+              <div style="display:flex;align-items:center;gap:4px;"><span class="dot blue" style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block;"></span> Nettoyage</div>
+              <div style="display:flex;align-items:center;gap:4px;"><span class="dot red" style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span> Planifiée</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Machine Modal -->
+<div class="modal-overlay" id="machineModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="machineModalTitle">Ajouter une machine</div>
+      <button class="modal-close" onclick="closeMachineModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="formMachineId">
+      <div class="form-group">
+        <label class="form-label">Nom de la machine</label>
+        <input type="text" class="form-input" id="formMachineName" placeholder="Ex: Four Vita Vacumat 6000 M">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="formMachineType">
+          <option value="">Sélectionner un type...</option>
+          <option value="four">Four</option>
+          <option value="fraiseuse_cnc">Fraiseuse CNC</option>
+          <option value="imprimante_3d">Imprimante 3D</option>
+          <option value="scanner_intraoral">Scanner intra-oral</option>
+          <option value="polisseuse">Polisseuse</option>
+          <option value="sableuse">Sableuse</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Marque</label>
+          <input type="text" class="form-input" id="formMachineMarque" placeholder="Ex: Vita, Zirkonzahn...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Modèle</label>
+          <input type="text" class="form-input" id="formMachineModele" placeholder="Ex: Vacumat 6000 M">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Numéro de série</label>
+          <input type="text" class="form-input" id="formMachineSerie" placeholder="S/N">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date d'achat</label>
+          <input type="date" class="form-input" id="formMachineDateAchat">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fréquence de maintenance (jours)</label>
+        <input type="number" class="form-input" id="formMachineFreq" placeholder="Ex: 90" min="1">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeMachineModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveMachine()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Intervention Modal -->
+<div class="modal-overlay" id="interventionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Enregistrer une intervention</div>
+      <button class="modal-close" onclick="closeInterventionModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="formIntervMachineId">
+      <div class="form-group">
+        <label class="form-label">Machine</label>
+        <div id="formIntervMachineName" style="font-size:14px;font-weight:600;padding:8px 0;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type d'intervention</label>
+        <select class="form-select" id="formIntervType">
+          <option value="preventive">Préventive</option>
+          <option value="corrective">Corrective</option>
+          <option value="nettoyage">Nettoyage</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="formIntervDesc" placeholder="Détails de l'intervention..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Durée (minutes)</label>
+          <input type="number" class="form-input" id="formIntervDuree" placeholder="Ex: 60" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Coût (&euro;)</label>
+          <input type="number" class="form-input" id="formIntervCout" placeholder="Ex: 150" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pièces remplacées</label>
+        <input type="text" class="form-input" id="formIntervPieces" placeholder="Ex: Résistance, filtre, joint...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeInterventionModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveIntervention()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const API_BASE = '/api/labo/maintenance';
+
+let db, currentToken = null, currentSocieteId = null, currentUser = null;
+let machines = [], alerts = [], stats = {}, calendarData = [];
+let calendarMonth = new Date().getMonth(), calendarYear = new Date().getFullYear();
+
+try { const { createClient } = supabase; db = createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){}
+
+async function initAuth() {
+  let session = null;
+  if (db) { try { const p = db.auth.getSession(); const t = new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),3000)); const {data} = await Promise.race([p,t]); session = data?.session; } catch(e){} }
+  if (!session) { const raw = localStorage.getItem('jadomi_session'); if (raw) { try { session = JSON.parse(raw); } catch(e){} } }
+  if (!session) { window.location.replace('/login.html'); return; }
+  currentToken = session.access_token || session.token || null;
+  currentUser = session.user || session;
+  currentSocieteId = localStorage.getItem('selectedSocieteId') || localStorage.getItem('societe_active_id') || null;
+  if (!currentSocieteId && currentToken) {
+    try { const r = await fetch('/api/societes',{headers:{Authorization:'Bearer '+currentToken}}); const d = await r.json(); const socs = d?.societes||[]; const labo = socs.find(s=>s.type==='prothesiste'||s.type==='orthodontiste'); if(labo) currentSocieteId=labo.id; else if(socs[0]) currentSocieteId=socs[0].id; if(currentSocieteId){localStorage.setItem('selectedSocieteId',currentSocieteId);localStorage.setItem('societe_active_id',currentSocieteId);} } catch(e){}
+  }
+  document.getElementById('pageLoading').style.display='none';
+  document.getElementById('appShell').style.display='flex';
+  renderUserInfo();
+  const now = new Date();
+  document.getElementById('topbarDate').textContent = now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  loadAll();
+}
+
+function renderUserInfo() {
+  const meta = currentUser?.user_metadata || {};
+  const email = currentUser?.email || meta.email || '?';
+  const nom = meta.nom||meta.name||meta.prenom ? ((meta.prenom||'')+' '+(meta.nom||'')).trim() : email.split('@')[0];
+  document.getElementById('userName').textContent = nom||email;
+  document.getElementById('userRole').textContent = meta.profession==='prothesiste' ? 'Prothésiste dentaire' : 'Administrateur labo';
+  const initials = nom ? nom.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : email[0].toUpperCase();
+  document.getElementById('userAvatar').textContent = initials;
+}
+
+function apiHeaders() {
+  const h = {'Content-Type':'application/json'};
+  if(currentToken) h['Authorization']='Bearer '+currentToken;
+  if(currentSocieteId) h['X-Societe-Id']=currentSocieteId;
+  return h;
+}
+async function apiGet(ep){try{const r=await fetch(API_BASE+ep,{headers:apiHeaders()});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+async function apiPost(ep,body){const r=await fetch(API_BASE+ep,{method:'POST',headers:apiHeaders(),body:JSON.stringify(body)});if(!r.ok)throw new Error('Erreur '+r.status);return await r.json();}
+async function apiPut(ep,body){const r=await fetch(API_BASE+ep,{method:'PUT',headers:apiHeaders(),body:JSON.stringify(body)});if(!r.ok)throw new Error('Erreur '+r.status);return await r.json();}
+async function apiDelete(ep){const r=await fetch(API_BASE+ep,{method:'DELETE',headers:apiHeaders()});if(!r.ok)throw new Error('Erreur '+r.status);return true;}
+
+async function loadAll() {
+  const [mData, aData, sData] = await Promise.all([apiGet('/machines'), apiGet('/alertes'), apiGet('/stats')]);
+  machines = mData?.machines || mData || [];
+  if(!Array.isArray(machines)) machines = [];
+  alerts = aData?.alertes || aData || [];
+  if(!Array.isArray(alerts)) alerts = [];
+  stats = sData || {};
+  renderMachines();
+  renderAlerts();
+  renderStats();
+  loadCalendar();
+}
+
+const typeIcons = {four:'&#x1F525;',fraiseuse_cnc:'&#x2699;&#xFE0F;',imprimante_3d:'&#x1F4E6;',scanner_intraoral:'&#x1F4F7;',polisseuse:'&#x1F527;',sableuse:'&#x1F527;',autre:'&#x1F527;'};
+const typeIconClass = {four:'fire',fraiseuse_cnc:'gear',imprimante_3d:'cube',scanner_intraoral:'camera',polisseuse:'wrench',sableuse:'wrench',autre:'wrench'};
+const typeLabels = {four:'Four',fraiseuse_cnc:'Fraiseuse CNC',imprimante_3d:'Imprimante 3D',scanner_intraoral:'Scanner intra-oral',polisseuse:'Polisseuse',sableuse:'Sableuse',autre:'Autre'};
+const statusColors = {operationnelle:'green',maintenance:'orange',panne:'red'};
+const statusLabels = {operationnelle:'Opérationnelle',maintenance:'En maintenance',panne:'En panne'};
+
+function renderMachines() {
+  const grid = document.getElementById('machinesGrid');
+  if(!machines.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;"><div class="empty-state"><div class="empty-state-icon">&#x1F527;</div><div class="empty-state-title">Aucune machine enregistrée</div><div class="empty-state-desc">Ajoutez vos équipements pour suivre leur maintenance</div></div></div>';
+    return;
+  }
+  grid.innerHTML = machines.map(m => {
+    const st = m.statut || 'operationnelle';
+    const tp = m.type || 'autre';
+    const nextMaint = m.prochaine_maintenance ? formatDate(m.prochaine_maintenance) : '—';
+    return `<div class="machine-card" onclick="viewMachine('${m.id}')">
+      <div class="machine-card-top">
+        <div class="machine-icon ${typeIconClass[tp]||'wrench'}">${typeIcons[tp]||'&#x1F527;'}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="machine-name">${escHtml(m.nom)}</div>
+          <div class="machine-model">${escHtml(m.marque||'')} ${escHtml(m.modele||'')}</div>
+        </div>
+        <span class="machine-status ${statusColors[st]||'green'}">${statusLabels[st]||st}</span>
+      </div>
+      <div class="machine-meta">
+        <div class="machine-meta-item"><strong>Type :</strong> ${typeLabels[tp]||tp}</div>
+        <div class="machine-meta-item"><strong>Prochaine :</strong> ${nextMaint}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAlerts() {
+  const bar = document.getElementById('alertsBar');
+  const list = document.getElementById('alertsList');
+  if(!alerts.length) { bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  list.innerHTML = alerts.map(a => {
+    const cls = a.urgence === 'overdue' || a.type === 'overdue' ? 'danger' : 'warning';
+    return `<div class="alert-item ${cls}">
+      <span>${cls==='danger'?'&#x1F534;':'&#x1F7E0;'}</span>
+      <strong>${escHtml(a.machine_nom||a.nom||'Machine')}</strong> — ${escHtml(a.message||'Maintenance requise')}
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  const opCount = machines.filter(m=>(m.statut||'operationnelle')==='operationnelle').length;
+  document.getElementById('statOp').textContent = opCount;
+  document.getElementById('statOpSub').textContent = 'sur '+machines.length+' machines';
+  document.getElementById('statInterv').textContent = stats.interventions_mois || 0;
+  document.getElementById('statCost').textContent = formatCurrency(stats.cout_mois || 0);
+  const avail = machines.length ? Math.round(opCount/machines.length*100) : 0;
+  document.getElementById('statAvail').textContent = (stats.taux_disponibilite || avail)+'%';
+}
+
+async function loadCalendar() {
+  const data = await apiGet('/calendrier?mois='+(calendarMonth+1)+'&annee='+calendarYear);
+  calendarData = data?.interventions || data || [];
+  if(!Array.isArray(calendarData)) calendarData = [];
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const label = document.getElementById('calendarMonthLabel');
+  const months = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  label.textContent = months[calendarMonth]+' '+calendarYear;
+
+  const grid = document.getElementById('calendarGrid');
+  const days = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  let html = days.map(d=>'<div class="calendar-header">'+d+'</div>').join('');
+
+  const firstDay = new Date(calendarYear, calendarMonth, 1);
+  let startDay = firstDay.getDay()-1; if(startDay<0) startDay=6;
+  const daysInMonth = new Date(calendarYear, calendarMonth+1, 0).getDate();
+  const today = new Date();
+
+  for(let i=0;i<startDay;i++) html+='<div class="calendar-day empty"></div>';
+  for(let d=1;d<=daysInMonth;d++) {
+    const isToday = d===today.getDate()&&calendarMonth===today.getMonth()&&calendarYear===today.getFullYear();
+    const dateStr = calendarYear+'-'+String(calendarMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dayEvents = calendarData.filter(e=>(e.date||'').startsWith(dateStr));
+    const dots = dayEvents.map(e=>{
+      const typeColor = {preventive:'green',corrective:'orange',nettoyage:'blue',planifiee:'red'};
+      return '<span class="dot '+(typeColor[e.type]||'blue')+'"></span>';
+    }).join('');
+    html+='<div class="calendar-day'+(isToday?' today':'')+'">'+d+(dots?'<div style="display:flex;gap:2px;margin-top:2px;">'+dots+'</div>':'')+'</div>';
+  }
+  grid.innerHTML = html;
+}
+
+function changeMonth(dir) {
+  calendarMonth += dir;
+  if(calendarMonth>11){calendarMonth=0;calendarYear++;}
+  if(calendarMonth<0){calendarMonth=11;calendarYear--;}
+  loadCalendar();
+}
+
+function switchTab(tab) {
+  const tabs = ['machines','interventions','calendrier'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===tab));
+  tabs.forEach(t=>{ const el=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)); if(el) el.style.display=t===tab?'block':'none'; });
+  if(tab==='interventions') loadInterventions();
+}
+
+async function loadInterventions() {
+  const tbody = document.getElementById('interventionsBody');
+  let allInterv = [];
+  for(const m of machines) {
+    const data = await apiGet('/machines/'+m.id);
+    const det = data?.machine||data||{};
+    const intervs = det.interventions||[];
+    intervs.forEach(i=>{ i.machine_nom = m.nom; });
+    allInterv = allInterv.concat(intervs);
+  }
+  allInterv.sort((a,b)=>new Date(b.date||b.created_at||0)-new Date(a.date||a.created_at||0));
+  if(!allInterv.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state" style="padding:40px;"><div class="empty-state-icon">&#x1F4CB;</div><div class="empty-state-title">Aucune intervention enregistrée</div></div></td></tr>';
+    return;
+  }
+  const typeLabelsI = {preventive:'Préventive',corrective:'Corrective',nettoyage:'Nettoyage'};
+  const typeBadges = {preventive:'badge-green',corrective:'badge-amber',nettoyage:'badge-blue'};
+  tbody.innerHTML = allInterv.map(i=>`<tr>
+    <td>${formatDate(i.date||i.created_at)}</td>
+    <td><strong>${escHtml(i.machine_nom||'—')}</strong></td>
+    <td><span class="badge ${typeBadges[i.type]||'badge-blue'}">${typeLabelsI[i.type]||i.type||'—'}</span></td>
+    <td>${escHtml(i.description||'—')}</td>
+    <td>${i.duree?i.duree+' min':'—'}</td>
+    <td>${i.cout?formatCurrency(i.cout):'—'}</td>
+    <td>${escHtml(i.pieces_remplacees||'—')}</td>
+  </tr>`).join('');
+}
+
+function viewMachine(id) {
+  const m = machines.find(x=>x.id==id);
+  if(!m) return;
+  openEditMachineModal(m);
+}
+
+function openAddMachineModal() {
+  document.getElementById('machineModalTitle').textContent = 'Ajouter une machine';
+  document.getElementById('formMachineId').value = '';
+  document.getElementById('formMachineName').value = '';
+  document.getElementById('formMachineType').value = '';
+  document.getElementById('formMachineMarque').value = '';
+  document.getElementById('formMachineModele').value = '';
+  document.getElementById('formMachineSerie').value = '';
+  document.getElementById('formMachineDateAchat').value = '';
+  document.getElementById('formMachineFreq').value = '';
+  document.getElementById('machineModal').classList.add('open');
+}
+
+function openEditMachineModal(m) {
+  document.getElementById('machineModalTitle').textContent = 'Modifier la machine';
+  document.getElementById('formMachineId').value = m.id;
+  document.getElementById('formMachineName').value = m.nom||'';
+  document.getElementById('formMachineType').value = m.type||'';
+  document.getElementById('formMachineMarque').value = m.marque||'';
+  document.getElementById('formMachineModele').value = m.modele||'';
+  document.getElementById('formMachineSerie').value = m.numero_serie||'';
+  document.getElementById('formMachineDateAchat').value = m.date_achat||'';
+  document.getElementById('formMachineFreq').value = m.frequence_maintenance_jours||'';
+  document.getElementById('machineModal').classList.add('open');
+}
+
+function closeMachineModal() { document.getElementById('machineModal').classList.remove('open'); }
+
+async function saveMachine() {
+  const id = document.getElementById('formMachineId').value;
+  const body = {
+    nom: document.getElementById('formMachineName').value.trim(),
+    type: document.getElementById('formMachineType').value,
+    marque: document.getElementById('formMachineMarque').value.trim(),
+    modele: document.getElementById('formMachineModele').value.trim(),
+    numero_serie: document.getElementById('formMachineSerie').value.trim(),
+    date_achat: document.getElementById('formMachineDateAchat').value||null,
+    frequence_maintenance_jours: parseInt(document.getElementById('formMachineFreq').value)||null
+  };
+  if(!body.nom) { showToast('Veuillez saisir un nom','error'); return; }
+  if(!body.type) { showToast('Veuillez sélectionner un type','error'); return; }
+  try {
+    if(id) { await apiPut('/machines/'+id, body); showToast('Machine mise à jour','success'); }
+    else { await apiPost('/machines', body); showToast('Machine ajoutée','success'); }
+    closeMachineModal();
+    loadAll();
+  } catch(e) { showToast('Erreur : '+e.message,'error'); }
+}
+
+function openInterventionModal(machineId, machineName) {
+  document.getElementById('formIntervMachineId').value = machineId;
+  document.getElementById('formIntervMachineName').textContent = machineName;
+  document.getElementById('formIntervType').value = 'preventive';
+  document.getElementById('formIntervDesc').value = '';
+  document.getElementById('formIntervDuree').value = '';
+  document.getElementById('formIntervCout').value = '';
+  document.getElementById('formIntervPieces').value = '';
+  document.getElementById('interventionModal').classList.add('open');
+}
+function closeInterventionModal() { document.getElementById('interventionModal').classList.remove('open'); }
+
+async function saveIntervention() {
+  const machineId = document.getElementById('formIntervMachineId').value;
+  const body = {
+    type: document.getElementById('formIntervType').value,
+    description: document.getElementById('formIntervDesc').value.trim(),
+    duree: parseInt(document.getElementById('formIntervDuree').value)||null,
+    cout: parseFloat(document.getElementById('formIntervCout').value)||null,
+    pieces_remplacees: document.getElementById('formIntervPieces').value.trim()
+  };
+  if(!body.description) { showToast('Veuillez saisir une description','error'); return; }
+  try {
+    await apiPost('/machines/'+machineId+'/intervention', body);
+    showToast('Intervention enregistrée','success');
+    closeInterventionModal();
+    loadAll();
+  } catch(e) { showToast('Erreur : '+e.message,'error'); }
+}
+
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('open');}
+function logout(){localStorage.removeItem('jadomi_session');localStorage.removeItem('selectedSocieteId');localStorage.removeItem('societe_active_id');window.location.replace('/login.html');}
+function showToast(msg,type){const c=document.getElementById('toastContainer');const e=document.createElement('div');e.className='toast'+(type?' '+type:'');e.innerHTML=(type==='success'?'&#x2713; ':type==='error'?'&#x26A0; ':'')+escHtml(msg);c.appendChild(e);setTimeout(()=>e.remove(),3500);}
+function formatDate(str){if(!str)return'—';try{return new Date(str).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}catch(e){return str;}}
+function formatCurrency(val){if(val==null)return'—';const n=parseFloat(val);if(isNaN(n))return'—';return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(n);}
+function escHtml(str){if(!str)return'';return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+initAuth();
+</script>
+</body>
+</html>

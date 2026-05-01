@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Réseau Solidaire — JADOMI Labo Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a; --card: #141414; --border: #262626;
+  --text: #fafafa; --text2: #a1a1aa; --text3: #71717a;
+  --primary: #be185d; --primary-light: #db2777; --primary-dark: #9d174d;
+  --primary-soft: rgba(190,24,93,0.12);
+  --success: #22c55e; --success-soft: rgba(34,197,94,0.12);
+  --warning: #f59e0b; --warning-soft: rgba(245,158,11,0.12);
+  --danger: #ef4444; --danger-soft: rgba(239,68,68,0.12);
+  --info: #3b82f6; --info-soft: rgba(59,130,246,0.12);
+  --purple: #8b5cf6; --purple-soft: rgba(139,92,246,0.12);
+  --radius: 12px; --radius-sm: 8px; --radius-lg: 16px;
+  --transition: cubic-bezier(.16, 1, .3, 1);
+  --font: 'Inter', -apple-system, sans-serif;
+  --sidebar-w: 250px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { text-decoration: none; color: inherit; }
+button { font-family: var(--font); cursor: pointer; }
+input, textarea, select { font-family: var(--font); }
+
+/* ── Shell ── */
+.shell { display: flex; min-height: 100vh; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; height: 100vh; z-index: 100;
+  overflow: hidden;
+}
+.sidebar-logo {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px;
+}
+.sidebar-nav { padding: 8px 0; flex: 1; overflow-y: auto; }
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.nav-section { padding: 16px 18px 6px; font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 18px; font-size: 13px; font-weight: 500;
+  color: var(--text2); cursor: pointer;
+  transition: all 0.2s var(--transition);
+  border-left: 3px solid transparent;
+  text-decoration: none;
+}
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-item.active {
+  color: var(--primary-light); background: var(--primary-soft);
+  border-left-color: var(--primary);
+  font-weight: 600;
+}
+.nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+.sidebar-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--card); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: var(--radius-sm); font-size: 20px; align-items: center; justify-content: center; }
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; }
+
+/* ── Main ── */
+.main { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  height: 60px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; position: sticky; top: 0; z-index: 50;
+}
+.topbar-left { display: flex; align-items: center; gap: 14px; }
+.topbar-title { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+.topbar-sub { font-size: 12px; color: var(--text3); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* ── Content ── */
+.content { padding: 24px 28px; flex: 1; }
+
+/* ── Stats bar ── */
+.stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; transition: border-color 0.3s var(--transition); }
+.stat-card:hover { border-color: var(--text3); }
+.stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 600; }
+.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+.stat-value.pink { color: var(--primary-light); }
+.stat-value.green { color: var(--success); }
+.stat-value.blue { color: var(--info); }
+.stat-value.purple { color: var(--purple); }
+
+/* ── Tabs ── */
+.tabs-wrap { display: flex; gap: 4px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.tabs-wrap::-webkit-scrollbar { height: 0; }
+.tab {
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid transparent;
+  color: var(--text2); font-size: 13px; font-weight: 500;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.3s var(--transition);
+}
+.tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+.tab:hover:not(.active) { background: rgba(255,255,255,0.06); color: var(--text); }
+.tab-count { background: rgba(255,255,255,0.15); padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-left: 6px; }
+
+/* ── Panels ── */
+.panel { display: none; }
+.panel.active { display: block; animation: fadeIn 0.3s var(--transition); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Card ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 20px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  border: none; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.3s var(--transition);
+  white-space: nowrap;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { opacity: 0.9; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+.btn-outline:hover { border-color: var(--text3); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-ghost { background: transparent; color: var(--text2); }
+.btn-ghost:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.btn-icon { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 16px; cursor: pointer; transition: all 0.2s; }
+.btn-icon:hover { border-color: var(--text3); color: var(--text); }
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.badge-pink { background: var(--primary-soft); color: var(--primary-light); }
+.badge-green { background: var(--success-soft); color: var(--success); }
+.badge-blue { background: var(--info-soft); color: var(--info); }
+.badge-purple { background: var(--purple-soft); color: var(--purple); }
+.badge-warning { background: var(--warning-soft); color: var(--warning); }
+.badge-danger { background: var(--danger-soft); color: var(--danger); }
+.badge-france {
+  background: linear-gradient(135deg, #002395 0%, #002395 33%, #fff 33%, #fff 66%, #ED2939 66%, #ED2939 100%);
+  color: #fff; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  padding: 3px 12px; border-radius: 6px; font-size: 10px;
+}
+
+/* ── Form ── */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 14px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 14px;
+  transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+.form-textarea { resize: vertical; min-height: 100px; }
+.form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23a1a1aa' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.form-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+
+/* ── Search bar ── */
+.search-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.search-input-wrap { flex: 1; min-width: 200px; position: relative; }
+.search-input-wrap input { width: 100%; padding: 10px 14px 10px 38px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; }
+.search-input-wrap input:focus { outline: none; border-color: var(--primary); }
+.search-input-wrap .search-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none; }
+.filter-select { min-width: 160px; }
+
+/* ── Grid layouts ── */
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ── Lab cards ── */
+.lab-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  cursor: pointer; transition: all 0.3s var(--transition);
+}
+.lab-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(190,24,93,0.1); }
+.lab-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.lab-city { font-size: 13px; color: var(--text2); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+.lab-specs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.lab-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+/* ── Annonce card ── */
+.annonce-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  transition: all 0.3s var(--transition);
+  margin-bottom: 12px;
+}
+.annonce-card:hover { border-color: var(--text3); }
+.annonce-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
+.annonce-title { font-size: 16px; font-weight: 600; }
+.annonce-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+.annonce-desc { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+.annonce-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.annonce-specs { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Group purchase card ── */
+.achat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  transition: all 0.3s var(--transition);
+}
+.achat-card:hover { border-color: var(--primary); }
+.achat-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.achat-material { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+.progress-wrap { margin-bottom: 12px; }
+.progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light)); border-radius: 4px; transition: width 0.6s var(--transition); }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text3); margin-top: 6px; }
+.achat-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.achat-details dt { color: var(--text3); }
+.achat-details dd { color: var(--text); font-weight: 600; text-align: right; }
+
+/* ── Entraide card ── */
+.entraide-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  transition: all 0.3s var(--transition);
+  cursor: pointer; margin-bottom: 12px;
+}
+.entraide-card:hover { border-color: var(--text3); }
+.entraide-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.entraide-desc { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.entraide-footer { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text3); }
+.entraide-responses { display: flex; align-items: center; gap: 4px; color: var(--success); font-weight: 600; }
+
+/* ── Modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; animation: fadeIn 0.2s; }
+.modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; color: var(--text3); font-size: 22px; cursor: pointer; padding: 4px; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ── Loading / Empty ── */
+.loading { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text3); font-size: 14px; }
+.loading::before { content: ''; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-title { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.empty-desc { font-size: 13px; max-width: 360px; margin: 0 auto 16px; line-height: 1.6; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: white; padding: 12px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; z-index: 999; transform: translateY(80px); opacity: 0; transition: all 0.4s var(--transition); display: flex; align-items: center; gap: 8px; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { background: var(--danger); }
+
+/* ── Pagination ── */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; }
+.pagination .btn { min-width: 36px; justify-content: center; }
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .stats-bar { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s var(--transition); }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle { display: flex; }
+  .sidebar-overlay.open { display: block; }
+  .main { margin-left: 0; }
+  .topbar { padding: 0 16px; padding-left: 56px; }
+  .content { padding: 16px; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .stats-bar { grid-template-columns: 1fr 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .search-bar { flex-direction: column; }
+  .search-input-wrap { min-width: 100%; }
+  .tabs-wrap { gap: 2px; }
+  .tab { padding: 8px 14px; font-size: 12px; }
+  .modal { max-width: 100%; border-radius: var(--radius); }
+}
+@media (max-width: 480px) {
+  .stats-bar { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<div class="shell">
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">🦷 JADOMI LABO</div>
+  <div class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+    <a href="dentistes.html" class="nav-item"><span class="nav-icon">👥</span> Mes dentistes</a>
+    <a href="bons-livraison.html" class="nav-item"><span class="nav-icon">📋</span> Bons de livraison</a>
+    <a href="tournees-livreur.html" class="nav-item"><span class="nav-icon">🚚</span> Tournées livreur</a>
+    <a href="suivi-livreurs.html" class="nav-item"><span class="nav-icon">📍</span> Suivi livreurs</a>
+    <div class="nav-section">Production</div>
+    <a href="production.html" class="nav-item"><span class="nav-icon">⚙️</span> Production</a>
+    <a href="remakes.html" class="nav-item"><span class="nav-icon">🔄</span> Remakes</a>
+    <a href="techniciens.html" class="nav-item"><span class="nav-icon">👷</span> Techniciens</a>
+    <a href="garanties.html" class="nav-item"><span class="nav-icon">🛡️</span> Garanties</a>
+    <a href="expeditions.html" class="nav-item"><span class="nav-icon">📦</span> Expéditions</a>
+    <div class="nav-section">Communication</div>
+    <a href="chat.html" class="nav-item"><span class="nav-icon">💬</span> Chat</a>
+    <a href="planning.html" class="nav-item"><span class="nav-icon">📅</span> Planning</a>
+    <div class="nav-section">Gestion</div>
+    <a href="facturation.html" class="nav-item"><span class="nav-icon">💰</span> Facturation</a>
+    <a href="stock.html" class="nav-item"><span class="nav-icon">📦</span> Stock</a>
+    <a href="catalogue.html" class="nav-item"><span class="nav-icon">📚</span> Catalogue</a>
+    <a href="import-grille.html" class="nav-item"><span class="nav-icon">📥</span> Import grille</a>
+    <a href="shade.html" class="nav-item"><span class="nav-icon">🎨</span> Shade</a>
+    <a href="maintenance.html" class="nav-item"><span class="nav-icon">🔧</span> Maintenance</a>
+    <a href="fichiers3d.html" class="nav-item"><span class="nav-icon">🖨️</span> Fichiers 3D</a>
+    <div class="nav-section">Réseau</div>
+    <a href="reseau.html" class="nav-item active"><span class="nav-icon">🤝</span> Réseau solidaire</a>
+    <a href="profil-labo.html" class="nav-item"><span class="nav-icon">🏢</span> Profil labo</a>
+  </div>
+</nav>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title">Réseau Solidaire Prothésistes</div>
+        <div class="topbar-sub">Entraide, sous-traitance et achats groupés entre laboratoires</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-primary" onclick="openCreateModal()">+ Nouvelle annonce</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- ── Stats bar ── -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Labos dans le réseau</div>
+        <div class="stat-value pink" id="stat-labos">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Annonces actives</div>
+        <div class="stat-value blue" id="stat-annonces">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Achats groupés actifs</div>
+        <div class="stat-value green" id="stat-achats">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Questions répondues</div>
+        <div class="stat-value purple" id="stat-entraide">—</div>
+      </div>
+    </div>
+
+    <!-- ── Tabs ── -->
+    <div class="tabs-wrap">
+      <button class="tab active" onclick="switchTab('annuaire')">🔍 Annuaire</button>
+      <button class="tab" onclick="switchTab('profil')">👤 Mon profil réseau</button>
+      <button class="tab" onclick="switchTab('annonces')">📢 Annonces</button>
+      <button class="tab" onclick="switchTab('achats')">🛒 Achats groupés</button>
+      <button class="tab" onclick="switchTab('entraide')">💡 Entraide</button>
+    </div>
+
+    <!-- ══════════ TAB 1: ANNUAIRE ══════════ -->
+    <div class="panel active" id="panel-annuaire">
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <span class="search-ico">🔍</span>
+          <input type="text" id="search-q" placeholder="Rechercher un laboratoire..." oninput="debounceSearch()">
+        </div>
+        <input type="text" class="form-input filter-select" id="search-ville" placeholder="Ville..." oninput="debounceSearch()" style="max-width:180px;">
+        <select class="form-select filter-select" id="search-spec" onchange="searchLabs()">
+          <option value="">Toutes spécialités</option>
+          <option value="ceramique">Céramique</option>
+          <option value="zircone">Zircone</option>
+          <option value="implantologie">Implantologie</option>
+          <option value="orthodontie">Orthodontie</option>
+          <option value="prothese_amovible">Prothèse amovible</option>
+          <option value="prothese_fixe">Prothèse fixe</option>
+          <option value="cfao">CFAO</option>
+          <option value="impression3d">Impression 3D</option>
+        </select>
+      </div>
+      <div id="annuaire-list" class="grid-3"></div>
+      <div id="annuaire-pagination" class="pagination"></div>
+    </div>
+
+    <!-- ══════════ TAB 2: MON PROFIL RÉSEAU ══════════ -->
+    <div class="panel" id="panel-profil">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">👤 Mon profil réseau</div>
+          <span class="badge badge-france">🇫🇷 100% France</span>
+        </div>
+        <div class="card-body">
+          <form id="profil-form" onsubmit="saveProfil(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Nom du laboratoire</label>
+                <input type="text" class="form-input" id="pf-nom" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Ville</label>
+                <input type="text" class="form-input" id="pf-ville" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Spécialités</label>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;" id="pf-specs">
+                <label class="form-check"><input type="checkbox" name="spec" value="ceramique"> Céramique</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="zircone"> Zircone</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="implantologie"> Implantologie</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="orthodontie"> Orthodontie</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="prothese_amovible"> Prothèse amovible</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="prothese_fixe"> Prothèse fixe</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="cfao"> CFAO</label>
+                <label class="form-check"><input type="checkbox" name="spec" value="impression3d"> Impression 3D</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Certifications</label>
+              <input type="text" class="form-input" id="pf-certifications" placeholder="Ex : ISO 13485, CE, NF...">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Capacité (unités/mois)</label>
+                <input type="number" class="form-input" id="pf-capacite" min="0" placeholder="500">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Zone géographique</label>
+                <input type="text" class="form-input" id="pf-zone" placeholder="Ex : Île-de-France, Rhône-Alpes...">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea class="form-textarea" id="pf-description" placeholder="Présentez votre laboratoire..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-check" style="gap:12px;">
+                <input type="checkbox" id="pf-charte-france">
+                <span style="font-size:14px;font-weight:600;">Adhérer à la Charte 100% France 🇫🇷</span>
+              </label>
+              <p style="font-size:12px;color:var(--text3);margin-top:6px;margin-left:30px;">Je certifie que 100% de mes prothèses sont fabriquées en France, par des techniciens français, avec des matériaux traçables.</p>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+              <button type="submit" class="btn btn-primary">Enregistrer mon profil</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ TAB 3: ANNONCES ══════════ -->
+    <div class="panel" id="panel-annonces">
+      <div class="search-bar">
+        <select class="form-select filter-select" id="filter-type-annonce" onchange="loadAnnonces()">
+          <option value="">Tous types</option>
+          <option value="recherche_sous_traitant">Recherche sous-traitant</option>
+          <option value="propose_sous_traitance">Propose sous-traitance</option>
+          <option value="vente_materiel">Vente matériel</option>
+          <option value="recherche_materiel">Recherche matériel</option>
+        </select>
+        <div style="flex:1;"></div>
+        <button class="btn btn-primary" onclick="openCreateModal()">+ Nouvelle annonce</button>
+      </div>
+      <div id="annonces-list"></div>
+      <div id="annonces-pagination" class="pagination"></div>
+    </div>
+
+    <!-- ══════════ TAB 4: ACHATS GROUPÉS ══════════ -->
+    <div class="panel" id="panel-achats">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <h3 style="font-size:16px;font-weight:700;">Achats groupés actifs</h3>
+          <p style="font-size:13px;color:var(--text3);">Regroupez vos commandes pour obtenir des prix fabricant</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAchatModal()">+ Créer un achat groupé</button>
+      </div>
+      <div id="achats-list" class="grid-2"></div>
+    </div>
+
+    <!-- ══════════ TAB 5: ENTRAIDE ══════════ -->
+    <div class="panel" id="panel-entraide">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h3 style="font-size:16px;font-weight:700;">Forum d'entraide</h3>
+          <p style="font-size:13px;color:var(--text3);">Posez vos questions et partagez votre expertise</p>
+        </div>
+        <button class="btn btn-primary" onclick="openEntraideModal()">+ Poser une question</button>
+      </div>
+      <div id="entraide-list"></div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- ══════════ MODAL: DÉTAIL LABO ══════════ -->
+<div class="modal-overlay" id="modal-lab-detail">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="lab-detail-name">—</div>
+      <button class="modal-close" onclick="closeModal('modal-lab-detail')">&times;</button>
+    </div>
+    <div class="modal-body" id="lab-detail-body"></div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: CRÉER ANNONCE ══════════ -->
+<div class="modal-overlay" id="modal-annonce">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nouvelle annonce</div>
+      <button class="modal-close" onclick="closeModal('modal-annonce')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="annonce-form" onsubmit="submitAnnonce(event)">
+        <div class="form-group">
+          <label class="form-label">Type d'annonce</label>
+          <select class="form-select" id="ann-type" required>
+            <option value="">Sélectionnez...</option>
+            <option value="recherche_sous_traitant">Recherche sous-traitant</option>
+            <option value="propose_sous_traitance">Propose sous-traitance</option>
+            <option value="vente_materiel">Vente matériel</option>
+            <option value="recherche_materiel">Recherche matériel</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Titre</label>
+          <input type="text" class="form-input" id="ann-titre" required placeholder="Ex : Recherche sous-traitant céramique urgence">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="ann-desc" required placeholder="Décrivez votre besoin en détail..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Spécialités requises</label>
+          <input type="text" class="form-input" id="ann-specs" placeholder="Ex : céramique, zircone (séparées par des virgules)">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Budget (€)</label>
+            <input type="text" class="form-input" id="ann-budget" placeholder="À définir">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Délai</label>
+            <input type="text" class="form-input" id="ann-delai" placeholder="Ex : 5 jours ouvrés">
+          </div>
+        </div>
+        <div class="modal-footer" style="padding:16px 0 0;border-top:1px solid var(--border);margin-top:8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-annonce')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Publier l'annonce</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: RÉPONDRE ANNONCE ══════════ -->
+<div class="modal-overlay" id="modal-repondre">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Répondre à l'annonce</div>
+      <button class="modal-close" onclick="closeModal('modal-repondre')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="repondre-annonce-info" style="margin-bottom:16px;"></div>
+      <form id="repondre-form" onsubmit="submitReponseAnnonce(event)">
+        <input type="hidden" id="rep-annonce-id">
+        <div class="form-group">
+          <label class="form-label">Votre message</label>
+          <textarea class="form-textarea" id="rep-message" required placeholder="Décrivez votre proposition..."></textarea>
+        </div>
+        <div class="modal-footer" style="padding:16px 0 0;border-top:1px solid var(--border);margin-top:8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-repondre')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Envoyer la réponse</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: RÉPONSES ANNONCE ══════════ -->
+<div class="modal-overlay" id="modal-reponses">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header">
+      <div class="modal-title">Réponses reçues</div>
+      <button class="modal-close" onclick="closeModal('modal-reponses')">&times;</button>
+    </div>
+    <div class="modal-body" id="reponses-body"></div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: CRÉER ACHAT GROUPÉ ══════════ -->
+<div class="modal-overlay" id="modal-achat">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Créer un achat groupé</div>
+      <button class="modal-close" onclick="closeModal('modal-achat')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="achat-form" onsubmit="submitAchat(event)">
+        <div class="form-group">
+          <label class="form-label">Matériau / Produit</label>
+          <input type="text" class="form-input" id="ag-materiau" required placeholder="Ex : Zircone Katana UTML, disques 98mm">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Quantité objectif</label>
+            <input type="number" class="form-input" id="ag-quantite" required min="1" placeholder="50">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prix cible unitaire (€)</label>
+            <input type="number" class="form-input" id="ag-prix" required min="0" step="0.01" placeholder="85.00">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date limite</label>
+          <input type="date" class="form-input" id="ag-date-limite" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description complémentaire</label>
+          <textarea class="form-textarea" id="ag-description" placeholder="Précisez les conditions, le fournisseur visé..."></textarea>
+        </div>
+        <div class="modal-footer" style="padding:16px 0 0;border-top:1px solid var(--border);margin-top:8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-achat')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer l'achat groupé</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: DÉTAIL ACHAT GROUPÉ ══════════ -->
+<div class="modal-overlay" id="modal-achat-detail">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header">
+      <div class="modal-title" id="achat-detail-title">—</div>
+      <button class="modal-close" onclick="closeModal('modal-achat-detail')">&times;</button>
+    </div>
+    <div class="modal-body" id="achat-detail-body"></div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: POSER QUESTION ENTRAIDE ══════════ -->
+<div class="modal-overlay" id="modal-entraide">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Poser une question</div>
+      <button class="modal-close" onclick="closeModal('modal-entraide')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="entraide-form" onsubmit="submitEntraide(event)">
+        <div class="form-group">
+          <label class="form-label">Catégorie</label>
+          <select class="form-select" id="ent-categorie" required>
+            <option value="">Sélectionnez...</option>
+            <option value="technique">Technique</option>
+            <option value="reglementaire">Réglementaire</option>
+            <option value="materiaux">Matériaux</option>
+            <option value="equipement">Équipement</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Titre</label>
+          <input type="text" class="form-input" id="ent-titre" required placeholder="Ex : Quelle température pour la cuisson E.max ?">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="ent-desc" required placeholder="Décrivez votre question en détail..."></textarea>
+        </div>
+        <div class="modal-footer" style="padding:16px 0 0;border-top:1px solid var(--border);margin-top:8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-entraide')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Publier la question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: DÉTAIL ENTRAIDE ══════════ -->
+<div class="modal-overlay" id="modal-entraide-detail">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title" id="entraide-detail-title">—</div>
+      <button class="modal-close" onclick="closeModal('modal-entraide-detail')">&times;</button>
+    </div>
+    <div class="modal-body" id="entraide-detail-body"></div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG & AUTH
+   ═══════════════════════════════════════════ */
+const API = '/api/labo/reseau';
+let authToken = null;
+let currentTab = 'annuaire';
+let searchTimer = null;
+let annuairePage = 1;
+let annoncesPage = 1;
+
+function getAuth() {
+  try {
+    const raw = localStorage.getItem('labo_token') || localStorage.getItem('sb-token') || localStorage.getItem('token');
+    if (raw) { authToken = raw; return true; }
+    const session = localStorage.getItem('sb-session');
+    if (session) {
+      const parsed = JSON.parse(session);
+      authToken = parsed.access_token || parsed.token;
+      return !!authToken;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function headers() {
+  const h = { 'Content-Type': 'application/json' };
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  return h;
+}
+
+async function apiFetch(path, opts = {}) {
+  try {
+    const res = await fetch(API + path, { headers: headers(), ...opts });
+    if (res.status === 401) { toast('Session expirée, veuillez vous reconnecter', true); return null; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Erreur serveur'); }
+    return await res.json();
+  } catch(e) {
+    console.error('API error:', e);
+    toast(e.message || 'Erreur de connexion', true);
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   TABS
+   ═══════════════════════════════════════════ */
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const tabs = ['annuaire', 'profil', 'annonces', 'achats', 'entraide'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + tab);
+  if (panel) panel.classList.add('active');
+
+  if (tab === 'annuaire') searchLabs();
+  if (tab === 'profil') loadProfil();
+  if (tab === 'annonces') loadAnnonces();
+  if (tab === 'achats') loadAchats();
+  if (tab === 'entraide') loadEntraide();
+}
+
+/* ═══════════════════════════════════════════
+   STATS
+   ═══════════════════════════════════════════ */
+async function loadStats() {
+  const data = await apiFetch('/stats');
+  if (!data) return;
+  document.getElementById('stat-labos').textContent = data.labos || 0;
+  document.getElementById('stat-annonces').textContent = data.annonces_actives || 0;
+  document.getElementById('stat-achats').textContent = data.achats_groupes_actifs || 0;
+  document.getElementById('stat-entraide').textContent = data.questions_repondues || 0;
+}
+
+/* ═══════════════════════════════════════════
+   ANNUAIRE
+   ═══════════════════════════════════════════ */
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => searchLabs(), 350);
+}
+
+async function searchLabs(page = 1) {
+  annuairePage = page;
+  const q = document.getElementById('search-q').value.trim();
+  const ville = document.getElementById('search-ville').value.trim();
+  const spec = document.getElementById('search-spec').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (ville) params.set('ville', ville);
+  if (spec) params.set('specialites', spec);
+  params.set('page', page);
+
+  const container = document.getElementById('annuaire-list');
+  container.innerHTML = '<div class="loading" style="grid-column:1/-1;">Chargement...</div>';
+
+  const data = await apiFetch('/annuaire?' + params.toString());
+  if (!data) { container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">🔍</div><div class="empty-title">Impossible de charger l\'annuaire</div></div>'; return; }
+
+  const labs = data.data || data.labs || data || [];
+  if (!Array.isArray(labs) || labs.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">🏭</div><div class="empty-title">Aucun laboratoire trouvé</div><div class="empty-desc">Modifiez vos critères de recherche ou invitez des confrères à rejoindre le réseau.</div></div>';
+    document.getElementById('annuaire-pagination').innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = labs.map(lab => `
+    <div class="lab-card" onclick="showLabDetail('${lab.id}')">
+      <div class="lab-name">${esc(lab.nom || lab.name || '—')}</div>
+      <div class="lab-city">📍 ${esc(lab.ville || lab.city || '—')}</div>
+      <div class="lab-specs">
+        ${(lab.specialites || lab.specialties || []).map(s => `<span class="badge badge-pink">${esc(formatSpec(s))}</span>`).join('')}
+      </div>
+      <div class="lab-footer">
+        ${lab.charte_france ? '<span class="badge badge-france">🇫🇷 100% France</span>' : '<span style="font-size:12px;color:var(--text3);">—</span>'}
+        <span style="font-size:12px;color:var(--text3);">${lab.capacite ? lab.capacite + ' u/mois' : ''}</span>
+      </div>
+    </div>
+  `).join('');
+
+  renderPagination('annuaire-pagination', data.page || page, data.totalPages || data.total_pages || 1, p => searchLabs(p));
+}
+
+async function showLabDetail(id) {
+  const data = await apiFetch('/annuaire/' + id);
+  if (!data) return;
+  const lab = data.data || data;
+  document.getElementById('lab-detail-name').textContent = lab.nom || lab.name || '—';
+  document.getElementById('lab-detail-body').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="font-size:13px;color:var(--text2);">📍 ${esc(lab.ville || '—')}</span>
+        ${lab.charte_france ? '<span class="badge badge-france">🇫🇷 100% France</span>' : ''}
+      </div>
+      ${lab.description ? `<p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:16px;">${esc(lab.description)}</p>` : ''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:var(--bg);padding:14px;border-radius:var(--radius-sm);">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Capacité</div>
+        <div style="font-size:18px;font-weight:700;">${lab.capacite || '—'} <span style="font-size:12px;color:var(--text3);">unités/mois</span></div>
+      </div>
+      <div style="background:var(--bg);padding:14px;border-radius:var(--radius-sm);">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Zone</div>
+        <div style="font-size:14px;font-weight:600;">${esc(lab.zone_geographique || lab.zone || '—')}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;font-weight:600;">Spécialités</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${(lab.specialites || lab.specialties || []).map(s => `<span class="badge badge-pink">${esc(formatSpec(s))}</span>`).join('') || '<span style="color:var(--text3);">—</span>'}
+      </div>
+    </div>
+    ${lab.certifications ? `
+    <div>
+      <div style="font-size:12px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;font-weight:600;">Certifications</div>
+      <div style="font-size:14px;color:var(--text);">${esc(lab.certifications)}</div>
+    </div>` : ''}
+  `;
+  openModal('modal-lab-detail');
+}
+
+/* ═══════════════════════════════════════════
+   PROFIL RÉSEAU
+   ═══════════════════════════════════════════ */
+async function loadProfil() {
+  const data = await apiFetch('/profil-reseau');
+  if (!data) return;
+  const p = data.data || data;
+  if (p.nom) document.getElementById('pf-nom').value = p.nom || '';
+  if (p.ville) document.getElementById('pf-ville').value = p.ville || '';
+  if (p.certifications) document.getElementById('pf-certifications').value = p.certifications || '';
+  if (p.capacite) document.getElementById('pf-capacite').value = p.capacite || '';
+  if (p.zone_geographique) document.getElementById('pf-zone').value = p.zone_geographique || '';
+  if (p.description) document.getElementById('pf-description').value = p.description || '';
+  document.getElementById('pf-charte-france').checked = !!p.charte_france;
+  const specs = p.specialites || p.specialties || [];
+  document.querySelectorAll('#pf-specs input[type="checkbox"]').forEach(cb => {
+    cb.checked = specs.includes(cb.value);
+  });
+}
+
+async function saveProfil(e) {
+  e.preventDefault();
+  const specs = [];
+  document.querySelectorAll('#pf-specs input[type="checkbox"]:checked').forEach(cb => specs.push(cb.value));
+  const body = {
+    nom: document.getElementById('pf-nom').value.trim(),
+    ville: document.getElementById('pf-ville').value.trim(),
+    specialites: specs,
+    certifications: document.getElementById('pf-certifications').value.trim(),
+    capacite: parseInt(document.getElementById('pf-capacite').value) || null,
+    zone_geographique: document.getElementById('pf-zone').value.trim(),
+    description: document.getElementById('pf-description').value.trim(),
+    charte_france: document.getElementById('pf-charte-france').checked
+  };
+  const data = await apiFetch('/profil-reseau', { method: 'POST', body: JSON.stringify(body) });
+  if (data) { toast('Profil réseau enregistré avec succès'); loadStats(); }
+}
+
+/* ═══════════════════════════════════════════
+   ANNONCES
+   ═══════════════════════════════════════════ */
+async function loadAnnonces(page = 1) {
+  annoncesPage = page;
+  const type = document.getElementById('filter-type-annonce').value;
+  const params = new URLSearchParams();
+  if (type) params.set('type', type);
+  params.set('page', page);
+
+  const container = document.getElementById('annonces-list');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+
+  const data = await apiFetch('/annonces?' + params.toString());
+  if (!data) { container.innerHTML = '<div class="empty-state"><div class="empty-icon">📢</div><div class="empty-title">Impossible de charger les annonces</div></div>'; return; }
+
+  const annonces = data.data || data.annonces || data || [];
+  if (!Array.isArray(annonces) || annonces.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📢</div><div class="empty-title">Aucune annonce pour le moment</div><div class="empty-desc">Créez la première annonce pour trouver un sous-traitant ou proposer vos services.</div><button class="btn btn-primary" onclick="openCreateModal()">+ Créer une annonce</button></div>';
+    document.getElementById('annonces-pagination').innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = annonces.map(a => `
+    <div class="annonce-card">
+      <div class="annonce-header">
+        <div class="annonce-title">${esc(a.titre || a.title || '—')}</div>
+        <span class="badge ${getTypeBadgeClass(a.type)}">${formatType(a.type)}</span>
+      </div>
+      <div class="annonce-meta">
+        <span>🏭 ${esc(a.labo_nom || a.lab_name || '—')}</span>
+        <span>📍 ${esc(a.ville || '—')}</span>
+        <span>📅 ${formatDate(a.created_at)}</span>
+        ${a.charte_france ? '<span class="badge badge-france" style="font-size:9px;padding:2px 8px;">🇫🇷 100% FR</span>' : ''}
+      </div>
+      <div class="annonce-desc">${esc(a.description || '—')}</div>
+      <div class="annonce-footer">
+        <div class="annonce-specs">
+          ${(a.specialites || []).map(s => `<span class="badge badge-pink">${esc(formatSpec(s))}</span>`).join('')}
+          ${a.budget ? `<span class="badge badge-green">💰 ${esc(a.budget)}</span>` : ''}
+          ${a.delai ? `<span class="badge badge-blue">⏱️ ${esc(a.delai)}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-outline" onclick="showReponses('${a.id}')">Réponses</button>
+          <button class="btn btn-sm btn-primary" onclick="openRepondre('${a.id}', '${esc(a.titre || '')}')">Répondre</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  renderPagination('annonces-pagination', data.page || page, data.totalPages || data.total_pages || 1, p => loadAnnonces(p));
+}
+
+function openCreateModal() {
+  document.getElementById('annonce-form').reset();
+  openModal('modal-annonce');
+}
+
+async function submitAnnonce(e) {
+  e.preventDefault();
+  const specs = document.getElementById('ann-specs').value.trim();
+  const body = {
+    type: document.getElementById('ann-type').value,
+    titre: document.getElementById('ann-titre').value.trim(),
+    description: document.getElementById('ann-desc').value.trim(),
+    specialites: specs ? specs.split(',').map(s => s.trim().toLowerCase()) : [],
+    budget: document.getElementById('ann-budget').value.trim() || null,
+    delai: document.getElementById('ann-delai').value.trim() || null
+  };
+  const data = await apiFetch('/annonces', { method: 'POST', body: JSON.stringify(body) });
+  if (data) {
+    closeModal('modal-annonce');
+    toast('Annonce publiée avec succès');
+    loadAnnonces();
+    loadStats();
+  }
+}
+
+function openRepondre(id, titre) {
+  document.getElementById('rep-annonce-id').value = id;
+  document.getElementById('repondre-annonce-info').innerHTML = `<div style="font-size:14px;font-weight:600;margin-bottom:4px;">${esc(titre)}</div>`;
+  document.getElementById('rep-message').value = '';
+  openModal('modal-repondre');
+}
+
+async function submitReponseAnnonce(e) {
+  e.preventDefault();
+  const id = document.getElementById('rep-annonce-id').value;
+  const message = document.getElementById('rep-message').value.trim();
+  const data = await apiFetch('/annonces/' + id + '/repondre', { method: 'POST', body: JSON.stringify({ message }) });
+  if (data) {
+    closeModal('modal-repondre');
+    toast('Réponse envoyée avec succès');
+  }
+}
+
+async function showReponses(id) {
+  const container = document.getElementById('reponses-body');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+  openModal('modal-reponses');
+
+  const data = await apiFetch('/annonces/' + id + '/reponses');
+  if (!data) { container.innerHTML = '<div class="empty-state"><div class="empty-title">Erreur de chargement</div></div>'; return; }
+
+  const reponses = data.data || data.reponses || data || [];
+  if (!Array.isArray(reponses) || reponses.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Aucune réponse pour le moment</div></div>';
+    return;
+  }
+
+  container.innerHTML = reponses.map(r => `
+    <div style="padding:14px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-weight:600;font-size:14px;">🏭 ${esc(r.labo_nom || r.lab_name || '—')}</span>
+        <span style="font-size:12px;color:var(--text3);">${formatDate(r.created_at)}</span>
+      </div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.6;">${esc(r.message || r.contenu || '—')}</p>
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════
+   ACHATS GROUPÉS
+   ═══════════════════════════════════════════ */
+async function loadAchats() {
+  const container = document.getElementById('achats-list');
+  container.innerHTML = '<div class="loading" style="grid-column:1/-1;">Chargement...</div>';
+
+  const data = await apiFetch('/achats-groupes');
+  if (!data) { container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">🛒</div><div class="empty-title">Impossible de charger les achats groupés</div></div>'; return; }
+
+  const achats = data.data || data.achats || data || [];
+  if (!Array.isArray(achats) || achats.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">🛒</div><div class="empty-title">Aucun achat groupé actif</div><div class="empty-desc">Créez le premier achat groupé pour mutualiser vos commandes et obtenir de meilleurs prix.</div><button class="btn btn-primary" onclick="openAchatModal()">+ Créer un achat groupé</button></div>';
+    return;
+  }
+
+  container.innerHTML = achats.map(a => {
+    const participants = a.participants_count || a.nb_participants || 0;
+    const objectif = a.objectif || a.quantite_objectif || 10;
+    const pct = Math.min(100, Math.round((participants / objectif) * 100));
+    return `
+    <div class="achat-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+        <div class="achat-title">${esc(a.materiau || a.titre || '—')}</div>
+        ${a.charte_france ? '<span class="badge badge-france" style="font-size:9px;">🇫🇷</span>' : ''}
+      </div>
+      <div class="achat-material">${esc(a.description || '')}</div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="progress-label">
+          <span>${participants} participant${participants > 1 ? 's' : ''}</span>
+          <span>Objectif : ${objectif}</span>
+        </div>
+      </div>
+      <div class="achat-details">
+        <dt>Prix cible</dt><dd>${a.prix_cible ? a.prix_cible + ' €' : '—'}</dd>
+        <dt>Date limite</dt><dd>${a.date_limite ? formatDate(a.date_limite) : '—'}</dd>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm btn-outline" onclick="showAchatDetail('${a.id}')" style="flex:1;">Détails</button>
+        <button class="btn btn-sm btn-primary" onclick="rejoindreAchat('${a.id}')" style="flex:1;">Rejoindre</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAchatModal() {
+  document.getElementById('achat-form').reset();
+  openModal('modal-achat');
+}
+
+async function submitAchat(e) {
+  e.preventDefault();
+  const body = {
+    materiau: document.getElementById('ag-materiau').value.trim(),
+    quantite: parseInt(document.getElementById('ag-quantite').value),
+    prix_cible: parseFloat(document.getElementById('ag-prix').value),
+    date_limite: document.getElementById('ag-date-limite').value,
+    description: document.getElementById('ag-description').value.trim() || null
+  };
+  const data = await apiFetch('/achats-groupes', { method: 'POST', body: JSON.stringify(body) });
+  if (data) {
+    closeModal('modal-achat');
+    toast('Achat groupé créé avec succès');
+    loadAchats();
+    loadStats();
+  }
+}
+
+async function rejoindreAchat(id) {
+  const data = await apiFetch('/achats-groupes/' + id + '/rejoindre', { method: 'POST' });
+  if (data) { toast('Vous avez rejoint l\'achat groupé'); loadAchats(); }
+}
+
+async function showAchatDetail(id) {
+  const container = document.getElementById('achat-detail-body');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+  document.getElementById('achat-detail-title').textContent = '—';
+  openModal('modal-achat-detail');
+
+  const data = await apiFetch('/achats-groupes/' + id);
+  if (!data) { container.innerHTML = '<div class="empty-state"><div class="empty-title">Erreur de chargement</div></div>'; return; }
+
+  const a = data.data || data;
+  const participants = a.participants || [];
+  const nbPart = a.participants_count || participants.length || 0;
+  const objectif = a.objectif || a.quantite_objectif || 10;
+  const pct = Math.min(100, Math.round((nbPart / objectif) * 100));
+
+  document.getElementById('achat-detail-title').textContent = a.materiau || a.titre || '—';
+  container.innerHTML = `
+    ${a.description ? `<p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:16px;">${esc(a.description)}</p>` : ''}
+    <div class="progress-wrap" style="margin-bottom:20px;">
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-label"><span>${nbPart} participant${nbPart > 1 ? 's' : ''}</span><span>Objectif : ${objectif}</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div style="background:var(--bg);padding:14px;border-radius:var(--radius-sm);">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Prix cible</div>
+        <div style="font-size:20px;font-weight:700;">${a.prix_cible ? a.prix_cible + ' €' : '—'}</div>
+      </div>
+      <div style="background:var(--bg);padding:14px;border-radius:var(--radius-sm);">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Date limite</div>
+        <div style="font-size:14px;font-weight:600;">${a.date_limite ? formatDate(a.date_limite) : '—'}</div>
+      </div>
+    </div>
+    ${participants.length > 0 ? `
+    <div style="font-size:12px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;font-weight:600;">Participants</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${participants.map(p => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm);">
+          <span style="font-weight:500;">🏭 ${esc(p.nom || p.labo_nom || '—')}</span>
+          <span style="font-size:12px;color:var(--text3);">${formatDate(p.joined_at || p.created_at)}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary" onclick="rejoindreAchat('${a.id}');closeModal('modal-achat-detail');" style="flex:1;">Rejoindre cet achat groupé</button>
+      <button class="btn btn-outline btn-danger" onclick="quitterAchat('${a.id}')" style="flex:0;">Quitter</button>
+    </div>
+  `;
+}
+
+async function quitterAchat(id) {
+  if (!confirm('Êtes-vous sûr de vouloir quitter cet achat groupé ?')) return;
+  const data = await apiFetch('/achats-groupes/' + id + '/quitter', { method: 'DELETE' });
+  if (data) {
+    closeModal('modal-achat-detail');
+    toast('Vous avez quitté l\'achat groupé');
+    loadAchats();
+    loadStats();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ENTRAIDE
+   ═══════════════════════════════════════════ */
+async function loadEntraide() {
+  const container = document.getElementById('entraide-list');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+
+  const data = await apiFetch('/entraide');
+  if (!data) { container.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><div class="empty-title">Impossible de charger le forum</div></div>'; return; }
+
+  const questions = data.data || data.questions || data || [];
+  if (!Array.isArray(questions) || questions.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">💡</div><div class="empty-title">Aucune question pour le moment</div><div class="empty-desc">Posez la première question et bénéficiez de l\'expertise de la communauté.</div><button class="btn btn-primary" onclick="openEntraideModal()">+ Poser une question</button></div>';
+    return;
+  }
+
+  container.innerHTML = questions.map(q => `
+    <div class="entraide-card" onclick="showEntraideDetail('${q.id}')">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="badge ${getCatBadgeClass(q.categorie || q.category)}">${formatCategorie(q.categorie || q.category)}</span>
+        ${q.charte_france ? '<span class="badge badge-france" style="font-size:9px;padding:2px 6px;">🇫🇷</span>' : ''}
+      </div>
+      <div class="entraide-title">${esc(q.titre || q.title || '—')}</div>
+      <div class="entraide-desc">${esc(q.description || '')}</div>
+      <div class="entraide-footer">
+        <span>🏭 ${esc(q.labo_nom || q.lab_name || '—')} · ${formatDate(q.created_at)}</span>
+        <div class="entraide-responses">💬 ${q.nb_reponses || q.responses_count || 0} réponse${(q.nb_reponses || q.responses_count || 0) > 1 ? 's' : ''}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openEntraideModal() {
+  document.getElementById('entraide-form').reset();
+  openModal('modal-entraide');
+}
+
+async function submitEntraide(e) {
+  e.preventDefault();
+  const body = {
+    categorie: document.getElementById('ent-categorie').value,
+    titre: document.getElementById('ent-titre').value.trim(),
+    description: document.getElementById('ent-desc').value.trim()
+  };
+  const data = await apiFetch('/entraide', { method: 'POST', body: JSON.stringify(body) });
+  if (data) {
+    closeModal('modal-entraide');
+    toast('Question publiée avec succès');
+    loadEntraide();
+    loadStats();
+  }
+}
+
+async function showEntraideDetail(id) {
+  const container = document.getElementById('entraide-detail-body');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+  document.getElementById('entraide-detail-title').textContent = '—';
+  openModal('modal-entraide-detail');
+
+  const data = await apiFetch('/entraide/' + id);
+  if (!data) { container.innerHTML = '<div class="empty-state"><div class="empty-title">Erreur de chargement</div></div>'; return; }
+
+  const q = data.data || data;
+  const reponses = q.reponses || q.responses || [];
+  document.getElementById('entraide-detail-title').textContent = q.titre || q.title || '—';
+
+  container.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span class="badge ${getCatBadgeClass(q.categorie || q.category)}">${formatCategorie(q.categorie || q.category)}</span>
+        <span style="font-size:12px;color:var(--text3);">🏭 ${esc(q.labo_nom || '—')} · ${formatDate(q.created_at)}</span>
+      </div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.7;">${esc(q.description || '')}</p>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;">
+      <div style="font-size:12px;color:var(--text3);text-transform:uppercase;margin-bottom:12px;font-weight:600;">Réponses (${reponses.length})</div>
+      ${reponses.length > 0 ? reponses.map(r => `
+        <div style="padding:14px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-weight:600;font-size:13px;">🏭 ${esc(r.labo_nom || r.lab_name || '—')}</span>
+            <span style="font-size:12px;color:var(--text3);">${formatDate(r.created_at)}</span>
+          </div>
+          <p style="font-size:13px;color:var(--text2);line-height:1.6;">${esc(r.contenu || r.message || r.text || '—')}</p>
+        </div>
+      `).join('') : '<p style="font-size:13px;color:var(--text3);text-align:center;padding:20px;">Aucune réponse pour le moment</p>'}
+    </div>
+    <form onsubmit="submitReponseEntraide(event, '${id}')" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+      <div class="form-group">
+        <label class="form-label">Votre réponse</label>
+        <textarea class="form-textarea" id="ent-reponse-text" required placeholder="Partagez votre expertise..."></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="submit" class="btn btn-primary">Répondre</button>
+      </div>
+    </form>
+  `;
+}
+
+async function submitReponseEntraide(e, id) {
+  e.preventDefault();
+  const contenu = document.getElementById('ent-reponse-text').value.trim();
+  const data = await apiFetch('/entraide/' + id + '/reponse', { method: 'POST', body: JSON.stringify({ contenu }) });
+  if (data) {
+    toast('Réponse publiée avec succès');
+    showEntraideDetail(id);
+    loadStats();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   UTILS
+   ═══════════════════════════════════════════ */
+function esc(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch(e) { return d; }
+}
+
+function formatSpec(s) {
+  const map = {
+    ceramique: 'Céramique', zircone: 'Zircone', implantologie: 'Implantologie',
+    orthodontie: 'Orthodontie', prothese_amovible: 'Prothèse amovible',
+    prothese_fixe: 'Prothèse fixe', cfao: 'CFAO', impression3d: 'Impression 3D'
+  };
+  return map[s] || s;
+}
+
+function formatType(t) {
+  const map = {
+    recherche_sous_traitant: 'Recherche sous-traitant',
+    propose_sous_traitance: 'Propose sous-traitance',
+    vente_materiel: 'Vente matériel',
+    recherche_materiel: 'Recherche matériel'
+  };
+  return map[t] || t || '—';
+}
+
+function getTypeBadgeClass(t) {
+  const map = {
+    recherche_sous_traitant: 'badge-pink',
+    propose_sous_traitance: 'badge-green',
+    vente_materiel: 'badge-purple',
+    recherche_materiel: 'badge-blue'
+  };
+  return map[t] || 'badge-pink';
+}
+
+function formatCategorie(c) {
+  const map = {
+    technique: 'Technique', reglementaire: 'Réglementaire',
+    materiaux: 'Matériaux', equipement: 'Équipement', autre: 'Autre'
+  };
+  return map[c] || c || '—';
+}
+
+function getCatBadgeClass(c) {
+  const map = {
+    technique: 'badge-blue', reglementaire: 'badge-warning',
+    materiaux: 'badge-purple', equipement: 'badge-green', autre: 'badge-pink'
+  };
+  return map[c] || 'badge-pink';
+}
+
+function renderPagination(containerId, current, total, callback) {
+  const container = document.getElementById(containerId);
+  if (total <= 1) { container.innerHTML = ''; return; }
+  let html = '';
+  if (current > 1) html += `<button class="btn btn-sm btn-outline" onclick="(${callback.toString()})(${current - 1})">← Précédent</button>`;
+  for (let i = 1; i <= total; i++) {
+    if (i === current) html += `<button class="btn btn-sm btn-primary">${i}</button>`;
+    else if (i === 1 || i === total || Math.abs(i - current) <= 1) html += `<button class="btn btn-sm btn-outline" onclick="(${callback.toString()})(${i})">${i}</button>`;
+    else if (Math.abs(i - current) === 2) html += `<span style="color:var(--text3);">…</span>`;
+  }
+  if (current < total) html += `<button class="btn btn-sm btn-outline" onclick="(${callback.toString()})(${current + 1})">Suivant →</button>`;
+  container.innerHTML = html;
+}
+
+/* ── Modal helpers ── */
+function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
+
+/* ── Sidebar toggle ── */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+
+/* ── Toast ── */
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+/* ── Close modals on escape ── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => {
+      m.classList.remove('open');
+      document.body.style.overflow = '';
+    });
+  }
+});
+
+/* ── Close modals on overlay click ── */
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) { overlay.classList.remove('open'); document.body.style.overflow = ''; }
+  });
+});
+
+/* ═══════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  getAuth();
+  loadStats();
+  searchLabs();
+});
+</script>
+</body>
+</html>

@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 30 avril 2026
-**Derniere passe** : Passe 68 — Module IDE infirmiere complet + preuve passage GPS
+**Derniere mise a jour** : 1 mai 2026
+**Derniere passe** : Passe 69 — App livreur GPS + 11 pages dashboard prothesiste + fix IDE planning
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1408,6 +1408,66 @@ SQL deploye : CREATE TABLE ide_preuves_passage (prod Supabase)
 
 28 fichiers modifies, 3584 insertions, 473 suppressions.
 
+## Passe 69 (1 mai 2026) -- App livreur GPS + 11 pages prothesiste + fix IDE planning
+La passe la plus massive pour le vertical prothesiste : tout le backend
+de la Passe 65 (119 endpoints, 28 tables) a enfin son frontend complet.
+
+### App Livreur Prothesiste (GPS temps reel)
+Systeme complet de suivi de livraison prothesiste ↔ cabinet dentaire :
+- App mobile livreur PWA (public/labo/livreur-app.html, 1213 lignes)
+  - Auth par token (pas de compte Supabase necessaire)
+  - Feuille de route step-by-step, gros boutons mobile
+  - GPS tracking toutes les 30s (watchPosition)
+  - Navigation Waze/Google Maps 1 tap
+  - Boutons "Termine" / "Absent" / "J'arrive bientot"
+  - Notification automatique au dentiste a chaque etape
+- Page suivi admin temps reel (public/labo/suivi-livreurs.html, 840 lignes)
+  - Carte Leaflet + OpenStreetMap dark tiles
+  - Positions livreurs en direct, refresh 15s
+  - Panel livreurs : progression, prochain arret, ETA
+  - Recherche par nom dentiste (quand un dentiste appelle)
+  - Generation lien app pour le livreur
+- Backend : 7 nouveaux endpoints /api/labo/tournees/app/*
+  (position, demarrer, arret/valider, notifier-arrivee, terminer)
+  + generer-token + positions/live
+- SQL 72 : ALTER labo_livreurs (+5 colonnes token/GPS),
+  CREATE labo_positions_livreur, CREATE labo_notifications_dentiste
+  + 9 index + RLS complet. Execute en prod.
+
+### 11 pages frontend dashboard prothesiste (TOUTES NOUVELLES)
+Sidebar reorganisee en 6 sections avec 22 liens au total.
+Fichiers crees (11 pages, ~8800 lignes frontend) :
+- public/labo/production.html (766 l) — Kanban 8 etapes, QR code, stats
+- public/labo/remakes.html (698 l) — Refabrications, causes, qualite
+- public/labo/techniciens.html (600 l) — CRUD techniciens + KPI, export CSV
+- public/labo/garanties.html (783 l) — Garanties par type, reclamations, config
+- public/labo/planning.html (864 l) — Planning hebdo techniciens + conges
+- public/labo/chat.html (664 l) — Chat temps reel dentiste-labo, 2 panels
+- public/labo/expeditions.html (849 l) — Expeditions, tracking timeline, etiquettes
+- public/labo/shade.html (687 l) — Shade IA Claude Vision, colorimetrie [PREMIUM]
+- public/labo/maintenance.html (724 l) — Machines, interventions, alertes [PREMIUM]
+- public/labo/fichiers3d.html (764 l) — STL/OBJ/PLY upload, versions, validation [PREMIUM]
+- public/labo/reseau.html (1420 l) — Reseau solidaire 5 onglets (annuaire,
+  profil, annonces, achats groupes, entraide), charte 100% France
+
+### Fix dashboard IDE infirmiere (planning)
+Fichier modifie : public/ide/dashboard.html (3600→4760 lignes)
+- FIX "Generer le planning" : messages clairs (X visites/Y jours, ou "ajoutez
+  des soins recurrents"), plus de "mode demonstration" silencieux
+- FIX "Rappel" : rappels visibles pour toutes les dates + header sticky
+- AJOUT "+ RDV" : modal complet creation RDV patient avec :
+  - Recherche patient existant ou creation nouveau inline
+  - Niveau de criticite (1x/jour, 2x/jour, prioritaire, urgent)
+  - Disponibilite patient (matin, apres-midi, apres 16h, flexible)
+  - Creneau auto-suggere par l'IA selon dispo + criticite
+  - Type de soin, infirmiere, duree
+- AJOUT Notes/Taches : 3 types (rappel, tache a faire, note), taches cochables
+- FIX Navigation : bouton home topbar, bouton "Retour" en plein ecran
+- FIX Mobile : FAB "+" flottant, toolbar responsive, bouton "Accueil"
+
+Total Passe 69 : 13 nouvelles pages, ~10000 lignes de code, 7 endpoints,
+3 tables SQL, sidebar prothesiste completee de 8 a 22 liens.
+
 ## Passe 65 (28 avril 2026) -- Plateforme prothesiste complete + reseau solidarite
 La plus grosse passe du projet. 15 nouveaux modules labo + dashboard complet.
 1. Suivi production 8 etapes + QR code tracking (10 endpoints)
@@ -1624,6 +1684,16 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - [x] Redirections .html 302 + liens internes nettoyes (Passe 68)
 - [x] Table ide_preuves_passage deployee en prod Supabase (Passe 68)
 - [ ] Executer MIGRATION_COMPLETE_65.sql dans Supabase Dashboard
+- [x] App livreur PWA + tracking GPS temps reel (Passe 69)
+- [x] Page suivi en direct admin carte Leaflet (Passe 69)
+- [x] 7 endpoints app livreur (position, demarrer, valider, notifier) (Passe 69)
+- [x] SQL 72 deploye : positions_livreur + notifications_dentiste (Passe 69)
+- [x] 11 pages frontend prothesiste : production, remakes, techniciens, garanties, planning, chat, expeditions, shade, maintenance, fichiers3d, reseau (Passe 69)
+- [x] Sidebar prothesiste reorganisee 6 sections, 22 liens (Passe 69)
+- [x] Fix IDE planning : "Generer" messages clairs + rappels sticky (Passe 69)
+- [x] IDE modal "+ RDV" : creation patient inline, criticite, dispo, creneau auto (Passe 69)
+- [x] IDE notes/taches : 3 types, taches cochables (Passe 69)
+- [x] IDE navigation : bouton home, retour plein ecran, FAB mobile (Passe 69)
 
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
