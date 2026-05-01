@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 1 mai 2026
-**Derniere passe** : Passe 69 — App livreur GPS + 11 pages dashboard prothesiste + fix IDE planning
+**Derniere passe** : Passe 70 — Tournees pub video + simulation 160 dentistes + notifications travaux + fixes navigation
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1468,6 +1468,89 @@ Fichier modifie : public/ide/dashboard.html (3600→4760 lignes)
 Total Passe 69 : 13 nouvelles pages, ~10000 lignes de code, 7 endpoints,
 3 tables SQL, sidebar prothesiste completee de 8 a 22 liens.
 
+## Passe 70 (1 mai 2026) -- Pub video tournees + simulation Nord + notifications travaux + fixes
+
+### Corrections navigation (bugs Passe 69)
+- Fix acces rapide "Cabinet dentaire" : pointait vers landing.html (vitrine)
+  au lieu du dashboard dentiste. Nouvelle route /dentiste dans server.js.
+- Fix mapping MR cabinet_dentaire : index.html → /dentiste
+- Fix comptabilite IDE : supprime le data-gate="compta" qui bloquait
+  le module comptabilite derriere la formule Pro. Maintenant accessible
+  a tous comme dans les autres dashboards (kine, podologue, sage-femme...).
+- Ajout section "JADOMI Studio" dans acces rapide : 4 cartes (Creer un site,
+  Mon site CMS, Mes sites, Apercu) + filtre Studio.
+
+### Simulation tournees Nord de la France
+- SQL sql/labo/80_simulation_tournees_nord.sql : 160 dentistes (40 par
+  secteur × 4 coursiers), semaine complete 5-10 mai 2026.
+- 4 coursiers avec tokens app mobile.
+- 48 tournees, 960 demandes de passage, 960 arrets.
+- Scenario LIVE : coursier en route vers le cabinet Dr Bahmed avec
+  notifications et positions GPS simulees.
+- Villes : Lille, Roubaix, Tourcoing, Wattrelos, Croix, Villeneuve-d'Ascq,
+  Marcq-en-Baroeul, Mons, Hem, Armentieres, Lambersart, La Madeleine,
+  Lomme, Loos, Seclin, Halluin, Houplines, Saint-Andre, Forest, Sainghin.
+
+### Notification liste des travaux au depart coursier (FEATURE)
+- Nouvelle fonction notifierDentistesDepart() dans routes/labo/tournees-livreur.js
+- Au demarrage d'une tournee (dashboard ou app livreur), chaque dentiste
+  de la feuille de route recoit une notification avec :
+  • La liste complete de ses travaux (references, type livraison/recuperation, nb colis)
+  • Le nom du coursier et le creneau (matin/apres-midi)
+  • Message "Verifiez que tout est en ordre avant son arrivee"
+- Double notification : labo_notifications_dentiste + pushNotification (cloche dentiste)
+- Permet a la secretaire d'anticiper : si un travail manque, decaler le patient.
+
+### Dashboard labo — section tournees
+- Ajout bloc "Tournees de la semaine" sur le dashboard principal prothesiste
+  avec 5 KPI (tournees, livrees, en attente, en cours, km) + liste tournees du jour.
+- Fix feature gate : le fondateur (karim_bahmed@yahoo.fr) bypass le gate
+  pour tester toutes les fonctionnalites.
+
+### Video pub Remotion — TourneesPub (48.5s, 1080p)
+- Composition remotion/compositions/TourneesPub.tsx : 8 scenes motion graphics
+  avec personnages SVG, van JADOMI, batiments, notifications.
+- Scene 0 : Intro accroche "Au plus pres des prothesistes, des livreurs
+  et des dentistes. La livraison de protheses, reinventee."
+- Scene 1 : Le labo finalise et cree le BL
+- Scene 2 : L'assistante dentaire recoit la liste des travaux (telephone,
+  notification pop, bulle reaction)
+- Scene 3 : Van coursier route avec feuille de route 620px, GPS trail
+- Scene 4 : Notification approche "8 min", assistante prepare
+- Scene 5 : Arrivee, echange colis, validation passage + confettis
+- Scene 6 : Suivi GPS 4 coursiers temps reel carte Nord
+- Scene 7 : CTA "Vos livraisons meritent l'excellence"
+- Musique synthetique generee (50s, 108 BPM, nappes + kick + melodie)
+- Aucun vrai nom dans la video ni sur les pages publiques.
+- Video integree en autoplay sur la page vitrine prothesistes-dentaires.html.
+
+### Page vitrine prothesistes-dentaires.html — section tournees
+- 8 etapes visuelles en timeline avec mockups interactifs :
+  01 Le labo prepare, 02 Feuille de route, 03 Anticipation (liste travaux),
+  04 Recalcul intelligent, 05 Notification temps reel, 06 Preparation cabinet,
+  07 Validation passage, 08 Suivi GPS temps reel.
+- KPI bar : 40 arrets/coursier/jour, -35% km, 8 min anticipation, GPS live.
+- Video pub integree sous le titre avec autoplay muted loop.
+- Zero noms reels : tous remplaces par "Cabinet A.", "Coursier B", etc.
+
+### Fichiers modifies
+- server.js : route /dentiste ajoutee
+- organisation.html : fix acces rapide cabinet dentaire + ajout section Studio
+- public/ide/dashboard.html : supprime gate compta
+- public/labo/dashboard.html : section tournees semaine + loadTourneesWeek()
+- public/prothesistes-dentaires.html : section tournees 8 etapes + video
+- routes/labo/tournees-livreur.js : notifierDentistesDepart()
+- routes/labo/feature-gate.js : bypass fondateur
+- remotion/Root.tsx : TourneesPub composition
+- remotion/compositions/TourneesPub.tsx : 8 scenes motion graphics (NOUVEAU)
+- remotion/compositions/TourneesLivreurDemo.tsx : version mockup UI (NOUVEAU)
+- sql/labo/80_simulation_tournees_nord.sql : simulation 160 dentistes Nord (NOUVEAU)
+- public/assets/videos/tournees-pub.mp4 : video 48.5s 1080p (NOUVEAU)
+- public/assets/audio/tournees-music.mp3 : musique synthetique 50s (NOUVEAU)
+
+Total Passe 70 : 2 compositions Remotion, 1 SQL simulation, 1 feature backend,
+13 fichiers modifies, video pub 48.5s deployee.
+
 ## Passe 65 (28 avril 2026) -- Plateforme prothesiste complete + reseau solidarite
 La plus grosse passe du projet. 15 nouveaux modules labo + dashboard complet.
 1. Suivi production 8 etapes + QR code tracking (10 endpoints)
@@ -1694,6 +1777,16 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - [x] IDE modal "+ RDV" : creation patient inline, criticite, dispo, creneau auto (Passe 69)
 - [x] IDE notes/taches : 3 types, taches cochables (Passe 69)
 - [x] IDE navigation : bouton home, retour plein ecran, FAB mobile (Passe 69)
+- [x] Fix acces rapide Cabinet dentaire → pointait vers vitrine (Passe 70)
+- [x] Fix comptabilite IDE accessible sans gate (Passe 70)
+- [x] Ajout Studio dans acces rapide (Passe 70)
+- [x] Notification liste travaux au depart coursier (Passe 70)
+- [x] Dashboard labo : section tournees semaine (Passe 70)
+- [x] Simulation 160 dentistes Nord SQL (Passe 70)
+- [x] Video pub tournees Remotion 48.5s motion graphics (Passe 70)
+- [x] Video integree sur page vitrine prothesistes (Passe 70)
+- [x] Section tournees 8 etapes sur vitrine prothesistes (Passe 70)
+- [x] Bypass feature gate pour fondateur (Passe 70)
 
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
@@ -1738,7 +1831,7 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 - ~~npm xlsx abandonne (6 CVEs)~~ [CORRIGE Passe 64 — migre vers exceljs]
 - STRIPE_WEBHOOK_SECRET non configure (webhook rejete si absent — configurer dans Stripe Dashboard)
 - ~~billing.html n'existe pas~~ [CORRIGE Passe 64 — API billing + page fonctionnelle]
-- Videos demo manquantes (demo-dentistes.mp4, demo-coiffeurs.mp4, demo-prothesistes.mp4)
+- Videos demo manquantes (demo-dentistes.mp4, demo-coiffeurs.mp4) — demo-prothesistes FAIT (Passe 70)
 - ~~getDatabaseStats() charge 100K lignes en memoire~~ [CORRIGE Passe 64 — RPC SQL 0 rows]
 - P12 certificat sans passphrase (stocker passphrase en env var)
 - N+1 queries /api/achats/price-watches (batch needed)

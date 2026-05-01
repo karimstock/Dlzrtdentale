@@ -114,6 +114,12 @@ async function getLabPlan(prothesisteId) {
 function requireFeature(feature) {
   return async (req, res, next) => {
     try {
+      // Le fondateur a accès à tout (bypass gate pour tests)
+      if (req.user?.email === 'karim_bahmed@yahoo.fr') {
+        req.laboPlan = 'premium';
+        return next();
+      }
+
       const plan = await getLabPlan(req.prothesisteId);
       req.laboPlan = plan; // Rendre dispo pour la route
 

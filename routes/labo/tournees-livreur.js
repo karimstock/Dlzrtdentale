@@ -532,6 +532,107 @@ router.get('/:id', async (req, res) => {
 // FEUILLE DE ROUTE — Actions du livreur
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// NOTIFICATION DÉPART — Liste des travaux par dentiste
+// Chaque dentiste de la tournée reçoit la liste complète
+// des travaux (réf, type) qui vont lui être livrés/récupérés.
+// La secrétaire peut vérifier et anticiper si un travail manque.
+// ─────────────────────────────────────────────
+async function notifierDentistesDepart(tourneeId, prothesisteId) {
+  try {
+    // Récupérer tous les arrêts avec les demandes et dentistes
+    const { data: arrets } = await admin()
+      .from('labo_arrets_tournee')
+      .select('*, labo_demandes_passage(dentiste_client_id, type_passage, references_travaux, description, nb_colis)')
+      .eq('tournee_id', tourneeId)
+      .order('ordre');
+
+    if (!arrets || arrets.length === 0) return;
+
+    // Récupérer le livreur de la tournée
+    const { data: tournee } = await admin()
+      .from('labo_tournees_livreur')
+      .select('livreur_id, creneau, labo_livreurs(nom, prenom)')
+      .eq('id', tourneeId)
+      .single();
+
+    const livreurNom = tournee?.labo_livreurs
+      ? `${tournee.labo_livreurs.prenom} ${tournee.labo_livreurs.nom}`
+      : 'Votre livreur';
+    const creneau = tournee?.creneau === 'matin' ? 'ce matin' : 'cet après-midi';
+
+    // Grouper les travaux par dentiste
+    const parDentiste = {};
+    for (const arret of arrets) {
+      const dp = arret.labo_demandes_passage;
+      if (!dp) continue;
+      const dentId = dp.dentiste_client_id;
+      if (!parDentiste[dentId]) parDentiste[dentId] = [];
+      parDentiste[dentId].push({
+        type: dp.type_passage,
+        refs: dp.references_travaux || [],
+        desc: dp.description || '',
+        colis: dp.nb_colis || 1
+      });
+    }
+
+    // Récupérer les infos des dentistes
+    const dentIds = Object.keys(parDentiste);
+    const { data: dentistes } = await admin()
+      .from('dentistes_clients')
+      .select('id, nom, prenom, user_id')
+      .in('id', dentIds);
+
+    const dentistesMap = {};
+    if (dentistes) dentistes.forEach(d => { dentistesMap[d.id] = d; });
+
+    // Envoyer une notification à chaque dentiste
+    for (const dentId of dentIds) {
+      const travaux = parDentiste[dentId];
+      const dentiste = dentistesMap[dentId];
+
+      // Construire la liste des travaux en texte
+      const lignes = travaux.map(t => {
+        const typeLabel = t.type === 'livraison' ? '📦 Livraison' : t.type === 'recuperation' ? '📤 Récupération' : '📦📤 Livraison + Récupération';
+        const refs = t.refs.length > 0 ? t.refs.join(', ') : 'sans réf.';
+        const desc = t.desc ? ` — ${t.desc}` : '';
+        return `${typeLabel} : ${refs}${desc} (${t.colis} colis)`;
+      });
+
+      const totalColis = travaux.reduce((s, t) => s + t.colis, 0);
+      const message = `${livreurNom} passe ${creneau} à votre cabinet.\n\nVos travaux :\n${lignes.join('\n')}\n\nTotal : ${totalColis} colis — Vérifiez que tout est en ordre avant son arrivée.`;
+
+      // Notification dans labo_notifications_dentiste
+      await admin().from('labo_notifications_dentiste').insert({
+        prothesiste_id: prothesisteId,
+        dentiste_client_id: dentId,
+        tournee_id: tourneeId,
+        type: 'en_route',
+        message
+      });
+
+      // Push notification si le dentiste est sur JADOMI
+      if (dentiste && dentiste.user_id) {
+        try {
+          await pushNotification({
+            user_id: dentiste.user_id,
+            type: 'autre',
+            urgence: 'normale',
+            titre: `Livreur en route — ${travaux.length} travaux`,
+            message: `${livreurNom} passe ${creneau}. ${totalColis} colis à vérifier.`,
+            cta_label: 'Voir le détail',
+            cta_url: '/labo-pro/suivi-livraisons'
+          });
+        } catch (_) {}
+      }
+    }
+
+    console.log(`[LABO TOURNEES] Notifications départ envoyées à ${dentIds.length} dentistes pour tournée ${tourneeId}`);
+  } catch (e) {
+    console.error('[LABO TOURNEES notif départ]', e.message);
+  }
+}
+
 // POST /api/labo/tournees/:id/demarrer — Démarrer la tournée
 router.post('/:id/demarrer', async (req, res) => {
   try {
@@ -547,6 +648,10 @@ router.post('/:id/demarrer', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Notifier tous les dentistes de la tournée avec la liste de leurs travaux
+    notifierDentistesDepart(req.params.id, req.prothesisteId);
+
     res.json({ success: true, tournee: data });
   } catch (e) {
     console.error('[LABO TOURNEES demarrer]', e.message);
@@ -1031,6 +1136,10 @@ router.post('/app/demarrer', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Notifier tous les dentistes de la tournée avec la liste de leurs travaux
+    notifierDentistesDepart(tournee_id, data.prothesiste_id);
+
     res.json({ success: true, tournee: data });
   } catch (e) {
     console.error('[LABO APP demarrer]', e.message);

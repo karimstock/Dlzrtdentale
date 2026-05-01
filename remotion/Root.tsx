@@ -9,6 +9,8 @@ import { HeroHomepage } from './compositions/HeroHomepage';
 import { AdTemplate } from './compositions/AdTemplate';
 import { StatsAnimation } from './compositions/StatsAnimation';
 import { DentistDemo } from './compositions/DentistDemo';
+import { TourneesLivreurDemo } from './compositions/TourneesLivreurDemo';
+import { TourneesPub } from './compositions/TourneesPub';
 import { JADOMI_CONFIG } from './config';
 
 export const Root: React.FC = () => {
@@ -54,6 +56,22 @@ export const Root: React.FC = () => {
         fps={30}
         width={1280}
         height={720}
+      />
+      <Composition
+        id="TourneesPub"
+        component={TourneesPub}
+        durationInFrames={1455}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="TourneesLivreurDemo"
+        component={TourneesLivreurDemo}
+        durationInFrames={1920}
+        fps={30}
+        width={1920}
+        height={1080}
       />
     </>
   );

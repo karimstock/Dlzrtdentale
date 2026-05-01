@@ -82,7 +82,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=self, microphone=self, geolocation=self');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org; frame-src 'self' https://js.stripe.com http://localhost:3100;");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co; frame-src https://js.stripe.com http://localhost:3100;");
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   if (req.path.startsWith('/api/')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -184,12 +184,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // Middleware : strip .html extension et rediriger vers URL propre (conserve les query params)
-// 302 (pas 301) pour ne pas casser le bouton retour du navigateur
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !req.path.startsWith('/public/') && !req.path.startsWith('/api/')) {
     const cleanPath = req.path.replace(/\.html$/, '');
     const qs = req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : '';
-    return res.redirect(302, cleanPath + qs);
+    return res.redirect(301, cleanPath + qs);
   }
   next();
 });
@@ -4035,12 +4034,7 @@ app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
 // Route statique page signature mandat
 app.get('/mandate-sign', (req, res) => res.sendFile(path.join(__dirname, 'public/mandate-sign.html')));
 
-// Route module Cabinet dentaire (dashboard stock/commandes)
-app.get('/dentiste', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/dentiste/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-
 // Route module IDE (Infirmiere)
-// Auth geree cote client par Supabase JS (localStorage session)
 app.get('/ide', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
 app.get('/ide/', (req, res) => res.sendFile(path.join(__dirname, 'public/ide/dashboard.html')));
 
@@ -9475,157 +9469,6 @@ app.get('/api/ide/visite/:id/tracking', rateLimit({ windowMs: 60 * 1000, max: 30
   }
 });
 
-// 19c. POST /api/ide/visite/:id/checkin — Preuve de passage (valeur légale)
-// Horodatage SERVEUR + vérification géofencing + log immuable
-app.post('/api/ide/visite/:id/checkin', requireAuth(), async (req, res) => {
-  try {
-    const db = supaAdminOrThrow();
-    const { type, lat, lng, signature_patient } = req.body;
-    // type = 'arrivee' ou 'depart'
-    if (!type || !lat || !lng) return res.status(400).json({ error: 'type, lat, lng requis' });
-
-    const visiteId = parseInt(req.params.id);
-    const userId = req.user.id;
-    const serverTimestamp = new Date().toISOString();
-
-    // Récupérer la visite et l'adresse du patient (si visite réelle en base)
-    let visite = null;
-    try {
-      const { data } = await db.from('ide_visites')
-        .select('*, ide_patients(adresse, lat, lng)')
-        .eq('id', visiteId).single();
-      visite = data;
-    } catch(e) {} // Visite demo — pas en base, on continue quand même
-
-    let geofenceOk = null;
-    let distanceM = null;
-    if (visite?.ide_patients?.lat && visite?.ide_patients?.lng) {
-      // Calcul distance Haversine entre position infirmière et domicile patient
-      const R = 6371000;
-      const dLat = (lat - visite.ide_patients.lat) * Math.PI / 180;
-      const dLng = (lng - visite.ide_patients.lng) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(visite.ide_patients.lat*Math.PI/180) * Math.cos(lat*Math.PI/180) * Math.sin(dLng/2)**2;
-      distanceM = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-      geofenceOk = distanceM <= 150; // 150 mètres de tolérance
-    }
-
-    // Enregistrer la preuve dans le log immuable
-    // visite_id peut être un ID demo (pas en base) — on stocke quand même
-    const { data: preuve, error: insertErr } = await db.from('ide_preuves_passage').insert({
-      visite_id: visite ? visiteId : null,
-      user_id: userId,
-      nurse_email: req.user.email,
-      type: type,
-      server_timestamp: serverTimestamp,
-      lat: lat,
-      lng: lng,
-      distance_m: distanceM,
-      geofence_ok: geofenceOk,
-      signature_patient: signature_patient || null,
-      user_agent: req.headers['user-agent'] || null
-    }).select().single();
-
-    if (insertErr) console.error('[IDE Preuve] Insert error:', insertErr.message);
-    else console.log('[IDE Preuve]', type, 'visite', visiteId, 'dist:', distanceM, 'm, geofence:', geofenceOk, 'id:', preuve?.id);
-
-    res.json({
-      ok: true,
-      preuve_id: preuve?.id || null,
-      server_timestamp: serverTimestamp,
-      geofence_ok: geofenceOk,
-      distance_m: distanceM,
-      signed: !!signature_patient,
-      message: geofenceOk === false
-        ? 'Attention : vous êtes à ' + distanceM + 'm du domicile du patient'
-        : 'Passage enregistré avec horodatage serveur'
-    });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// 19d. POST /api/patient/confirm-visit — Confirmation GPS côté patient
-// Le patient confirme depuis son téléphone que l'infirmière est bien chez lui
-app.post('/api/patient/confirm-visit', async (req, res) => {
-  try {
-    const { lat, lng, timestamp, patient_id } = req.body;
-    if (!lat || !lng) return res.status(400).json({ error: 'lat et lng requis' });
-
-    const db = supaAdminOrThrow();
-    const serverTimestamp = new Date().toISOString();
-
-    // Enregistrer la confirmation patient dans les preuves
-    const { data, error } = await db.from('ide_preuves_passage').insert({
-      visite_id: null,
-      user_id: null,
-      nurse_email: null,
-      type: 'confirmation_patient',
-      server_timestamp: serverTimestamp,
-      lat: lat,
-      lng: lng,
-      distance_m: null,
-      geofence_ok: null,
-      signature_patient: null,
-      user_agent: req.headers['user-agent'] || null
-    }).select().single();
-
-    if (error) console.error('[Patient Confirm] Insert error:', error.message);
-
-    res.json({
-      ok: true,
-      server_timestamp: serverTimestamp,
-      preuve_id: data?.id || null,
-      message: 'Confirmation patient enregistrée'
-    });
-  } catch(e) {
-    // Mode demo — pas de DB
-    res.json({ ok: true, server_timestamp: new Date().toISOString(), message: 'Confirmation enregistrée (demo)' });
-  }
-});
-
-// 19e. POST /api/ide/visite/:id/send-medecin — Envoyer photo/vidéo/vocal au médecin via Care Network
-app.post('/api/ide/visite/:id/send-medecin', requireAuth(), async (req, res) => {
-  try {
-    const { patient_id, medecin_nom, message, media_type, media_data } = req.body;
-    if (!patient_id || !message) return res.status(400).json({ error: 'patient_id et message requis' });
-
-    const db = supaAdminOrThrow();
-
-    // Chercher le cercle de soins du patient pour trouver le médecin
-    const { data: circle } = await db.from('care_circle')
-      .select('*')
-      .eq('patient_id', patient_id)
-      .eq('role', 'referent');
-
-    // Créer le partage dans le Care Network
-    const { data: share, error } = await db.from('care_partages').insert({
-      patient_id: patient_id,
-      sender_cabinet_id: req.user.societe_id,
-      sender_user_id: req.user.id,
-      sender_name: req.user.email,
-      recipient_name: medecin_nom || 'Médecin traitant',
-      type: 'observation',
-      urgency: 'routine',
-      message: message,
-      media_url: media_data ? 'data_attached' : null,
-      media_type: media_type || null,
-      visite_id: parseInt(req.params.id) || null,
-      created_at: new Date().toISOString()
-    }).select().single();
-
-    if (error) {
-      console.warn('[IDE Send Medecin] care_partages insert error:', error.message);
-      // Fallback : enregistrer quand même
-    }
-
-    console.log('[IDE Send Medecin] Partage envoyé au', medecin_nom, 'pour patient', patient_id);
-    res.json({ ok: true, share_id: share?.id || null, message: 'Envoyé au ' + (medecin_nom || 'médecin') });
-  } catch(e) {
-    // Mode demo
-    res.json({ ok: true, message: 'Envoyé au médecin (demo)' });
-  }
-});
-
 // 21. POST /api/ide/absence — Declarer une absence
 app.post('/api/ide/absence', requireAuth(), async (req, res) => {
   try {
@@ -9883,107 +9726,6 @@ app.post('/api/ide/ordonnances/upload', requireAuth(), (req, res) => {
       res.status(500).json({ error: 'Erreur serveur.' });
     }
   });
-});
-
-// 1b. POST /api/ide/ordonnances/analyser — Analyse IA d'une ordonnance (photo/PDF)
-// Utilise Claude pour extraire médicaments, dosages, posologie
-// L'infirmière DOIT valider chaque ligne — jamais d'automatisme aveugle
-app.post('/api/ide/ordonnances/analyser', requireAuth(), async (req, res) => {
-  try {
-    const { image_base64, image_type, ordonnance_id } = req.body;
-    if (!image_base64) return res.status(400).json({ error: 'image_base64 requis' });
-
-    const mediaType = image_type || 'image/jpeg';
-
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: image_base64.replace(/^data:[^;]+;base64,/, '') }
-          },
-          {
-            type: 'text',
-            text: `Vous êtes un assistant médical. Analysez cette ordonnance médicale et extrayez les informations suivantes au format JSON strict :
-
-{
-  "type_ordonnance": "manuscrite" ou "informatique",
-  "lisibilite": "bonne", "moyenne" ou "difficile",
-  "medecin": { "nom": "...", "rpps": "...", "specialite": "..." },
-  "patient": { "nom": "...", "date_naissance": "..." },
-  "date_prescription": "YYYY-MM-DD",
-  "medicaments": [
-    {
-      "nom": "nom du médicament",
-      "dosage": "dosage prescrit (ex: 500mg)",
-      "posologie": "posologie complète (ex: 1 comprimé matin et soir)",
-      "duree": "durée du traitement",
-      "voie": "orale/injectable/cutanée/etc",
-      "alerte_dosage": true/false,
-      "commentaire_alerte": "si alerte, expliquer pourquoi le dosage semble inhabituel",
-      "confiance": 0-100
-    }
-  ],
-  "soins_infirmiers": ["liste des actes infirmiers prescrits"],
-  "remarques": "toute remarque importante"
-}
-
-IMPORTANT :
-- Si l'écriture est manuscrite et difficile à lire, indiquez confiance < 50 et signalez dans les remarques
-- Si un dosage semble inhabituellement élevé ou bas, mettez alerte_dosage: true
-- Ne devinez PAS un médicament si vous n'êtes pas sûr — mettez "ILLISIBLE" avec confiance 0
-- Répondez UNIQUEMENT avec le JSON, pas de texte autour`
-          }
-        ]
-      }]
-    });
-
-    // Parser la réponse Claude
-    let analyse = null;
-    try {
-      const text = response.content[0].text.trim();
-      // Extraire le JSON (peut être entouré de markdown ```json ... ```)
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) analyse = JSON.parse(jsonMatch[0]);
-    } catch(e) {
-      return res.status(422).json({ error: 'Impossible de parser l\'analyse', raw: response.content[0].text });
-    }
-
-    // Ajouter des alertes de sécurité
-    if (analyse && analyse.medicaments) {
-      analyse.medicaments.forEach(med => {
-        // Flag les médicaments à risque
-        const risque = ['insuline','morphine','héparine','lovenox','préviscan','coumadine','méthotrexate','digoxine'];
-        if (risque.some(r => (med.nom || '').toLowerCase().includes(r))) {
-          med.medicament_risque = true;
-        }
-        // Flag confiance basse
-        if (med.confiance < 50) {
-          med.verification_critique = true;
-        }
-      });
-    }
-
-    // Sauvegarder l'analyse si ordonnance_id fourni
-    if (ordonnance_id && analyse) {
-      const db = supaAdminOrThrow();
-      await db.from('ide_ordonnances')
-        .update({ analyse_ia: analyse, analyse_date: new Date().toISOString() })
-        .eq('id', ordonnance_id);
-    }
-
-    res.json({
-      ok: true,
-      analyse: analyse,
-      avertissement: 'Cette analyse est une AIDE. L\'infirmière DOIT vérifier et valider chaque médicament et dosage avant administration.'
-    });
-  } catch(e) {
-    console.error('[IDE Ordonnance Analyse] Error:', e.message);
-    res.status(500).json({ error: 'Erreur analyse : ' + e.message });
-  }
 });
 
 // 2. GET /api/ide/ordonnances — Lister les ordonnances
@@ -11490,36 +11232,10 @@ app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
       updated_at: new Date().toISOString()
     }).eq('id', absence_id);
 
-    // Signer le contrat via JADOMI Sign (AES eIDAS)
-    let signResult = null;
-    try {
-      const jadomiSign = require('./lib/jadomi-sign');
-      const fsMod2 = require('fs');
-      const htmlBuf = fsMod2.readFileSync(filepath);
-      const signatureId = jadomiSign.generateSignatureId();
-      signResult = await jadomiSign.archiveSignedDocument(signatureId, htmlBuf, {
-        title: doc.title,
-        signer_name: `${remplacant.prenom} ${remplacant.nom}`,
-        signer_email: remplacant.email,
-        category: 'contrat_remplacement_ide',
-        societe_id: societeId
-      });
-      // Mettre à jour le document avec le résultat de signature
-      await db.from('signed_documents').update({
-        jadomi_sign_id: signatureId,
-        signature_hash: signResult?.hash || null,
-        status: 'sent_for_signature'
-      }).eq('id', doc.id);
-      console.log('[IDE Contrat] Signé via JADOMI Sign:', signatureId);
-    } catch(signErr) {
-      console.warn('[IDE Contrat] JADOMI Sign non disponible, contrat généré sans signature:', signErr.message);
-    }
-
     res.json({
       ok: true,
       document: doc,
-      contrat_url: `/docs/uploads/contrats-remplacement/${filename}`,
-      jadomi_sign: signResult ? { id: signResult.signatureId || signResult.id, signed: true } : null
+      contrat_url: `/docs/uploads/contrats-remplacement/${filename}`
     });
   } catch (e) {
     console.error('[IDE Remplacement Contrat] Error:', e.message);
