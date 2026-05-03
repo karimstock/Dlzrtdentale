@@ -187,8 +187,83 @@ Router.register('/mes-cas', async (container) => {
   window.showCaseDetail = function(caseId) {
     var c = cases.find(function(x) { return x.id === caseId; });
     if (!c) return;
-    // TODO: navigation vers détail cas
-    alert('Détail du cas ' + (c.reference || c.id) + ' — à venir');
+
+    var statusBadge = getStatusBadge(c.statut);
+    var photos = c.photos || [];
+
+    container.innerHTML = `
+      <div style="margin-bottom:16px;">
+        <button onclick="Router.navigate('/mes-cas')" style="background:none;border:none;color:#71717a;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Retour
+        </button>
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <h2 style="font-family:'Syne',sans-serif;font-size:1.15rem;color:#fafafa;margin:0;">${c.titre || c.type || 'Cas prothétique'}</h2>
+            <div style="font-size:.78rem;color:#52525b;margin-top:4px;">${c.reference || ''}</div>
+          </div>
+          ${statusBadge}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          ${c.dent_numero ? '<div style="padding:10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-size:.65rem;color:#52525b;text-transform:uppercase;letter-spacing:.05em;">Dent</div><div style="font-size:.95rem;font-weight:600;color:#fafafa;">' + c.dent_numero + '</div></div>' : ''}
+          ${c.teinte ? '<div style="padding:10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-size:.65rem;color:#52525b;text-transform:uppercase;letter-spacing:.05em;">Teinte</div><div style="font-size:.95rem;font-weight:600;color:#fafafa;">' + c.teinte + '</div></div>' : ''}
+          ${c.type ? '<div style="padding:10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-size:.65rem;color:#52525b;text-transform:uppercase;letter-spacing:.05em;">Type</div><div style="font-size:.95rem;font-weight:600;color:#fafafa;">' + c.type + '</div></div>' : ''}
+          ${c.date_livraison_prevue ? '<div style="padding:10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);"><div style="font-size:.65rem;color:#52525b;text-transform:uppercase;letter-spacing:.05em;">Livraison prévue</div><div style="font-size:.95rem;font-weight:600;color:#fafafa;">' + c.date_livraison_prevue + '</div></div>' : ''}
+        </div>
+
+        ${c.instructions ? '<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);margin-bottom:16px;"><div style="font-size:.7rem;color:#52525b;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">Instructions</div><p style="font-size:.85rem;color:#a1a1aa;line-height:1.6;margin:0;">' + c.instructions + '</p></div>' : ''}
+      </div>
+
+      <!-- Photos du cas -->
+      <div class="card" style="padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h3 style="font-size:.9rem;color:#fafafa;margin:0;">Photos et vidéos (${photos.length})</h3>
+          <button onclick="showMediaUpload([{id:'${c.id}',reference:'${c.reference || ''}',type:'${c.type || ''}'}])" style="background:linear-gradient(135deg,#0d9488,#115e59);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;">
+            + Envoyer
+          </button>
+        </div>
+
+        ${photos.length === 0 ? `
+          <div style="text-align:center;padding:24px;color:#52525b;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <p style="font-size:.8rem;">Aucune photo pour ce cas</p>
+            <p style="font-size:.72rem;color:#3f3f46;margin-top:4px;">Envoyez des photos de ce que vous souhaitez à votre praticien</p>
+          </div>
+        ` : `
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">
+            ${photos.map(function(p) {
+              var url = p.photo_url || '';
+              var thumb = p.thumbnail_url || url;
+              return '<div style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.06);cursor:pointer;" data-url="' + url + '">' +
+                '<img src="' + thumb + '" style="width:100%;height:100%;object-fit:cover;" alt="Photo" />' +
+                '<div style="position:absolute;bottom:4px;left:4px;font-size:.55rem;padding:2px 5px;border-radius:4px;background:rgba(0,0,0,.6);color:#a1a1aa;">' + (p.photo_type || '') + '</div>' +
+                '<div style="position:absolute;top:4px;right:4px;font-size:.55rem;padding:2px 5px;border-radius:4px;background:rgba(0,0,0,.6);color:#71717a;">' + (p.sender_type === 'patient' ? 'Vous' : p.sender_type === 'praticien' ? 'Praticien' : '') + '</div>' +
+                '</div>';
+            }).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- Timeline événements -->
+      ${c.events && c.events.length > 0 ? `
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:.9rem;color:#fafafa;margin:0 0 12px;">Historique</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${c.events.map(function(ev) {
+              var labels = {created:'Cas créé',photo_uploaded:'Photo ajoutée',sent_to_lab:'Envoyé au labo',production_started:'Production démarrée',delivered:'Livré',validated:'Validé',closed:'Clôturé',status_changed:'Statut modifié'};
+              var label = labels[ev.event_type] || ev.event_type;
+              var date = new Date(ev.created_at);
+              var dateStr = date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+              return '<div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,.02);"><div style="width:6px;height:6px;border-radius:50%;background:#0d9488;flex-shrink:0;"></div><span style="font-size:.8rem;color:#a1a1aa;flex:1;">' + label + '</span><span style="font-size:.7rem;color:#52525b;">' + dateStr + '</span></div>';
+            }).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `;
   };
 
   window.handleMediaUpload = async function(input, type) {

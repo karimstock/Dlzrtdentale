@@ -111,7 +111,7 @@ CREATE POLICY case_events_select_policy ON public.case_events
       FROM public.dentiste_pro_cases c
       JOIN public.dentiste_pro_cabinets cab ON cab.id = c.cabinet_id
       JOIN public.societes s ON s.id = cab.societe_id
-      JOIN public.user_societes us ON us.societe_id = s.id
+      JOIN public.user_societe_roles us ON us.societe_id = s.id
       WHERE us.user_id = auth.uid()
     )
   );
@@ -126,7 +126,7 @@ CREATE POLICY case_events_insert_policy ON public.case_events
       FROM public.dentiste_pro_cases c
       JOIN public.dentiste_pro_cabinets cab ON cab.id = c.cabinet_id
       JOIN public.societes s ON s.id = cab.societe_id
-      JOIN public.user_societes us ON us.societe_id = s.id
+      JOIN public.user_societe_roles us ON us.societe_id = s.id
       WHERE us.user_id = auth.uid()
     )
   );

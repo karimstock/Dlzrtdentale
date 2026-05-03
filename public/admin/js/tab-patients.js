@@ -1,6 +1,7 @@
 /**
  * JADOMI Dentiste Pro — Patients Tab Module
  * Patient list with search, detail panels, and add patient modal
+ * Branche sur l'API reelle /api/dentiste-pro/patients
  */
 (function () {
   'use strict';
@@ -8,26 +9,30 @@
   window.JADOMI_PRO = window.JADOMI_PRO || {};
 
   // ---------------------------------------------------------------------------
-  // DEMO DATA
+  // API CONFIG
   // ---------------------------------------------------------------------------
-  var PATIENTS = [
-    { id: 1, nom: 'Martin', prenom: 'Jean-Pierre', tel: '06 12 34 56 78', email: 'jp.martin@email.fr', dateNaissance: '1965-03-14', derniereVisite: daysAgo(2), nbRdv: 12, serieActive: { nom: 'Soins parodontaux', progression: 60, total: 5, faits: 3 }, messagesNonLus: 2, documents: ['Radio panoramique 03/2026', 'Devis couronne 46'] },
-    { id: 2, nom: 'Dupont', prenom: 'Marie', tel: '06 23 45 67 89', email: 'marie.dupont@email.fr', dateNaissance: '1978-07-22', derniereVisite: daysAgo(5), nbRdv: 8, serieActive: null, messagesNonLus: 0, documents: ['Bilan complet 01/2026'] },
-    { id: 3, nom: 'Leroy', prenom: 'Antoine', tel: '06 34 56 78 90', email: 'a.leroy@email.fr', dateNaissance: '1982-11-03', derniereVisite: daysAgo(1), nbRdv: 15, serieActive: { nom: 'Traitement Invisalign', progression: 40, total: 10, faits: 4 }, messagesNonLus: 1, documents: ['Photos intra-orales', 'Plan traitement ortho'] },
-    { id: 4, nom: 'Faure', prenom: 'Isabelle', tel: '06 45 67 89 01', email: 'i.faure@email.fr', dateNaissance: '1990-01-18', derniereVisite: daysAgo(14), nbRdv: 4, serieActive: null, messagesNonLus: 0, documents: [] },
-    { id: 5, nom: 'Bernard', prenom: 'Philippe', tel: '06 56 78 90 12', email: 'p.bernard@email.fr', dateNaissance: '1955-09-30', derniereVisite: daysAgo(0), nbRdv: 22, serieActive: { nom: 'Prothese complete', progression: 80, total: 5, faits: 4 }, messagesNonLus: 3, documents: ['Radio retro-alveolaire', 'Empreintes numeriques', 'Devis prothese'] },
-    { id: 6, nom: 'Girard', prenom: 'Sophie', tel: '06 67 89 01 23', email: 's.girard@email.fr', dateNaissance: '1988-04-12', derniereVisite: daysAgo(7), nbRdv: 6, serieActive: null, messagesNonLus: 0, documents: ['Bilan paro 11/2025'] },
-    { id: 7, nom: 'Petit', prenom: 'Lucas', tel: '06 78 90 12 34', email: 'l.petit@email.fr', dateNaissance: '1995-12-05', derniereVisite: daysAgo(21), nbRdv: 3, serieActive: null, messagesNonLus: 1, documents: [] },
-    { id: 8, nom: 'Moreau', prenom: 'Catherine', tel: '06 89 01 23 45', email: 'c.moreau@email.fr', dateNaissance: '1972-06-28', derniereVisite: daysAgo(3), nbRdv: 18, serieActive: { nom: 'Blanchiment ambulatoire', progression: 50, total: 4, faits: 2 }, messagesNonLus: 0, documents: ['Photos avant/apres', 'Protocole blanchiment'] },
-    { id: 9, nom: 'Laurent', prenom: 'Nicolas', tel: '06 90 12 34 56', email: 'n.laurent@email.fr', dateNaissance: '1980-02-14', derniereVisite: daysAgo(10), nbRdv: 9, serieActive: null, messagesNonLus: 0, documents: ['Radio panoramique 09/2025'] },
-    { id: 10, nom: 'Simon', prenom: 'Elise', tel: '07 01 23 45 67', email: 'e.simon@email.fr', dateNaissance: '1993-08-19', derniereVisite: daysAgo(4), nbRdv: 7, serieActive: { nom: 'Implant 46', progression: 33, total: 3, faits: 1 }, messagesNonLus: 0, documents: ['Scanner CBCT', 'Plan implantaire'] },
-    { id: 11, nom: 'Michel', prenom: 'Francois', tel: '07 12 34 56 78', email: 'f.michel@email.fr', dateNaissance: '1960-10-07', derniereVisite: daysAgo(30), nbRdv: 25, serieActive: null, messagesNonLus: 0, documents: ['Historique complet'] },
-    { id: 12, nom: 'Robert', prenom: 'Amelie', tel: '07 23 45 67 89', email: 'a.robert@email.fr', dateNaissance: '1985-05-23', derniereVisite: daysAgo(6), nbRdv: 11, serieActive: null, messagesNonLus: 2, documents: ['Devis couronnes 14-15'] },
-    { id: 13, nom: 'Thomas', prenom: 'Valerie', tel: '07 34 56 78 90', email: 'v.thomas@email.fr', dateNaissance: '1975-03-31', derniereVisite: daysAgo(12), nbRdv: 5, serieActive: null, messagesNonLus: 0, documents: [] },
-    { id: 14, nom: 'Durand', prenom: 'Marc', tel: '07 45 67 89 01', email: 'm.durand@email.fr', dateNaissance: '1968-11-15', derniereVisite: daysAgo(8), nbRdv: 14, serieActive: { nom: 'Bridge ceramique', progression: 66, total: 3, faits: 2 }, messagesNonLus: 0, documents: ['Empreintes', 'Essayage biscuit'] },
-    { id: 15, nom: 'Dubois', prenom: 'Nathalie', tel: '07 56 78 90 12', email: 'n.dubois@email.fr', dateNaissance: '1992-07-09', derniereVisite: daysAgo(1), nbRdv: 6, serieActive: null, messagesNonLus: 1, documents: ['Radio retro 21'] }
-  ];
+  var API_BASE = '/api/dentiste-pro/patients';
 
+  function getToken() {
+    return localStorage.getItem('supabase_token') || localStorage.getItem('sb-access-token') || '';
+  }
+
+  function getSocieteId() {
+    return localStorage.getItem('selectedSocieteId') || '';
+  }
+
+  function apiHeaders(json) {
+    var h = {
+      'Authorization': 'Bearer ' + getToken(),
+      'X-Societe-Id': getSocieteId()
+    };
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
+
+  // ---------------------------------------------------------------------------
+  // DEMO FALLBACK DATA
+  // ---------------------------------------------------------------------------
   function daysAgo(n) {
     var d = new Date();
     d.setDate(d.getDate() - n);
@@ -35,13 +40,24 @@
     return d;
   }
 
+  var DEMO_PATIENTS = [
+    { id: 1, pat_id: 'PAT-DEMO-001', nom: 'Martin', prenom: 'Jean-Pierre', telephone: '06 12 34 56 78', email: 'jp.martin@email.fr', date_naissance: '1965-03-14', derniere_visite: daysAgo(2).toISOString(), statut: 'actif' },
+    { id: 2, pat_id: 'PAT-DEMO-002', nom: 'Dupont', prenom: 'Marie', telephone: '06 23 45 67 89', email: 'marie.dupont@email.fr', date_naissance: '1978-07-22', derniere_visite: daysAgo(5).toISOString(), statut: 'actif' },
+    { id: 3, pat_id: 'PAT-DEMO-003', nom: 'Leroy', prenom: 'Antoine', telephone: '06 34 56 78 90', email: 'a.leroy@email.fr', date_naissance: '1982-11-03', derniere_visite: daysAgo(1).toISOString(), statut: 'actif' },
+    { id: 4, pat_id: 'PAT-DEMO-004', nom: 'Faure', prenom: 'Isabelle', telephone: '06 45 67 89 01', email: 'i.faure@email.fr', date_naissance: '1990-01-18', derniere_visite: daysAgo(14).toISOString(), statut: 'actif' },
+    { id: 5, pat_id: 'PAT-DEMO-005', nom: 'Bernard', prenom: 'Philippe', telephone: '06 56 78 90 12', email: 'p.bernard@email.fr', date_naissance: '1955-09-30', derniere_visite: daysAgo(0).toISOString(), statut: 'actif' },
+    { id: 6, pat_id: 'PAT-DEMO-006', nom: 'Girard', prenom: 'Sophie', telephone: '06 67 89 01 23', email: 's.girard@email.fr', date_naissance: '1988-04-12', derniere_visite: daysAgo(7).toISOString(), statut: 'actif' },
+    { id: 7, pat_id: 'PAT-DEMO-007', nom: 'Petit', prenom: 'Lucas', telephone: '06 78 90 12 34', email: 'l.petit@email.fr', date_naissance: '1995-12-05', derniere_visite: daysAgo(21).toISOString(), statut: 'actif' },
+    { id: 8, pat_id: 'PAT-DEMO-008', nom: 'Moreau', prenom: 'Catherine', telephone: '06 89 01 23 45', email: 'c.moreau@email.fr', date_naissance: '1972-06-28', derniere_visite: daysAgo(3).toISOString(), statut: 'actif' }
+  ];
+
   // ---------------------------------------------------------------------------
   // HELPERS
   // ---------------------------------------------------------------------------
   var AVATAR_COLORS = ['#0d9488', '#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#ec4899', '#10b981', '#6366f1'];
 
   function avatarColor(name) {
-    var code = name.charCodeAt(0) || 65;
+    var code = (name || 'A').charCodeAt(0) || 65;
     return AVATAR_COLORS[code % AVATAR_COLORS.length];
   }
 
@@ -50,9 +66,11 @@
   }
 
   function relativeDate(d) {
-    if (!d) return '—';
+    if (!d) return '\u2014';
+    var date = (typeof d === 'string') ? new Date(d) : d;
+    if (isNaN(date.getTime())) return '\u2014';
     var now = new Date();
-    var diff = Math.floor((now - d) / 86400000);
+    var diff = Math.floor((now - date) / 86400000);
     if (diff === 0) return "Aujourd'hui";
     if (diff === 1) return 'Hier';
     if (diff < 7) return 'Il y a ' + diff + ' jours';
@@ -61,15 +79,21 @@
   }
 
   function formatDateFr(d) {
-    if (!d) return '—';
+    if (!d) return '\u2014';
     var dd = (typeof d === 'string') ? new Date(d) : d;
+    if (isNaN(dd.getTime())) return '\u2014';
     return pad(dd.getDate()) + '/' + pad(dd.getMonth() + 1) + '/' + dd.getFullYear();
   }
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   // ---------------------------------------------------------------------------
-  // MODAL HELPER (shared with agenda but safe to re-declare)
+  // MODAL HELPER
   // ---------------------------------------------------------------------------
   function showModal(html, onClose) {
     var overlay = document.createElement('div');
@@ -115,6 +139,7 @@
       '.ja-badge{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600}\n' +
       '.ja-badge-serie{background:rgba(139,92,246,.15);color:#a78bfa}\n' +
       '.ja-badge-msg{background:rgba(239,68,68,.15);color:#ef4444}\n' +
+      '.ja-badge-statut{background:rgba(13,148,136,.15);color:#0d9488}\n' +
       '.ja-patient-rdv-count{font-size:12px;color:#525252}\n' +
       '.ja-detail-panel{padding:16px 16px 16px 72px;animation:jadomi-slideUp .2s ease}\n' +
       '.ja-detail-section{margin-bottom:16px}\n' +
@@ -136,11 +161,19 @@
       '.ja-modal-field label{display:block;font-size:12px;color:#a3a3a3;margin-bottom:4px}\n' +
       '.ja-modal-input{width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e5e5e5;font-size:14px;font-family:Inter,sans-serif;box-sizing:border-box}\n' +
       '.ja-modal-input:focus{outline:none;border-color:#0d9488}\n' +
+      '.ja-modal-select{width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e5e5e5;font-size:14px;font-family:Inter,sans-serif;box-sizing:border-box}\n' +
       '.ja-btn-primary{background:#0d9488;color:#fff;border:none;padding:10px 20px;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;cursor:pointer;transition:background .2s}\n' +
       '.ja-btn-primary:hover{background:#0f766e}\n' +
+      '.ja-btn-primary:disabled{opacity:.5;cursor:not-allowed}\n' +
       '.ja-btn-ghost{background:transparent;color:#a3a3a3;border:1px solid rgba(255,255,255,.08);padding:10px 20px;border-radius:10px;font-size:14px;font-family:Inter,sans-serif;cursor:pointer;transition:all .2s}\n' +
       '.ja-btn-ghost:hover{color:#e5e5e5;border-color:rgba(255,255,255,.2)}\n' +
-      '.ja-empty{text-align:center;padding:40px;color:#525252;font-size:14px}\n';
+      '.ja-empty{text-align:center;padding:40px;color:#525252;font-size:14px}\n' +
+      '.ja-loading{text-align:center;padding:40px;color:#737373;font-size:14px}\n' +
+      '.ja-case-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:6px;font-size:12px}\n' +
+      '.ja-case-row:hover{background:rgba(255,255,255,.06)}\n' +
+      '.ja-case-ref{font-weight:600;color:#d4d4d4}\n' +
+      '.ja-case-statut{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}\n' +
+      '.ja-error-banner{padding:10px 14px;border-radius:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#fca5a5;font-size:13px;margin-bottom:12px}\n';
     var style = document.createElement('style');
     style.textContent = css;
     document.head.appendChild(style);
@@ -152,8 +185,169 @@
   var _container = null;
   var _searchTerm = '';
   var _expandedId = null;
+  var _expandedDetail = null; // cached detail data for expanded patient
   var _page = 1;
+  var _totalPatients = 0;
+  var _patients = [];
+  var _loading = false;
+  var _error = null;
+  var _isDemo = false;
   var PER_PAGE = 8;
+  var _searchDebounceTimer = null;
+
+  // ---------------------------------------------------------------------------
+  // API CALLS
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Charge la liste des patients depuis l'API
+   */
+  function fetchPatients(page, callback) {
+    _loading = true;
+    _error = null;
+    drawList();
+
+    var url = API_BASE + '?page=' + page + '&limit=' + PER_PAGE + '&statut=actif';
+
+    fetch(url, { headers: apiHeaders(false) })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        _loading = false;
+        _isDemo = false;
+        _patients = data.patients || [];
+        _totalPatients = data.total || _patients.length;
+        _page = data.page || page;
+        if (callback) callback();
+        else drawList();
+      })
+      .catch(function (err) {
+        console.warn('[tab-patients] API indisponible, fallback demo:', err.message);
+        _loading = false;
+        _isDemo = true;
+        _patients = DEMO_PATIENTS;
+        _totalPatients = DEMO_PATIENTS.length;
+        if (callback) callback();
+        else drawList();
+      });
+  }
+
+  /**
+   * Recherche patients via autocomplete API (debounce 300ms)
+   */
+  function searchPatients(query) {
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
+
+    if (!query || query.length < 2) {
+      // Moins de 2 caracteres : recharger la liste complete
+      _searchTerm = query || '';
+      _page = 1;
+      _expandedId = null;
+      _expandedDetail = null;
+      fetchPatients(1);
+      return;
+    }
+
+    _searchTerm = query;
+    _searchDebounceTimer = setTimeout(function () {
+      _loading = true;
+      _error = null;
+      drawList();
+
+      var url = API_BASE + '/search?q=' + encodeURIComponent(query);
+
+      fetch(url, { headers: apiHeaders(false) })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function (data) {
+          _loading = false;
+          _isDemo = false;
+          _patients = data.patients || [];
+          _totalPatients = _patients.length;
+          _page = 1;
+          drawList();
+        })
+        .catch(function (err) {
+          console.warn('[tab-patients] Search fallback demo:', err.message);
+          _loading = false;
+          _isDemo = true;
+          // Fallback : filtrer les donnees demo localement
+          var q = query.toLowerCase();
+          _patients = DEMO_PATIENTS.filter(function (p) {
+            return (p.nom + ' ' + p.prenom + ' ' + p.telephone).toLowerCase().indexOf(q) !== -1;
+          });
+          _totalPatients = _patients.length;
+          _page = 1;
+          drawList();
+        });
+    }, 300);
+  }
+
+  /**
+   * Charge le detail d'un patient (fiche + cases)
+   */
+  function fetchPatientDetail(patientId, callback) {
+    var url = API_BASE + '/' + patientId;
+
+    fetch(url, { headers: apiHeaders(false) })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        _expandedDetail = {
+          patient: data.patient || {},
+          cases: data.cases || []
+        };
+        if (callback) callback();
+      })
+      .catch(function (err) {
+        console.warn('[tab-patients] Detail fallback:', err.message);
+        // Fallback : detail minimal depuis les donnees en liste
+        var found = null;
+        for (var i = 0; i < _patients.length; i++) {
+          if (_patients[i].id === patientId) { found = _patients[i]; break; }
+        }
+        _expandedDetail = {
+          patient: found || {},
+          cases: []
+        };
+        if (callback) callback();
+      });
+  }
+
+  /**
+   * Cree un nouveau patient via POST
+   */
+  function createPatient(body, onSuccess, onError) {
+    fetch(API_BASE, {
+      method: 'POST',
+      headers: apiHeaders(true),
+      body: JSON.stringify(body)
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return { status: res.status, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.status === 201) {
+          if (onSuccess) onSuccess(result.data.patient);
+        } else if (result.status === 409) {
+          if (onError) onError(result.data.message || 'Ce patient existe d\u00e9j\u00e0.');
+        } else {
+          if (onError) onError(result.data.error || 'Erreur lors de la cr\u00e9ation.');
+        }
+      })
+      .catch(function (err) {
+        console.error('[tab-patients] create error:', err);
+        if (onError) onError('Erreur de connexion au serveur.');
+      });
+  }
 
   // ---------------------------------------------------------------------------
   // RENDER
@@ -161,24 +355,28 @@
   function renderPatients(container) {
     _container = container;
     injectStyles();
-    draw();
+    // Initial load from API
+    fetchPatients(1);
   }
 
   function refreshPatients() {
-    if (_container) draw();
+    if (_container) {
+      _expandedId = null;
+      _expandedDetail = null;
+      _searchTerm = '';
+      _page = 1;
+      fetchPatients(1);
+    }
   }
 
-  function draw() {
-    var filtered = PATIENTS.filter(function (p) {
-      if (!_searchTerm) return true;
-      var q = _searchTerm.toLowerCase();
-      return (p.nom + ' ' + p.prenom + ' ' + p.tel).toLowerCase().indexOf(q) !== -1;
-    });
+  /**
+   * Dessine la liste compl\u00e8te (toolbar + cards + pagination)
+   */
+  function drawList() {
+    if (!_container) return;
 
-    var totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+    var totalPages = Math.max(1, Math.ceil(_totalPatients / PER_PAGE));
     if (_page > totalPages) _page = totalPages;
-    var start = (_page - 1) * PER_PAGE;
-    var pageItems = filtered.slice(start, start + PER_PAGE);
 
     var html = '<div class="ja-patients-wrap">';
 
@@ -191,39 +389,61 @@
     html += '<button class="ja-add-patient-btn" id="ja-add-patient-btn">+ Ajouter un patient</button>';
     html += '</div>';
 
+    // Demo banner
+    if (_isDemo) {
+      html += '<div class="ja-error-banner">Mode d\u00e9monstration \u2014 API indisponible, donn\u00e9es d\'exemple affich\u00e9es.</div>';
+    }
+
     // Stats bar
-    html += '<div style="font-size:12px;color:#525252;margin-bottom:12px">' + filtered.length + ' patient' + (filtered.length > 1 ? 's' : '') + ' trouves</div>';
+    html += '<div style="font-size:12px;color:#525252;margin-bottom:12px">' + _totalPatients + ' patient' + (_totalPatients > 1 ? 's' : '') + ' trouv\u00e9' + (_totalPatients > 1 ? 's' : '') + '</div>';
+
+    // Loading state
+    if (_loading) {
+      html += '<div class="ja-loading">Chargement des patients...</div>';
+      html += '</div>';
+      _container.innerHTML = html;
+      bindToolbarEvents();
+      return;
+    }
 
     // Patient list
-    if (pageItems.length === 0) {
-      html += '<div class="ja-empty">Aucun patient trouve</div>';
+    if (_patients.length === 0) {
+      html += '<div class="ja-empty">Aucun patient trouv\u00e9</div>';
     } else {
-      for (var i = 0; i < pageItems.length; i++) {
-        var p = pageItems[i];
+      // En mode demo, on pagine localement ; en mode API, les donnees sont deja paginees
+      var displayPatients = _isDemo
+        ? _patients.slice((_page - 1) * PER_PAGE, _page * PER_PAGE)
+        : _patients;
+
+      for (var i = 0; i < displayPatients.length; i++) {
+        var p = displayPatients[i];
         var expanded = _expandedId === p.id;
         var col = avatarColor(p.nom);
 
         html += '<div class="ja-patient-card' + (expanded ? ' expanded' : '') + '" data-pid="' + p.id + '">';
         html += '<div class="ja-avatar" style="background:' + col + '22;color:' + col + '">' + initials(p.nom, p.prenom) + '</div>';
         html += '<div class="ja-patient-info">';
-        html += '<div class="ja-patient-name">' + escHtml(p.prenom) + ' ' + escHtml(p.nom) + '</div>';
-        html += '<div class="ja-patient-sub">' + escHtml(p.tel) + ' &middot; Derniere visite : ' + relativeDate(p.derniereVisite) + '</div>';
+        html += '<div class="ja-patient-name">' + escHtml(p.prenom) + ' ' + escHtml(p.nom);
+        // PAT-ID en gris a cote du nom
+        if (p.pat_id) {
+          html += ' <span style="color:#737373;font-weight:400;font-size:12px">' + escHtml(p.pat_id) + '</span>';
+        }
+        html += '</div>';
+        html += '<div class="ja-patient-sub">' + escHtml(p.telephone || '') + ' &middot; Derni\u00e8re visite : ' + relativeDate(p.derniere_visite) + '</div>';
         html += '</div>';
         html += '<div class="ja-patient-meta">';
-        if (p.serieActive) {
-          html += '<span class="ja-badge ja-badge-serie">' + p.serieActive.faits + '/' + p.serieActive.total + ' seances</span>';
+        if (p.statut && p.statut !== 'actif') {
+          html += '<span class="ja-badge ja-badge-statut">' + escHtml(p.statut) + '</span>';
         }
-        if (p.messagesNonLus > 0) {
-          html += '<span class="ja-badge ja-badge-msg">' + p.messagesNonLus + ' msg</span>';
-        }
-        html += '<span class="ja-patient-rdv-count">' + p.nbRdv + ' RDV</span>';
         html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.3;transition:transform .2s;transform:rotate(' + (expanded ? '90' : '0') + 'deg)"><path d="M9 18l6-6-6-6"/></svg>';
         html += '</div>';
         html += '</div>';
 
-        // Detail panel
-        if (expanded) {
-          html += buildDetailPanel(p);
+        // Detail panel (only if expanded and detail loaded)
+        if (expanded && _expandedDetail) {
+          html += buildDetailPanel(_expandedDetail);
+        } else if (expanded && !_expandedDetail) {
+          html += '<div class="ja-detail-panel"><div class="ja-loading">Chargement de la fiche...</div></div>';
         }
       }
     }
@@ -240,37 +460,73 @@
     html += '</div>';
 
     _container.innerHTML = html;
+    bindToolbarEvents();
+    bindCardEvents();
+    bindPaginationEvents();
+  }
 
-    // Events
+  // ---------------------------------------------------------------------------
+  // EVENT BINDINGS
+  // ---------------------------------------------------------------------------
+  function bindToolbarEvents() {
     var searchInput = document.getElementById('ja-patient-search');
     if (searchInput) {
       searchInput.addEventListener('input', function () {
-        _searchTerm = this.value;
-        _page = 1;
-        _expandedId = null;
-        draw();
-        // Re-focus and set cursor position
-        var inp = document.getElementById('ja-patient-search');
-        if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+        searchPatients(this.value);
       });
+      // Restore focus after redraw
+      if (document.activeElement !== searchInput && _searchTerm) {
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+      }
     }
 
-    document.getElementById('ja-add-patient-btn').addEventListener('click', showAddPatientModal);
+    var addBtn = document.getElementById('ja-add-patient-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', showAddPatientModal);
+    }
+  }
 
+  function bindCardEvents() {
     var cards = _container.querySelectorAll('.ja-patient-card');
     for (var c = 0; c < cards.length; c++) {
       cards[c].addEventListener('click', function () {
-        var pid = parseInt(this.getAttribute('data-pid'));
-        _expandedId = (_expandedId === pid) ? null : pid;
-        draw();
+        var pid = this.getAttribute('data-pid');
+        // Tenter conversion numerique, sinon garder en string (UUID)
+        var numPid = parseInt(pid);
+        pid = isNaN(numPid) ? pid : numPid;
+
+        if (_expandedId === pid) {
+          // Fermer le panel
+          _expandedId = null;
+          _expandedDetail = null;
+          drawList();
+        } else {
+          // Ouvrir le panel : charger le detail via API
+          _expandedId = pid;
+          _expandedDetail = null;
+          drawList(); // affiche le loading
+          fetchPatientDetail(pid, function () {
+            drawList(); // re-affiche avec le detail
+          });
+        }
       });
     }
+  }
 
+  function bindPaginationEvents() {
     var pageButtons = _container.querySelectorAll('.ja-pagination button');
     for (var pb = 0; pb < pageButtons.length; pb++) {
       pageButtons[pb].addEventListener('click', function () {
         _page = parseInt(this.getAttribute('data-page'));
-        draw();
+        _expandedId = null;
+        _expandedDetail = null;
+        if (_isDemo || _searchTerm.length >= 2) {
+          // En mode demo ou recherche, on pagine localement
+          drawList();
+        } else {
+          fetchPatients(_page);
+        }
       });
     }
   }
@@ -278,64 +534,90 @@
   // ---------------------------------------------------------------------------
   // DETAIL PANEL
   // ---------------------------------------------------------------------------
-  function buildDetailPanel(p) {
+  function buildDetailPanel(detail) {
+    var p = detail.patient || {};
+    var cases = detail.cases || [];
+
     var html = '<div class="ja-detail-panel">';
 
     // Contact info
     html += '<div class="ja-detail-section">';
     html += '<h4>Informations</h4>';
     html += '<div class="ja-detail-grid">';
-    html += '<div class="ja-detail-item"><label>Email</label><span>' + escHtml(p.email) + '</span></div>';
-    html += '<div class="ja-detail-item"><label>Telephone</label><span>' + escHtml(p.tel) + '</span></div>';
-    html += '<div class="ja-detail-item"><label>Date de naissance</label><span>' + formatDateFr(p.dateNaissance) + '</span></div>';
-    html += '<div class="ja-detail-item"><label>Total RDV</label><span>' + p.nbRdv + ' rendez-vous</span></div>';
+    if (p.pat_id) {
+      html += '<div class="ja-detail-item"><label>PAT-ID</label><span style="font-family:monospace;color:#0d9488">' + escHtml(p.pat_id) + '</span></div>';
+    }
+    html += '<div class="ja-detail-item"><label>Email</label><span>' + escHtml(p.email || '\u2014') + '</span></div>';
+    html += '<div class="ja-detail-item"><label>T\u00e9l\u00e9phone</label><span>' + escHtml(p.telephone || '\u2014') + '</span></div>';
+    html += '<div class="ja-detail-item"><label>Date de naissance</label><span>' + formatDateFr(p.date_naissance) + '</span></div>';
+    if (p.sexe) {
+      html += '<div class="ja-detail-item"><label>Sexe</label><span>' + escHtml(p.sexe === 'M' ? 'Masculin' : p.sexe === 'F' ? 'F\u00e9minin' : p.sexe) + '</span></div>';
+    }
+    if (p.adresse || p.code_postal || p.ville) {
+      var adresseStr = [p.adresse, p.code_postal, p.ville].filter(Boolean).join(', ');
+      html += '<div class="ja-detail-item"><label>Adresse</label><span>' + escHtml(adresseStr) + '</span></div>';
+    }
+    html += '<div class="ja-detail-item"><label>Derni\u00e8re visite</label><span>' + relativeDate(p.derniere_visite) + '</span></div>';
+    html += '<div class="ja-detail-item"><label>Statut</label><span>' + escHtml(p.statut || 'actif') + '</span></div>';
     html += '</div></div>';
 
-    // Active series
-    if (p.serieActive) {
+    // Notes praticien
+    if (p.notes_praticien) {
       html += '<div class="ja-detail-section">';
-      html += '<h4>Serie en cours</h4>';
-      html += '<div style="font-size:13px;color:#d4d4d4;margin-bottom:6px">' + escHtml(p.serieActive.nom) + ' &mdash; ' + p.serieActive.faits + '/' + p.serieActive.total + ' seances</div>';
-      html += '<div class="ja-progress-bar"><div class="ja-progress-fill" style="width:' + p.serieActive.progression + '%;background:#8b5cf6"></div></div>';
-      html += '</div>';
-    }
-
-    // Appointment history (mock)
-    html += '<div class="ja-detail-section">';
-    html += '<h4>Derniers rendez-vous</h4>';
-    var histTypes = ['Consultation', 'Suivi', 'Bilan', 'Consultation', 'Suivi'];
-    for (var h = 0; h < Math.min(3, p.nbRdv); h++) {
-      var histDate = new Date(p.derniereVisite);
-      histDate.setDate(histDate.getDate() - (h * 14));
-      html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:12px">';
-      html += '<span style="color:#a3a3a3">' + formatDateFr(histDate) + '</span>';
-      html += '<span style="color:#d4d4d4">' + histTypes[h % histTypes.length] + '</span>';
-      html += '</div>';
-    }
-    html += '</div>';
-
-    // Chat messages preview
-    if (p.messagesNonLus > 0) {
-      html += '<div class="ja-detail-section">';
-      html += '<h4>Messages recents</h4>';
-      html += '<div style="font-size:12px;color:#a3a3a3;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;border-left:3px solid #ef4444">';
-      html += p.messagesNonLus + ' message' + (p.messagesNonLus > 1 ? 's' : '') + ' non lu' + (p.messagesNonLus > 1 ? 's' : '');
+      html += '<h4>Notes praticien</h4>';
+      html += '<div style="font-size:13px;color:#d4d4d4;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;border-left:3px solid #3b82f6;white-space:pre-wrap">';
+      html += escHtml(p.notes_praticien);
       html += '</div></div>';
     }
 
-    // Documents
-    if (p.documents && p.documents.length > 0) {
-      html += '<div class="ja-detail-section">';
-      html += '<h4>Documents</h4>';
-      html += '<ul class="ja-doc-list">';
-      for (var d = 0; d < p.documents.length; d++) {
-        html += '<li>' + escHtml(p.documents[d]) + '</li>';
+    // Cases proth\u00e9tiques
+    html += '<div class="ja-detail-section">';
+    html += '<h4>Cas proth\u00e9tiques (' + cases.length + ')</h4>';
+    if (cases.length === 0) {
+      html += '<div style="font-size:12px;color:#525252;padding:8px 0">Aucun cas enregistr\u00e9 pour ce patient.</div>';
+    } else {
+      for (var i = 0; i < cases.length; i++) {
+        var c = cases[i];
+        var statutColor = getCaseStatutColor(c.statut);
+        html += '<div class="ja-case-row">';
+        html += '<div>';
+        html += '<span class="ja-case-ref">' + escHtml(c.reference || c.titre || 'Cas #' + (i + 1)) + '</span>';
+        if (c.type) html += ' <span style="color:#737373;font-size:11px">' + escHtml(c.type) + '</span>';
+        if (c.dent_numero) html += ' <span style="color:#737373;font-size:11px">dent ' + escHtml(c.dent_numero) + '</span>';
+        if (c.teinte) html += ' <span style="color:#737373;font-size:11px">teinte ' + escHtml(c.teinte) + '</span>';
+        html += '</div>';
+        html += '<div>';
+        if (c.date_livraison_prevue) {
+          html += '<span style="color:#525252;font-size:11px;margin-right:8px">Livraison : ' + formatDateFr(c.date_livraison_prevue) + '</span>';
+        }
+        html += '<span class="ja-case-statut" style="background:' + statutColor.bg + ';color:' + statutColor.text + '">' + escHtml(c.statut || 'nouveau') + '</span>';
+        html += '</div>';
+        html += '</div>';
       }
-      html += '</ul></div>';
+    }
+    html += '</div>';
+
+    // Inscrit depuis
+    if (p.created_at) {
+      html += '<div style="font-size:11px;color:#525252;margin-top:8px">Patient inscrit le ' + formatDateFr(p.created_at) + '</div>';
     }
 
     html += '</div>';
     return html;
+  }
+
+  function getCaseStatutColor(statut) {
+    var map = {
+      'nouveau': { bg: 'rgba(59,130,246,.15)', text: '#60a5fa' },
+      'empreinte': { bg: 'rgba(139,92,246,.15)', text: '#a78bfa' },
+      'en_fabrication': { bg: 'rgba(245,158,11,.15)', text: '#fbbf24' },
+      'essayage': { bg: 'rgba(236,72,153,.15)', text: '#f472b6' },
+      'livre': { bg: 'rgba(16,185,129,.15)', text: '#34d399' },
+      'pose': { bg: 'rgba(13,148,136,.15)', text: '#0d9488' },
+      'termine': { bg: 'rgba(107,114,128,.15)', text: '#9ca3af' },
+      'annule': { bg: 'rgba(239,68,68,.15)', text: '#ef4444' }
+    };
+    return map[statut] || map['nouveau'];
   }
 
   // ---------------------------------------------------------------------------
@@ -344,50 +626,79 @@
   function showAddPatientModal() {
     var html = '' +
       '<div class="ja-modal-title">Ajouter un patient</div>' +
+      '<div id="ja-np-error" style="display:none" class="ja-error-banner"></div>' +
       '<div style="display:flex;gap:10px">' +
-        '<div class="ja-modal-field" style="flex:1"><label>Nom</label><input class="ja-modal-input" id="ja-np-nom" placeholder="Nom"></div>' +
-        '<div class="ja-modal-field" style="flex:1"><label>Prenom</label><input class="ja-modal-input" id="ja-np-prenom" placeholder="Prenom"></div>' +
+        '<div class="ja-modal-field" style="flex:1"><label>Nom *</label><input class="ja-modal-input" id="ja-np-nom" placeholder="Nom"></div>' +
+        '<div class="ja-modal-field" style="flex:1"><label>Pr\u00e9nom</label><input class="ja-modal-input" id="ja-np-prenom" placeholder="Pr\u00e9nom"></div>' +
       '</div>' +
-      '<div class="ja-modal-field"><label>Telephone</label><input class="ja-modal-input" id="ja-np-tel" placeholder="06 XX XX XX XX"></div>' +
+      '<div class="ja-modal-field"><label>T\u00e9l\u00e9phone *</label><input class="ja-modal-input" id="ja-np-tel" placeholder="06 XX XX XX XX"></div>' +
       '<div class="ja-modal-field"><label>Email</label><input class="ja-modal-input" id="ja-np-email" type="email" placeholder="email@exemple.fr"></div>' +
-      '<div class="ja-modal-field"><label>Date de naissance</label><input class="ja-modal-input" id="ja-np-dob" type="date"></div>' +
+      '<div style="display:flex;gap:10px">' +
+        '<div class="ja-modal-field" style="flex:1"><label>Date de naissance</label><input class="ja-modal-input" id="ja-np-dob" type="date"></div>' +
+        '<div class="ja-modal-field" style="flex:1"><label>Sexe</label><select class="ja-modal-input ja-modal-select" id="ja-np-sexe"><option value="">--</option><option value="M">Masculin</option><option value="F">F\u00e9minin</option></select></div>' +
+      '</div>' +
       '<div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">' +
         '<button class="ja-btn-ghost" data-close>Annuler</button>' +
         '<button class="ja-btn-primary" id="ja-np-save">Enregistrer</button>' +
       '</div>';
 
     var m = showModal(html);
-    m.box.querySelector('#ja-np-save').addEventListener('click', function () {
+    var saveBtn = m.box.querySelector('#ja-np-save');
+    var errorDiv = m.box.querySelector('#ja-np-error');
+
+    saveBtn.addEventListener('click', function () {
       var nom = m.box.querySelector('#ja-np-nom').value.trim();
       var prenom = m.box.querySelector('#ja-np-prenom').value.trim();
-      if (!nom || !prenom) { m.box.querySelector('#ja-np-nom').style.borderColor = '#ef4444'; return; }
+      var telephone = m.box.querySelector('#ja-np-tel').value.trim();
+      var email = m.box.querySelector('#ja-np-email').value.trim();
+      var dateNaissance = m.box.querySelector('#ja-np-dob').value;
+      var sexe = m.box.querySelector('#ja-np-sexe').value;
 
-      PATIENTS.unshift({
-        id: Date.now(),
-        nom: nom,
-        prenom: prenom,
-        tel: m.box.querySelector('#ja-np-tel').value.trim() || '—',
-        email: m.box.querySelector('#ja-np-email').value.trim() || '—',
-        dateNaissance: m.box.querySelector('#ja-np-dob').value || null,
-        derniereVisite: null,
-        nbRdv: 0,
-        serieActive: null,
-        messagesNonLus: 0,
-        documents: []
-      });
-      m.close();
-      _page = 1;
-      _searchTerm = '';
-      draw();
+      // Validation
+      errorDiv.style.display = 'none';
+      m.box.querySelector('#ja-np-nom').style.borderColor = '';
+      m.box.querySelector('#ja-np-tel').style.borderColor = '';
+
+      if (!nom) {
+        m.box.querySelector('#ja-np-nom').style.borderColor = '#ef4444';
+        errorDiv.textContent = 'Le nom est obligatoire.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      if (!telephone) {
+        m.box.querySelector('#ja-np-tel').style.borderColor = '#ef4444';
+        errorDiv.textContent = 'Le t\u00e9l\u00e9phone est obligatoire.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      // Desactiver le bouton pendant l'envoi
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Enregistrement...';
+
+      var body = { nom: nom, telephone: telephone };
+      if (prenom) body.prenom = prenom;
+      if (email) body.email = email;
+      if (dateNaissance) body.date_naissance = dateNaissance;
+      if (sexe) body.sexe = sexe;
+
+      createPatient(body,
+        function onSuccess(patient) {
+          m.close();
+          _page = 1;
+          _searchTerm = '';
+          _expandedId = null;
+          _expandedDetail = null;
+          fetchPatients(1);
+        },
+        function onError(msg) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Enregistrer';
+          errorDiv.textContent = msg;
+          errorDiv.style.display = 'block';
+        }
+      );
     });
-  }
-
-  // ---------------------------------------------------------------------------
-  // UTILS
-  // ---------------------------------------------------------------------------
-  function escHtml(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   // ---------------------------------------------------------------------------
