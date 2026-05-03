@@ -95,4 +95,20 @@ module.exports = function mountDentistePro(app) {
   } catch (e) {
     console.warn('[dentiste-pro] Photo AI non charge:', e.message);
   }
+
+  // Patients CRUD (fiche patient, PAT-ID, recherche, anti-doublons)
+  try {
+    app.use(`${base}/patients`, require('./patients'));
+    console.log('[dentiste-pro] Routes patients montees');
+  } catch (e) {
+    console.warn('[dentiste-pro] Patients non charge:', e.message);
+  }
+
+  // Cases prothétiques CRUD (cas, événements, transitions, media)
+  try {
+    app.use(`${base}/cases`, require('./cases'));
+    console.log('[dentiste-pro] Routes cases montees');
+  } catch (e) {
+    console.warn('[dentiste-pro] Cases non charge:', e.message);
+  }
 };
