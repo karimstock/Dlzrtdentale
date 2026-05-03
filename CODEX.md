@@ -276,9 +276,9 @@ Marketplace d'IA verticalisee dentaire. Orchestrateur d'APIs.
 
 ## 2.23 CMS 3 formules Studio (Passe 36)
 Dashboard CMS pour sites vitrines avec 3 niveaux de service :
-- Classic 29EUR/mois : site gere par equipe JADOMI, 2 modifs/mois max
-- Pro 79EUR/mois : CMS complet (editeur visuel, photos, historique, blog)
-- Expert 199EUR/mois : CMS avance + A/B testing + multi-langue + effet Hollywood
+- Classic 19EUR/mois (0EUR creation) : site gere par equipe JADOMI, 2 modifs/mois max
+- Pro 39EUR/mois (149EUR creation) : CMS complet (editeur visuel, photos, historique, blog)
+- Expert 69EUR/mois (299EUR creation) : CMS avance + A/B testing + multi-langue + effet Hollywood
 Scanner URL integre pour analyser sites existants (WordPress, Shopify, Wix...)
 et recommander l'approche (reconstruire, ameliorer, refuser).
 - Middleware forfait : bloque Classic du CMS, propose upgrade
@@ -1138,7 +1138,7 @@ Palette : creme chaud #FAFAF8 + bleu profond #2D3A8C + or #8A7239.
 Typography : Fraunces italic display + Inter body + Syne prix.
 10 sections : header sticky blur, hero video Pexels ambiance, 3 piliers,
 4 metiers premium (photos Pexels), 8 autres metiers grid, 3 formules
-(Classic 29EUR/Pro 79EUR/Expert 199EUR), temoignages, 3 etapes, FAQ 6
+(Classic 19EUR/Pro 39EUR/Expert 69EUR), temoignages, 3 etapes, FAQ 6
 questions, CTA final dark, footer 4 colonnes.
 Animations : IntersectionObserver reveal + stagger 80ms + compteurs.
 Responsive 375/768/1024/1440 + prefers-reduced-motion.
@@ -1150,9 +1150,9 @@ mockups screenshots formules, mise en prod (switch route /).
 
 ## Passe 37 (24 avril 2026) -- Nouveaux prix + sites demo + acces sites existants
 Nouveau modele tarifaire hybride creation + abonnement :
-- Classic 199EUR creation + 29EUR/mois (0 modif incluse, 49EUR/unite)
-- Pro 499EUR creation + 49EUR/mois (CMS illimite) LE PLUS CHOISI
-- Expert 899EUR creation + 79EUR/mois (CMS avance + Hollywood)
+- Classic 0EUR creation + 19EUR/mois (0 modif incluse, 49EUR/unite)
+- Pro 149EUR creation + 39EUR/mois (CMS illimite) LE PLUS CHOISI
+- Expert 299EUR creation + 69EUR/mois (CMS avance + Hollywood)
 Module acces sites existants (FTP/SSH/WordPress) :
 - 7 endpoints /api/studio/sites-existants/*
 - Chiffrement AES-256-GCM pour credentials (cle SITE_CREDENTIALS_KEY)
@@ -2380,9 +2380,9 @@ Utiliser 1Password ou Bitwarden pour :
 
 **4. Modèle économique**
 - 3 forfaits mensuels style ChatGPT/Claude :
-  * STARTER 29€/mois (quotas bas)
-  * PRO 79€/mois (le plus choisi)
-  * EXPERT 199€/mois (quasi illimité)
+  * CLASSIC 19€/mois (aligné marché, 0€ création)
+  * PRO 39€/mois (le plus choisi, 149€ création)
+  * EXPERT 69€/mois (premium, 299€ création)
 - Règle dépassement : BLOCAGE + proposition d'upgrader (style Spotify Free)
 - PAS de tokens/crédits à la carte visibles au client
 

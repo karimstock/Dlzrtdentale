@@ -25,13 +25,13 @@ CREATE TABLE IF NOT EXISTS public.studio_forfaits (
 INSERT INTO public.studio_forfaits
   (code, nom, prix_mensuel_eur, ordre, features, quotas)
 VALUES
-('classic', 'JADOMI Studio Classic', 29.00, 1,
+('classic', 'JADOMI Studio Classic', 19.00, 1,
   '{"cms": false, "modifications": "via_support", "delai_modif_h": 48, "effet_hollywood": false}',
   '{"pages": 1, "photos": 10, "modifications_mois": 2, "articles_blog_mois": 0}'),
-('pro', 'JADOMI Studio Pro', 79.00, 2,
+('pro', 'JADOMI Studio Pro', 39.00, 2,
   '{"cms": true, "editeur_visuel": true, "preview_live": true, "historique": true, "blog": true, "effet_hollywood": false}',
   '{"pages": 10, "photos": 100, "articles_blog_mois": 4}'),
-('expert', 'JADOMI Studio Expert', 199.00, 3,
+('expert', 'JADOMI Studio Expert', 69.00, 3,
   '{"cms": true, "editeur_avance": true, "ab_testing": true, "multilangue": true, "analytics_avancees": true, "effet_hollywood": true}',
   '{"pages": "illimite", "photos": "illimite", "langues": 5, "articles_blog_mois": 20}')
 ON CONFLICT (code) DO NOTHING;
