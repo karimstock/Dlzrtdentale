@@ -8924,7 +8924,7 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
 
     // Check if visits exist for this date
     let { data: visites, error } = await db.from('ide_visites').select('*')
-      .eq('cabinet_id', cabinetId).eq('date_visite', dateStr).order('ordre_dans_tournee');
+      .eq('cabinet_id', cabinetId).eq('date', dateStr).order('ordre_dans_tournee');
     if (error) throw error;
 
     // If no visits, auto-generate from recurring soins
@@ -8953,7 +8953,7 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
               patient_id: s.patient_id,
               nurse_id: s.nurse_preferee_id,
               soin_recurrent_id: s.id,
-              date_visite: dateStr,
+              date: dateStr,
               tournee: t,
               soins_type: s.soins_type,
               duree_prevue_minutes: s.duree_minutes,
@@ -9009,9 +9009,9 @@ app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
     if (!soins || soins.length === 0) return res.json({ ok: true, generated: 0 });
 
     // DEDUP: Get existing visits for this period to avoid duplicates
-    const { data: existingVisites } = await db.from('ide_visites').select('soin_recurrent_id, date_visite, tournee')
-      .eq('cabinet_id', cabinetId).gte('date_visite', date_debut).lte('date_visite', date_fin);
-    const existingSet = new Set((existingVisites || []).map(v => `${v.soin_recurrent_id}_${v.date_visite}_${v.tournee}`));
+    const { data: existingVisites } = await db.from('ide_visites').select('soin_recurrent_id, date, tournee')
+      .eq('cabinet_id', cabinetId).gte('date', date_debut).lte('date', date_fin);
+    const existingSet = new Set((existingVisites || []).map(v => `${v.soin_recurrent_id}_${v.date}_${v.tournee}`));
 
     // Filter out banned patients
     const _genPatientIds = [...new Set(soins.map(s => s.patient_id))];
@@ -9044,7 +9044,7 @@ app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
             patient_id: s.patient_id,
             nurse_id: s.nurse_preferee_id,
             soin_recurrent_id: s.id,
-            date_visite: dateStr,
+            date: dateStr,
             tournee: t,
             soins_type: s.soins_type,
             duree_prevue_minutes: s.duree_minutes,
@@ -9098,7 +9098,7 @@ app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
 
     // Get visits for this nurse/date/tournee with patient coords
     const { data: visites } = await db.from('ide_visites').select('id, patient_id')
-      .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date_visite', date).eq('tournee', tournee)
+      .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date', date).eq('tournee', tournee)
       .eq('status', 'planifie');
     if (!visites || visites.length === 0) return res.json({ ok: true, message: 'Aucune visite a optimiser.', ordre: [] });
 
@@ -9222,7 +9222,7 @@ app.post('/api/ide/patient/place', requireAuth(), _ideGeocodeLimiter, async (req
         if (absences && absences.length > 0) continue;
 
         const { data: visites } = await db.from('ide_visites').select('id, patient_id, ordre_dans_tournee')
-          .eq('cabinet_id', cabinetId).eq('nurse_id', nurse.id).eq('date_visite', date).eq('tournee', tournee)
+          .eq('cabinet_id', cabinetId).eq('nurse_id', nurse.id).eq('date', date).eq('tournee', tournee)
           .order('ordre_dans_tournee');
 
         // Get patient coordinates for this tournee
@@ -9312,7 +9312,7 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
       cabinet_id: cabinetId,
       patient_id,
       nurse_id,
-      date_visite: date,
+      date: date,
       tournee,
       soins_type: soins_type || 'soins',
       duree_prevue_minutes: duree_minutes || 15,
@@ -9325,7 +9325,7 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
     const { data: cabinetData } = await db.from('ide_cabinets').select('latitude, longitude').eq('id', cabinetId).single();
     if (cabinetData && cabinetData.latitude) {
       const { data: allVisites } = await db.from('ide_visites').select('id, patient_id')
-        .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date_visite', date).eq('tournee', tournee)
+        .eq('cabinet_id', cabinetId).eq('nurse_id', nurse_id).eq('date', date).eq('tournee', tournee)
         .in('status', ['planifie', 'reporte']);
       if (allVisites && allVisites.length > 0) {
         const pIds = allVisites.map(v => v.patient_id);
@@ -9722,11 +9722,11 @@ app.get('/api/ide/dashboard', requireAuth(), async (req, res) => {
 
     // Visits today
     const { count: visitesToday } = await db.from('ide_visites').select('id', { count: 'exact', head: true })
-      .eq('cabinet_id', cabinetId).eq('date_visite', today);
+      .eq('cabinet_id', cabinetId).eq('date', today);
 
     // Visits this week
     const { count: visitesWeek } = await db.from('ide_visites').select('id', { count: 'exact', head: true })
-      .eq('cabinet_id', cabinetId).gte('date_visite', weekStartStr).lte('date_visite', today);
+      .eq('cabinet_id', cabinetId).gte('date', weekStartStr).lte('date', today);
 
     // KM today
     const { data: tourneesToday } = await db.from('ide_tournees').select('distance_totale_km')
@@ -12178,8 +12178,8 @@ async function cronConfirmPatientsIDE() {
     // 1. Récupérer les visites planifiées pour demain, non encore confirmées
     const { data: visites, error: vErr } = await adminDb
       .from('ide_visites')
-      .select('id, patient_id, cabinet_id, nurse_id, date_visite, tournee, soins_type')
-      .eq('date_visite', dateStr)
+      .select('id, patient_id, cabinet_id, nurse_id, date, tournee, soins_type')
+      .eq('date', dateStr)
       .eq('status', 'planifie')
       .is('confirmation_envoyee', null); // pas encore traitées
 
@@ -12189,8 +12189,8 @@ async function cronConfirmPatientsIDE() {
         console.warn(`${tag} Colonne confirmation_envoyee absente, query sans filtre...`);
         const { data: v2, error: v2Err } = await adminDb
           .from('ide_visites')
-          .select('id, patient_id, cabinet_id, nurse_id, date_visite, tournee, soins_type')
-          .eq('date_visite', dateStr)
+          .select('id, patient_id, cabinet_id, nurse_id, date, tournee, soins_type')
+          .eq('date', dateStr)
           .eq('status', 'planifie');
         if (v2Err) throw v2Err;
         if (!v2 || v2.length === 0) {
