@@ -21,7 +21,7 @@ const FEATURES = [
   { icon: '▦', name: 'Suivi Kanban', tagline: 'Vos cas avancent visuellement' },
   { icon: '👤', name: 'Portail patient', tagline: 'Le patient suit sa prothèse' },
   { icon: '💬', name: 'Chat temps réel', tagline: 'Cabinet et labo, un seul fil' },
-  { icon: '🎨', name: 'Analyse teinte IA', tagline: 'La photo donne la teinte' },
+  { icon: '📸', name: 'Protocole photo structuré', tagline: 'Le dossier complet, pas un SMS flou' },
   { icon: '📐', name: 'Fichiers STL', tagline: 'Validation 3D en ligne' },
   { icon: '🎙️', name: 'BL vocal', tagline: 'Dictez, JADOMI rédige' },
   { icon: '🛒', name: 'Achats groupés', tagline: 'Prix fabricant collectif' },
