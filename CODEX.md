@@ -1551,6 +1551,65 @@ Total Passe 69 : 13 nouvelles pages, ~10000 lignes de code, 7 endpoints,
 Total Passe 70 : 2 compositions Remotion, 1 SQL simulation, 1 feature backend,
 13 fichiers modifies, video pub 48.5s deployee.
 
+## Passe 71 (3 mai 2026) -- Refonte prothesiste + Module Patient/Case + Dashboards API
+
+### Refonte positionnement prothesiste
+- Nettoyage formules pricing (suppression features fantomes)
+- Carrousel features + suppression jargon kanban
+- Protocole photo transforme en fil de suivi par cas
+- Ouverture page prothesistes + Label Jadomi + video 13 features
+
+### Module Patient + Case V1
+- Module patient CRUD + case prothetique
+- Dashboard Mes Cas + Mes Patients branches API
+- Fix SQL RLS pour securite des donnees patients
+
+Fichiers : public/prothesistes-dentaires.html, routes/labo/, public/labo/dashboard.html,
+sql/labo/ (RLS fix).
+
+## Passe 72 (3 mai 2026) -- Refonte cascade demos + realignement tarifs CMS marche
+
+### Cascade qualitative des 3 sites demos
+- Ancien Pro (Playfair/Inter) promu en nouveau Classic (meme design, bandeau Classic)
+- Ancien Expert (Cormorant Garamond premium) promu en nouveau Pro (bandeau Pro)
+- Nouveau Expert INEDIT cree : design dark cinematique (#0A0A0B), video hero
+  autoplay plein ecran (expert-hero.mp4), grain film SVG, animations entree
+  sequentielles (fadeUp staggered), cards expertise hover gold bar, galerie
+  masonry 12-col asymetrique, boutons pill dores, typography Playfair Display + Inter,
+  responsive complet, aria-labels accessibilite.
+
+### Realignement tarifaire CMS sur marche francais
+Anciens prix : Classic 29EUR/Pro 49-79EUR/Expert 199EUR (creation 199-899EUR)
+Nouveaux prix : Classic 19EUR/Pro 39EUR/Expert 69EUR (creation 0/149/299EUR)
+Position vs concurrence :
+- Mon Site Dentiste : 19EUR → JADOMI Classic = 19EUR (aligne)
+- Denti-site.fr : 38EUR → JADOMI Pro = 39EUR (bat avec meilleur design)
+- LSF : 49-129EUR → JADOMI Expert = 69EUR (ecrase en qualite)
+
+### Fichiers tarifs modifies (11 fichiers)
+- public/studio/onboarding/index.html (cards + constante PRIX)
+- public/studio/cms/index.html (fallback prix)
+- public/vitrines/onboarding-v3.html (formule selector)
+- public/vitrines/import-assets.html (prix Pro)
+- public/index-v2.html (cards formules + FAQ + pillar desc)
+- docs/DOSSIER-AVOCAT-JADOMI.html (tableau revenus + modules)
+- docs/dossier-avocat-jadomi.html (2 occurrences)
+- docs/business-plan-jadomi.html (2 occurrences)
+- docs/CODEX-JADOMI.html (module CMS)
+- sql/vitrines/39_cms_formules.sql (seeds forfaits)
+
+### Orthographe
+14 corrections accents dans Classic (demonstration, conventionné, accessibilité,
+complète, problematiques, detartrage, devitalisations, realises, protheses,
+adaptees, qualite, ou, adaptee, meme, secretariat, journee, a Paris).
+
+NOTE IMPORTANTE : les tarifs JADOMI plateforme (Essentiel 29EUR, Standard 79EUR,
+Premium 199EUR, Signature 279EUR) sont INCHANGES. Seul le module CMS Sites
+Vitrines a sa propre tarification 19/39/69EUR, distincte des abonnements plateforme.
+
+Confirmation : aucune reference aux anciens prix CMS ne subsiste.
+Confirmation : tarifs JADOMI plateforme principale INCHANGES.
+
 ## Passe 65 (28 avril 2026) -- Plateforme prothesiste complete + reseau solidarite
 La plus grosse passe du projet. 15 nouveaux modules labo + dashboard complet.
 1. Suivi production 8 etapes + QR code tracking (10 endpoints)
@@ -1638,7 +1697,8 @@ routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 25. **JADOMI Studio = marketplace IA verticale** -- Orchestrateur d'APIs (DALL-E, Sora, ElevenLabs, HeyGen, Unsplash, Pexels). UX simplifiee + vertical dentaire + audience captive. Moat : 42k dentistes + prompts optimises + wallet integre. Comparable OpenRouter/Replicate mais non-dev-focused.
 26. **Gratuit + payant en escalier** -- Stock photos/videos gratuit (fidélisation) puis IA payante par tier (standard → premium → luxe). Le gratuit attire, le premium convertit. : l'annonceur recharge son wallet, la pub debite en temps reel. Auto-recharge optionnelle. Pas de facturation post-hoc complexe.
 27. **Dogfooding premium** -- Si JADOMI vend des sites IA et des videos aux pros sante, le site JADOMI lui-meme DOIT etre la vitrine ultime. Niveau Awwwards (Linear, Stripe, Apple). Conversion x2, ARPU x2, credibilite Fortune 500.
-28. **Motion design > avatars** -- Focus Remotion + Sora 2 pour la generation video. Pas de Synthesia/HeyGen pour l'instant. Avatars humains plus tard quand traction validee.
+28. **Tarifs CMS alignes marche** -- 19/39/69EUR/mois (Classic/Pro/Expert). Position imbattable face a Mon Site Dentiste (19EUR), Denti-site.fr (38EUR), LSF (49-129EUR). Marge brute preservee (~85% grace a infra R2/Cloudflare et automation IA). Creation : 0/149/299EUR. NOTE : tarification CMS distincte des abonnements plateforme JADOMI (Essentiel/Standard/Premium/Signature).
+29. **Motion design > avatars** -- Focus Remotion + Sora 2 pour la generation video. Pas de Synthesia/HeyGen pour l'instant. Avatars humains plus tard quand traction validee.
 
 ===============================================================
 # 8. ROADMAP
