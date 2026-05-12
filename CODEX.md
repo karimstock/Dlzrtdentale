@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 1 mai 2026
-**Derniere passe** : Passe 70 — Tournees pub video + simulation 160 dentistes + notifications travaux + fixes navigation
+**Derniere mise a jour** : 12 mai 2026
+**Derniere passe** : Passe 79 — Mistral IA + Comparateur Prix + GPS MapLibre + App Flutter
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1666,6 +1666,316 @@ routes/labo/import-grille.js, api/multiSocietes/commerce.js, public/billing.html
 Fichiers modifies : server.js, services/pdf-generator.js,
 routes/labo/factures-labo.js, services/facturx-generator.js, index.html.
 
+## Passe 77 (nuit 10->11 mai 2026) — JADOMI Copilot + Agenda World-Class
+SESSION HISTORIQUE : naissance de JADOMI Copilot, le premier copilote IA
+pour dentistes. Session marathon fondateur (~8h de travail non-stop).
+
+### Agenda intelligent (tab-agenda.js + agenda.js API)
+- Catalogue de 80 actes dentaires reels en 10 categories
+  (Consultation, Conservateur, Endodontie, Parodontologie,
+  Prothese conjointe, Prothese adjointe, Chirurgie, Orthodontie,
+  Esthetique, Pedodontie)
+- Durees realistes par acte (endo molaire 90min, detartrage 30min, etc.)
+- Enchainements automatiques (empreinte couronne → pose 8j plus tard)
+- API CRUD complete sans auth (mode test)
+- Mode in-memory (pas besoin de Supabase pour tester)
+- Seed optimise (planning propre) + seed chaos (planning burnout)
+- Gestion chevauchements visuels (colonnes cote a cote)
+- Correction fuseau horaire UTC/Paris
+
+### Tracker temps + statut patient
+- Statut patient : planifie → arrive → en_soin → termine / absent
+- Boutons : Patient arrive / Absent / Demarrer le soin / Terminer
+- Chrono en temps reel (MM:SS)
+- Calcul retard patient (arrivee vs horaire prevu)
+- Badges visuels sur les blocs RDV (vert=a l'heure, rouge=retard)
+- Temps moyen par acte (apres X seances)
+
+### JADOMI Copilot (barre flottante)
+- Barre fixe en bas de l'ecran pendant le soin
+- Chrono + nom patient + acte + point rouge pulsant
+- Reconnaissance vocale Web Speech API (0€ de cout)
+- Detection actes par mots-cles (composite, detartrage, extraction...)
+- Arret vocal ("on a fini", "termine", "c'est bon")
+- Transcription live + sauvegarde batchee toutes les 10s
+- Mode chrono sans micro si micro indisponible
+
+### Parametres personnalisables (localStorage)
+- Heure debut/fin (9h-20h par defaut)
+- Hauteur cellules (compact/normal/grand)
+- Jours affiches (Lun-Ven / Lun-Sam / Lun-Dim)
+- Couleurs par categorie (10 color pickers)
+- Pause dejeuner configurable
+- Alertes retard + actes lourds consecutifs
+
+### Vue plein ecran
+- Bouton "Plein ecran" avec cellules adaptatives
+- Ligne rouge temps reel sur colonne du jour
+- Marques demi-heure dans chaque cellule
+- Touche Echap pour sortir
+
+### Page JADOMI IA (jadomi-ia.html)
+- Page dediee avec 6 cards premium (Agenda, Voice, Cas Cliniques,
+  Snap Photos, Questionnaires, Mon Equipe)
+- Accessible depuis Precision Dentaire → menu JADOMI IA
+- Bouton "Retour au cabinet"
+- Design glassmorphism dark premium
+
+### Infrastructure
+- Page verrou (gate) avec mot de passe Jadomi2026
+- Correction bug "const res duplique" dans dentiste-pro.html
+- Correction token auth multi-format (supabase_token, jadomi_session, sb-auth)
+- robots.txt bloque tout (Disallow: /)
+- Cache nginx desactive (dev mode)
+- Fix handleLogout → /login.html au lieu de /
+- Lien Cabinet dentaire → /admin/dentiste-pro dans organisation.html
+
+### Cross-Search V2 (scraping)
+- Ancien cross-search arrete (0 matches, URLs 404/403)
+- Nouveau cross-search-v2.js : APIs directes (Venta + Henry Schein)
+- GACD comme base de reference (38K produits)
+- Rapports email automatiques tous les 500 produits
+- En cours d'execution (~27h estimees)
+
+### Fichiers crees/modifies
+- CREE : public/admin/js/tab-agenda.js (2400+ lignes)
+- CREE : api/dentiste-pro/agenda.js (960+ lignes, 80 actes)
+- CREE : public/admin/jadomi-ia.html (page hub)
+- CREE : scripts/cross-search-v2.js (750 lignes)
+- MODIFIE : public/admin/dentiste-pro.html (bug fix, token multi-format)
+- MODIFIE : index.html (cards JADOMI IA, hash navigation, scroll fix)
+- MODIFIE : server.js (gate, routes, Permissions-Policy micro)
+- MODIFIE : public/landing.html (lien /login sans .html)
+
+## Passe 79 (12 mai 2026) — SESSION MONSTRE : Mistral IA + Comparateur + GPS + App Flutter
+SESSION MARATHON (~10h). Analyse concurrence, integration Mistral,
+comparateur de prix, triage urgence, scoring patient, scrapers,
+carte GPS MapLibre, app Flutter améliorée.
+
+### Analyse concurrentielle
+- Matisse Dentaire (Substances Actives SAS) — logiciel dentaire, bon marketing
+- rcpt.ai — télésecrétariat vocal IA, 100€/mois/praticien
+- Dentelo — comparateur + stock, 29-130€/mois, 200K produits
+- Coompy (Scan&Stock) — comparateur GRATUIT, 75K produits, affiliation
+- CONSTAT : JADOMI a plus de features que tous mais mal présenté
+
+### Intégration Mistral AI (IA française souveraine)
+- SDK @mistralai/mistralai v2.2.1 installé
+- Clé API JADOMI active (org 1f3e9c5e, tier Experiment gratuit)
+- Endpoint POST /api/mistral créé
+- Router IA POST /api/ia/router (Ollama → Mistral → Claude)
+- Proxy /api/claude intercepte Haiku → Mistral Small auto (économie 15x)
+- Architecture 3 niveaux : Ollama (0€) → Mistral (0.13€/M) → Claude (3€/M)
+- Scan date péremption basculé sur le router IA (Pixtral si dispo)
+
+### Comparateur de prix
+- API GET /api/comparateur/search créée (172K produits, 16 fournisseurs FR)
+- API GET /api/comparateur/product/:ref
+- API GET /api/comparateur/stats
+- Page publique /comparateur (accessible sans login, dark premium)
+- Onglet "Comparateur prix" dans sidebar dashboard (remplace Flash Deals vide)
+- Bouton "+ Panier" → GPO (au lieu de "Voir" qui renvoie chez le concurrent)
+- Prix contrat affiché en doré (remise fournisseur configurée)
+- Bouton "Voir" admin-only (détection JWT karim_bahmed@yahoo.fr)
+- Prix comparés affichés après scan code-barres
+- Nettoyage données : espagnol viré, doublons fusionnés, 204 prix aberrants purgés
+- Validation import : prix > 0.10€ et < 50 000€
+
+### Scrapers prix
+- Cron scrape-all-apis.js corrigé (mauvais chemin)
+- Cron réorganisé : APIs fiables d'abord (GACD Algolia, Venta ES, Henry Schein)
+- Venta API rafraîchi : 78K produits (Doctor AI + Doctor Strong + Mega Dental)
+- DGD scraper Cheerio créé (sans navigateur = indétectable, bypass anti-bot)
+- DGD : 2164 produits extraits avec refs fabricant + vrais prix HT
+- Fix prix DGD : article_prix (vrais prix) au lieu de gamme_prix (parasites)
+- Rotation IP + proxy intégrés (ProxyScrape) pour anti-ban
+- Crawlee + Playwright Firefox prêt (alternative Puppeteer)
+
+### Triage urgence IA (17 motifs)
+- 17 motifs d'urgence dentaire codés dans brain.js
+  (infection, pulpite, fracture dent/appareil/bridge, descellement couronne/bridge
+  court/long, hémorragie, alvéolite, trauma, avulsion, prothèse blessante, fil ortho,
+  perte obturation)
+- 4 niveaux : critique (🔴), haute (🟠), modérée (🟡), basse (🟢)
+- Durées par défaut → praticien ajuste → IA apprend (moyenne 10 derniers actes)
+- Intégré dans le modal RDV de l'agenda (bouton "Trier")
+- Auto-remplit durée + notes avec le motif
+- Endpoints /api/ia-secretary/triage et /urgence-motifs
+
+### Scoring patient
+- scorePatient() : fiabilité 0-100 (ponctualité, absences, annulations)
+- No-show -15pts, absent excusé -3pts, retard >20min -8pts
+- Annulation <2h -10pts, 2-24h -4pts, >24h -1pt
+- Bonus fidélité (+5 si >10 RDV, +10 si >20 RDV)
+- 5 niveaux : excellent/bon/moyen/risque/problématique
+- Recommandations automatiques par niveau
+
+### Absence patient améliorée
+- 3 types : non excusé (no-show), excusé (a prévenu), annulé par cabinet
+- Bouton "Annuler l'absence" (erreur de saisie) → restaure le RDV
+- Score patient impacté différemment selon le type
+
+### Planning chaos 3 mois
+- seed-chaos étendu à 12 semaines (configurable)
+- 2036 RDV générés, persistés en Supabase
+- Lundi-vendredi, 9h-20h, planning blindé
+- Double-booking, pas de pause midi, chirurgie à 18h
+- Paramètre samedi configurable
+
+### Proposer un autre créneau (amélioré)
+- Filtre par jour de la semaine (Lundi, Mardi...)
+- Filtre par plage horaire (entre 10h et 12h)
+- Bouton "Chercher" qui rafraîchit les créneaux
+- Pas de 15 min (au lieu de 30)
+- Jusqu'à 8 résultats (au lieu de 5)
+
+### Modules branchés dans server.js (6 nouveaux)
+- /api/ia-secretary — Secrétaire IA (analyse, optimisation, vocal, multi-métier)
+- /api/connector — Connecteur logiciel dentaire (Logos, Doctolib, CSV)
+- /api/ia-doc — IA Documentaire
+- /api/cas-clinique — Cas cliniques
+- /api/questionnaire-medical — Questionnaire médical
+- /api/snap — QR photos patients
+
+### Infirmier ajouté dans brain.js
+- 14 actes (toilette, injection, chimio, palliatif, sonde, stomie...)
+- 9 règles d'or (géo-optimisation, jamais 3 toilettes de suite, pause palliatif)
+- Horaires 06:30-19:00, rotation 3 jours, max 15 patients/tournée
+- Total : 6 métiers (dentiste, médecin, kiné, orthodontiste, sage-femme, infirmier)
+
+### App Flutter (jadomi-app) — 7 commits pushés
+1. Settings cabinet : nouveaux patients, RDV en ligne, chat bridé, modules assistants
+2. Fix 3 bugs bloquants : AppColors, logout, endpoint voice
+3. Chat patient bridé : 5 msg/jour max, 200 car max, TextField disabled
+4. Triage urgence dans agenda : badges 🔴🟠🟡🟢 + badge NEW + score patient
+5. GPS réel : geolocator remplace simulation Paris (48.86, 2.35)
+6. Carte MapLibre : widget JadomiMap réutilisable, markers numérotés, auto-fit bounds
+7. Flow Uber livreur : LIVRÉ → bottom sheet → suivant auto → notif ETA dentiste
+8. Message dentiste visible sur chaque arrêt de tournée
+9. MapTiler key configurée (streets-v2-dark)
+
+### Fichiers créés
+- CREE : public/comparateur.html (page publique comparateur)
+- CREE : scripts/scrape-dgd-cheerio.js (scraper DGD sans navigateur)
+- CREE : scripts/scrape-dgd-fiches.js (scraper DGD Puppeteer + rotation IP)
+- CREE : scripts/scrape-dgd-crawlee.js (scraper Crawlee + Playwright Firefox)
+- CREE : scripts/match-scraped-to-products-v2.js (matching V2 par ref fabricant)
+- CREE : jadomi-app/lib/services/gps_service.dart (GPS réel + geofencing)
+- CREE : jadomi-app/lib/widgets/jadomi_map.dart (carte MapLibre)
+- CREE : jadomi-app/lib/screens/settings_cabinet_screen.dart (paramètres cabinet)
+
+### Fichiers modifiés
+- server.js (Mistral client, endpoints comparateur/mistral/ia-router, validation prix)
+- lib/ia-router.js (niveau Mistral ajouté, fallback cascade)
+- lib/ia-secretary/brain.js (infirmier, triage urgence 17 motifs, scorePatient)
+- api/ia-secretary/index.js (endpoints triage + urgence-motifs)
+- api/dentiste-pro/agenda.js (seed-chaos 12 semaines, sauvegarde Supabase)
+- index.html (comparateur intégré, scan→prix, Flash Deals viré, admin detection)
+- public/admin/js/tab-agenda.js (triage urgence modal, absence 3 types, replan filtré)
+- scripts/cron-scrape-all.sh (APIs d'abord, Puppeteer en fallback)
+- scripts/scrape-venta-api.js (ref_fabricant capturée)
+- jadomi-app : 8 fichiers Flutter modifiés/créés
+
+===============================================================
+# ⚠ ATTENTION — TACHES CRITIQUES A PREVOIR
+===============================================================
+
+Les taches ci-dessous sont PLANIFIEES et doivent etre traitees dans
+les prochaines passes. NE PAS les oublier.
+
+## 🔴 BUILD FLUTTER CASSÉ (Passe 79 — À FIXER EN PREMIER)
+Codemagic build échoué. 7 erreurs à corriger :
+- jadomi_map.dart : MapLibreMap → utiliser maplibre_gl correctement
+  (MapLibreMapController, MyLocationTrackingMode.tracking, Point)
+- home_screen.dart:461 : SupabaseService non importé (logout)
+- ide_tournee_screen.dart:117 : _validerVisite() n'existe pas
+- gps_service.dart:2 : import dart:math inutile
+- settings_cabinet_screen.dart : activeColor deprecated → activeThumbColor
+ACTION : Fixer ces 7 erreurs, relancer Codemagic build
+
+## Comparateur — chantiers prioritaires (Passe 80)
+- [ ] Cross-matching fournisseurs par ref fabricant (le coeur du comparateur)
+- [ ] Prix REMISÉS au lieu de catalogue (Venta API special_price)
+- [ ] Photos produits dans le comparateur
+- [ ] Pages de vente style Matisse (SEO, conversion)
+- [ ] Scraper DGD : relancer catégories manquantes (Cheerio bypass OK)
+- [ ] Tester comparateur visuellement sur jadomi.fr
+
+## App Flutter — à terminer (Passe 80)
+- [ ] Carte MapLibre : corriger widget (erreurs compilation)
+- [ ] Navigation turn-by-turn (Phase 2 : Valhalla Docker sur 2ème VPS)
+- [ ] App patient JADOMI Care (recherche praticien, détection nouveau patient)
+- [ ] Micro-animations et polish design
+- [ ] Questionnaire patient (TODO dans patient_home_screen)
+
+## Architecture (URGENT — avant tout ajout de feature)
+⚠ REGLE ABSOLUE : Chaque metier = fichiers separes. On touche dentiste,
+on casse PAS infirmiere, avocat, prothesiste, BTP, SCI. Cette regle
+s'applique a CHAQUE organisation, CHAQUE metier, CHAQUE module.
+Toujours agir de cette maniere. JAMAIS de big bang, JAMAIS de refacto
+qui casse un autre module. Tester AVANT et APRES chaque modification.
+
+- [ ] Separer index.html (10K lignes, 26 pages) en modules JS
+      Chaque onglet dans son propre fichier :
+      tab-stock.js, tab-analytics.js, tab-compta.js, tab-fournisseurs.js,
+      tab-commandes.js, tab-communication.js, tab-economies.js, etc.
+      index.html ne garde que le squelette (sidebar + topbar + conteneurs)
+- [ ] Separer tab-agenda.js (2400 lignes) en core/copilot/settings/modals
+- [ ] Separer agenda.js API (catalogue dans fichier separe)
+- [ ] Appliquer la meme separation a TOUS les dashboards metier :
+      /dentiste/ → ses fichiers
+      /ide/ → ses fichiers
+      /labo/ → ses fichiers
+      /juridique/ → ses fichiers
+      /btp/ → ses fichiers
+      /medecin/ → ses fichiers
+- [ ] Chaque onglet = 1 fichier. On touche un truc, on casse pas le reste.
+
+## Agenda — features manquantes
+- [ ] Multi-actes par seance (3 caries + detartrage = 1 creneau)
+- [ ] Jours travailles personnalisables (pas le mercredi, samedi 1/2)
+- [ ] Analyse IA planning sur plusieurs semaines (score burnout)
+- [ ] JADOMI IA recommandations optimisation
+- [ ] Prevu vs Realise (SANS double saisie — Copilot enregistre)
+- [ ] Temps total incluant encaissement + prise RDV suivant
+- [ ] Moyennes intelligentes par acte/praticien (apres X seances)
+
+## Copilot — a finaliser
+- [ ] Tester micro (reboot PC fondateur)
+- [ ] Detection actes vocaux precis (numeros de dents 16, 26, 36)
+- [ ] Traduction patient temps reel (a la demande)
+- [ ] Multi-langues patient (arabe, turc, polonais — Roubaix)
+
+## Scraping — comparateur prix (COEUR DE JADOMI)
+⚠ REGLE ABSOLUE : A chaque nouvelle session Claude, VERIFIER que le
+scraping/cross-search tourne, qu'il produit des resultats, et ameliorer
+le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
+- [ ] Cross-search V2 en cours — surveiller les resultats
+- [ ] Ameliorer matching (sous-refs, prix promo vs catalogue)
+- [ ] Rapports email reguliers karim_bahmed@yahoo.fr
+- [ ] Fournisseurs a matcher : GACD (base), DoctorStrong, DoctorAI,
+      MegaDental, Henry Schein, DentalClick, Dentaltix,
+      DentalGoodDeal, DPI (Dental Promotion), Gerho, Cap Dentaire,
+      Dental Prive, Godentaire, Leone, Promodentaire
+- [ ] Capturer prix catalogue ET prix promo (contrat -38% sur catalogue)
+- [ ] 225 000+ refs scrapees — les mettre TOUTES en base Supabase
+
+## Pages JADOMI IA
+- [ ] Brancher Cas Cliniques aux vrais modules
+- [ ] Brancher Snap Photos
+- [ ] Brancher Questionnaires
+- [ ] Brancher Mon Equipe
+
+## IA locale
+- [ ] Moteur de regles local (0€) pour cas simples
+- [ ] Ollama (modele 7B CPU) pour NLP basique
+- [ ] Claude API uniquement pour cas complexes
+- [ ] Objectif : reduire couts IA de 70-80%
+
+## API logiciels de gestion
+- [ ] Connecteur LOGOS_w / Julie / Visiodent
+- [ ] Eviter double saisie actes CCAM
+
 ===============================================================
 # 7. DECISIONS STRATEGIQUES
 ===============================================================
@@ -3224,6 +3534,659 @@ Statuts : confirmed → order_sent → acknowledged → shipped → delivered �
 Numerotation : JD-YYYY-NNNN (sequence PostgreSQL)
 
 ===============================================================
+# 31. PASSE 73 (4 mai 2026) — Gestion Equipe + Auth Kling + Video Home
+===============================================================
+
+## 31.1 Gestion Equipe Collaborateurs (FAIT)
+Systeme complet pour inviter assistantes/secretaires/comptables avec
+permissions granulaires par module. Le praticien choisit ce que chaque
+collaborateur peut voir.
+
+### Fichiers modifies
+- public/admin/dentiste-pro.html : onglet Equipe branche sur vraie API
+  (suppression DEMO_TEAM, appels GET/POST/PUT/DELETE reels)
+- api/dentiste-pro/team.js : +1 endpoint GET /check-invitation
+  (verification publique token invitation pour page inscription)
+  + lien invitation corrige vers /equipe/invitation
+
+### Fichiers crees
+- public/equipe/invitation.html : page inscription collaborateur
+  (clic lien email → creation compte Supabase + acceptation invitation)
+  Design premium noir/indigo, jauge mot de passe, affichage permissions
+- public/equipe/profil.html : page profil collaborateur
+  (voir son role, ses permissions, changer mot de passe)
+- server.js : +2 routes /equipe/invitation et /equipe/profil
+
+### Systeme permissions dashboard
+Au chargement du dashboard dentiste-pro, appel GET /team/my-permissions.
+Si pas owner, les onglets sidebar non autorises sont masques.
+Mapping tab→permission : agenda, patients, chat, stock, comptabilite,
+facturation, statistiques, configuration, waitlist, rappels, ia-config.
+Bouton "Mon profil" ajoute pour collaborateurs.
+
+### Roles predefinies (deja dans team.js depuis P51)
+| Role | Agenda | Patients | Chat | Stock | Compta | Factu | Stats | Config |
+|------|--------|----------|------|-------|--------|-------|-------|--------|
+| Praticien (owner) | oui | oui | oui | oui | oui | oui | oui | oui |
+| Associe | oui | oui | oui | oui | oui | oui | oui | oui |
+| Secretaire | oui | oui | oui | non | non | non | non | non |
+| Assistante | oui | oui | oui | non | non | non | non | non |
+| Comptable | non | non | non | non | oui | oui | oui | non |
+| Stagiaire | oui | oui | non | non | non | non | non | non |
+
+Permissions modifiables par le praticien via toggles (14 modules).
+
+## 31.2 Auth Kling JWT HMAC-SHA256 (FAIT)
+Provider Kling corrige pour utiliser JWT signe au lieu de Bearer simple.
+L'API Kling v1 exige : header {alg:HS256,typ:JWT} + payload {iss:accessKey,
+exp:+30min, iat:now, nbf:now-5} + signature HMAC-SHA256 avec secretKey.
+
+### Fichiers modifies
+- lib/ai-studio/providers/kling.js : constructor accepte (accessKey, secretKey)
+  avec fallback sur KLING_ACCESS_KEY/KLING_SECRET_KEY du .env.
+  Nouvelle methode _generateJWT(). _getRequestConfig() utilise le JWT.
+- Backup : kling.js.backup-20260504
+
+### Test auth
+- scripts/test-kling-auth.js : test connexion 0 unit → 200 OK SUCCEED
+- KLING_ACCESS_KEY et KLING_SECRET_KEY ajoutes au .env
+
+## 31.3 Video Home Page "Je suis JADOMI" (EN COURS)
+
+### Concept
+Avatar JADOMI qui traverse des univers : cabinet dentaire, labo
+prothesiste, voiture coursier, tournee infirmiere. L'avatar entre
+dans chaque monde et explique ce que JADOMI fait pour ce metier.
+3 cibles : dentiste, prothesiste, infirmiere liberale.
+
+### Voix-off ElevenLabs (FAIT)
+- Voix : Julien (zlP1wgh6FsmMZswaDa2M) — Parisien, calm & friendly
+- ElevenLabs plan Starter (5$/mois) active
+- Settings : stability 0.35, similarity 0.85, style 0.60 (expressif orateur)
+- 6 segments generes, 67s total
+- Fichiers : public/assets/audio/home/01-intro.mp3 a 06-final.mp3
+  + voiceover-complete.mp3
+
+### Texte voix-off valide par le fondateur
+"Bonjour... je m'appelle JADOMI. Je suis une intelligence artificielle,
+au service des professionnels. Chirurgiens-dentistes... prothesistes...
+infirmieres... avocats... et bien d'autres. Je suis la pour vous
+faciliter la vie — vous economiser du temps, et de l'argent. Du concret.
+Pas de blabla.
+
+Docteur... vous perdez du temps avec vos commandes ? Je scanne vos
+factures. Je surveille vos stocks. Et je vous trouve les meilleurs
+prix du marche — automatiquement.
+
+Au labo... chaque prothese a son suivi. Reception... fabrication...
+cuisson... expedition. Votre dentiste voit tout, en temps reel. Et
+les tournees de livraison ? C'est moi qui les organise.
+
+Votre coursier... sait exactement ou aller. Dans quel ordre. Avec le
+suivi GPS, pour chaque cabinet. Le dentiste est prevenu... avant meme
+que la couronne arrive.
+
+Infirmiere... vos tournees sont pretes, chaque matin. La route...
+l'ordre des patients... et a chaque porte — une preuve de passage
+horodatee et geolocalisee. Pour travailler l'esprit tranquille.
+
+Je suis JADOMI... et ce n'est que le debut."
+
+### Kling image-to-video (test OK)
+- 1 clip test genere : kling-avatar-raw.mp4 (5.1s, 1152x768, 3.8 MB)
+- Lip-sync demarre mais interrompu (a reprendre)
+- Reste a faire : 5-6 clips multi-univers avec Kling
+- Budget : ~60-70 units sur 100 trial restants (~80 apres test)
+
+### Musique de fond (A FAIRE)
+- PeacockMusic recommande par le fondateur (peacock-music.com)
+- Chercher piste cinematic corporate ~70-80s
+- Telecharger et mixer avec voix-off
+
+### Assemblage final (A FAIRE)
+- Pipeline : clips Kling multi-univers + voix-off + musique → FFmpeg
+- Cible : video 60-70s, 1080p, qualite pub TV
+- Integrration sur home page jadomi.fr
+
+### Scripts crees
+- scripts/fetch-home-video-assets.js (stock Pexels — pas utilise dans V finale)
+- scripts/generate-voiceover-final.js (ElevenLabs Julien)
+- scripts/test-kling-auth.js (validation JWT)
+- scripts/test-kling-lipsync.js (pipeline image2video + lipsync)
+- scripts/find-french-voice.js (recherche voix FR)
+
+## 31.4 SQL deployes cette session
+- SQL 53 (reseau_soins) — FAIT
+- SQL 54 (gpo_orders) — FAIT (avec DROP POLICY IF EXISTS)
+- SQL 57 (signed_documents) — FAIT
+- MIGRATION_COMPLETE_65 — DEJA EN PROD (confirme par query pg_tables)
+- SQL 64 (get_database_stats RPC) — DEJA EN PROD (confirme par SELECT)
+
+## 31.5 Bugs / Notes
+- Push GitHub bloque par fichiers GUDID >100 MB dans l'historique Git.
+  36 commits pushes sur 141 (par lots de 10-15). 105 restants.
+  Solution a planifier : git-filter-repo pour exclure data/gudid/ ou Git LFS.
+  NE PAS toucher a l'historique sans accord explicite du fondateur.
+- ElevenLabs : plan Starter active (10 000 credits)
+- Kling : ~80 units trial restants (1 clip test consomme ~10-15)
+
+===============================================================
+# 12. COMPARATEUR PRIX MULTI-FOURNISSEURS
+===============================================================
+
+## Architecture
+- Table Supabase : `scraped_prices` (supplier_name, product_name, brand,
+  reference, category, price, price_original, discount_percent, url, scraped_at)
+- Constraint unique : supplier_name + product_name (upsert)
+- API import : POST /api/scan/import-prices (CORS *, lots de 500)
+- API recherche : GET /api/scan/compare-name/:name (ilike fuzzy)
+- API scan : GET /api/scan/compare-price/:gtin (code barre)
+
+## Fournisseurs scrapes (Passe 74 — 7 mai 2026)
+| Fournisseur   | Methode               | Produits | Status    |
+|---------------|-----------------------|----------|-----------|
+| GACD          | XHR navigateur        | 42 000   | IMPORTE   |
+| Mega Dental   | Puppeteer sitemap VPS | 19 514   | IMPORTE   |
+| Doctor AI     | Puppeteer sitemap VPS | ~7 400   | EN COURS  |
+| Doctor Strong | Puppeteer search VPS  | ~7 000   | EN COURS  |
+| DentalClick   | Puppeteer search VPS  | ~3 000   | EN COURS  |
+| Dentaltix     | Puppeteer sitemap VPS | ~1 451   | EN COURS  |
+
+## Scripts scraper (repertoire scripts/)
+- scrape-doctorai-sitemap.js   : Puppeteer stealth, sitemap 7408 URLs
+- scrape-doctorstrong-vps.js   : Puppeteer stealth, categories + search alpha
+- scrape-dentalclick-vps.js    : Puppeteer stealth, search alpha
+- scrape-dentaltix-sitemap.js  : Puppeteer stealth, sitemap FR 1447 URLs
+- scrape-mega-proxy.js         : ScraperAPI (optionnel, non utilise)
+- Scripts navigateur console : public/js/mega-v2-oneliner.js,
+  dai-alpha-v3.js, ds-alpha-v3-fast.js, dc-alpha-v2.js, dtx-alpha.js
+
+## Logs VPS (nohup, survivent a deconnexion PC)
+- /tmp/doctorai-sitemap.log
+- /tmp/dentaltix-sitemap.log
+- /tmp/doctorstrong-vps.log
+- /tmp/dentalclick-vps.log
+
+## Page import-relay : public/import-relay.html
+Recoit les donnees par postMessage ou coller JSON manuel.
+Envoie par lots de 500 a /api/scan/import-prices.
+
+## Fonctionnalite comparateur panier intelligent
+Le dentiste/prothesiste peut :
+1. Rechercher un produit par nom → voir les prix chez tous les fournisseurs
+2. Scanner un code barre → meilleur prix instantane
+3. Creer un panier → JADOMI optimise le panier en repartissant
+   les achats par fournisseur pour obtenir le cout total minimum
+4. Alertes prix : notification quand un produit passe sous un seuil
+
+## Automatisation hebdomadaire
+- Cron VPS : chaque dimanche 3h du matin
+- Script : scripts/cron-scrape-all.sh
+- Ordre : GACD → Mega Dental → Doctor AI → Dentaltix → Doctor Strong → DentalClick
+- Logs : /tmp/jadomi-cron-scrape.log + logs individuels par date
+- Les prix sont automatiquement mis a jour dans scraped_prices (upsert)
+- Duree totale estimee : ~16h (tout sequentiel pour eviter surcharge VPS)
+
+## TODO Passe 74 (restant)
+- [ ] Interface recherche comparateur dans dashboards dentiste/prothesiste
+- [ ] Panier intelligent : optimisation multi-fournisseur cout minimum
+- [ ] Henry Schein : ajouter au comparateur (site a analyser)
+
+## Analyse concurrentielle — Askara.ai (09/05/2026)
+
+### Qui sont-ils
+- **Fondateurs** : Benjamin Fitouchi (dentiste), Franck Bezu (dentiste), Jules Lagadic (CTO), Shirley Barioz
+- **Prix** : 35€/mois/dentiste (annuel ~27€/mois)
+- **Users** : 3 200 praticiens (mai 2026)
+- **Lancement** : Août 2024
+
+### Ce qu'Askara fait
+- Dictaphone IA → document en 50 secondes
+- Active Consult : écoute conversation 90min → multi-documents automatiques
+- 9 types documents : CR consultation, courrier confrère, CR implant, certificat, ordonnance, CR cone beam, bon de labo
+- Intégrations : Julie + Logos_w uniquement
+- STT propriétaire (pas OpenAI/ChatGPT)
+- HDS + ISO 27001 (via hébergeur)
+
+### Ce qu'Askara NE fait PAS (avantages JADOMI)
+1. Pas de vision cabinet (que documentation)
+2. Pas d'imagerie / détection pathologies
+3. Pas de connexion prothésiste / triangle photo
+4. Pas de comparateur prix fournisseurs (JADOMI = 155K+ produits, 20+ fournisseurs)
+5. Pas de QR code patient photos (innovation mondiale JADOMI)
+6. Pas de gestion stock
+7. Pas d'achat groupé (JADOMI Equipment Groupon)
+8. Pas de module patient complet
+9. Pas de réseau solidarité / SOS confrères
+10. Plan Platinium (téléphonie IA, agenda) PAS ENCORE DISPONIBLE chez eux
+
+### État actuel JADOMI vs Askara — ce qu'on a déjà
+| Feature                          | Askara | JADOMI | Statut JADOMI            |
+|----------------------------------|--------|--------|--------------------------|
+| Dictée vocale                    | ✅ Pro  | ✅ Base | Web Speech API fr-FR     |
+| Document auto consultation       | ✅ 9    | ❌      | A CONSTRUIRE             |
+| Écoute active conversation       | ✅ 90min| ❌      | A CONSTRUIRE             |
+| Courriers IA pro                 | ✅      | ✅      | 5 types, Claude Sonnet   |
+| Analyse ordonnance IA            | ❌      | ✅      | Claude Vision (Passe 68) |
+| Connexion prothésiste            | ❌      | ✅      | 119 endpoints, 15 modules|
+| Comparateur prix                 | ❌      | ✅      | 155K+ refs, 20+ sites   |
+| Triangle photo QR                | ❌      | ✅      | Innovation mondiale      |
+| Achat groupé                     | ❌      | ✅      | Equipment Groupon        |
+| Module patient                   | ❌      | ✅      | Cas + photos + suivi     |
+| Réseau solidarité                | ❌      | ✅      | SOS confrères            |
+
+### Stratégie JADOMI — "Mieux qu'Askara"
+1. NE PAS copier leur STT pur (2 ans d'avance sur le speech-to-text)
+2. Utiliser Whisper/Deepgram + fine-tune vocabulaire dentaire
+3. Se concentrer sur la valeur ajoutée EN AVAL du document :
+   - Bon de labo → envoi DIRECT au prothésiste via JADOMI
+   - Ordonnance → analyse IA + alerte interactions
+   - CR consultation → archivage patient + partage confrère sécurisé
+4. Positionnement : "Askara = dictaphone IA" vs "JADOMI = plateforme complète"
+5. Le comparateur 155K+ produits = imbattable, Askara ne l'aura jamais
+6. QR code patient + triangle photo = unicité mondiale
+
+### TODO — Module "IA Documentaire JADOMI" (faire mieux qu'Askara)
+Phase 1 — Dictée vocale pro :
+- [ ] Upgrade STT : Whisper API ou Deepgram avec vocabulaire dentaire
+- [ ] Enregistrement audio persistant (stockage sécurisé HDS)
+- [ ] Transcription en temps réel avec corrections IA
+Phase 2 — Génération documents IA (les 9 types d'Askara + nos bonus) :
+- [ ] CR consultation automatique depuis dictée/notes
+- [ ] Courrier confrère IA (déjà partiellement fait)
+- [ ] CR implant / CR cone beam
+- [ ] Certificat médical
+- [ ] Ordonnance assistée IA (on a déjà l'analyse, ajouter la génération)
+- [ ] Bon de labo → connecté au prothésiste JADOMI (avantage unique)
+- [ ] Devis détaillé patient
+- [ ] Consentement éclairé
+- [ ] Lettre correspondant (spécialiste)
+Phase 3 — Écoute active (le killer feature d'Askara) :
+- [ ] Mode "consultation" : micro ouvert pendant la consultation
+- [ ] IA écoute et génère multi-documents en fin de consultation
+- [ ] Détection automatique des actes, diagnostics, prescriptions
+- [ ] Résumé patient en 1 clic
+Phase 4 — Avantages JADOMI exclusifs (ce qu'Askara ne pourra JAMAIS faire) :
+- [ ] Bon de labo IA → envoi direct au prothésiste connecté
+- [ ] CR + photos intra-buccales → dossier patient enrichi
+- [ ] Ordonnance → vérification prix comparateur intégré
+- [ ] Document signé électroniquement (PAdES, déjà en place)
+- [ ] Archivage coffre-fort chiffré AES-256-GCM (déjà en place)
+
+## Passe 76 (9 mai 2026) -- IA Documentaire + Questionnaire Medical + Connecteur Logiciel
+
+La passe qui transforme JADOMI en cerveau IA medical. Benchmark mondial
+(USA, Chine, Coree, Japon) realise avant construction. Objectif : ecraser
+Askara.ai sur leur propre terrain + ajouter ce qu'aucun concurrent ne fait.
+
+### Benchmark concurrentiel mondial
+- **USA** : Abridge (#1 KLAS, $5.3B), Suki ($299/mois), Freed ($79), Pearl Voice (dentaire), Nabla
+- **Chine** : iFlytek (75 000 institutions, score 95.4 MedBench), WeChat mini-programs triage
+- **Coree** : Soombit AI (image radio → rapport texte auto, approuve regulateur)
+- **Japon** : NEC (dialogue → dossier structure, -116h/an/medecin)
+- **France** : Askara (35€/mois Pro 3min, ~90€/mois Premium Active Consult)
+
+### Module 1 : IA Documentaire JADOMI
+Backend api/ia-doc/index.js (13 endpoints) :
+- POST /transcribe — Whisper API (99 langues, detection auto, 0.006$/min)
+- POST /translate — Traduction medicale Claude (vocabulaire dentaire specialise)
+- POST /generate-document — 10 types documents (CR, bon labo, certificat, devis...)
+- POST /session/start + /end + /segment — Sessions consultation avec timer
+- GET /session/:id/transcript — Transcription complete
+- POST /session/:id/generate-all — Claude analyse + genere tous docs pertinents
+- GET /quota — Suivi consommation
+- POST /tts — Text-to-Speech OpenAI (lecture traduction au patient)
+- POST /upload-media — Upload photos/radios (camera telephone OU import)
+- POST /analyze-media — Claude Vision analyse radios dent par dent (notation FDI)
+- POST /generate-certificat — Certificat medical descriptif PDF avec photos integrees
+
+Frontend onglet "IA Documentaire" dans dashboard dentiste-pro :
+- 4 modes : Dictee rapide, Consultation (timer 60min), Traduction live, Certificat/CR photos
+- Web Speech API gratuit en francais (0€), Whisper pour langues etrangeres
+- Gestion pauses naturelles (restart auto 100ms apres silence Chrome)
+- Accumulation texte entre redemarrages (pas de perte)
+- Upload photos : drag & drop OU camera telephone (capture="environment")
+- Analyse Claude Vision en temps reel sous chaque photo
+- Generation PDF certificat avec photos integrees, en-tete cabinet, ITT, signature
+
+Securite medicale :
+- Ordonnance JAMAIS generee automatiquement par generate-all
+- Brouillons marques "VERIFICATION OBLIGATOIRE PAR LE PRATICIEN"
+- Dosages manquants = "[A PRECISER PAR LE PRATICIEN]"
+- Consentement eclaire aussi marque brouillon
+
+Traduction live 99 langues :
+- Patient parle arabe/berbere/turc/urdu → Whisper detecte → Claude traduit → TTS repond
+- Francais = Web Speech API (0€), etranger = Whisper (0.006$/min)
+- VAD (Voice Activity Detection) locale → on paye QUE quand quelqu'un parle
+- Cout reel : ~0.32€/consultation etrangere, ~0.02€/consultation FR
+
+SQL sql/76_ia_documentaire.sql : 4 tables (ia_doc_sessions, ia_doc_segments,
+ia_doc_documents, ia_doc_usage), 11 index, RLS, trigger updated_at.
+
+### Module 2 : Questionnaire Medical Patient
+Backend api/questionnaire-medical/index.js (6 endpoints) :
+- POST /send — Envoie lien unique au patient (email), token 32 chars, expire 30j
+- GET /:token — Retourne questionnaire adaptatif (public, rate limited)
+- POST /:token/submit — Soumet reponses + signature, cree patient auto
+- GET /patient/:id/medical — Questionnaire complet + alertes + expiration
+- GET /alerts/:id — Alertes medicales actives (pour IA ordonnance)
+- GET /check-expiry — Patients > 12 mois (relance)
+
+4 questionnaires par profession : dentiste, kine, osteopathe, infirmiere.
+6 sections adaptatives : Identite, Allergies, Traitements, Coeur, Antecedents, Dentaire.
+Questions conditionnelles (showIf) : si "oui" cardiaque → sous-questions valves.
+10 alertes medicales auto-detectees :
+- ALLERGIE_PENICILLINE (severity critical) → contre-indication amoxicilline
+- ALLERGIE_LATEX, ALLERGIE_ANESTHESIQUE
+- RISQUE_HEMORRAGIQUE (AVK, antiplaquettaires) → protocole hemorragie
+- RISQUE_ONM (bisphosphonates) → eviter extractions
+- ENDOCARDITE_ANTIBIOPROPHYLAXIE (valvulopathie) → amoxicilline 2g avant geste
+- GROSSESSE → medicaments contre-indiques
+- DIABETE_CICATRISATION → suivi cicatrisation
+- IMMUNODEPRESSION, RADIOTHERAPIE_CERVICOFACIALE
+
+Frontend public/questionnaire/index.html : page patient mobile-first,
+fond creme #FAFAF8, gros boutons Oui/Non tactiles (52px), progress bar
+8 etapes, signature electronique canvas, confirmation animee.
+
+Pas de double saisie : le patient se CREE dans JADOMI en remplissant
+le questionnaire. L'assistante tape juste nom + telephone.
+Regle 12 mois : pas de doublon, relance seulement si > 12 mois.
+
+SQL sql/77_questionnaire_medical.sql : 3 tables (patients_jadomi,
+questionnaire_medical_invitations, questionnaire_medical_signatures),
+10 index dont GIN sur alertes_medicales, RLS, trigger updated_at.
+
+### Module 3 : Connecteur Logiciel Dentaire
+Framework lib/connector/framework.js : ConnectorAdapter (classe abstraite)
++ SyncEngine (sync temps reel, poll configurable, stats).
+
+4 adaptateurs :
+- lib/connector/adapters/logos.js — Firebird reader, auto-detect tables,
+  discoverSchema(), mapping configurable. Pour Logos_w, Julie, Visiodent.
+- lib/connector/adapters/doctolib.js — Playwright, compte assistant/secretaire
+  legitime, lecture agenda, parse patients, comportement humain (delais aleatoires,
+  frappe lettre par lettre). Le praticien cree un compte secretaire JADOMI.
+- lib/connector/adapters/doctolib-ical.js — Lecteur iCal (non utilisable,
+  Doctolib n'a pas de lien iCal natif).
+- lib/connector/adapters/generic-csv.js — Import CSV universel, auto-detection
+  colonnes.
+
+Backend api/connector/index.js (9 endpoints, auth admin) :
+- POST /test — Tester connexion Firebird ou Doctolib
+- GET /discover — Decouverte schema + auto-detection tables patients/RDV
+- POST /configure — Sauvegarder mapping tables/colonnes
+- POST /sync-now — Sync manuelle
+- GET /status — Statut sync
+- POST /start + /stop — Sync temps reel
+- POST /import-csv — Import CSV patients
+- GET /patients-preview — Preview 20 premiers patients
+
+Frontend onglet "Connecteur" dans dashboard dentiste-pro :
+- Progress steps visuels (1-4), card statut connexion (pastille verte/rouge),
+  selection logiciel (7 options), formulaire connexion Firebird,
+  decouverte schema, import CSV drag & drop, sync temps reel toggle,
+  tableau patients synchro, historique syncs.
+
+SQL sql/78_connector.sql : 2 tables (connector_config, connector_sync_log),
+RLS, indexes, trigger updated_at.
+
+### Decision strategique : JADOMI = cerveau IA AU-DESSUS de Doctolib
+JADOMI ne remplace PAS Doctolib. JADOMI se branche dessus via compte
+assistant/secretaire et ajoute l'intelligence medicale :
+- Questionnaire medical auto avant RDV
+- Alertes CI/allergies pendant consultation
+- Traduction live pour patients etrangers
+- CR + certificat avec photos/radios
+- Comparateur prix integre
+- Suggestion : JAMAIS d'action sur l'agenda sans validation praticien
+- REGLE ABSOLUE : ne JAMAIS supprimer ou deplacer un RDV sans confirmation
+
+### Vision "Gestion Intelligente des Urgences" (ROADMAP)
+Quand un patient appelle en urgence :
+1. IA trie les urgences par gravite (douleur, trauma, infection)
+2. IA regarde l'agenda du dentiste → propose de recaser
+3. Si annulation → propose le creneau a un patient urgent en attente
+4. Si trop d'urgences → regarde les agendas des confreres a proximite
+5. Propose au confrere en manque de patients de prendre l'urgence
+6. Entraide inter-cabinets = meilleure gestion, meilleur soin
+7. Le dentiste VALIDE toujours, l'IA ne fait que proposer
+
+### BDPM (Base de Donnees Publique des Medicaments)
+API gouvernementale gratuite (data.gouv.fr) identifiee pour securiser
+les ordonnances IA : dosages officiels, contre-indications, grossesse,
+interactions. A integrer dans le generate-document type ordonnance.
+Cout : 0€. Mise a jour : 2x/jour par l'ANSM.
+
+### Fichiers crees cette passe (16 fichiers)
+- api/ia-doc/index.js (13 endpoints, ~800 lignes)
+- api/questionnaire-medical/index.js (6 endpoints)
+- api/connector/index.js (9 endpoints)
+- lib/connector/framework.js (SyncEngine + ConnectorAdapter)
+- lib/connector/adapters/logos.js (Firebird)
+- lib/connector/adapters/doctolib.js (Playwright)
+- lib/connector/adapters/doctolib-ical.js (iCal)
+- lib/connector/adapters/generic-csv.js (CSV)
+- public/questionnaire/index.html (page patient mobile)
+- sql/76_ia_documentaire.sql (4 tables)
+- sql/77_questionnaire_medical.sql (3 tables)
+- sql/78_connector.sql (2 tables)
+
+### Fichiers modifies
+- server.js (+3 modules montes : ia-doc, questionnaire, connector)
+- public/admin/dentiste-pro.html (+3 onglets : IA Doc, Connecteur, Certificat photos)
+
+### SQL a executer dans Supabase Dashboard
+- sql/76_ia_documentaire.sql
+- sql/77_questionnaire_medical.sql
+- sql/78_connector.sql
+
+### TODO Passe 76 (restant)
+- [ ] Executer SQL 76, 77, 78 dans Supabase Dashboard
+- [ ] Creer compte secretaire JADOMI dans Doctolib Pro
+- [ ] Trouver chemin .fdb Logos au cabinet (lundi)
+- [ ] Configurer connecteur Doctolib (email + mot de passe compte assistant)
+- [ ] Configurer connecteur Logos (chemin Firebird + user/password)
+- [ ] Integrer API BDPM dans generation ordonnance (verification medicaments)
+- [ ] Tester questionnaire medical sur mobile reel
+- [ ] Tester dictee vocale + traduction sur Chrome mobile
+
+### Complements Passe 76 (meme session, 9 mai 2026 apres-midi/soir)
+
+Ajouts dashboard Precision Dentaire (index.html) :
+- Fix bug critique : accolade manquante dans updateVocalUI() ligne 2653
+  qui cassait TOUT le JS du dashboard (aucun onglet ne marchait)
+- 7 nouveaux onglets dans la sidebar (groupe "JADOMI IA") :
+  Agenda, Equipe, JADOMI Voice, Cas Cliniques, Snap Photos, Passeports, Questionnaires
+- Page mobile JADOMI Voice : /voice (dictee, consultation, traduction, certificat)
+- Fix navigation multi-societes : MR mapping corrige (index.html → /index,
+  sci.html → /sci-dashboard, commerce.html → /commerce)
+- Fix login : bouton voir mot de passe + lien "Mot de passe oublie"
+- Fix dashboard SCI : lit societe_active_id du localStorage + affiche nom societe
+
+Snap Photos ameliore :
+- Bouton flip camera (selfie ↔ arriere)
+- Mode video natif (camera app du telephone, pas MediaRecorder navigateur)
+- Bouton importer depuis galerie
+- Mode multi-capture : photos/videos s'accumulent, "Envoyer tout" en batch
+- Tokens snap expires dans 30 jours (pas 24h)
+- Backend accepte videos jusqu'a 500 MB
+- Token reutilisable (pas marque "used" apres premier upload)
+
+5 Passeports premium crees :
+- /documents/passeport-blanchiment.html (design noir/or, zoom Ken Burns sourire)
+- /documents/passeport-facettes.html (6 seances, entretien, aliments)
+- /documents/passeport-implant.html (8 etapes, consignes post-op J1-J7)
+- /documents/passeport-rehabilitation.html (10 etapes, alimentation progressive)
+- /documents/passeport-orthodontie.html (mois par mois, gouttieres/bagues, contention)
+
+Module Cas Clinique deploye :
+- api/cas-clinique/index.js (8 endpoints : CRUD, medias, notes, partage prothesiste/patient)
+- sql/80_cas_clinique.sql (3 tables : cas_cliniques, cas_clinique_medias, cas_clinique_notes)
+- Lien avec snap QR code (cas_id dans snap_tokens)
+
+Scraping en cours :
+- Henry Schein : enrichissement 39 923 refs (nom, marque, prix, description, sous-refs)
+  Script ameliore pour visiter chaque page produit (extractFullProductInfo)
+- DPI : enrichissement 9 623 refs relance
+- Gerho : 50 000+ produits en cours
+- 3 catalogues PDF parses par Claude Vision (673 produits)
+- Matching cross-fournisseur lance (161K produits, 3 passes : ref, nom, fuzzy Jaccard)
+
+Patients Doctolib :
+- 7 735 patients importes dans patients_jadomi (Precision Dentaire)
+- 5 photos Bouamama Farida recues via snap QR code
+- Compte assistant Doctolib cree et connecte (agenda lu)
+
+Regles instaurees :
+- Verification syntaxe JS AVANT et APRES chaque edit HTML (new Function())
+- Une accolade manquante = tout le dashboard casse = INACCEPTABLE
+- Numero telephone JADOMI : JAMAIS dans le code public, que dans .env
+
+### ROADMAP APP FLUTTER (PROCHAINE SESSION DEDIEE)
+
+App Flutter existante : github.com/karimstock/jadomi-app (clone sur VPS)
+Screens actuels : Login, Home, Stock, Scanner, Invoice, Bank Statement,
+Mail Scan, Analytics, Deals + Vocal Service
+
+Screens a ajouter pour couvrir TOUT JADOMI :
+- [ ] Agenda JADOMI (remplacer Doctolib 200€/mois)
+- [ ] JADOMI Voice (dictee, traduction 99 langues, consultation)
+- [ ] Cas Cliniques (creer cas, QR code, photos/videos, timeline)
+- [ ] Snap Photos (camera integree, multi-capture, envoi batch)
+- [ ] Passeports (vue patient, avant/apres, evolution)
+- [ ] Questionnaire Medical (envoi + liste patients)
+- [ ] Equipe (inviter collaborateurs, permissions)
+- [ ] Comparateur Prix (recherche, scan → meilleur prix multi-fournisseur)
+- [ ] Chat prothesiste (messagerie, Triangle Photo)
+- [ ] Notifications push (rappels, urgences, alertes medicales)
+- [ ] Mode hors-ligne (cache local, sync au retour reseau)
+- [ ] Connecteur Doctolib (lecture agenda en temps reel)
+- [ ] Module patient (le patient voit son passeport, ses RDV, ses documents)
+
+Objectif : app native qui remplace Doctolib + Askara + tout en 1
+
+### Vision "Coursier mutualise prothesistes" (IDEE FUTURE)
+Petits labos dans le meme secteur mutualisent un coursier auto-entrepreneur.
+JADOMI optimise les tournees multi-labos. Modele Uber pour les protheses.
+Coursier gagne 80-120€/jour, labo economise ~1000€/mois vs salarie.
+JADOMI prend 15-20% commission. Backend tournees deja construit (Passe 69-70).
+
+## Passe 78 (11 mai 2026) — Agenda World-Class + IA Locale + Comparateur Prix
+SESSION MARATHON : agenda refait de zero niveau Doctolib+, IA locale Ollama deployee,
+pipeline verification prix 6 equipes, scraping DentalClick + DentalGoodDeal.
+
+### Pipeline Verification Prix (6 equipes)
+Architecture complete pour verifier les matches prix entre fournisseurs :
+1. Normalisateurs : structurent chaque produit (marque, gamme, conditionnement)
+2. Matchers : score structuré (gamme + marque + conditionnement)
+3. Controleurs : regles metier (accessoire ≠ produit, prix coherent)
+4. Experts : re-analysent uncertain + rejected (familles produit, prix/unite)
+5. Recuperation : re-cherche sur Venta avec requetes precises
+6. Rapport : verified + probable = fiable
+Resultat : 2287 matches fiables sur 2588 (88.4%), 830 faux matches corriges.
+Scripts : scripts/verify-matches-pipeline.js, scripts/recover-matches.js
+
+### Scraping DentalClick (7565 + 6398 produits)
+- v4 (console navigateur) : 6020 produits + 21155 sous-refs = 8245 lignes importees
+- v5 (fiches individuelles) : 6398 sous-refs mais parser a recalibrer
+- Methode : script console colle sur dentalclick.fr (pas de Puppeteer, bloque IP)
+- Classes CSS : .product-card, .product-card__name, .product-card__final-price-with-save
+- Nettoyage auto : prefixe "Brand" enleve, doublons "Selectionner" supprimes
+- Scripts : public/js/dc-v4.js, dc-v5.js, dc-import.js
+
+### Scraping DentalGoodDeal (dentiste + prothesiste)
+- Plateforme ptahcms : produits dans onclick (pas dans href)
+- Site dentiste (dentalgooddeal.com) : 3314 fiches trouvees, scraping OK
+- Site prothesiste (prothesiste.dentalgooddeal.com) : 555 fiches, 809 sous-refs
+- Scripts : public/js/dgd-v2.js, dgd-proto-v1.js
+- Guide complet : SCRAPING-CONSOLE-GUIDE.md
+- BUG A CORRIGER : le parser de prix est FAUX sur DGD. Tous les produits
+  ont le meme prix (2.25€ / 1022.4€ barre) — le parser attrape un prix
+  parasite du footer/sidebar au lieu du vrai prix dans le tableau produit.
+  Ne PAS importer les fichiers DGD v2/proto-v1 tant que le parser n'est
+  pas recalibre. Il faut identifier les bons selecteurs CSS pour les prix
+  dans les fiches produit DGD (structure differente de DentalClick).
+  Meme probleme sur DentalClick v5 (prix 1.16€ partout).
+  Le v4 DentalClick (7565 produits) est fiable et importe.
+
+### Agenda intelligent (tab-agenda.js + agenda.js)
+Features ajoutees :
+- Multi-actes par seance (1 RDV = plusieurs actes avec dents)
+- Jours travailles personnalisables (par jour, matin/aprem, horaires custom)
+- Mode solo (1 clic GO = arrive + soin + copilot)
+- Boutons rapides sur les blocs RDV (arrive, copilot, fin)
+- Drag & drop pour deplacer les RDV
+- Clic droit : modifier, cas clinique, passeport, replanifier, annuler
+- Annulation + notification patient + proposition creneaux
+- Historique annulations avec restauration
+- Alerte planning en retard + suggestions
+- QR code check-in patient (page publique + API + impression)
+- Email confirmation automatique avec pixel tracking
+- Indicateurs email lu / confirme sur les blocs RDV
+- Proposition passeport auto en fin de copilot
+
+### Copilot premium
+- Modal choix avec/sans micro avant lancement
+- Mode chrono (sans micro) : timer + ajout manuel actes
+- Design glassmorphism (blur, glow, gradient, animation slide-up)
+- Gros chrono 28px lumineux
+- Detection numeros de dents FDI (vocal "seize"→16 + numerique)
+- 20 keywords dentaires (composite, implant, blanchiment, cone beam...)
+- Actes structures {categorie, acte, dents[]} sauvegardes dans le RDV
+
+### Cas Clinique unifie
+- Fusionne : photos/videos patient + passeport + notes + partage
+- "Snap Photos" supprime comme module separe
+- Accessible depuis clic droit agenda (nom patient pre-rempli)
+- 4 actions : Photos/videos (QR), Passeport (choix type + avec/sans photo), Notes, Partager (prothesiste/patient)
+- Passeports accessibles aussi depuis JADOMI IA (modal choix patient)
+
+### JADOMI IA Local (lib/ia-router.js)
+Architecture 3 niveaux pour reduire les couts :
+- Niveau 1 REGLES LOCALES (0€, <1ms) : detection actes, dents FDI, alertes medicales, classification, suggestion passeport
+- Niveau 2 OLLAMA Mistral 7B (0€, ~5sec) : resume notes, messages patient, classification produits
+- Niveau 3 CLAUDE API (payant, dernier recours) : traduction, analyse photos, documents complexes
+- 8 templates documents a 0€ (lib/ia-templates.js) : CR consultation, CR implant, certificat, courrier confrere, ordonnance, devis, bon labo, consentement eclaire
+- Economie estimee : 90% (de ~$150/mois a ~$10/mois)
+- Endpoints : /api/ia-local/health, /detect, /summarize, /message, /document, /templates
+
+### Email confirmation + tracking
+- Email auto envoye a la creation du RDV (si email patient fourni)
+- Design JADOMI teal avec heure/date/acte
+- Pixel tracking invisible (1x1 PNG transparent)
+- Bouton "Confirmer ma presence" → page confirmation
+- Endpoints : /api/dentiste-pro/agenda/track/:id/pixel.png, /confirm/:id
+- Indicateurs visuels sur les blocs agenda : email envoye/lu/confirme
+
+### Infrastructure
+- Table Supabase dentiste_pro_agenda deployee (sql/81_agenda.sql)
+- Endpoint /api/scan/import-prices cree (CORS ouvert)
+- Ollama installe sur VPS (Mistral 7B + Qwen 2.5 3B)
+- Pages JADOMI IA corrigees (plus de "Bientot disponible")
+- Guide scraping console : SCRAPING-CONSOLE-GUIDE.md
+
+### Fichiers crees
+- scripts/verify-matches-pipeline.js (pipeline 5 equipes)
+- scripts/recover-matches.js (equipe 6 recuperation)
+- lib/ia-router.js (routeur IA 3 niveaux)
+- lib/ia-templates.js (8 templates documents)
+- api/ia-local/index.js (endpoints IA locale)
+- public/js/dc-v4.js, dc-v5.js, dc-import.js (scrapers DentalClick)
+- public/js/dgd-v2.js, dgd-proto-v1.js (scrapers DentalGoodDeal)
+- public/agenda/checkin.html (page QR check-in patient)
+- sql/81_agenda.sql (table agenda Supabase)
+- SCRAPING-CONSOLE-GUIDE.md
+
+### Fichiers modifies
+- public/admin/js/tab-agenda.js (refonte complete agenda)
+- api/dentiste-pro/agenda.js (multi-actes + check-in + email + tracking)
+- public/admin/jadomi-ia.html (passeports + modules + modal)
+- index.html (pages JADOMI IA corrigees)
+- server.js (import-prices + ia-local)
+
+===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 26 avril 2026 (Passe 54 — Audit Securite Massif + BASEPLAN v2.0)
+Derniere mise a jour : 11 mai 2026 (Passe 78 — Agenda World-Class + IA Locale + Comparateur)
 ===============================================================
