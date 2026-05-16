@@ -2345,12 +2345,56 @@ function _initJadomiMap() {
     zoomSnap: 0.25,          // zoom très fin pour le pinch
     zoomDelta: 1
   };
-  if (L.Map.prototype.setBearing) {
-    mapOpts.rotate = true;
-    mapOpts.touchRotate = true;
-    mapOpts.shiftKeyRotate = true;
+  // Rotation CSS maison — zero lag (tout tourne ensemble via GPU)
+  window._mapBearing = 0;
+  function _rotateMap(deg) {
+    window._mapBearing = deg || 0;
+    var pane = document.querySelector('#jadomi-tournee-map .leaflet-map-pane');
+    if (pane) {
+      pane.style.transformOrigin = '50% 50%';
+      pane.style.transform = 'rotate(' + (-deg) + 'deg) scale(1.3)';
+    }
+    // Aiguille boussole
+    var needle = document.getElementById('compass-needle');
+    if (needle) needle.style.transform = 'rotate(' + (-deg) + 'deg)';
   }
+
   var map = L.map('jadomi-tournee-map', mapOpts).setView(center, 14);
+
+  // Activer le GPU compositing sur le map-pane
+  var mapPane = document.querySelector('#jadomi-tournee-map .leaflet-map-pane');
+  if (mapPane) {
+    mapPane.style.willChange = 'transform';
+    mapPane.style.transition = 'transform .3s ease-out';
+  }
+
+  // Rotation tactile 2 doigts (maison, sans leaflet-rotate)
+  (function() {
+    var _touchStartAngle = null;
+    var _touchStartBearing = 0;
+    var mapEl = document.getElementById('jadomi-tournee-map');
+    if (!mapEl) return;
+    mapEl.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 2) {
+        var dx = e.touches[1].clientX - e.touches[0].clientX;
+        var dy = e.touches[1].clientY - e.touches[0].clientY;
+        _touchStartAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+        _touchStartBearing = window._mapBearing || 0;
+      }
+    }, { passive: true });
+    mapEl.addEventListener('touchmove', function(e) {
+      if (e.touches.length === 2 && _touchStartAngle !== null) {
+        var dx = e.touches[1].clientX - e.touches[0].clientX;
+        var dy = e.touches[1].clientY - e.touches[0].clientY;
+        var angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        var diff = angle - _touchStartAngle;
+        _rotateMap(_touchStartBearing + diff);
+      }
+    }, { passive: true });
+    mapEl.addEventListener('touchend', function(e) {
+      if (e.touches.length < 2) _touchStartAngle = null;
+    }, { passive: true });
+  })();
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '', maxZoom: 19, subdomains: 'abcd'
   }).addTo(map);
@@ -2866,8 +2910,8 @@ function _initJadomiMap() {
           window._gpsIsNursCar = true;
         }
         // Tourner la carte SI mode boussole = bearing (comme Waze)
-        if (heading !== null && heading !== undefined && !isNaN(heading) && map.setBearing && window._compassMode === 'bearing') {
-          map.setBearing(heading);
+        if (heading !== null && heading !== undefined && !isNaN(heading) && window._compassMode === 'bearing') {
+          _rotateMap(heading);
         }
         map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
 
@@ -3033,7 +3077,7 @@ function _initJadomiMap() {
 
     // Bearing initial + zoom rue
     var initBearing = _calcBearing(fromLat, fromLng, toLat, toLng);
-    if (map.setBearing) map.setBearing(initBearing);
+    _rotateMap(initBearing);
     map.setView([fromLat, fromLng], 18, { animate: true, duration: 0.8 });
 
     // Simulation GPS (desktop)
@@ -3182,7 +3226,7 @@ function _initJadomiMap() {
     }
     // Remettre la carte au nord + mode nord
     window._compassMode = 'north';
-    if (map.setBearing) map.setBearing(0);
+    _rotateMap(0);
     var compassBtnEl = document.getElementById('jadomi-compass-btn');
     if (compassBtnEl) { compassBtnEl.style.background = 'rgba(255,255,255,.95)'; compassBtnEl.style.borderColor = 'rgba(0,0,0,.08)'; }
     // Arrêter simulation GPS
@@ -3270,7 +3314,7 @@ function _initJadomiMap() {
         if (arrow) arrow.style.transform = 'rotate(' + bearing + 'deg)';
 
         // TOURNER LA CARTE dans la direction du mouvement + suivre
-        if (map.setBearing) map.setBearing(bearing);
+        _rotateMap(bearing);
         map.setView(cur, 18, { animate: true, duration: 0.08 });
       }, speed);
     }
@@ -3613,12 +3657,12 @@ function _initJadomiMap() {
       window._compassMode = 'north';
       compassBtn.style.background = 'rgba(255,255,255,.95)';
       compassBtn.style.borderColor = 'rgba(0,0,0,.08)';
-      if (map.setBearing) map.setBearing(0);
+      _rotateMap(0);
     }
   };
   btnRight.appendChild(compassBtn);
 
-  if (map.setBearing) {
+  if (true) {
     // Forcer le SVG overlay à tourner avec les tiles via CSS transform (zero lag)
     var overlayPane = map.getPane('overlayPane');
     var markerPane = map.getPane('markerPane');
@@ -3627,7 +3671,7 @@ function _initJadomiMap() {
 
     map.on('rotate', function() {
       var needle = document.getElementById('compass-needle');
-      if (needle) needle.style.transform = 'rotate(' + (-(map.getBearing ? map.getBearing() : 0)) + 'deg)';
+      if (needle) needle.style.transform = 'rotate(' + (-(window._mapBearing || 0)) + 'deg)';
     });
   }
 
@@ -3645,7 +3689,7 @@ function _initJadomiMap() {
       var ac = _tourneeVisites.filter(function(v) { return v.lat && v.lng; }).map(function(v) { return [v.lat, v.lng]; });
       if (ac.length > 1) map.fitBounds(ac, { padding: [40, 40] });
     }
-    if (map.setBearing) map.setBearing(0);
+    _rotateMap(0);
   };
   mapDiv.appendChild(recenterBtn);
 
