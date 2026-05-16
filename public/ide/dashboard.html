@@ -2280,7 +2280,7 @@ function _showJadomiMap() {
     script.onload = function() {
       // Charger leaflet-rotate pour pouvoir tourner la carte avec le bearing
       var rotateScript = document.createElement('script');
-      rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/leaflet-rotate-src.js';
+      rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
       rotateScript.onload = function() { _initJadomiMap(); };
       rotateScript.onerror = function() { _initJadomiMap(); }; // fallback sans rotation
       document.head.appendChild(rotateScript);
@@ -2289,7 +2289,7 @@ function _showJadomiMap() {
   } else if (!L.Map.prototype.setBearing) {
     // Leaflet déjà chargé mais pas le plugin rotate
     var rotateScript = document.createElement('script');
-    rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/leaflet-rotate-src.js';
+    rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
     rotateScript.onload = function() { _initJadomiMap(); };
     rotateScript.onerror = function() { _initJadomiMap(); };
     document.head.appendChild(rotateScript);
@@ -2673,8 +2673,17 @@ function _initJadomiMap() {
 
         // En mode navigation : tourner la carte + suivre la position
         if (window._navActive && window._navFollowing) {
-          if (heading !== null && heading !== undefined && !isNaN(heading) && map.setBearing) {
-            // TOURNER LA CARTE dans la direction du déplacement (comme Waze)
+          // Mettre à jour l'icône GPS en voiture si pas encore fait
+          if (gpsMarker && !window._gpsIsNursCar) {
+            gpsMarker.setIcon(L.divIcon({
+              className: '',
+              html: '<div id="gps-car" style="transition:transform .3s ease">' + _nursCarSvg + '</div>',
+              iconSize: [40, 56], iconAnchor: [20, 28]
+            }));
+            window._gpsIsNursCar = true;
+          }
+          // Tourner la carte SI mode boussole = bearing (comme Waze)
+          if (heading !== null && heading !== undefined && !isNaN(heading) && map.setBearing && window._compassMode === 'bearing') {
             map.setBearing(heading);
           }
           map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
@@ -2835,6 +2844,21 @@ function _initJadomiMap() {
     _loadCommunityAlerts(fromLat, fromLng);
     _addSignalerButton();
 
+    // Passer le marqueur GPS en voiture infirmière si il existe déjà
+    if (gpsMarker && !window._gpsIsNursCar) {
+      gpsMarker.setIcon(L.divIcon({
+        className: '',
+        html: '<div id="gps-car" style="transition:transform .3s ease">' + _nursCarSvg + '</div>',
+        iconSize: [40, 56], iconAnchor: [20, 28]
+      }));
+      window._gpsIsNursCar = true;
+    }
+
+    // Activer le mode bearing (Waze) par défaut
+    window._compassMode = 'bearing';
+    var compassBtnEl = document.getElementById('jadomi-compass-btn');
+    if (compassBtnEl) { compassBtnEl.style.background = 'rgba(13,148,136,.15)'; compassBtnEl.style.borderColor = '#0d9488'; }
+
     // Bearing initial + zoom rue
     var initBearing = _calcBearing(fromLat, fromLng, toLat, toLng);
     if (map.setBearing) map.setBearing(initBearing);
@@ -2961,8 +2985,20 @@ function _initJadomiMap() {
 
   function _exitNavMode() {
     window._navActive = false;
-    // Remettre la carte au nord
+    // Remettre le marqueur GPS en point bleu
+    if (gpsMarker && window._gpsIsNursCar) {
+      gpsMarker.setIcon(L.divIcon({
+        className: '',
+        html: '<div style="position:relative"><div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 3px rgba(59,130,246,.3),0 2px 8px rgba(0,0,0,.3)"></div><div style="position:absolute;inset:-10px;border-radius:50%;border:2px solid rgba(59,130,246,.3);animation:gpsPulse 2s ease infinite"></div></div>',
+        iconSize: [18, 18], iconAnchor: [9, 9]
+      }));
+      window._gpsIsNursCar = false;
+    }
+    // Remettre la carte au nord + mode nord
+    window._compassMode = 'north';
     if (map.setBearing) map.setBearing(0);
+    var compassBtnEl = document.getElementById('jadomi-compass-btn');
+    if (compassBtnEl) { compassBtnEl.style.background = 'rgba(255,255,255,.95)'; compassBtnEl.style.borderColor = 'rgba(0,0,0,.08)'; }
     // Arrêter simulation GPS
     if (window._simGpsInterval) { clearInterval(window._simGpsInterval); window._simGpsInterval = null; }
     var simBadge = document.getElementById('sim-gps-badge');
@@ -3189,6 +3225,42 @@ function _initJadomiMap() {
   gpsBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
   gpsBtn.onclick = function() { if (gpsMarker) map.setView(gpsMarker.getLatLng(), 16); };
   btnWrap.appendChild(gpsBtn);
+
+  // Bouton boussole (toggle nord / direction du trajet)
+  window._compassMode = 'north'; // 'north' = carte au nord, 'bearing' = carte suit le déplacement
+  var compassBtn = document.createElement('div');
+  compassBtn.id = 'jadomi-compass-btn';
+  compassBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative';
+  compassBtn.innerHTML = '<svg id="compass-needle" width="24" height="24" viewBox="0 0 24 24" style="transition:transform .3s ease"><polygon points="12,2 15,12 12,10 9,12" fill="#ef4444"/><polygon points="12,22 9,12 12,14 15,12" fill="#1a1a2e"/></svg>';
+  compassBtn.title = 'Boussole — cliquez pour orienter la carte';
+  compassBtn.onclick = function() {
+    if (window._compassMode === 'north') {
+      // Passer en mode "suit le déplacement" (comme Waze)
+      window._compassMode = 'bearing';
+      compassBtn.style.background = 'rgba(13,148,136,.15)';
+      compassBtn.style.borderColor = '#0d9488';
+      showToast('Mode Waze : carte suit la direction');
+    } else {
+      // Revenir au nord
+      window._compassMode = 'north';
+      compassBtn.style.background = 'rgba(255,255,255,.95)';
+      compassBtn.style.borderColor = 'rgba(0,0,0,.08)';
+      if (map.setBearing) map.setBearing(0);
+      showToast('Mode Nord : carte orient\u00e9e au nord');
+    }
+  };
+  btnWrap.appendChild(compassBtn);
+
+  // Mettre à jour l'aiguille de la boussole quand la carte tourne
+  if (map.setBearing) {
+    map.on('rotate', function() {
+      var needle = document.getElementById('compass-needle');
+      if (needle) {
+        var b = map.getBearing ? map.getBearing() : 0;
+        needle.style.transform = 'rotate(' + (-b) + 'deg)';
+      }
+    });
+  }
 
   // Bouton fermer
   var closeBtn = document.createElement('div');
