@@ -2281,18 +2281,32 @@ function _showJadomiMap() {
       // Charger leaflet-rotate pour pouvoir tourner la carte avec le bearing
       var rotateScript = document.createElement('script');
       rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
-      rotateScript.onload = function() { _initJadomiMap(); };
-      rotateScript.onerror = function() { _initJadomiMap(); }; // fallback sans rotation
+      rotateScript.onload = function() {
+        // Charger polylineDecorator pour les flèches intégrées à la route
+        var decoScript = document.createElement('script');
+        decoScript.src = 'https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js';
+        decoScript.onload = function() { _initJadomiMap(); };
+        decoScript.onerror = function() { _initJadomiMap(); };
+        document.head.appendChild(decoScript);
+      };
+      rotateScript.onerror = function() { _initJadomiMap(); };
       document.head.appendChild(rotateScript);
     };
     document.head.appendChild(script);
-  } else if (!L.Map.prototype.setBearing) {
-    // Leaflet déjà chargé mais pas le plugin rotate
-    var rotateScript = document.createElement('script');
-    rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
-    rotateScript.onload = function() { _initJadomiMap(); };
-    rotateScript.onerror = function() { _initJadomiMap(); };
-    document.head.appendChild(rotateScript);
+  } else if (!L.polylineDecorator) {
+    // Leaflet chargé mais pas les plugins
+    var loadCount = 0;
+    function _checkReady() { loadCount++; if (loadCount >= 2) _initJadomiMap(); }
+    if (!L.Map.prototype.setBearing) {
+      var rs = document.createElement('script');
+      rs.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
+      rs.onload = _checkReady; rs.onerror = _checkReady;
+      document.head.appendChild(rs);
+    } else { loadCount++; }
+    var ds = document.createElement('script');
+    ds.src = 'https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js';
+    ds.onload = _checkReady; ds.onerror = _checkReady;
+    document.head.appendChild(ds);
   } else {
     _initJadomiMap();
   }
@@ -2953,22 +2967,25 @@ function _initJadomiMap() {
     line._shadow = shadow;
     window._navRouteLine = line;
 
-    // Flèches de direction le long de la route (chevrons bleu foncé, alignés sur la route)
-    var totalPts = routeCoords.length;
-    var step = Math.max(1, Math.floor(totalPts / 25)); // ~25 flèches
-    for (var fi = step; fi < totalPts - 1; fi += step) {
-      var p1 = routeCoords[fi - 1];
-      var p2 = routeCoords[fi];
-      var angle = _calcBearing(p1[0], p1[1], p2[0], p2[1]);
-      var chevron = L.marker(routeCoords[fi], {
-        icon: L.divIcon({
-          className: '',
-          html: '<div style="transform:rotate(' + angle + 'deg);line-height:1"><svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 2 L18 14 L13 14 L13 26 L7 26 L7 14 L2 14 Z" fill="#1e3a8a" opacity="0.85"/></svg></div>',
-          iconSize: [20, 28], iconAnchor: [10, 14]
-        }),
-        interactive: false, zIndexOffset: -100
+    // Flèches intégrées dans la ligne de route (suivent les courbes et ronds-points)
+    if (L.polylineDecorator) {
+      var arrowDeco = L.polylineDecorator(line, {
+        patterns: [{
+          offset: 30,
+          repeat: 80,
+          symbol: L.Symbol.arrowHead({
+            pixelSize: 14,
+            polygon: true,
+            pathOptions: {
+              color: '#1e3a8a',
+              fillColor: '#1e3a8a',
+              fillOpacity: 0.9,
+              weight: 0
+            }
+          })
+        }]
       }).addTo(map);
-      window._navExtras.push(chevron);
+      window._navExtras.push(arrowDeco);
     }
 
     // ── Card patient à la destination ──
