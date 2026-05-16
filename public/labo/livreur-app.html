@@ -993,14 +993,316 @@ async function endTournee() {
   }
 }
 
-function navigate(address) {
-  if (!address) return;
-  const encoded = encodeURIComponent(address);
-  if (state.navPref === 'waze') {
-    window.open(`https://waze.com/ul?q=${encoded}&navigate=yes`, '_blank');
-  } else {
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
+// ─────────────────────────────────
+// GPS NAVIGATION JADOMI (carte intégrée)
+// ─────────────────────────────────
+let _navMap = null;
+let _navActive = false;
+let _navExtras = [];
+let _navRouteCoords = [];
+let _compassMode = 'bearing';
+
+// SVG camionnette coursier prothésiste
+const _courierSvg = '<svg viewBox="0 0 48 40" width="48" height="40" xmlns="http://www.w3.org/2000/svg">' +
+  '<defs><filter id="cs2" x="-15%" y="-15%" width="130%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,.35)"/></filter></defs>' +
+  '<g filter="url(#cs2)">' +
+  '<rect x="4" y="8" width="30" height="22" rx="4" fill="#6366f1"/>' + // carrosserie
+  '<rect x="30" y="12" width="14" height="18" rx="3" fill="#818cf8"/>' + // cabine
+  '<rect x="32" y="14" width="10" height="8" rx="2" fill="rgba(255,255,255,.25)"/>' + // pare-brise
+  '<rect x="8" y="12" width="8" height="6" rx="1" fill="rgba(255,255,255,.15)"/>' + // logo zone
+  '<text x="12" y="17" font-size="5" fill="#fff" font-weight="800" text-anchor="middle">JD</text>' +
+  '<circle cx="14" cy="30" r="4" fill="#1a1a2e"/><circle cx="14" cy="30" r="2" fill="#444"/>' + // roue arrière
+  '<circle cx="36" cy="30" r="4" fill="#1a1a2e"/><circle cx="36" cy="30" r="2" fill="#444"/>' + // roue avant
+  '</g></svg>';
+
+function _calcBearing(lat1, lng1, lat2, lng2) {
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2 * Math.PI / 180);
+  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+            Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLng);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function _snapToRoute(lat, lng) {
+  if (!_navRouteCoords || _navRouteCoords.length < 2 || !_navActive) return { lat, lng, snapped: false };
+  let minDist = Infinity, bestLat = lat, bestLng = lng;
+  for (let i = 0; i < _navRouteCoords.length - 1; i++) {
+    const p1 = _navRouteCoords[i], p2 = _navRouteCoords[i + 1];
+    const dx = p2[1] - p1[1], dy = p2[0] - p1[0], lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) continue;
+    let t = ((lng - p1[1]) * dx + (lat - p1[0]) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const projLat = p1[0] + t * dy, projLng = p1[1] + t * dx;
+    const dLat2 = (lat - projLat) * 111320, dLng2 = (lng - projLng) * 111320 * Math.cos(lat * Math.PI / 180);
+    const dist = Math.sqrt(dLat2 * dLat2 + dLng2 * dLng2);
+    if (dist < minDist) { minDist = dist; bestLat = projLat; bestLng = projLng; }
   }
+  return minDist < 150 ? { lat: bestLat, lng: bestLng, snapped: true } : { lat, lng, snapped: false };
+}
+
+function navigate(address) {
+  const arret = state.arrets[state.currentIndex];
+  if (!arret) return;
+  const d = arret.dentistes_clients || {};
+  const dem = arret.labo_demandes_passage || {};
+
+  // Coordonnées destination (depuis la demande ou l'adresse dentiste)
+  let destLat = dem.latitude || d.latitude;
+  let destLng = dem.longitude || d.longitude;
+
+  // Si pas de coordonnées, fallback sur Waze/GMaps externe
+  if (!destLat || !destLng) {
+    const encoded = encodeURIComponent(address || '');
+    if (state.navPref === 'waze') {
+      window.open(`https://waze.com/ul?q=${encoded}&navigate=yes`, '_blank');
+    } else {
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
+    }
+    return;
+  }
+
+  // Position de départ
+  let fromLat, fromLng;
+  if (state.lastPosition) {
+    fromLat = state.lastPosition.latitude;
+    fromLng = state.lastPosition.longitude;
+  } else {
+    // Dernier arrêt terminé ou position par défaut
+    const lastDone = [...state.arrets].reverse().find(a => a.statut === 'termine');
+    if (lastDone && lastDone.labo_demandes_passage) {
+      fromLat = lastDone.labo_demandes_passage.latitude;
+      fromLng = lastDone.labo_demandes_passage.longitude;
+    } else {
+      fromLat = destLat - 0.005; fromLng = destLng - 0.003;
+    }
+  }
+
+  const dentistName = d.titre ? `${d.titre} ${d.prenom || ''} ${d.nom || ''}`.trim() : `${d.prenom || ''} ${d.nom || ''}`.trim() || 'Cabinet';
+  const typeLabel = dem.type_passage === 'recuperation' ? 'R\u00e9cup\u00e9ration' : (dem.type_passage === 'les_deux' ? 'Livr. + R\u00e9cup.' : 'Livraison');
+  const remaining = state.arrets.filter(a => a.statut !== 'termine' && a.statut !== 'absent').length;
+
+  _openNavMap(fromLat, fromLng, destLat, destLng, dentistName, typeLabel, remaining, address);
+}
+
+function _openNavMap(fromLat, fromLng, toLat, toLng, dentistName, typeLabel, remaining, address) {
+  // Charger Leaflet + leaflet-rotate si pas encore chargé
+  if (!window.L) {
+    const link = document.createElement('link'); link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = () => {
+      const r = document.createElement('script'); r.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
+      r.onload = () => _buildNavMap(fromLat, fromLng, toLat, toLng, dentistName, typeLabel, remaining, address);
+      r.onerror = () => _buildNavMap(fromLat, fromLng, toLat, toLng, dentistName, typeLabel, remaining, address);
+      document.head.appendChild(r);
+    }; document.head.appendChild(s);
+  } else {
+    _buildNavMap(fromLat, fromLng, toLat, toLng, dentistName, typeLabel, remaining, address);
+  }
+}
+
+function _buildNavMap(fromLat, fromLng, toLat, toLng, dentistName, typeLabel, remaining, address) {
+  _navActive = true;
+  _navExtras = [];
+
+  // Overlay plein écran par-dessus l'app
+  let overlay = document.getElementById('navMapOverlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'navMapOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:#0a0a0a;display:flex;flex-direction:column';
+
+  // Panneau instruction (haut)
+  const infoPanel = document.createElement('div');
+  infoPanel.id = 'navInfoPanel';
+  infoPanel.style.cssText = 'flex-shrink:0;background:linear-gradient(180deg,rgba(20,20,20,.98),rgba(20,20,20,.9));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:14px 16px;color:#fff;z-index:10';
+  infoPanel.innerHTML = '<div style="font-size:14px;color:var(--text2)">Calcul de l\'itin\u00e9raire...</div>';
+  overlay.appendChild(infoPanel);
+
+  // Carte
+  const mapDiv = document.createElement('div');
+  mapDiv.id = 'navMapDiv';
+  mapDiv.style.cssText = 'flex:1;position:relative';
+  overlay.appendChild(mapDiv);
+
+  document.body.appendChild(overlay);
+
+  // Init carte Leaflet
+  const mapOpts = { zoomControl: false };
+  if (L.Map.prototype.setBearing) mapOpts.rotate = true;
+  const map = L.map('navMapDiv', mapOpts).setView([fromLat, fromLng], 15);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+  _navMap = map;
+
+  // Marqueur destination (card dentiste)
+  const destCard = L.marker([toLat, toLng], {
+    icon: L.divIcon({ className: '',
+      html: '<div style="background:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 4px 16px rgba(0,0,0,.25);border:2px solid #6366f1;white-space:nowrap;transform:translateY(-48px);font-family:Inter,sans-serif">' +
+        '<div style="font-size:13px;font-weight:800;color:#1a1a2e">' + esc(dentistName) + '</div>' +
+        '<div style="font-size:11px;color:#6366f1;font-weight:600">' + typeLabel + '</div>' +
+        '<div style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid #6366f1"></div></div>',
+      iconSize: [0, 0], iconAnchor: [0, 48]
+    }), zIndexOffset: 500
+  }).addTo(map);
+  _navExtras.push(destCard);
+
+  const destFlag = L.marker([toLat, toLng], {
+    icon: L.divIcon({ className: '', html: '<div style="font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">&#x1F3C1;</div>', iconSize: [28, 28], iconAnchor: [14, 28] })
+  }).addTo(map);
+  _navExtras.push(destFlag);
+
+  // Marqueur position coursier
+  const courierMarker = L.marker([fromLat, fromLng], {
+    icon: L.divIcon({ className: '', html: '<div id="courier-car" style="transition:transform .3s ease">' + _courierSvg + '</div>', iconSize: [48, 40], iconAnchor: [24, 20] }),
+    zIndexOffset: 9999
+  }).addTo(map);
+
+  // Fit bounds
+  map.fitBounds([[fromLat, fromLng], [toLat, toLng]], { padding: [60, 60] });
+
+  // Route OSRM
+  fetch('https://router.project-osrm.org/route/v1/driving/' + fromLng + ',' + fromLat + ';' + toLng + ',' + toLat + '?overview=full&geometries=geojson&steps=true')
+    .then(r => r.json()).then(data => {
+      if (!data.routes || !data.routes[0]) { infoPanel.innerHTML = '<div style="color:#ef4444">Aucun itin\u00e9raire</div>'; return; }
+      const route = data.routes[0];
+      const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      _navRouteCoords = coords;
+
+      // Tracer route + flèches
+      L.polyline(coords, { color: '#4338ca', weight: 12, opacity: 0.15 }).addTo(map);
+      L.polyline(coords, { color: '#6366f1', weight: 6, opacity: 0.85, lineCap: 'round' }).addTo(map);
+      const step2 = Math.max(1, Math.floor(coords.length / 25));
+      for (let i = step2; i < coords.length - 1; i += step2) {
+        const angle = _calcBearing(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]);
+        const ch = L.marker(coords[i], { icon: L.divIcon({ className: '',
+          html: '<div style="transform:rotate(' + angle + 'deg)"><svg width="18" height="24" viewBox="0 0 20 28"><path d="M10 2 L18 14 L13 14 L13 26 L7 26 L7 14 L2 14 Z" fill="#4338ca" opacity="0.8"/></svg></div>',
+          iconSize: [18, 24], iconAnchor: [9, 12] }), interactive: false, zIndexOffset: -100 }).addTo(map);
+        _navExtras.push(ch);
+      }
+
+      // Infos route
+      const dist = route.distance >= 1000 ? (Math.round(route.distance / 100) / 10) + ' km' : Math.round(route.distance) + ' m';
+      const duree = Math.max(1, Math.round(route.duration / 60));
+      const eta = new Date(Date.now() + route.duration * 1000);
+      const etaStr = String(eta.getHours()).padStart(2, '0') + ':' + String(eta.getMinutes()).padStart(2, '0');
+      const now = new Date();
+      const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+      // Instructions
+      const steps = route.legs[0].steps || [];
+      const nextStep = steps.find(s => s.maneuver.type !== 'depart');
+      let stepName = 'Continuez tout droit', stepDist = '';
+      if (nextStep) {
+        stepDist = nextStep.distance >= 1000 ? (Math.round(nextStep.distance / 100) / 10) + ' km' : Math.round(nextStep.distance) + ' m';
+        stepName = nextStep.name || 'Continuez tout droit';
+      }
+
+      // Panneau instruction
+      infoPanel.innerHTML =
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<div style="flex:1"><div style="font-size:17px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + stepName + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px">dans ' + stepDist + '</div></div>' +
+          '<div style="text-align:center;padding-left:12px;border-left:1px solid rgba(255,255,255,.1)"><div style="font-size:26px;font-weight:900;color:#4ade80">' + duree + '</div><div style="font-size:10px;color:rgba(255,255,255,.5)">min</div></div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:12px">' +
+          '<span style="color:#fff;font-weight:700">' + nowStr + '</span>' +
+          '<span style="color:rgba(255,255,255,.2)">|</span>' +
+          '<span style="color:rgba(255,255,255,.5)">' + dist + '</span>' +
+          '<span style="color:rgba(255,255,255,.2)">|</span>' +
+          '<span style="color:#4ade80;font-weight:700">Arriv\u00e9e ' + etaStr + '</span>' +
+          '<span style="margin-left:auto;color:#818cf8;font-weight:600">' + esc(dentistName) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;margin-top:10px">' +
+          '<button onclick="_navArrived()" style="flex:1;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer">&#x2713; Arriv\u00e9</button>' +
+          '<button onclick="_navAbsent()" style="padding:10px 8px;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:10px;font-size:10px;font-weight:700;cursor:pointer">&#x2717;<br>Absent</button>' +
+          '<button onclick="_navAnnule()" style="padding:10px 8px;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:10px;font-weight:700;cursor:pointer">&#x2014;<br>Annul\u00e9</button>' +
+          '<button onclick="_navNext()" style="flex:1;padding:10px;background:#6366f1;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer">Suivant &#x2192;</button>' +
+          '<div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.1);border-radius:10px"><div style="font-size:16px;font-weight:900;color:#fff">' + remaining + '</div><div style="font-size:8px;color:rgba(255,255,255,.5)">restant' + (remaining > 1 ? 's' : '') + '</div></div>' +
+        '</div>';
+
+      // Bearing initial + zoom
+      const bearing = _calcBearing(fromLat, fromLng, toLat, toLng);
+      if (map.setBearing) map.setBearing(bearing);
+      map.setView([fromLat, fromLng], 18, { animate: true });
+
+      // GPS live — suivre la position du coursier
+      if (state.lastPosition) {
+        const snap = _snapToRoute(state.lastPosition.latitude, state.lastPosition.longitude);
+        courierMarker.setLatLng([snap.lat, snap.lng]);
+      }
+    }).catch(e => { infoPanel.innerHTML = '<div style="color:#ef4444">Erreur: ' + e.message + '</div>'; });
+
+  // Boutons flottants
+  const btnWrap = document.createElement('div');
+  btnWrap.style.cssText = 'position:absolute;bottom:20px;right:16px;z-index:10;display:flex;flex-direction:column;gap:8px';
+  // Recentrer
+  const gpsBtn = document.createElement('div');
+  gpsBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(20,20,20,.9);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer';
+  gpsBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+  gpsBtn.onclick = () => { if (state.lastPosition) map.setView([state.lastPosition.latitude, state.lastPosition.longitude], 18); };
+  btnWrap.appendChild(gpsBtn);
+  // Fermer
+  const closeBtn = document.createElement('div');
+  closeBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.2);display:flex;align-items:center;justify-content:center;cursor:pointer';
+  closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  closeBtn.onclick = _closeNavMap;
+  btnWrap.appendChild(closeBtn);
+  mapDiv.appendChild(btnWrap);
+
+  // Horloge
+  const clock = document.createElement('div');
+  clock.id = 'navClock';
+  clock.style.cssText = 'position:absolute;bottom:20px;left:16px;z-index:10;padding:6px 12px;background:rgba(0,0,0,.75);border-radius:10px;color:#fff;font-size:16px;font-weight:800';
+  function updateClock() { const n = new Date(); clock.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); }
+  updateClock(); window._navClockInt = setInterval(updateClock, 10000);
+  mapDiv.appendChild(clock);
+}
+
+function _closeNavMap() {
+  _navActive = false;
+  _navRouteCoords = [];
+  if (window._navClockInt) { clearInterval(window._navClockInt); window._navClockInt = null; }
+  if (_navMap) { _navMap.remove(); _navMap = null; }
+  const overlay = document.getElementById('navMapOverlay');
+  if (overlay) overlay.remove();
+  _navExtras = [];
+}
+
+// Actions navigation
+function _navArrived() {
+  validateStop('termine');
+  _closeNavMap();
+}
+function _navAbsent() {
+  validateStop('absent');
+  _closeNavMap();
+}
+function _navAnnule() {
+  // Annulé = le dentiste a prévenu
+  const arret = state.arrets[state.currentIndex];
+  if (arret) {
+    arret.statut = 'absent'; // côté API on utilise 'absent' pour l'instant
+    apiPost(`/app/arret/${arret.id}/valider`, { token: TOKEN, statut_arret: 'absent', notes: 'Annul\u00e9 par le dentiste' });
+    state.currentIndex = state.arrets.findIndex(a => a.statut !== 'termine' && a.statut !== 'absent');
+    if (state.currentIndex === -1) state.currentIndex = state.arrets.length;
+    state.viewIndex = state.currentIndex;
+    showToast('RDV annul\u00e9', 'success');
+    render();
+  }
+  _closeNavMap();
+}
+function _navNext() {
+  _navArrived();
+  // Après render, naviguer vers le suivant
+  setTimeout(() => {
+    if (state.currentIndex < state.arrets.length) {
+      const arret = state.arrets[state.currentIndex];
+      const d = arret.dentistes_clients || {};
+      const addr = [d.adresse, d.code_postal, d.ville].filter(Boolean).join(' ');
+      navigate(addr);
+    }
+  }, 500);
 }
 
 function goToCurrentStop() {
