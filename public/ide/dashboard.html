@@ -2960,14 +2960,9 @@ function _initJadomiMap() {
 
     // ── Route avec flèches directionnelles ──
     if (window._navRouteLine) { map.removeLayer(window._navRouteLine); if (window._navRouteLine._shadow) map.removeLayer(window._navRouteLine._shadow); }
-    // Simplifier la route pour la perf (garder 1 point sur N pour réduire les nodes SVG)
-    var simplified = routeCoords;
-    if (routeCoords.length > 200) {
-      var keep = Math.max(1, Math.floor(routeCoords.length / 150));
-      simplified = routeCoords.filter(function(_, i) { return i % keep === 0 || i === routeCoords.length - 1; });
-    }
-    var shadow = L.polyline(simplified, { color: '#1e40af', weight: 10, opacity: 0.12 }).addTo(map);
-    var line = L.polyline(simplified, { color: '#4f8ff7', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    // Route unique (pas d'ombre = 2x moins de SVG à repositionner)
+    var line = L.polyline(routeCoords, { color: '#3b82f6', weight: 7, opacity: 0.85, lineCap: 'round', lineJoin: 'round', smoothFactor: 3 }).addTo(map);
+    var shadow = null;
     line._shadow = shadow;
     window._navRouteLine = line;
 
@@ -2986,9 +2981,15 @@ function _initJadomiMap() {
       }).addTo(map);
       window._navExtras.push(arrowDeco);
 
-      // Cacher les flèches pendant la rotation pour éviter le lag
-      map.on('rotatestart', function() { if (arrowDeco._map) arrowDeco.setStyle({ opacity: 0 }); });
-      map.on('rotateend', function() { if (arrowDeco._map) { try { arrowDeco.setStyle({ opacity: 1 }); } catch(e) {} } });
+      // Cacher flèches + extras pendant la rotation
+      map.on('rotatestart', function() {
+        try { if (arrowDeco._map) map.removeLayer(arrowDeco); } catch(e) {}
+        window._navExtras.forEach(function(x) { try { if (x._icon) x._icon.style.display = 'none'; } catch(e) {} });
+      });
+      map.on('rotateend', function() {
+        try { if (!arrowDeco._map) arrowDeco.addTo(map); } catch(e) {}
+        window._navExtras.forEach(function(x) { try { if (x._icon) x._icon.style.display = ''; } catch(e) {} });
+      });
     }
 
     // ── Card patient à la destination ──
