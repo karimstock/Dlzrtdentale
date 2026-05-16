@@ -2960,32 +2960,30 @@ function _initJadomiMap() {
 
     // ── Route avec flèches directionnelles ──
     if (window._navRouteLine) { map.removeLayer(window._navRouteLine); if (window._navRouteLine._shadow) map.removeLayer(window._navRouteLine._shadow); }
-    // Ombre
-    var shadow = L.polyline(routeCoords, { color: '#1e40af', weight: 14, opacity: 0.15 }).addTo(map);
-    // Route principale (semi-transparente pour laisser voir les noms de rues)
-    var line = L.polyline(routeCoords, { color: '#4f8ff7', weight: 6, opacity: 0.75, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    // Route avec ombre (simplifiée pour perf rotation)
+    var shadow = L.polyline(routeCoords, { color: '#1e40af', weight: 10, opacity: 0.12, renderer: L.canvas() }).addTo(map);
+    var line = L.polyline(routeCoords, { color: '#4f8ff7', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', renderer: L.canvas() }).addTo(map);
     line._shadow = shadow;
     window._navRouteLine = line;
 
-    // Flèches intégrées dans la ligne de route (suivent les courbes et ronds-points)
+    // Flèches intégrées dans la ligne de route
     if (L.polylineDecorator) {
       var arrowDeco = L.polylineDecorator(line, {
         patterns: [{
           offset: 30,
-          repeat: 80,
+          repeat: 100,
           symbol: L.Symbol.arrowHead({
-            pixelSize: 14,
+            pixelSize: 12,
             polygon: true,
-            pathOptions: {
-              color: '#1e3a8a',
-              fillColor: '#1e3a8a',
-              fillOpacity: 0.9,
-              weight: 0
-            }
+            pathOptions: { color: '#1e3a8a', fillColor: '#1e3a8a', fillOpacity: 0.85, weight: 0 }
           })
         }]
       }).addTo(map);
       window._navExtras.push(arrowDeco);
+
+      // Cacher les flèches pendant la rotation pour éviter le lag
+      map.on('rotatestart', function() { if (arrowDeco._map) arrowDeco.setStyle({ opacity: 0 }); });
+      map.on('rotateend', function() { if (arrowDeco._map) { try { arrowDeco.setStyle({ opacity: 1 }); } catch(e) {} } });
     }
 
     // ── Card patient à la destination ──
