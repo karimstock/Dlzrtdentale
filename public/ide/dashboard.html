@@ -2682,13 +2682,30 @@ function _initJadomiMap() {
       _handleGpsPosition(pos);
     }, function(err) {
       console.log('GPS error:', err.code, err.message);
-      // Si précision refuse, essayer sans haute précision en fallback
       if (err.code === 1) showToast('Activez la localisation pour la navigation');
+      // Afficher bannière rouge "Aucune donnée GPS" comme Waze
+      _showGpsBanner('Aucune donn\u00e9e GPS — derni\u00e8re position utilis\u00e9e');
     }, {
       enableHighAccuracy: true,
       timeout: 5000,      // 5s max — assez rapide pour la navigation
       maximumAge: 0        // ZERO cache — toujours position fraîche
     });
+  }
+
+  // Bannière rouge GPS (comme Waze)
+  function _showGpsBanner(msg) {
+    var existing = document.getElementById('jadomi-gps-banner');
+    if (existing) { existing.querySelector('span').textContent = msg; return; }
+    var banner = document.createElement('div');
+    banner.id = 'jadomi-gps-banner';
+    banner.style.cssText = 'position:absolute;bottom:140px;left:16px;right:16px;z-index:1100;background:rgba(220,38,38,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(220,38,38,.3)';
+    banner.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="font-size:12px;color:#fff;font-weight:600">' + msg + '</span>';
+    mapDiv.appendChild(banner);
+  }
+
+  function _hideGpsBanner() {
+    var banner = document.getElementById('jadomi-gps-banner');
+    if (banner) banner.remove();
   }
 
   function _handleGpsPosition(pos) {
@@ -2719,6 +2736,13 @@ function _initJadomiMap() {
       // Auto-dismiss après 15s
       setTimeout(function() { var el = document.getElementById('jadomi-gps-alert'); if (el) el.remove(); }, 15000);
     }
+
+    // GPS reçu → masquer la bannière rouge + reset timer
+    _hideGpsBanner();
+    if (window._gpsTimeoutTimer) clearTimeout(window._gpsTimeoutTimer);
+    window._gpsTimeoutTimer = setTimeout(function() {
+      if (window._navActive) _showGpsBanner('Aucune donn\u00e9e GPS — derni\u00e8re position utilis\u00e9e');
+    }, 15000); // Si pas de GPS pendant 15s → afficher la bannière
 
     // SNAP TO ROUTE : projeter la position GPS sur la route calculée
     var snap = _snapToRoute(rawLat, rawLng);
