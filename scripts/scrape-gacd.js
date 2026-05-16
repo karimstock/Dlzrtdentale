@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 // =============================================
 // JADOMI — Scrape GACD France (respectueux)
 // Passe 51 — Catalogue distributeur FR

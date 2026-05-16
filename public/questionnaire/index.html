@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JADOMI — Questionnaire médical</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #FAFAF8;
+      --teal: #0d9488;
+      --teal-light: #ccfbf1;
+      --teal-dark: #0f766e;
+      --text: #1a1a1a;
+      --text-secondary: #6b7280;
+      --border: #e5e5e3;
+      --white: #ffffff;
+      --orange: #f59e0b;
+      --orange-bg: #fffbeb;
+      --orange-border: #fcd34d;
+      --red-soft: #fef2f2;
+      --green: #10b981;
+      --green-bg: #ecfdf5;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --transition: cubic-bezier(.16, 1, .3, 1);
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Loading screen ── */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.4s var(--transition);
+    }
+    #loading-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      margin-top: 16px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    /* ── Error / Already completed screens ── */
+    .screen-message {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 32px 24px;
+    }
+    .screen-message.active { display: flex; }
+    .screen-message-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    .screen-message h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+    .screen-message p {
+      color: var(--text-secondary);
+      max-width: 320px;
+      font-size: 0.95rem;
+    }
+
+    /* ── Main container ── */
+    .questionnaire-container {
+      display: none;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 0 16px 120px;
+    }
+    .questionnaire-container.active { display: block; }
+
+    /* ── Header ── */
+    .q-header {
+      text-align: center;
+      padding: 24px 0 20px;
+      animation: fadeIn 0.5s var(--transition);
+    }
+    .q-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.6rem;
+      color: var(--teal);
+      letter-spacing: -0.5px;
+    }
+    .q-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .q-greeting {
+      margin-top: 16px;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+    .q-cabinet {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrapper {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--bg);
+      padding: 16px 0 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .progress-bar-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--teal);
+      border-radius: 2px;
+      transition: width 0.5s var(--transition);
+      width: 0%;
+    }
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+    }
+    .progress-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all 0.4s var(--transition);
+      flex-shrink: 0;
+    }
+    .progress-dot.active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: var(--white);
+    }
+    .progress-dot.completed {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: var(--white);
+    }
+    .progress-label {
+      font-size: 0.6rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      transition: color 0.3s var(--transition);
+    }
+    .progress-step.active .progress-label,
+    .progress-step.completed .progress-label {
+      color: var(--teal-dark);
+      font-weight: 500;
+    }
+
+    /* ── Section ── */
+    .q-section {
+      display: none;
+      animation: slideUp 0.4s var(--transition);
+    }
+    .q-section.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .section-description {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* ── Question group ── */
+    .question-group {
+      margin-bottom: 20px;
+    }
+    .question-group[data-show-if] {
+      display: none;
+      overflow: hidden;
+      animation: slideUp 0.35s var(--transition);
+    }
+    .question-group[data-show-if].visible {
+      display: block;
+    }
+    .question-label {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 500;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .question-label .required-star {
+      color: #ef4444;
+      margin-left: 2px;
+    }
+
+    /* ── Yes/No buttons ── */
+    .yesno-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .yesno-btn {
+      height: 52px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--white);
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.25s var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .yesno-btn:active {
+      transform: scale(0.97);
+    }
+    .yesno-btn.selected-yes {
+      border-color: var(--teal);
+      background: var(--teal-light);
+      color: var(--teal-dark);
+    }
+    .yesno-btn.selected-no {
+      border-color: var(--border);
+      background: #f3f4f6;
+      color: var(--text-secondary);
+    }
+
+    /* ── Inputs ── */
+    .q-input,
+    .q-textarea,
+    .q-select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--white);
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      color: var(--text);
+      transition: border-color 0.25s var(--transition), box-shadow 0.25s var(--transition);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .q-input:focus,
+    .q-textarea:focus,
+    .q-select:focus {
+      outline: none;
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+    }
+    .q-textarea {
+      min-height: 80px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+    .q-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+
+    /* ── Toggle buttons (for selects with < 4 options) ── */
+    .toggle-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .toggle-btn {
+      flex: 1;
+      min-width: 0;
+      min-height: 48px;
+      padding: 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--white);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.25s var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      text-align: center;
+      user-select: none;
+    }
+    .toggle-btn:active { transform: scale(0.97); }
+    .toggle-btn.selected {
+      border-color: var(--teal);
+      background: var(--teal-light);
+      color: var(--teal-dark);
+    }
+
+    /* ── Alert banner ── */
+    .alert-banner {
+      display: none;
+      margin-top: 8px;
+      padding: 12px 14px;
+      background: var(--orange-bg);
+      border: 1px solid var(--orange-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      color: #92400e;
+      line-height: 1.4;
+      animation: scaleIn 0.3s var(--transition);
+    }
+    .alert-banner.visible { display: flex; align-items: flex-start; gap: 8px; }
+    .alert-banner-icon { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Navigation ── */
+    .q-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      gap: 10px;
+      z-index: 60;
+    }
+    .q-nav-btn {
+      flex: 1;
+      height: 52px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .q-nav-btn:active { transform: scale(0.97); }
+    .q-nav-btn.prev {
+      background: var(--white);
+      border: 2px solid var(--border);
+      color: var(--text-secondary);
+      max-width: 120px;
+    }
+    .q-nav-btn.next {
+      background: var(--teal);
+      color: var(--white);
+    }
+    .q-nav-btn.next:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .q-nav-btn.submit-btn {
+      background: var(--teal);
+      color: var(--white);
+    }
+
+    /* ── Recap ── */
+    .recap-section {
+      margin-bottom: 16px;
+    }
+    .recap-section-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--teal-dark);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recap-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 8px 0;
+      gap: 12px;
+    }
+    .recap-item:not(:last-child) {
+      border-bottom: 1px solid #f0f0ee;
+    }
+    .recap-question {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+    .recap-answer {
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-align: right;
+      max-width: 50%;
+      word-break: break-word;
+    }
+    .recap-answer.alert-answer {
+      color: #dc2626;
+    }
+    .recap-edit-btn {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: var(--teal);
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* ── Signature ── */
+    .signature-wrapper {
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--white);
+      touch-action: none;
+    }
+    .signature-wrapper canvas {
+      display: block;
+      width: 100%;
+      height: 200px;
+      cursor: crosshair;
+    }
+    .signature-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .signature-clear-btn {
+      padding: 6px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .consent-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      cursor: pointer;
+    }
+    .consent-label input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      accent-color: var(--teal);
+      cursor: pointer;
+    }
+    .legal-text {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    /* ── Confirmation ── */
+    .confirmation-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 32px 24px;
+    }
+    .confirmation-screen.active {
+      display: flex;
+    }
+    .checkmark-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--green-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      animation: scaleIn 0.5s var(--transition);
+    }
+    .checkmark-svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--green);
+      stroke-width: 3;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .checkmark-svg .check-path {
+      stroke-dasharray: 60;
+      stroke-dashoffset: 60;
+      animation: drawCheck 0.6s 0.3s var(--transition) forwards;
+    }
+    @keyframes drawCheck {
+      to { stroke-dashoffset: 0; }
+    }
+    .confirmation-screen h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+    .confirmation-screen p {
+      color: var(--text-secondary);
+      max-width: 320px;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+    .confirmation-close-btn {
+      margin-top: 24px;
+      padding: 14px 32px;
+      background: var(--teal);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ── Validation error ── */
+    .validation-error {
+      font-size: 0.82rem;
+      color: #ef4444;
+      margin-top: 4px;
+      display: none;
+    }
+    .question-group.has-error .validation-error { display: block; }
+    .question-group.has-error .q-input,
+    .question-group.has-error .q-textarea,
+    .question-group.has-error .q-select {
+      border-color: #ef4444;
+    }
+    .question-group.has-error .yesno-btn {
+      border-color: #fca5a5;
+    }
+
+    /* ── Utilities ── */
+    .hidden { display: none !important; }
+
+    /* ── Desktop enhancement ── */
+    @media (min-width: 600px) {
+      .questionnaire-container {
+        padding: 0 24px 120px;
+      }
+      .q-nav {
+        max-width: 520px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: var(--radius) var(--radius) 0 0;
+        box-shadow: var(--shadow-md);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading -->
+  <div id="loading-screen">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Chargement de votre questionnaire...</p>
+  </div>
+
+  <!-- Error: expired / invalid -->
+  <div id="screen-expired" class="screen-message">
+    <div class="screen-message-icon" style="background:#fef2f2;">
+      <svg width="28" height="28" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"><circle cx="14" cy="14" r="12"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="14" y1="19" x2="14.01" y2="19"/></svg>
+    </div>
+    <h2>Lien expiré ou invalide</h2>
+    <p>Ce questionnaire n'est plus disponible. Veuillez contacter votre cabinet pour recevoir un nouveau lien.</p>
+  </div>
+
+  <!-- Already completed -->
+  <div id="screen-completed" class="screen-message">
+    <div class="screen-message-icon" style="background:#ecfdf5;">
+      <svg width="28" height="28" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="14" r="12"/><polyline points="9,14 12,17 19,11"/></svg>
+    </div>
+    <h2>Questionnaire déjà complété</h2>
+    <p>Vous avez déjà rempli ce questionnaire. Votre praticien dispose de vos informations.</p>
+  </div>
+
+  <!-- Main questionnaire -->
+  <div id="questionnaire-main" class="questionnaire-container">
+
+    <!-- Header -->
+    <header class="q-header">
+      <div class="q-logo">JADOMI</div>
+      <div class="q-subtitle">Questionnaire médical</div>
+      <div class="q-greeting" id="q-greeting">Bonjour</div>
+      <div class="q-cabinet" id="q-cabinet"></div>
+    </header>
+
+    <!-- Progress -->
+    <div class="progress-wrapper">
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-steps" id="progress-steps"></div>
+    </div>
+
+    <!-- Dynamic sections rendered here -->
+    <div id="sections-container"></div>
+
+    <!-- Recap section -->
+    <div id="section-recap" class="q-section">
+      <h2 class="section-title">Récapitulatif</h2>
+      <p class="section-description">Vérifiez vos réponses avant de signer. Vous pouvez revenir en arrière pour corriger.</p>
+      <div id="recap-content"></div>
+    </div>
+
+    <!-- Signature section -->
+    <div id="section-signature" class="q-section">
+      <h2 class="section-title">Signature électronique</h2>
+      <p class="section-description">Signez ci-dessous pour valider votre questionnaire.</p>
+
+      <div class="signature-wrapper" id="signature-wrapper">
+        <canvas id="signature-canvas"></canvas>
+        <div class="signature-actions">
+          <button type="button" class="signature-clear-btn" id="sig-clear" aria-label="Effacer la signature">Effacer</button>
+        </div>
+      </div>
+
+      <p class="legal-text">En signant, je certifie l'exactitude des informations fournies.</p>
+
+      <label class="consent-label" id="consent-label">
+        <input type="checkbox" id="consent-checkbox">
+        <span>J'autorise le cabinet à utiliser ces informations dans le cadre de mes soins</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Confirmation -->
+  <div id="screen-confirmation" class="confirmation-screen">
+    <div class="checkmark-circle">
+      <svg class="checkmark-svg" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="18" stroke-opacity="0.2"/>
+        <polyline class="check-path" points="12,20 18,26 28,14"/>
+      </svg>
+    </div>
+    <h2>Questionnaire envoyé avec succès</h2>
+    <p>Votre praticien disposera de vos informations avant votre consultation.</p>
+    <p style="font-size:0.82rem; color:var(--text-secondary);">Vous pouvez fermer cette page.</p>
+    <button class="confirmation-close-btn" onclick="window.close()">Fermer</button>
+  </div>
+
+  <!-- Navigation -->
+  <div class="q-nav hidden" id="q-nav">
+    <button type="button" class="q-nav-btn prev hidden" id="btn-prev" aria-label="Étape précédente">Retour</button>
+    <button type="button" class="q-nav-btn next" id="btn-next">Suivant</button>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // ─── Questionnaire definition ───
+      const SECTIONS = [
+        {
+          id: 'identite',
+          title: 'Identité',
+          label: 'Identité',
+          description: 'Vos informations personnelles',
+          questions: [
+            { id: 'nom', label: 'Nom', type: 'text', required: true, prefill: 'last_name' },
+            { id: 'prenom', label: 'Prénom', type: 'text', required: true, prefill: 'first_name' },
+            { id: 'date_naissance', label: 'Date de naissance', type: 'date' },
+            { id: 'sexe', label: 'Sexe', type: 'select', options: ['Homme', 'Femme'] },
+            { id: 'telephone', label: 'Téléphone', type: 'tel', prefill: 'phone' },
+            { id: 'email', label: 'Adresse email', type: 'text', prefill: 'email' },
+            { id: 'medecin_traitant', label: 'Nom de votre médecin traitant', type: 'text' },
+            { id: 'poids', label: 'Poids (kg)', type: 'number' },
+            { id: 'taille', label: 'Taille (cm)', type: 'number' }
+          ]
+        },
+        {
+          id: 'allergies',
+          title: 'Allergies',
+          label: 'Allergies',
+          description: 'Avez-vous des allergies connues ?',
+          questions: [
+            { id: 'allergie_medicament', label: 'Êtes-vous allergique à un médicament ?', type: 'yesno', alert: true },
+            { id: 'allergie_medicament_detail', label: 'Précisez le(s) médicament(s)', type: 'textarea', showIf: 'allergie_medicament', required: true },
+            { id: 'allergie_latex', label: 'Êtes-vous allergique au latex ?', type: 'yesno', alert: true },
+            { id: 'allergie_anesthesie', label: 'Avez-vous déjà eu une réaction à une anesthésie ?', type: 'yesno', alert: true },
+            { id: 'allergie_anesthesie_detail', label: 'Précisez la réaction', type: 'textarea', showIf: 'allergie_anesthesie', required: true },
+            { id: 'allergie_autre', label: 'Avez-vous d\'autres allergies ?', type: 'yesno' },
+            { id: 'allergie_autre_detail', label: 'Précisez', type: 'textarea', showIf: 'allergie_autre' }
+          ]
+        },
+        {
+          id: 'traitements',
+          title: 'Traitements en cours',
+          label: 'Traitements',
+          description: 'Prenez-vous des médicaments actuellement ?',
+          questions: [
+            { id: 'traitement_en_cours', label: 'Prenez-vous un traitement médical actuellement ?', type: 'yesno' },
+            { id: 'traitement_liste', label: 'Listez vos médicaments en cours', type: 'textarea', showIf: 'traitement_en_cours', required: true },
+            { id: 'anticoagulant', label: 'Prenez-vous un anticoagulant (aspirine, Kardégic, Préviscan, Eliquis...) ?', type: 'yesno', alert: true },
+            { id: 'anticoagulant_detail', label: 'Précisez le médicament et le dosage', type: 'textarea', showIf: 'anticoagulant', required: true },
+            { id: 'biphosphonates', label: 'Prenez-vous ou avez-vous pris des biphosphonates (Fosamax, Actonel, Zometa...) ?', type: 'yesno', alert: true },
+            { id: 'biphosphonates_detail', label: 'Précisez le médicament et la durée du traitement', type: 'textarea', showIf: 'biphosphonates', required: true },
+            { id: 'corticoides', label: 'Prenez-vous des corticoïdes (cortisone) ?', type: 'yesno', alert: true }
+          ]
+        },
+        {
+          id: 'coeur',
+          title: 'Cœur et circulation',
+          label: 'Cœur',
+          description: 'Votre santé cardiovasculaire',
+          questions: [
+            { id: 'probleme_cardiaque', label: 'Avez-vous un problème cardiaque ?', type: 'yesno', alert: true },
+            { id: 'probleme_cardiaque_detail', label: 'Précisez (souffle au cœur, valve, pace-maker, infarctus...)', type: 'textarea', showIf: 'probleme_cardiaque', required: true },
+            { id: 'hypertension', label: 'Avez-vous de l\'hypertension artérielle ?', type: 'yesno', alert: true },
+            { id: 'endocardite', label: 'Avez-vous un risque d\'endocardite infectieuse ?', type: 'yesno', alert: true },
+            { id: 'avc', label: 'Avez-vous déjà eu un AVC (accident vasculaire cérébral) ?', type: 'yesno', alert: true },
+            { id: 'phlébite', label: 'Avez-vous eu une phlébite ou une embolie pulmonaire ?', type: 'yesno', alert: true }
+          ]
+        },
+        {
+          id: 'antecedents',
+          title: 'Antécédents médicaux',
+          label: 'Antécédents',
+          description: 'Votre historique de santé',
+          questions: [
+            { id: 'diabete', label: 'Êtes-vous diabétique ?', type: 'yesno', alert: true },
+            { id: 'diabete_type', label: 'Type de diabète', type: 'select', options: ['Type 1', 'Type 2', 'Gestationnel', 'Autre'], showIf: 'diabete' },
+            { id: 'hepatite', label: 'Avez-vous ou avez-vous eu une hépatite ?', type: 'yesno', alert: true },
+            { id: 'hepatite_type', label: 'Type d\'hépatite', type: 'select', options: ['Hépatite A', 'Hépatite B', 'Hépatite C', 'Autre'], showIf: 'hepatite' },
+            { id: 'vih', label: 'Êtes-vous porteur du VIH ?', type: 'yesno', alert: true },
+            { id: 'asthme', label: 'Souffrez-vous d\'asthme ?', type: 'yesno' },
+            { id: 'epilepsie', label: 'Souffrez-vous d\'épilepsie ?', type: 'yesno', alert: true },
+            { id: 'cancer', label: 'Avez-vous eu ou avez-vous un cancer ?', type: 'yesno', alert: true },
+            { id: 'cancer_detail', label: 'Précisez (type, traitements en cours)', type: 'textarea', showIf: 'cancer', required: true },
+            { id: 'chimio_radio', label: 'Avez-vous eu de la chimiothérapie ou de la radiothérapie ?', type: 'yesno', alert: true, showIf: 'cancer' },
+            { id: 'enceinte', label: 'Êtes-vous enceinte ou pensez-vous l\'être ?', type: 'yesno', alert: true, showIf: 'sexe_Femme' },
+            { id: 'enceinte_mois', label: 'Mois de grossesse', type: 'number', showIf: 'enceinte' },
+            { id: 'tabac', label: 'Fumez-vous ?', type: 'yesno' },
+            { id: 'tabac_quantite', label: 'Combien de cigarettes par jour ?', type: 'number', showIf: 'tabac' },
+            { id: 'operation_recente', label: 'Avez-vous été opéré(e) récemment (moins de 6 mois) ?', type: 'yesno' },
+            { id: 'operation_recente_detail', label: 'Précisez l\'intervention', type: 'textarea', showIf: 'operation_recente' }
+          ]
+        },
+        {
+          id: 'dentaire',
+          title: 'Santé dentaire',
+          label: 'Dentaire',
+          description: 'Informations spécifiques à votre santé bucco-dentaire',
+          questions: [
+            { id: 'derniere_visite', label: 'Date approximative de votre dernière visite chez le dentiste', type: 'text' },
+            { id: 'saignement_gencives', label: 'Vos gencives saignent-elles ?', type: 'yesno' },
+            { id: 'douleur_actuelle', label: 'Avez-vous une douleur actuellement ?', type: 'yesno' },
+            { id: 'douleur_localisation', label: 'Décrivez et localisez votre douleur', type: 'textarea', showIf: 'douleur_actuelle' },
+            { id: 'bruxisme', label: 'Serrez-vous ou grincez-vous des dents ?', type: 'yesno' },
+            { id: 'prothese_existante', label: 'Portez-vous une prothèse dentaire ?', type: 'yesno' },
+            { id: 'prothese_type', label: 'Type de prothèse', type: 'select', options: ['Appareil amovible', 'Couronne', 'Bridge', 'Implant'], showIf: 'prothese_existante' },
+            { id: 'remarques', label: 'Avez-vous d\'autres remarques ou informations à communiquer à votre praticien ?', type: 'textarea' }
+          ]
+        }
+      ];
+
+      // ─── State ───
+      let currentStep = 0;
+      let token = '';
+      let invitationData = null;
+      let signatureCanvas, sigCtx;
+      let isDrawing = false;
+      let hasSigned = false;
+      const totalSteps = SECTIONS.length; // 6 content + recap + signature = totalSteps + 2
+
+      // ─── DOM refs ───
+      const $loading = document.getElementById('loading-screen');
+      const $expired = document.getElementById('screen-expired');
+      const $completed = document.getElementById('screen-completed');
+      const $main = document.getElementById('questionnaire-main');
+      const $confirmation = document.getElementById('screen-confirmation');
+      const $nav = document.getElementById('q-nav');
+      const $prevBtn = document.getElementById('btn-prev');
+      const $nextBtn = document.getElementById('btn-next');
+      const $progressFill = document.getElementById('progress-fill');
+      const $progressSteps = document.getElementById('progress-steps');
+      const $sectionsContainer = document.getElementById('sections-container');
+      const $recapSection = document.getElementById('section-recap');
+      const $sigSection = document.getElementById('section-signature');
+
+      // ─── Init ───
+      token = window.location.pathname.split('/').filter(Boolean).pop() || '';
+
+      if (!token || token === 'questionnaire') {
+        hideLoading();
+        showScreen($expired);
+        return;
+      }
+
+      fetch('/api/questionnaire/' + encodeURIComponent(token))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.already_completed) {
+            hideLoading();
+            showScreen($completed);
+            return;
+          }
+          if (data.error) {
+            hideLoading();
+            showScreen($expired);
+            return;
+          }
+          invitationData = data;
+          initQuestionnaire(data);
+        })
+        .catch(function() {
+          hideLoading();
+          showScreen($expired);
+        });
+
+      function hideLoading() {
+        $loading.classList.add('hidden');
+        setTimeout(function() { $loading.style.display = 'none'; }, 400);
+      }
+
+      function showScreen(el) {
+        el.classList.add('active');
+      }
+
+      // ─── Build questionnaire ───
+      function initQuestionnaire(data) {
+        // Greeting
+        var civility = data.civility || '';
+        var name = data.patient_name || '';
+        document.getElementById('q-greeting').textContent = 'Bonjour' + (civility ? ' ' + civility : '') + (name ? ' ' + name : '');
+        if (data.cabinet_name) {
+          document.getElementById('q-cabinet').textContent = data.cabinet_name;
+        }
+
+        // Build progress dots
+        var stepsLabels = SECTIONS.map(function(s) { return s.label; });
+        stepsLabels.push('Récap.');
+        stepsLabels.push('Signature');
+        $progressSteps.innerHTML = stepsLabels.map(function(label, i) {
+          return '<div class="progress-step' + (i === 0 ? ' active' : '') + '" data-step="' + i + '">'
+            + '<div class="progress-dot' + (i === 0 ? ' active' : '') + '">' + (i + 1) + '</div>'
+            + '<span class="progress-label">' + escapeHtml(label) + '</span>'
+            + '</div>';
+        }).join('');
+
+        // Build sections
+        SECTIONS.forEach(function(section, idx) {
+          var el = document.createElement('div');
+          el.className = 'q-section' + (idx === 0 ? ' active' : '');
+          el.id = 'section-' + section.id;
+          el.setAttribute('data-section-index', idx);
+
+          var html = '<h2 class="section-title">' + escapeHtml(section.title) + '</h2>';
+          html += '<p class="section-description">' + escapeHtml(section.description) + '</p>';
+
+          section.questions.forEach(function(q) {
+            html += buildQuestion(q, data);
+          });
+
+          el.innerHTML = html;
+          $sectionsContainer.appendChild(el);
+        });
+
+        // Bind events
+        bindQuestionEvents();
+
+        // Prefill from invitation data
+        prefillData(data);
+
+        // Init signature
+        initSignature();
+
+        // Show
+        hideLoading();
+        $main.classList.add('active');
+        $nav.classList.remove('hidden');
+        updateProgress();
+      }
+
+      function buildQuestion(q, data) {
+        var showIfAttr = q.showIf ? ' data-show-if="' + q.showIf + '"' : '';
+        var requiredStar = q.required ? '<span class="required-star">*</span>' : '';
+        var html = '<div class="question-group" data-question-id="' + q.id + '"' + showIfAttr + '>';
+        html += '<label class="question-label" for="q-' + q.id + '">' + escapeHtml(q.label) + requiredStar + '</label>';
+
+        switch (q.type) {
+          case 'yesno':
+            html += '<div class="yesno-group">';
+            html += '<button type="button" class="yesno-btn" data-question="' + q.id + '" data-value="Oui" aria-label="Oui">Oui</button>';
+            html += '<button type="button" class="yesno-btn" data-question="' + q.id + '" data-value="Non" aria-label="Non">Non</button>';
+            html += '</div>';
+            html += '<input type="hidden" id="q-' + q.id + '" name="' + q.id + '" data-type="yesno"' + '>';
+            if (q.alert) {
+              html += '<div class="alert-banner" data-alert-for="' + q.id + '">';
+              html += '<span class="alert-banner-icon"><svg width="16" height="16" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="7"/><line x1="8" y1="5" x2="8" y2="8"/><line x1="8" y1="11" x2="8.01" y2="11"/></svg></span>';
+              html += '<span>Information importante transmise à votre praticien</span>';
+              html += '</div>';
+            }
+            break;
+
+          case 'text':
+            html += '<input type="text" class="q-input" id="q-' + q.id + '" name="' + q.id + '" autocomplete="off"' + '>';
+            break;
+
+          case 'textarea':
+            html += '<textarea class="q-textarea" id="q-' + q.id + '" name="' + q.id + '" rows="3"' + '></textarea>';
+            break;
+
+          case 'date':
+            html += '<input type="date" class="q-input" id="q-' + q.id + '" name="' + q.id + '"' + '>';
+            break;
+
+          case 'tel':
+            html += '<input type="tel" class="q-input" id="q-' + q.id + '" name="' + q.id + '" autocomplete="tel"' + '>';
+            break;
+
+          case 'number':
+            html += '<input type="number" class="q-input" id="q-' + q.id + '" name="' + q.id + '" inputmode="numeric"' + '>';
+            break;
+
+          case 'select':
+            if (q.options && q.options.length <= 4) {
+              html += '<div class="toggle-group">';
+              q.options.forEach(function(opt) {
+                html += '<button type="button" class="toggle-btn" data-question="' + q.id + '" data-value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</button>';
+              });
+              html += '</div>';
+              html += '<input type="hidden" id="q-' + q.id + '" name="' + q.id + '" data-type="toggle"' + '>';
+            } else {
+              html += '<select class="q-select" id="q-' + q.id + '" name="' + q.id + '"' + '>';
+              html += '<option value="">Sélectionnez</option>';
+              (q.options || []).forEach(function(opt) {
+                html += '<option value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</option>';
+              });
+              html += '</select>';
+            }
+            break;
+        }
+
+        html += '<div class="validation-error">Ce champ est requis</div>';
+        html += '</div>';
+        return html;
+      }
+
+      function prefillData(data) {
+        SECTIONS.forEach(function(section) {
+          section.questions.forEach(function(q) {
+            if (q.prefill && data[q.prefill]) {
+              var input = document.getElementById('q-' + q.id);
+              if (input) input.value = data[q.prefill];
+            }
+          });
+        });
+      }
+
+      // ─── Events ───
+      function bindQuestionEvents() {
+        // Yes/No buttons
+        document.querySelectorAll('.yesno-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var qId = this.getAttribute('data-question');
+            var value = this.getAttribute('data-value');
+            var group = this.closest('.yesno-group');
+            var hiddenInput = document.getElementById('q-' + qId);
+
+            group.querySelectorAll('.yesno-btn').forEach(function(b) {
+              b.classList.remove('selected-yes', 'selected-no');
+            });
+
+            if (value === 'Oui') {
+              this.classList.add('selected-yes');
+              group.querySelector('[data-value="Non"]').classList.add('selected-no');
+            } else {
+              this.classList.add('selected-no');
+              group.querySelector('[data-value="Oui"]');
+            }
+
+            hiddenInput.value = value;
+            this.closest('.question-group').classList.remove('has-error');
+
+            // Alert
+            var alert = document.querySelector('[data-alert-for="' + qId + '"]');
+            if (alert) {
+              if (value === 'Oui') {
+                alert.classList.add('visible');
+              } else {
+                alert.classList.remove('visible');
+              }
+            }
+
+            // Show/hide conditional
+            checkShowIf(qId, value);
+          });
+        });
+
+        // Toggle buttons
+        document.querySelectorAll('.toggle-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var qId = this.getAttribute('data-question');
+            var value = this.getAttribute('data-value');
+            var group = this.closest('.toggle-group');
+            var hiddenInput = document.getElementById('q-' + qId);
+
+            group.querySelectorAll('.toggle-btn').forEach(function(b) {
+              b.classList.remove('selected');
+            });
+            this.classList.add('selected');
+            hiddenInput.value = value;
+            this.closest('.question-group').classList.remove('has-error');
+
+            // Gerer showIf compose (ex: sexe_Femme)
+            checkShowIf(qId + '_' + value, 'Oui');
+            // Cacher les autres valeurs
+            var allValues = [];
+            group.querySelectorAll('.toggle-btn').forEach(function(b) {
+              var v = b.getAttribute('data-value');
+              if (v !== value) allValues.push(v);
+            });
+            allValues.forEach(function(v) {
+              checkShowIf(qId + '_' + v, 'Non');
+            });
+          });
+        });
+
+        // Input change -> clear error
+        document.querySelectorAll('.q-input, .q-textarea, .q-select').forEach(function(input) {
+          input.addEventListener('input', function() {
+            this.closest('.question-group').classList.remove('has-error');
+          });
+        });
+
+        // Auto-resize textareas
+        document.querySelectorAll('.q-textarea').forEach(function(ta) {
+          ta.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+          });
+        });
+
+        // Nav buttons
+        $prevBtn.addEventListener('click', prevStep);
+        $nextBtn.addEventListener('click', nextStep);
+      }
+
+      function checkShowIf(questionId, value) {
+        // Gerer showIf simple (questionId) et compose (questionId_valeur)
+        document.querySelectorAll('[data-show-if="' + questionId + '"]').forEach(function(el) {
+          if (value === 'Oui') {
+            el.classList.add('visible');
+          } else {
+            el.classList.remove('visible');
+            // Reset sub-questions
+            el.querySelectorAll('input, textarea, select').forEach(function(i) {
+              i.value = '';
+            });
+            el.querySelectorAll('.yesno-btn').forEach(function(b) {
+              b.classList.remove('selected-yes', 'selected-no');
+            });
+            el.querySelectorAll('.toggle-btn').forEach(function(b) {
+              b.classList.remove('selected');
+            });
+            el.querySelectorAll('.alert-banner').forEach(function(a) {
+              a.classList.remove('visible');
+            });
+            // Recurse: also hide children of children
+            el.querySelectorAll('[data-question-id]').forEach(function(sub) {
+              var subId = sub.getAttribute('data-question-id');
+              checkShowIf(subId, 'Non');
+            });
+          }
+        });
+      }
+
+      // ─── Navigation ───
+      function getTotalSteps() {
+        return totalSteps + 2; // sections + recap + signature
+      }
+
+      function getCurrentSectionEl() {
+        if (currentStep < totalSteps) {
+          return document.querySelector('[data-section-index="' + currentStep + '"]');
+        } else if (currentStep === totalSteps) {
+          return $recapSection;
+        } else {
+          return $sigSection;
+        }
+      }
+
+      function validateCurrentSection() {
+        return true;
+      }
+
+      function showStep(step) {
+        // Hide all sections
+        document.querySelectorAll('.q-section').forEach(function(s) {
+          s.classList.remove('active');
+        });
+
+        var target;
+        if (step < totalSteps) {
+          target = document.querySelector('[data-section-index="' + step + '"]');
+        } else if (step === totalSteps) {
+          buildRecap();
+          target = $recapSection;
+        } else {
+          target = $sigSection;
+        }
+
+        if (target) {
+          target.classList.add('active');
+          // Re-trigger animation
+          target.style.animation = 'none';
+          target.offsetHeight; // force reflow
+          target.style.animation = '';
+        }
+
+        // Reinitialiser le canvas signature quand on arrive sur cette etape
+        if (step > totalSteps && signatureCanvas) {
+          setTimeout(function() {
+            var wrapper = document.getElementById('signature-wrapper');
+            var rect = wrapper.getBoundingClientRect();
+            var dpr = window.devicePixelRatio || 1;
+            signatureCanvas.width = rect.width * dpr;
+            signatureCanvas.height = 200 * dpr;
+            signatureCanvas.style.width = rect.width + 'px';
+            signatureCanvas.style.height = '200px';
+            sigCtx = signatureCanvas.getContext('2d');
+            sigCtx.scale(dpr, dpr);
+            sigCtx.strokeStyle = '#1a1a1a';
+            sigCtx.lineWidth = 2.5;
+            sigCtx.lineCap = 'round';
+            sigCtx.lineJoin = 'round';
+            hasSigned = false;
+          }, 100);
+        }
+
+        // Nav buttons
+        if (step === 0) {
+          $prevBtn.classList.add('hidden');
+        } else {
+          $prevBtn.classList.remove('hidden');
+        }
+
+        var total = getTotalSteps();
+        if (step === total - 1) {
+          $nextBtn.textContent = 'Envoyer';
+          $nextBtn.classList.add('submit-btn');
+        } else {
+          $nextBtn.textContent = 'Suivant';
+          $nextBtn.classList.remove('submit-btn');
+        }
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        updateProgress();
+      }
+
+      function nextStep() {
+        if (currentStep < totalSteps) {
+          if (!validateCurrentSection()) return;
+          currentStep++;
+          showStep(currentStep);
+        } else if (currentStep === totalSteps) {
+          // Recap -> signature
+          currentStep++;
+          showStep(currentStep);
+        } else {
+          // Submit
+          submitQuestionnaire();
+        }
+      }
+
+      function prevStep() {
+        if (currentStep > 0) {
+          currentStep--;
+          showStep(currentStep);
+        }
+      }
+
+      function goToStep(step) {
+        currentStep = step;
+        showStep(currentStep);
+      }
+
+      function updateProgress() {
+        var total = getTotalSteps();
+        var pct = ((currentStep + 1) / total) * 100;
+        $progressFill.style.width = pct + '%';
+
+        document.querySelectorAll('.progress-step').forEach(function(stepEl, i) {
+          var dot = stepEl.querySelector('.progress-dot');
+          stepEl.classList.remove('active', 'completed');
+          dot.classList.remove('active', 'completed');
+
+          if (i < currentStep) {
+            stepEl.classList.add('completed');
+            dot.classList.add('completed');
+            dot.innerHTML = '<svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,7 6,10 11,4"/></svg>';
+          } else if (i === currentStep) {
+            stepEl.classList.add('active');
+            dot.classList.add('active');
+            dot.textContent = i + 1;
+          } else {
+            dot.textContent = i + 1;
+          }
+        });
+      }
+
+      // ─── Recap ───
+      function buildRecap() {
+        var html = '';
+        SECTIONS.forEach(function(section) {
+          var items = '';
+          section.questions.forEach(function(q) {
+            var group = document.querySelector('[data-question-id="' + q.id + '"]');
+            if (!group) return;
+            // Skip hidden conditional
+            if (group.hasAttribute('data-show-if') && !group.classList.contains('visible')) return;
+
+            var input = document.getElementById('q-' + q.id);
+            var val = input ? input.value.trim() : '';
+            if (!val) return;
+
+            var isAlert = q.alert && val === 'Oui';
+            items += '<div class="recap-item">';
+            items += '<span class="recap-question">' + escapeHtml(q.label) + '</span>';
+            items += '<span class="recap-answer' + (isAlert ? ' alert-answer' : '') + '">' + escapeHtml(val) + '</span>';
+            items += '</div>';
+          });
+
+          if (items) {
+            var sIdx = SECTIONS.indexOf(section);
+            html += '<div class="recap-section">';
+            html += '<div class="recap-section-title">' + escapeHtml(section.title);
+            html += '<span class="recap-edit-btn" data-goto="' + sIdx + '">Modifier</span>';
+            html += '</div>';
+            html += items;
+            html += '</div>';
+          }
+        });
+
+        document.getElementById('recap-content').innerHTML = html;
+
+        // Bind edit buttons
+        document.querySelectorAll('.recap-edit-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(this.getAttribute('data-goto'));
+            goToStep(idx);
+          });
+        });
+      }
+
+      // ─── Signature ───
+      function initSignature() {
+        signatureCanvas = document.getElementById('signature-canvas');
+        sigCtx = signatureCanvas.getContext('2d');
+
+        function resizeCanvas() {
+          var wrapper = document.getElementById('signature-wrapper');
+          var rect = wrapper.getBoundingClientRect();
+          var dpr = window.devicePixelRatio || 1;
+          signatureCanvas.width = rect.width * dpr;
+          signatureCanvas.height = 200 * dpr;
+          sigCtx.scale(dpr, dpr);
+          sigCtx.strokeStyle = '#1a1a1a';
+          sigCtx.lineWidth = 2;
+          sigCtx.lineCap = 'round';
+          sigCtx.lineJoin = 'round';
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function getPos(e) {
+          var rect = signatureCanvas.getBoundingClientRect();
+          var touch = e.touches ? e.touches[0] : e;
+          return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+          };
+        }
+
+        function startDrawing(e) {
+          e.preventDefault();
+          isDrawing = true;
+          hasSigned = true;
+          var pos = getPos(e);
+          sigCtx.beginPath();
+          sigCtx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+          if (!isDrawing) return;
+          e.preventDefault();
+          var pos = getPos(e);
+          sigCtx.lineTo(pos.x, pos.y);
+          sigCtx.stroke();
+        }
+
+        function stopDrawing(e) {
+          if (isDrawing) {
+            e.preventDefault();
+            isDrawing = false;
+          }
+        }
+
+        signatureCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+        signatureCanvas.addEventListener('touchmove', draw, { passive: false });
+        signatureCanvas.addEventListener('touchend', stopDrawing);
+        signatureCanvas.addEventListener('mousedown', startDrawing);
+        signatureCanvas.addEventListener('mousemove', draw);
+        signatureCanvas.addEventListener('mouseup', stopDrawing);
+        signatureCanvas.addEventListener('mouseleave', stopDrawing);
+
+        document.getElementById('sig-clear').addEventListener('click', function() {
+          var dpr = window.devicePixelRatio || 1;
+          sigCtx.clearRect(0, 0, signatureCanvas.width / dpr, signatureCanvas.height / dpr);
+          hasSigned = false;
+        });
+      }
+
+      // ─── Submit ───
+      async function submitQuestionnaire() {
+        // Validate signature
+        if (!hasSigned) {
+          alert('Veuillez signer le questionnaire avant de l\'envoyer.');
+          return;
+        }
+
+        var consent = document.getElementById('consent-checkbox');
+        if (!consent.checked) {
+          alert('Veuillez cocher la case d\'autorisation pour continuer.');
+          return;
+        }
+
+        // Disable button
+        $nextBtn.disabled = true;
+        $nextBtn.textContent = 'Envoi en cours...';
+
+        var responses = collectAllResponses();
+        var signatureData = signatureCanvas.toDataURL('image/png');
+
+        try {
+          var res = await fetch('/api/questionnaire/' + encodeURIComponent(token) + '/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              responses: responses,
+              signature_data: signatureData
+            })
+          });
+
+          if (res.ok) {
+            showConfirmation();
+          } else {
+            var errData = await res.json().catch(function() { return {}; });
+            alert(errData.error || 'Une erreur est survenue. Veuillez réessayer.');
+            $nextBtn.disabled = false;
+            $nextBtn.textContent = 'Envoyer';
+          }
+        } catch (err) {
+          alert('Erreur de connexion. Vérifiez votre connexion internet et réessayez.');
+          $nextBtn.disabled = false;
+          $nextBtn.textContent = 'Envoyer';
+        }
+      }
+
+      function collectAllResponses() {
+        var responses = {};
+        SECTIONS.forEach(function(section) {
+          section.questions.forEach(function(q) {
+            var group = document.querySelector('[data-question-id="' + q.id + '"]');
+            if (!group) return;
+            // Skip hidden conditional
+            if (group.hasAttribute('data-show-if') && !group.classList.contains('visible')) return;
+
+            var input = document.getElementById('q-' + q.id);
+            var val = input ? input.value.trim() : '';
+            if (val) {
+              responses[q.id] = {
+                question: q.label,
+                answer: val,
+                section: section.title,
+                alert: q.alert && val === 'Oui' ? true : false
+              };
+            }
+          });
+        });
+        return responses;
+      }
+
+      function showConfirmation() {
+        $main.classList.remove('active');
+        $nav.classList.add('hidden');
+        $confirmation.classList.add('active');
+      }
+
+      // ─── Utilities ───
+      function escapeHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+    })();
+  </script>
+</body>
+</html>

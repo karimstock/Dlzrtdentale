@@ -6,8 +6,8 @@ module.exports = {
     instances: 1,
     exec_mode: 'fork',
     watch: false,
-    max_memory_restart: '512M',
-    node_args: '--max-old-space-size=512',
+    max_memory_restart: '1500M',
+    node_args: '--max-old-space-size=1500',
     env: {
       NODE_ENV: 'production',
       PORT: 3001

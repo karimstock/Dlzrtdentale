@@ -169,6 +169,17 @@ button{font-family:var(--font);cursor:pointer;}
   </aside>
 
   <main class="content">
+    <!-- WELCOME BANNER -->
+    <div class="card animate-fade-in" id="welcome-card" style="display:none;background:linear-gradient(135deg,rgba(99,102,241,0.15) 0%,rgba(30,52,96,0.6) 100%);border-color:rgba(99,102,241,0.3);margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="font-size:36px;">&#9878;&#65039;</div>
+        <div>
+          <div id="welcome-title" style="font-family:var(--display);font-size:20px;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px;"></div>
+          <div id="welcome-sub" style="font-size:13px;color:var(--muted);">Bienvenue dans votre espace professionnel JADOMI</div>
+        </div>
+      </div>
+    </div>
+
     <!-- STATS CARDS -->
     <div class="stats" id="stats-grid">
       <div class="loader" style="grid-column:1/-1;"><div class="spinner"></div>Chargement du tableau de bord&hellip;</div>
@@ -314,8 +325,28 @@ function consultationType(type) {
   return esc(type || '');
 }
 
+// ===== WELCOME MESSAGE =====
+async function showWelcome() {
+  try {
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return;
+    const meta = user.user_metadata || {};
+    // Le register stocke "prenom nom" dans meta.nom
+    const fullName = meta.nom || meta.name || meta.last_name || '';
+    const parts = fullName.trim().split(' ');
+    // Le nom de famille = dernier(s) mot(s), on prend tout sauf le prénom
+    const lastName = parts.length > 1 ? parts.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') : fullName;
+    const displayName = lastName ? `Ma\u00eetre ${lastName}` : 'Ma\u00eetre';
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon apr\u00e8s-midi' : 'Bonsoir';
+    $('welcome-title').textContent = `${greeting} ${displayName}`;
+    $('welcome-card').style.display = '';
+  } catch(_){}
+}
+
 // ===== LOAD DASHBOARD =====
 async function loadDashboard() {
+  showWelcome();
   // Fetch stats + today's reservations in parallel
   const today = new Date().toISOString().slice(0, 10);
   const [statsRes, rdvRes, bookRes] = await Promise.all([
@@ -328,9 +359,9 @@ async function loadDashboard() {
   const s = (statsRes.success !== false) ? (statsRes.stats || statsRes) : {};
   $('stats-grid').innerHTML = [
     { cls:'accent', label:'RDV aujourd\'hui',     val: s.rdv_today || 0,          sub:'consultations planifi\u00e9es' },
-    { cls:'ok',     label:'Honoraires nets mois', val: eur(s.honoraires_mois||0), sub:'apr\u00e8s commission JADOMI IA' },
-    { cls:'warn',   label:'En attente',           val: s.pending || 0,            sub:'r\u00e9servations \u00e0 confirmer' },
-    { cls:'',       label:'Note moyenne',         val: renderStars(Math.round(s.rating_avg||0)) + ' ' + (s.rating_avg||0).toFixed(1), sub:(s.rating_count||0) + ' avis au total' }
+    { cls:'ok',     label:'Honoraires nets mois', val: eur(s.net_month||s.honoraires_mois||0), sub:'apr\u00e8s commission JADOMI IA' },
+    { cls:'warn',   label:'En attente',           val: s.en_attente || s.pending || 0,            sub:'r\u00e9servations \u00e0 confirmer' },
+    { cls:'',       label:'Note moyenne',         val: renderStars(Math.round(s.note_moyenne||s.rating_avg||0)) + ' ' + (s.note_moyenne||s.rating_avg||0).toFixed(1), sub:(s.nb_avis||s.rating_count||0) + ' avis au total' }
   ].map((c, i) => `
     <div class="stat ${c.cls} animate-fade-in" style="animation-delay:${i*0.04}s;">
       <div class="stat-label">${c.label}</div>
@@ -341,9 +372,9 @@ async function loadDashboard() {
 
   // COMMISSION CARD
   if (statsRes.success !== false) {
-    const brut = Number(s.honoraires_brut || s.honoraires_bruts || 0);
-    const commission = Number(s.commission_jadomi || (brut * 0.05));
-    const net = Number(s.honoraires_mois || s.honoraires_nets || (brut - commission));
+    const brut = Number(s.brut_month || s.honoraires_brut || s.honoraires_bruts || 0);
+    const commission = Number(s.commission_month || s.commission_jadomi || (brut * 0.05));
+    const net = Number(s.net_month || s.honoraires_mois || s.honoraires_nets || (brut - commission));
     $('comm-brut').textContent = eur(brut);
     $('comm-jadomi').textContent = '-' + eur(commission);
     $('comm-net').textContent = eur(net);

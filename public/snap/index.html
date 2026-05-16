@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0A0A0B">
+  <title>Precision Dentaire — Photo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --gold: #c9a961;
+      --gold-light: #d4b977;
+      --bg: #0A0A0B;
+      --bg-card: #141416;
+      --text: #ffffff;
+      --text-muted: #888;
+      --radius: 12px;
+      --ease: cubic-bezier(.16, 1, .3, 1);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+
+    /* Header */
+    .brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gold);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .patient-info {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .patient-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .passeport-type {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gold);
+      text-transform: capitalize;
+    }
+    .seance-info {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Camera */
+    .camera-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3/4;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg-card);
+      margin-bottom: 16px;
+      border: 1px solid rgba(201, 169, 97, 0.2);
+    }
+    .camera-container video,
+    .camera-container canvas,
+    .camera-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .camera-container canvas,
+    .camera-container img {
+      display: none;
+    }
+    .camera-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 12px;
+    }
+    .camera-placeholder svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.4;
+    }
+
+    /* Buttons */
+    .btn-capture {
+      width: 100%;
+      height: 60px;
+      border: none;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      color: #0A0A0B;
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.3s var(--ease), opacity 0.3s var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .btn-capture:active {
+      transform: scale(0.97);
+    }
+    .btn-capture:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      width: 100%;
+      height: 48px;
+      border: 1px solid rgba(201, 169, 97, 0.3);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--gold);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s var(--ease);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .btn-secondary:active {
+      background: rgba(201, 169, 97, 0.1);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .actions-preview {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    /* Miniatures seances */
+    .previous-photos {
+      margin-top: auto;
+      padding-top: 16px;
+    }
+    .previous-photos h3 {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+    .photos-grid {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .photo-thumb {
+      flex-shrink: 0;
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .photo-thumb .seance-badge {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      background: rgba(0,0,0,0.7);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .photo-thumb .check-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 18px;
+      height: 18px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .photo-thumb .check-badge svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* States */
+    .state-loading,
+    .state-error,
+    .state-success {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 60dvh;
+      gap: 16px;
+    }
+    .state-error { color: #ef4444; }
+    .state-success .check-anim {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: checkPop 0.5s var(--ease) forwards;
+    }
+    .state-success .check-anim svg {
+      width: 40px;
+      height: 40px;
+      color: #0A0A0B;
+    }
+    .state-success p {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .state-success .sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    @keyframes checkPop {
+      0% { transform: scale(0); opacity: 0; }
+      60% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(201, 169, 97, 0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Hide/show states */
+    body.loading .state-loading { display: flex; }
+    body.loading .state-camera { display: none; }
+    body.error .state-error { display: flex; }
+    body.error .state-camera { display: none; }
+    body.success .state-success { display: flex; }
+    body.success .state-camera { display: none; }
+
+    .state-camera { display: block; }
+
+    /* Upload overlay */
+    .upload-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,11,0.9);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .upload-overlay.active { display: flex; }
+    .upload-overlay p {
+      color: var(--gold);
+      font-size: 16px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body class="loading">
+  <div class="container">
+
+    <!-- Loading state -->
+    <div class="state-loading">
+      <div class="spinner"></div>
+      <p style="color: var(--text-muted); font-size: 14px;">Chargement...</p>
+    </div>
+
+    <!-- Error state -->
+    <div class="state-error">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+      </svg>
+      <p id="errorMsg">Une erreur est survenue.</p>
+    </div>
+
+    <!-- Success state -->
+    <div class="state-success">
+      <div class="check-anim">
+        <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <p>Photo enregistree !</p>
+      <p class="sub">Vous pouvez fermer cette page.</p>
+    </div>
+
+    <!-- Camera state -->
+    <div class="state-camera">
+      <div class="brand">Precision Dentaire</div>
+
+      <div class="patient-info">
+        <div class="patient-name" id="patientName">—</div>
+        <div class="passeport-type" id="passeportType">—</div>
+        <div class="seance-info" id="seanceInfo">—</div>
+      </div>
+
+      <div class="camera-container" id="cameraBox">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <img id="preview" alt="Apercu photo">
+        <div class="camera-placeholder" id="cameraPlaceholder">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+            <path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/>
+          </svg>
+          <span>Activation de la camera...</span>
+        </div>
+      </div>
+
+      <!-- Actions: TOUJOURS VISIBLES -->
+      <div class="actions" id="actionsCapture" style="padding:12px 16px;">
+        <!-- 3 gros boutons cote a cote -->
+        <div style="display:flex;gap:10px;justify-content:center;margin-bottom:10px;">
+          <button class="btn-capture" id="btnCapture" disabled style="flex:1;max-width:140px;">
+            📸 PHOTO
+          </button>
+          <label style="flex:1;max-width:140px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:14px 8px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;">
+            🎥 VIDEO
+            <input type="file" accept="video/*" capture="environment" style="display:none;" id="btnVideoNative">
+          </label>
+          <button id="btnFlipCamera" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;width:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;" title="Selfie">
+            🔄
+          </button>
+        </div>
+        <!-- Importer depuis galerie -->
+        <div style="text-align:center;">
+          <label style="color:var(--gold);font-size:13px;cursor:pointer;text-decoration:underline;">
+            Importer depuis la galerie
+            <input type="file" id="btnImport" accept="image/*,video/*" style="display:none;" multiple>
+          </label>
+        </div>
+      </div>
+
+      <!-- Preview mode CACHE par defaut -->
+      <div class="actions-preview" id="actionsPreview" style="display:none;">
+        <button class="btn-capture" id="btnValidate">Valider et envoyer</button>
+        <button class="btn-secondary" id="btnRetake">Reprendre</button>
+      </div>
+
+      <!-- Previous photos -->
+      <div class="previous-photos" id="previousPhotos" style="display:none;">
+        <h3>Seances precedentes</h3>
+        <div class="photos-grid" id="photosGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload overlay -->
+  <div class="upload-overlay" id="uploadOverlay">
+    <div class="spinner"></div>
+    <p>Envoi en cours...</p>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Extract token from URL
+      const pathParts = window.location.pathname.split('/');
+      const token = pathParts[pathParts.length - 1];
+
+      if (!token || token.length < 10) {
+        showError('Lien invalide.');
+        return;
+      }
+
+      // DOM refs
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const preview = document.getElementById('preview');
+      const placeholder = document.getElementById('cameraPlaceholder');
+      const btnCapture = document.getElementById('btnCapture');
+      const btnValidate = document.getElementById('btnValidate');
+      const btnRetake = document.getElementById('btnRetake');
+      const actionsCapture = document.getElementById('actionsCapture');
+      const actionsPreview = document.getElementById('actionsPreview');
+      const uploadOverlay = document.getElementById('uploadOverlay');
+
+      let stream = null;
+      let capturedBlob = null;
+
+      // 1. Fetch patient info
+      fetch('/api/snap/' + token)
+        .then(r => {
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Erreur'); });
+          return r.json();
+        })
+        .then(data => {
+          document.getElementById('patientName').textContent = data.patient_name || '—';
+          document.getElementById('passeportType').textContent = 'Passeport ' + capitalize(data.passeport_type);
+          document.getElementById('seanceInfo').textContent = 'Seance ' + data.seance_number;
+
+          // Show previous photos
+          if (data.previous_photos && data.previous_photos.length > 0) {
+            const grid = document.getElementById('photosGrid');
+            const container = document.getElementById('previousPhotos');
+            container.style.display = 'block';
+            data.previous_photos.forEach(function(p) {
+              const div = document.createElement('div');
+              div.className = 'photo-thumb';
+              div.innerHTML =
+                '<img src="' + p.photo_url + '" alt="Seance ' + p.seance_number + '" loading="lazy">' +
+                '<span class="seance-badge">S.' + p.seance_number + '</span>' +
+                '<span class="check-badge"><svg fill="none" stroke="#0A0A0B" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>';
+              grid.appendChild(div);
+            });
+          }
+
+          // Switch to camera state
+          document.body.classList.remove('loading');
+          startCamera();
+        })
+        .catch(function(err) {
+          showError(err.message || 'Impossible de charger les informations.');
+        });
+
+      // 2. Start camera
+      function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showError('Votre navigateur ne supporte pas la camera. Utilisez Chrome ou Safari.');
+          return;
+        }
+
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1440 }
+          },
+          audio: false
+        })
+        .then(function(s) {
+          stream = s;
+          video.srcObject = s;
+          video.onloadedmetadata = function() {
+            video.play();
+            placeholder.style.display = 'none';
+            video.style.display = 'block';
+            btnCapture.disabled = false;
+          };
+        })
+        .catch(function(err) {
+          console.error('Camera error:', err);
+          placeholder.querySelector('span').textContent =
+            'Impossible d\'acceder a la camera. Verifiez les permissions.';
+        });
+      }
+
+      // 3. Collection de medias (photos + videos)
+      var capturedMedias = [];
+
+      function addMediaThumb(blob, type) {
+        var url = URL.createObjectURL(blob);
+        capturedMedias.push({ blob, url, type });
+        renderMediaThumbs();
+      }
+
+      function renderMediaThumbs() {
+        var container = document.getElementById('capturedThumbs');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'capturedThumbs';
+          container.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;justify-content:center;';
+          actionsCapture.parentElement.insertBefore(container, actionsCapture);
+        }
+        container.innerHTML = '';
+        capturedMedias.forEach(function(m, i) {
+          var div = document.createElement('div');
+          div.style.cssText = 'position:relative;width:70px;height:70px;border-radius:8px;overflow:hidden;border:2px solid var(--gold);';
+          if (m.type === 'photo') {
+            div.innerHTML = '<img src="' + m.url + '" style="width:100%;height:100%;object-fit:cover;">';
+          } else {
+            div.innerHTML = '<video src="' + m.url + '" style="width:100%;height:100%;object-fit:cover;" muted></video><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:18px;">▶</div>';
+          }
+          div.innerHTML += '<button onclick="removeMedia(' + i + ')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;">✕</button>';
+          container.appendChild(div);
+        });
+        // Afficher bouton envoyer si y'a des medias
+        var sendBtn = document.getElementById('btnSendAll');
+        if (capturedMedias.length > 0) {
+          if (!sendBtn) {
+            sendBtn = document.createElement('button');
+            sendBtn.id = 'btnSendAll';
+            sendBtn.style.cssText = 'background:var(--gold);color:#0A0A0B;border:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;width:100%;';
+            sendBtn.textContent = 'Envoyer tout (' + capturedMedias.length + ')';
+            sendBtn.onclick = sendAllMedias;
+            container.parentElement.insertBefore(sendBtn, actionsCapture.nextSibling);
+          }
+          sendBtn.textContent = 'Envoyer tout (' + capturedMedias.length + ')';
+          sendBtn.style.display = 'block';
+        }
+        // Compteur
+        var counter = document.getElementById('mediaCounter');
+        if (!counter) {
+          counter = document.createElement('div');
+          counter.id = 'mediaCounter';
+          counter.style.cssText = 'text-align:center;color:var(--gold);font-size:13px;font-weight:600;margin-top:8px;';
+          container.parentElement.insertBefore(counter, container);
+        }
+        counter.textContent = capturedMedias.length + ' media' + (capturedMedias.length > 1 ? 's' : '') + ' pret' + (capturedMedias.length > 1 ? 's' : '');
+        counter.style.display = capturedMedias.length > 0 ? 'block' : 'none';
+      }
+
+      window.removeMedia = function(i) {
+        capturedMedias.splice(i, 1);
+        renderMediaThumbs();
+        var sendBtn = document.getElementById('btnSendAll');
+        if (capturedMedias.length === 0 && sendBtn) sendBtn.style.display = 'none';
+      };
+
+      // Capture photo → ajoute a la collection, reste sur la camera
+      btnCapture.addEventListener('click', function() {
+        if (!stream) return;
+        var vw = video.videoWidth;
+        var vh = video.videoHeight;
+        canvas.width = vw;
+        canvas.height = vh;
+        canvas.getContext('2d').drawImage(video, 0, 0, vw, vh);
+        canvas.toBlob(function(blob) {
+          addMediaThumb(blob, 'photo');
+          // Flash blanc pour feedback
+          var flash = document.createElement('div');
+          flash.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;opacity:0.6;z-index:999;pointer-events:none;';
+          document.body.appendChild(flash);
+          setTimeout(function() { flash.remove(); }, 150);
+        }, 'image/jpeg', 0.92);
+      });
+
+      // 4. Retake — plus besoin en mode multi
+      btnRetake.addEventListener('click', function() {
+        if (window._vidPreview) { window._vidPreview.remove(); window._vidPreview = null; }
+        preview.style.display = 'none';
+        video.style.display = 'block';
+        actionsPreview.style.display = 'none';
+        actionsCapture.style.display = 'flex';
+      });
+
+      // 5. Envoyer TOUT en batch
+      async function sendAllMedias() {
+        if (capturedMedias.length === 0) return;
+        uploadOverlay.classList.add('active');
+        var sendBtn = document.getElementById('btnSendAll');
+        if (sendBtn) sendBtn.disabled = true;
+
+        var errors = 0;
+        for (var i = 0; i < capturedMedias.length; i++) {
+          var m = capturedMedias[i];
+          var formData = new FormData();
+          var ext = m.type === 'video' ? 'snap.webm' : 'snap.jpg';
+          formData.append('photo', m.blob, ext);
+
+          try {
+            var res = await fetch('/api/snap/' + token + '/upload', {
+              method: 'POST',
+              body: formData
+            });
+            if (!res.ok) errors++;
+          } catch(e) { errors++; }
+        }
+
+        uploadOverlay.classList.remove('active');
+        if (errors === 0) {
+          stopCamera();
+          document.body.classList.add('success');
+        } else {
+          alert(errors + ' fichier(s) en erreur. Les autres ont ete envoyes.');
+          if (sendBtn) sendBtn.disabled = false;
+        }
+      }
+
+      // 6. Flip camera (selfie / arriere)
+      var currentFacing = 'environment';
+      document.getElementById('btnFlipCamera').addEventListener('click', function() {
+        currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+        if (stream) {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+        }
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: currentFacing }, width: { ideal: 1920 }, height: { ideal: 1440 } },
+          audio: false
+        }).then(function(s) {
+          stream = s;
+          video.srcObject = s;
+          video.play();
+        }).catch(function(err) {
+          console.error('Flip camera error:', err);
+        });
+      });
+
+      // 7. Video recording
+      var mediaRecorder = null;
+      var videoChunks = [];
+      var videoTimerInterval = null;
+      var videoSeconds = 0;
+
+      // Video native (app camera telephone)
+      document.getElementById('btnVideoNative').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (file) addMediaThumb(file, 'video');
+      });
+
+      // Ancien bouton video (desactive)
+      var oldBtnVideo = document.getElementById('btnVideo');
+      if (oldBtnVideo) oldBtnVideo.addEventListener('click', function() {
+        if (!stream) return;
+        videoChunks = [];
+        videoSeconds = 0;
+
+        // Relancer le stream avec audio
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: currentFacing }, width: { ideal: 1920 }, height: { ideal: 1440 } },
+          audio: true
+        }).then(function(s) {
+          if (stream) stream.getTracks().forEach(function(t) { t.stop(); });
+          stream = s;
+          video.srcObject = s;
+          video.play();
+
+          mediaRecorder = new MediaRecorder(s, { mimeType: 'video/webm' });
+          mediaRecorder.ondataavailable = function(e) {
+            if (e.data.size > 0) videoChunks.push(e.data);
+          };
+          mediaRecorder.onstop = function() {
+            clearInterval(videoTimerInterval);
+            document.getElementById('videoRecording').style.display = 'none';
+            var blob = new Blob(videoChunks, { type: 'video/webm' });
+            capturedBlob = blob;
+            preview.style.display = 'none';
+            video.style.display = 'none';
+
+            // Preview video
+            var vidPreview = document.createElement('video');
+            vidPreview.src = URL.createObjectURL(blob);
+            vidPreview.controls = true;
+            vidPreview.autoplay = true;
+            vidPreview.muted = true;
+            vidPreview.style.cssText = 'width:100%;border-radius:12px;max-height:60vh;';
+            var container = video.parentElement;
+            container.appendChild(vidPreview);
+            window._vidPreview = vidPreview;
+
+            actionsCapture.style.display = 'none';
+            actionsPreview.style.display = 'flex';
+          };
+
+          mediaRecorder.start();
+          document.getElementById('videoRecording').style.display = 'block';
+          videoTimerInterval = setInterval(function() {
+            videoSeconds++;
+            var m = Math.floor(videoSeconds / 60);
+            var s = videoSeconds % 60;
+            document.getElementById('videoTimer').textContent = '● REC ' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+            if (videoSeconds >= 120) { // Max 2 min
+              mediaRecorder.stop();
+            }
+          }, 1000);
+        }).catch(function(err) {
+          console.error('Video error:', err);
+          alert('Impossible d\'activer la video');
+        });
+      });
+
+      document.getElementById('btnStopVideo').addEventListener('click', function() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      });
+
+      // 8. Import fichier (photo ou video depuis galerie)
+      document.getElementById('btnImport').addEventListener('change', function(e) {
+        var files = e.target.files;
+        if (!files || files.length === 0) return;
+        var file = files[0];
+        capturedBlob = file;
+
+        if (file.type.startsWith('image/')) {
+          preview.src = URL.createObjectURL(file);
+          preview.style.display = 'block';
+        } else if (file.type.startsWith('video/')) {
+          var vidPreview = document.createElement('video');
+          vidPreview.src = URL.createObjectURL(file);
+          vidPreview.controls = true;
+          vidPreview.autoplay = true;
+          vidPreview.muted = true;
+          vidPreview.style.cssText = 'width:100%;border-radius:12px;max-height:60vh;';
+          video.parentElement.appendChild(vidPreview);
+          window._vidPreview = vidPreview;
+        }
+        video.style.display = 'none';
+        actionsCapture.style.display = 'none';
+        actionsPreview.style.display = 'flex';
+      });
+
+      // Fix retake pour video
+      var origRetake = btnRetake.onclick;
+      btnRetake.addEventListener('click', function() {
+        if (window._vidPreview) {
+          window._vidPreview.remove();
+          window._vidPreview = null;
+        }
+      });
+
+      // Helpers
+      function showError(msg) {
+        document.body.classList.remove('loading');
+        document.body.classList.add('error');
+        document.getElementById('errorMsg').textContent = msg;
+      }
+
+      function stopCamera() {
+        if (stream) {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          stream = null;
+        }
+      }
+
+      function capitalize(s) {
+        if (!s) return '';
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      }
+
+      // Cleanup on page hide
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden' && document.body.classList.contains('success')) {
+          stopCamera();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

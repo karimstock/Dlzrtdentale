@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cabinet Dentaire Dr. Martin — Visite Immersive</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#0D7D6C;--accent:#C9A84C;--text:#1A1A2E;--text2:#6B7280;--bg:#FAFAFA}
+html{scroll-behavior:auto}
+body{font-family:'Inter',sans-serif;background:#0a1a18;color:#fff;overflow-x:hidden}
+
+/* ═══ SCROLL CONTAINER ═══ */
+.scroll-container{position:relative}
+
+/* ═══ SECTION PLEIN ÉCRAN ═══ */
+.scene{position:relative;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.scene-bg{position:absolute;inset:0;width:100%;height:120%;top:-10%;object-fit:cover;will-change:transform;transition:transform .1s linear}
+.scene-overlay{position:absolute;inset:0;pointer-events:none}
+.scene-content{position:relative;z-index:10;text-align:center;max-width:700px;padding:0 24px}
+
+/* Transition douce entre scènes (teal sombre, pas noir pur) */
+.scene-transition{position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(to bottom,transparent,rgba(10,26,24,.85));z-index:5;pointer-events:none}
+.scene-transition-top{position:absolute;top:0;left:0;right:0;height:120px;background:linear-gradient(to top,transparent,rgba(10,26,24,.85));z-index:5;pointer-events:none}
+
+/* ═══ HERO — FAÇADE DU CABINET ═══ */
+.hero-overlay{background:linear-gradient(180deg,rgba(10,26,24,.2) 0%,rgba(10,26,24,.05) 30%,rgba(10,26,24,.5) 70%,rgba(10,26,24,.9) 100%)}
+.hero-content h1{font-family:'Playfair Display',serif;font-size:clamp(40px,8vw,80px);font-weight:700;line-height:1.05;margin-bottom:16px}
+.hero-content h1 em{font-style:italic;color:var(--accent)}
+.hero-content p{font-size:clamp(16px,2vw,20px);color:rgba(255,255,255,.7);line-height:1.7;margin-bottom:32px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:rgba(255,255,255,.08);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:30px;font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px}
+.hero-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.scroll-hint{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:column;align-items:center;gap:8px;animation:bounce 2s ease infinite}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
+.scroll-hint span{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.2em;text-transform:uppercase}
+.scroll-arrow{width:24px;height:24px;border:2px solid rgba(255,255,255,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,.5)}
+
+/* ═══ SECTION ACCUEIL ═══ */
+.accueil-overlay{background:linear-gradient(180deg,rgba(10,26,24,.8) 0%,rgba(10,26,24,.15) 20%,rgba(10,26,24,.15) 80%,rgba(10,26,24,.8) 100%)}
+
+/* ═══ INDICATEUR DE PROGRESSION ═══ */
+.room-indicator{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:100;display:flex;flex-direction:column;gap:16px;align-items:center}
+.room-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:all .3s}
+.room-dot.active{background:var(--accent);border-color:var(--accent);box-shadow:0 0 12px rgba(201,168,76,.4);transform:scale(1.3)}
+.room-label{position:absolute;right:24px;font-size:10px;color:rgba(255,255,255,.5);white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none}
+.room-dot:hover .room-label{opacity:1}
+
+/* ═══ TEXTES SUR IMAGES ═══ */
+.floating-text{opacity:0;transform:translateY(40px);transition:all 1s cubic-bezier(.16,1,.3,1)}
+.floating-text.visible{opacity:1;transform:translateY(0)}
+.tag{display:inline-block;padding:6px 16px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+.tag-gold{background:linear-gradient(135deg,var(--accent),#B8922E);color:#fff}
+.tag-teal{background:linear-gradient(135deg,var(--primary),#0A6457);color:#fff}
+.tag-glass{background:rgba(255,255,255,.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);color:#fff}
+
+/* ═══ STATS COMPTEURS ═══ */
+.stats-row{display:flex;gap:32px;justify-content:center;margin-top:32px;flex-wrap:wrap}
+.stat-item{text-align:center}
+.stat-num{font-size:clamp(36px,5vw,56px);font-weight:900;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-label{font-size:12px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+
+/* ═══ SERVICES SECTION ═══ */
+.services-scene{background:#0a1a18;min-height:100vh;padding:100px 24px;display:flex;flex-direction:column;align-items:center}
+.services-title{font-family:'Playfair Display',serif;font-size:clamp(32px,5vw,52px);font-weight:700;text-align:center;margin-bottom:12px}
+.services-sub{color:rgba(255,255,255,.5);font-size:17px;text-align:center;margin-bottom:60px;max-width:500px}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;max-width:1100px;width:100%}
+.svc{padding:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:20px;position:relative;overflow:hidden;cursor:default;transition:all .5s cubic-bezier(.16,1,.3,1)}
+.svc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--primary),var(--accent));opacity:0;transition:opacity .4s}
+.svc:hover{transform:translateY(-6px);border-color:rgba(255,255,255,.1);box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.svc:hover::before{opacity:1}
+.svc-icon{font-size:36px;margin-bottom:16px}
+.svc h3{font-size:20px;font-weight:700;margin-bottom:8px}
+.svc p{font-size:14px;color:rgba(255,255,255,.5);line-height:1.7}
+
+/* ═══ ÉQUIPE ═══ */
+.equipe-scene{background:#0a1a18;padding:100px 24px}
+.equipe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;max-width:1000px;margin:60px auto 0}
+.member{border-radius:20px;overflow:hidden;position:relative;aspect-ratio:3/4;cursor:default;transition:transform .5s cubic-bezier(.16,1,.3,1)}
+.member:hover{transform:scale(1.03)}
+.member img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.16,1,.3,1)}
+.member:hover img{transform:scale(1.08)}
+.member-info{position:absolute;bottom:0;left:0;right:0;padding:24px;background:linear-gradient(to top,rgba(0,0,0,.85),transparent)}
+.member-info h4{font-size:18px;font-weight:700}
+.member-info p{font-size:13px;color:rgba(255,255,255,.6);margin-top:4px}
+
+/* ═══ AVIS ═══ */
+.avis-scene{background:#0a1a18;padding:100px 24px}
+.avis-grid{display:flex;gap:20px;max-width:900px;margin:48px auto 0;flex-wrap:wrap;justify-content:center}
+.avis{flex:1;min-width:280px;padding:32px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:20px}
+.avis-stars{color:var(--accent);font-size:18px;letter-spacing:2px;margin-bottom:12px}
+.avis-text{font-size:15px;color:rgba(255,255,255,.7);line-height:1.7;font-style:italic;margin-bottom:16px}
+.avis-author{font-size:13px;font-weight:600}
+
+/* ═══ CTA FINAL ═══ */
+.cta-scene{position:relative;height:80vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cta-overlay{background:linear-gradient(180deg,#000 0%,rgba(0,0,0,.4) 40%,rgba(0,0,0,.7) 100%)}
+.cta-content{text-align:center;z-index:10;position:relative}
+.cta-content h2{font-family:'Playfair Display',serif;font-size:clamp(32px,6vw,60px);font-weight:700;margin-bottom:16px}
+.cta-content p{font-size:18px;color:rgba(255,255,255,.6);margin-bottom:36px}
+.cta-btn{display:inline-block;padding:18px 48px;background:var(--primary);color:#fff;font-size:18px;font-weight:700;border-radius:16px;text-decoration:none;transition:all .4s;box-shadow:0 8px 30px rgba(13,125,108,.3)}
+.cta-btn:hover{transform:translateY(-3px);box-shadow:0 16px 50px rgba(13,125,108,.5)}
+.cta-phone{display:block;margin-top:16px;font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
+
+/* ═══ FOOTER ═══ */
+.footer{text-align:center;padding:40px 24px;background:#0a1a18;border-top:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.4);font-size:13px}
+.footer a{color:var(--accent);text-decoration:none}
+
+/* ═══ RESPONSIVE ═══ */
+@media(max-width:768px){
+  .stats-row{gap:20px}
+  .services-grid{grid-template-columns:1fr}
+  .room-indicator{display:none}
+  .equipe-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){.equipe-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ═══ INDICATEUR PIÈCES ═══ -->
+<div class="room-indicator" id="room-indicator">
+  <div class="room-dot active" onclick="scrollToScene(0)"><span class="room-label">Entr&eacute;e</span></div>
+  <div class="room-dot" onclick="scrollToScene(1)"><span class="room-label">Accueil</span></div>
+  <div class="room-dot" onclick="scrollToScene(2)"><span class="room-label">Salle de soin</span></div>
+  <div class="room-dot" onclick="scrollToScene(3)"><span class="room-label">Nos soins</span></div>
+  <div class="room-dot" onclick="scrollToScene(4)"><span class="room-label">&Eacute;quipe</span></div>
+  <div class="room-dot" onclick="scrollToScene(5)"><span class="room-label">Avis</span></div>
+  <div class="room-dot" onclick="scrollToScene(6)"><span class="room-label">Contact</span></div>
+</div>
+
+<div class="scroll-container">
+
+<!-- ═══ SCÈNE 1 — FAÇADE / ENTRÉE ═══ -->
+<section class="scene" id="scene-0">
+  <img class="scene-bg" src="/studio/templates/demo-assets/generated-entree-cabinet.jpg" alt="Entr&eacute;e du cabinet dentaire">
+  <div class="scene-overlay hero-overlay"></div>
+  <div class="scene-content floating-text">
+    <div class="hero-badge"><span class="dot"></span> Cabinet dentaire</div>
+    <h1>Votre sourire,<br>notre <em>expertise</em></h1>
+    <p>Un cabinet moderne au c&oelig;ur de Roubaix, &eacute;quip&eacute; des derni&egrave;res technologies, d&eacute;di&eacute; &agrave; votre confort.</p>
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-num" data-target="15">0</div><div class="stat-label">Ann&eacute;es d'exp&eacute;rience</div></div>
+      <div class="stat-item"><div class="stat-num" data-target="8000">0</div><div class="stat-label">Patients suivis</div></div>
+      <div class="stat-item"><div class="stat-num" data-target="4.9">0</div><div class="stat-label">Note Google</div></div>
+    </div>
+  </div>
+  <div class="scroll-hint"><span>Entrez</span><div class="scroll-arrow">&darr;</div></div>
+  <div class="scene-transition"></div>
+</section>
+
+<!-- ═══ SCÈNE 2 — ACCUEIL / RÉCEPTION ═══ -->
+<section class="scene" id="scene-1">
+  <div class="scene-transition-top"></div>
+  <img class="scene-bg" src="/studio/templates/demo-assets/generated-accueil.jpg" alt="Accueil du cabinet">
+  <div class="scene-overlay accueil-overlay"></div>
+  <div class="scene-content floating-text">
+    <span class="tag tag-glass">Bienvenue</span>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,48px);font-weight:700;margin:16px 0">Un espace con&ccedil;u pour votre confort</h2>
+    <p style="color:rgba(255,255,255,.6);font-size:17px;line-height:1.7;max-width:500px;margin:0 auto">D&egrave;s votre arriv&eacute;e, notre &eacute;quipe vous accueille dans un environnement calme et rassurant. Wifi, boissons chaudes et presse &agrave; disposition.</p>
+  </div>
+  <div class="scene-transition"></div>
+</section>
+
+<!-- ═══ SCÈNE 3 — SALLE DE SOIN ═══ -->
+<section class="scene" id="scene-2">
+  <div class="scene-transition-top"></div>
+  <img class="scene-bg" src="/studio/templates/demo-assets/generated-salle-soin.jpg" alt="Salle de soin moderne">
+  <div class="scene-overlay" style="background:linear-gradient(180deg,rgba(10,26,24,.8) 0%,rgba(10,26,24,.15) 25%,rgba(10,26,24,.15) 75%,rgba(10,26,24,.8) 100%)"></div>
+  <div class="scene-content floating-text">
+    <span class="tag tag-teal">Technologies</span>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,48px);font-weight:700;margin:16px 0">&Eacute;quipement de derni&egrave;re g&eacute;n&eacute;ration</h2>
+    <p style="color:rgba(255,255,255,.6);font-size:17px;line-height:1.7;max-width:520px;margin:0 auto">Scanner 3D, cam&eacute;ra intra-orale, laser, chirurgie guid&eacute;e. Chaque soin b&eacute;n&eacute;ficie des innovations les plus r&eacute;centes pour un r&eacute;sultat optimal.</p>
+    <div class="stats-row" style="margin-top:28px">
+      <div class="stat-item"><div class="stat-num" data-target="3" style="font-size:36px">0</div><div class="stat-label">Salles de soin</div></div>
+      <div class="stat-item"><div class="stat-num" data-target="100" style="font-size:36px">0%</div><div class="stat-label">Num&eacute;rique</div></div>
+      <div class="stat-item"><div class="stat-num" data-target="0" style="font-size:36px">0</div><div class="stat-label">Pellicule radio</div></div>
+    </div>
+  </div>
+  <div class="scene-transition"></div>
+</section>
+
+<!-- ═══ SCÈNE 4 — SERVICES ═══ -->
+<section class="services-scene floating-text" id="scene-3">
+  <div class="scene-transition-top"></div>
+  <span class="tag tag-gold" style="margin-bottom:20px">Nos soins</span>
+  <h2 class="services-title">Tous vos soins au m&ecirc;me endroit</h2>
+  <p class="services-sub">Du simple contr&ocirc;le aux traitements les plus avanc&eacute;s, nous vous accompagnons &agrave; chaque &eacute;tape.</p>
+  <div class="services-grid">
+    <div class="svc"><div class="svc-icon">&#x1F9B7;</div><h3>Soins conservateurs</h3><p>Caries, d&eacute;tartrage, blanchiment professionnel. Des soins pr&eacute;ventifs et curatifs de qualit&eacute;.</p></div>
+    <div class="svc"><div class="svc-icon">&#x2728;</div><h3>Esth&eacute;tique dentaire</h3><p>Facettes c&eacute;ramiques, couronnes tout-c&eacute;ramique, aligneurs transparents. Votre sourire id&eacute;al.</p></div>
+    <div class="svc"><div class="svc-icon">&#x1FA7A;</div><h3>Implantologie</h3><p>Implants titane, chirurgie guid&eacute;e 3D, proth&egrave;ses sur implants. Retrouvez votre sourire complet.</p></div>
+    <div class="svc"><div class="svc-icon">&#x1F476;</div><h3>P&eacute;diatrique</h3><p>Soins adapt&eacute;s aux enfants dans un environnement ludique et rassurant. Pr&eacute;vention d&egrave;s le plus jeune &acirc;ge.</p></div>
+    <div class="svc"><div class="svc-icon">&#x1F4A1;</div><h3>Orthodontie</h3><p>Aligneurs invisibles, bagues c&eacute;ramiques, suivi num&eacute;rique. Un traitement sur mesure &agrave; chaque &acirc;ge.</p></div>
+    <div class="svc"><div class="svc-icon">&#x1F6A8;</div><h3>Urgences dentaires</h3><p>Cr&eacute;neaux d'urgence disponibles chaque jour. Douleur, fracture, infection — nous sommes l&agrave;.</p></div>
+  </div>
+</section>
+
+<!-- ═══ SCÈNE 5 — ÉQUIPE ═══ -->
+<section class="equipe-scene floating-text" id="scene-4">
+  <div style="text-align:center">
+    <span class="tag tag-glass" style="margin-bottom:20px">&Eacute;quipe</span>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,48px);font-weight:700;margin:16px 0">Des praticiens passionn&eacute;s</h2>
+    <p style="color:rgba(255,255,255,.5);font-size:17px;max-width:500px;margin:0 auto">Bienveillance, expertise et &eacute;coute. Notre &eacute;quipe vous accompagne avec professionnalisme.</p>
+  </div>
+  <div class="equipe-grid">
+    <div class="member">
+      <img src="/studio/generated/zendo-flyer/photo-brun-multivision.png" alt="Dr. Martin" loading="lazy">
+      <div class="member-info"><h4>Dr. Pierre Martin</h4><p>Chirurgien-dentiste &bull; Implantologue</p></div>
+    </div>
+    <div class="member">
+      <img src="/studio/generated/zendo-flyer/photo-blonde-multivision.png" alt="Dr. Dupont" loading="lazy">
+      <div class="member-info"><h4>Dr. Sophie Dupont</h4><p>Orthodontiste &bull; Aligneurs invisibles</p></div>
+    </div>
+    <div class="member">
+      <img src="/studio/templates/demo-assets/generated-dr-homme.jpg" alt="Dr. Laurent" loading="lazy">
+      <div class="member-info"><h4>Dr. Marc Laurent</h4><p>Parodontiste &bull; Chirurgie laser</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SCÈNE 6 — AVIS ═══ -->
+<section class="avis-scene floating-text" id="scene-5">
+  <div style="text-align:center">
+    <span class="tag tag-gold" style="margin-bottom:20px">Avis patients</span>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,40px);font-weight:700;margin:16px 0">Ce que disent nos patients</h2>
+  </div>
+  <div class="avis-grid">
+    <div class="avis">
+      <div class="avis-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="avis-text">"Cabinet exceptionnel. &Eacute;quipe tr&egrave;s &agrave; l'&eacute;coute, technologies modernes, je n'ai ressenti aucune douleur. Je recommande les yeux ferm&eacute;s."</div>
+      <div class="avis-author">Marie D. &mdash; Patiente depuis 2019</div>
+    </div>
+    <div class="avis">
+      <div class="avis-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="avis-text">"Implant r&eacute;alis&eacute; en chirurgie guid&eacute;e, r&eacute;sultat impeccable. Le Dr Martin m'a tout expliqu&eacute; &eacute;tape par &eacute;tape. Tr&egrave;s professionnel."</div>
+      <div class="avis-author">Thomas L. &mdash; Patient depuis 2021</div>
+    </div>
+    <div class="avis">
+      <div class="avis-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <div class="avis-text">"Mes enfants adorent y aller ! L'ambiance est rassurante et l'&eacute;quipe est tr&egrave;s douce avec les petits. Enfin un cabinet o&ugrave; ils n'ont pas peur."</div>
+      <div class="avis-author">Amira K. &mdash; Patiente depuis 2020</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SCÈNE 7 — CTA CONTACT ═══ -->
+<section class="cta-scene" id="scene-6">
+  <img class="scene-bg" src="/studio/templates/demo-assets/generated-salle-chirurgie.jpg" alt="Salle de chirurgie implantaire">
+  <div class="scene-overlay" style="background:linear-gradient(180deg,rgba(10,26,24,.9) 0%,rgba(10,26,24,.3) 40%,rgba(10,26,24,.6) 100%)"></div>
+  <div class="cta-content">
+    <span class="tag tag-teal" style="margin-bottom:20px">Rendez-vous</span>
+    <h2>Prenez soin de votre sourire</h2>
+    <p>Rendez-vous en ligne 24h/24 ou appelez-nous du lundi au vendredi, 9h &agrave; 19h.</p>
+    <a href="#" class="cta-btn">Prendre rendez-vous en ligne</a>
+    <a href="tel:0320734512" class="cta-phone">03 20 73 45 12</a>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div style="margin-bottom:12px">
+    <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#fff">Cabinet Dentaire Dr. Martin</span>
+  </div>
+  <div style="margin-bottom:8px">12 rue de la Sant&eacute;, 59100 Roubaix &mdash; 03 20 73 45 12 &mdash; contact@cabinet-martin.fr</div>
+  <div>Lundi - Vendredi : 9h00 - 19h00</div>
+  <div style="margin-top:16px;font-size:11px">Propuls&eacute; par <a href="https://jadomi.fr">JADOMI</a> &mdash; &copy; 2026</div>
+</footer>
+
+</div>
+
+<!-- ═══ GSAP ANIMATIONS ═══ -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger);
+
+// ═══ PARALLAX sur toutes les images de fond ═══
+document.querySelectorAll('.scene-bg').forEach(bg => {
+  gsap.to(bg, {
+    y: '15%',
+    ease: 'none',
+    scrollTrigger: {
+      trigger: bg.closest('.scene') || bg.closest('.cta-scene'),
+      start: 'top bottom',
+      end: 'bottom top',
+      scrub: true
+    }
+  });
+});
+
+// ═══ REVEAL des textes au scroll ═══
+document.querySelectorAll('.floating-text').forEach(el => {
+  ScrollTrigger.create({
+    trigger: el,
+    start: 'top 75%',
+    onEnter: () => el.classList.add('visible')
+  });
+});
+
+// ═══ SERVICES stagger ═══
+gsap.utils.toArray('.svc').forEach((card, i) => {
+  gsap.from(card, {
+    scrollTrigger: { trigger: card, start: 'top 85%' },
+    opacity: 0, y: 50, duration: 0.8,
+    delay: i * 0.12,
+    ease: 'power3.out'
+  });
+});
+
+// ═══ MEMBRES stagger ═══
+gsap.utils.toArray('.member').forEach((m, i) => {
+  gsap.from(m, {
+    scrollTrigger: { trigger: m, start: 'top 85%' },
+    opacity: 0, y: 40, scale: 0.95, duration: 0.8,
+    delay: i * 0.15,
+    ease: 'power3.out'
+  });
+});
+
+// ═══ AVIS stagger ═══
+gsap.utils.toArray('.avis').forEach((a, i) => {
+  gsap.from(a, {
+    scrollTrigger: { trigger: a, start: 'top 85%' },
+    opacity: 0, y: 30, duration: 0.7,
+    delay: i * 0.15,
+    ease: 'power3.out'
+  });
+});
+
+// ═══ COMPTEURS ANIMÉS ═══
+document.querySelectorAll('.stat-num[data-target]').forEach(el => {
+  const target = parseFloat(el.dataset.target);
+  const hasDecimal = String(target).includes('.');
+  ScrollTrigger.create({
+    trigger: el,
+    start: 'top 85%',
+    once: true,
+    onEnter: () => {
+      gsap.to({ val: 0 }, {
+        val: target, duration: 2, ease: 'power2.out',
+        onUpdate: function() {
+          const v = this.targets()[0].val;
+          if (hasDecimal) el.textContent = v.toFixed(1);
+          else el.textContent = Math.round(v).toLocaleString('fr-FR');
+        }
+      });
+    }
+  });
+});
+
+// ═══ INDICATEUR DE PIÈCE (dots latéraux) ═══
+const scenes = document.querySelectorAll('[id^="scene-"]');
+const dots = document.querySelectorAll('.room-dot');
+
+scenes.forEach((scene, i) => {
+  ScrollTrigger.create({
+    trigger: scene,
+    start: 'top center',
+    end: 'bottom center',
+    onEnter: () => updateDots(i),
+    onEnterBack: () => updateDots(i)
+  });
+});
+
+function updateDots(active) {
+  dots.forEach((d, i) => d.classList.toggle('active', i === active));
+}
+
+function scrollToScene(i) {
+  const el = document.getElementById('scene-' + i);
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

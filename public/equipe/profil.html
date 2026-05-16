@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon profil — JADOMI</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --bg: #0a0f1e; --surface: #121a30; --border: rgba(99,102,241,.2);
+  --text: #f1f5f9; --text-secondary: #94a3b8; --accent: #6366f1;
+  --accent-hover: #818cf8; --success: #10b981; --danger: #ef4444;
+  --gold: #c9a961; --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; min-height:100vh; padding:20px; }
+.top-bar { display:flex; align-items:center; justify-content:space-between; max-width:600px; margin:0 auto 32px; }
+.top-bar h1 { font-size:22px; font-weight:700; }
+.top-bar a { color:var(--accent); text-decoration:none; font-size:14px; }
+.top-bar a:hover { color:var(--accent-hover); }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:28px; max-width:600px; margin:0 auto 20px; }
+.card h2 { font-size:18px; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+.card h2 svg { width:20px; height:20px; color:var(--accent); }
+.info-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+.info-row:last-child { border-bottom:none; }
+.info-label { font-size:13px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; }
+.info-value { font-size:15px; font-weight:500; }
+.role-badge { display:inline-block; background:var(--accent); color:#fff; padding:3px 12px; border-radius:6px; font-size:13px; font-weight:600; }
+.perms-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.perm-chip { padding:6px 12px; border-radius:8px; font-size:13px; font-weight:500; }
+.perm-chip.on { background:rgba(16,185,129,.12); color:var(--success); border:1px solid rgba(16,185,129,.25); }
+.perm-chip.off { background:rgba(255,255,255,.03); color:var(--text-secondary); border:1px solid var(--border); opacity:.5; }
+.form-group { margin-bottom:18px; }
+.form-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+.form-input { width:100%; padding:12px 16px; background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; outline:none; transition:border .2s; }
+.form-input:focus { border-color:var(--accent); }
+.btn { padding:12px 24px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; }
+.btn:hover { background:var(--accent-hover); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+.btn-danger { background:transparent; border:1px solid var(--danger); color:var(--danger); }
+.btn-danger:hover { background:var(--danger); color:#fff; }
+.toast { position:fixed; bottom:24px; right:24px; padding:14px 24px; border-radius:10px; font-size:14px; font-weight:500; opacity:0; transform:translateY(10px); transition:all .3s; z-index:100; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.success { background:var(--success); color:#fff; }
+.toast.error { background:var(--danger); color:#fff; }
+.field-error { color:var(--danger); font-size:12px; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>Mon profil</h1>
+  <a href="/admin/dentiste-pro.html">Retour au tableau de bord</a>
+</div>
+
+<!-- Infos profil -->
+<div class="card">
+  <h2>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Informations
+  </h2>
+  <div class="info-row">
+    <span class="info-label">Email</span>
+    <span class="info-value" id="p-email">—</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Role</span>
+    <span class="info-value"><span class="role-badge" id="p-role">—</span></span>
+  </div>
+</div>
+
+<!-- Permissions -->
+<div class="card">
+  <h2>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Modules autorises
+  </h2>
+  <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">Ces permissions sont gerees par le praticien du cabinet.</p>
+  <div class="perms-grid" id="p-perms"></div>
+</div>
+
+<!-- Changer mot de passe -->
+<div class="card">
+  <h2>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    Modifier le mot de passe
+  </h2>
+  <form id="pw-form" onsubmit="changePassword(event)">
+    <div class="form-group">
+      <label class="form-label">Nouveau mot de passe</label>
+      <input type="password" class="form-input" id="pw-new" placeholder="Minimum 8 caracteres" required minlength="8">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirmer le nouveau mot de passe</label>
+      <input type="password" class="form-input" id="pw-confirm" placeholder="Retapez le mot de passe" required>
+      <div class="field-error" id="pw-err" style="display:none;"></div>
+    </div>
+    <button type="submit" class="btn" id="pw-btn">Modifier le mot de passe</button>
+  </form>
+</div>
+
+<!-- Déconnexion -->
+<div style="max-width:600px;margin:0 auto;text-align:center;padding:20px;">
+  <button class="btn btn-danger" onclick="logout()">Se deconnecter</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MODULE_LABELS = {
+  agenda:'Agenda / RDV', patients:'Patients', chat:'Chat', stock:'Stock / Scanner',
+  comptabilite:'Comptabilite', facturation:'Facturation', statistiques:'Statistiques',
+  configuration:'Configuration', waitlist:"Liste d'attente", rappels:'Rappels',
+  chat_ia_config:'Config Chat IA', series:'Series RDV', documents:'Documents', timeline:'Timeline photos'
+};
+
+const ROLE_LABELS = {
+  praticien:'Praticien', associe:'Associe', secretaire:'Secretaire',
+  assistante:'Assistante dentaire', comptable:'Comptable', stagiaire:'Stagiaire'
+};
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+function getToken() { return localStorage.getItem('supabase_token') || localStorage.getItem('sb-access-token') || ''; }
+
+async function init() {
+  const token = getToken();
+  if (!token) { window.location.href = '/'; return; }
+
+  try {
+    const res = await fetch('/api/dentiste-pro/team/my-permissions', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      showToast('Erreur chargement profil', 'error');
+      return;
+    }
+
+    // Email depuis Supabase
+    const { data: { user } } = await db.auth.getUser(token);
+    document.getElementById('p-email').textContent = user?.email || '—';
+
+    // Role
+    document.getElementById('p-role').textContent = ROLE_LABELS[data.role] || data.role;
+
+    // Permissions
+    const permsEl = document.getElementById('p-perms');
+    if (data.is_owner) {
+      permsEl.innerHTML = '<span class="perm-chip on" style="background:rgba(201,169,97,.15);color:var(--gold);border-color:rgba(201,169,97,.3);">Acces complet (proprietaire)</span>';
+    } else if (data.permissions) {
+      permsEl.innerHTML = Object.entries(data.permissions)
+        .map(([k, v]) => `<span class="perm-chip ${v ? 'on' : 'off'}">${MODULE_LABELS[k] || k}</span>`)
+        .join('');
+    }
+  } catch (e) {
+    console.error('[profil] init error', e);
+    showToast('Erreur de connexion', 'error');
+  }
+}
+
+async function changePassword(e) {
+  e.preventDefault();
+  const pw = document.getElementById('pw-new').value;
+  const pw2 = document.getElementById('pw-confirm').value;
+  const errEl = document.getElementById('pw-err');
+  const btn = document.getElementById('pw-btn');
+  errEl.style.display = 'none';
+
+  if (pw.length < 8) {
+    errEl.textContent = 'Le mot de passe doit contenir au moins 8 caracteres.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pw !== pw2) {
+    errEl.textContent = 'Les mots de passe ne correspondent pas.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Modification...';
+
+  try {
+    const { error } = await db.auth.updateUser({ password: pw });
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.style.display = 'block';
+    } else {
+      showToast('Mot de passe modifie avec succes', 'success');
+      document.getElementById('pw-form').reset();
+    }
+  } catch (err) {
+    errEl.textContent = 'Erreur de connexion.';
+    errEl.style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Modifier le mot de passe';
+}
+
+function logout() {
+  localStorage.removeItem('supabase_token');
+  localStorage.removeItem('sb-access-token');
+  window.location.href = '/';
+}
+
+init();
+</script>
+</body>
+</html>

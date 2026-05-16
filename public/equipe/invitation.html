@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejoindre l'équipe — JADOMI</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --bg: #0a0f1e; --surface: #121a30; --border: rgba(99,102,241,.2);
+  --text: #f1f5f9; --text-secondary: #94a3b8; --accent: #6366f1;
+  --accent-hover: #818cf8; --success: #10b981; --danger: #ef4444;
+  --gold: #c9a961; --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.container { max-width:460px; width:100%; }
+.logo { text-align:center; margin-bottom:32px; }
+.logo h1 { font-size:28px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.logo p { color:var(--text-secondary); font-size:14px; margin-top:4px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:32px; }
+.card h2 { font-size:20px; margin-bottom:8px; }
+.card .sub { color:var(--text-secondary); font-size:14px; margin-bottom:24px; }
+.info-box { background:rgba(99,102,241,.08); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:24px; }
+.info-box .role { display:inline-block; background:var(--accent); color:#fff; padding:2px 10px; border-radius:6px; font-size:12px; font-weight:600; margin-left:8px; }
+.info-box .cabinet { font-weight:600; font-size:16px; color:var(--text); }
+.info-box .detail { font-size:13px; color:var(--text-secondary); margin-top:4px; }
+.form-group { margin-bottom:20px; }
+.form-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+.form-input { width:100%; padding:12px 16px; background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; outline:none; transition:border .2s; }
+.form-input:focus { border-color:var(--accent); }
+.form-input:disabled { opacity:.6; cursor:not-allowed; }
+.form-input.error { border-color:var(--danger); }
+.field-error { color:var(--danger); font-size:12px; margin-top:4px; display:none; }
+.btn { width:100%; padding:14px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; transition:all .2s; }
+.btn:hover { background:var(--accent-hover); transform:translateY(-1px); }
+.btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-loading { position:relative; color:transparent; }
+.btn-loading::after { content:''; position:absolute; left:50%; top:50%; width:20px; height:20px; margin:-10px 0 0 -10px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.password-strength { height:4px; border-radius:2px; background:rgba(255,255,255,.1); margin-top:6px; overflow:hidden; }
+.password-strength .bar { height:100%; border-radius:2px; transition:width .3s, background .3s; }
+.perms-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.perm-tag { padding:4px 10px; border-radius:6px; font-size:12px; font-weight:500; }
+.perm-tag.on { background:rgba(16,185,129,.15); color:var(--success); }
+.perm-tag.off { background:rgba(255,255,255,.05); color:var(--text-secondary); text-decoration:line-through; opacity:.5; }
+.success-view { text-align:center; padding:40px 0; }
+.success-icon { width:64px; height:64px; background:rgba(16,185,129,.15); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; }
+.success-icon svg { width:32px; height:32px; color:var(--success); }
+.error-view { text-align:center; padding:40px 0; }
+.error-view h2 { color:var(--danger); }
+.loading-view { text-align:center; padding:60px 0; }
+.loading-view .spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 16px; }
+@media (max-width:500px) { .card { padding:24px 20px; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <h1>JADOMI</h1>
+    <p>Plateforme pour professionnels de sante</p>
+  </div>
+
+  <!-- Loading -->
+  <div class="card" id="view-loading">
+    <div class="loading-view">
+      <div class="spinner"></div>
+      <p style="color:var(--text-secondary);">Verification de votre invitation...</p>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="card" id="view-error" style="display:none;">
+    <div class="error-view">
+      <h2>Invitation invalide</h2>
+      <p id="error-msg" style="color:var(--text-secondary);margin-top:12px;">Ce lien d'invitation est invalide ou a expire.</p>
+      <a href="/" class="btn" style="display:inline-block;width:auto;margin-top:20px;padding:12px 32px;text-decoration:none;">Retour a l'accueil</a>
+    </div>
+  </div>
+
+  <!-- Create account form -->
+  <div class="card" id="view-form" style="display:none;">
+    <h2>Rejoindre l'equipe</h2>
+    <p class="sub">Creez votre compte pour acceder au cabinet.</p>
+
+    <div class="info-box">
+      <div class="cabinet" id="inv-cabinet">Cabinet</div>
+      <div class="detail">Vous etes invite en tant que <span class="role" id="inv-role">Assistante</span></div>
+      <div class="perms-list" id="inv-perms"></div>
+    </div>
+
+    <form id="signup-form" onsubmit="handleSignup(event)">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="f-email" disabled>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Votre nom</label>
+        <input type="text" class="form-input" id="f-nom" disabled>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mot de passe</label>
+        <input type="password" class="form-input" id="f-password" placeholder="Minimum 8 caracteres" oninput="checkStrength()" required minlength="8">
+        <div class="password-strength"><div class="bar" id="pw-bar" style="width:0%;"></div></div>
+        <div class="field-error" id="pw-error">Le mot de passe doit contenir au moins 8 caracteres.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmer le mot de passe</label>
+        <input type="password" class="form-input" id="f-password2" placeholder="Retapez le mot de passe" required>
+        <div class="field-error" id="pw2-error">Les mots de passe ne correspondent pas.</div>
+      </div>
+      <button type="submit" class="btn" id="btn-submit">Creer mon compte et rejoindre</button>
+      <p id="form-error" style="color:var(--danger);font-size:13px;margin-top:12px;display:none;"></p>
+    </form>
+  </div>
+
+  <!-- Success -->
+  <div class="card" id="view-success" style="display:none;">
+    <div class="success-view">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h2>Bienvenue dans l'equipe</h2>
+      <p style="color:var(--text-secondary);margin:12px 0 24px;">Votre compte a ete cree avec succes. Vous pouvez maintenant acceder au cabinet.</p>
+      <a href="/admin/dentiste-pro.html" class="btn" style="text-decoration:none;display:inline-block;width:auto;padding:14px 40px;">Acceder au tableau de bord</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MODULE_LABELS = {
+  agenda:'Agenda', patients:'Patients', chat:'Chat', stock:'Stock / Scanner',
+  comptabilite:'Comptabilite', facturation:'Facturation', statistiques:'Statistiques',
+  configuration:'Configuration', waitlist:"Liste d'attente", rappels:'Rappels',
+  chat_ia_config:'Config Chat IA', series:'Series RDV', documents:'Documents', timeline:'Timeline photos'
+};
+
+const ROLE_LABELS = {
+  praticien:'Praticien', associe:'Associe', secretaire:'Secretaire',
+  assistante:'Assistante', comptable:'Comptable', stagiaire:'Stagiaire'
+};
+
+let invitationToken = null;
+let invitationData = null;
+
+function show(id) {
+  ['view-loading','view-error','view-form','view-success'].forEach(v => {
+    document.getElementById(v).style.display = v === id ? 'block' : 'none';
+  });
+}
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  invitationToken = params.get('token');
+
+  if (!invitationToken) {
+    document.getElementById('error-msg').textContent = 'Aucun token d\'invitation dans le lien.';
+    show('view-error');
+    return;
+  }
+
+  // Verifier le token cote API
+  try {
+    const res = await fetch('/api/dentiste-pro/team/check-invitation?token=' + encodeURIComponent(invitationToken));
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      document.getElementById('error-msg').textContent = data.error || 'Invitation invalide ou expiree.';
+      show('view-error');
+      return;
+    }
+
+    invitationData = data;
+    // Remplir le formulaire
+    document.getElementById('f-email').value = data.email || '';
+    document.getElementById('f-nom').value = [data.prenom, data.nom].filter(Boolean).join(' ') || '';
+    document.getElementById('inv-cabinet').textContent = data.cabinet_name || 'Cabinet';
+    document.getElementById('inv-role').textContent = ROLE_LABELS[data.role] || data.role;
+
+    // Afficher les permissions
+    if (data.permissions) {
+      const permsEl = document.getElementById('inv-perms');
+      permsEl.innerHTML = Object.entries(data.permissions)
+        .map(([k, v]) => `<span class="perm-tag ${v ? 'on' : 'off'}">${MODULE_LABELS[k] || k}</span>`)
+        .join('');
+    }
+
+    show('view-form');
+  } catch (err) {
+    document.getElementById('error-msg').textContent = 'Erreur de connexion au serveur.';
+    show('view-error');
+  }
+}
+
+function checkStrength() {
+  const pw = document.getElementById('f-password').value;
+  const bar = document.getElementById('pw-bar');
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^a-zA-Z0-9]/.test(pw)) score++;
+  const pct = Math.min(score * 20, 100);
+  const colors = ['var(--danger)','var(--danger)','#f59e0b','var(--gold)','var(--success)','var(--success)'];
+  bar.style.width = pct + '%';
+  bar.style.background = colors[score] || 'var(--danger)';
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const email = document.getElementById('f-email').value;
+  const pw = document.getElementById('f-password').value;
+  const pw2 = document.getElementById('f-password2').value;
+  const errEl = document.getElementById('form-error');
+  const btn = document.getElementById('btn-submit');
+
+  // Reset errors
+  errEl.style.display = 'none';
+  document.querySelectorAll('.form-input').forEach(el => el.classList.remove('error'));
+  document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+
+  if (pw.length < 8) {
+    document.getElementById('f-password').classList.add('error');
+    document.getElementById('pw-error').style.display = 'block';
+    return;
+  }
+  if (pw !== pw2) {
+    document.getElementById('f-password2').classList.add('error');
+    document.getElementById('pw2-error').style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.textContent = '';
+
+  try {
+    // 1. Creer le compte Supabase
+    const { data: authData, error: authError } = await db.auth.signUp({ email, password: pw });
+
+    if (authError) {
+      // Si l'utilisateur existe deja, essayer de se connecter
+      if (authError.message.includes('already') || authError.message.includes('exists')) {
+        const { data: loginData, error: loginError } = await db.auth.signInWithPassword({ email, password: pw });
+        if (loginError) {
+          errEl.textContent = 'Ce compte existe deja. Si c\'est le votre, connectez-vous avec votre mot de passe habituel.';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          btn.classList.remove('btn-loading');
+          btn.textContent = 'Creer mon compte et rejoindre';
+          return;
+        }
+        // Login OK, stocker le token
+        if (loginData?.session?.access_token) {
+          localStorage.setItem('supabase_token', loginData.session.access_token);
+        }
+      } else {
+        errEl.textContent = authError.message;
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        btn.textContent = 'Creer mon compte et rejoindre';
+        return;
+      }
+    } else if (authData?.session?.access_token) {
+      localStorage.setItem('supabase_token', authData.session.access_token);
+    }
+
+    // 2. Accepter l'invitation
+    const token = localStorage.getItem('supabase_token');
+    const userId = authData?.user?.id || null;
+    const acceptRes = await fetch('/api/dentiste-pro/team/accept-invitation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+      },
+      body: JSON.stringify({ token: invitationToken, user_id: userId })
+    });
+
+    const acceptData = await acceptRes.json();
+    if (!acceptRes.ok || !acceptData.ok) {
+      errEl.textContent = acceptData.error || 'Erreur lors de l\'acceptation de l\'invitation.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.textContent = 'Creer mon compte et rejoindre';
+      return;
+    }
+
+    // Succes
+    show('view-success');
+  } catch (err) {
+    errEl.textContent = 'Erreur de connexion. Veuillez reessayer.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.textContent = 'Creer mon compte et rejoindre';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

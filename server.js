@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
+const { Mistral } = require('@mistralai/mistralai');
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const crypto = require('crypto');
@@ -81,8 +82,8 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=self, microphone=self, geolocation=self');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org; frame-src 'self' https://js.stripe.com http://localhost:3100;");
+  res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=self');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://cdn.jsdelivr.net https://unpkg.com https://*.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://router.project-osrm.org; frame-src 'self' https://js.stripe.com http://localhost:3100; worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net;");
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   if (req.path.startsWith('/api/')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -183,13 +184,51 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ═══ Protection projet — page verrou avec mot de passe ═══
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+const GATE_PASSWORD = 'Jadomi2026';
+const GATE_COOKIE = 'jadomi_gate';
+
+// Route POST pour soumettre le mot de passe
+app.post('/gate', express.urlencoded({ extended: false }), (req, res) => {
+  if (req.body && req.body.password === GATE_PASSWORD) {
+    res.cookie(GATE_COOKIE, 'ok', { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
+    return res.redirect(req.body.redirect || '/');
+  }
+  return res.redirect('/?gate=error');
+});
+
+// Middleware verrou — bloque tout sauf assets statiques
+app.use((req, res, next) => {
+  // Laisser passer les assets, API, webhooks, robots.txt, pages publiques
+  // Pages publiques — DÉCOMMENTER QUAND PRÊT AU LANCEMENT PUBLIC :
+  // const publicPaths = ['/', '/landing', '/chirurgiens-dentistes', '/dentistes', '/prothesistes-dentaires',
+  //   '/infirmiers', '/avocats', '/orthodontistes', '/tarifs', '/contact', '/mentions-legales', '/cgv',
+  //   '/comparateur', '/studio', '/studio/index.html', '/studio/video-creator.html',
+  //   '/robots.txt', '/sitemap.xml', '/professions-paramedicales', '/services-bien-etre',
+  //   '/btp', '/sci', '/createurs', '/coiffeurs'];
+  // const isPublic = publicPaths.includes(req.path) || publicPaths.includes(req.path.replace(/\.html$/, ''));
+  // const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebot|twitterbot|linkedinbot/i.test(req.headers['user-agent'] || '');
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio')) {
+    return next();
+  }
+  // Vérifier le cookie
+  if (req.cookies && req.cookies[GATE_COOKIE] === 'ok') {
+    return next();
+  }
+  // Pas de cookie → afficher la page verrou
+  const error = req.query.gate === 'error';
+  return res.status(401).send(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JADOMI — Accès protégé</title><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;background:#0a0a0f;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{background:rgba(22,22,31,.9);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:48px 40px;width:100%;max-width:400px;text-align:center;backdrop-filter:blur(20px);box-shadow:0 24px 48px rgba(0,0,0,.4)}.logo{font-family:Syne,sans-serif;font-size:32px;font-weight:800;background:linear-gradient(135deg,#0d9488,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}.subtitle{font-size:14px;color:#737373;margin-bottom:32px}input{width:100%;padding:14px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#e5e5e5;font-size:16px;font-family:Inter,sans-serif;outline:none;transition:border-color .2s;margin-bottom:16px}input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.15)}button{width:100%;padding:14px;background:#0d9488;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;transition:background .2s}button:hover{background:#0f766e}.error{color:#ef4444;font-size:13px;margin-bottom:12px}</style></head><body><div class="card"><div class="logo">JADOMI</div><div class="subtitle">Accès réservé au fondateur</div>${error ? '<div class="error">Mot de passe incorrect</div>' : ''}<form method="POST" action="/gate"><input type="hidden" name="redirect" value="${req.originalUrl}"><input type="password" name="password" placeholder="Mot de passe" autofocus autocomplete="current-password"><button type="submit">Accéder</button></form></div></body></html>`);
+});
+
 // Middleware : strip .html extension et rediriger vers URL propre (conserve les query params)
 // 302 (pas 301) pour ne pas casser le bouton retour du navigateur
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') && !req.path.startsWith('/public/') && !req.path.startsWith('/api/')) {
     const cleanPath = req.path.replace(/\.html$/, '');
     const qs = req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : '';
-    return res.redirect(302, cleanPath + qs);
+    return res.redirect(301, cleanPath + qs);
   }
   next();
 });
@@ -205,18 +244,27 @@ app.get('/btp', (req, res) => res.sendFile(path.join(__dirname, 'public/btp.html
 app.get('/sci', (req, res) => res.sendFile(path.join(__dirname, 'public/sci.html')));
 app.get('/createurs', (req, res) => res.sendFile(path.join(__dirname, 'public/createurs.html')));
 app.get('/chirurgiens-dentistes', (req, res) => res.sendFile(path.join(__dirname, 'public/chirurgiens-dentistes.html')));
+app.get('/comparateur', (req, res) => res.sendFile(path.join(__dirname, 'public/comparateur.html')));
 app.get('/orthodontistes', (req, res) => res.sendFile(path.join(__dirname, 'public/orthodontistes.html')));
 app.get('/prothesistes-dentaires', (req, res) => res.sendFile(path.join(__dirname, 'public/prothesistes-dentaires.html')));
 app.get('/professions-paramedicales', (req, res) => res.sendFile(path.join(__dirname, 'public/professions-paramedicales.html')));
 app.get('/services-bien-etre', (req, res) => res.sendFile(path.join(__dirname, 'public/services-bien-etre.html')));
 // JADOMI Dentiste Pro Dashboard
 app.get('/admin/dentiste-pro', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/dentiste-pro.html')));
+app.get('/admin/jadomi-ia', (req, res) => { res.set('Cache-Control', 'no-store'); res.sendFile(path.join(__dirname, 'public/admin/jadomi-ia.html')); });
 // JADOMI Rappels automatiques (Passe 70)
 app.get('/rappels', (req, res) => res.sendFile(path.join(__dirname, 'public/rappels.html')));
 // JADOMI Ads (Passe 34)
 app.get('/jadomi-ads', (req, res) => res.sendFile(path.join(__dirname, 'public/jadomi-ads.html')));
 app.get('/dashboard-annonceur', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard-annonceur.html')));
-// JADOMI Studio (Passe 34.2)
+// JADOMI Studio V2 Hub (objectifs métier)
+app.get('/studio', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/hub.html')));
+app.get('/studio/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/hub.html')));
+app.get('/studio/campagne', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/campagne.html')));
+app.get('/studio/flyer-builder', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/flyer-builder/index.html')));
+app.get('/studio/marque', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/marque.html')));
+app.get('/studio/marque.html', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/marque.html')));
+// JADOMI Studio (landing publique — Passe 34.2)
 app.get('/jadomi-studio', (req, res) => res.sendFile(path.join(__dirname, 'public/jadomi-studio.html')));
 // JADOMI Studio CMS + Onboarding (Passe 36)
 app.get('/studio/cms', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/cms/index.html')));
@@ -309,6 +357,12 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: tru
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+// --- Mistral AI client (IA française souveraine) ---
+const mistral = process.env.MISTRAL_API_KEY
+  ? new Mistral({ apiKey: process.env.MISTRAL_API_KEY })
+  : null;
+if (!mistral) console.warn('[JADOMI] MISTRAL_API_KEY non défini — Mistral désactivé, fallback Claude');
 
 // --- Supabase client ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
@@ -791,6 +845,12 @@ try {
 } catch (e) {
   console.warn('[JADOMI] Module Media Upload non chargé:', e.message);
 }
+try {
+  app.use('/api/scan-dashboard', require('./api/scan-dashboard'));
+  console.log('[JADOMI] Module Scan Dashboard monté (upload PDF flyers)');
+} catch (e) {
+  console.warn('[JADOMI] Module Scan Dashboard non chargé:', e.message);
+}
 
 // === JADOMI Ads — Régie publicitaire verticale (Passe 34) ===
 try {
@@ -991,6 +1051,22 @@ try {
   console.warn('[JADOMI] Module Avocat Expert non charge:', e.message);
 }
 
+// === JADOMI Studio Video Generator — Vidu AI ===
+try {
+  app.use('/api/studio/video', require('./api/studio/video-generator'));
+  console.log('[JADOMI] Module Studio Video Generator (Vidu) monte');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Video Generator non charge:', e.message);
+}
+
+// === JADOMI Studio Flyer Builder — DeepSeek + Gemini + ImageMagick ===
+try {
+  app.use('/api/studio/flyer', require('./api/studio/flyer-builder'));
+  console.log('[JADOMI] Module Studio Flyer Builder monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Flyer Builder non chargé:', e.message);
+}
+
 // === JADOMI Studio Enhance Media — Remotion Expert (Passe 41B) ===
 try {
   app.use('/api/studio/enhance', require('./api/studio/enhance-media'));
@@ -1027,6 +1103,20 @@ try {
   console.warn('[JADOMI] Module Studio Sites Existants non charge:', e.message);
 }
 
+// === JADOMI Studio V2 — Mémoire Marque + Templates + Produits ===
+try {
+  const studioV2Auth = (req, res, next) => {
+    if (!req.user) return res.status(401).json({ ok: false, error: 'auth_required' });
+    req.supabase = supabaseAdmin || supabase;
+    next();
+  };
+  app.use('/api/studio/marque', studioV2Auth, require('./api/studio/marque'));
+  app.use('/api/studio/wallet', studioV2Auth, require('./api/studio/wallet'));
+  console.log('[JADOMI] Module Studio V2 (Marque + Wallet) monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio V2 non chargé:', e.message);
+}
+
 // === JADOMI Coach (onboarding personnalisé + tooltips) ===
 try {
   app.use('/api/coach', require('./api/coach'));
@@ -1059,6 +1149,62 @@ try {
   console.log('[JADOMI] Module Client Portal monté');
 } catch (e) {
   console.warn('[JADOMI] Module Client Portal non chargé:', e.message);
+}
+
+// === JADOMI Agenda IA (agenda intelligent) ===
+try {
+  app.use('/api/agenda-ia', require('./api/agenda-ia'));
+  console.log('[JADOMI] Module Agenda IA monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Agenda IA non chargé:', e.message);
+}
+
+// === JADOMI Secrétaire IA (analyse, optimisation, commandes vocales) ===
+try {
+  app.use('/api/ia-secretary', require('./api/ia-secretary'));
+  console.log('[JADOMI] Module Secrétaire IA monté (analyse, optimisation, vocal, multi-métier)');
+} catch (e) {
+  console.warn('[JADOMI] Module Secrétaire IA non chargé:', e.message);
+}
+
+// === JADOMI Connecteur Logiciel Dentaire (Logos, Doctolib, CSV) ===
+try {
+  app.use('/api/connector', require('./api/connector'));
+  console.log('[JADOMI] Module Connecteur monté (Logos, Doctolib, CSV)');
+} catch (e) {
+  console.warn('[JADOMI] Module Connecteur non chargé:', e.message);
+}
+
+// === JADOMI IA Documentaire (cerveau IA cabinet) ===
+try {
+  app.use('/api/ia-doc', require('./api/ia-doc'));
+  console.log('[JADOMI] Module IA Documentaire monté');
+} catch (e) {
+  console.warn('[JADOMI] Module IA Documentaire non chargé:', e.message);
+}
+
+// === JADOMI Cas Clinique (dossiers patients unifiés) ===
+try {
+  app.use('/api/cas-clinique', require('./api/cas-clinique'));
+  console.log('[JADOMI] Module Cas Clinique monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Cas Clinique non chargé:', e.message);
+}
+
+// === JADOMI Questionnaire Médical (anamnèse patient) ===
+try {
+  app.use('/api/questionnaire-medical', require('./api/questionnaire-medical'));
+  console.log('[JADOMI] Module Questionnaire Médical monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Questionnaire Médical non chargé:', e.message);
+}
+
+// === JADOMI Snap (QR photos patients / passeports) ===
+try {
+  app.use('/api/snap', require('./api/snap'));
+  console.log('[JADOMI] Module Snap Photos monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Snap Photos non chargé:', e.message);
 }
 
 // === JADOMI Appointments (prise de RDV en ligne) ===
@@ -1406,6 +1552,32 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'Field "messages" (array), "message" (string) or "prompt" (string) required' });
     }
 
+    // ═══ OPTIMISATION COÛTS : rediriger Haiku → Mistral Small (15x moins cher) ═══
+    // Seulement si Mistral est disponible ET pas de tools (Mistral gère pas les tools Claude)
+    const isHaiku = model && model.includes('haiku');
+    const hasImages = messages.some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image'));
+    if (isHaiku && mistral && !tools && !hasImages) {
+      try {
+        const mistralMsgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
+        const mResponse = await mistral.chat.complete({
+          model: 'mistral-small-latest',
+          messages: mistralMsgs,
+          maxTokens: max_tokens,
+        });
+        const txt = mResponse.choices?.[0]?.message?.content || '';
+        console.log('[/api/claude] Haiku → Mistral Small (économie ~15x)');
+        return res.json({
+          content: [{ type: 'text', text: txt }],
+          model: 'mistral-small-latest',
+          provider: 'mistral',
+          usage: mResponse.usage,
+        });
+      } catch (mErr) {
+        console.warn('[/api/claude] Mistral fallback failed, using Claude:', mErr.message);
+        // Continue vers Claude ci-dessous
+      }
+    }
+
     const params = { model, max_tokens, messages };
     if (system) params.system = system;
     if (tools) params.tools = tools;
@@ -1415,6 +1587,124 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
   } catch (err) {
     console.error('[/api/claude] Error:', err.message);
     res.status(err.status || 500).json({ error: 'Erreur interne' });
+  }
+});
+
+// =============================================
+// POST /api/mistral — Proxy Mistral AI (IA française, low-cost)
+// Modèles : mistral-small-latest, pixtral-12b-2409, mistral-large-latest
+// =============================================
+app.post('/api/mistral', requireAuth(), async (req, res) => {
+  try {
+    if (!mistral) {
+      return res.status(503).json({ error: 'Mistral non configuré — clé API manquante' });
+    }
+    let {
+      messages,
+      message,
+      prompt,
+      system,
+      model = 'mistral-small-latest',
+      max_tokens = 1000,
+    } = req.body || {};
+
+    if (!messages && (message || prompt)) {
+      messages = [{ role: 'user', content: String(message || prompt) }];
+    }
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Field "messages" required' });
+    }
+
+    // Ajouter system prompt si fourni
+    if (system) {
+      messages = [{ role: 'system', content: system }, ...messages];
+    }
+
+    const response = await mistral.chat.complete({
+      model,
+      messages,
+      maxTokens: max_tokens,
+    });
+
+    // Format de réponse compatible avec le format Claude pour le frontend
+    const choice = response.choices?.[0];
+    res.json({
+      content: [{ type: 'text', text: choice?.message?.content || '' }],
+      model: response.model,
+      usage: response.usage,
+      provider: 'mistral',
+    });
+  } catch (err) {
+    console.error('[/api/mistral] Error:', err.message);
+    res.status(err.status || 500).json({ error: 'Erreur Mistral' });
+  }
+});
+
+// =============================================
+// POST /api/ia/router — Router IA intelligent (Ollama → Mistral → Claude)
+// Choisit automatiquement le meilleur modèle selon la tâche
+// =============================================
+app.post('/api/ia/router', requireAuth(), async (req, res) => {
+  try {
+    const { task, messages, message, prompt, image, max_tokens = 500 } = req.body || {};
+    const text = message || prompt || messages?.[0]?.content || '';
+
+    // NIVEAU 1 — Tâches avec image → Pixtral (Mistral vision) ou Claude
+    if (image) {
+      if (mistral) {
+        const imageContent = { type: 'image_url', imageUrl: image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}` };
+        const textContent = { type: 'text', text: text || 'Analyse cette image.' };
+        const response = await mistral.chat.complete({
+          model: 'pixtral-12b-2409',
+          messages: [{ role: 'user', content: [imageContent, textContent] }],
+          maxTokens: max_tokens,
+        });
+        return res.json({
+          content: [{ type: 'text', text: response.choices?.[0]?.message?.content || '' }],
+          provider: 'mistral-pixtral',
+          cost_level: 'low',
+        });
+      }
+      // Fallback Claude si pas de Mistral
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+          { type: 'text', text: text || 'Analyse cette image.' }
+        ]}],
+      });
+      return res.json({ content: response.content, provider: 'claude-haiku', cost_level: 'medium' });
+    }
+
+    // NIVEAU 2 — Tâches simples → Mistral Small (0.20$/M)
+    const simpleTaskPatterns = /\b(message|rappel|confirm|tradui|bonjour|merci|résumé|courrier|email|sms)\b/i;
+    if (mistral && simpleTaskPatterns.test(text)) {
+      const msgs = messages || [{ role: 'user', content: text }];
+      const response = await mistral.chat.complete({
+        model: 'mistral-small-latest',
+        messages: msgs,
+        maxTokens: max_tokens,
+      });
+      return res.json({
+        content: [{ type: 'text', text: response.choices?.[0]?.message?.content || '' }],
+        provider: 'mistral-small',
+        cost_level: 'low',
+      });
+    }
+
+    // NIVEAU 3 — Tâches complexes → Claude Sonnet
+    const msgs = messages || [{ role: 'user', content: text }];
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens,
+      messages: msgs,
+    });
+    return res.json({ content: response.content, provider: 'claude-sonnet', cost_level: 'premium' });
+
+  } catch (err) {
+    console.error('[/api/ia/router] Error:', err.message);
+    res.status(err.status || 500).json({ error: 'Erreur IA router' });
   }
 });
 
@@ -2781,6 +3071,180 @@ app.get('/api/scan/search', requireAuth(), scanSearchLimiter, async (req, res) =
 });
 
 // =============================================
+// IMPORT PRICES — Import scraped prices (CORS ouvert pour console scraping)
+// =============================================
+app.options('/api/scan/import-prices', (req, res) => {
+  res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+  res.sendStatus(204);
+});
+app.post('/api/scan/import-prices', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  try {
+    const { source, products } = req.body || {};
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: 'products array required' });
+    }
+    const { admin: adminFn } = require('./api/multiSocietes/middleware');
+    const sb = adminFn();
+    let imported = 0, errors = 0;
+    // Upsert par lots de 100
+    for (let i = 0; i < products.length; i += 100) {
+      const batch = products.slice(i, i + 100).map(p => ({
+        supplier_name: source || 'unknown',
+        product_name: (p.name || '').substring(0, 500),
+        brand: (p.brand || '').substring(0, 200),
+        reference: (p.ref || '').substring(0, 100),
+        price: parseFloat(p.price) || null,
+        price_original: parseFloat(p.price_original || p.oldPrice) || null,
+        url: (p.url || '').substring(0, 1000),
+        scraped_at: new Date().toISOString()
+      })).filter(p => p.product_name && p.price && p.price > 0.10 && p.price < 50000);
+      if (batch.length === 0) continue;
+      const { error } = await sb.from('scraped_prices').upsert(batch, { onConflict: 'supplier_name,product_name', ignoreDuplicates: true });
+      if (error) { console.error('[import-prices] batch error:', error.message); errors++; }
+      else imported += batch.length;
+    }
+    console.log(`[import-prices] ${source}: ${imported} imported, ${errors} errors`);
+    res.json({ imported, errors, source });
+  } catch (e) {
+    console.error('[import-prices] Error:', e.message);
+    res.status(500).json({ error: 'Erreur import' });
+  }
+});
+
+// =============================================
+// COMPARATEUR DE PRIX — Recherche multi-fournisseurs
+// Style Coompy : barre de recherche → résultats triés par prix
+// =============================================
+
+// GET /api/comparateur/search?q=totalcem&limit=50
+app.get('/api/comparateur/search', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q || q.length < 2) return res.status(400).json({ error: 'Recherche trop courte (min 2 caractères)' });
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const { admin: adminFn } = require('./api/multiSocietes/middleware');
+    const sb = adminFn();
+
+    // Recherche par nom OU référence OU marque
+    const { data, error } = await sb
+      .from('scraped_prices')
+      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, url, scraped_at')
+      .or(`product_name.ilike.%${q}%,reference.ilike.%${q}%,brand.ilike.%${q}%`)
+      .gt('price', 0.10)
+      .order('price', { ascending: true })
+      .limit(limit);
+
+    if (error) throw error;
+
+    // Grouper par produit similaire (même ref fabricant ou nom proche)
+    const groups = {};
+    for (const p of (data || [])) {
+      // Clé de groupement : ref fabricant ou nom normalisé
+      const refKey = p.reference && p.reference.length > 3 ? p.reference.replace(/^0+/, '') : null;
+      const nameKey = p.product_name.toLowerCase()
+        .replace(/[-–—]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\b(boite|bte|coffret|lot|pack|pcs|pieces|recharge|refill)\b.*$/i, '')
+        .trim()
+        .substring(0, 40);
+      const key = refKey || nameKey;
+
+      if (!groups[key]) {
+        groups[key] = {
+          product_name: p.product_name,
+          brand: p.brand,
+          reference: p.reference,
+          best_price: p.price,
+          worst_price: p.price,
+          nb_suppliers: 0,
+          offers: [],
+        };
+      }
+      groups[key].offers.push({
+        supplier: p.supplier_name,
+        price: p.price,
+        price_original: p.price_original,
+        discount_percent: p.discount_percent,
+        url: p.url,
+        scraped_at: p.scraped_at,
+      });
+      groups[key].nb_suppliers = groups[key].offers.length;
+      if (p.price < groups[key].best_price) groups[key].best_price = p.price;
+      if (p.price > groups[key].worst_price) groups[key].worst_price = p.price;
+    }
+
+    // Trier les groupes par nombre de fournisseurs (plus de comparaison = plus utile)
+    const results = Object.values(groups)
+      .sort((a, b) => b.nb_suppliers - a.nb_suppliers || a.best_price - b.best_price)
+      .slice(0, 30);
+
+    // Stats globales
+    const totalOffers = (data || []).length;
+    const suppliers = [...new Set((data || []).map(d => d.supplier_name))];
+
+    res.json({
+      query: q,
+      total_offers: totalOffers,
+      total_products: results.length,
+      suppliers: suppliers,
+      results,
+    });
+  } catch (e) {
+    console.error('[comparateur] search error:', e.message);
+    res.status(500).json({ error: 'Erreur recherche' });
+  }
+});
+
+// GET /api/comparateur/product/:ref — Détail d'un produit par ref fabricant
+app.get('/api/comparateur/product/:ref', async (req, res) => {
+  try {
+    const ref = req.params.ref;
+    const { admin: adminFn } = require('./api/multiSocietes/middleware');
+    const sb = adminFn();
+
+    const { data, error } = await sb
+      .from('scraped_prices')
+      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, url, scraped_at')
+      .or(`reference.ilike.%${ref}%,product_name.ilike.%${ref}%`)
+      .gt('price', 0.10)
+      .order('price', { ascending: true })
+      .limit(20);
+
+    if (error) throw error;
+
+    res.json({
+      reference: ref,
+      nb_offers: (data || []).length,
+      offers: data || [],
+    });
+  } catch (e) {
+    console.error('[comparateur] product error:', e.message);
+    res.status(500).json({ error: 'Erreur produit' });
+  }
+});
+
+// GET /api/comparateur/stats — Stats globales du comparateur
+app.get('/api/comparateur/stats', async (req, res) => {
+  try {
+    const { admin: adminFn } = require('./api/multiSocietes/middleware');
+    const sb = adminFn();
+
+    const { count: total } = await sb.from('scraped_prices').select('*', { count: 'exact', head: true }).gt('price', 0.10);
+    const { data: suppliers } = await sb.from('scraped_prices').select('supplier_name').gt('price', 0.10).limit(1000);
+    const uniqueSuppliers = [...new Set((suppliers || []).map(s => s.supplier_name))];
+
+    res.json({
+      total_products: total,
+      nb_suppliers: uniqueSuppliers.length,
+      suppliers: uniqueSuppliers.sort(),
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur stats' });
+  }
+});
+
+// =============================================
 // PRICE WATCH — Alertes prix produits
 // =============================================
 
@@ -4036,8 +4500,8 @@ app.post('/api/facturation/mandates/send', requireAuth(), async (req, res) => {
 app.get('/mandate-sign', (req, res) => res.sendFile(path.join(__dirname, 'public/mandate-sign.html')));
 
 // Route module Cabinet dentaire (dashboard stock/commandes)
-app.get('/dentiste', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/dentiste/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/dentiste', (req, res) => { res.set('Cache-Control', 'no-store'); res.sendFile(path.join(__dirname, 'index.html')); });
+app.get('/dentiste/', (req, res) => { res.set('Cache-Control', 'no-store'); res.sendFile(path.join(__dirname, 'index.html')); });
 
 // Route module IDE (Infirmiere)
 // Auth geree cote client par Supabase JS (localStorage session)
@@ -12323,6 +12787,16 @@ try {
 }
 // Page tutoriels
 app.get('/support/tutoriels', (req, res) => res.sendFile(path.join(__dirname, 'public/support/tutoriels.html')));
+
+// =============================================
+// JADOMI IA LOCAL — Routeur intelligent (local → Ollama → Claude)
+// =============================================
+try {
+  app.use('/api/ia-local', require('./api/ia-local'));
+  console.log('[JADOMI] Module IA Local monté (règles + Ollama + Claude)');
+} catch (e) {
+  console.warn('[JADOMI] Module IA Local non chargé:', e.message);
+}
 
 // =============================================
 // Fallback : servir .html correspondant pour URLs sans extension

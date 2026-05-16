@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 12 mai 2026
-**Derniere passe** : Passe 79 — Mistral IA + Comparateur Prix + GPS MapLibre + App Flutter
+**Derniere mise a jour** : 15 mai 2026
+**Derniere passe** : Session Studio ZENDO + Flyer Builder (14-15 mai) + Passe 79 (12 mai)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1746,6 +1746,109 @@ pour dentistes. Session marathon fondateur (~8h de travail non-stop).
 - MODIFIE : index.html (cards JADOMI IA, hash navigation, scroll fix)
 - MODIFIE : server.js (gate, routes, Permissions-Policy micro)
 - MODIFIE : public/landing.html (lien /login sans .html)
+
+## Session Studio 14-15 mai 2026 — ZENDO + Flyer Builder (VALIDÉ + EN COURS)
+
+### PARTIE 1 : ZENDO Flyer & Landing (VALIDÉ — terminé)
+Voir détails ci-dessous.
+
+### PARTIE 2 : Flyer Builder Dashboard (EN COURS)
+Construction d'un builder de flyers interactif avec IA.
+
+**Livré et en prod :**
+- API `api/studio/flyer-builder.js` — 1132 lignes
+- Frontend `public/studio/flyer-builder/index.html` — 1759 lignes
+- Moderator renforcé `lib/ai-studio/moderator.js` — 133 lignes
+- Table Supabase `studio_flyer_projects` créée
+- Template ZENDO en base (id: f90ed21a)
+- 4 agents DeepSeek (rédacteur, designer, copywriter, photo advisor)
+- Patron local gratuit (moteur de règles, 0 appel API)
+- Fallback auto DeepSeek → Mistral → Claude
+- Scraper Cheerio intelligent (trouve la page produit WooCommerce)
+- Gemini edit-image (détourage, composite, amélioration)
+- Recherche photos Unsplash intégrée
+- Export PDF Puppeteer
+- Hub Studio câblé (card Flyer → /studio/flyer-builder)
+- Preview premium style ZENDO (4 pages A4)
+- Modal edit image avec suggestions client-friendly
+- Assistant IA interactif avec recommandations pro
+- Barre de progression sur les slots
+
+**Bugs connus à fixer :**
+- Le détourage auto ne se déclenche pas toujours côté frontend
+- Le bouton + (modifier) mouline parfois sans résultat visible
+- Le scraper est fragile sur les sites non-WooCommerce
+- La preview ne reflète pas toujours les dernières modifications
+
+**Règle ABSOLUE Gemini :**
+Chaque prompt envoyé à Gemini pour éditer une image DOIT inclure :
+"UTILISE UNIQUEMENT le produit de cette image, NE le remplace PAS,
+NE modifie PAS sa forme/couleur/design. Le produit = sujet principal."
+Implémenté dans flyer-builder.js (routes /edit-image et /edit-image-url).
+
+**8 erreurs documentées** dans feedback_flyer_builder_bugs.md — LIRE AVANT de toucher au builder.
+
+### Erreurs commises à NE PLUS RÉPÉTER
+
+**Architecture :**
+- NE JAMAIS utiliser `prompt()` natif → toujours un modal stylé
+- NE JAMAIS mélanger multer (FormData) et express.json() sur la même route → créer 2 routes séparées (/edit-image et /edit-image-url)
+- NE JAMAIS envoyer un chemin relatif (/studio/...) à fetch() côté serveur → vérifier si local, lire avec fs.readFileSync
+- NE JAMAIS utiliser `text.replace` sur du HTML dans un template string → ça casse les tags
+
+**Scraping :**
+- NE JAMAIS envoyer le message utilisateur complet comme product_name → extraire le nom du produit avec regex (filtrer mots génériques : camera, dentaire, scanner, etc.)
+- NE JAMAIS prendre le premier slug qui matche → vérifier que c'est une page PRODUIT (add-to-cart) pas une CATÉGORIE
+- NE JAMAIS comparer avec accents vs sans accents → normaliser NFD avant comparaison
+- TOUJOURS essayer /produit/slug/ EN PREMIER (WooCommerce standard)
+- TOUJOURS essayer les paires de mots avant les mots seuls (panda-free avant camera)
+
+**DeepSeek :**
+- DeepSeek renvoie souvent ```json ... ``` au lieu de JSON pur → toujours nettoyer les backticks avant JSON.parse
+- DeepSeek invente des specs si on lui dit pas explicitement de ne pas le faire → ajouter "UNIQUEMENT les infos du contenu scrappé" dans le prompt
+- Le MODERATION_SYSTEM_PROMPT trop agressif fait refuser les demandes légitimes → alléger pour les agents métier
+
+**Frontend :**
+- L'URL detection doit être AVANT l'appel orchestrate, pas après
+- Les images externes (URLs) ne peuvent pas être fetch() par le navigateur (CORS) → passer par le serveur
+- innerHTML supprime les overlays (progress bar) → vérifier avant de re-render
+
+---
+
+## Session Studio 14 mai 2026 — ZENDO Flyer & Landing Page (VALIDÉ)
+Session de 4h. Création complète d'une landing page + flyer PDF premium
+pour Dental Evolution (client loupes dentaires ZENDO).
+
+### Résultats livrés
+- Landing page interactive (fond noir, vidéos, animations) → `/studio/generated/zendo-flyer/`
+- Flyer PDF 4 pages A4 (fond crème premium) → `zendo-flyer-2026.pdf`
+- 9 vidéos Vidu (3 dentistes img2video, rotation 3D, etc.)
+- Photos composites NanoBanana/Gemini (blonde + brun avec VRAIES loupes MultiVision)
+- 5 produits détourés ImageMagick (vraie transparence PNG)
+- Template ZENDO ajouté en base Supabase (studio_templates)
+- Hub Studio mis à jour avec exemple ZENDO
+- PDF envoyé par email au fondateur
+- Backup complet dans backup-v7/ (55 fichiers)
+- Coût total : ~$2.80
+
+### Workflow validé (à reproduire pour tous les futurs flyers)
+1. Upload vraies photos → Gemini édite (ouvre branches, détoure, composite)
+2. Fondateur valide les photos AVANT vidéo
+3. Vidu img2video (PAS text2video) avec photo validée
+4. ImageMagick détourage (PAS Gemini → quadrillage)
+5. Puppeteer PDF
+
+### Erreurs à ne plus faire
+- text2video pour loupes → Vidu invente ses propres loupes
+- Gemini "transparent" → quadrillage baked dans l'image
+- Confondre les modèles (Vision Direct ≠ Posture 45° ≠ MultiVision)
+- Déclarer terminé sans vérifier visuellement
+
+### Prochain chantier Studio
+- **Flyer Builder** : dashboard visuel avec templates + slots images + NanoBanana/Vidu intégrés + export PDF/ZIP white-label. Le template ZENDO = premier template.
+- **Intégration WordPress** : export white-label pour sites clients existants (reverse proxy ou ZIP statique)
+
+---
 
 ## Passe 79 (12 mai 2026) — SESSION MONSTRE : Mistral IA + Comparateur + GPS + App Flutter
 SESSION MARATHON (~10h). Analyse concurrence, integration Mistral,

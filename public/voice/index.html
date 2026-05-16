@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0A0A0B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>JADOMI Voice</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:#0A0A0B;color:#fff;min-height:100dvh;display:flex;flex-direction:column;}
+    .header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);}
+    .header h1{font-size:18px;font-weight:700;color:#c9a961;}
+    .header .back{color:rgba(255,255,255,0.5);text-decoration:none;font-size:13px;}
+    .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;}
+    .mode-btn{background:#141416;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px 12px;text-align:center;cursor:pointer;transition:all .2s;}
+    .mode-btn.active{border-color:#0d9488;background:rgba(13,148,136,0.1);}
+    .mode-btn .icon{font-size:28px;margin-bottom:6px;}
+    .mode-btn .label{font-size:13px;font-weight:600;}
+    .mode-btn .desc{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;}
+    .recording-area{flex:1;display:flex;flex-direction:column;padding:0 20px 20px;}
+    .transcript{flex:1;background:#141416;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;font-size:16px;line-height:1.8;overflow-y:auto;min-height:200px;white-space:pre-wrap;}
+    .transcript .interim{color:rgba(255,255,255,0.3);}
+    .transcript .speaker-d{color:#2dd4bf;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-top:12px;display:block;}
+    .transcript .speaker-p{color:#c9a961;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-top:12px;display:block;}
+    .controls{padding:20px;display:flex;gap:10px;justify-content:center;align-items:center;}
+    .mic-btn{width:72px;height:72px;border-radius:50%;border:none;background:#0d9488;color:#fff;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+    .mic-btn.recording{background:#ef4444;animation:pulse 1.5s infinite;}
+    .mic-btn:disabled{opacity:0.3;}
+    .ctrl-btn{width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+    .gen-btn{width:100%;padding:14px;background:#c9a961;color:#0A0A0B;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;}
+    .gen-btn:disabled{opacity:0.4;}
+    .status{text-align:center;font-size:12px;color:rgba(255,255,255,0.3);padding:8px;}
+    .timer{font-size:24px;font-weight:700;color:#0d9488;text-align:center;padding:8px;font-family:monospace;}
+    .result{background:#141416;border:1px solid rgba(201,169,97,0.3);border-radius:12px;padding:16px;margin-top:12px;font-size:14px;line-height:1.6;}
+    .lang-badge{display:inline-block;padding:3px 10px;background:rgba(13,148,136,0.15);color:#2dd4bf;border-radius:20px;font-size:11px;font-weight:600;margin:4px 0 8px;}
+    @keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(239,68,68,0.4);}50%{transform:scale(1.05);box-shadow:0 0 0 12px rgba(239,68,68,0);}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/index" class="back">← Retour</a>
+    <h1>JADOMI Voice</h1>
+    <div id="statusDot" style="width:10px;height:10px;border-radius:50%;background:#333;"></div>
+  </div>
+
+  <div class="modes">
+    <div class="mode-btn active" onclick="selectMode('dictee',this)">
+      <div class="icon">🎤</div>
+      <div class="label">Dictee</div>
+      <div class="desc">Transcription rapide</div>
+    </div>
+    <div class="mode-btn" onclick="selectMode('consultation',this)">
+      <div class="icon">🩺</div>
+      <div class="label">Consultation</div>
+      <div class="desc">Timer + multi-docs</div>
+    </div>
+    <div class="mode-btn" onclick="selectMode('traduction',this)">
+      <div class="icon">🌍</div>
+      <div class="label">Traduction</div>
+      <div class="desc">99 langues live</div>
+    </div>
+    <div class="mode-btn" onclick="selectMode('certificat',this)">
+      <div class="icon">📜</div>
+      <div class="label">Certificat</div>
+      <div class="desc">CR + photos</div>
+    </div>
+  </div>
+
+  <div class="recording-area">
+    <div id="timer" class="timer" style="display:none;">00:00</div>
+    <div id="langBadge" class="lang-badge" style="display:none;">Francais</div>
+    <div class="transcript" id="transcript">
+      <div style="color:rgba(255,255,255,0.3);text-align:center;padding:40px 0;">
+        Appuyez sur le micro pour commencer
+      </div>
+    </div>
+    <div id="result" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="status" id="status">Pret</div>
+
+  <div class="controls">
+    <button class="ctrl-btn" onclick="clearTranscript()" title="Effacer">🗑️</button>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+    <button class="ctrl-btn" onclick="switchSpeaker()" id="speakerBtn" title="Changer locuteur" style="display:none;">👤</button>
+  </div>
+
+  <div style="padding:0 20px 20px;">
+    <button class="gen-btn" id="genBtn" onclick="generateDoc()" disabled>Generer le document</button>
+  </div>
+
+<script>
+var mode = 'dictee';
+var recognition = null;
+var isRecording = false;
+var accumulated = '';
+var timerInterval = null;
+var seconds = 0;
+var currentSpeaker = 'dentiste';
+
+function selectMode(m, el) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach(function(b) { b.classList.remove('active'); });
+  el.classList.add('active');
+
+  var speakerBtn = document.getElementById('speakerBtn');
+  var timer = document.getElementById('timer');
+  speakerBtn.style.display = (m === 'consultation') ? 'flex' : 'none';
+  timer.style.display = (m === 'consultation') ? 'block' : 'none';
+
+  stopRecording();
+  clearTranscript();
+  document.getElementById('status').textContent = 'Mode: ' + m;
+}
+
+function toggleMic() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+function startRecording() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Navigateur non supporte. Utilisez Chrome.'); return; }
+
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'fr-FR';
+
+  var transcript = document.getElementById('transcript');
+  if (!accumulated) transcript.innerHTML = '';
+
+  recognition.onresult = function(e) {
+    var interim = '';
+    var final = '';
+    for (var i = 0; i < e.results.length; i++) {
+      var t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) {
+        final += t + ' ';
+      } else {
+        interim = t;
+      }
+    }
+    if (final.trim()) {
+      if (mode === 'consultation') {
+        accumulated += '<span class="speaker-' + (currentSpeaker === 'dentiste' ? 'd' : 'p') + '">' + (currentSpeaker === 'dentiste' ? 'Praticien' : 'Patient') + '</span>' + final;
+      } else {
+        accumulated += final;
+      }
+    }
+    transcript.innerHTML = accumulated + (interim ? '<span class="interim">' + interim + '</span>' : '');
+    transcript.scrollTop = transcript.scrollHeight;
+
+    document.getElementById('genBtn').disabled = accumulated.length < 10;
+  };
+
+  recognition.onerror = function(e) {
+    console.warn('Speech:', e.error);
+  };
+
+  recognition.onend = function() {
+    if (isRecording) {
+      setTimeout(function() {
+        if (isRecording && recognition) {
+          try { recognition.start(); } catch(e) {}
+        }
+      }, 100);
+    }
+  };
+
+  isRecording = true;
+  recognition.start();
+
+  document.getElementById('micBtn').classList.add('recording');
+  document.getElementById('micBtn').textContent = '⏹';
+  document.getElementById('statusDot').style.background = '#ef4444';
+  document.getElementById('status').textContent = 'Enregistrement en cours...';
+
+  if (mode === 'consultation') {
+    seconds = 0;
+    document.getElementById('timer').style.display = 'block';
+    timerInterval = setInterval(function() {
+      seconds++;
+      var m = Math.floor(seconds / 60);
+      var s = seconds % 60;
+      document.getElementById('timer').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }, 1000);
+  }
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+    recognition = null;
+  }
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  document.getElementById('micBtn').classList.remove('recording');
+  document.getElementById('micBtn').textContent = '🎤';
+  document.getElementById('statusDot').style.background = '#333';
+  document.getElementById('status').textContent = 'Arrete';
+}
+
+function switchSpeaker() {
+  currentSpeaker = currentSpeaker === 'dentiste' ? 'patient' : 'dentiste';
+  document.getElementById('speakerBtn').textContent = currentSpeaker === 'dentiste' ? '👨‍⚕️' : '👤';
+  document.getElementById('status').textContent = 'Locuteur: ' + (currentSpeaker === 'dentiste' ? 'Praticien' : 'Patient');
+}
+
+function clearTranscript() {
+  accumulated = '';
+  document.getElementById('transcript').innerHTML = '<div style="color:rgba(255,255,255,0.3);text-align:center;padding:40px 0;">Appuyez sur le micro pour commencer</div>';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('genBtn').disabled = true;
+}
+
+function generateDoc() {
+  var text = accumulated.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (text.length < 10) { alert('Pas assez de texte.'); return; }
+
+  var resultDiv = document.getElementById('result');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="text-align:center;padding:16px;"><div style="color:var(--gold);">Generation en cours...</div></div>';
+
+  var docType = 'cr_consultation';
+  if (mode === 'certificat') docType = 'certificat';
+
+  // Recuperer le token auth depuis le cookie ou localStorage
+  var token = localStorage.getItem('sb-vsbomwjzehnfinfjvhqp-auth-token');
+  var authToken = '';
+  try {
+    var parsed = JSON.parse(token);
+    authToken = parsed?.access_token || parsed?.currentSession?.access_token || '';
+  } catch(e) {}
+
+  if (!authToken) {
+    // Essayer avec jadomiMultiSocietes
+    authToken = window.jadomiMultiSocietes?.token || '';
+  }
+
+  fetch('/api/ia-doc/generate-document', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+    body: JSON.stringify({ type: docType, transcription: text })
+  }).then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.document_html) {
+      resultDiv.innerHTML = data.document_html;
+    } else if (data.document_text) {
+      resultDiv.innerHTML = '<pre style="white-space:pre-wrap;">' + data.document_text + '</pre>';
+    } else {
+      resultDiv.innerHTML = '<div style="color:#ef4444;">Erreur: ' + (data.error || 'Echec generation') + '</div>';
+    }
+  }).catch(function(e) {
+    resultDiv.innerHTML = '<div style="color:#ef4444;">Erreur: ' + e.message + '</div>';
+  });
+}
+</script>
+</body>
+</html>

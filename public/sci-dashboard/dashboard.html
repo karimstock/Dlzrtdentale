@@ -1354,8 +1354,29 @@ function ajouterCharge() {
 // ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
+// Recuperer la societe active depuis localStorage
+const societeId = localStorage.getItem('societe_active_id') || localStorage.getItem('selectedSocieteId');
+if (!societeId) {
+  console.warn('[SCI] Pas de societe_active_id — redirection vers organisation');
+  // Ne pas rediriger, laisser charger avec les donnees demo
+}
+console.log('[SCI] Societe active:', societeId);
+
 document.addEventListener('DOMContentLoaded', async function() {
   const session = await checkAuth();
+
+  // Charger le nom de la societe si on a l'id
+  if (societeId && db) {
+    try {
+      const { data: soc } = await db.from('societes').select('nom').eq('id', societeId).maybeSingle();
+      if (soc && soc.nom) {
+        const titleEl = document.querySelector('h1, .dashboard-title, .page-title');
+        if (titleEl) titleEl.textContent = soc.nom;
+        document.title = soc.nom + ' — Dashboard SCI';
+      }
+    } catch(e) { console.warn('[SCI] Erreur chargement societe:', e.message); }
+  }
+
   renderDashboard();
   renderBiens();
   renderLocataires();

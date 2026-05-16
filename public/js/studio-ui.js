@@ -192,7 +192,9 @@ class StudioUI {
       'video-pro': 'Vidéo Pro HD (Sora 2 Pro)',
       'voice-basic': 'Voix Standard (OpenAI TTS)',
       'voice-premium': 'Voix Premium (ElevenLabs)',
-      'avatar-heygen': 'Avatar IA Parlant (HeyGen)',
+      'avatar-vidu': 'Avatar IA Parlant (Vidu AI)',
+      'video-vidu': 'Vidéo IA (Vidu AI)',
+      'animate-vidu': 'Animer une photo (Vidu AI)',
     };
 
     document.getElementById('studioModalTitle').textContent = titles[type] || 'Génération IA';
@@ -273,7 +275,9 @@ class StudioUI {
       'image-standard': 30, 'image-banner': 50, 'image-luxury': 100,
       'video-4s': 40, 'video-8s': 80, 'video-12s': 120, 'video-pro': 300,
       'voice-basic': 10, 'voice-premium': 30,
-      'avatar-heygen': 200,
+      'avatar-vidu': 40,
+      'video-vidu': 20,
+      'animate-vidu': 20,
     };
     return costs[this.currentType] || 30;
   }

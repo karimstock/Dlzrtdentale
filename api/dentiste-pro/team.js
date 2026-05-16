@@ -378,6 +378,56 @@ router.delete('/:id', requireCabinet(), async (req, res) => {
 });
 
 // =========================================================
+// GET /team/check-invitation — Vérifier un token d'invitation
+// Public : pas d'auth, retourne infos pour la page invitation
+// =========================================================
+router.get('/check-invitation', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Token requis' });
+
+    const { data: member, error } = await admin()
+      .from('dentiste_pro_team')
+      .select('id, email, nom, prenom, role, permissions, invitation_accepted, invitation_expires_at, cabinet_id, actif')
+      .eq('invitation_token', token)
+      .eq('actif', true)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!member) return res.status(404).json({ ok: false, error: 'Invitation introuvable ou déjà utilisée.' });
+
+    if (member.invitation_accepted) {
+      return res.status(409).json({ ok: false, error: 'Cette invitation a déjà été acceptée.' });
+    }
+    if (member.invitation_expires_at && new Date(member.invitation_expires_at) < new Date()) {
+      return res.status(410).json({ ok: false, error: 'Cette invitation a expiré. Demandez une nouvelle invitation au praticien.' });
+    }
+
+    // Charger le nom du cabinet
+    let cabinetName = 'Cabinet';
+    const { data: cabinet } = await admin()
+      .from('dentiste_pro_cabinets')
+      .select('nom_cabinet, nom')
+      .eq('id', member.cabinet_id)
+      .maybeSingle();
+    if (cabinet) cabinetName = cabinet.nom_cabinet || cabinet.nom || 'Cabinet';
+
+    res.json({
+      ok: true,
+      email: member.email,
+      nom: member.nom,
+      prenom: member.prenom,
+      role: member.role,
+      permissions: member.permissions,
+      cabinet_name: cabinetName
+    });
+  } catch (err) {
+    console.error('[team] GET /check-invitation', err.message);
+    res.status(500).json({ ok: false, error: 'Erreur serveur' });
+  }
+});
+
+// =========================================================
 // POST /team/accept-invitation — Accepter une invitation
 // Public : authentification par token d'invitation
 // =========================================================
@@ -544,7 +594,7 @@ async function sendInvitationEmail(member, cabinet) {
     const nodemailer = require('nodemailer');
     const BASE_URL = process.env.BASE_URL || 'https://jadomi.fr';
     const cabinetName = cabinet?.nom_cabinet || cabinet?.nom || 'Un cabinet';
-    const inviteLink = `${BASE_URL}/dentiste-pro/invitation?token=${member.invitation_token}`;
+    const inviteLink = `${BASE_URL}/equipe/invitation?token=${member.invitation_token}`;
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'pro1.mail.ovh.net',

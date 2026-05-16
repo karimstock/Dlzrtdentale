@@ -100,6 +100,18 @@ pour la credibilite B2B aupres des professionnels de sante et avocats.
    X corrections sur Y fichiers"
 Resultats Passe 66 : 20 agents deployes, corrections massives sur tout le site.
 
+## Supabase GRANT OBLIGATOIRE sur chaque nouveau SQL (mai 2026)
+A partir du 30 octobre 2026, Supabase n'expose plus automatiquement
+les tables "public" a l'API. Sans GRANT explicite, supabase-js retourne
+erreur 42501. CHAQUE migration SQL qui cree une table DOIT inclure :
+1. GRANT SELECT ON public.table TO anon;
+2. GRANT SELECT, INSERT, UPDATE, DELETE ON public.table TO authenticated;
+3. GRANT SELECT, INSERT, UPDATE, DELETE ON public.table TO service_role;
+4. ALTER TABLE public.table ENABLE ROW LEVEL SECURITY;
+5. Au moins 1 policy RLS (meme permissive pour commencer)
+Violation = table invisible pour le frontend. Zero exception.
+Avant octobre 2026 : auditer TOUTES les tables existantes.
+
 ## BASEPLAN — Documents fondateur OBLIGATOIRE
 La BASEPLAN regroupe TOUS les documents fondateur du projet :
 - docs/DOSSIER-AVOCAT-JADOMI.html (dossier juridique, CGV, questions avocat)

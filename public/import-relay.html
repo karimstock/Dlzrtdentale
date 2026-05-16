@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html><head><title>JADOMI Import</title></head>
+<body style="font-family:monospace;padding:40px">
+<h2>JADOMI — Import en cours...</h2>
+<pre id="log">En attente des données...</pre>
+<script>
+var log = document.getElementById('log');
+function addLog(msg) { log.textContent += '\n' + msg; }
+
+function sendToJadomi(payload) {
+  if (!payload || !payload.products || !payload.products.length) {
+    addLog('Erreur: pas de produits');
+    return;
+  }
+
+  addLog('Source: ' + payload.source);
+  addLog('Produits: ' + payload.products.length);
+
+  // Envoyer par lots de 500
+  var chunks = [];
+  for (var i = 0; i < payload.products.length; i += 500) {
+    chunks.push(payload.products.slice(i, i + 500));
+  }
+
+  var totalImported = 0;
+  function sendChunk(idx) {
+    if (idx >= chunks.length) {
+      addLog('TERMINÉ! ' + totalImported + '/' + payload.products.length + ' importés');
+      document.title = 'JADOMI: ' + totalImported + ' importés';
+      return;
+    }
+
+    addLog('Envoi lot ' + (idx + 1) + '/' + chunks.length + '...');
+
+    fetch('/api/scan/import-prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source: payload.source,
+        products: chunks[idx],
+        page: payload.page || 'relay-batch-' + (idx + 1)
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      totalImported += d.imported || 0;
+      addLog('Lot ' + (idx + 1) + ': ' + (d.imported || 0) + ' importés');
+      sendChunk(idx + 1);
+    })
+    .catch(function(e) {
+      addLog('Erreur lot ' + (idx + 1) + ': ' + e.message);
+      sendChunk(idx + 1);
+    });
+  }
+
+  sendChunk(0);
+}
+
+// Mode 1 : données dans le hash de l'URL
+var hash = location.hash.slice(1);
+if (hash) {
+  try {
+    var payload = JSON.parse(decodeURIComponent(hash));
+    sendToJadomi(payload);
+  } catch(e) {
+    addLog('Erreur parsing hash: ' + e.message);
+  }
+}
+
+// Mode 2 : données via postMessage (cross-origin)
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.jadomi && event.data.payload) {
+    addLog('Données reçues via postMessage');
+    try {
+      var payload = typeof event.data.payload === 'string' ? JSON.parse(event.data.payload) : event.data.payload;
+      sendToJadomi(payload);
+    } catch(e) {
+      addLog('Erreur parsing postMessage: ' + e.message);
+    }
+  }
+});
+
+// Mode 3 : coller manuellement (textarea)
+addLog('\nSi import automatique ne démarre pas:');
+addLog('Collez le JSON dans la zone ci-dessous et cliquez Importer');
+</script>
+<br>
+<textarea id="pasteArea" rows="5" cols="80" placeholder="Collez le JSON ici..."></textarea>
+<br>
+<select id="sourceSelect">
+<option value="megadental">Mega Dental</option>
+<option value="doctorai">Doctor-AI</option>
+<option value="doctorstrong">Doctor Strong</option>
+<option value="dentalclick">DentalClick</option>
+<option value="dentaltix">Dentaltix</option>
+</select>
+<button onclick="try{var raw=JSON.parse(document.getElementById('pasteArea').value);if(Array.isArray(raw)){sendToJadomi({source:document.getElementById('sourceSelect').value,products:raw.map(function(p){return{name:p.name,price:p.price,ref:p.ref||'',price_original:p.oldPrice||null,discount:p.discount||null,category:p.category||'',url:p.url||''}})})}else{sendToJadomi(raw)}}catch(e){addLog('Erreur: '+e.message)}">Importer</button>
+</body>
+</html>

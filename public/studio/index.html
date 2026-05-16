@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Studio — Créez des vidéos qui vendent</title>
+<meta name="description" content="JADOMI Studio : créez des vidéos professionnelles, avatars parlants et visuels produits grâce à l'IA générative.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080D;--surface:#101018;--surface2:#181824;--border:#1E1E2E;
+  --gold:#C9A84C;--gold-light:#E0C06A;--gold-dim:rgba(201,168,76,.1);
+  --text:#E8E8ED;--text2:#8B8BA0;--text3:#5A5A6E;
+  --ease:cubic-bezier(.16,1,.3,1);--radius:20px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+
+/* Film grain overlay */
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+a{color:var(--gold);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ═══════════════════════════════════════════════
+   HERO — Full-screen Vidu image + particles
+   ═══════════════════════════════════════════════ */
+.hero{position:relative;width:100%;height:100vh;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.hero-bg{position:absolute;inset:0;z-index:0}
+.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 20%}
+.hero-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 20%,rgba(8,8,13,.4) 50%,rgba(8,8,13,.95) 85%,#08080D 100%)}
+#hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+
+.hero-content{position:relative;z-index:2;text-align:center;padding:0 24px 80px;max-width:800px}
+.hero-title{font-family:'Playfair Display',serif;font-weight:700;font-style:italic;font-size:clamp(48px,8vw,96px);line-height:1.05;color:#fff;margin-bottom:16px;opacity:0;transform:translateY(30px);animation:heroFadeUp 1s var(--ease) .3s forwards}
+.hero-sub{font-size:clamp(18px,2.5vw,24px);color:var(--text2);font-weight:300;letter-spacing:.02em;margin-bottom:40px;min-height:32px;opacity:0;animation:heroFadeUp 1s var(--ease) .6s forwards}
+.hero-sub .cursor{display:inline-block;width:2px;height:1em;background:var(--gold);margin-left:2px;animation:blink 1s step-end infinite;vertical-align:text-bottom}
+.hero-cta{display:inline-flex;align-items:center;gap:10px;padding:16px 40px;background:var(--gold);color:#08080D;font-weight:600;font-size:16px;border-radius:50px;transition:transform .4s var(--ease),box-shadow .4s var(--ease);opacity:0;animation:heroFadeUp 1s var(--ease) .9s forwards}
+.hero-cta:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(201,168,76,.35)}
+.hero-cta svg{width:18px;height:18px;transition:transform .3s var(--ease)}
+.hero-cta:hover svg{transform:translateX(4px)}
+
+@keyframes heroFadeUp{to{opacity:1;transform:translateY(0)}}
+@keyframes blink{50%{opacity:0}}
+
+/* ═══════════════════════════════════════════════
+   SHOWCASE — 3 cards with real Vidu images
+   ═══════════════════════════════════════════════ */
+.showcase{padding:120px 24px;max-width:1200px;margin:0 auto}
+.section-label{font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px}
+.section-title{font-family:'Playfair Display',serif;font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.15;margin-bottom:60px}
+
+.showcase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.showcase-card{position:relative;border-radius:var(--radius);overflow:hidden;height:480px;cursor:pointer;perspective:800px}
+.showcase-card-inner{position:relative;width:100%;height:100%;border-radius:var(--radius);overflow:hidden;transition:transform .6s var(--ease);transform-style:preserve-3d;will-change:transform}
+.showcase-card img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}
+.showcase-card:hover img{transform:scale(1.06)}
+.showcase-card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(8,8,13,.92) 0%,rgba(8,8,13,.3) 50%,transparent 100%);display:flex;flex-direction:column;justify-content:flex-end;padding:32px;transition:background .5s var(--ease)}
+.showcase-card:hover .showcase-card-overlay{background:linear-gradient(to top,rgba(8,8,13,.95) 0%,rgba(8,8,13,.2) 50%,transparent 100%)}
+.showcase-card-glow{position:absolute;inset:-1px;border-radius:var(--radius);opacity:0;transition:opacity .5s var(--ease);background:linear-gradient(135deg,rgba(201,168,76,.2),transparent 60%);pointer-events:none}
+.showcase-card:hover .showcase-card-glow{opacity:1}
+
+.showcase-card h3{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;margin-bottom:8px}
+.showcase-card p{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.showcase-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--gold-dim);border:1px solid rgba(201,168,76,.15);border-radius:20px;font-size:12px;font-weight:600;color:var(--gold)}
+
+/* ═══════════════════════════════════════════════
+   BEFORE/AFTER — Interactive slider
+   ═══════════════════════════════════════════════ */
+.before-after{padding:120px 24px;max-width:1100px;margin:0 auto}
+.ba-container{position:relative;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9;cursor:ew-resize;user-select:none;-webkit-user-select:none}
+.ba-container img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ba-before{z-index:1;clip-path:inset(0 50% 0 0)}
+.ba-after{z-index:0}
+.ba-slider{position:absolute;top:0;bottom:0;left:50%;z-index:3;width:4px;background:var(--gold);transform:translateX(-50%);pointer-events:none}
+.ba-slider::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.ba-slider-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;z-index:4;pointer-events:none}
+.ba-slider-icon svg{width:100%;height:100%}
+.ba-label{position:absolute;bottom:20px;z-index:4;padding:8px 16px;background:rgba(8,8,13,.7);backdrop-filter:blur(10px);border-radius:10px;font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.ba-label-before{left:20px}
+.ba-label-after{right:20px;color:var(--gold)}
+
+/* ═══════════════════════════════════════════════
+   PROCESS — 4 steps with scroll reveal
+   ═══════════════════════════════════════════════ */
+.process{padding:120px 24px;max-width:1100px;margin:0 auto}
+.process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;margin-top:60px}
+.process-step{text-align:center;padding:40px 24px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);transition:border-color .4s var(--ease),transform .4s var(--ease)}
+.process-step:hover{border-color:rgba(201,168,76,.25);transform:translateY(-4px)}
+.process-icon{width:64px;height:64px;margin:0 auto 24px;background:var(--gold-dim);border-radius:16px;display:flex;align-items:center;justify-content:center}
+.process-icon svg{width:28px;height:28px;color:var(--gold);stroke:var(--gold);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.process-number{font-size:12px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:.1em}
+.process-step h3{font-size:18px;font-weight:600;margin-bottom:8px}
+.process-step p{font-size:14px;color:var(--text2);line-height:1.6}
+
+/* ═══════════════════════════════════════════════
+   PRICING — 3 tiers
+   ═══════════════════════════════════════════════ */
+.pricing{padding:120px 24px;max-width:1100px;margin:0 auto}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:60px}
+.pricing-card{padding:40px 32px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);position:relative;transition:transform .4s var(--ease),border-color .4s var(--ease)}
+.pricing-card:hover{transform:translateY(-4px)}
+.pricing-card.popular{border-color:var(--gold);background:linear-gradient(180deg,rgba(201,168,76,.06) 0%,var(--surface) 100%)}
+.pricing-popular-tag{position:absolute;top:-14px;left:50%;transform:translateX(-50%);padding:6px 20px;background:var(--gold);color:#08080D;font-size:12px;font-weight:700;border-radius:20px;text-transform:uppercase;letter-spacing:.1em}
+.pricing-tokens{font-size:14px;color:var(--text2);font-weight:500;margin-bottom:8px}
+.pricing-price{font-family:'Playfair Display',serif;font-size:48px;font-weight:700;margin-bottom:4px}
+.pricing-price span{font-size:18px;font-weight:400;color:var(--text2)}
+.pricing-desc{font-size:14px;color:var(--text3);margin-bottom:28px;padding-bottom:28px;border-bottom:1px solid var(--border)}
+.pricing-features{list-style:none;margin-bottom:32px}
+.pricing-features li{font-size:14px;color:var(--text2);padding:8px 0;display:flex;align-items:center;gap:10px}
+.pricing-features li::before{content:'';width:18px;height:18px;border-radius:50%;background:var(--gold-dim);flex-shrink:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;background-size:10px}
+.pricing-btn{display:block;width:100%;padding:14px;text-align:center;border-radius:12px;font-weight:600;font-size:15px;transition:all .3s var(--ease)}
+.pricing-btn-outline{border:1px solid var(--border);color:var(--text)}
+.pricing-btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.pricing-btn-gold{background:var(--gold);color:#08080D}
+.pricing-btn-gold:hover{box-shadow:0 8px 30px rgba(201,168,76,.3);transform:translateY(-1px)}
+
+/* ═══════════════════════════════════════════════
+   CTA FINAL — Video background
+   ═══════════════════════════════════════════════ */
+.cta-final{position:relative;padding:120px 24px;text-align:center;overflow:hidden}
+.cta-final video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.cta-final::after{content:'';position:absolute;inset:0;background:rgba(8,8,13,.8);z-index:1}
+.cta-final-content{position:relative;z-index:2;max-width:700px;margin:0 auto}
+.cta-final h2{font-family:'Playfair Display',serif;font-size:clamp(32px,5vw,52px);font-weight:700;margin-bottom:20px}
+.cta-final p{font-size:18px;color:var(--text2);margin-bottom:40px;line-height:1.6}
+
+/* Footer mini */
+.footer-mini{text-align:center;padding:40px 24px;font-size:13px;color:var(--text3);border-top:1px solid var(--border)}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════ */
+@media(max-width:900px){
+  .showcase-grid{grid-template-columns:1fr 1fr;gap:16px}
+  .showcase-card{height:360px}
+  .showcase-card:nth-child(3){grid-column:span 2}
+  .process-grid{grid-template-columns:1fr 1fr;gap:20px}
+  .pricing-grid{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}
+}
+@media(max-width:600px){
+  .showcase-grid{grid-template-columns:1fr}
+  .showcase-card{height:320px}
+  .showcase-card:nth-child(3){grid-column:auto}
+  .process-grid{grid-template-columns:1fr;gap:16px}
+  .hero-content{padding-bottom:60px}
+  .ba-container{aspect-ratio:4/3}
+  .section-title{margin-bottom:40px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .reveal{opacity:1;transform:none}
+  #hero-canvas{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════ HERO ════════════ -->
+<section class="hero">
+  <div class="hero-bg">
+    <img src="/studio/generated/zendo-images/vidu-dentiste-blonde.png" alt="Dentiste professionnelle dans un cabinet moderne" loading="eager">
+  </div>
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-content">
+    <h1 class="hero-title">JADOMI Studio</h1>
+    <p class="hero-sub" id="typed-sub"><span class="cursor"></span></p>
+    <a href="/studio/video-creator" class="hero-cta">
+      Commencer
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+  </div>
+</section>
+
+<!-- ════════════ SHOWCASE ════════════ -->
+<section class="showcase">
+  <div class="reveal">
+    <p class="section-label">Ce que vous pouvez créer</p>
+    <h2 class="section-title">Des visuels qui marquent les esprits</h2>
+  </div>
+  <div class="showcase-grid">
+    <div class="showcase-card reveal">
+      <div class="showcase-card-inner">
+        <img src="/studio/generated/zendo-images/vidu-exploded-product.png" alt="Produit dentaire en vue éclatée, rendu studio">
+        <div class="showcase-card-glow"></div>
+        <div class="showcase-card-overlay">
+          <h3>Vidéo Produit</h3>
+          <p>Vos produits en rotation 3D, fond noir, éclairage cinéma. Prêts pour vos réseaux et votre vitrine.</p>
+          <span class="showcase-badge">5 tokens / vidéo</span>
+        </div>
+      </div>
+    </div>
+    <div class="showcase-card reveal">
+      <div class="showcase-card-inner">
+        <img src="/studio/generated/zendo-images/vidu-avatar-homme.png" alt="Avatar chirurgien professionnel">
+        <div class="showcase-card-glow"></div>
+        <div class="showcase-card-overlay">
+          <h3>Avatar Parlant</h3>
+          <p>Un avatar réaliste présente vos soins, vos offres ou votre cabinet. Voix naturelle et lip-sync parfait.</p>
+          <span class="showcase-badge">8 tokens / avatar</span>
+        </div>
+      </div>
+    </div>
+    <div class="showcase-card reveal">
+      <div class="showcase-card-inner">
+        <img src="/studio/generated/zendo-images/vidu-cabinet-moderne.png" alt="Cabinet dentaire ultra-moderne">
+        <div class="showcase-card-glow"></div>
+        <div class="showcase-card-overlay">
+          <h3>Votre Cabinet</h3>
+          <p>Visite virtuelle de votre cabinet, ambiance premium. Rassurez vos patients avant même leur arrivée.</p>
+          <span class="showcase-badge">3 tokens / photo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exemple fiche produit ZENDO -->
+  <div style="margin-top:60px;text-align:center" class="reveal">
+    <p class="section-label">Exemple Réel</p>
+    <h2 class="section-title" style="margin-bottom:24px">Fiche Produit Premium — ZENDO</h2>
+    <p style="color:var(--text2);max-width:600px;margin:0 auto 40px;font-size:16px;line-height:1.6">Landing page + flyer PDF générés avec NanoBanana, Gemini et Vidu. Photos réelles, vidéos IA, design premium.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;margin:0 auto">
+      <a href="/studio/generated/zendo-flyer/" target="_blank" style="text-decoration:none">
+        <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);transition:transform .4s var(--ease),box-shadow .4s var(--ease)" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 40px rgba(201,168,76,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <img src="/studio/generated/zendo-flyer/photo-blonde-multivision.png" alt="Landing page ZENDO" style="width:100%;height:280px;object-fit:cover">
+          <div style="padding:20px;background:var(--surface);text-align:left">
+            <h3 style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:6px;color:var(--text)">Landing Page ZENDO</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:12px">3 modèles, vidéos dentistes, rotation 3D, animations interactives</p>
+            <span class="showcase-badge">Voir la landing →</span>
+          </div>
+        </div>
+      </a>
+      <a href="/studio/generated/zendo-flyer/flyer.html" target="_blank" style="text-decoration:none">
+        <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);transition:transform .4s var(--ease),box-shadow .4s var(--ease)" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 40px rgba(201,168,76,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <img src="/studio/generated/zendo-flyer/photo-brun-multivision.png" alt="Flyer PDF ZENDO" style="width:100%;height:280px;object-fit:cover">
+          <div style="padding:20px;background:var(--surface);text-align:left">
+            <h3 style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:6px;color:var(--text)">Flyer PDF 4 Pages</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Design crème premium, specs techniques, tarifs TTC 2026</p>
+            <span class="showcase-badge">Voir le flyer →</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ BEFORE / AFTER ════════════ -->
+<section class="before-after">
+  <div class="reveal" style="text-align:center;margin-bottom:60px">
+    <p class="section-label">Transformation</p>
+    <h2 class="section-title">Avant : une photo. Après : un studio.</h2>
+  </div>
+  <div class="ba-container reveal" id="ba-slider">
+    <img class="ba-after" src="/studio/generated/zendo-images/vidu-exploded-product.png" alt="Rendu IA du produit">
+    <img class="ba-before" src="/studio/generated/zendo-images/vidu-loupes-product.png" alt="Photo originale du produit">
+    <div class="ba-slider" id="ba-line">
+      <div class="ba-slider-icon">
+        <svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" fill="#C9A84C"/><path d="M18 24l-4-4m0 0l4-4m-4 4h20M30 24l4-4m0 0l-4-4m4 4H14" stroke="#08080D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+    <span class="ba-label ba-label-before">Photo</span>
+    <span class="ba-label ba-label-after">IA Studio</span>
+  </div>
+</section>
+
+<!-- ════════════ PROCESS ════════════ -->
+<section class="process">
+  <div class="reveal" style="text-align:center">
+    <p class="section-label">Comment ça fonctionne</p>
+    <h2 class="section-title">Quatre étapes, zéro complexité</h2>
+  </div>
+  <div class="process-grid">
+    <div class="process-step reveal">
+      <div class="process-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="process-number">01</div>
+      <h3>Uploadez votre photo</h3>
+      <p>Importez une photo de votre produit, de votre cabinet ou un portrait.</p>
+    </div>
+    <div class="process-step reveal">
+      <div class="process-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </div>
+      <div class="process-number">02</div>
+      <h3>L'IA analyse et propose</h3>
+      <p>Notre moteur identifie le sujet et vous suggère les meilleurs traitements.</p>
+    </div>
+    <div class="process-step reveal">
+      <div class="process-icon">
+        <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <div class="process-number">03</div>
+      <h3>Générez en un clic</h3>
+      <p>Vidéo, avatar ou photo studio : le rendu est prêt en quelques secondes.</p>
+    </div>
+    <div class="process-step reveal">
+      <div class="process-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div class="process-number">04</div>
+      <h3>Téléchargez et publiez</h3>
+      <p>Exportez en haute définition. Partagez sur vos réseaux ou votre site.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ PRICING ════════════ -->
+<section class="pricing">
+  <div class="reveal" style="text-align:center">
+    <p class="section-label">Tarifs</p>
+    <h2 class="section-title">Des formules adaptées à vos besoins</h2>
+  </div>
+  <div class="pricing-grid">
+    <div class="pricing-card reveal">
+      <div class="pricing-tokens">100 tokens</div>
+      <div class="pricing-price">29<span>&euro;</span></div>
+      <div class="pricing-desc">Idéal pour découvrir le studio</div>
+      <ul class="pricing-features">
+        <li>2 vidéos de 30 secondes</li>
+        <li>10 photos studio</li>
+        <li>Export haute définition</li>
+        <li>Assistance par email</li>
+      </ul>
+      <a href="/studio/video-creator" class="pricing-btn pricing-btn-outline">Choisir</a>
+    </div>
+    <div class="pricing-card popular reveal">
+      <div class="pricing-popular-tag">Populaire</div>
+      <div class="pricing-tokens">500 tokens</div>
+      <div class="pricing-price">119<span>&euro;</span></div>
+      <div class="pricing-desc">Pour les professionnels actifs</div>
+      <ul class="pricing-features">
+        <li>10 vidéos produit</li>
+        <li>3 avatars parlants</li>
+        <li>50 photos studio</li>
+        <li>Priorité de génération</li>
+        <li>Assistance prioritaire</li>
+      </ul>
+      <a href="/studio/video-creator" class="pricing-btn pricing-btn-gold">Choisir</a>
+    </div>
+    <div class="pricing-card reveal">
+      <div class="pricing-tokens">2 000 tokens</div>
+      <div class="pricing-price">399<span>&euro;</span></div>
+      <div class="pricing-desc">Volume pour les cliniques et groupes</div>
+      <ul class="pricing-features">
+        <li>40 vidéos produit</li>
+        <li>15 avatars parlants</li>
+        <li>200 photos studio</li>
+        <li>Animations 3D</li>
+        <li>Accompagnement dédié</li>
+      </ul>
+      <a href="/studio/video-creator" class="pricing-btn pricing-btn-outline">Choisir</a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ CTA FINAL ════════════ -->
+<section class="cta-final">
+  <video autoplay muted loop playsinline poster="/studio/generated/zendo-images/vidu-cabinet-moderne.png">
+    <source src="/assets/bg-loop-gold.mp4" type="video/mp4">
+  </video>
+  <div class="cta-final-content reveal">
+    <h2>Prêt à transformer vos visuels ?</h2>
+    <p>Rejoignez les professionnels de santé qui ont déjà adopté JADOMI Studio pour se démarquer.</p>
+    <a href="/studio/video-creator" class="hero-cta">
+      Commencer maintenant
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+  </div>
+</section>
+
+<footer class="footer-mini">JADOMI Studio &mdash; contact@jadomi.fr</footer>
+
+<!-- Three.js r128 + GSAP 3.12.2 + ScrollTrigger -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ─── Typing effect ─── */
+var phrases = [
+  'Créez des vidéos qui vendent',
+  'Des avatars qui présentent vos soins',
+  'Des visuels dignes d\'un studio photo'
+];
+var typedEl = document.getElementById('typed-sub');
+var pi = 0, ci = 0, deleting = false;
+function typeLoop() {
+  var phrase = phrases[pi];
+  if (!deleting) {
+    ci++;
+    typedEl.innerHTML = phrase.substring(0, ci) + '<span class="cursor"></span>';
+    if (ci === phrase.length) { setTimeout(function(){ deleting = true; typeLoop(); }, 2200); return; }
+    setTimeout(typeLoop, 55 + Math.random() * 30);
+  } else {
+    ci--;
+    typedEl.innerHTML = phrase.substring(0, ci) + '<span class="cursor"></span>';
+    if (ci === 0) { deleting = false; pi = (pi + 1) % phrases.length; setTimeout(typeLoop, 400); return; }
+    setTimeout(typeLoop, 25);
+  }
+}
+setTimeout(typeLoop, 1200);
+
+/* ─── Three.js gold particles in hero ─── */
+var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!prefersReduced) {
+  try {
+    var canvas = document.getElementById('hero-canvas');
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 30;
+
+    var count = 800;
+    var geo = new THREE.BufferGeometry();
+    var pos = new Float32Array(count * 3);
+    var vel = new Float32Array(count * 3);
+    for (var i = 0; i < count; i++) {
+      pos[i*3] = (Math.random() - 0.5) * 60;
+      pos[i*3+1] = (Math.random() - 0.5) * 40;
+      pos[i*3+2] = (Math.random() - 0.5) * 30;
+      vel[i*3] = (Math.random() - 0.5) * 0.005;
+      vel[i*3+1] = Math.random() * 0.008 + 0.002;
+      vel[i*3+2] = (Math.random() - 0.5) * 0.003;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    var mat = new THREE.PointsMaterial({
+      color: 0xC9A84C, size: 0.12, transparent: true, opacity: 0.5,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    var points = new THREE.Points(geo, mat);
+    scene.add(points);
+
+    var heroVisible = true;
+    var observer = new IntersectionObserver(function(entries){
+      heroVisible = entries[0].isIntersecting;
+    }, { threshold: 0 });
+    observer.observe(document.querySelector('.hero'));
+
+    function animateParticles() {
+      requestAnimationFrame(animateParticles);
+      if (!heroVisible) return;
+      var p = geo.attributes.position.array;
+      for (var j = 0; j < count; j++) {
+        p[j*3] += vel[j*3];
+        p[j*3+1] += vel[j*3+1];
+        p[j*3+2] += vel[j*3+2];
+        if (p[j*3+1] > 20) { p[j*3+1] = -20; }
+        if (Math.abs(p[j*3]) > 30) vel[j*3] *= -1;
+      }
+      geo.attributes.position.needsUpdate = true;
+      points.rotation.y += 0.0003;
+      renderer.render(scene, camera);
+    }
+    animateParticles();
+
+    window.addEventListener('resize', function(){
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  } catch(e) { /* WebGL not supported — silent fallback */ }
+}
+
+/* ─── GSAP ScrollTrigger reveals ─── */
+gsap.registerPlugin(ScrollTrigger);
+document.querySelectorAll('.reveal').forEach(function(el, i){
+  gsap.fromTo(el,
+    { opacity: 0, y: 40 },
+    { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
+      scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+    }
+  );
+});
+
+/* ─── 3D Tilt on showcase cards ─── */
+document.querySelectorAll('.showcase-card').forEach(function(card){
+  var inner = card.querySelector('.showcase-card-inner');
+  card.addEventListener('mousemove', function(e){
+    var rect = card.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width - 0.5;
+    var y = (e.clientY - rect.top) / rect.height - 0.5;
+    inner.style.transform = 'rotateY(' + (x * 8) + 'deg) rotateX(' + (-y * 8) + 'deg)';
+  });
+  card.addEventListener('mouseleave', function(){
+    inner.style.transform = 'rotateY(0) rotateX(0)';
+  });
+});
+
+/* ─── Before/After slider ─── */
+var baCont = document.getElementById('ba-slider');
+if (baCont) {
+  var baLine = document.getElementById('ba-line');
+  var baBefore = baCont.querySelector('.ba-before');
+  var dragging = false;
+  function setSlider(pct) {
+    pct = Math.max(2, Math.min(98, pct));
+    baLine.style.left = pct + '%';
+    baBefore.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+  }
+  function getPos(e) {
+    var t = e.touches ? e.touches[0] : e;
+    var rect = baCont.getBoundingClientRect();
+    return ((t.clientX - rect.left) / rect.width) * 100;
+  }
+  baCont.addEventListener('mousedown', function(e){ dragging = true; setSlider(getPos(e)); });
+  baCont.addEventListener('touchstart', function(e){ dragging = true; setSlider(getPos(e)); }, { passive: true });
+  window.addEventListener('mousemove', function(e){ if (dragging) setSlider(getPos(e)); });
+  window.addEventListener('touchmove', function(e){ if (dragging) setSlider(getPos(e)); }, { passive: true });
+  window.addEventListener('mouseup', function(){ dragging = false; });
+  window.addEventListener('touchend', function(){ dragging = false; });
+}
+
+})();
+</script>
+</body>
+</html>

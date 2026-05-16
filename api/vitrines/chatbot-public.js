@@ -5,6 +5,7 @@
 // =============================================
 const Anthropic = require('@anthropic-ai/sdk');
 const { createClient } = require('@supabase/supabase-js');
+const { buildSystemPrompt, validateResponse } = require('../../lib/ai-studio/jadomi-brain');
 
 let _admin = null;
 function admin() {
@@ -131,7 +132,7 @@ module.exports = function(router) {
         ? `\nExpertises : ${config.expertises.join(', ')}`
         : '';
 
-      const systemPrompt = `Vous êtes l'assistant virtuel de ${cabinetName}, ${cabinetType}.
+      const systemPrompt = buildSystemPrompt('cms', `Vous êtes l'assistant virtuel de ${cabinetName}, ${cabinetType}.
 ${toneInstructions[tone] || toneInstructions.professionnel}
 
 Informations sur le cabinet :
@@ -141,13 +142,10 @@ Informations sur le cabinet :
 - Téléphone : ${phone || 'Non renseigné'}
 - Email : ${email || 'Non renseigné'}${hoursSection}${expertisesSection}${faqSection}
 
-Règles strictes :
-- Utilisez TOUJOURS le vouvoiement.
-- Ne donnez JAMAIS de conseil juridique, medical ou professionnel specifique.
-- Pour les questions complexes ou specifiques, orientez le visiteur vers une prise de rendez-vous.
+Règles supplémentaires :
 - Réponses courtes et concises : 50 à 100 mots maximum.
 - Restez toujours dans le cadre du cabinet et de ses services.
-- Si vous ne savez pas, dites-le honnêtement et proposez de contacter le cabinet directement.`;
+- Si vous ne savez pas, dites-le honnêtement et proposez de contacter le cabinet directement.`);
 
       // --- Construire les messages pour Claude ---
       const conversationMessages = [];

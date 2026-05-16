@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JADOMI — Check-in Patient</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0a0a0f 0%, #111827 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #e5e5e5;
+    }
+    .card {
+      background: rgba(22, 22, 31, 0.95);
+      border: 1px solid rgba(13, 148, 136, 0.2);
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #0d9488, #14b8a6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #737373;
+      margin-bottom: 32px;
+    }
+    .cabinet-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #5eead4;
+      margin-bottom: 24px;
+    }
+    .field {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: #a3a3a3;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .field input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: #e5e5e5;
+      font-size: 16px;
+      font-family: 'Inter', sans-serif;
+      -webkit-appearance: none;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: #0d9488;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+    }
+    .field input::placeholder { color: #525252; }
+    .btn-checkin {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #0d9488, #14b8a6);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+    .btn-checkin:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(13, 148, 136, 0.3); }
+    .btn-checkin:active { transform: translateY(0); }
+    .btn-checkin:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .result {
+      display: none;
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      animation: fadeIn 0.4s cubic-bezier(.16,1,.3,1);
+    }
+    .result.success {
+      display: block;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #22c55e;
+    }
+    .result.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+    .result .icon { font-size: 40px; margin-bottom: 8px; }
+    .result .msg { font-size: 14px; font-weight: 400; color: #a3a3a3; margin-top: 6px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .info {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #525252;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">JADOMI</div>
+    <div class="subtitle">Confirmez votre arrivée au cabinet</div>
+    <div class="cabinet-name" id="cabinet-name"></div>
+
+    <form id="checkin-form">
+      <div class="field">
+        <label>Votre nom de famille</label>
+        <input type="text" id="nom" placeholder="Ex : Dupont" autocomplete="family-name" required>
+      </div>
+      <div class="field">
+        <label>Votre date de naissance</label>
+        <input type="date" id="dob" required>
+      </div>
+      <button type="submit" class="btn-checkin" id="btn-submit">Je suis arrivé(e)</button>
+    </form>
+
+    <div class="result" id="result">
+      <div class="icon" id="result-icon"></div>
+      <div id="result-title"></div>
+      <div class="msg" id="result-msg"></div>
+    </div>
+
+    <div class="info">
+      En confirmant votre arrivée, votre praticien est immédiatement averti.<br>
+      Vos données sont protégées et ne sont pas conservées sur cet appareil.
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var cabinetId = params.get('cabinet') || params.get('c') || '';
+      var cabinetName = params.get('name') || params.get('n') || 'Cabinet';
+
+      document.getElementById('cabinet-name').textContent = decodeURIComponent(cabinetName);
+
+      document.getElementById('checkin-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var nom = document.getElementById('nom').value.trim();
+        var dob = document.getElementById('dob').value;
+        var btn = document.getElementById('btn-submit');
+
+        if (!nom || !dob) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Confirmation en cours...';
+
+        fetch('/api/dentiste-pro/agenda/checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cabinet_id: cabinetId,
+            patient_nom: nom,
+            date_naissance: dob
+          })
+        })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(res) {
+          var result = document.getElementById('result');
+          var icon = document.getElementById('result-icon');
+          var title = document.getElementById('result-title');
+          var msg = document.getElementById('result-msg');
+          document.getElementById('checkin-form').style.display = 'none';
+
+          if (res.ok && res.data.success) {
+            result.className = 'result success';
+            icon.textContent = '';
+            title.textContent = 'Arrivée confirmée';
+            msg.textContent = res.data.message || 'Votre praticien a été notifié. Veuillez patienter en salle d\'attente.';
+            if (res.data.heure_rdv) {
+              msg.textContent += ' Votre rendez-vous est prévu à ' + res.data.heure_rdv + '.';
+            }
+          } else {
+            result.className = 'result error';
+            icon.textContent = '';
+            title.textContent = 'Non trouvé';
+            msg.textContent = res.data.error || 'Aucun rendez-vous trouvé à votre nom aujourd\'hui. Vérifiez votre nom ou présentez-vous à l\'accueil.';
+          }
+        })
+        .catch(function() {
+          var result = document.getElementById('result');
+          result.className = 'result error';
+          document.getElementById('result-icon').textContent = '';
+          document.getElementById('result-title').textContent = 'Erreur de connexion';
+          document.getElementById('result-msg').textContent = 'Veuillez réessayer ou vous présenter à l\'accueil.';
+          document.getElementById('checkin-form').style.display = 'none';
+        })
+        .finally(function() {
+          btn.disabled = false;
+          btn.textContent = 'Je suis arrivé(e)';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

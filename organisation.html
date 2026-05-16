@@ -225,7 +225,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 
 <div class="loader-screen" id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;">
   <div style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;"></div>
-  <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+  <style>@keyframes spin{to{transform:rotate(360deg);}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
 </div>
 
 <div class="ob-ov hide" id="onboard">
@@ -268,6 +268,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
         <div class="sb-item" onclick="sT('signature',this)"><span class="ico">✍️</span>Signature électronique</div>
         <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Accès rapide</div>
         <div class="sb-item" onclick="sT('equipment',this)"><span class="ico">🏭</span>Equipment</div>
+        <div class="sb-item" onclick="sT('scraping',this)"><span class="ico">🔍</span>Scraping</div>
       </div>
     </div>
 
@@ -280,6 +281,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
         <div class="sb-item" onclick="sT('studio-home',this)"><span class="ico">✨</span>Vue d'ensemble</div>
         <div class="sb-item" onclick="window.location.href='/studio/cms/'"><span class="ico">🌐</span>Mon site</div>
         <div class="sb-item" onclick="window.location.href='/studio/onboarding/'"><span class="ico">🔍</span>Créer / analyser</div>
+        <div class="sb-item" onclick="window.location.href='/studio/hub.html'"><span class="ico">🎨</span>Studio cr&eacute;atif</div>
         <div class="sb-item" onclick="window.location.href='/dashboard-annonceur.html'"><span class="ico">📢</span>Mes pubs</div>
         <div class="sb-item" onclick="sT('studio-abo',this)"><span class="ico">💎</span>Mon abonnement</div>
       </div>
@@ -1209,7 +1211,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div class="ar-section" data-cat="immobilier">
     <div class="ar-section-title">🏠 Immobilier</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/sci" data-kw="sci immobilier biens locataires quittances"><div class="ar-ico">🏠</div><div class="ar-name">SCI</div><div class="ar-desc">Dashboard immobilier</div></a>
+      <a class="ar-card" href="/sci-dashboard" data-kw="sci immobilier biens locataires quittances"><div class="ar-ico">🏠</div><div class="ar-name">SCI</div><div class="ar-desc">Dashboard immobilier</div></a>
     </div>
   </div>
 
@@ -1290,6 +1292,174 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div style="text-align:center;font-size:11px;color:var(--text3);">Propulsé par JADOMI IA</div>
 </div>
 
+<!-- SCRAPING & VEILLE CONCURRENTIELLE -->
+<div class="tp" id="t-scraping">
+
+  <!-- Upload PDF -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Upload de catalogues PDF</div>
+    <div id="scrapUploadZone" style="border:2px dashed var(--border);border-radius:var(--rs);padding:40px;text-align:center;cursor:pointer;transition:all .3s cubic-bezier(.16,1,.3,1);position:relative;"
+         ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.05)';"
+         ondragleave="this.style.borderColor='var(--border)';this.style.background='transparent';"
+         ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='transparent';handleFlyerDrop(event);"
+         onclick="document.getElementById('scrapFileInput').click();">
+      <input type="file" id="scrapFileInput" accept="application/pdf,image/*" multiple style="display:none;" onchange="handleFlyerSelect(this);">
+      <div style="font-size:32px;margin-bottom:8px;color:var(--text3);">PDF</div>
+      <div style="font-size:13px;color:var(--text2);">Glissez un ou plusieurs PDF ici ou cliquez pour parcourir</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">Catalogues, flyers, grilles tarifaires, factures (max 800 Mo chacun)</div>
+    </div>
+    <!-- Sélection marque/fournisseur -->
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center;">
+      <select id="scrapBrandSelect" style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+        <option value="">-- Marque / Fournisseur --</option>
+        <option value="GACD">GACD</option>
+        <option value="Henry Schein">Henry Schein</option>
+        <option value="Dental Promotion (DPI)">Dental Promotion (DPI)</option>
+        <option value="DoctorAI">DoctorAI</option>
+        <option value="DoctorStrong">DoctorStrong</option>
+        <option value="MegaDental">MegaDental</option>
+        <option value="DentalGoodDeal">DentalGoodDeal</option>
+        <option value="B2B-Dental">B2B-Dental</option>
+        <option value="DentalRee">DentalRee</option>
+        <option value="DentalPrive">DentalPrivé</option>
+        <option value="DentAlachat">DentAlachat</option>
+        <option value="Godentaire">Go-Dentaire</option>
+        <option value="DentalEvolution">DentalEvolution</option>
+        <option value="Dental-France">Dental-France</option>
+        <option value="TopDentaire">TopDentaire</option>
+        <option value="Autre">Autre...</option>
+      </select>
+      <input id="scrapBrandCustom" type="text" placeholder="Nom si Autre..." style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;display:none;">
+      <select id="scrapDocType" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+        <option value="flyer">Flyer / Promo</option>
+        <option value="catalogue">Catalogue</option>
+        <option value="facture">Facture</option>
+        <option value="email">Email promo</option>
+      </select>
+    </div>
+    <div id="scrapUploadStatus" style="margin-top:12px;font-size:12px;color:var(--text3);"></div>
+
+    <!-- Fichiers classés par marque -->
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">Fichiers importés (par marque)</div>
+      <div id="scrapFlyersList" style="font-size:12px;color:var(--text3);">Chargement...</div>
+    </div>
+  </div>
+
+  <!-- Produits extraits -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Produits extraits</div>
+    <div id="scrapProductsTable" style="font-size:12px;color:var(--text3);">Importez un PDF pour extraire les produits et les prix.</div>
+  </div>
+
+  <!-- Promos -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Calculateur de promotions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Type de promo</label>
+        <select id="promoType" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <option value="x_achetes_y_offerts">X achetés Y offerts</option>
+          <option value="lot_remise">Lot - X%</option>
+          <option value="palier_degressif">Palier dégressif</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Prix unitaire catalogue</label>
+        <input id="promoUnitPrice" type="number" step="0.01" min="0" placeholder="10.00" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+    </div>
+
+    <!-- Params X achetés Y offerts -->
+    <div id="promoParamsXY" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">X achetés</label>
+        <input id="promoX" type="number" min="1" value="5" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Y offerts</label>
+        <input id="promoY" type="number" min="0" value="3" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+    </div>
+
+    <!-- Params Lot remise -->
+    <div id="promoParamsLot" style="display:none;margin-top:12px;">
+      <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Remise (%)</label>
+      <input id="promoPct" type="number" min="0" max="100" value="20" style="width:200px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+    </div>
+
+    <!-- Params Palier dégressif -->
+    <div id="promoParamsPalier" style="display:none;margin-top:12px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;">Paliers (quantité / prix unitaire)</div>
+      <div id="palierRows">
+        <div class="palier-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;margin-bottom:6px;">
+          <input type="number" placeholder="Min" value="1" class="palier-min" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <input type="number" placeholder="Max" value="10" class="palier-max" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <input type="number" step="0.01" placeholder="Prix" value="10.00" class="palier-price" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <div></div>
+        </div>
+      </div>
+      <button onclick="addPalierRow()" style="padding:6px 14px;background:rgba(99,102,241,0.15);color:var(--accent);border-radius:var(--rs);font-size:11px;font-weight:600;margin-top:4px;">+ Ajouter un palier</button>
+      <div style="margin-top:8px;">
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Quantité souhaitée</label>
+        <input id="palierQty" type="number" min="1" value="5" style="width:200px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+    </div>
+
+    <button onclick="calcPromo()" style="margin-top:16px;padding:10px 24px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:var(--rs);font-size:13px;font-weight:600;transition:all .3s cubic-bezier(.16,1,.3,1);">Calculer le prix effectif</button>
+    <div id="promoResult" style="margin-top:14px;padding:14px;background:var(--surface2);border-radius:var(--rs);font-size:13px;color:var(--text);display:none;"></div>
+  </div>
+
+  <!-- Paliers Dégressifs - Tableau de référence -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Paliers dégressifs de référence</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Saisissez une grille de prix dégressifs pour un produit. Le comparateur pourra ensuite afficher le prix exact selon la quantité commandée.</p>
+    <div id="palierRefTable">
+      <table class="tbl">
+        <thead><tr><th>Quantité min</th><th>Quantité max</th><th>Prix unitaire</th><th>Actions</th></tr></thead>
+        <tbody id="palierRefBody">
+          <tr>
+            <td><input type="number" value="1" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" value="10" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" step="0.01" value="12.50" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><input type="number" value="11" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" value="50" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" step="0.01" value="10.80" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><input type="number" value="51" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" value="" placeholder="+" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" step="0.01" value="9.20" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <button onclick="addPalierRefRow()" style="margin-top:10px;padding:6px 14px;background:rgba(99,102,241,0.15);color:var(--accent);border-radius:var(--rs);font-size:11px;font-weight:600;">+ Ajouter un palier</button>
+  </div>
+
+  <!-- Monitoring Scrapers -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Monitoring des scrapers VPS</div>
+    <button onclick="loadScrapersStatus()" style="margin-bottom:12px;padding:8px 18px;background:rgba(6,182,212,0.15);color:var(--accent3);border-radius:var(--rs);font-size:12px;font-weight:600;">Rafraichir</button>
+    <table class="tbl" id="scrapersTable">
+      <thead><tr><th>Site</th><th>Produits</th><th>Dernière mise à jour</th><th>Statut</th></tr></thead>
+      <tbody id="scrapersBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Cliquez sur Rafraichir pour charger les données</td></tr></tbody>
+    </table>
+
+    <!-- Brain status -->
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">Moteur brain.json</div>
+      <div id="brainStatus" style="padding:12px;background:var(--surface2);border-radius:var(--rs);font-size:12px;color:var(--text3);">Non chargé</div>
+    </div>
+  </div>
+
+</div>
+
 <!-- SOC SECTION -->
 <div style="margin-top:36px;" id="socS">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><h2 style="font-size:17px;font-weight:800;">Mes sociétés</h2><span class="pill pi" id="sC">0</span></div>
@@ -1302,7 +1472,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 
 <script>
 const SU='https://vsbomwjzehnfinfjvhqp.supabase.co',SK='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF',AE='karim_bahmed@yahoo.fr';
-const MR={cabinet_dentaire:'/dentiste',veterinaire:'/dentiste',prothesiste:'/labo/dashboard.html',orthodontiste:'/labo/dashboard.html',sci:'sci.html',juridique:'/juridique/dashboard.html',services:'/services/dashboard.html',artisan_btp:'/btp/dashboard.html',createur:'/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
+const MR={cabinet_dentaire:'/dentiste',veterinaire:'/dentiste',prothesiste:'/labo/dashboard.html',orthodontiste:'/labo/dashboard.html',sci:'/sci-dashboard',juridique:'/juridique/dashboard.html',services:'/services/dashboard.html',artisan_btp:'/btp/dashboard.html',createur:'/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
 const TM={cabinet_dentaire:{i:'🦷',l:'Cabinet dentaire'},prothesiste:{i:'🔬',l:'Labo prothese'},orthodontiste:{i:'🦴',l:'Orthodontie'},veterinaire:{i:'🐾',l:'Veterinaire'},sci:{i:'🏠',l:'SCI'},societe_commerciale:{i:'🏢',l:'Societe commerciale'},sas:{i:'🏢',l:'SAS'},sarl:{i:'🏢',l:'SARL'},eurl:{i:'🏢',l:'EURL'},ei:{i:'👤',l:'EI'},auto_entrepreneur:{i:'📊',l:'Auto-entrepreneur'},autre:{i:'🏷️',l:'Autre'}};
 const CT=['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
 const ME=[{k:'chirurgien_dentiste',i:'🦷',l:'Dentiste'},{k:'orthodontiste',i:'🦴',l:'Orthodontiste'},{k:'prothesiste',i:'🔬',l:'Prothesiste'},{k:'veterinaire',i:'🐾',l:'Veterinaire'},{k:'dirigeant',i:'🏢',l:'Dirigeant'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
@@ -1356,8 +1526,8 @@ async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'applic
 
 function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
-  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Sécurité JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature électronique',equipment:'JADOMI Equipment','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
-  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();}
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Sécurité JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature électronique',equipment:'JADOMI Equipment',scraping:'Scraping & Veille concurrentielle','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
+  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();if(t==='scraping')loadScrapingDashboard();}
 function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
   el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
 function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
@@ -2369,6 +2539,306 @@ async function loadSignedDocsTab() {
   } catch (e) {
     console.error('loadSignedDocsTab error:', e);
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px;">Erreur de chargement</td></tr>';
+  }
+}
+
+/* ===== SCRAPING TAB ===== */
+function loadScrapingDashboard(){
+  loadFlyersList();
+  loadScrapersStatus();
+}
+
+async function handleFlyerDrop(ev){
+  const files=ev.dataTransfer?.files;
+  if(files&&files.length>0) uploadMultipleFlyers(Array.from(files));
+}
+function handleFlyerSelect(input){
+  const files=input.files;
+  if(files&&files.length>0) uploadMultipleFlyers(Array.from(files));
+  input.value='';
+}
+
+function uploadMultipleFlyers(files){
+  const pdfs=files.filter(f=>f.type==='application/pdf'||f.name.endsWith('.pdf')||f.type.startsWith('image/'));
+  if(pdfs.length===0){toast('Aucun fichier PDF valide.');return;}
+  pdfs.forEach(f=>uploadFlyer(f));
+}
+
+let _uploadSlotId=0;
+async function uploadFlyer(file){
+  if(file.size>800*1024*1024){toast(file.name+' : trop volumineux (max 800 Mo).');return;}
+  const brand=$('scrapBrandSelect')?.value||'';
+  const brandVal=brand==='Autre'?($('scrapBrandCustom')?.value?.trim()||''):brand;
+  const docType=$('scrapDocType')?.value||'';
+  const st=$('scrapUploadStatus');
+  const sizeMb=(file.size/1024/1024).toFixed(1);
+  const slotId='upload-slot-'+(_uploadSlotId++);
+
+  // Add a slot for this file
+  st.insertAdjacentHTML('beforeend','<div id="'+slotId+'" style="margin-bottom:10px;padding:10px;background:var(--surface2);border-radius:var(--rs);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><b style="font-size:12px;">'+esc(file.name)+'</b><span style="font-size:11px;color:var(--text3);">'+sizeMb+' Mo</span></div><div style="background:var(--surface);border-radius:6px;overflow:hidden;height:6px;"><div id="'+slotId+'-bar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:6px;"></div></div><div id="'+slotId+'-txt" style="font-size:11px;color:var(--text3);margin-top:4px;">Envoi 0%</div></div>');
+
+  try{
+    const fd=new FormData();fd.append('pdf',file);
+    if(brandVal)fd.append('brand',brandVal);
+    if(docType)fd.append('docType',docType);
+    const xhr=new XMLHttpRequest();
+    const result=await new Promise((resolve,reject)=>{
+      xhr.upload.onprogress=function(e){
+        if(e.lengthComputable){
+          const pct=Math.round(e.loaded/e.total*100);
+          const bar=document.getElementById(slotId+'-bar');
+          const txt=document.getElementById(slotId+'-txt');
+          if(bar)bar.style.width=pct+'%';
+          if(txt)txt.textContent='Envoi '+pct+'% — '+(e.loaded/1024/1024).toFixed(1)+' / '+sizeMb+' Mo';
+        }
+      };
+      xhr.onload=function(){
+        if(xhr.status>=200&&xhr.status<300){
+          try{resolve(JSON.parse(xhr.responseText))}catch(e){reject(new Error('Réponse invalide'))}
+        }else{
+          try{const err=JSON.parse(xhr.responseText);reject(new Error(err.error||'Erreur '+xhr.status))}catch(e){reject(new Error('Erreur '+xhr.status))}
+        }
+      };
+      xhr.onerror=function(){reject(new Error('Erreur réseau'))};
+      xhr.ontimeout=function(){reject(new Error('Timeout'))};
+      xhr.timeout=600000; // 10 min pour gros fichiers
+      xhr.open('POST','/api/scan-dashboard/upload');
+      xhr.send(fd);
+    });
+    const d=result;
+    const slot=document.getElementById(slotId);
+    if(d.error){slot.innerHTML='<span style="color:var(--danger);">'+esc(file.name)+' : '+esc(d.error)+'</span>';return;}
+
+    // Check if async parsing (large file)
+    if(d.async){
+      const txt=document.getElementById(slotId+'-txt');
+      if(txt)txt.innerHTML='<span style="color:var(--accent);">Fichier reçu. Analyse en cours...</span>';
+      const bar=document.getElementById(slotId+'-bar');
+      if(bar){bar.style.width='100%';bar.style.background='var(--accent)';bar.style.animation='pulse 1.5s infinite';}
+      // Poll for results
+      pollParseStatus(d.filename, slotId, file.name);
+    } else {
+      // Instant result
+      showUploadResult(d, slotId, file.name);
+    }
+    loadFlyersList();
+  }catch(e){
+    const slot=document.getElementById(slotId);
+    if(slot)slot.innerHTML='<span style="color:var(--danger);">'+esc(file.name)+' : '+esc(e.message)+'</span>';
+  }
+}
+
+function showUploadResult(d, slotId, fileName){
+  const slot=document.getElementById(slotId);
+  if(!slot)return;
+  const brandInfo=d.brandAutoDetected?' <span style="color:var(--accent);font-size:11px;">(auto)</span>':'';
+  const prodCount=(d.products||[]).length;
+  slot.innerHTML='<div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--success);font-size:16px;font-weight:800;">OK</span><span style="font-size:12px;"><b>'+esc(d.brand||'')+'</b>'+brandInfo+' / '+esc(fileName)+' — '+d.pages+' page(s), '+prodCount+' produit(s)</span></div>';
+  if(prodCount>0)renderExtractedProducts(d.products);
+}
+
+async function pollParseStatus(filename, slotId, fileName){
+  let tries=0;
+  const maxTries=120; // 120 x 2s = 4 min max
+  const poll=async()=>{
+    try{
+      const r=await fetch('/api/scan-dashboard/parse-status/'+encodeURIComponent(filename));
+      const job=await r.json();
+      const txt=document.getElementById(slotId+'-txt');
+      if(job.status==='done'){
+        // Show final result
+        const d={...job,filename,originalName:fileName};
+        showUploadResult(d,slotId,fileName);
+        loadFlyersList();
+        return;
+      }
+      const icon=job.status==='queued'?'En attente... ':'';
+      if(txt)txt.innerHTML='<span style="color:var(--accent);">'+icon+esc(job.progress||'Analyse...')+'</span>';
+    }catch(e){}
+    if(++tries<maxTries)setTimeout(poll,2000);
+    else{
+      const txt=document.getElementById(slotId+'-txt');
+      if(txt)txt.innerHTML='<span style="color:var(--warn);">Analyse longue. Rafraîchissez la page pour voir les résultats.</span>';
+    }
+  };
+  setTimeout(poll,2000);
+}
+// Show/hide custom brand input
+document.addEventListener('DOMContentLoaded',function(){
+  const sel=document.getElementById('scrapBrandSelect');
+  if(sel)sel.addEventListener('change',function(){
+    const ci=document.getElementById('scrapBrandCustom');
+    if(ci)ci.style.display=this.value==='Autre'?'block':'none';
+  });
+});
+
+function renderExtractedProducts(products){
+  let h='<table class="tbl"><thead><tr><th>Produit</th><th>Marque</th><th>Réf.</th><th>Prix catalogue</th><th>Prix promo</th><th>Remise</th></tr></thead><tbody>';
+  products.forEach(p=>{
+    const name=p.product||p.label||'-';
+    const brand=p.brand||'';
+    const ref=p.ref||'';
+    const cat=p.prixCatalogue!=null?p.prixCatalogue.toFixed(2)+' €':'';
+    const promo=p.prixPromo!=null?p.prixPromo.toFixed(2)+' €':(p.price!=null?p.price.toFixed(2)+' €':'');
+    const remise=p.remise||'';
+    const desc=p.description||p.raw||'';
+    h+='<tr title="'+esc(desc)+'">';
+    h+='<td style="font-weight:500;">'+esc(name)+'</td>';
+    h+='<td style="font-size:11px;color:var(--text2);">'+esc(brand)+'</td>';
+    h+='<td style="font-size:11px;font-family:monospace;">'+esc(ref)+'</td>';
+    h+='<td style="font-size:12px;color:var(--text3);text-decoration:line-through;">'+cat+'</td>';
+    h+='<td style="font-weight:600;color:var(--success);">'+promo+'</td>';
+    h+='<td style="font-size:11px;color:var(--accent);font-weight:600;">'+esc(remise)+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  $('scrapProductsTable').innerHTML=h;
+}
+
+async function loadFlyersList(){
+  try{
+    const r=await fetch('/api/scan-dashboard/flyers');
+    const d=await r.json();
+    const el=$('scrapFlyersList');
+    if(!d.flyers||d.flyers.length===0){el.innerHTML='Aucun fichier importé pour le moment.';return;}
+
+    // Grouper par marque
+    const byBrand={};
+    d.flyers.forEach(f=>{
+      const brand=f.brand||'Non classé';
+      if(!byBrand[brand])byBrand[brand]=[];
+      byBrand[brand].push(f);
+    });
+
+    // Trier les marques alphabétiquement, puis les fichiers par date décroissante
+    const sortedBrands=Object.keys(byBrand).sort((a,b)=>a==='Non classé'?1:b==='Non classé'?-1:a.localeCompare(b));
+
+    let h='';
+    sortedBrands.forEach(brand=>{
+      const files=byBrand[brand].sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const colors=['#6366f1','#f59e0b','#22c55e','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316'];
+      const color=colors[brand.charCodeAt(0)%colors.length];
+      h+='<details open style="margin-bottom:10px;"><summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);border-radius:var(--rs);font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;">';
+      h+='<span style="width:8px;height:8px;border-radius:50%;background:'+color+';display:inline-block;"></span>';
+      h+=esc(brand)+' <span style="color:var(--text3);font-weight:400;font-size:11px;">('+files.length+' fichier'+(files.length>1?'s':'')+')</span></summary>';
+      h+='<div style="padding:4px 0 0 20px;display:flex;flex-direction:column;gap:4px;">';
+      files.forEach(f=>{
+        const sz=(f.size/1024).toFixed(0);
+        const dt=new Date(f.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const typeLabel=f.docType==='facture'?'Facture':f.docType==='catalogue'?'Catalogue':f.docType==='email'?'Email':'Flyer';
+        const typeBg=f.docType==='facture'?'rgba(34,197,94,0.15)':f.docType==='catalogue'?'rgba(99,102,241,0.15)':f.docType==='email'?'rgba(6,182,212,0.15)':'rgba(245,158,11,0.15)';
+        const typeColor=f.docType==='facture'?'#22c55e':f.docType==='catalogue'?'#6366f1':f.docType==='email'?'#06b6d4':'#f59e0b';
+        h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border);">';
+        h+='<span style="display:flex;align-items:center;gap:8px;"><span style="padding:2px 8px;background:'+typeBg+';color:'+typeColor+';border-radius:4px;font-size:10px;font-weight:600;">'+typeLabel+'</span>';
+        h+='<span style="font-weight:500;color:var(--text);font-size:12px;">'+esc(f.displayName||f.name)+'</span></span>';
+        h+='<span style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text3);font-size:11px;">'+sz+' Ko — '+dt+'</span>';
+        h+='<button onclick="deleteFlyer(\''+esc(f.name)+'\')" style="padding:2px 8px;background:rgba(239,68,68,0.15);color:#f87171;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;">Suppr.</button></span></div>';
+      });
+      h+='</div></details>';
+    });
+    el.innerHTML=h;
+  }catch(e){$('scrapFlyersList').textContent='Erreur de chargement.';}
+}
+
+async function deleteFlyer(name){
+  if(!confirm('Supprimer ce fichier ?'))return;
+  try{
+    await fetch('/api/scan-dashboard/flyers/'+encodeURIComponent(name),{method:'DELETE'});
+    loadFlyersList();toast('Fichier supprimé.');
+  }catch(e){toast('Erreur suppression.');}
+}
+
+/* Promo type switcher */
+document.addEventListener('DOMContentLoaded',function(){
+  const sel=document.getElementById('promoType');
+  if(sel)sel.addEventListener('change',function(){
+    const v=this.value;
+    const xy=document.getElementById('promoParamsXY');
+    const lot=document.getElementById('promoParamsLot');
+    const pal=document.getElementById('promoParamsPalier');
+    if(xy)xy.style.display=v==='x_achetes_y_offerts'?'grid':'none';
+    if(lot)lot.style.display=v==='lot_remise'?'block':'none';
+    if(pal)pal.style.display=v==='palier_degressif'?'block':'none';
+  });
+});
+
+function addPalierRow(){
+  const container=$('palierRows');
+  const row=document.createElement('div');
+  row.className='palier-row';
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;margin-bottom:6px;';
+  row.innerHTML='<input type="number" placeholder="Min" class="palier-min" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">'
+    +'<input type="number" placeholder="Max" class="palier-max" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">'
+    +'<input type="number" step="0.01" placeholder="Prix" class="palier-price" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">'
+    +'<button onclick="this.parentElement.remove()" style="padding:4px;background:rgba(239,68,68,0.15);color:#f87171;border-radius:6px;font-size:11px;">X</button>';
+  container.appendChild(row);
+}
+
+async function calcPromo(){
+  const type=$('promoType').value;
+  const unitPrice=parseFloat($('promoUnitPrice').value);
+  if(!unitPrice||unitPrice<=0){toast('Veuillez saisir un prix unitaire valide.');return;}
+  let params={};
+  if(type==='x_achetes_y_offerts'){
+    params.x=parseInt($('promoX').value)||1;
+    params.y=parseInt($('promoY').value)||0;
+  }else if(type==='lot_remise'){
+    params.pct=parseFloat($('promoPct').value)||0;
+  }else if(type==='palier_degressif'){
+    params.qty=parseInt($('palierQty').value)||1;
+    params.tiers=[];
+    document.querySelectorAll('#palierRows .palier-row').forEach(r=>{
+      const min=parseInt(r.querySelector('.palier-min').value)||0;
+      const max=parseInt(r.querySelector('.palier-max').value)||null;
+      const price=parseFloat(r.querySelector('.palier-price').value)||0;
+      if(price>0)params.tiers.push({min,max,price});
+    });
+  }
+  try{
+    const r=await fetch('/api/scan-dashboard/promo/calc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,unitPrice,params})});
+    const d=await r.json();
+    const el=$('promoResult');
+    if(d.error){el.style.display='block';el.innerHTML='<span style="color:var(--danger);">'+esc(d.error)+'</span>';return;}
+    el.style.display='block';
+    el.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--success);margin-bottom:6px;">'+d.effectivePrice.toFixed(2)+' EUR / unité</div><div style="font-size:12px;color:var(--text2);">'+esc(d.detail)+'</div><div style="margin-top:8px;font-size:11px;color:var(--text3);">Économie : '+(unitPrice-d.effectivePrice).toFixed(2)+' EUR/unité (-'+((1-d.effectivePrice/unitPrice)*100).toFixed(1)+'%)</div>';
+  }catch(e){toast('Erreur réseau.');}
+}
+
+function addPalierRefRow(){
+  const tbody=$('palierRefBody');
+  const tr=document.createElement('tr');
+  tr.innerHTML='<td><input type="number" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>'
+    +'<td><input type="number" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;" placeholder="+"></td>'
+    +'<td><input type="number" step="0.01" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>'
+    +'<td><button onclick="this.closest(\'tr\').remove()" style="padding:3px 8px;background:rgba(239,68,68,0.15);color:#f87171;border-radius:6px;font-size:10px;">X</button></td>';
+  tbody.appendChild(tr);
+}
+
+async function loadScrapersStatus(){
+  try{
+    const r=await fetch('/api/scan-dashboard/scrapers');
+    const d=await r.json();
+    const tbody=$('scrapersBody');
+    if(!d.scrapers||d.scrapers.length===0){
+      tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Aucun scraper détecté sur le VPS</td></tr>';
+    }else{
+      let h='';
+      d.scrapers.forEach(s=>{
+        const dt=s.lastUpdate?new Date(s.lastUpdate).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+        const stCls=s.status==='actif'?'pe':(s.status==='erreur'?'pr':'po');
+        h+='<tr><td style="font-weight:600;">'+esc(s.site)+'</td><td>'+s.products+'</td><td style="color:var(--text3);">'+dt+'</td><td><span class="pill '+stCls+'">'+esc(s.status)+'</span></td></tr>';
+      });
+      tbody.innerHTML=h;
+    }
+    // Brain
+    const brainEl=$('brainStatus');
+    if(d.brain){
+      brainEl.innerHTML='<div style="color:var(--success);font-weight:600;margin-bottom:4px;">Moteur actif</div><pre style="white-space:pre-wrap;font-size:11px;color:var(--text3);max-height:200px;overflow:auto;">'+esc(JSON.stringify(d.brain,null,2))+'</pre>';
+    }else{
+      brainEl.textContent='brain.json non disponible sur ce serveur.';
+    }
+  }catch(e){
+    $('scrapersBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:20px;">Erreur de chargement</td></tr>';
   }
 }
 

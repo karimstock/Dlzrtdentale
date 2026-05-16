@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Studio — Flyer Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080D;--surface:#101018;--surface2:#181824;--border:rgba(201,168,76,.06);
+  --gold:#C9A84C;--gold-light:#E0C06A;--gold-dim:rgba(201,168,76,.08);
+  --text:#E8E8ED;--text2:#8B8BA0;--text3:#5A5A6E;
+  --green:#4DCE7B;--red:#E54D4D;--blue:#4D8CE5;
+  --ease:cubic-bezier(.16,1,.3,1);--radius:14px;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--gold);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;outline:none;width:100%;font-size:14px;transition:border .3s var(--ease)}
+input:focus,textarea:focus{border-color:rgba(201,168,76,.4);box-shadow:0 0 0 3px rgba(201,168,76,.08)}
+textarea{resize:vertical;min-height:80px}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:rgba(8,8,13,.8);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100}
+.header-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+.header-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.header-right{display:flex;align-items:center;gap:12px}
+.token-badge{display:flex;align-items:center;gap:6px;padding:7px 16px;background:var(--gold-dim);border:1px solid rgba(201,168,76,.18);border-radius:20px;font-size:13px;font-weight:600;color:var(--gold-light)}
+
+/* Layout principal */
+.main{display:grid;grid-template-columns:1fr 400px;height:calc(100vh - 56px)}
+.workspace{padding:32px;overflow-y:auto}
+.sidebar{border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface)}
+
+/* Steps */
+.steps{display:flex;gap:4px;margin-bottom:32px}
+.step-pill{padding:8px 18px;border-radius:20px;font-size:12px;font-weight:600;color:var(--text3);background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:all .3s var(--ease)}
+.step-pill.active{background:var(--gold);color:#08080D;border-color:var(--gold)}
+.step-pill.done{background:rgba(77,206,123,.1);color:var(--green);border-color:rgba(77,206,123,.2)}
+
+/* Panels */
+.panel{display:none}
+.panel.active{display:block}
+.section-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;margin-bottom:8px}
+.section-sub{color:var(--text2);font-size:14px;margin-bottom:24px}
+
+/* Template cards */
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.tpl-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:all .3s var(--ease)}
+.tpl-card:hover{border-color:rgba(201,168,76,.3);transform:translateY(-2px)}
+.tpl-card.selected{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,168,76,.2)}
+.tpl-card img{width:100%;height:160px;object-fit:cover}
+.tpl-card-info{padding:14px}
+.tpl-card-info h4{font-size:14px;font-weight:600;margin-bottom:4px}
+.tpl-card-info p{font-size:12px;color:var(--text2)}
+
+/* Upload zone */
+.upload-zone{border:2px dashed rgba(201,168,76,.2);border-radius:var(--radius);padding:40px;text-align:center;cursor:pointer;transition:all .3s var(--ease)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--gold);background:rgba(201,168,76,.04)}
+.upload-zone h4{font-size:16px;margin-bottom:8px}
+.upload-zone p{font-size:13px;color:var(--text2)}
+
+/* Slots images */
+.slots-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.slot{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--surface);cursor:pointer;transition:all .3s var(--ease)}
+.slot:hover{border-color:rgba(201,168,76,.3)}
+.slot.filled{border-color:var(--green)}
+.slot img{width:100%;height:100%;object-fit:contain;padding:8px}
+.slot-label{position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:rgba(8,8,13,.85);font-size:11px;font-weight:600;color:var(--text2)}
+.slot-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity .3s}
+.slot:hover .slot-actions{opacity:1}
+.slot-btn{width:28px;height:28px;border-radius:50%;background:rgba(8,8,13,.8);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--text);transition:all .2s}
+.slot-btn:hover{background:var(--gold);color:#08080D}
+
+/* Form */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+
+/* Preview */
+.preview-frame{width:100%;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:#fff;min-height:400px}
+.preview-frame iframe{width:100%;height:600px;border:none}
+
+/* Chat sidebar */
+.chat-header{padding:16px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+.chat-header .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.chat-msg{max-width:90%;padding:12px 16px;border-radius:14px;font-size:13px;line-height:1.5}
+.chat-msg.ai{background:var(--surface2);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg.user{background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.15);align-self:flex-end;border-bottom-right-radius:4px}
+.chat-msg .agent-tag{font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.chat-input-wrap{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px}
+.chat-input{flex:1;padding:10px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none}
+.chat-input:focus{border-color:rgba(201,168,76,.3)}
+.chat-send{width:36px;height:36px;border-radius:50%;background:var(--gold);color:#08080D;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;transition:transform .2s}
+.chat-send:hover{transform:scale(1.1)}
+
+/* Buttons */
+.btn{padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;transition:all .3s var(--ease)}
+.btn-primary{background:var(--gold);color:#08080D}
+.btn-primary:hover{background:var(--gold-light);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:default;transform:none}
+.btn-outline{border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:rgba(201,168,76,.3);color:var(--gold)}
+.btn-danger{background:rgba(229,77,77,.1);color:var(--red);border:1px solid rgba(229,77,77,.15)}
+.actions{display:flex;gap:12px;margin-top:24px;justify-content:flex-end}
+
+/* Export cards */
+.export-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.export-card{padding:24px;border:1px solid var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all .3s var(--ease)}
+.export-card:hover{border-color:rgba(201,168,76,.3);transform:translateY(-2px)}
+.export-card .icon{font-size:32px;margin-bottom:8px}
+.export-card h4{font-size:14px;margin-bottom:4px}
+.export-card p{font-size:12px;color:var(--text2)}
+
+/* Responsive */
+@media(max-width:900px){.main{grid-template-columns:1fr}.sidebar{display:none}}
+
+/* Loading */
+.loading{display:inline-block;width:16px;height:16px;border:2px solid var(--text3);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Progress bar */
+.progress-overlay{position:absolute;inset:0;background:rgba(8,8,13,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;border-radius:var(--radius);opacity:0;pointer-events:none;transition:opacity .3s}
+.progress-overlay.active{opacity:1;pointer-events:all}
+.progress-bar{width:80%;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:3px;width:0%;transition:width .3s var(--ease)}
+.progress-text{font-size:11px;color:var(--text2)}
+
+/* Modal edit image */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+.modal-overlay.open{opacity:1;pointer-events:all;z-index:9999}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:440px;width:90%;transform:translateY(20px);transition:transform .3s var(--ease)}
+.modal-overlay.open .modal-box{transform:translateY(0)}
+.modal-box h3{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:4px}
+.modal-box p{font-size:13px;color:var(--text2);margin-bottom:16px}
+.modal-box textarea{min-height:60px;margin-bottom:12px}
+.modal-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.modal-suggest{padding:6px 14px;border-radius:20px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .2s}
+.modal-suggest:hover{border-color:var(--gold);color:var(--gold)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* ===== NEW CSS for features ===== */
+
+/* Recent projects cards (Step 1) */
+.recent-projects{margin-bottom:32px}
+.recent-projects h3{font-size:16px;font-weight:600;margin-bottom:12px;color:var(--text2)}
+.recent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.recent-card{padding:16px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .3s var(--ease);background:var(--surface)}
+.recent-card:hover{border-color:rgba(201,168,76,.3);transform:translateY(-2px)}
+.recent-card h4{font-size:13px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-card .recent-date{font-size:11px;color:var(--text3)}
+.recent-card .recent-status{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-top:6px}
+.recent-card .recent-status.brouillon{background:rgba(201,168,76,.1);color:var(--gold)}
+.recent-card .recent-status.termine{background:rgba(77,206,123,.1);color:var(--green)}
+
+/* Theme picker (Step 1 — galerie complète) */
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.cat-tab{padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:all .3s var(--ease);white-space:nowrap}
+.cat-tab:hover{border-color:rgba(201,168,76,.3);color:var(--gold)}
+.cat-tab.active{background:var(--gold);color:#08080D;border-color:var(--gold)}
+.cat-tab .cat-count{display:inline-block;margin-left:4px;opacity:.7;font-size:10px}
+.theme-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.theme-card-v2{cursor:pointer;border:2px solid transparent;border-radius:16px;transition:all .3s var(--ease);overflow:hidden;position:relative}
+.theme-card-v2:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.25)}
+.theme-card-v2.selected{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.3)}
+.theme-card-v2 .tc-preview{padding:20px 16px;min-height:140px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.theme-card-v2 .tc-preview::after{content:'';position:absolute;top:0;left:-50%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);transform:skewX(-20deg);pointer-events:none}
+.theme-card-v2 .tc-swatches{display:flex;gap:5px;margin-bottom:10px}
+.theme-card-v2 .tc-swatch{width:16px;height:16px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2)}
+.theme-card-v2 .tc-title-sample{font-size:18px;margin-bottom:3px;line-height:1.2}
+.theme-card-v2 .tc-body-sample{font-size:9px;opacity:.6;line-height:1.4;margin-bottom:8px}
+.theme-card-v2 .tc-accent-bar{height:3px;width:40px;border-radius:2px}
+.theme-card-v2 .tc-footer{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);background:var(--surface)}
+.theme-card-v2 .tc-name{font-size:12px;font-weight:600}
+.theme-card-v2 .tc-cat{font-size:10px;color:var(--text3)}
+.theme-search{width:100%;padding:10px 16px 10px 36px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;margin-bottom:16px;transition:border .3s var(--ease)}
+.theme-search:focus{border-color:rgba(201,168,76,.4)}
+.theme-search-wrap{position:relative;margin-bottom:4px}
+.theme-search-wrap::before{content:'';position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;border:2px solid var(--text3);border-radius:50%}
+
+/* Legacy theme picker (Step 2 — hidden now) */
+.theme-picker{display:none}
+.theme-option{display:none}
+
+/* Preview miniatures grid (Step 4) */
+.preview-pages-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.preview-page{border:1px solid var(--border);border-radius:10px;background:#fff;aspect-ratio:210/297;overflow:hidden;position:relative;cursor:pointer;transition:all .3s var(--ease)}
+.preview-page:hover{border-color:rgba(201,168,76,.3);transform:translateY(-2px)}
+.preview-page .page-label{position:absolute;bottom:0;left:0;right:0;padding:6px;background:rgba(8,8,13,.85);font-size:10px;font-weight:600;color:var(--text2);text-align:center}
+.preview-page-content{width:100%;height:100%;overflow:hidden;padding:6px;font-size:6px;color:#333;line-height:1.3}
+
+/* Drag & drop slots */
+.slot.drag-over{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.2);background:rgba(201,168,76,.04)}
+.slot.dragging{opacity:.5}
+
+/* Save button in header */
+.btn-save{padding:7px 16px;background:rgba(77,206,123,.1);border:1px solid rgba(77,206,123,.2);border-radius:10px;font-size:13px;font-weight:600;color:var(--green);cursor:pointer;transition:all .3s var(--ease)}
+.btn-save:hover{background:rgba(77,206,123,.2);transform:translateY(-1px)}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo"><span class="dot"></span> JADOMI <span style="color:var(--gold);font-weight:400">Flyer Builder</span></div>
+  <div class="header-right">
+    <button class="btn-save" id="btn-save" onclick="saveProject()">Sauvegarder</button>
+    <div class="token-badge" id="token-badge">-- tokens</div>
+    <a href="/studio/hub" style="padding:8px 16px;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text2)">Hub</a>
+  </div>
+</header>
+
+<div class="main">
+  <!-- WORKSPACE -->
+  <div class="workspace">
+    <div class="steps" id="steps-bar">
+      <div class="step-pill active" onclick="goStep(1)">1. Template</div>
+      <div class="step-pill" onclick="goStep(2)">2. Contenu</div>
+      <div class="step-pill" onclick="goStep(3)">3. Images</div>
+      <div class="step-pill" onclick="goStep(4)">4. Apercu</div>
+      <div class="step-pill" onclick="goStep(5)">5. Export</div>
+    </div>
+
+    <!-- STEP 1 : Galerie de thèmes -->
+    <div class="panel active" id="panel-1">
+      <div class="recent-projects" id="recent-projects" style="display:none">
+        <h3>Vos projets récents</h3>
+        <div class="recent-grid" id="recent-grid"></div>
+      </div>
+      <h2 class="section-title">Choisissez votre style</h2>
+      <p class="section-sub">70 thèmes premium dans 10 catégories — trouvez le style parfait pour votre flyer</p>
+      <div class="theme-search-wrap">
+        <input type="text" class="theme-search" id="theme-search" placeholder="Rechercher un thème..." oninput="filterThemes(this.value)">
+      </div>
+      <div class="cat-tabs" id="cat-tabs"></div>
+      <div class="theme-gallery" id="theme-gallery"></div>
+      <div class="actions"><button class="btn btn-primary" id="btn-step2" disabled onclick="goStep(2)">Suivant</button></div>
+    </div>
+
+    <!-- STEP 2 : Contenu texte -->
+    <div class="panel" id="panel-2">
+      <h2 class="section-title">Contenu de votre fiche produit</h2>
+      <p class="section-sub">Uploadez un PDF catalogue ou decrivez vos produits — l'IA redige pour vous</p>
+
+      <!-- Theme picker -->
+      <div class="form-group">
+        <label>Theme visuel</label>
+        <div class="theme-picker" id="theme-picker">
+          <div class="theme-option" data-theme="creme" onclick="selectTheme('creme', this)">
+            <div class="theme-card" style="background:linear-gradient(135deg,#FAF7F2,#EDE7DB);color:#1A1A2E">
+              <div style="width:24px;height:3px;background:#C9A84C;border-radius:2px;margin-bottom:8px"></div>
+              <h5>Creme Premium</h5>
+              <p>Or et ivoire, elegant</p>
+            </div>
+          </div>
+          <div class="theme-option" data-theme="dark" onclick="selectTheme('dark', this)">
+            <div class="theme-card" style="background:linear-gradient(135deg,#08080D,#1A1A2E);color:#F0F0F5">
+              <div style="width:24px;height:3px;background:#C9A84C;border-radius:2px;margin-bottom:8px"></div>
+              <h5>Dark Premium</h5>
+              <p>Noir et or, luxe</p>
+            </div>
+          </div>
+          <div class="theme-option" data-theme="medical" onclick="selectTheme('medical', this)">
+            <div class="theme-card" style="background:linear-gradient(135deg,#F0F5FF,#D8E6FF);color:#1A3A5C">
+              <div style="width:24px;height:3px;background:#2D7FF9;border-radius:2px;margin-bottom:8px"></div>
+              <h5>Medical</h5>
+              <p>Bleu et blanc, clinique</p>
+            </div>
+          </div>
+          <div class="theme-option" data-theme="moderne" onclick="selectTheme('moderne', this)">
+            <div class="theme-card" style="background:linear-gradient(135deg,#0F172A,#1E293B);color:#E2E8F0">
+              <div style="width:24px;height:3px;background:#2DD4BF;border-radius:2px;margin-bottom:8px"></div>
+              <h5>Moderne</h5>
+              <p>Teal et ardoise, tech</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <h4>Glissez vos fichiers ou cliquez pour uploader</h4>
+        <p>PDF, photos, videos, archives — tous formats acceptes</p>
+        <div id="uploaded-files" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+        <input type="file" id="file-input" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.avi,.zip,.rar,.7z" multiple style="display:none">
+      </div>
+
+      <div style="text-align:center;margin:16px 0;color:var(--text3);font-size:13px">ou decrivez manuellement</div>
+
+      <div class="form-group">
+        <label>Nom de la marque</label>
+        <input type="text" id="brand-name" placeholder="ex: ZENDO">
+      </div>
+      <div class="form-group">
+        <label>Description des produits</label>
+        <textarea id="products-desc" rows="4" placeholder="Decrivez vos produits, specs, prix..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Contact (email, tel, site)</label>
+        <input type="text" id="contact-info" placeholder="ex: contact@dentalevolution.fr / +33 7 59 62 27 58">
+      </div>
+
+      <div id="ai-result" style="display:none;margin-top:16px;padding:20px;border:1px solid rgba(77,206,123,.2);border-radius:var(--radius);background:rgba(77,206,123,.04)">
+        <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:8px">Fiche generee par l'IA</div>
+        <pre id="ai-result-text" style="font-size:12px;color:var(--text2);white-space:pre-wrap;max-height:300px;overflow-y:auto"></pre>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-outline" onclick="goStep(1)">Retour</button>
+        <button class="btn btn-outline" onclick="generateFiche()" id="btn-ai-gen">IA : Generer la fiche</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Suivant</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 : Images -->
+    <div class="panel" id="panel-3">
+      <h2 class="section-title">Placez vos images</h2>
+      <p class="section-sub">Cliquez sur un slot pour ajouter une image — l'IA peut detourer et ameliorer. Glissez-deposez entre slots pour les reorganiser.</p>
+
+      <div class="slots-grid" id="slots-grid">
+        <div class="slot" data-slot="product_1" onclick="uploadSlot('product_1')">
+          <span style="color:var(--text3)">+ Produit 1</span>
+          <div class="slot-label">Produit principal</div>
+        </div>
+        <div class="slot" data-slot="product_2" onclick="uploadSlot('product_2')">
+          <span style="color:var(--text3)">+ Produit 2</span>
+          <div class="slot-label">Second produit</div>
+        </div>
+        <div class="slot" data-slot="product_3" onclick="uploadSlot('product_3')">
+          <span style="color:var(--text3)">+ Produit 3</span>
+          <div class="slot-label">Troisieme produit</div>
+        </div>
+        <div class="slot" data-slot="hero" onclick="uploadSlot('hero')">
+          <span style="color:var(--text3)">+ Photo Hero</span>
+          <div class="slot-label">Photo de couverture</div>
+        </div>
+        <div class="slot" data-slot="accessory" onclick="uploadSlot('accessory')">
+          <span style="color:var(--text3)">+ Accessoire</span>
+          <div class="slot-label">LED, accessoire...</div>
+        </div>
+        <div class="slot" data-slot="logo" onclick="uploadSlot('logo')">
+          <span style="color:var(--text3)">+ Logo</span>
+          <div class="slot-label">Logo marque</div>
+        </div>
+      </div>
+      <input type="file" id="slot-file-input" accept="image/*" style="display:none">
+
+      <div class="actions">
+        <button class="btn btn-outline" onclick="goStep(2)">Retour</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Apercu</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 : Apercu -->
+    <div class="panel" id="panel-4">
+      <h2 class="section-title">Apercu de votre flyer</h2>
+      <p class="section-sub">Votre flyer est pret. Vous pouvez le modifier ou l'exporter.</p>
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <button class="btn btn-primary" onclick="openAIAssistant()" style="background:linear-gradient(135deg,var(--gold),#B8941A);padding:12px 28px;font-size:15px">Modifier par l'IA</button>
+        <button class="btn btn-outline" onclick="goStep(3)">Changer les images</button>
+        <button class="btn btn-outline" onclick="goStep(2)">Changer le texte</button>
+      </div>
+      <div class="preview-frame" id="preview-frame">
+        <div style="padding:40px;text-align:center;color:var(--text3)">L'apercu sera genere ici</div>
+      </div>
+      <div class="preview-pages-grid" id="preview-pages-grid"></div>
+      <div class="actions">
+        <button class="btn btn-outline" onclick="goStep(3)">Modifier images</button>
+        <button class="btn btn-primary" onclick="goStep(5)">Exporter</button>
+      </div>
+    </div>
+
+    <!-- STEP 5 : Export -->
+    <div class="panel" id="panel-5">
+      <h2 class="section-title">Exportez votre creation</h2>
+      <p class="section-sub">Telechargez dans le format de votre choix</p>
+      <div class="export-grid">
+        <div class="export-card" onclick="exportAs('pdf')">
+          <div class="icon">PDF</div>
+          <h4>Flyer PDF A4</h4>
+          <p>Pret a imprimer</p>
+        </div>
+        <div class="export-card" onclick="exportAs('landing')">
+          <div class="icon">WEB</div>
+          <h4>Landing Page</h4>
+          <p>Page web interactive</p>
+        </div>
+        <div class="export-card" onclick="exportAs('zip')">
+          <div class="icon">ZIP</div>
+          <h4>Pack White-Label</h4>
+          <p>HTML + images + videos</p>
+        </div>
+      </div>
+      <div id="export-result" style="display:none;margin-top:16px;padding:16px;border:1px solid rgba(77,206,123,.2);border-radius:var(--radius);background:rgba(77,206,123,.04)"></div>
+      <div class="actions">
+        <button class="btn btn-outline" onclick="goStep(4)">Retour</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR CHAT IA -->
+  <div class="sidebar">
+    <div class="chat-header"><span class="dot"></span> Assistant IA</div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-msg ai">
+        <div class="agent-tag">Patron</div>
+        Bonjour ! Je suis votre assistant Flyer Builder. Decrivez-moi votre projet ou posez-moi une question. Je coordonne une equipe d'agents specialises pour vous aider.
+      </div>
+    </div>
+    <div class="chat-input-wrap">
+      <input class="chat-input" id="chat-input" placeholder="Votre message..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="chat-send" onclick="sendChat()">&#8594;</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IA ASSISTANT -->
+<div class="modal-overlay" id="ai-assistant-modal" onclick="if(event.target===this)closeAIAssistant()">
+  <div class="modal-box" style="max-width:520px;max-height:80vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)"></div>
+      <h3 style="margin:0">Assistant IA</h3>
+    </div>
+    <div id="ai-assist-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:16px;max-height:400px">
+      <div class="chat-msg ai" style="font-size:14px">
+        <b>Que souhaitez-vous ameliorer ?</b><br><br>
+        Je peux modifier votre flyer : textes, images, mise en page, couleurs...
+        Choisissez ci-dessous ou decrivez-moi ce que vous voulez.
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+      <button class="modal-suggest" onclick="aiAssistSend('Ameliore les textes marketing pour les rendre plus percutants')">Ameliorer les textes</button>
+      <button class="modal-suggest" onclick="aiAssistSend('Propose-moi un meilleur titre accrocheur pour la couverture')">Meilleur titre</button>
+      <button class="modal-suggest" onclick="aiAssistSend('Les photos ne sont pas assez pro, ameliore-les')">Ameliorer les photos</button>
+      <button class="modal-suggest" onclick="aiAssistSend('Change le theme pour un style plus moderne et premium')">Changer le style</button>
+      <button class="modal-suggest" onclick="aiAssistSend('Ajoute les certifications et garanties du produit')">Ajouter certifications</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="ai-assist-input" class="chat-input" style="flex:1;border-radius:12px" placeholder="Decrivez ce que vous voulez modifier..." onkeydown="if(event.key==='Enter')aiAssistSend(this.value)">
+      <button class="chat-send" onclick="aiAssistSend(document.getElementById('ai-assist-input').value)">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT IMAGE -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box">
+    <h3>Modifier cette image</h3>
+    <p>Decrivez ce que vous voulez — l'IA s'occupe du reste</p>
+    <div class="modal-suggestions">
+      <span class="modal-suggest" onclick="document.getElementById('edit-instruction').value='Ajoute un professionnel dentaire souriant qui tient ce produit dans ses mains'">Un dentiste tient le produit</span>
+      <span class="modal-suggest" onclick="document.getElementById('edit-instruction').value='Supprime l arriere-plan et garde uniquement le produit sur fond blanc'">Supprimer l'arriere-plan</span>
+      <span class="modal-suggest" onclick="document.getElementById('edit-instruction').value='Ameliore la qualite de l image : luminosite, nettete et couleurs plus vives'">Ameliorer la qualite</span>
+      <span class="modal-suggest" onclick="document.getElementById('edit-instruction').value='Place ce produit dans un beau cabinet dentaire moderne et lumineux'">Dans un cabinet moderne</span>
+      <span class="modal-suggest" onclick="document.getElementById('edit-instruction').value='Ajoute un beau fond degrade professionnel bleu et blanc'">Fond professionnel</span>
+    </div>
+    <textarea id="edit-instruction" placeholder="Decrivez ce que vous voulez, par exemple : un dentiste souriant qui presente le produit..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="edit-modal-cancel">Annuler</button>
+      <button class="btn btn-primary" id="edit-modal-go">Modifier</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let currentStep = 1;
+let selectedTemplate = null;
+let selectedTemplateData = null;
+let ficheData = null;
+let slotImages = {};
+let currentSlot = null;
+let currentTheme = null;
+let currentProjectId = null;
+
+const API = '/api/studio/flyer';
+
+// Legacy compat — sera mappé depuis les 70 thèmes
+const THEME_COLORS = {};
+
+// ══════════════════════════════════════════════
+// THEME LIBRARY (70 thèmes, 10 catégories)
+// ══════════════════════════════════════════════
+let ALL_THEMES = [];
+let ALL_CATEGORIES = [];
+let activeCategory = 'all';
+
+async function loadThemeLibrary() {
+  try {
+    const resp = await fetch(API + '/themes');
+    const data = await resp.json();
+    if (data.ok) {
+      ALL_THEMES = data.themes;
+      ALL_CATEGORIES = data.categories;
+    }
+  } catch(e) { console.warn('Themes API error, using fallback'); }
+
+  // Fallback si API pas dispo
+  if (!ALL_THEMES.length) return;
+
+  // Mapper pour compat THEME_COLORS
+  ALL_THEMES.forEach(t => {
+    THEME_COLORS[t.id] = { bg: t.bg, surface: t.surface, text: t.text, accent: t.accent, label: t.name };
+  });
+
+  renderCategoryTabs();
+  renderThemeGallery(ALL_THEMES);
+}
+
+function renderCategoryTabs() {
+  const container = document.getElementById('cat-tabs');
+  let html = '<div class="cat-tab active" onclick="filterByCategory(\'all\', this)">Tous<span class="cat-count">(' + ALL_THEMES.length + ')</span></div>';
+  ALL_CATEGORIES.forEach(cat => {
+    html += '<div class="cat-tab" onclick="filterByCategory(\'' + cat.id + '\', this)">' + cat.icon + ' ' + cat.label + '<span class="cat-count">(' + cat.count + ')</span></div>';
+  });
+  container.innerHTML = html;
+}
+
+function renderThemeGallery(themes) {
+  const gallery = document.getElementById('theme-gallery');
+  if (!themes.length) {
+    gallery.innerHTML = '<div style="color:var(--text3);text-align:center;padding:40px;grid-column:1/-1">Aucun thème trouvé</div>';
+    return;
+  }
+  gallery.innerHTML = themes.map(t => {
+    const isDark = isColorDark(t.bg);
+    return '<div class="theme-card-v2' + (currentTheme === t.id ? ' selected' : '') + '" data-theme-id="' + t.id + '" onclick="selectThemeV2(\'' + t.id + '\', this)">' +
+      '<div class="tc-preview" style="background:' + t.cardBg + ';color:' + t.text + '">' +
+        '<div class="tc-swatches">' +
+          '<div class="tc-swatch" style="background:' + t.accent + '"></div>' +
+          '<div class="tc-swatch" style="background:' + (t.accent2 || t.accent) + '"></div>' +
+          '<div class="tc-swatch" style="background:' + t.bg + ';border-color:' + (isDark ? 'rgba(255,255,255,.15)' : 'rgba(0,0,0,.1)') + '"></div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="tc-title-sample" style="font-family:' + (t.fontTitle || 'Inter') + ',serif;font-weight:' + (t.fontWeight || '700') + '">' + t.name + '</div>' +
+          '<div class="tc-body-sample">Votre contenu ici avec ce style</div>' +
+          '<div class="tc-accent-bar" style="background:' + t.gradient + '"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tc-footer">' +
+        '<span class="tc-name">' + t.name + '</span>' +
+        '<span class="tc-cat">' + (ALL_CATEGORIES.find(c => c.id === t.category)?.label || '') + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function isColorDark(hex) {
+  hex = hex.replace('#', '');
+  var r = parseInt(hex.substring(0,2), 16);
+  var g = parseInt(hex.substring(2,4), 16);
+  var b = parseInt(hex.substring(4,6), 16);
+  return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+}
+
+function filterByCategory(catId, el) {
+  activeCategory = catId;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  var filtered = catId === 'all' ? ALL_THEMES : ALL_THEMES.filter(t => t.category === catId);
+  var search = (document.getElementById('theme-search').value || '').toLowerCase();
+  if (search) filtered = filtered.filter(t => t.name.toLowerCase().includes(search) || t.description.toLowerCase().includes(search));
+  renderThemeGallery(filtered);
+}
+
+function filterThemes(query) {
+  var q = query.toLowerCase().trim();
+  var base = activeCategory === 'all' ? ALL_THEMES : ALL_THEMES.filter(t => t.category === activeCategory);
+  if (!q) { renderThemeGallery(base); return; }
+  renderThemeGallery(base.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.category.includes(q)));
+}
+
+function selectThemeV2(themeId, el) {
+  currentTheme = themeId;
+  document.querySelectorAll('.theme-card-v2').forEach(c => c.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  document.getElementById('btn-step2').disabled = false;
+
+  // Auto-detect ZENDO
+  var themeObj = ALL_THEMES.find(t => t.id === themeId);
+  if (themeObj && themeObj.id === 'luxe-zendo') {
+    applyZendoPreFill();
+  }
+}
+
+const SLOT_NAMES = ['product_1', 'product_2', 'product_3', 'hero', 'accessory', 'logo'];
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function goStep(n) {
+  currentStep = n;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  document.querySelectorAll('.step-pill').forEach((s, i) => {
+    s.classList.remove('active');
+    if (i + 1 === n) s.classList.add('active');
+    if (i + 1 < n) s.classList.add('done');
+    else s.classList.remove('done');
+  });
+  // Feature 1: Generate preview when reaching step 4
+  if (n === 4) {
+    generatePreview();
+  }
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 7 : THEME SELECTOR
+// ══════════════════════════════════════════════
+function selectTheme(themeId, el) {
+  // Legacy compat — redirige vers le nouveau système
+  selectThemeV2(themeId, el);
+}
+
+// ══════════════════════════════════════════════
+// STEP 1 : TEMPLATES
+// ══════════════════════════════════════════════
+async function loadTemplates() {
+  // Charger la bibliothèque de 70 thèmes
+  await loadThemeLibrary();
+}
+
+function selectTemplate(id, el) {
+  var tplData = window._templates[id] || {};
+  selectedTemplate = id;
+  selectedTemplateData = tplData || null;
+  document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-step2').disabled = false;
+
+  // Feature 2: ZENDO template pre-fill
+  if (isZendoTemplate(id, tplData)) {
+    applyZendoPreFill();
+  }
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 2 : ZENDO TEMPLATE PRE-FILL
+// ══════════════════════════════════════════════
+function isZendoTemplate(id, tplData) {
+  if (id && id.indexOf('f90ed21a') !== -1) return true;
+  if (tplData && tplData.nom && tplData.nom.toUpperCase().indexOf('ZENDO') !== -1) return true;
+  return false;
+}
+
+function applyZendoPreFill() {
+  document.getElementById('brand-name').value = 'ZENDO';
+
+  // Set theme to creme
+  selectTheme('creme', document.querySelector('[data-theme="creme"]'));
+
+  // Update slot labels for ZENDO
+  const zendoLabels = {
+    product_1: 'Produit 1 - Vision Direct',
+    product_2: 'Produit 2 - Posture 45',
+    product_3: 'Produit 3 - MultiVision',
+    hero:      'Photo Hero',
+    accessory: 'Accessoire LED',
+    logo:      'Logo'
+  };
+  SLOT_NAMES.forEach(name => {
+    const slotEl = document.querySelector('[data-slot="' + name + '"]');
+    if (slotEl) {
+      const label = slotEl.querySelector('.slot-label');
+      if (label) label.textContent = zendoLabels[name] || name;
+    }
+  });
+
+  addChatMsg('ai', 'patron', 'Template ZENDO detecte. Marque, slots et theme pre-remplis automatiquement.');
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 3 & 6 : SAVE/LOAD PROJECTS
+// ══════════════════════════════════════════════
+async function saveProject() {
+  const btn = document.getElementById('btn-save');
+  btn.textContent = 'Sauvegarde...';
+  btn.disabled = true;
+  try {
+    const projectData = {
+      id: currentProjectId || undefined,
+      name: document.getElementById('brand-name').value || 'Projet sans nom',
+      template_id: selectedTemplate,
+      theme: currentTheme,
+      fiche_data: ficheData,
+      brand_name: document.getElementById('brand-name').value,
+      products_desc: document.getElementById('products-desc').value,
+      contact_info: document.getElementById('contact-info').value,
+      slot_images: Object.keys(slotImages).reduce((acc, k) => {
+        acc[k] = { url: slotImages[k].url, analysis: slotImages[k].analysis || null };
+        return acc;
+      }, {}),
+      step: currentStep,
+      status: currentStep >= 5 ? 'termine' : 'brouillon'
+    };
+    const resp = await fetch(API + '/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(projectData)
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      currentProjectId = data.id || currentProjectId;
+      addChatMsg('ai', 'patron', 'Projet sauvegarde avec succes.');
+    } else {
+      addChatMsg('ai', 'patron', 'Erreur de sauvegarde : ' + (data.error || 'Erreur inconnue'));
+    }
+  } catch (e) {
+    addChatMsg('ai', 'patron', 'Erreur de sauvegarde : ' + e.message);
+  }
+  btn.textContent = 'Sauvegarder';
+  btn.disabled = false;
+}
+
+async function loadRecentProjects() {
+  try {
+    const resp = await fetch(API + '/projects');
+    const data = await resp.json();
+    if (data.ok && data.projects && data.projects.length > 0) {
+      const container = document.getElementById('recent-projects');
+      const grid = document.getElementById('recent-grid');
+      container.style.display = 'block';
+      grid.innerHTML = data.projects.slice(0, 6).map(p => {
+        const date = p.updated_at ? new Date(p.updated_at).toLocaleDateString('fr-FR') : '--';
+        const statusClass = p.status === 'termine' ? 'termine' : 'brouillon';
+        const statusLabel = p.status === 'termine' ? 'Termine' : 'Brouillon';
+        return '<div class="recent-card" onclick="loadProject(\'' + p.id + '\')">' +
+          '<h4>' + (p.name || 'Sans nom') + '</h4>' +
+          '<div class="recent-date">' + date + '</div>' +
+          '<span class="recent-status ' + statusClass + '">' + statusLabel + '</span>' +
+          '</div>';
+      }).join('');
+    }
+  } catch (e) {
+    // Silently fail — projects section stays hidden
+  }
+}
+
+async function loadProject(projectId) {
+  try {
+    const resp = await fetch(API + '/projects/' + projectId);
+    const data = await resp.json();
+    if (data.ok && data.project) {
+      const p = data.project;
+      currentProjectId = p.id;
+      selectedTemplate = p.template_id;
+      currentTheme = p.theme;
+      ficheData = p.fiche_data;
+
+      if (p.brand_name) document.getElementById('brand-name').value = p.brand_name;
+      if (p.products_desc) document.getElementById('products-desc').value = p.products_desc;
+      if (p.contact_info) document.getElementById('contact-info').value = p.contact_info;
+
+      if (p.theme) {
+        selectTheme(p.theme, document.querySelector('[data-theme="' + p.theme + '"]'));
+      }
+
+      if (p.slot_images) {
+        Object.keys(p.slot_images).forEach(slotName => {
+          const si = p.slot_images[slotName];
+          if (si && si.url) {
+            slotImages[slotName] = { url: si.url, analysis: si.analysis };
+            renderSlotFilled(slotName, si.url);
+          }
+        });
+      }
+
+      if (p.fiche_data) {
+        document.getElementById('ai-result').style.display = 'block';
+        document.getElementById('ai-result-text').textContent = JSON.stringify(p.fiche_data, null, 2);
+      }
+
+      addChatMsg('ai', 'patron', 'Projet "' + (p.name || 'Sans nom') + '" charge avec succes.');
+      goStep(p.step || 2);
+    }
+  } catch (e) {
+    addChatMsg('ai', 'patron', 'Erreur de chargement : ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════
+// STEP 2 : CONTENU IA
+// ══════════════════════════════════════════════
+let uploadedFiles = [];
+
+function getFileIcon(type) {
+  if (type.startsWith('image/')) return 'IMG';
+  if (type.startsWith('video/')) return 'VID';
+  if (type === 'application/pdf') return 'PDF';
+  if (type.includes('zip') || type.includes('rar') || type.includes('7z')) return 'ZIP';
+  return 'DOC';
+}
+
+function renderUploadedFiles() {
+  const container = document.getElementById('uploaded-files');
+  container.innerHTML = uploadedFiles.map((f, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px">
+      <span style="font-size:11px;font-weight:700;color:var(--gold)">${getFileIcon(f.type)}</span>
+      <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+      <span style="color:var(--text3)">${(f.size/1024).toFixed(0)}KB</span>
+      <button onclick="event.stopPropagation();removeFile(${i})" style="color:var(--red);font-size:14px;background:none;border:none;cursor:pointer">x</button>
+    </div>
+  `).join('');
+}
+
+function removeFile(index) {
+  uploadedFiles.splice(index, 1);
+  renderUploadedFiles();
+}
+
+async function processFiles(files) {
+  for (const file of files) {
+    uploadedFiles.push(file);
+  }
+  renderUploadedFiles();
+
+  // Auto-analyser le premier PDF trouve
+  const pdf = uploadedFiles.find(f => f.type === 'application/pdf');
+  if (pdf) {
+    addChatMsg('ai', 'patron', 'PDF detecte : ' + pdf.name + '. Analyse en cours...');
+    const formData = new FormData();
+    formData.append('file', pdf);
+    formData.append('text', document.getElementById('products-desc').value);
+    try {
+      const resp = await fetch(API + '/parse-document', { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.ok) {
+        ficheData = data.fiche;
+        document.getElementById('ai-result').style.display = 'block';
+        document.getElementById('ai-result-text').textContent = JSON.stringify(data.fiche, null, 2);
+        if (data.fiche.brand) document.getElementById('brand-name').value = data.fiche.brand;
+        addChatMsg('ai', 'redacteur', 'Fiche produit generee depuis ' + pdf.name);
+      }
+    } catch (e) {
+      addChatMsg('ai', 'patron', 'Erreur analyse PDF : ' + e.message);
+    }
+  }
+
+  // Auto-remplir les slots images avec les photos uploadees
+  const images = uploadedFiles.filter(f => f.type.startsWith('image/'));
+  images.forEach((img, i) => {
+    if (i < SLOT_NAMES.length && !slotImages[SLOT_NAMES[i]]) {
+      const url = URL.createObjectURL(img);
+      slotImages[SLOT_NAMES[i]] = { file: img, url };
+      renderSlotFilled(SLOT_NAMES[i], url);
+    }
+  });
+  if (images.length > 0) {
+    addChatMsg('ai', 'patron', images.length + ' image(s) detectee(s) et placee(s) dans les slots.');
+  }
+}
+
+document.getElementById('file-input').addEventListener('change', (e) => {
+  if (e.target.files.length) processFiles(Array.from(e.target.files));
+  e.target.value = '';
+});
+
+async function generateFiche() {
+  const btn = document.getElementById('btn-ai-gen');
+  btn.innerHTML = '<span class="loading"></span> Generation...';
+  btn.disabled = true;
+
+  const text = [
+    'Marque: ' + document.getElementById('brand-name').value,
+    'Produits: ' + document.getElementById('products-desc').value,
+    'Contact: ' + document.getElementById('contact-info').value
+  ].join('\n');
+
+  try {
+    const resp = await fetch(API + '/parse-document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      ficheData = data.fiche;
+      document.getElementById('ai-result').style.display = 'block';
+      document.getElementById('ai-result-text').textContent = JSON.stringify(data.fiche, null, 2);
+      addChatMsg('ai', 'redacteur', 'Fiche produit generee. Cout : ' + (data.cost * 100).toFixed(2) + ' centimes.');
+    }
+  } catch (e) {
+    addChatMsg('ai', 'patron', 'Erreur : ' + e.message);
+  }
+  btn.innerHTML = 'IA : Generer la fiche';
+  btn.disabled = false;
+}
+
+// Drag & drop multi-fichiers — partout sur la page
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) processFiles(Array.from(e.dataTransfer.files));
+});
+
+// Drop global sur toute la page
+document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
+document.body.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) {
+    processFiles(Array.from(e.dataTransfer.files));
+    addChatMsg('ai', 'patron', e.dataTransfer.files.length + ' fichier(s) recu(s).');
+  }
+});
+
+// ══════════════════════════════════════════════
+// STEP 3 : IMAGES SLOTS
+// ══════════════════════════════════════════════
+
+// Helper to render a filled slot with all action buttons
+function renderSlotFilled(slotName, url) {
+  var slotEl = document.querySelector('[data-slot="' + slotName + '"]');
+  if (!slotEl) return;
+  var labelEl = slotEl.querySelector('.slot-label');
+  var labelText = labelEl ? labelEl.textContent : slotName;
+  slotEl.innerHTML =
+    '<img src="' + url + '" alt="' + slotName + '">' +
+    '<div class="slot-label">' + labelText + '</div>' +
+    '<div class="slot-actions">' +
+      '<button class="slot-btn" onclick="event.stopPropagation();detourSlot(\'' + slotName + '\')" title="Detourer">D</button>' +
+      '<button class="slot-btn" onclick="event.stopPropagation();enhanceSlot(\'' + slotName + '\')" title="Ameliorer">+</button>' +
+      '<button class="slot-btn" onclick="event.stopPropagation();removeSlot(\'' + slotName + '\')" title="Supprimer" style="color:var(--red)">X</button>' +
+    '</div>';
+  slotEl.classList.add('filled');
+  slotEl.setAttribute('draggable', 'true');
+}
+
+function uploadSlot(slotName) {
+  currentSlot = slotName;
+  document.getElementById('slot-file-input').click();
+}
+
+document.getElementById('slot-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file || !currentSlot) return;
+
+  const slotEl = document.querySelector('[data-slot="' + currentSlot + '"]');
+  slotEl.innerHTML = '<div class="loading"></div>';
+
+  // Upload et demander conseil IA
+  const formData = new FormData();
+  formData.append('image', file);
+
+  try {
+    const resp = await fetch(API + '/analyze-image', { method: 'POST', body: formData });
+    const data = await resp.json();
+
+    // Afficher l'image
+    const url = URL.createObjectURL(file);
+    slotImages[currentSlot] = { file, url, analysis: data.analysis };
+    renderSlotFilled(currentSlot, url);
+
+    // Afficher les suggestions IA dans le chat
+    if (data.ok && data.analysis && data.analysis.suggestions) {
+      const suggestions = data.analysis.suggestions.map(s => '- ' + s.description).join('\n');
+      addChatMsg('ai', 'photo_advisor', 'Image analysee pour le slot "' + currentSlot + '".\n\nSuggestions :\n' + suggestions);
+    }
+  } catch (e) {
+    slotEl.innerHTML = '<span style="color:var(--red)">Erreur</span>';
+  }
+  e.target.value = '';
+});
+
+async function detourSlot(slotName) {
+  var slot = slotImages[slotName];
+  if (!slot) { addChatMsg('ai', 'assistant', 'Slot "' + slotName + '" vide.'); return; }
+  // Recuperer l'URL depuis l'image affichee si pas dans slotImages
+  if (!slot.url && !slot.file) {
+    var imgEl = document.querySelector('[data-slot="' + slotName + '"] img');
+    if (imgEl) slot.url = imgEl.src;
+  }
+  if (!slot.url && !slot.file) { addChatMsg('ai', 'assistant', 'Pas d\'image dans ce slot.'); return; }
+  showSlotProgress(slotName, 'Suppression arriere-plan');
+
+  try {
+    var resp;
+    if (slot.file) {
+      var formData = new FormData();
+      formData.append('image', slot.file);
+      formData.append('action', 'detour');
+      resp = await fetch(API + '/edit-image', { method: 'POST', body: formData });
+    } else {
+      resp = await fetch(API + '/edit-image-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: slot.url, action: 'detour' })
+      });
+    }
+    var data = await resp.json();
+    hideSlotProgress(slotName, data.ok);
+    if (data.ok) {
+      slotImages[slotName].url = data.image_url;
+      renderSlotFilled(slotName, data.image_url);
+      addChatMsg('ai', 'assistant', 'Arriere-plan supprime.');
+    } else {
+      addChatMsg('ai', 'assistant', 'Erreur : ' + (data.error || 'echec'));
+      renderSlotFilled(slotName, slot.url);
+    }
+  } catch (e) {
+    hideSlotProgress(slotName, false);
+    addChatMsg('ai', 'assistant', 'Erreur : ' + e.message);
+    renderSlotFilled(slotName, slot.url);
+  }
+}
+
+// ══════════════════════════════════════════════
+// ASSISTANT IA INTERACTIF
+// ══════════════════════════════════════════════
+function openAIAssistant() {
+  document.getElementById('ai-assistant-modal').classList.add('open');
+  document.getElementById('ai-assist-input').focus();
+
+  // L'IA analyse le flyer et propose des ameliorations
+  var suggestions = [];
+  if (!slotImages.product_1 && !slotImages.product_2) suggestions.push('Aucune photo produit ajoutee — ajoutez des images pour un rendu professionnel');
+  if (!ficheData || !ficheData.products || !ficheData.products.length) suggestions.push('Pas de fiche produit — l\'IA peut en generer une depuis votre site ou votre description');
+  if (ficheData && ficheData.products && ficheData.products[0] && !ficheData.products[0].price) suggestions.push('Aucun prix affiche — ajoutez le prix pour inciter a l\'achat');
+  var filledSlots = Object.keys(slotImages).length;
+  if (filledSlots < 3) suggestions.push('Seulement ' + filledSlots + ' image(s) — un flyer pro a minimum 3-4 visuels');
+
+  if (suggestions.length > 0) {
+    setTimeout(function() {
+      addAssistMsg('ai', '<b>Recommandations pour un flyer professionnel :</b><br><br>' + suggestions.map(function(s) { return '- ' + s; }).join('<br>'));
+    }, 500);
+  }
+}
+function closeAIAssistant() {
+  document.getElementById('ai-assistant-modal').classList.remove('open');
+}
+function addAssistMsg(type, text) {
+  var container = document.getElementById('ai-assist-messages');
+  var msg = document.createElement('div');
+  msg.className = 'chat-msg ' + type;
+  msg.style.fontSize = '13px';
+  msg.innerHTML = text;
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+async function aiAssistSend(text) {
+  if (!text || !text.trim()) return;
+  var msg = text.trim();
+  document.getElementById('ai-assist-input').value = '';
+  addAssistMsg('user', msg);
+  addAssistMsg('ai', '<span class="loading"></span> Reflexion en cours...');
+
+  try {
+    var resp = await fetch(API + '/orchestrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, execute: true })
+    });
+    var data = await resp.json();
+    // Supprimer le loading
+    var msgs = document.getElementById('ai-assist-messages');
+    msgs.removeChild(msgs.lastChild);
+
+    if (data.ok && data.results) {
+      for (var i = 0; i < data.results.length; i++) {
+        var r = data.results[i];
+        if (r.result) {
+          var content = r.result.raw || r.result.headline || r.result.copy || JSON.stringify(r.result, null, 2);
+          if (typeof content === 'object') content = JSON.stringify(content, null, 2);
+          addAssistMsg('ai', '<b>' + (r.agent_name || 'IA') + '</b><br>' + String(content).substring(0, 500).replace(/\n/g, '<br>'));
+
+          // Auto-appliquer si c'est du texte marketing
+          if (r.result.headline) {
+            addAssistMsg('ai', 'Voulez-vous appliquer ce titre ? <button class="modal-suggest" onclick="applyTitle(\'' + r.result.headline.replace(/'/g, "\\'") + '\')">Oui, appliquer</button>');
+          }
+        }
+      }
+    } else {
+      addAssistMsg('ai', 'Erreur : ' + (data.error || 'reponse vide'));
+    }
+  } catch(e) {
+    var msgs2 = document.getElementById('ai-assist-messages');
+    msgs2.removeChild(msgs2.lastChild);
+    addAssistMsg('ai', 'Erreur de connexion : ' + e.message);
+  }
+}
+function applyTitle(title) {
+  if (ficheData && ficheData.products && ficheData.products[0]) {
+    ficheData.products[0].tagline = title;
+    addAssistMsg('ai', 'Titre applique. Cliquez sur "Apercu" pour voir le resultat.');
+    generatePreview();
+  }
+}
+
+// ══════════════════════════════════════════════
+// PROGRESS BAR sur les slots
+// ══════════════════════════════════════════════
+function showSlotProgress(slotName, text) {
+  var slotEl = document.querySelector('[data-slot="' + slotName + '"]');
+  if (!slotEl) return;
+  var overlay = slotEl.querySelector('.progress-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'progress-overlay';
+    overlay.innerHTML = '<div class="progress-bar"><div class="progress-fill"></div></div><div class="progress-text"></div>';
+    slotEl.appendChild(overlay);
+  }
+  overlay.classList.add('active');
+  overlay.querySelector('.progress-text').textContent = text || 'Traitement en cours...';
+  overlay.querySelector('.progress-fill').style.width = '0%';
+  // Simuler la progression
+  var fill = overlay.querySelector('.progress-fill');
+  var pct = 0;
+  var interval = setInterval(function() {
+    pct += Math.random() * 15;
+    if (pct > 90) pct = 90;
+    fill.style.width = Math.round(pct) + '%';
+    overlay.querySelector('.progress-text').textContent = Math.round(pct) + '% — ' + (text || 'Traitement...');
+  }, 400);
+  slotEl._progressInterval = interval;
+}
+
+function hideSlotProgress(slotName, success) {
+  var slotEl = document.querySelector('[data-slot="' + slotName + '"]');
+  if (!slotEl) return;
+  if (slotEl._progressInterval) clearInterval(slotEl._progressInterval);
+  var overlay = slotEl.querySelector('.progress-overlay');
+  if (overlay) {
+    var fill = overlay.querySelector('.progress-fill');
+    fill.style.width = '100%';
+    overlay.querySelector('.progress-text').textContent = success ? 'Termine' : 'Erreur';
+    setTimeout(function() { overlay.classList.remove('active'); }, 600);
+  }
+}
+
+var _editSlotName = null;
+
+function openEditModal(slotName) {
+  _editSlotName = slotName;
+  document.getElementById('edit-instruction').value = '';
+  document.getElementById('edit-modal').classList.add('open');
+  document.getElementById('edit-instruction').focus();
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  _editSlotName = null;
+}
+
+function executeEditModal() {
+  var instruction = document.getElementById('edit-instruction').value.trim();
+  console.log('[EDIT-MODAL] instruction:', instruction, '| slot:', _editSlotName);
+  if (!instruction) { addChatMsg('ai', 'assistant', 'Ecrivez ou choisissez une instruction.'); return; }
+  if (!_editSlotName) { addChatMsg('ai', 'assistant', 'Erreur : aucun slot selectionne.'); return; }
+  var slot = _editSlotName;
+  closeEditModal();
+  console.log('[EDIT-MODAL] → enhanceSlot:', slot, instruction.substring(0, 40));
+  addChatMsg('ai', 'assistant', 'Modification en cours : ' + instruction.substring(0, 50) + '...');
+  enhanceSlot(slot, instruction);
+}
+
+// Boutons modal — event listeners (plus fiable que onclick inline)
+document.getElementById('edit-modal-go').addEventListener('click', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  console.log('[MODAL] Bouton Modifier cliqué');
+  executeEditModal();
+});
+document.getElementById('edit-modal-cancel').addEventListener('click', function(e) {
+  e.preventDefault();
+  closeEditModal();
+});
+// Fermer avec Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeEditModal();
+});
+
+async function enhanceSlot(slotName, instruction) {
+  if (!instruction) { openEditModal(slotName); return; }
+
+  console.log('[ENHANCE] slot:', slotName, '| slotImages:', JSON.stringify(slotImages[slotName] || 'VIDE').substring(0, 100));
+
+  var slot = slotImages[slotName];
+  if (!slot) {
+    // Essayer de récupérer l'image depuis le DOM
+    var imgEl = document.querySelector('[data-slot="' + slotName + '"] img');
+    if (imgEl && imgEl.src) {
+      slotImages[slotName] = { url: imgEl.src };
+      slot = slotImages[slotName];
+      console.log('[ENHANCE] Récupéré URL depuis DOM:', imgEl.src.substring(0, 60));
+    } else {
+      addChatMsg('ai', 'assistant', 'Slot vide — ajoutez d\'abord une image.');
+      return;
+    }
+  }
+  if (!slot.url && !slot.file) {
+    var imgEl = document.querySelector('[data-slot="' + slotName + '"] img');
+    if (imgEl) { slot.url = imgEl.src; console.log('[ENHANCE] URL récupérée:', imgEl.src.substring(0, 60)); }
+  }
+  if (!slot.url && !slot.file) { addChatMsg('ai', 'assistant', 'Pas d\'image dans ce slot.'); return; }
+  var slotEl = document.querySelector('[data-slot="' + slotName + '"]');
+  showSlotProgress(slotName, instruction.substring(0, 30) + '...');
+
+  try {
+    console.log('[ENHANCE] Envoi requête...', slot.file ? 'UPLOAD' : 'URL:' + slot.url?.substring(0, 60));
+    var resp;
+    if (slot.file) {
+      var formData = new FormData();
+      formData.append('image', slot.file);
+      formData.append('action', instruction);
+      resp = await fetch(API + '/edit-image', { method: 'POST', body: formData });
+    } else {
+      resp = await fetch(API + '/edit-image-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: slot.url, action: instruction })
+      });
+    }
+    console.log('[ENHANCE] Réponse reçue, status:', resp.status);
+    var data = await resp.json();
+    console.log('[ENHANCE] Résultat:', data.ok, data.error || '');
+    hideSlotProgress(slotName, data.ok);
+    if (data.ok) {
+      slotImages[slotName].url = data.image_url;
+      renderSlotFilled(slotName, data.image_url);
+      addChatMsg('ai', 'assistant', 'Modification appliquée avec succès.');
+    } else {
+      addChatMsg('ai', 'assistant', 'Erreur modification : ' + (data.error || 'échec'));
+      renderSlotFilled(slotName, slot.url);
+    }
+  } catch (e) {
+    console.error('[ENHANCE] Exception:', e);
+    hideSlotProgress(slotName, false);
+    addChatMsg('ai', 'assistant', 'Erreur : ' + e.message);
+    renderSlotFilled(slotName, slot.url);
+  }
+}
+
+function removeSlot(slotName) {
+  delete slotImages[slotName];
+  const slotEl = document.querySelector('[data-slot="' + slotName + '"]');
+  const label = slotEl.querySelector('.slot-label') ? slotEl.querySelector('.slot-label').textContent : slotName;
+  slotEl.innerHTML = '<span style="color:var(--text3)">+ ' + slotName + '</span><div class="slot-label">' + label + '</div>';
+  slotEl.classList.remove('filled');
+  slotEl.removeAttribute('draggable');
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 9 : VIDEO BUTTON PER SLOT
+// ══════════════════════════════════════════════
+async function videoSlot(slotName) {
+  const slot = slotImages[slotName];
+  if (!slot) return;
+
+  if (!confirm('Generer une video depuis cette image ? (30 tokens)')) return;
+
+  addChatMsg('ai', 'patron', 'Generation video en cours pour "' + slotName + '"...');
+  const slotEl = document.querySelector('[data-slot="' + slotName + '"]');
+  const actionsEl = slotEl.querySelector('.slot-actions');
+  if (actionsEl) actionsEl.innerHTML = '<span class="loading"></span>';
+
+  try {
+    const body = {};
+    if (slot.url) body.image_url = slot.url;
+    body.slot = slotName;
+    body.action = 'generate_video';
+
+    const resp = await fetch(API + '/video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      addChatMsg('ai', 'video_agent', 'Video generee pour "' + slotName + '". URL : ' + (data.video_url || 'en cours de traitement'));
+    } else {
+      addChatMsg('ai', 'patron', 'Erreur video : ' + (data.error || 'Erreur inconnue'));
+    }
+  } catch (e) {
+    addChatMsg('ai', 'patron', 'Erreur video : ' + e.message);
+  }
+  renderSlotFilled(slotName, slot.url);
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 4 : DRAG & DROP BETWEEN SLOTS
+// ══════════════════════════════════════════════
+let dragSourceSlot = null;
+
+document.getElementById('slots-grid').addEventListener('dragstart', (e) => {
+  const slotEl = e.target.closest('.slot');
+  if (!slotEl || !slotEl.classList.contains('filled')) { e.preventDefault(); return; }
+  dragSourceSlot = slotEl.getAttribute('data-slot');
+  slotEl.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSourceSlot);
+});
+
+document.getElementById('slots-grid').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const slotEl = e.target.closest('.slot');
+  if (slotEl) {
+    document.querySelectorAll('.slot').forEach(s => s.classList.remove('drag-over'));
+    slotEl.classList.add('drag-over');
+  }
+});
+
+document.getElementById('slots-grid').addEventListener('dragleave', (e) => {
+  const slotEl = e.target.closest('.slot');
+  if (slotEl) slotEl.classList.remove('drag-over');
+});
+
+document.getElementById('slots-grid').addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  document.querySelectorAll('.slot').forEach(s => { s.classList.remove('drag-over'); s.classList.remove('dragging'); });
+
+  const targetSlotEl = e.target.closest('.slot');
+  if (!targetSlotEl || !dragSourceSlot) return;
+  const targetSlotName = targetSlotEl.getAttribute('data-slot');
+  if (targetSlotName === dragSourceSlot) return;
+
+  // Swap images between slots
+  const srcData = slotImages[dragSourceSlot] || null;
+  const tgtData = slotImages[targetSlotName] || null;
+
+  if (srcData) {
+    slotImages[targetSlotName] = srcData;
+    renderSlotFilled(targetSlotName, srcData.url);
+  } else {
+    delete slotImages[targetSlotName];
+    removeSlot(targetSlotName);
+  }
+
+  if (tgtData) {
+    slotImages[dragSourceSlot] = tgtData;
+    renderSlotFilled(dragSourceSlot, tgtData.url);
+  } else {
+    delete slotImages[dragSourceSlot];
+    removeSlot(dragSourceSlot);
+  }
+
+  addChatMsg('ai', 'patron', 'Images echangees entre "' + dragSourceSlot + '" et "' + targetSlotName + '".');
+  dragSourceSlot = null;
+});
+
+document.getElementById('slots-grid').addEventListener('dragend', () => {
+  document.querySelectorAll('.slot').forEach(s => { s.classList.remove('dragging'); s.classList.remove('drag-over'); });
+  dragSourceSlot = null;
+});
+
+// ══════════════════════════════════════════════
+// FEATURE 1 & 8 : PREVIEW LIVE (Step 4)
+// ══════════════════════════════════════════════
+function generatePreview() {
+  const theme = THEME_COLORS[currentTheme] || ALL_THEMES.find(t => t.id === currentTheme) || { bg: '#FAF7F2', surface: '#F0EBE0', text: '#2D2A24', accent: '#8B6914' };
+  const brandName = document.getElementById('brand-name').value || 'Votre Marque';
+  const productsDesc = document.getElementById('products-desc').value || '';
+  const contactInfo = document.getElementById('contact-info').value || '';
+
+  const ficheProducts = [];
+  if (ficheData && ficheData.products) {
+    ficheData.products.forEach(p => ficheProducts.push(p));
+  }
+
+  // Build the preview HTML (ZENDO-style structure)
+  const previewHTML = buildPreviewHTML(theme, brandName, productsDesc, contactInfo, ficheProducts);
+
+  // Main preview iframe
+  const frame = document.getElementById('preview-frame');
+  frame.innerHTML = '<iframe id="preview-iframe"></iframe>';
+  const iframe = document.getElementById('preview-iframe');
+  iframe.onload = function() {};
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(previewHTML);
+  doc.close();
+
+  // Feature 8: 4 miniature A4 pages
+  generateMiniPages(theme, brandName, productsDesc, contactInfo, ficheProducts);
+}
+
+function buildPreviewHTML(theme, brandName, productsDesc, contactInfo, ficheProducts) {
+  var heroUrl = slotImages.hero ? slotImages.hero.url : (slotImages.product_1 ? slotImages.product_1.url : '');
+  var p1Url = slotImages.product_1 ? slotImages.product_1.url : '';
+  var p2Url = slotImages.product_2 ? slotImages.product_2.url : '';
+  var p3Url = slotImages.product_3 ? slotImages.product_3.url : '';
+  var accUrl = slotImages.accessory ? slotImages.accessory.url : '';
+
+  var p1 = ficheProducts[0] || {};
+  var p1Name = p1.name || 'Produit';
+  var p1Tag = p1.tagline || p1.type || '';
+  var p1Desc = p1.description || '';
+  var p1Price = p1.price || '';
+  var p1Specs = p1.specs || {};
+  var p1Features = p1.features || [];
+  var p1Certs = p1.certifications || [];
+
+  // Construire le tableau specs
+  var specsRows = '';
+  var specKeys = Object.keys(p1Specs);
+  for (var i = 0; i < specKeys.length; i++) {
+    specsRows += '<tr><td style="font-weight:600;padding:8px 12px;border-bottom:1px solid ' + theme.accent + '15;text-align:left">' + specKeys[i] + '</td><td style="padding:8px 12px;border-bottom:1px solid ' + theme.accent + '15;text-align:center;color:' + theme.accent + '">' + p1Specs[specKeys[i]] + '</td></tr>';
+  }
+
+  // Features cards
+  var featCards = '';
+  for (var j = 0; j < Math.min(p1Features.length, 6); j++) {
+    featCards += '<div style="padding:12px;background:' + theme.bg + ';border:1px solid ' + theme.accent + '15;border-radius:10px;font-size:11px;line-height:1.5"><div style="width:20px;height:2px;background:' + theme.accent + ';margin-bottom:6px;border-radius:1px"></div>' + p1Features[j] + '</div>';
+  }
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+  '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">' +
+  '<style>' +
+  '*{margin:0;padding:0;box-sizing:border-box}' +
+  'body{font-family:Inter,system-ui,sans-serif;background:' + theme.surface + ';color:' + theme.text + '}' +
+  'img{max-width:100%;display:block}' +
+  '.a4{width:210mm;min-height:297mm;margin:20px auto;background:' + theme.bg + ';position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.1)}' +
+  '</style></head><body>' +
+
+  // PAGE 1 — COUVERTURE
+  '<div class="a4" style="display:flex;flex-direction:column;justify-content:flex-end;position:relative">' +
+    (heroUrl ? '<img src="' + heroUrl + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.85)">' : '') +
+    '<div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 20%,' + theme.bg + 'cc 60%,' + theme.bg + ' 85%)"></div>' +
+    '<div style="position:relative;z-index:2;padding:40px;text-align:center">' +
+      '<div style="font-size:14px;color:' + theme.accent + ';text-transform:uppercase;letter-spacing:.3em;font-weight:600;margin-bottom:8px">Catalogue 2026</div>' +
+      '<div style="font-family:Playfair Display,serif;font-size:56px;font-weight:900;margin-bottom:12px">' + brandName + '</div>' +
+      '<p style="font-size:16px;opacity:.7;max-width:480px;margin:0 auto 32px;line-height:1.7">' + p1Desc.substring(0, 200) + '</p>' +
+      (p1Price ? '<div style="display:inline-block;padding:12px 32px;background:' + theme.accent + ';color:' + theme.bg + ';font-size:24px;font-weight:800;border-radius:12px">' + p1Price + '</div>' : '') +
+    '</div>' +
+  '</div>' +
+
+  // PAGE 2 — PRODUIT PRINCIPAL
+  '<div class="a4" style="padding:36px">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="display:inline-block;padding:4px 12px;background:' + theme.accent + ';color:' + theme.bg + ';border-radius:20px;font-size:9px;font-weight:800;text-transform:uppercase">Produit vedette</span></div>' +
+    '<div style="display:flex;gap:24px;margin-top:16px">' +
+      '<div style="flex:0 0 240px;border-radius:16px;overflow:hidden;position:relative;min-height:200px;background:' + theme.surface + ';display:flex;align-items:center;justify-content:center">' +
+        (p1Url ? '<img src="' + p1Url + '" style="max-height:200px;object-fit:contain;padding:12px">' : '<div style="color:' + theme.accent + ';opacity:.3">Photo produit</div>') +
+      '</div>' +
+      '<div style="flex:1">' +
+        '<div style="font-family:Playfair Display,serif;font-size:28px;font-weight:700;margin-bottom:4px">' + p1Name + '</div>' +
+        '<div style="font-size:12px;color:' + theme.accent + ';font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">' + p1Tag + '</div>' +
+        '<p style="font-size:13px;opacity:.7;line-height:1.65;margin-bottom:16px">' + p1Desc + '</p>' +
+        (featCards ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + featCards.substring(0, featCards.indexOf('</div>') + 6).repeat(0) + featCards + '</div>' : '') +
+      '</div>' +
+    '</div>' +
+
+    // Tableau specs
+    (specsRows ? '<div style="margin-top:24px"><table style="width:100%;border-collapse:separate;border-spacing:0;font-size:12px;border-radius:10px;overflow:hidden"><thead><tr><th style="padding:10px 12px;text-align:left;background:' + theme.accent + '15;color:' + theme.accent + ';font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.05em">Specification</th><th style="padding:10px 12px;text-align:center;background:' + theme.accent + '15;color:' + theme.accent + ';font-weight:700;text-transform:uppercase;font-size:10px">Valeur</th></tr></thead><tbody>' + specsRows + '</tbody></table></div>' : '') +
+
+    // Prix
+    (p1Price ? '<div style="margin-top:20px;text-align:center;padding:16px;background:' + theme.accent + '08;border:1px solid ' + theme.accent + '20;border-radius:12px"><span style="font-size:28px;font-weight:800;color:' + theme.accent + '">' + p1Price + '</span></div>' : '') +
+  '</div>' +
+
+  // PAGE 3 — GALERIE PHOTOS
+  '<div class="a4" style="padding:36px">' +
+    '<div style="font-family:Playfair Display,serif;font-size:24px;font-weight:700;text-align:center;margin-bottom:24px">Galerie produit</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      [p1Url, p2Url, p3Url, accUrl].filter(Boolean).map(function(url) {
+        return '<div style="border-radius:12px;overflow:hidden;aspect-ratio:4/3;background:' + theme.surface + '"><img src="' + url + '" style="width:100%;height:100%;object-fit:cover"></div>';
+      }).join('') +
+    '</div>' +
+  '</div>' +
+
+  // PAGE 4 — CONTACT
+  '<div class="a4" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:40px">' +
+    '<div style="font-family:Playfair Display,serif;font-size:48px;font-weight:900;margin-bottom:8px">' + brandName + '</div>' +
+    '<div style="font-family:Playfair Display,serif;font-size:24px;font-weight:700;margin-bottom:24px">Contactez-nous</div>' +
+    '<p style="font-size:14px;opacity:.6;max-width:400px;line-height:1.6;margin-bottom:32px">Pour un conseil personnalise, un essai ou une commande.</p>' +
+    '<div style="font-size:16px;font-weight:600;color:' + theme.accent + '">' + contactInfo + '</div>' +
+    (p1Certs.length ? '<div style="display:flex;gap:8px;margin-top:24px">' + p1Certs.map(function(c) { return '<span style="padding:4px 12px;border:1px solid ' + theme.accent + '30;border-radius:20px;font-size:10px;font-weight:600;color:' + theme.accent + '">' + c + '</span>'; }).join('') + '</div>' : '') +
+  '</div>' +
+
+  '</body></html>';
+}
+
+function generateMiniPages(theme, brandName, productsDesc, contactInfo, ficheProducts) {
+  const grid = document.getElementById('preview-pages-grid');
+  const heroUrl = slotImages.hero ? slotImages.hero.url : '';
+  const logoUrl = slotImages.logo ? slotImages.logo.url : '';
+  const p1Url = slotImages.product_1 ? slotImages.product_1.url : '';
+  const p2Url = slotImages.product_2 ? slotImages.product_2.url : '';
+  const p3Url = slotImages.product_3 ? slotImages.product_3.url : '';
+  const accUrl = slotImages.accessory ? slotImages.accessory.url : '';
+
+  const p1Name = ficheProducts[0] ? (ficheProducts[0].name || ficheProducts[0].nom || 'Produit 1') : 'Produit 1';
+  const p2Name = ficheProducts[1] ? (ficheProducts[1].name || ficheProducts[1].nom || 'Produit 2') : 'Produit 2';
+  const p3Name = ficheProducts[2] ? (ficheProducts[2].name || ficheProducts[2].nom || 'Produit 3') : 'Produit 3';
+
+  // Page 1: Cover with hero + brand
+  const page1 = '<div style="padding:8px;height:100%;display:flex;flex-direction:column;background:' + theme.bg + ';color:' + theme.text + '">' +
+    (logoUrl ? '<img src="' + logoUrl + '" style="max-height:20px;max-width:60px;object-fit:contain;margin-bottom:4px">' : '') +
+    '<div style="font-size:10px;font-weight:800;margin-bottom:4px">' + brandName + '</div>' +
+    (heroUrl ? '<img src="' + heroUrl + '" style="width:100%;flex:1;object-fit:cover;border-radius:4px">' : '<div style="flex:1;background:' + theme.accent + '11;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;color:' + theme.accent + '">Hero</div>') +
+    '</div>';
+
+  // Page 2: Products 1 & 2
+  const page2 = '<div style="padding:8px;height:100%;display:flex;flex-direction:column;gap:4px;background:' + theme.bg + ';color:' + theme.text + '">' +
+    '<div style="font-size:8px;font-weight:700;margin-bottom:2px">Nos Produits</div>' +
+    '<div style="flex:1;display:flex;flex-direction:column;gap:4px">' +
+      '<div style="flex:1;text-align:center">' +
+        (p1Url ? '<img src="' + p1Url + '" style="max-height:60%;object-fit:contain">' : '<div style="height:50%;background:' + theme.accent + '11;border-radius:3px"></div>') +
+        '<div style="font-size:7px;font-weight:600">' + p1Name + '</div>' +
+      '</div>' +
+      '<div style="flex:1;text-align:center">' +
+        (p2Url ? '<img src="' + p2Url + '" style="max-height:60%;object-fit:contain">' : '<div style="height:50%;background:' + theme.accent + '11;border-radius:3px"></div>') +
+        '<div style="font-size:7px;font-weight:600">' + p2Name + '</div>' +
+      '</div>' +
+    '</div></div>';
+
+  // Page 3: Product 3 + Accessory
+  const page3 = '<div style="padding:8px;height:100%;display:flex;flex-direction:column;gap:4px;background:' + theme.bg + ';color:' + theme.text + '">' +
+    '<div style="flex:1;text-align:center">' +
+      (p3Url ? '<img src="' + p3Url + '" style="max-height:60%;object-fit:contain">' : '<div style="height:50%;background:' + theme.accent + '11;border-radius:3px"></div>') +
+      '<div style="font-size:7px;font-weight:600">' + p3Name + '</div>' +
+    '</div>' +
+    '<div style="flex:1;text-align:center">' +
+      (accUrl ? '<img src="' + accUrl + '" style="max-height:60%;object-fit:contain">' : '<div style="height:50%;background:' + theme.accent + '11;border-radius:3px"></div>') +
+      '<div style="font-size:7px;font-weight:600">Accessoire</div>' +
+    '</div>' +
+    '</div>';
+
+  // Page 4: Contact / Back cover
+  const page4 = '<div style="padding:8px;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:' + theme.bg + ';color:' + theme.text + '">' +
+    (logoUrl ? '<img src="' + logoUrl + '" style="max-height:30px;max-width:80px;object-fit:contain;margin-bottom:6px">' : '') +
+    '<div style="font-size:9px;font-weight:800;margin-bottom:6px">' + brandName + '</div>' +
+    '<div style="font-size:6px;opacity:.7;line-height:1.5">' + contactInfo.replace(/\//g, '<br>').replace(/,/g, '<br>') + '</div>' +
+    '</div>';
+
+  grid.innerHTML =
+    '<div class="preview-page"><div class="preview-page-content">' + page1 + '</div><div class="page-label">Page 1 - Couverture</div></div>' +
+    '<div class="preview-page"><div class="preview-page-content">' + page2 + '</div><div class="page-label">Page 2 - Produits</div></div>' +
+    '<div class="preview-page"><div class="preview-page-content">' + page3 + '</div><div class="page-label">Page 3 - Details</div></div>' +
+    '<div class="preview-page"><div class="preview-page-content">' + page4 + '</div><div class="page-label">Page 4 - Contact</div></div>';
+}
+
+// ══════════════════════════════════════════════
+// STEP 5 : EXPORT
+// ══════════════════════════════════════════════
+async function exportAs(format) {
+  const result = document.getElementById('export-result');
+  result.style.display = 'block';
+  result.innerHTML = '<span class="loading"></span> Generation en cours...';
+
+  if (format === 'pdf') {
+    try {
+      const resp = await fetch(API + '/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html_url: '/home/ubuntu/jadomi/public/studio/generated/zendo-flyer/flyer.html', filename: 'flyer-' + Date.now() + '.pdf' })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        result.innerHTML = '<a href="' + data.pdf_url + '" download style="color:var(--green);font-weight:600">Telecharger le PDF</a>';
+      } else {
+        result.innerHTML = '<span style="color:var(--red)">Erreur : ' + data.error + '</span>';
+      }
+    } catch (e) {
+      result.innerHTML = '<span style="color:var(--red)">' + e.message + '</span>';
+    }
+  } else if (format === 'landing') {
+    result.innerHTML = '<a href="/studio/generated/zendo-flyer/" target="_blank" style="color:var(--green);font-weight:600">Ouvrir la landing page</a>';
+  } else if (format === 'zip') {
+    result.innerHTML = '<span style="color:var(--text2)">Export ZIP bientot disponible</span>';
+  }
+}
+
+// ══════════════════════════════════════════════
+// CHAT IA
+// ══════════════════════════════════════════════
+function addChatMsg(type, agent, text) {
+  const container = document.getElementById('chat-messages');
+  const msg = document.createElement('div');
+  msg.className = 'chat-msg ' + type;
+  if (type === 'ai' && agent) {
+    msg.innerHTML = '<div class="agent-tag">' + agent + '</div>' + text.replace(/\n/g, '<br>');
+  } else {
+    msg.textContent = text;
+  }
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 5 : SMART CHAT
+// ══════════════════════════════════════════════
+function detectSlotFromMessage(msg) {
+  const lower = msg.toLowerCase();
+  const slotPatterns = [
+    { pattern: /(?:photo|produit|slot|image)\s*1/i, slot: 'product_1' },
+    { pattern: /(?:photo|produit|slot|image)\s*2/i, slot: 'product_2' },
+    { pattern: /(?:photo|produit|slot|image)\s*3/i, slot: 'product_3' },
+    { pattern: /hero|couverture|principale/i, slot: 'hero' },
+    { pattern: /accessoire|led/i, slot: 'accessory' },
+    { pattern: /logo/i, slot: 'logo' }
+  ];
+  for (const p of slotPatterns) {
+    if (p.pattern.test(lower)) return p.slot;
+  }
+  return null;
+}
+
+function detectActionFromMessage(msg) {
+  const lower = msg.toLowerCase();
+  if (/d[eé]tour/i.test(lower)) return 'detour';
+  if (/am[eé]lior|enhance|ameliore/i.test(lower)) return 'enhance';
+  if (/supprim|retir|enlev|efface/i.test(lower)) return 'remove';
+  if (/vid[eé]o|video|anime/i.test(lower)) return 'video';
+  return null;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  addChatMsg('user', null, message);
+  input.value = '';
+
+  // Feature 5: Smart chat — detect slot + action
+  const detectedSlot = detectSlotFromMessage(message);
+  const detectedAction = detectActionFromMessage(message);
+
+  if (detectedSlot && detectedAction) {
+    // Direct action without orchestrator
+    if (detectedAction === 'detour') {
+      if (slotImages[detectedSlot]) {
+        addChatMsg('ai', 'patron', 'Detourage du slot "' + detectedSlot + '" en cours...');
+        await detourSlot(detectedSlot);
+      } else {
+        addChatMsg('ai', 'patron', 'Le slot "' + detectedSlot + '" est vide. Ajoutez d\'abord une image.');
+      }
+      return;
+    }
+    if (detectedAction === 'enhance') {
+      if (slotImages[detectedSlot]) {
+        addChatMsg('ai', 'patron', 'Amelioration du slot "' + detectedSlot + '" en cours...');
+        await enhanceSlot(detectedSlot);
+      } else {
+        addChatMsg('ai', 'patron', 'Le slot "' + detectedSlot + '" est vide. Ajoutez d\'abord une image.');
+      }
+      return;
+    }
+    if (detectedAction === 'remove') {
+      if (slotImages[detectedSlot]) {
+        removeSlot(detectedSlot);
+        addChatMsg('ai', 'patron', 'Image supprimee du slot "' + detectedSlot + '".');
+      } else {
+        addChatMsg('ai', 'patron', 'Le slot "' + detectedSlot + '" est deja vide.');
+      }
+      return;
+    }
+    if (detectedAction === 'video') {
+      if (slotImages[detectedSlot]) {
+        await videoSlot(detectedSlot);
+      } else {
+        addChatMsg('ai', 'patron', 'Le slot "' + detectedSlot + '" est vide. Ajoutez d\'abord une image.');
+      }
+      return;
+    }
+  }
+
+  // DETECTER URL EN PREMIER — scraper AVANT orchestrate
+  var urlMatch = message.match(/(https?:\/\/[^\s]+|[\w-]+\.(?:fr|com|net|org)(?:\/[^\s]*)?)/i);
+  if (urlMatch) {
+    addChatMsg('ai', 'assistant', 'Analyse du site ' + urlMatch[0] + ' en cours...');
+    try {
+      var productName = message.replace(urlMatch[0], '').replace(/\s+/g, ' ').trim();
+      var scrapeResp = await fetch(API + '/scrape-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlMatch[0], product_name: productName })
+      });
+      var scrapeData = await scrapeResp.json();
+      if (scrapeData.ok) {
+        var f = scrapeData.fiche || {};
+        var imgs = scrapeData.images || [];
+        if (f.brand) document.getElementById('brand-name').value = f.brand;
+        if (f.products && f.products.length) {
+          var descLines = [];
+          f.products.forEach(function(p) {
+            var line = (p.name || '') + ' - ' + (p.tagline || '') + ' - ' + (p.price || '');
+            if (p.specs) Object.keys(p.specs).forEach(function(k) { line += '\n  ' + k + ': ' + p.specs[k]; });
+            descLines.push(line);
+          });
+          document.getElementById('products-desc').value = descLines.join('\n\n');
+        }
+        if (f.contact) {
+          var c = f.contact;
+          document.getElementById('contact-info').value = [c.email, c.phone, c.website].filter(Boolean).join(' / ');
+        }
+        document.getElementById('ai-result').style.display = 'block';
+        document.getElementById('ai-result-text').textContent = JSON.stringify(f, null, 2);
+        ficheData = f;
+        // AFFICHER FICHE
+        try {
+          var ficheMsg = '<b>Fiche produit depuis ' + urlMatch[0] + '</b><br>';
+          if (f.products && f.products.length) {
+            for (var pi = 0; pi < f.products.length; pi++) {
+              var p = f.products[pi];
+              ficheMsg += '<br><b>' + String(p.name || '') + '</b>';
+              if (p.tagline) ficheMsg += ' - ' + String(p.tagline);
+              if (p.price) ficheMsg += '<br>Prix : ' + String(p.price);
+              if (p.description) ficheMsg += '<br>' + String(p.description);
+              if (p.specs && typeof p.specs === 'object') {
+                ficheMsg += '<br><br><b>Specifications techniques :</b><br>';
+                var specKeys = Object.keys(p.specs);
+                for (var si = 0; si < specKeys.length; si++) {
+                  ficheMsg += String(specKeys[si]) + ' : ' + String(p.specs[specKeys[si]]) + '<br>';
+                }
+              }
+              if (p.features && p.features.length) {
+                ficheMsg += '<br><b>Points cles :</b><br>';
+                for (var fi = 0; fi < p.features.length; fi++) {
+                  ficheMsg += '- ' + String(p.features[fi]) + '<br>';
+                }
+              }
+            }
+          }
+          addChatMsg('ai', 'assistant', ficheMsg);
+        } catch(displayErr) {
+          addChatMsg('ai', 'assistant', 'Fiche recue mais erreur affichage : ' + displayErr.message);
+        }
+
+        // AFFICHER PHOTOS
+        try {
+          if (imgs.length > 0) {
+            var imgHtml = '';
+            for (var ii = 0; ii < Math.min(imgs.length, 10); ii++) {
+              var imgSrc = String(imgs[ii].src);
+              imgHtml += '<img src="' + imgSrc + '" style="width:90px;height:70px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent" onclick="useStockPhoto(this.src)" onmouseover="this.style.borderColor=\'gold\'" onmouseout="this.style.borderColor=\'transparent\'">';
+            }
+            addChatMsg('ai', 'assistant', '<b>' + imgs.length + ' photos du produit</b> (cliquez pour ajouter au flyer) :<br><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' + imgHtml + '</div>');
+          } else {
+            addChatMsg('ai', 'assistant', 'Aucune photo trouvee sur le site.');
+          }
+        } catch(imgErr) {
+          addChatMsg('ai', 'assistant', 'Erreur photos : ' + imgErr.message);
+        }
+        setTimeout(function() { goStep(2); }, 500);
+      } else {
+        addChatMsg('ai', 'assistant', 'Erreur : ' + (scrapeData.error || 'site inaccessible'));
+      }
+    } catch(e) {
+      addChatMsg('ai', 'assistant', 'Erreur scraping : ' + e.message);
+    }
+    return; // STOP ICI — pas d'orchestrate
+  }
+
+  // PAS d'URL → orchestrate normal
+  const loadingId = 'loading-' + Date.now();
+  const container = document.getElementById('chat-messages');
+  const loadDiv = document.createElement('div');
+  loadDiv.className = 'chat-msg ai';
+  loadDiv.id = loadingId;
+  loadDiv.innerHTML = '<span class="loading"></span>';
+  container.appendChild(loadDiv);
+  container.scrollTop = container.scrollHeight;
+
+  try {
+    const resp = await fetch(API + '/orchestrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, execute: true })
+    });
+    const data = await resp.json();
+    document.getElementById(loadingId).remove();
+
+    if (data.ok) {
+      // Combiner les resultats en UN seul message coherent
+      let combinedMsg = '';
+      let searchQueries = [];
+
+      for (const r of (data.results || [])) {
+        if (r.agent_name && r.result) {
+          const result = r.result;
+          // Extraire le contenu utile
+          if (result.brand || result.products) {
+            // Redacteur - fiche produit
+            combinedMsg += '<b>Fiche produit generee</b><br>';
+            if (result.brand) combinedMsg += 'Marque : ' + result.brand + '<br>';
+            if (result.products) {
+              result.products.forEach(p => {
+                combinedMsg += '<br><b>' + (p.name || '') + '</b> — ' + (p.tagline || '') + '<br>';
+                if (p.price) combinedMsg += 'Prix : ' + p.price + '<br>';
+                if (p.features) combinedMsg += 'Points cles : ' + p.features.join(', ') + '<br>';
+              });
+            }
+          } else if (result.search_queries) {
+            // Photo advisor - mots cles de recherche
+            searchQueries = result.search_queries;
+            if (result.analysis) combinedMsg += '<br>' + result.analysis + '<br>';
+          } else if (result.raw) {
+            combinedMsg += result.raw.substring(0, 400) + '<br>';
+          }
+        }
+      }
+
+      if (combinedMsg) addChatMsg('ai', 'assistant', combinedMsg);
+      autoFillFromResults(data);
+
+      // Auto-recherche photos si des queries ont ete trouvees
+      if (searchQueries.length > 0) {
+        addChatMsg('ai', 'photo', 'Recherche de photos en cours...');
+        for (const q of searchQueries.slice(0, 2)) {
+          try {
+            const photoResp = await fetch(API + '/search-photos?q=' + encodeURIComponent(q));
+            const photoData = await photoResp.json();
+            if (photoData.ok && photoData.photos.length > 0) {
+              const photosHtml = photoData.photos.slice(0, 4).map(p =>
+                '<img src="' + p.url_small + '" style="width:80px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="useStockPhoto(\'' + p.url_regular + '\')" title="Cliquer pour utiliser">'
+              ).join(' ');
+              addChatMsg('ai', 'photos', 'Resultats pour "' + q + '" (cliquez pour utiliser) :<br><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' + photosHtml + '</div>');
+            }
+          } catch(e) {}
+        }
+      }
+    } else {
+      addChatMsg('ai', 'assistant', 'Erreur : ' + data.error);
+    }
+  } catch (e) {
+    document.getElementById(loadingId)?.remove();
+    addChatMsg('ai', 'patron', 'Erreur de connexion : ' + e.message);
+  }
+}
+
+// Utiliser une photo stock depuis le chat → insere dans le premier slot vide + remplit les champs
+function useStockPhoto(url) {
+  const slotNames = ['product_1', 'product_2', 'product_3', 'hero', 'accessory', 'logo'];
+  const freeSlot = slotNames.find(s => !slotImages[s]);
+  if (!freeSlot) {
+    addChatMsg('ai', 'assistant', 'Tous les slots sont remplis. Supprimez-en un pour ajouter cette photo.');
+    return;
+  }
+  slotImages[freeSlot] = { url, isExternal: true };
+  const slotEl = document.querySelector('[data-slot="' + freeSlot + '"]');
+  if (slotEl) {
+    slotEl.innerHTML = '<img src="' + url + '" alt="' + freeSlot + '"><div class="slot-label">' + freeSlot + '</div><div class="slot-actions"><button class="slot-btn" onclick="event.stopPropagation();detourSlot(\'' + freeSlot + '\')" title="Detourer">D</button><button class="slot-btn" onclick="event.stopPropagation();enhanceSlot(\'' + freeSlot + '\')" title="Ameliorer">+</button><button class="slot-btn" onclick="event.stopPropagation();removeSlot(\'' + freeSlot + '\')" title="Supprimer" style="color:var(--red)">X</button></div>';
+    slotEl.classList.add('filled');
+  }
+  addChatMsg('ai', 'assistant', 'Photo ajoutee dans "' + freeSlot + '". Optimisation automatique en cours...');
+  if (currentStep < 3) goStep(3);
+
+  // AUTO-DETOURAGE — supprime le fond automatiquement
+  autoDetour(freeSlot, url);
+}
+
+async function autoDetour(slotName, imageUrl) {
+  if (!imageUrl) return;
+  showSlotProgress(slotName, 'Optimisation automatique');
+  try {
+    var resp = await fetch(API + '/edit-image-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: imageUrl, action: 'Remove the background completely. Keep only the product on a clean white background. Professional product photography result.' })
+    });
+    var data = await resp.json();
+    hideSlotProgress(slotName, data.ok);
+    if (data.ok && data.image_url) {
+      slotImages[slotName].url = data.image_url;
+      renderSlotFilled(slotName, data.image_url);
+      addChatMsg('ai', 'assistant', 'Image optimisee automatiquement.');
+    }
+  } catch(e) {
+    hideSlotProgress(slotName, false);
+  }
+}
+
+// Auto-remplir les champs de gauche depuis les resultats IA
+function autoFillFromResults(data) {
+  for (const r of (data.results || [])) {
+    if (r.result && r.result.brand) {
+      document.getElementById('brand-name').value = r.result.brand;
+    }
+    if (r.result && r.result.products) {
+      const desc = r.result.products.map(p => p.name + ' — ' + (p.tagline || '') + ' — ' + (p.price || '')).join('\n');
+      document.getElementById('products-desc').value = desc;
+      ficheData = r.result;
+      document.getElementById('ai-result').style.display = 'block';
+      document.getElementById('ai-result-text').textContent = JSON.stringify(r.result, null, 2);
+    }
+    if (r.result && r.result.contact) {
+      const c = r.result.contact;
+      document.getElementById('contact-info').value = [c.email, c.phone, c.website].filter(Boolean).join(' / ');
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+loadTemplates();
+loadRecentProjects();
+</script>
+
+</body>
+</html>

@@ -33,13 +33,25 @@ function createLaboRouter() {
       req.userRole = role.role;
 
       // Charger le prothesiste lie a cette societe
-      const { data: prothesiste } = await admin()
+      let { data: prothesiste } = await admin()
         .from('labo_prothesistes')
         .select('*')
         .eq('societe_id', societeId)
         .maybeSingle();
 
-      req.prothesiste = prothesiste; // peut etre null si pas encore configure
+      // Auto-creation profil prothesiste si inexistant (evite 404 sur toutes les pages)
+      if (!prothesiste) {
+        const { data: soc } = await admin().from('societes').select('nom').eq('id', societeId).maybeSingle();
+        const { data: created } = await admin()
+          .from('labo_prothesistes')
+          .insert({ societe_id: societeId, nom_labo: soc?.nom || 'Mon laboratoire', user_id: req.user.id })
+          .select()
+          .maybeSingle();
+        prothesiste = created;
+        if (created) console.log('[LABO] Auto-creation profil prothesiste pour societe', societeId);
+      }
+
+      req.prothesiste = prothesiste;
       req.prothesisteId = prothesiste?.id || null;
 
       next();

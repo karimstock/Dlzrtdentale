@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Agenda IA — Tableau de bord intelligent</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-app:#09090b;--bg-sidebar:#0f0f12;--bg-card:#18181b;--bg-card-hover:#27272a;
+  --bg-input:#27272a;--text-primary:#fafafa;--text-secondary:#a1a1aa;--text-muted:#71717a;
+  --border:#27272a;--border-subtle:#1f1f23;--accent:#14b8a6;--accent-hover:#0d9488;
+  --danger:#ef4444;--warning:#f59e0b;--success:#22c55e;
+  --radius-btn:6px;--radius-card:12px;--radius-modal:16px;--radius-panel:24px;
+  --font:'Inter',system-ui,-apple-system,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--spring:cubic-bezier(.34,1.56,.64,1);
+  --sidebar-w:240px
+}
+[data-theme="light"]{
+  --bg-app:#fafafa;--bg-sidebar:#ffffff;--bg-card:#ffffff;--bg-card-hover:#f4f4f5;
+  --bg-input:#f4f4f5;--text-primary:#09090b;--text-secondary:#52525b;--text-muted:#71717a;
+  --border:#e4e4e7;--border-subtle:#f4f4f5
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg-app);color:var(--text-primary);overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit}
+a{text-decoration:none;color:inherit}
+
+/* Layout */
+.app-layout{display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width 250ms var(--ease);overflow:hidden;flex-shrink:0;z-index:100}
+.sidebar.collapsed{width:64px}
+.sidebar-header{padding:16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border-subtle);min-height:56px}
+.sidebar-logo{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sidebar-logo svg{width:18px;height:18px;color:#fff}
+.sidebar-brand{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .sidebar-brand{opacity:0}
+.sidebar-toggle{position:absolute;right:-12px;top:20px;width:24px;height:24px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;z-index:101;transition:transform 200ms var(--ease)}
+.sidebar-toggle:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sidebar.collapsed .sidebar-toggle{transform:rotate(180deg)}
+
+.sidebar-nav{flex:1;padding:8px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-btn);color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;transition:all 150ms var(--ease);position:relative;white-space:nowrap;margin:2px 0}
+.nav-item:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.nav-item.active{background:rgba(20,184,166,.08);color:var(--accent)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 2px 2px 0;background:var(--accent)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.sidebar.collapsed .nav-label{opacity:0;width:0}
+
+.sidebar-footer{padding:12px;border-top:1px solid var(--border-subtle)}
+.sidebar-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--radius-btn)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#0d9488);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.user-info{overflow:hidden;white-space:nowrap}
+.user-name{font-size:12px;font-weight:600;color:var(--text-primary)}
+.user-cabinet{font-size:10px;color:var(--text-muted)}
+.sidebar.collapsed .user-info{opacity:0;width:0}
+.sim-badge{margin-top:8px;padding:4px 8px;border-radius:20px;background:rgba(245,158,11,.1);color:var(--warning);font-size:10px;font-weight:600;text-align:center;white-space:nowrap}
+.sidebar.collapsed .sim-badge{font-size:8px;padding:2px 4px}
+
+/* Main Content Area */
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* Top Bar */
+.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.breadcrumb{font-size:13px;color:var(--text-muted)}
+.breadcrumb span{color:var(--text-primary);font-weight:600}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.search-btn{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg-input);color:var(--text-muted);font-size:12px;transition:all 150ms var(--ease)}
+.search-btn:hover{border-color:var(--accent);color:var(--text-secondary)}
+.search-btn kbd{font-size:10px;padding:1px 4px;border-radius:3px;background:var(--border);color:var(--text-muted);font-family:inherit}
+.topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius-btn);display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all 150ms var(--ease);position:relative}
+.topbar-icon-btn:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--danger)}
+.theme-toggle{width:32px;height:32px;border-radius:var(--radius-btn);display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all 200ms var(--ease)}
+.theme-toggle:hover{color:var(--text-primary);transform:rotate(180deg)}
+
+/* Page Content */
+.page-content{flex:1;overflow-y:auto;padding:24px;animation:pageIn 200ms var(--ease)}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Cards */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);padding:20px;transition:all 200ms var(--ease)}
+.card:hover{border-color:var(--border-subtle)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600}
+.card-subtitle{font-size:12px;color:var(--text-muted)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-btn);font-size:12px;font-weight:500;transition:all 150ms var(--ease)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover);box-shadow:0 4px 12px rgba(20,184,166,.3)}
+.btn-secondary{background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--text-muted)}
+.btn-danger{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-ghost{color:var(--text-secondary)}
+.btn-ghost:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+
+/* Agenda Specific */
+.agenda-layout{display:grid;grid-template-columns:1fr 320px;gap:0;height:100%;overflow:hidden}
+.agenda-main{display:flex;flex-direction:column;overflow:hidden}
+.agenda-toolbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.view-toggle{display:flex;background:var(--bg-input);border-radius:var(--radius-btn);padding:2px}
+.view-toggle-btn{padding:6px 12px;border-radius:4px;font-size:11px;font-weight:500;color:var(--text-muted);transition:all 150ms var(--ease)}
+.view-toggle-btn.active{background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(20,184,166,.25)}
+.view-toggle-btn:hover:not(.active){color:var(--text-primary)}
+.date-nav{display:flex;align-items:center;gap:6px}
+.date-nav-btn{width:28px;height:28px;border-radius:var(--radius-btn);display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all 150ms var(--ease)}
+.date-nav-btn:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.date-nav-btn svg{width:14px;height:14px}
+.date-label{font-size:14px;font-weight:600;min-width:180px;text-align:center}
+.btn-today{font-size:11px;padding:5px 10px;border-radius:var(--radius-btn);border:1px solid var(--border);color:var(--text-secondary);font-weight:500;transition:all 150ms var(--ease)}
+.btn-today:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Stats Row */
+.stats-row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
+.stat-chip{display:flex;flex-direction:column;padding:8px 14px;border-radius:8px;background:var(--bg-input);border:1px solid var(--border);min-width:90px;transition:all 150ms var(--ease)}
+.stat-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.stat-chip-value{font-size:16px;font-weight:700;color:var(--accent)}
+.stat-chip-value.danger{color:var(--danger)}
+.stat-chip-value.warning{color:var(--warning)}
+.stat-chip-value.success{color:var(--success)}
+.stat-chip-label{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.score-mini{position:relative;width:48px;height:48px;flex-shrink:0}
+.score-mini svg{transform:rotate(-90deg)}
+.score-mini-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.quick-actions-row{display:flex;gap:6px;margin-left:auto;flex-shrink:0}
+
+/* Calendar Grid */
+.calendar-scroll{flex:1;overflow-y:auto;padding:16px 20px}
+.day-grid{position:relative;background:var(--bg-card);border-radius:var(--radius-card);border:1px solid var(--border);overflow:hidden}
+.time-slot{display:flex;border-bottom:1px solid var(--border-subtle);min-height:72px;position:relative}
+.time-slot.lunch{background:repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(113,113,122,.02) 12px,rgba(113,113,122,.02) 24px)}
+.time-label{width:52px;padding:6px 8px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;border-right:1px solid var(--border-subtle);font-weight:500}
+.slot-content{flex:1;position:relative;padding:2px 6px}
+
+/* Appointment Cards */
+.appt{position:absolute;left:6px;right:6px;border-radius:10px;padding:6px 10px;cursor:pointer;overflow:hidden;transition:all 200ms var(--spring);font-size:12px;border-left:3px solid;opacity:.85}
+.appt::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");opacity:.03;pointer-events:none;border-radius:10px}
+.appt:hover{transform:translateY(-1px) scale(1.005);box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:1;z-index:10}
+.appt-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.appt-meta{font-size:10px;opacity:.8;margin-top:2px;display:flex;gap:8px;color:#fff}
+.appt-badge{font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.15);font-weight:500;color:#fff}
+
+/* Now Line */
+.now-line{position:absolute;left:52px;right:0;height:2px;background:var(--danger);z-index:20;pointer-events:none;box-shadow:0 0 8px rgba(239,68,68,.4)}
+.now-line::before{content:'';position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--danger);animation:nowPulse 2s infinite}
+@keyframes nowPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+
+/* Week View */
+.week-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.week-col{background:var(--bg-card);border-radius:var(--radius-card);border:1px solid var(--border);overflow:hidden;transition:all 150ms var(--ease)}
+.week-col:hover{border-color:var(--accent)}
+.week-col-header{padding:10px;text-align:center;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);cursor:pointer;transition:background 150ms var(--ease)}
+.week-col-header:hover{background:var(--accent);color:#fff}
+.week-col-header .day-score{font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;display:inline-block;margin-top:4px}
+.week-col-body{padding:4px;max-height:calc(100vh - 320px);overflow-y:auto}
+.week-appt{padding:4px 6px;margin:2px 0;border-radius:6px;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-left:2px solid;transition:all 150ms var(--ease)}
+.week-appt:hover{transform:translateX(2px);opacity:1}
+
+/* Month View */
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.month-header{font-size:11px;font-weight:600;text-align:center;padding:8px;color:var(--text-muted)}
+.month-cell{background:var(--bg-card);border-radius:8px;border:1px solid var(--border);padding:8px;min-height:80px;cursor:pointer;transition:all 150ms var(--ease)}
+.month-cell:hover{border-color:var(--accent);transform:scale(1.02)}
+.month-cell.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.month-cell.other{opacity:.3}
+.month-day{font-size:11px;font-weight:600}
+.month-count{font-size:18px;font-weight:700;text-align:center;margin-top:8px}
+.month-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-top:4px}
+
+/* Heatmap */
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.heatmap-header{font-size:11px;font-weight:600;text-align:center;padding:8px;color:var(--text-muted)}
+.heatmap-cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 200ms var(--spring);border:1px solid transparent}
+.heatmap-cell:hover{transform:scale(1.08);box-shadow:0 8px 24px rgba(0,0,0,.3);border-color:var(--text-muted)}
+.heatmap-cell.other{opacity:.15}
+.heatmap-day{font-size:12px;font-weight:700}
+.heatmap-score{font-size:10px;font-weight:600;margin-top:2px}
+.heatmap-legend{display:flex;align-items:center;gap:8px;margin-top:16px;justify-content:center;font-size:11px;color:var(--text-muted)}
+.heatmap-legend-bar{width:120px;height:8px;border-radius:4px;background:linear-gradient(to right,#22c55e,#f59e0b,#ef4444)}
+
+/* Right Panel (Agenda page) */
+.agenda-panel{border-left:1px solid var(--border);background:var(--bg-card);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+.panel-content{flex:1;overflow-y:auto;padding:16px}
+.panel-section{margin-bottom:20px}
+.panel-section-title{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+
+/* Score Gauge */
+.score-gauge-lg{position:relative;width:120px;height:120px;margin:0 auto 12px}
+.score-gauge-lg svg{transform:rotate(-90deg)}
+.score-gauge-lg-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-gauge-lg-num{font-size:32px;font-weight:800;line-height:1}
+.score-gauge-lg-label{font-size:10px;color:var(--text-muted);margin-top:4px}
+
+/* Alert Cards */
+.alert-item{padding:10px 12px;margin:6px 0;border-radius:8px;font-size:11px;border-left:3px solid;line-height:1.5;background:var(--bg-input)}
+.alert-item.warn{border-color:var(--warning);color:var(--warning)}
+.alert-item.danger{border-color:var(--danger);color:var(--danger)}
+.alert-item.info{border-color:var(--accent);color:var(--accent)}
+.alert-item.success{border-color:var(--success);color:var(--success)}
+
+/* Suggestion Cards */
+.suggestion{padding:12px;margin:6px 0;border-radius:8px;font-size:11px;background:var(--bg-input);border:1px solid var(--border);line-height:1.5}
+.suggestion-actions{display:flex;gap:6px;margin-top:8px}
+.suggestion-accept{font-size:10px;padding:4px 10px;border-radius:4px;background:var(--accent);color:#fff;font-weight:500;transition:all 150ms var(--ease)}
+.suggestion-accept:hover{background:var(--accent-hover)}
+.suggestion-dismiss{font-size:10px;padding:4px 10px;border-radius:4px;background:var(--bg-card-hover);color:var(--text-muted);font-weight:500;transition:all 150ms var(--ease)}
+.suggestion-dismiss:hover{background:var(--border)}
+
+/* Fatigue Curve */
+.fatigue-chart{height:48px;display:flex;align-items:flex-end;gap:2px;margin-top:8px}
+.fatigue-bar{flex:1;border-radius:2px 2px 0 0;transition:height 600ms var(--ease);min-width:4px}
+
+/* PAGE: Analyse IA */
+.analyse-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.analyse-full{grid-column:1/-1}
+.heatmap-30{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.heatmap-30-cell{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;cursor:pointer;transition:all 150ms var(--ease)}
+.heatmap-30-cell:hover{transform:scale(1.1)}
+.sparkline{height:40px;display:flex;align-items:flex-end;gap:2px}
+.sparkline-bar{flex:1;border-radius:2px 2px 0 0;background:var(--accent);opacity:.6;transition:height 400ms var(--ease)}
+.pie-chart{position:relative;width:120px;height:120px;margin:0 auto}
+
+/* PAGE: Assistant */
+.chat-container{display:flex;flex-direction:column;height:calc(100vh - 160px);max-width:700px;margin:0 auto}
+.chat-messages{flex:1;overflow-y:auto;padding:20px 0}
+.chat-msg{margin:8px 0;padding:12px 16px;border-radius:var(--radius-card);font-size:13px;line-height:1.6;max-width:85%;animation:msgIn 300ms var(--ease)}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.ia{background:var(--bg-card);border:1px solid var(--border);align-self:flex-start}
+.chat-msg.user{background:rgba(20,184,166,.1);border:1px solid rgba(20,184,166,.2);align-self:flex-end;margin-left:auto}
+.chat-msg-actions{display:flex;gap:6px;margin-top:8px}
+.typing-indicator{display:flex;gap:4px;padding:12px 16px;align-items:center}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted);animation:typeBounce .6s infinite}
+.typing-dot:nth-child(2){animation-delay:.1s}
+.typing-dot:nth-child(3){animation-delay:.2s}
+@keyframes typeBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0}
+.chat-chip{padding:6px 12px;border-radius:20px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary);transition:all 150ms var(--ease)}
+.chat-chip:hover{border-color:var(--accent);color:var(--accent);background:rgba(20,184,166,.05)}
+.chat-input-area{display:flex;gap:8px;padding:12px 0;border-top:1px solid var(--border)}
+.chat-input{flex:1;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;transition:border-color 150ms var(--ease)}
+.chat-input:focus{border-color:var(--accent)}
+.chat-input::placeholder{color:var(--text-muted)}
+.chat-send{width:36px;height:36px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;transition:all 150ms var(--ease)}
+.chat-send:hover{background:var(--accent-hover);transform:scale(1.05)}
+.chat-mic{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:all 150ms var(--ease)}
+.chat-mic:hover{border-color:var(--danger);color:var(--danger)}
+.chat-mic.active{background:rgba(239,68,68,.1);border-color:var(--danger);color:var(--danger);animation:nowPulse 1.5s infinite}
+
+/* PAGE: Patients */
+.patients-table{width:100%;border-collapse:separate;border-spacing:0}
+.patients-table th{text-align:left;padding:10px 12px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);cursor:pointer}
+.patients-table th:hover{color:var(--text-primary)}
+.patients-table td{padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border-subtle);transition:background 100ms var(--ease)}
+.patients-table tr:hover td{background:var(--bg-card-hover)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.badge-green{background:rgba(34,197,94,.1);color:var(--success)}
+.badge-orange{background:rgba(245,158,11,.1);color:var(--warning)}
+.badge-red{background:rgba(239,68,68,.1);color:var(--danger)}
+.stars{color:var(--warning);font-size:12px;letter-spacing:1px}
+
+/* PAGE: Equipe */
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.team-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);padding:20px;transition:all 200ms var(--ease)}
+.team-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.team-card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.team-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff}
+.team-name{font-size:14px;font-weight:600}
+.team-role{font-size:11px;color:var(--text-muted)}
+.team-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.team-stat{text-align:center;padding:8px;border-radius:6px;background:var(--bg-input)}
+.team-stat-val{font-size:14px;font-weight:700;color:var(--accent)}
+.team-stat-label{font-size:9px;color:var(--text-muted);margin-top:2px}
+
+/* PAGE: Parametres */
+.settings-layout{display:grid;grid-template-columns:200px 1fr;gap:24px;max-width:900px}
+.settings-tabs{display:flex;flex-direction:column;gap:2px}
+.settings-tab{padding:8px 12px;border-radius:var(--radius-btn);font-size:13px;font-weight:500;color:var(--text-secondary);text-align:left;transition:all 150ms var(--ease)}
+.settings-tab:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.settings-tab.active{background:rgba(20,184,166,.08);color:var(--accent)}
+.settings-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);padding:24px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:6px}
+.form-input{width:100%;padding:8px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;transition:border-color 150ms var(--ease)}
+.form-input:focus{border-color:var(--accent)}
+.form-select{width:100%;padding:8px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toggle-switch{position:relative;width:36px;height:20px;background:var(--border);border-radius:10px;cursor:pointer;transition:background 200ms var(--ease)}
+.toggle-switch.active{background:var(--accent)}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform 200ms var(--ease)}
+.toggle-switch.active::after{transform:translateX(16px)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
+.toggle-label{font-size:12px;color:var(--text-secondary)}
+.slider-group{margin-bottom:16px}
+.slider-input{width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;-webkit-appearance:none;appearance:none;cursor:pointer}
+.slider-input::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer}
+.slider-val{font-size:11px;color:var(--accent);font-weight:600;margin-left:8px}
+.radio-group{display:flex;flex-direction:column;gap:8px}
+.radio-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);cursor:pointer;transition:all 150ms var(--ease)}
+.radio-item:hover{border-color:var(--accent)}
+.radio-item.active{border-color:var(--accent);background:rgba(20,184,166,.05)}
+.radio-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.radio-item.active .radio-dot{border-color:var(--accent)}
+.radio-item.active .radio-dot::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.radio-label{font-size:12px}
+
+/* Users table */
+.users-table{width:100%;border-collapse:separate;border-spacing:0}
+.users-table th{text-align:left;padding:8px 12px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.users-table td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--border-subtle)}
+.role-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.role-admin{background:rgba(139,92,246,.1);color:#a78bfa}
+.role-praticien{background:rgba(20,184,166,.1);color:var(--accent)}
+.role-secretaire{background:rgba(59,130,246,.1);color:#60a5fa}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:center;justify-content:center;animation:modalBgIn 200ms var(--ease)}
+.modal-overlay.active{display:flex}
+@keyframes modalBgIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-modal);padding:24px;width:90%;max-width:440px;animation:modalIn 250ms var(--spring)}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* Search Modal */
+.search-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:1001;display:none;align-items:flex-start;justify-content:center;padding-top:15vh}
+.search-overlay.active{display:flex}
+.search-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);width:90%;max-width:560px;overflow:hidden;animation:modalIn 200ms var(--spring)}
+.search-modal input{width:100%;padding:16px 20px;border:none;background:transparent;color:var(--text-primary);font-size:15px;outline:none}
+.search-modal input::placeholder{color:var(--text-muted)}
+.search-results{border-top:1px solid var(--border);max-height:300px;overflow-y:auto;padding:8px}
+.search-result{padding:8px 12px;border-radius:var(--radius-btn);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--text-secondary);transition:all 100ms var(--ease)}
+.search-result:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.search-result svg{width:16px;height:16px;color:var(--text-muted)}
+
+/* Footer */
+.app-footer{padding:8px 24px;font-size:11px;color:var(--text-muted);text-align:center;border-top:1px solid var(--border);background:var(--bg-card);flex-shrink:0}
+
+/* Tooltip */
+.tooltip{position:fixed;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);padding:14px;box-shadow:0 8px 32px rgba(0,0,0,.3);z-index:500;min-width:220px;font-size:12px;pointer-events:none;opacity:0;transition:opacity 150ms;max-width:280px}
+.tooltip.show{opacity:1}
+.tooltip-name{font-weight:700;font-size:14px;margin-bottom:8px}
+.tooltip-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--text-muted)}
+.tooltip-row span:last-child{color:var(--text-primary);font-weight:500}
+
+/* Responsive */
+@media(max-width:1024px){
+  .sidebar{width:64px}
+  .sidebar .nav-label,.sidebar-brand,.user-info{opacity:0;width:0}
+  .agenda-layout{grid-template-columns:1fr}
+  .agenda-panel{display:none}
+  .analyse-grid{grid-template-columns:1fr}
+  .settings-layout{grid-template-columns:1fr}
+  .settings-tabs{flex-direction:row;overflow-x:auto}
+}
+@media(max-width:768px){
+  .sidebar{display:none}
+  .topbar{padding:0 12px}
+  .page-content{padding:12px}
+  .stats-row{padding:8px 12px}
+  .week-grid{grid-template-columns:repeat(3,1fr)}
+  .team-grid{grid-template-columns:1fr}
+  .quick-actions-row{display:none}
+  .agenda-toolbar{padding:12px}
+}
+
+/* Skeleton */
+.skeleton{background:linear-gradient(90deg,var(--bg-input) 25%,var(--bg-card-hover) 50%,var(--bg-input) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header" style="position:relative">
+      <div class="sidebar-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+      <span class="sidebar-brand">JADOMI</span>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Replier le menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="nav-item active" data-page="agenda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span class="nav-label">Agenda</span></div>
+      <div class="nav-item" data-page="analyse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1010 10A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="2"/><path d="M2 12h2M20 12h2M12 2v2M12 20v2"/></svg><span class="nav-label">Analyse IA</span></div>
+      <div class="nav-item" data-page="assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span class="nav-label">Assistant</span></div>
+      <div class="nav-item" data-page="patients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span class="nav-label">Patients</span></div>
+      <div class="nav-item" data-page="equipe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span class="nav-label">Equipe</span></div>
+      <div class="nav-item" data-page="parametres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span class="nav-label">Parametres</span></div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">KB</div>
+        <div class="user-info">
+          <div class="user-name">Dr. Bahmed</div>
+          <div class="user-cabinet">Cabinet Dentaire Jadomi</div>
+        </div>
+      </div>
+      <div class="sim-badge">Mode Simulation</div>
+    </div>
+  </aside>
+
+  <!-- Main Area -->
+  <div class="main-area">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="breadcrumb">Cabinet > <span id="breadcrumbPage">Agenda</span></span>
+      </div>
+      <div class="topbar-right">
+        <button class="search-btn" id="searchBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>Rechercher<kbd>Ctrl+K</kbd></button>
+        <button class="topbar-icon-btn" id="notifBtn" aria-label="Notifications"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span class="notif-dot"></span></button>
+        <button class="theme-toggle" id="themeBtn" aria-label="Changer le theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page-content" id="pageContent"></div>
+
+    <!-- Footer -->
+    <div class="app-footer">JADOMI Agenda IA v1.0 — Mode Simulation</div>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- Search Modal -->
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-modal">
+    <input type="text" id="searchInput" placeholder="Rechercher un patient, une commande, une page...">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+// === CONFIGURATION ===
+const PROFESSIONS = {
+  dentiste:{label:'Chirurgien-dentiste',accent:'#14b8a6',actes:[
+    {nom:'Controle',duree:15,color:'#34D399',gradient:'linear-gradient(135deg,#34D399,#6EE7B7)',border:'#059669',difficulte:1},
+    {nom:'Detartrage',duree:15,color:'#06B6D4',gradient:'linear-gradient(135deg,#06B6D4,#67E8F9)',border:'#0891B2',difficulte:2},
+    {nom:'Soin conservateur',duree:20,color:'#60A5FA',gradient:'linear-gradient(135deg,#60A5FA,#93C5FD)',border:'#2563EB',difficulte:3},
+    {nom:'Endodontie',duree:45,color:'#A78BFA',gradient:'linear-gradient(135deg,#A78BFA,#C4B5FD)',border:'#7C3AED',difficulte:5},
+    {nom:'Prothese',duree:30,color:'#F472B6',gradient:'linear-gradient(135deg,#F472B6,#FBCFE8)',border:'#DB2777',difficulte:4},
+    {nom:'Extraction',duree:20,color:'#EF4444',gradient:'linear-gradient(135deg,#EF4444,#FCA5A5)',border:'#B91C1C',difficulte:4},
+    {nom:'Urgence',duree:15,color:'#F59E0B',gradient:'linear-gradient(135deg,#F59E0B,#FCD34D)',border:'#D97706',difficulte:3},
+    {nom:'Esthetique',duree:30,color:'#8B5CF6',gradient:'linear-gradient(135deg,#8B5CF6,#C4B5FD)',border:'#6D28D9',difficulte:3},
+    {nom:'1ere consultation',duree:30,color:'#10B981',gradient:'linear-gradient(135deg,#10B981,#6EE7B7)',border:'#047857',difficulte:2}
+  ]}
+};
+
+const PATIENTS = [
+  'NOUALI Kamal','BELAIZI Hakim','KHITER Djouher','KISMA Mokhtar','OUESLATI Fawzia',
+  'EL HALOUI Zayna','KADDOUCHE Said','DEBBIH Malika','FERRAH Zerfa','WAYMEL Yvette',
+  'KAHOUL Radia','AMROUNE Naziha','MEHTOUR Emmanuel','SEGHIR Messaoud','CHAHBOUB Assia',
+  'BAHMED AOUIDJ Nadia','BENKOUIDER Smail','DOS SANTOS Dabbia','HAMMADOU Riad','DAHMANI Yamina',
+  'HALIMI Tassadit','BENDJELADJEL Habiba','BOUKTACHE Rosa','BOUAMAM Farida'
+];
+
+const TEAM = [
+  {nom:'Dr. Bahmed',role:'Chirurgien-dentiste',initials:'KB',color:'linear-gradient(135deg,#14b8a6,#0d9488)',email:'karim_bahmed@yahoo.fr',roleType:'admin',patients:22,score:74,specialites:'Omnipratique, Implantologie'},
+  {nom:'Dr. Martin',role:'Collaboratrice',initials:'CM',color:'linear-gradient(135deg,#8B5CF6,#6D28D9)',email:'c.martin@jadomi.fr',roleType:'praticien',patients:18,score:82,specialites:'Endodontie, Pediatrique'},
+  {nom:'Marie Dupont',role:'Secretaire medicale',initials:'MD',color:'linear-gradient(135deg,#F472B6,#DB2777)',email:'m.dupont@jadomi.fr',roleType:'secretaire',patients:0,score:0,specialites:'Accueil, Gestion RDV'}
+];
+
+const USERS_LIST = [
+  {nom:'Dr. Bahmed',email:'karim_bahmed@yahoo.fr',role:'Admin',statut:'Actif',current:true},
+  {nom:'Dr. Martin',email:'c.martin@jadomi.fr',role:'Praticien',statut:'Actif',current:false},
+  {nom:'Marie Dupont',email:'m.dupont@jadomi.fr',role:'Secretaire',statut:'Actif',current:false},
+  {nom:'Assistant IA',email:'noreply@jadomi.fr',role:'Assistant',statut:'Actif',current:false}
+];
+
+// === SEEDED RANDOM ===
+function seededRand(seed){let s=seed;return()=>{s=(s*1664525+1013904223)&0xFFFFFFFF;return(s>>>0)/0xFFFFFFFF}}
+
+// === PATIENT DATA ===
+function genPatientData(){
+  return PATIENTS.map((nom,i)=>({
+    nom,tel:`0${6+((i*7)%2)}${String(10000000+((i*7919+3571)*137)%90000000).slice(0,8)}`,
+    visites:1+((i*13+7)%33),fiabilite:3+((i*7+2)%3),
+    deplacable:i%4!==0,
+    derniereVisite:`${10+((i*3)%18)}/0${1+(i%9)}/2026`,
+    anxiete:['Faible','Moderee','Elevee'][i%3],
+    bloque:i===7||i===19, // 2 patients bloques pour demo
+    vip:i===0||i===5||i===15, // 3 patients VIP pour demo
+    retards:((i*3+1)%6),absences:((i*5)%4),annulations:((i*2+3)%5),
+    prefCanal:['SMS','Email','Telephone'][i%3],
+    noShowRisk:Math.min(95,20+((i*13)%60)),
+    dernierActe:['Detartrage','Controle','Soin','Extraction','Prothese'][i%5],
+    prochainRecall:i%3===0?'15/11/2026':i%3===1?'08/09/2026':null
+  }))
+}
+const patientData=genPatientData();
+
+// === STATE ===
+let state={
+  page:localStorage.getItem('jadomi-page')||'agenda',
+  view:localStorage.getItem('jadomi-view')||'day',
+  date:new Date(localStorage.getItem('jadomi-date')||'2026-05-10'),
+  theme:localStorage.getItem('jadomi-theme')||'dark',
+  sidebarCollapsed:localStorage.getItem('jadomi-sidebar')==='true',
+  settingsTab:'compte'
+};
+let assistantHistory=[];
+let isTyping=false;
+
+// === APPOINTMENT GENERATION ===
+function getAppointments(date,prof){
+  const dow=date.getDay();
+  if(dow===0)return[];
+  const seed=date.getFullYear()*10000+date.getMonth()*100+date.getDate();
+  const rand=seededRand(seed+(prof||'dentiste').charCodeAt(0));
+  const count=dow===6?Math.floor(10+rand()*5):Math.floor(18+rand()*7);
+  const actes=PROFESSIONS.dentiste.actes;
+  const appts=[];
+  let startMin=7*60+Math.floor(rand()*30);
+  for(let i=0;i<count;i++){
+    if(startMin>=12*60&&startMin<14*60)startMin=14*60;
+    const acte=actes[Math.floor(rand()*actes.length)];
+    const patient=patientData[Math.floor(rand()*patientData.length)];
+    if(startMin+acte.duree>20*60)break;
+    appts.push({
+      start:startMin,end:startMin+acte.duree,
+      acte:acte.nom,color:acte.color,gradient:acte.gradient,border:acte.border,
+      duree:acte.duree,difficulte:acte.difficulte||2,
+      patient:patient.nom,tel:patient.tel,visites:patient.visites,
+      fiabilite:patient.fiabilite,deplacable:patient.deplacable
+    });
+    startMin+=acte.duree+Math.floor(rand()*5);
+  }
+  return appts;
+}
+
+// === SERENITY SCORE ENGINE ===
+function computeScore(appts){
+  if(!appts.length)return{score:100,details:{},fillRate:0,urgences:0,hardActs:0,totalPause:0,hasLunchBreak:true,totalMinutes:0,nbPatients:0};
+  const totalMinutes=appts.reduce((s,a)=>s+a.duree,0);
+  const workWindow=(appts[appts.length-1].end-appts[0].start);
+  const fillRate=workWindow>0?totalMinutes/workWindow:0;
+  const urgences=appts.filter(a=>a.acte.includes('Urgence')).length;
+  const hardActs=appts.filter(a=>a.difficulte>=4).length;
+  const hasLunchBreak=!appts.some(a=>a.start<13*60&&a.end>12*60);
+  const gaps=[];
+  for(let i=1;i<appts.length;i++){gaps.push(appts[i].start-appts[i-1].end)}
+  const totalPause=gaps.filter(g=>g>=10).reduce((s,g)=>s+g,0);
+  let score=100;
+  if(fillRate>.9)score-=20;else if(fillRate>.8)score-=10;
+  score-=urgences*8;score-=hardActs*5;
+  if(!hasLunchBreak)score-=15;
+  if(totalPause<30)score-=15;else if(totalPause<60)score-=5;
+  if(appts.length>22)score-=15;else if(appts.length>18)score-=5;
+  score=Math.max(0,Math.min(100,Math.round(score)));
+  return{score,fillRate:Math.round(fillRate*100),urgences,hardActs,totalPause,hasLunchBreak,totalMinutes,nbPatients:appts.length};
+}
+
+function getScoreColor(score){
+  if(score>=70)return'var(--success)';
+  if(score>=50)return'var(--warning)';
+  return'var(--danger)';
+}
+function getScoreHex(score){
+  if(score>=70)return'#22c55e';
+  if(score>=50)return'#f59e0b';
+  return'#ef4444';
+}
+
+// === HELPERS ===
+function formatMin(m){return`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`}
+function isSameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+function getMonday(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);dt.setDate(diff);return dt}
+
+function animateCounter(el,from,to,duration){
+  const start=performance.now();
+  function tick(now){
+    const p=Math.min((now-start)/duration,1);
+    const eased=1-Math.pow(1-p,3);
+    el.textContent=Math.round(from+(to-from)*eased);
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// === RENDER ===
+function render(){
+  document.documentElement.setAttribute('data-theme',state.theme);
+  const sidebar=document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed',state.sidebarCollapsed);
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===state.page));
+  document.getElementById('breadcrumbPage').textContent={agenda:'Agenda',analyse:'Analyse IA',assistant:'Assistant',patients:'Patients',equipe:'Equipe',parametres:'Parametres'}[state.page];
+  renderPage();
+  persist();
+}
+
+function persist(){
+  localStorage.setItem('jadomi-page',state.page);
+  localStorage.setItem('jadomi-view',state.view);
+  localStorage.setItem('jadomi-date',state.date.toISOString());
+  localStorage.setItem('jadomi-theme',state.theme);
+  localStorage.setItem('jadomi-sidebar',state.sidebarCollapsed);
+}
+
+function renderPage(){
+  const el=document.getElementById('pageContent');
+  switch(state.page){
+    case'agenda':renderAgenda(el);break;
+    case'analyse':renderAnalysePage(el);break;
+    case'assistant':renderAssistantPage(el);break;
+    case'patients':renderPatientsPage(el);break;
+    case'equipe':renderEquipePage(el);break;
+    case'parametres':renderParametresPage(el);break;
+  }
+}
+
+// === PAGE: AGENDA ===
+function renderAgenda(el){
+  const appts=getAppointments(state.date,'dentiste');
+  const info=computeScore(appts);
+  const ca=appts.reduce((s,a)=>s+(a.duree>=45?120:a.duree>=30?80:50),0);
+  const circumference=2*Math.PI*18;
+  const offset=circumference-(info.score/100)*circumference;
+  const dateOpts=state.view==='month'||state.view==='heatmap'?{month:'long',year:'numeric'}:{weekday:'long',day:'numeric',month:'long',year:'numeric'};
+  const dateStr=state.date.toLocaleDateString('fr-FR',dateOpts);
+
+  let html=`<div class="agenda-layout"><div class="agenda-main">`;
+  // Toolbar
+  html+=`<div class="agenda-toolbar">
+    <div class="view-toggle">
+      <button class="view-toggle-btn ${state.view==='day'?'active':''}" data-v="day">Jour</button>
+      <button class="view-toggle-btn ${state.view==='week'?'active':''}" data-v="week">Semaine</button>
+      <button class="view-toggle-btn ${state.view==='month'?'active':''}" data-v="month">Mois</button>
+      <button class="view-toggle-btn ${state.view==='heatmap'?'active':''}" data-v="heatmap">Heatmap</button>
+    </div>
+    <div class="date-nav">
+      <button class="date-nav-btn" id="prevDate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span class="date-label">${dateStr}</span>
+      <button class="date-nav-btn" id="nextDate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      <button class="btn-today" id="todayBtn">Aujourd'hui</button>
+    </div>
+    <div class="quick-actions-row">
+      <button class="btn btn-primary" onclick="state.page='assistant';render()">Optimiser</button>
+      <button class="btn btn-secondary" onclick="state.page='analyse';render()">Analyser</button>
+    </div>
+  </div>`;
+  // Stats
+  html+=`<div class="stats-row">
+    <div class="score-mini">
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="18" fill="none" stroke="var(--border)" stroke-width="4"/>
+        <circle cx="24" cy="24" r="18" fill="none" stroke="${getScoreHex(info.score)}" stroke-width="4"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" style="transition:stroke-dashoffset 1s var(--ease)"/>
+      </svg>
+      <div class="score-mini-val" style="color:${getScoreHex(info.score)}" data-score="${info.score}">0</div>
+    </div>
+    <div class="stat-chip"><div class="stat-chip-value">${info.nbPatients}</div><div class="stat-chip-label">Patients</div></div>
+    <div class="stat-chip"><div class="stat-chip-value">${ca} EUR</div><div class="stat-chip-label">CA estime</div></div>
+    <div class="stat-chip"><div class="stat-chip-value">${info.totalPause} min</div><div class="stat-chip-label">Pauses</div></div>
+    <div class="stat-chip"><div class="stat-chip-value ${info.urgences>2?'danger':''}">${info.urgences}</div><div class="stat-chip-label">Urgences</div></div>
+    <div class="stat-chip"><div class="stat-chip-value ${info.fillRate>85?'danger':info.fillRate>70?'warning':'success'}">${info.fillRate}%</div><div class="stat-chip-label">Remplissage</div></div>
+  </div>`;
+  // Calendar
+  html+=`<div class="calendar-scroll" id="calendarScroll">`;
+  if(state.view==='day')html+=renderDayView(appts);
+  else if(state.view==='week')html+=renderWeekView();
+  else if(state.view==='month')html+=renderMonthView();
+  else html+=renderHeatmapView();
+  html+=`</div></div>`;
+  // Right Panel
+  html+=renderAgendaPanel(appts,info);
+  html+=`</div>`;
+  el.innerHTML=html;
+  el.style.padding='0';el.style.overflow='hidden';el.style.height='calc(100vh - 56px - 30px)';
+  // Bind events
+  setTimeout(()=>{
+    const scoreEl=el.querySelector('.score-mini-val');
+    if(scoreEl)animateCounter(scoreEl,0,info.score,800);
+    el.querySelectorAll('.view-toggle-btn').forEach(b=>b.onclick=()=>{state.view=b.dataset.v;render()});
+    const prev=document.getElementById('prevDate');
+    const next=document.getElementById('nextDate');
+    const today=document.getElementById('todayBtn');
+    if(prev)prev.onclick=()=>navigateDate(-1);
+    if(next)next.onclick=()=>navigateDate(1);
+    if(today)today.onclick=()=>{state.date=new Date('2026-05-10');render()};
+  },0);
+}
+
+function renderDayView(appts){
+  let html='<div class="day-grid">';
+  for(let h=7;h<20;h++){
+    const isLunch=h>=12&&h<14;
+    html+=`<div class="time-slot${isLunch?' lunch':''}"><div class="time-label">${String(h).padStart(2,'0')}:00</div><div class="slot-content" data-hour="${h}">`;
+    const slotAppts=appts.filter(a=>Math.floor(a.start/60)===h);
+    slotAppts.forEach(a=>{
+      const topPct=((a.start%60)/60)*100;
+      const heightPx=Math.max(a.duree*1.2,26);
+      html+=`<div class="appt" style="top:${topPct}%;height:${heightPx}px;border-color:${a.border};background:${a.gradient}"
+        data-patient="${encodeURIComponent(JSON.stringify(a))}"
+        onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()">
+        <div class="appt-name">${a.patient}</div>
+        <div class="appt-meta"><span>${a.acte}</span><span>${formatMin(a.start)}-${formatMin(a.end)}</span></div>
+        ${a.deplacable?'<span class="appt-badge">Deplacable</span>':''}
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+  const now=new Date();
+  if(isSameDay(state.date,now)){
+    const nowMin=now.getHours()*60+now.getMinutes();
+    if(nowMin>=7*60&&nowMin<20*60){
+      html+=`<div class="now-line" style="top:${((nowMin-7*60)/(13*60))*100}%"></div>`;
+    }
+  }
+  html+='</div>';
+  return html;
+}
+
+function renderWeekView(){
+  const monday=getMonday(state.date);
+  let html='<div class="week-grid">';
+  const jours=['Lun','Mar','Mer','Jeu','Ven','Sam'];
+  for(let i=0;i<6;i++){
+    const d=new Date(monday);d.setDate(d.getDate()+i);
+    const appts=getAppointments(d,'dentiste');
+    const{score}=computeScore(appts);
+    const scol=getScoreHex(score);
+    const isToday=isSameDay(d,new Date('2026-05-10'));
+    html+=`<div class="week-col"><div class="week-col-header" onclick="goToDay(${d.getTime()})"><span>${jours[i]} ${d.getDate()}</span><span class="day-score" style="background:${scol}20;color:${scol}">${score}</span></div><div class="week-col-body">`;
+    appts.forEach(a=>{
+      html+=`<div class="week-appt" style="border-color:${a.color};background:${a.color}15;opacity:.85"
+        data-patient="${encodeURIComponent(JSON.stringify(a))}"
+        onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()">
+        ${formatMin(a.start)} ${a.patient.split(' ')[0]}</div>`;
+    });
+    html+=`</div></div>`;
+  }
+  html+='</div>';
+  return html;
+}
+
+function renderMonthView(){
+  const year=state.date.getFullYear(),month=state.date.getMonth();
+  const first=new Date(year,month,1);
+  const startDay=(first.getDay()+6)%7;
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const headers=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  let html='<div class="month-grid">';
+  headers.forEach(h=>{html+=`<div class="month-header">${h}</div>`});
+  for(let i=0;i<startDay;i++){
+    const d=new Date(year,month,1-startDay+i);
+    html+=`<div class="month-cell other"><div class="month-day">${d.getDate()}</div></div>`;
+  }
+  for(let d=1;d<=daysInMonth;d++){
+    const date=new Date(year,month,d);
+    const appts=getAppointments(date,'dentiste');
+    const{score}=computeScore(appts);
+    const isToday=isSameDay(date,new Date('2026-05-10'));
+    const dotColor=getScoreHex(score);
+    html+=`<div class="month-cell${isToday?' today':''}" onclick="goToDay(${date.getTime()})">
+      <div class="month-day">${d}</div><div class="month-count" style="color:${dotColor}">${appts.length}</div>
+      <span class="month-dot" style="background:${dotColor}"></span></div>`;
+  }
+  html+='</div>';
+  return html;
+}
+
+function renderHeatmapView(){
+  const year=state.date.getFullYear(),month=state.date.getMonth();
+  const first=new Date(year,month,1);
+  const startDay=(first.getDay()+6)%7;
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const headers=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  let html='<div class="heatmap-grid">';
+  headers.forEach(h=>{html+=`<div class="heatmap-header">${h}</div>`});
+  for(let i=0;i<startDay;i++)html+=`<div class="heatmap-cell other" style="background:var(--border)"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const date=new Date(year,month,d);
+    const appts=getAppointments(date,'dentiste');
+    const{score}=computeScore(appts);
+    const bg=score>=70?`rgba(34,197,94,${.2+score/250})`:score>=50?`rgba(245,158,11,${.3+(100-score)/200})`:`rgba(239,68,68,${.3+(100-score)/150})`;
+    html+=`<div class="heatmap-cell" style="background:${bg}" onclick="goToDay(${date.getTime()})"><span class="heatmap-day">${d}</span><span class="heatmap-score">${date.getDay()===0?'--':score}</span></div>`;
+  }
+  html+='</div><div class="heatmap-legend"><span>Serein</span><div class="heatmap-legend-bar"></div><span>Surcharge</span></div>';
+  return html;
+}
+
+function renderAgendaPanel(appts,info){
+  const circumference=2*Math.PI*44;
+  const offset=circumference-(info.score/100)*circumference;
+  const col=getScoreHex(info.score);
+  let html=`<div class="agenda-panel"><div class="panel-header">Analyse rapide</div><div class="panel-content">`;
+  // Gauge
+  html+=`<div class="panel-section" style="text-align:center">
+    <div class="score-gauge-lg"><svg width="120" height="120" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="44" fill="none" stroke="var(--border)" stroke-width="8"/>
+      <circle cx="60" cy="60" r="44" fill="none" stroke="${col}" stroke-width="8"
+        stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" style="transition:stroke-dashoffset 1.5s ease-out"/>
+    </svg><div class="score-gauge-lg-val"><span class="score-gauge-lg-num" style="color:${col}">${info.score}</span><span class="score-gauge-lg-label">Score de serenite</span></div></div>
+  </div>`;
+  // Alerts
+  html+=`<div class="panel-section"><div class="panel-section-title">Alertes</div>`;
+  if(info.score<50)html+=`<div class="alert-item danger">Surcharge critique detectee. Risque d'erreur eleve.</div>`;
+  if(info.urgences>2)html+=`<div class="alert-item warn">${info.urgences} urgences concentrees. Prevoyez des marges.</div>`;
+  if(!info.hasLunchBreak)html+=`<div class="alert-item warn">Pause dejeuner absente ou insuffisante.</div>`;
+  if(info.totalPause<30)html+=`<div class="alert-item warn">Pauses totales insuffisantes (${info.totalPause} min).</div>`;
+  if(info.score>=70)html+=`<div class="alert-item success">Journee equilibree. Rythme optimal.</div>`;
+  html+=`</div>`;
+  // Suggestions
+  html+=`<div class="panel-section"><div class="panel-section-title">Suggestions</div>`;
+  if(info.totalPause<30)html+=mkSuggestion('Inserer une pause de 15 min vers 10h30.');
+  if(info.urgences>2)html+=mkSuggestion('Reporter 1 urgence non-critique a demain.');
+  if(info.hardActs>3)html+=mkSuggestion('Repartir les actes lourds matin/apres-midi.');
+  if(info.nbPatients>20)html+=mkSuggestion('Proposer un recasage vers vendredi.');
+  if(info.score>=70&&info.totalPause>=30)html+=mkSuggestion('Aucune action requise. Planning optimal.');
+  html+=`</div>`;
+  // Fatigue
+  html+=`<div class="panel-section"><div class="panel-section-title">Courbe de fatigue</div><div class="fatigue-chart">`;
+  for(let h=7;h<20;h++){
+    const load=appts.filter(a=>Math.floor(a.start/60)===h).reduce((s,a)=>s+a.difficulte,0);
+    const max=8;const pct=Math.min((load/max)*100,100);
+    const col=pct>75?'var(--danger)':pct>40?'var(--warning)':'var(--success)';
+    html+=`<div class="fatigue-bar" style="height:${Math.max(pct,5)}%;background:${col}"></div>`;
+  }
+  html+=`</div></div>`;
+  // Break recommendation
+  const gaps=[];
+  for(let i=1;i<appts.length;i++){const g=appts[i].start-appts[i-1].end;if(g>=5)gaps.push({time:appts[i-1].end,dur:g})}
+  if(gaps.length>0){
+    const best=gaps.reduce((a,b)=>b.dur>a.dur?b:a);
+    html+=`<div class="panel-section"><div class="panel-section-title">Prochaine pause recommandee</div>
+      <div style="padding:10px;background:var(--bg-input);border-radius:8px;font-size:12px">
+        <strong style="color:var(--success)">${formatMin(best.time)}</strong> — ${best.dur} min disponibles
+      </div></div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+
+function mkSuggestion(text){
+  return`<div class="suggestion">${text}<div class="suggestion-actions"><button class="suggestion-accept">Accepter</button><button class="suggestion-dismiss">Ignorer</button></div></div>`;
+}
+
+// === PAGE: ANALYSE IA ===
+function renderAnalysePage(el){
+  el.style.padding='24px';el.style.overflow='auto';el.style.height='';
+  const appts=getAppointments(state.date,'dentiste');
+  const info=computeScore(appts);
+  const circumference=2*Math.PI*54;
+  const offset=circumference-(info.score/100)*circumference;
+  const col=getScoreHex(info.score);
+
+  let html=`<div class="analyse-grid">`;
+  // Score gauge big
+  html+=`<div class="card"><div class="card-header"><div class="card-title">Score de serenite</div><div class="card-subtitle">${state.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</div></div>
+    <div style="text-align:center">
+      <div style="position:relative;width:140px;height:140px;margin:0 auto">
+        <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg)">
+          <circle cx="70" cy="70" r="54" fill="none" stroke="var(--border)" stroke-width="10"/>
+          <circle cx="70" cy="70" r="54" fill="none" stroke="${col}" stroke-width="10"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" style="transition:stroke-dashoffset 1.5s ease-out"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <span style="font-size:36px;font-weight:800;color:${col}">${info.score}</span>
+          <span style="font-size:10px;color:var(--text-muted)">sur 100</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">${info.score>=70?'Journee equilibree':info.score>=50?'Charge moderee':'Surcharge detectee'}</div>
+    </div>
+  </div>`;
+  // Sparkline weekly
+  html+=`<div class="card"><div class="card-header"><div class="card-title">Tendance semaine</div></div><div class="sparkline">`;
+  const monday=getMonday(state.date);
+  for(let i=0;i<6;i++){
+    const d=new Date(monday);d.setDate(d.getDate()+i);
+    const a=getAppointments(d,'dentiste');
+    const s=computeScore(a).score;
+    html+=`<div class="sparkline-bar" style="height:${s}%;background:${getScoreHex(s)};opacity:.7" title="Score ${s}"></div>`;
+  }
+  html+=`</div><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:6px"><span>Lun</span><span>Sam</span></div></div>`;
+  // Heatmap 30 days
+  html+=`<div class="card analyse-full"><div class="card-header"><div class="card-title">Heatmap mensuel</div><div class="card-subtitle">30 derniers jours</div></div><div class="heatmap-30">`;
+  for(let i=29;i>=0;i--){
+    const d=new Date(state.date);d.setDate(d.getDate()-i);
+    const a=getAppointments(d,'dentiste');
+    const s=computeScore(a).score;
+    const bg=d.getDay()===0?'var(--border-subtle)':s>=70?`rgba(34,197,94,${.3+s/200})`:s>=50?`rgba(245,158,11,${.4})`:`rgba(239,68,68,${.4})`;
+    html+=`<div class="heatmap-30-cell" style="background:${bg};color:${d.getDay()===0?'var(--text-muted)':'#fff'}">${d.getDate()}</div>`;
+  }
+  html+=`</div></div>`;
+  // Alerts
+  html+=`<div class="card"><div class="card-header"><div class="card-title">Alertes du jour</div></div>`;
+  if(info.score<50)html+=`<div class="alert-item danger">Journee en surcharge critique. Risque de fatigue et d'erreur.</div>`;
+  if(info.urgences>2)html+=`<div class="alert-item warn">${info.urgences} urgences concentrees aujourd'hui.</div>`;
+  if(!info.hasLunchBreak)html+=`<div class="alert-item warn">Pause dejeuner absente ou trop courte.</div>`;
+  if(info.totalPause<30)html+=`<div class="alert-item warn">Pauses insuffisantes : ${info.totalPause} min (min. recommande : 45 min).</div>`;
+  if(info.fillRate>85)html+=`<div class="alert-item info">Taux de remplissage eleve (${info.fillRate}%). Peu de marge.</div>`;
+  if(info.score>=70)html+=`<div class="alert-item success">Journee equilibree. Bon rythme de travail.</div>`;
+  html+=`</div>`;
+  // Suggestions
+  html+=`<div class="card"><div class="card-header"><div class="card-title">Suggestions IA</div></div>`;
+  if(info.totalPause<30)html+=mkSuggestion('Inserer une pause recuperation de 15 min a 10h30.');
+  if(info.urgences>2)html+=mkSuggestion('Deplacer une urgence non-critique vers demain matin.');
+  if(info.hardActs>3)html+=mkSuggestion('Repartir les actes lourds : 2 le matin, 2 l\'apres-midi.');
+  if(info.nbPatients>20)html+=mkSuggestion('Proposer un recasage de 2 patients vers vendredi.');
+  html+=mkSuggestion('Bloquer un creneau d\'urgence imprevue a 11h00.');
+  html+=`</div>`;
+  // Fatigue curve
+  html+=`<div class="card analyse-full"><div class="card-header"><div class="card-title">Courbe de fatigue estimee</div><div class="card-subtitle">Intensite par heure</div></div><div class="fatigue-chart" style="height:60px">`;
+  for(let h=7;h<20;h++){
+    const load=appts.filter(a=>Math.floor(a.start/60)===h).reduce((s,a)=>s+a.difficulte,0);
+    const pct=Math.min((load/8)*100,100);
+    const c=pct>75?'var(--danger)':pct>40?'var(--warning)':'var(--success)';
+    html+=`<div class="fatigue-bar" style="height:${Math.max(pct,5)}%;background:${c}"></div>`;
+  }
+  html+=`</div><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:6px"><span>07h</span><span>12h</span><span>19h</span></div></div>`;
+  // Breakdown
+  html+=`<div class="card"><div class="card-header"><div class="card-title">Repartition des actes</div></div>`;
+  const actCounts={};appts.forEach(a=>{actCounts[a.acte]=(actCounts[a.acte]||0)+1});
+  Object.entries(actCounts).sort((a,b)=>b[1]-a[1]).forEach(([act,count])=>{
+    const acte=PROFESSIONS.dentiste.actes.find(x=>x.nom===act);
+    const pct=Math.round(count/appts.length*100);
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><div style="width:8px;height:8px;border-radius:2px;background:${acte?acte.color:'var(--accent)'}"></div><span style="font-size:11px;flex:1">${act}</span><span style="font-size:11px;font-weight:600">${count}</span><span style="font-size:10px;color:var(--text-muted)">${pct}%</span></div>`;
+  });
+  html+=`</div>`;
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+// === PAGE: ASSISTANT ===
+function renderAssistantPage(el){
+  el.style.padding='24px';el.style.overflow='hidden';el.style.height='calc(100vh - 56px - 30px)';
+  const suggestions=['Optimiser ma journee','Combien de patients demain ?','Trouver un creneau libre','Proposer des recasages','Analyser ma fatigue','Quels patients sont deplacables ?'];
+  let html=`<div class="chat-container"><div class="chat-messages" id="chatMessages">`;
+  if(assistantHistory.length===0){
+    html+=`<div class="chat-msg ia">Bonjour Docteur. Je suis votre copilote JADOMI. Posez-moi une question sur votre planning, demandez une optimisation ou une analyse de votre journee.</div>`;
+  }
+  assistantHistory.forEach(m=>{
+    html+=`<div class="chat-msg ${m.role}">${m.text}`;
+    if(m.role==='ia'&&m.actions){
+      html+=`<div class="chat-msg-actions"><button class="btn btn-primary btn-sm">Accepter</button><button class="btn btn-ghost btn-sm">Refuser</button></div>`;
+    }
+    html+=`</div>`;
+  });
+  if(isTyping){
+    html+=`<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div><span style="font-size:11px;color:var(--text-muted);margin-left:8px">JADOMI reflechit...</span></div>`;
+  }
+  html+=`</div>`;
+  if(assistantHistory.length===0){
+    html+=`<div class="chat-suggestions">`;
+    suggestions.forEach(s=>{html+=`<button class="chat-chip" onclick="sendChat('${s}')">${s}</button>`});
+    html+=`</div>`;
+  }
+  html+=`<div class="chat-input-area">
+    <input type="text" class="chat-input" id="chatInput" placeholder="Demandez a JADOMI..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-mic" id="chatMic" onclick="toggleChatMic()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+    <button class="chat-send" onclick="sendChat()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  </div></div>`;
+  el.innerHTML=html;
+  setTimeout(()=>{const msgs=document.getElementById('chatMessages');if(msgs)msgs.scrollTop=msgs.scrollHeight},0);
+}
+
+function sendChat(text){
+  const input=document.getElementById('chatInput');
+  const msg=text||input?.value?.trim();
+  if(!msg)return;
+  assistantHistory.push({role:'user',text:msg});
+  isTyping=true;
+  renderAssistantPage(document.getElementById('pageContent'));
+  setTimeout(()=>{
+    isTyping=false;
+    const response=generateAIResponse(msg);
+    assistantHistory.push({role:'ia',text:response,actions:true});
+    renderAssistantPage(document.getElementById('pageContent'));
+  },800+Math.random()*600);
+}
+
+function generateAIResponse(query){
+  const appts=getAppointments(state.date,'dentiste');
+  const info=computeScore(appts);
+  const q=query.toLowerCase();
+  if(q.includes('optimis'))return`Votre score est de ${info.score}/100. Je recommande d'inserer une pause de 15 min vers 10h30 et de deplacer ${info.urgences>1?'une urgence non-critique':'un soin long'} vers un creneau moins charge. Gain estime : +12 points de serenite.`;
+  if(q.includes('combien')||q.includes('patient'))return`Vous avez ${info.nbPatients} patients aujourd'hui, dont ${info.urgences} urgences et ${info.hardActs} actes complexes. Temps total de travail : ${info.totalMinutes} minutes.`;
+  if(q.includes('pause'))return`Vos pauses totalisent ${info.totalPause} minutes. La recommandation minimale est de 45 minutes. Je suggere d'ajouter 10 min a 10h30 et 10 min a 15h30.`;
+  if(q.includes('fatigue')||q.includes('ener'))return`La charge se concentre entre 9h et 12h avec ${info.hardActs} actes de difficulte elevee. L'apres-midi est plus equilibre. Prevoyez une transition douce apres le dejeuner.`;
+  if(q.includes('demain')||q.includes('prochain'))return`Demain, vous avez un score previsionnel de 72/100. C'est une journee plus legere, ideale pour recaser les patients deplaces.`;
+  if(q.includes('creneau')||q.includes('libre'))return`Le meilleur creneau disponible est mercredi a 16h00 (30 min libres). Souhaitez-vous y placer un rendez-vous ?`;
+  if(q.includes('annul')||q.includes('deplac')||q.includes('recas'))return`${appts.filter(a=>a.deplacable).length} rendez-vous sont deplacables aujourd'hui. Je peux generer un SMS de proposition de nouveau creneau pour chacun. Voulez-vous proceder ?`;
+  return`Votre journee affiche un score de ${info.score}/100 avec ${info.nbPatients} patients. Remplissage : ${info.fillRate}%. ${info.score<60?'Des optimisations sont possibles. Demandez-moi de les appliquer.':'Le planning est bien equilibre.'}`;
+}
+
+let micActive=false;
+function toggleChatMic(){
+  micActive=!micActive;
+  const btn=document.getElementById('chatMic');
+  if(btn)btn.classList.toggle('active',micActive);
+  if(micActive){setTimeout(()=>{micActive=false;if(btn)btn.classList.remove('active');sendChat('Optimiser ma journee')},2000)}
+}
+
+// === PAGE: PATIENTS ===
+function renderPatientsPage(el){
+  el.style.padding='24px';el.style.overflow='auto';el.style.height='';
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div><h2 style="font-size:18px;font-weight:700">Patients</h2><p style="font-size:12px;color:var(--text-muted);margin-top:4px">${patientData.length} patients enregistres</p></div>
+    <div style="display:flex;gap:8px"><input type="text" class="form-input" style="width:240px" placeholder="Rechercher un patient..." id="patientSearch" oninput="filterPatients()"><button class="btn btn-primary">Ajouter patient</button></div>
+  </div>`;
+  html+=`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-secondary btn-sm" onclick="filterPatientsBy('all')" style="font-size:11px">Tous (${patientData.length})</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterPatientsBy('fiable')" style="font-size:11px;border-color:var(--success);color:var(--success)">Fiables (${patientData.filter(p=>p.fiabilite>=5).length})</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterPatientsBy('attention')" style="font-size:11px;border-color:var(--warning);color:var(--warning)">Attention (${patientData.filter(p=>p.fiabilite>=4&&p.fiabilite<5).length})</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterPatientsBy('vigilance')" style="font-size:11px;border-color:var(--danger);color:var(--danger)">Vigilance (${patientData.filter(p=>p.fiabilite<4).length})</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterPatientsBy('bloque')" style="font-size:11px;border-color:#71717a;color:#71717a">Bloques (${patientData.filter(p=>p.bloque).length})</button>
+    <button class="btn btn-secondary btn-sm" onclick="filterPatientsBy('vip')" style="font-size:11px;border-color:#FBBF24;color:#FBBF24">VIP (${patientData.filter(p=>p.vip).length})</button>
+  </div>`;
+  html+=`<div class="card" style="padding:0;overflow:auto"><table class="patients-table"><thead><tr>
+    <th>Nom</th><th>Telephone</th><th>Visites</th><th>Fiabilite</th><th>Derniere visite</th><th>Anxiete</th><th>Statut</th><th>Actions</th>
+  </tr></thead><tbody id="patientsBody">`;
+  patientData.forEach((p,i)=>{
+    const badge=p.bloque?'badge-blocked':p.vip?'badge-vip':p.fiabilite>=5?'badge-green':p.fiabilite>=4?'badge-orange':'badge-red';
+    const label=p.bloque?'Bloque':p.vip?'VIP':p.fiabilite>=5?'Fiable':p.fiabilite>=4?'Attention':'Vigilance';
+    html+=`<tr style="${p.bloque?'opacity:.5;text-decoration:line-through':''}"><td style="font-weight:500">${p.nom}${p.vip?' <span style="color:#FBBF24;font-size:10px">&#9733; VIP</span>':''}</td><td style="color:var(--text-muted)">${p.tel}</td><td>${p.visites}</td>
+      <td><span class="stars">${'&#9733;'.repeat(p.fiabilite)}${'&#9734;'.repeat(5-p.fiabilite)}</span></td>
+      <td style="color:var(--text-muted);font-size:12px">${p.derniereVisite}</td>
+      <td style="font-size:12px">${p.anxiete}</td>
+      <td><span class="badge ${badge}">${label}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost" style="font-size:10px;color:${p.bloque?'var(--success)':'var(--danger)'}" onclick="toggleBlockPatient(${i})">${p.bloque?'Debloquer':'Bloquer'}</button>
+        <button class="btn btn-ghost" style="font-size:10px;color:${p.vip?'var(--text-muted)':'#FBBF24'}" onclick="toggleVipPatient(${i})">${p.vip?'Retirer VIP':'VIP'}</button>
+        <button class="btn btn-ghost" style="font-size:10px" onclick="openModal('patientDetail')">Fiche</button>
+      </td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  el.innerHTML=html;
+}
+
+function filterPatients(){
+  const q=document.getElementById('patientSearch')?.value.toLowerCase()||'';
+  document.querySelectorAll('#patientsBody tr').forEach(tr=>{
+    tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+function filterPatientsBy(type){
+  document.querySelectorAll('#patientsBody tr').forEach((tr,i)=>{
+    const p=patientData[i];if(!p)return;
+    if(type==='all')tr.style.display='';
+    else if(type==='fiable')tr.style.display=p.fiabilite>=5?'':'none';
+    else if(type==='attention')tr.style.display=(p.fiabilite>=4&&p.fiabilite<5)?'':'none';
+    else if(type==='vigilance')tr.style.display=p.fiabilite<4?'':'none';
+    else if(type==='bloque')tr.style.display=p.bloque?'':'none';
+    else if(type==='vip')tr.style.display=p.vip?'':'none';
+  });
+}
+function toggleBlockPatient(idx){
+  patientData[idx].bloque=!patientData[idx].bloque;
+  renderPatientsPage(document.getElementById('pageContent'));
+}
+function toggleVipPatient(idx){
+  patientData[idx].vip=!patientData[idx].vip;
+  renderPatientsPage(document.getElementById('pageContent'));
+}
+
+// === PAGE: EQUIPE ===
+function renderEquipePage(el){
+  el.style.padding='24px';el.style.overflow='auto';el.style.height='';
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div><h2 style="font-size:18px;font-weight:700">Equipe</h2><p style="font-size:12px;color:var(--text-muted);margin-top:4px">${TEAM.length} membres</p></div>
+    <button class="btn btn-primary" onclick="openModal('addMember')">Ajouter un praticien</button>
+  </div>`;
+  html+=`<div class="team-grid">`;
+  TEAM.forEach(m=>{
+    html+=`<div class="team-card"><div class="team-card-header">
+      <div class="team-avatar" style="background:${m.color}">${m.initials}</div>
+      <div><div class="team-name">${m.nom}</div><div class="team-role">${m.role}</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">${m.specialites}</div>
+    <div class="team-stats">
+      <div class="team-stat"><div class="team-stat-val">${m.patients}</div><div class="team-stat-label">Patients/j</div></div>
+      <div class="team-stat"><div class="team-stat-val">${m.score||'--'}</div><div class="team-stat-label">Score moy.</div></div>
+      <div class="team-stat"><div class="team-stat-val">${m.roleType==='admin'?'Admin':m.roleType==='praticien'?'Praticien':'Staff'}</div><div class="team-stat-label">Role</div></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:12px"><button class="btn btn-secondary" style="flex:1">Modifier</button><button class="btn btn-danger" style="flex:1">Retirer</button></div>
+    </div>`;
+  });
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+// === PAGE: PARAMETRES ===
+function renderParametresPage(el){
+  el.style.padding='24px';el.style.overflow='auto';el.style.height='';
+  let html=`<h2 style="font-size:18px;font-weight:700;margin-bottom:20px">Parametres</h2>
+  <div class="settings-layout">
+    <div class="settings-tabs">
+      <button class="settings-tab ${state.settingsTab==='compte'?'active':''}" onclick="state.settingsTab='compte';renderParametresPage(document.getElementById('pageContent'))">Compte</button>
+      <button class="settings-tab ${state.settingsTab==='agenda'?'active':''}" onclick="state.settingsTab='agenda';renderParametresPage(document.getElementById('pageContent'))">Agenda</button>
+      <button class="settings-tab ${state.settingsTab==='utilisateurs'?'active':''}" onclick="state.settingsTab='utilisateurs';renderParametresPage(document.getElementById('pageContent'))">Utilisateurs</button>
+    </div>
+    <div class="settings-panel">`;
+  if(state.settingsTab==='compte')html+=renderSettingsCompte();
+  else if(state.settingsTab==='agenda')html+=renderSettingsAgenda();
+  else html+=renderSettingsUsers();
+  html+=`</div></div>`;
+  el.innerHTML=html;
+}
+
+function renderSettingsCompte(){
+  return`
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Informations du cabinet</h3>
+    <div class="form-group"><label class="form-label">Nom du cabinet</label><input class="form-input" value="Cabinet Dentaire Jadomi"></div>
+    <div class="form-group"><label class="form-label">Adresse</label><input class="form-input" value="123 Rue de la Sante, 59100 Roubaix"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Telephone</label><input class="form-input" value="03 20 00 00 00"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="contact@jadomi.fr"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Logo</label><div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;font-size:12px;color:var(--text-muted);cursor:pointer">Glissez un fichier ou cliquez pour uploader</div></div>
+    <h3 style="font-size:14px;font-weight:600;margin:20px 0 16px">Horaires d'ouverture</h3>
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;font-size:12px">
+      ${['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'].map(j=>`<span style="color:var(--text-secondary)">${j}</span><input class="form-input" value="08:30" style="width:80px"><input class="form-input" value="19:00" style="width:80px">`).join('')}
+    </div>
+    <div class="form-group" style="margin-top:16px"><label class="form-label">Jours feries / fermetures exceptionnelles</label><textarea class="form-input" style="height:60px;resize:vertical">1er mai 2026, 8 mai 2026, 14 juillet 2026</textarea></div>
+    <button class="btn btn-primary" style="margin-top:16px">Enregistrer</button>`;
+}
+
+function renderSettingsAgenda(){
+  return`
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Types d'actes personnalises</h3>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Creez et gerez vos types d'actes avec durees, couleurs et codes CCAM associes.</p>
+    <div class="card" style="padding:0;overflow:auto;margin-bottom:20px"><table class="users-table"><thead><tr><th>Acte</th><th>Duree</th><th>Complexite</th><th>Code CCAM</th><th>Couleur</th><th>Actions</th></tr></thead><tbody>
+      <tr><td>Detartrage</td><td>15 min</td><td>1/5</td><td>HBJD001</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#06B6D4,#67E8F9);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Surfacage</td><td>45 min</td><td>4/5</td><td>HBJD002</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#A78BFA,#C4B5FD);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Endodontie</td><td>45 min</td><td>5/5</td><td>HBMD042</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#8B5CF6,#C4B5FD);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Extraction simple</td><td>20 min</td><td>3/5</td><td>HBFA003</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#EF4444,#FCA5A5);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Extraction chirurgicale</td><td>45 min</td><td>5/5</td><td>HBFA005</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#DC2626,#F87171);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Implant pose</td><td>90 min</td><td>5/5</td><td>HBLA004</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#7C3AED,#A78BFA);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Composite simple</td><td>20 min</td><td>2/5</td><td>HBMD050</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#60A5FA,#93C5FD);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Prothese empreinte</td><td>30 min</td><td>3/5</td><td>HBLD038</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#F472B6,#FBCFE8);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+      <tr><td>Blanchiment</td><td>60 min</td><td>2/5</td><td>Non cote</td><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#FBBF24,#FDE68A);vertical-align:middle"></span></td><td><button class="btn btn-ghost" style="font-size:11px">Modifier</button></td></tr>
+    </tbody></table></div>
+    <button class="btn btn-primary" onclick="openModal('addActe')" style="margin-bottom:24px">Creer un nouvel acte</button>
+    <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Blocage de plages horaires</h3>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Definissez des blocs reserves : chirurgie uniquement, esthetique, administratif, etc.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(139,92,246,.05)"><div style="font-size:12px;font-weight:600;color:#A78BFA">Bloc Chirurgie</div><div style="font-size:11px;color:var(--text-muted)">Lun-Ven, 08h00-12h00</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Seuls les actes chirurgicaux autorisees</div></div>
+      <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(251,191,36,.05)"><div style="font-size:12px;font-weight:600;color:#FBBF24">Bloc Esthetique</div><div style="font-size:11px;color:var(--text-muted)">Samedi, 09h00-12h00</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Blanchiment, facettes, composites esthetiques</div></div>
+      <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(239,68,68,.05)"><div style="font-size:12px;font-weight:600;color:#EF4444">Urgences reservees</div><div style="font-size:11px;color:var(--text-muted)">Tous les jours, 11h00-11h30</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Creneau bloque pour imprevu</div></div>
+      <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(20,184,166,.05)"><div style="font-size:12px;font-weight:600;color:#14B8A6">Administratif</div><div style="font-size:11px;color:var(--text-muted)">Vendredi, 17h00-19h00</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Devis, courriers, labo, comptabilite</div></div>
+    </div>
+    <button class="btn btn-secondary" style="margin-bottom:24px">Ajouter un bloc</button>
+    <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Liste d'attente (ASAP / Waitlist)</h3>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Patients souhaitant un creneau plus tot. Contactes automatiquement en cas d'annulation.</p>
+    <div class="toggle-row"><span class="toggle-label">Activer la waitlist automatique</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Notification SMS au patient quand un creneau se libere</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Confirmation en 1 clic (lien dans le SMS)</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Rappel automatique (Recall)</h3>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Apres un detartrage ou un controle, le patient est automatiquement rappele a 6 mois.</p>
+    <div class="toggle-row"><span class="toggle-label">Recall 6 mois apres detartrage</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Recall 3 mois parodontie</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Recall 12 mois controle annuel</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">SMS + Email multi-etapes (5 mois, 5.5 mois, 6 mois)</span><div class="toggle-switch" onclick="this.classList.toggle('active')"></div></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+    <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Configuration de l'agenda</h3>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Duree creneau par defaut</label><select class="form-select"><option>15 min</option><option selected>20 min</option><option>30 min</option></select></div>
+      <div class="form-group"><label class="form-label">Heure de debut</label><input class="form-input" type="time" value="08:00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Heure de fin</label><input class="form-input" type="time" value="19:00"></div>
+      <div class="form-group"><label class="form-label">Creneaux urgence / demi-journee</label><input class="form-input" type="number" value="2" min="0" max="5"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Pause dejeuner debut</label><input class="form-input" type="time" value="12:00"></div>
+      <div class="form-group"><label class="form-label">Pause dejeuner fin</label><input class="form-input" type="time" value="14:00"></div>
+    </div>
+    <h3 style="font-size:14px;font-weight:600;margin:20px 0 16px">Mode IA</h3>
+    <div class="radio-group">
+      <div class="radio-item" onclick="this.parentElement.querySelectorAll('.radio-item').forEach(r=>r.classList.remove('active'));this.classList.add('active')"><div class="radio-dot"></div><div class="radio-label">Lecture seule — L'IA analyse sans agir</div></div>
+      <div class="radio-item active" onclick="this.parentElement.querySelectorAll('.radio-item').forEach(r=>r.classList.remove('active'));this.classList.add('active')"><div class="radio-dot"></div><div class="radio-label">Semi-automatique — Suggestions avec validation</div></div>
+      <div class="radio-item" onclick="this.parentElement.querySelectorAll('.radio-item').forEach(r=>r.classList.remove('active'));this.classList.add('active')"><div class="radio-dot"></div><div class="radio-label">Automatique limite — Actions mineures sans validation</div></div>
+    </div>
+    <h3 style="font-size:14px;font-weight:600;margin:20px 0 16px">Seuils et limites</h3>
+    <div class="slider-group"><label class="form-label">Score seuil journee rouge<span class="slider-val" id="sliderVal1">45</span></label><input type="range" class="slider-input" min="30" max="60" value="45" oninput="document.getElementById('sliderVal1').textContent=this.value"></div>
+    <div class="slider-group"><label class="form-label">Pause minimum entre actes lourds<span class="slider-val" id="sliderVal2">10 min</span></label><input type="range" class="slider-input" min="5" max="15" value="10" oninput="document.getElementById('sliderVal2').textContent=this.value+' min'"></div>
+    <h3 style="font-size:14px;font-weight:600;margin:20px 0 16px">Notifications</h3>
+    <div class="toggle-row"><span class="toggle-label">Alerte journee rouge</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Suggestion de pause</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Recasage automatique</span><div class="toggle-switch" onclick="this.classList.toggle('active')"></div></div>
+    <div class="toggle-row"><span class="toggle-label">Rapport quotidien par email</span><div class="toggle-switch active" onclick="this.classList.toggle('active')"></div></div>
+    <button class="btn btn-primary" style="margin-top:20px">Enregistrer</button>`;
+}
+
+function renderSettingsUsers(){
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h3 style="font-size:14px;font-weight:600">Utilisateurs</h3>
+    <button class="btn btn-primary" onclick="openModal('inviteUser')">Inviter un utilisateur</button>
+  </div>
+  <table class="users-table"><thead><tr><th>Nom</th><th>Email</th><th>Role</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+  USERS_LIST.forEach(u=>{
+    const roleClass=u.role==='Admin'?'role-admin':u.role==='Praticien'?'role-praticien':'role-secretaire';
+    html+=`<tr${u.current?' style="background:rgba(20,184,166,.03)"':''}>
+      <td style="font-weight:500">${u.nom}${u.current?' (vous)':''}</td>
+      <td style="color:var(--text-muted)">${u.email}</td>
+      <td><span class="role-badge ${roleClass}">${u.role}</span></td>
+      <td><span class="badge badge-green">${u.statut}</span></td>
+      <td><button class="btn btn-ghost" style="font-size:11px">Modifier</button><button class="btn btn-ghost" style="font-size:11px;color:var(--danger)">Desactiver</button></td>
+    </tr>`;
+  });
+  html+=`</tbody></table>
+  <div style="margin-top:16px;padding:12px;background:var(--bg-input);border-radius:8px;font-size:11px;color:var(--text-muted)">
+    <strong>Roles :</strong> Admin (acces complet) / Praticien (agenda + patients) / Secretaire (agenda en lecture + gestion RDV) / Assistant (IA, lecture seule)
+  </div>`;
+  return html;
+}
+
+// === MODALS ===
+function openModal(type){
+  const overlay=document.getElementById('modalOverlay');
+  const content=document.getElementById('modalContent');
+  overlay.classList.add('active');
+  if(type==='inviteUser'){
+    content.innerHTML=`<div class="modal-title">Inviter un utilisateur</div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" placeholder="email@exemple.fr"></div>
+      <div class="form-group"><label class="form-label">Role</label><select class="form-select"><option>Praticien</option><option>Secretaire</option><option>Assistant</option></select></div>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="closeModal()">Envoyer l'invitation</button></div>`;
+  }else if(type==='addMember'){
+    content.innerHTML=`<div class="modal-title">Ajouter un praticien</div>
+      <div class="form-group"><label class="form-label">Nom complet</label><input class="form-input" placeholder="Dr. Nom"></div>
+      <div class="form-group"><label class="form-label">Specialite</label><input class="form-input" placeholder="Omnipratique"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" placeholder="email@jadomi.fr"></div>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="closeModal()">Ajouter</button></div>`;
+  }else if(type==='addActe'){
+    content.innerHTML=`<div class="modal-title">Creer un nouvel acte</div>
+      <div class="form-group"><label class="form-label">Nom de l'acte</label><input class="form-input" placeholder="Ex: Surfacage radiculaire"></div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Duree (minutes)</label><input class="form-input" type="number" value="30" min="5" max="180" step="5"></div>
+        <div class="form-group"><label class="form-label">Complexite (1-5)</label><select class="form-select"><option>1 - Tres simple</option><option>2 - Simple</option><option selected>3 - Moyen</option><option>4 - Complexe</option><option>5 - Tres complexe</option></select></div>
+      </div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Code CCAM</label><input class="form-input" placeholder="Ex: HBJD001"></div>
+        <div class="form-group"><label class="form-label">Couleur</label><input class="form-input" type="color" value="#14b8a6" style="height:38px;padding:4px"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Placement optimal</label><select class="form-select"><option>Indifferent</option><option>Matin (praticien frais)</option><option>Apres-midi</option><option>Debut de demi-journee</option></select></div>
+      <div class="form-group"><label class="form-label">Pause requise apres (minutes)</label><input class="form-input" type="number" value="0" min="0" max="30" step="5"></div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Necessite assistante</label><select class="form-select"><option selected>Non</option><option>Oui</option></select></div>
+        <div class="form-group"><label class="form-label">Deplacable par l'IA</label><select class="form-select"><option>Oui</option><option>Non (acte prioritaire)</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Categorie</label><select class="form-select"><option>Soins conservateurs</option><option>Chirurgie</option><option>Prothese</option><option>Parodontie</option><option>Endodontie</option><option>Esthetique</option><option>Prevention</option><option>Orthodontie</option><option>Implantologie</option><option>Administratif</option></select></div>
+      <div style="padding:10px;background:var(--bg-input);border-radius:8px;font-size:11px;color:var(--text-muted);margin-top:8px">L'IA utilisera ces parametres pour le placement optimal, les recommandations de pause et le calcul du score de serenite.</div>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="closeModal()">Creer l'acte</button></div>`;
+  }else if(type==='patientDetail'){
+    content.innerHTML=`<div class="modal-title">Fiche patient</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin-bottom:16px">
+        <div><span style="color:var(--text-muted)">Score fiabilite :</span> 4/5</div>
+        <div><span style="color:var(--text-muted)">Retards :</span> 2 fois</div>
+        <div><span style="color:var(--text-muted)">Absences :</span> 1 fois</div>
+        <div><span style="color:var(--text-muted)">Annulations :</span> 3 fois</div>
+        <div><span style="color:var(--text-muted)">Profil anxiete :</span> Modere</div>
+        <div><span style="color:var(--text-muted)">Preference canal :</span> SMS</div>
+      </div>
+      <h4 style="font-size:12px;font-weight:600;margin-bottom:8px">Actions IA</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        <button class="btn btn-secondary" style="font-size:10px">Exiger confirmation renforcee</button>
+        <button class="btn btn-secondary" style="font-size:10px">Placer en fin de demi-journee</button>
+        <button class="btn btn-secondary" style="font-size:10px">Ajouter marge +10 min</button>
+        <button class="btn btn-secondary" style="font-size:10px">Envoyer message ponctualite</button>
+        <button class="btn btn-secondary" style="font-size:10px">Exiger acompte</button>
+      </div>
+      <h4 style="font-size:12px;font-weight:600;margin-bottom:8px">Notes internes</h4>
+      <textarea class="form-input" style="height:60px;resize:vertical" placeholder="Notes visibles uniquement par l'equipe..."></textarea>
+      <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">Fermer</button><button class="btn btn-primary" onclick="closeModal()">Enregistrer</button></div>`;
+  }
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('active')}
+
+// === SEARCH ===
+function openSearch(){
+  document.getElementById('searchOverlay').classList.add('active');
+  setTimeout(()=>document.getElementById('searchInput').focus(),100);
+  renderSearchResults('');
+}
+function closeSearch(){document.getElementById('searchOverlay').classList.remove('active');document.getElementById('searchInput').value=''}
+function renderSearchResults(q){
+  const el=document.getElementById('searchResults');
+  const pages=[
+    {icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',label:'Agenda',page:'agenda'},
+    {icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>',label:'Analyse IA',page:'analyse'},
+    {icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',label:'Assistant',page:'assistant'},
+    {icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',label:'Patients',page:'patients'},
+    {icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg>',label:'Equipe',page:'equipe'},
+    {icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg>',label:'Parametres',page:'parametres'}
+  ];
+  let results=[...pages];
+  if(q){
+    const lq=q.toLowerCase();
+    const patientMatches=patientData.filter(p=>p.nom.toLowerCase().includes(lq)).slice(0,5);
+    results=pages.filter(p=>p.label.toLowerCase().includes(lq));
+    patientMatches.forEach(p=>{results.push({icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',label:p.nom,page:'patients'})});
+  }
+  el.innerHTML=results.map(r=>`<div class="search-result" onclick="state.page='${r.page}';closeSearch();render()">${r.icon}<span>${r.label}</span></div>`).join('');
+}
+
+// === TOOLTIP ===
+function showTooltip(e,el){
+  try{
+    const data=JSON.parse(decodeURIComponent(el.dataset.patient));
+    const tip=document.getElementById('tooltip');
+    tip.innerHTML=`<div class="tooltip-name">${data.patient}</div>
+      <div class="tooltip-row"><span>Acte</span><span>${data.acte}</span></div>
+      <div class="tooltip-row"><span>Horaire</span><span>${formatMin(data.start)} - ${formatMin(data.end)}</span></div>
+      <div class="tooltip-row"><span>Duree</span><span>${data.duree} min</span></div>
+      <div class="tooltip-row"><span>Telephone</span><span>${data.tel}</span></div>
+      <div class="tooltip-row"><span>Visites</span><span>${data.visites}</span></div>
+      <div class="tooltip-row"><span>Fiabilite</span><span>${'&#9733;'.repeat(data.fiabilite||3)}${'&#9734;'.repeat(5-(data.fiabilite||3))}</span></div>`;
+    tip.classList.add('show');
+    const x=Math.min(e.clientX+12,window.innerWidth-280);
+    const y=Math.min(e.clientY+12,window.innerHeight-200);
+    tip.style.left=x+'px';tip.style.top=y+'px';
+  }catch(err){}
+}
+function hideTooltip(){document.getElementById('tooltip').classList.remove('show')}
+
+// === NAVIGATION ===
+function navigateDate(dir){
+  const d=state.date;
+  if(state.view==='day')d.setDate(d.getDate()+dir);
+  else if(state.view==='week')d.setDate(d.getDate()+dir*7);
+  else d.setMonth(d.getMonth()+dir);
+  render();
+}
+function goToDay(ts){state.date=new Date(ts);state.view='day';render()}
+
+// === EVENT BINDINGS ===
+document.getElementById('sidebarToggle').onclick=()=>{state.sidebarCollapsed=!state.sidebarCollapsed;render()};
+document.querySelectorAll('.nav-item').forEach(n=>n.onclick=()=>{state.page=n.dataset.page;render()});
+document.getElementById('themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';render()};
+document.getElementById('searchBtn').onclick=openSearch;
+document.getElementById('searchOverlay').onclick=(e)=>{if(e.target===e.currentTarget)closeSearch()};
+document.getElementById('searchInput').oninput=(e)=>renderSearchResults(e.target.value);
+document.getElementById('modalOverlay').onclick=(e)=>{if(e.target===e.currentTarget)closeModal()};
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();openSearch();return}
+  if(e.key==='Escape'){closeSearch();closeModal();return}
+  if(e.key==='1'){state.page='agenda';render()}
+  else if(e.key==='2'){state.page='analyse';render()}
+  else if(e.key==='3'){state.page='assistant';render()}
+  else if(e.key==='4'){state.page='patients';render()}
+  else if(e.key==='5'){state.page='equipe';render()}
+  else if(e.key==='6'){state.page='parametres';render()}
+});
+
+// Also handle Cmd+K when in input
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();openSearch()}
+  if(e.key==='Escape'){closeSearch();closeModal()}
+});
+
+// === INIT ===
+render();
+</script>
+</body>
+</html>

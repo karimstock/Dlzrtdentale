@@ -111,4 +111,12 @@ module.exports = function mountDentistePro(app) {
   } catch (e) {
     console.warn('[dentiste-pro] Cases non charge:', e.message);
   }
+
+  // Agenda CRUD (rendez-vous de test, fallback in-memory)
+  try {
+    app.use(`${base}/agenda`, require('./agenda'));
+    console.log('[dentiste-pro] Routes agenda montees');
+  } catch (e) {
+    console.warn('[dentiste-pro] Agenda non charge:', e.message);
+  }
 };

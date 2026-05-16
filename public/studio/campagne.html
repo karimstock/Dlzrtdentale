@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Studio — Cr&eacute;ation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080D;--surface:#101018;--surface2:#181824;--border:rgba(201,168,76,.06);
+  --gold:#C9A84C;--gold-light:#E0C06A;--gold-dim:rgba(201,168,76,.08);
+  --text:#E8E8ED;--text2:#8B8BA0;--text3:#5A5A6E;
+  --green:#4DCE7B;--red:#E54D4D;
+  --ease:cubic-bezier(.16,1,.3,1);--radius:14px;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+a{color:var(--gold);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;outline:none;width:100%;font-size:14px;transition:border .3s var(--ease)}
+input:focus,textarea:focus,select:focus{border-color:rgba(201,168,76,.4);box-shadow:0 0 0 3px rgba(201,168,76,.08)}
+textarea{resize:vertical;min-height:80px}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B8BA0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--border);background:rgba(8,8,13,.8);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100}
+.header-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+.header-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.btn-back{padding:8px 16px;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text2);transition:all .3s var(--ease)}
+.btn-back:hover{border-color:rgba(201,168,76,.3);color:var(--gold)}
+.token-badge{display:flex;align-items:center;gap:6px;padding:7px 16px;background:var(--gold-dim);border:1px solid rgba(201,168,76,.18);border-radius:20px;font-size:13px;font-weight:600;color:var(--gold-light)}
+.header-right{display:flex;align-items:center;gap:12px}
+
+/* Steps */
+.steps{display:flex;justify-content:center;gap:8px;padding:24px;max-width:600px;margin:0 auto}
+.step{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text3);font-weight:500}
+.step.active{color:var(--gold)}
+.step.done{color:var(--green)}
+.step-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--text3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;transition:all .3s var(--ease)}
+.step.active .step-dot{border-color:var(--gold);background:var(--gold);color:#08080D}
+.step.done .step-dot{border-color:var(--green);background:var(--green);color:#08080D}
+.step-line{width:40px;height:2px;background:var(--text3);border-radius:1px}
+.step.active~.step .step-line,.step.active .step-line{background:var(--text3)}
+.step.done .step-line{background:var(--green)}
+
+/* Content */
+.content{max-width:900px;margin:0 auto;padding:20px 24px 80px}
+.section-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;margin-bottom:8px}
+.section-sub{color:var(--text2);font-size:15px;margin-bottom:32px}
+.panel{display:none}
+.panel.active{display:block;animation:fadeIn .4s var(--ease)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* Templates grid */
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.tpl-card{padding:20px;background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .3s var(--ease)}
+.tpl-card:hover{border-color:rgba(201,168,76,.2);transform:translateY(-2px)}
+.tpl-card.selected{border-color:var(--gold);background:rgba(201,168,76,.05);box-shadow:0 0 0 1px var(--gold)}
+.tpl-card h4{font-size:15px;font-weight:600;margin-bottom:4px}
+.tpl-card p{font-size:12px;color:var(--text2)}
+.tpl-card .tpl-format{font-size:11px;color:var(--gold);font-weight:600;margin-top:8px}
+
+/* Form */
+.form-grid{display:grid;gap:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+
+/* Preview */
+.preview-frame{background:white;border-radius:12px;overflow:hidden;min-height:400px;position:relative}
+.preview-frame iframe{width:100%;height:600px;border:none}
+.preview-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:14px}
+
+/* Actions */
+.actions{display:flex;gap:12px;justify-content:flex-end;margin-top:24px}
+.btn{padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;transition:all .3s var(--ease)}
+.btn-outline{border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:rgba(201,168,76,.3);color:var(--text)}
+.btn-primary{background:var(--gold);color:#08080D}
+.btn-primary:hover{background:var(--gold-light);transform:translateY(-1px);box-shadow:0 4px 20px rgba(201,168,76,.3)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* Export buttons */
+.export-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:24px}
+.export-btn{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all .3s var(--ease)}
+.export-btn:hover{border-color:rgba(201,168,76,.2);transform:translateY(-2px)}
+.export-btn .exp-icon{font-size:28px;margin-bottom:8px}
+.export-btn .exp-label{font-size:14px;font-weight:600}
+.export-btn .exp-format{font-size:11px;color:var(--text3);margin-top:4px}
+
+.cost-info{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--gold-dim);border:1px solid rgba(201,168,76,.12);border-radius:8px;font-size:13px;color:var(--gold);font-weight:600;margin-bottom:20px}
+
+@media(max-width:640px){
+  .header{padding:12px 16px}
+  .content{padding:16px 16px 60px}
+  .tpl-grid{grid-template-columns:1fr}
+  .actions{flex-direction:column}
+  .btn{width:100%;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo"><span class="dot"></span> JADOMI <span style="color:var(--gold);font-weight:400">Studio</span></div>
+  <div class="header-right">
+    <div class="token-badge">&#x1FA99; <span id="token-count">...</span> tokens</div>
+    <a href="/studio/" class="btn-back">&#8592; Hub</a>
+  </div>
+</header>
+
+<div class="steps" id="steps-bar">
+  <div class="step active" data-step="1"><span class="step-dot">1</span> Template</div>
+  <div class="step" data-step="2"><span class="step-line"></span><span class="step-dot">2</span> Personnaliser</div>
+  <div class="step" data-step="3"><span class="step-line"></span><span class="step-dot">3</span> Aper&ccedil;u</div>
+  <div class="step" data-step="4"><span class="step-line"></span><span class="step-dot">4</span> Exporter</div>
+</div>
+
+<div class="content">
+
+  <!-- STEP 1 : Choisir thème + template -->
+  <div class="panel active" id="panel-1">
+    <h2 class="section-title" id="step1-title">Choisissez votre style</h2>
+    <p class="section-sub" id="step1-sub">70 thèmes premium dans 10 catégories — trouvez le style parfait</p>
+    <input type="text" class="jt-search" id="camp-theme-search" placeholder="Rechercher un thème...">
+    <div id="camp-theme-tabs"></div>
+    <div id="camp-theme-gallery" style="margin-bottom:24px"></div>
+    <div style="border-top:1px solid var(--border,rgba(201,168,76,.06));padding-top:20px;margin-top:8px">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Ou choisissez un template pr&eacute;d&eacute;fini :</p>
+      <div class="tpl-grid" id="templates-list">
+        <div style="color:var(--text3);font-size:14px;padding:20px">Chargement...</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-next-1" disabled onclick="goStep(2)">Suivant &#8594;</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 : Personnaliser -->
+  <div class="panel" id="panel-2">
+    <h2 class="section-title">Personnalisez votre contenu</h2>
+    <p class="section-sub">Remplissez les informations — votre marque est pr&eacute;-remplie automatiquement</p>
+    <div class="form-grid" id="variables-form"></div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="goStep(1)">&#8592; Retour</button>
+      <button class="btn btn-primary" onclick="generatePreview()">G&eacute;n&eacute;rer l'aper&ccedil;u &#8594;</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 : Aperçu -->
+  <div class="panel" id="panel-3">
+    <h2 class="section-title">Aper&ccedil;u</h2>
+    <p class="section-sub">V&eacute;rifiez le r&eacute;sultat avant d'exporter</p>
+    <div class="preview-frame" id="preview-frame">
+      <div class="preview-loading" id="preview-loading">G&eacute;n&eacute;ration en cours...</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="goStep(2)">&#8592; Modifier</button>
+      <button class="btn btn-primary" onclick="goStep(4)">Exporter &#8594;</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 : Exporter -->
+  <div class="panel" id="panel-4">
+    <h2 class="section-title">Exportez votre cr&eacute;ation</h2>
+    <div class="cost-info" id="cost-info">&#x1FA99; Co&ucirc;t : <span id="cost-tokens">0</span> tokens</div>
+    <p class="section-sub">Choisissez le format de t&eacute;l&eacute;chargement</p>
+    <div class="export-grid">
+      <div class="export-btn" onclick="exportAs('png')">
+        <div class="exp-icon">&#x1F5BC;</div>
+        <div class="exp-label">Image PNG</div>
+        <div class="exp-format">Haute qualit&eacute; — web & r&eacute;seaux</div>
+      </div>
+      <div class="export-btn" onclick="exportAs('pdf')">
+        <div class="exp-icon">&#x1F4C4;</div>
+        <div class="exp-label">PDF</div>
+        <div class="exp-format">Impression professionnelle</div>
+      </div>
+      <div class="export-btn" onclick="exportAs('jpg')">
+        <div class="exp-icon">&#x1F4F7;</div>
+        <div class="exp-label">Image JPG</div>
+        <div class="exp-format">L&eacute;ger — email & partage</div>
+      </div>
+      <div class="export-btn" onclick="exportAs('html')">
+        <div class="exp-icon">&#x1F310;</div>
+        <div class="exp-label">HTML</div>
+        <div class="exp-format">Page web int&eacute;grable</div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:32px">
+      <button class="btn btn-outline" onclick="goStep(3)">&#8592; Retour</button>
+      <a href="/studio/" class="btn btn-primary">Termin&eacute; &#x2714;</a>
+    </div>
+  </div>
+
+</div>
+
+<script src="/studio/shared/theme-picker.js"></script>
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+
+const TOKEN_COSTS = {
+  'patient':3,'avant-apres':5,'reseaux-cab':3,'presentation':10,
+  'produit':10,'catalogue':15,'fiche-produit':8,'congres':20,
+  'formation':15,'video':20,'landing':15,'flyer':5,'reseaux':3,'agent':100,
+};
+
+const MODULE_TITLES = {
+  'patient':'Sensibilisation patient','avant-apres':'Avant / Apr\u00e8s',
+  'reseaux-cab':'R\u00e9seaux sociaux cabinet','presentation':'Pr\u00e9sentation cabinet',
+  'produit':'Campagne produit','catalogue':'Catalogue produit',
+  'fiche-produit':'Fiche produit','congres':'Campagne congr\u00e8s',
+  'formation':'Campagne formation','video':'Vid\u00e9o promotionnelle',
+  'landing':'Landing page','flyer':'Flyer / Brochure',
+  'reseaux':'R\u00e9seaux sociaux','agent':'Agent marketing',
+};
+
+// Mapping module → catégories de templates
+const MODULE_CATEGORIES = {
+  'patient':'patient','avant-apres':'patient','reseaux-cab':'reseaux',
+  'presentation':'reseaux','produit':'produit','catalogue':'produit',
+  'fiche-produit':'produit','congres':'congres','formation':'formation',
+  'video':'formation,produit,congres','landing':'formation,produit',
+  'flyer':'formation,produit,patient','reseaux':'reseaux','agent':'all',
+};
+
+let currentModule = '';
+let selectedTemplate = null;
+let userBalance = 0;
+let marque = null;
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+
+function getToken() {
+  try {
+    const raw = localStorage.getItem('sb-vsbomwjzehnfinfjvhqp-auth-token');
+    if (raw) { const p = JSON.parse(raw); return p.access_token || null; }
+  } catch(e) {}
+  return localStorage.getItem('supabase_token') || localStorage.getItem('jadomi_session') || null;
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getToken();
+  if (!token) { location.href = '/login.html'; return null; }
+  const res = await fetch(path, {
+    ...options,
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  return res.json();
+}
+
+// ═══════════════════════════════════════
+// STEPS NAVIGATION
+// ═══════════════════════════════════════
+
+function goStep(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+
+  document.querySelectorAll('.step').forEach(s => {
+    const sn = parseInt(s.dataset.step);
+    s.classList.remove('active', 'done');
+    if (sn === n) s.classList.add('active');
+    if (sn < n) s.classList.add('done');
+  });
+}
+
+// ═══════════════════════════════════════
+// STEP 1 : TEMPLATES
+// ═══════════════════════════════════════
+
+async function loadTemplates() {
+  const grid = document.getElementById('templates-list');
+  try {
+    const cats = MODULE_CATEGORIES[currentModule] || 'all';
+    const data = await apiFetch('/api/studio/marque/templates');
+    if (!data || !data.ok) {
+      grid.innerHTML = '<div style="grid-column:1/-1;color:var(--red);padding:20px;text-align:center">Impossible de charger les templates. <a href="javascript:loadTemplates()" style="color:var(--gold)">R\u00e9essayer</a></div>';
+      return;
+    }
+
+    let templates = data.templates;
+    if (cats !== 'all') {
+      const catList = cats.split(',');
+      templates = templates.filter(t => catList.includes(t.categorie));
+    }
+
+    if (templates.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text3);padding:20px;text-align:center">Aucun template pour ce module</div>';
+      return;
+    }
+
+    grid.innerHTML = templates.map(t => `
+      <div class="tpl-card" data-id="${t.id}" onclick="selectTemplate(this, '${t.id}')">
+        <h4>${t.nom}</h4>
+        <p>${t.sous_categorie || t.categorie}</p>
+        <div class="tpl-format">${t.format || t.type} &middot; ${t.style}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('[CAMPAGNE] loadTemplates error:', e);
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--red);padding:20px;text-align:center">Erreur de chargement. <a href="javascript:loadTemplates()" style="color:var(--gold)">R\u00e9essayer</a></div>';
+  }
+}
+
+function selectTemplate(el, id) {
+  document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTemplate = id;
+  document.getElementById('btn-next-1').disabled = false;
+
+  // Charger les variables du template
+  loadTemplateVariables(id);
+}
+
+async function loadTemplateVariables(id) {
+  const data = await apiFetch('/api/studio/marque/templates/' + id);
+  if (!data || !data.ok) return;
+
+  const tpl = data.template;
+  const vars = tpl.variables || [];
+  const form = document.getElementById('variables-form');
+
+  // Pré-remplir avec la marque si disponible
+  const defaults = {};
+  if (marque) {
+    defaults.cabinet = marque.nom;
+    defaults.entreprise = marque.nom;
+    defaults.nom_entreprise = marque.nom;
+    defaults.telephone = marque.reseaux_sociaux?.telephone || '';
+    defaults.slogan = marque.slogan || '';
+    defaults.site = marque.site_internet || '';
+  }
+
+  if (vars.length === 0) {
+    // Pas de variables définies → formulaire générique
+    form.innerHTML = `
+      <div class="form-group"><label>Titre principal</label><input type="text" id="var-titre" value="${defaults.cabinet || ''}"></div>
+      <div class="form-group"><label>Sous-titre / Accroche</label><input type="text" id="var-accroche" value="${defaults.slogan || ''}"></div>
+      <div class="form-group"><label>Description</label><textarea id="var-description"></textarea></div>
+      <div class="form-group"><label>T&eacute;l&eacute;phone / Contact</label><input type="text" id="var-telephone" value="${defaults.telephone || ''}"></div>
+    `;
+  } else {
+    form.innerHTML = vars.map(v => {
+      const defaultVal = defaults[v.key] || v.default || '';
+      if (v.type === 'textarea') {
+        return '<div class="form-group"><label>' + v.label + '</label><textarea id="var-' + v.key + '">' + defaultVal + '</textarea></div>';
+      }
+      if (v.type === 'date') {
+        return '<div class="form-group"><label>' + v.label + '</label><input type="date" id="var-' + v.key + '" value="' + defaultVal + '"></div>';
+      }
+      return '<div class="form-group"><label>' + v.label + '</label><input type="text" id="var-' + v.key + '" value="' + defaultVal + '"></div>';
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════════
+// STEP 3 : PREVIEW
+// ═══════════════════════════════════════
+
+function generatePreview() {
+  goStep(3);
+
+  // Collecter les variables
+  const inputs = document.querySelectorAll('#variables-form input, #variables-form textarea');
+  const vars = {};
+  inputs.forEach(inp => {
+    const key = inp.id.replace('var-', '');
+    vars[key] = inp.value;
+  });
+
+  // Ajouter la marque
+  if (marque) {
+    vars._logo = marque.logo_url || '';
+    vars._couleur_primary = marque.couleurs?.primary || '#C9A84C';
+    vars._couleur_secondary = marque.couleurs?.secondary || '#1B3A5C';
+    vars._nom_entreprise = marque.nom || '';
+    vars._slogan = marque.slogan || '';
+  }
+
+  // Utiliser le thème sélectionné pour les couleurs
+  const theme = window._selectedTheme || JadomiThemes.getSelected() || null;
+
+  // Générer un HTML preview avec le thème
+  const title = vars.titre || vars.nom_produit || vars.nom_evenement || vars._nom_entreprise || 'JADOMI Studio';
+  const subtitle = vars.accroche || vars.description || vars.sous_titre || vars._slogan || '';
+  const phone = vars.telephone || vars.contact || '';
+  const date = vars.date || vars.dates || '';
+  const prix = vars.prix || '';
+  const primaryColor = theme ? theme.accent : (vars._couleur_primary || '#C9A84C');
+  const secondaryColor = theme ? (theme.accent2 || theme.accent) : (vars._couleur_secondary || '#1B3A5C');
+  const bgColor = theme ? theme.bg : '#FAF9F6';
+  const textColor = theme ? theme.text : '#1A1A2E';
+  const fontTitle = theme ? theme.fontTitle : 'Playfair Display';
+  const fontBody = theme ? theme.font : 'Inter';
+
+  const previewHTML = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'${fontBody}',sans-serif;background:${bgColor};color:${textColor};min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px}
+.card{max-width:600px;width:100%;background:white;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.08)}
+.card-header{background:${secondaryColor};padding:40px 32px;text-align:center;position:relative}
+.card-header::after{content:'';position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-top:20px solid ${secondaryColor}}
+${vars._logo ? '.logo{width:60px;height:60px;border-radius:12px;margin:0 auto 16px;background:white;padding:4px}' : ''}
+.card-header h1{font-family:'${fontTitle}',serif;font-size:32px;color:white;margin-bottom:8px}
+.card-header p{font-size:16px;color:rgba(255,255,255,.8)}
+.card-body{padding:40px 32px;text-align:center}
+.date-badge{display:inline-block;padding:8px 20px;background:${primaryColor};color:white;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:16px}
+.prix-badge{display:inline-block;padding:10px 24px;background:${secondaryColor};color:white;border-radius:8px;font-weight:700;font-size:20px;margin:16px 0}
+.description{font-size:15px;color:#6B7280;line-height:1.7;margin:16px 0}
+.contact{margin-top:20px;padding-top:20px;border-top:1px solid #eee;font-size:13px;color:#9CA3AF}
+.contact strong{color:${primaryColor}}
+.cta{display:inline-block;margin-top:20px;padding:14px 32px;background:${primaryColor};color:white;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;letter-spacing:.02em}
+</style></head><body>
+<div class="card">
+  <div class="card-header">
+    ${vars._logo ? '<img src="' + vars._logo + '" class="logo" alt="Logo">' : ''}
+    <h1>${title}</h1>
+    <p>${subtitle}</p>
+  </div>
+  <div class="card-body">
+    ${date ? '<div class="date-badge">' + date + '</div>' : ''}
+    ${vars.lieu ? '<p style="font-size:14px;color:#6B7280;margin-bottom:12px">' + vars.lieu + '</p>' : ''}
+    ${vars.formateur ? '<p style="font-size:14px;color:' + primaryColor + ';font-weight:600;margin-bottom:12px">Par ' + vars.formateur + '</p>' : ''}
+    ${prix ? '<div class="prix-badge">' + prix + '</div>' : ''}
+    ${vars.description || vars.programme ? '<p class="description">' + (vars.description || vars.programme) + '</p>' : ''}
+    ${vars.avantages || vars.specs ? '<p class="description">' + (vars.avantages || vars.specs) + '</p>' : ''}
+    <a href="#" class="cta">En savoir plus</a>
+    ${phone ? '<div class="contact"><strong>' + (vars._nom_entreprise || '') + '</strong> &middot; ' + phone + '</div>' : ''}
+  </div>
+</div>
+</body></html>`;
+
+  const frame = document.getElementById('preview-frame');
+  frame.innerHTML = '<iframe id="preview-iframe"></iframe>';
+  const iframe = document.getElementById('preview-iframe');
+  iframe.srcdoc = previewHTML;
+
+  // Sauvegarder pour export
+  window._previewHTML = previewHTML;
+  window._previewVars = vars;
+
+  // Afficher le coût
+  const cost = TOKEN_COSTS[currentModule] || 5;
+  document.getElementById('cost-tokens').textContent = cost;
+}
+
+// ═══════════════════════════════════════
+// STEP 4 : EXPORT
+// ═══════════════════════════════════════
+
+async function exportAs(format) {
+  const cost = TOKEN_COSTS[currentModule] || 5;
+
+  // Vérifier solde
+  if (userBalance >= 0 && userBalance < cost) {
+    alert('Solde insuffisant. Vous avez ' + userBalance + ' tokens, il en faut ' + cost + '.');
+    return;
+  }
+
+  if (format === 'html') {
+    // Export HTML direct
+    const blob = new Blob([window._previewHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentModule + '-jadomi-studio.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('Export HTML termin\u00e9 ! ' + cost + ' tokens d\u00e9bit\u00e9s.');
+    return;
+  }
+
+  if (format === 'png' || format === 'jpg' || format === 'pdf') {
+    // Pour PNG/JPG/PDF il faudrait un serveur Puppeteer
+    // Pour l'instant : export HTML + message
+    const blob = new Blob([window._previewHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentModule + '-jadomi-studio.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('Export ' + format.toUpperCase() + ' en cours de d\u00e9veloppement.\nLe fichier HTML a \u00e9t\u00e9 t\u00e9l\u00e9charg\u00e9 \u00e0 la place.\n\n' + cost + ' tokens d\u00e9bit\u00e9s.');
+  }
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Lire le module depuis l'URL
+  const params = new URLSearchParams(location.search);
+  currentModule = params.get('module') || 'flyer';
+
+  // Titre
+  document.title = 'JADOMI Studio \u2014 ' + (MODULE_TITLES[currentModule] || currentModule);
+  document.getElementById('step1-title').textContent = MODULE_TITLES[currentModule] || 'Choisissez un template';
+  document.getElementById('step1-sub').textContent = 'S\u00e9lectionnez un mod\u00e8le pour ' + (MODULE_TITLES[currentModule] || '').toLowerCase();
+
+  // Charger solde (non bloquant pour les templates)
+  try {
+    const walletData = await apiFetch('/api/studio/wallet');
+    if (walletData && walletData.ok) {
+      userBalance = walletData.balance || 0;
+      document.getElementById('token-count').textContent = userBalance;
+    } else {
+      userBalance = -1;
+      document.getElementById('token-count').textContent = '\u221e';
+    }
+  } catch (e) {
+    console.error('[CAMPAGNE] wallet error:', e);
+    userBalance = -1;
+    document.getElementById('token-count').textContent = '\u221e';
+  }
+
+  // Charger marque (non bloquant pour les templates)
+  try {
+    const marqueData = await apiFetch('/api/studio/marque/mon-profil');
+    if (marqueData && marqueData.ok && marqueData.entreprise) {
+      marque = marqueData.entreprise;
+    }
+  } catch (e) {
+    console.error('[CAMPAGNE] marque error:', e);
+  }
+
+  // Charger les 70 thèmes visuels
+  await JadomiThemes.init({
+    tabsId: 'camp-theme-tabs',
+    galleryId: 'camp-theme-gallery',
+    searchId: 'camp-theme-search',
+    onSelect: function(themeId, theme) {
+      document.getElementById('btn-next-1').disabled = false;
+      // Stocker le thème sélectionné pour la preview
+      window._selectedTheme = theme;
+    }
+  });
+
+  // Charger templates Supabase (en complément)
+  loadTemplates();
+});
+</script>
+</body>
+</html>

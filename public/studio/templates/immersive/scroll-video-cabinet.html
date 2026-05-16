@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cabinet Dentaire Dr. Martin — Visite Interactive</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#0D7D6C;--accent:#C9A84C;--dark:#0a1a18}
+html,body{font-family:'Inter',sans-serif;color:#fff;overflow-x:hidden;background:var(--dark)}
+
+/* ═══ VIDEO CONTAINER — FIXED, PLEIN ÉCRAN ═══ */
+.video-container{position:fixed;inset:0;z-index:1;overflow:hidden}
+.video-container video{width:100%;height:100%;object-fit:cover}
+.video-overlay{position:fixed;inset:0;z-index:2;pointer-events:none;background:rgba(10,26,24,.25);transition:background .3s}
+
+/* ═══ SCROLL SPACER — La hauteur totale détermine la durée de la vidéo ═══ */
+.scroll-spacer{position:relative;z-index:3;height:800vh;pointer-events:none}
+
+/* ═══ SECTIONS DE TEXTE — Apparaissent par-dessus la vidéo ═══ */
+.text-section{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:translateY(30px);transition:opacity .6s cubic-bezier(.16,1,.3,1),transform .6s cubic-bezier(.16,1,.3,1)}
+.text-section.visible{opacity:1;transform:translateY(0)}
+.text-section.exiting{opacity:0;transform:translateY(-30px)}
+
+.text-inner{max-width:700px;text-align:center;padding:0 24px;pointer-events:auto}
+
+/* ═══ TYPOGRAPHIE ═══ */
+.tag{display:inline-block;padding:8px 20px;border-radius:24px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:20px}
+.tag-glass{background:rgba(255,255,255,.08);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);color:var(--accent)}
+.tag-teal{background:rgba(13,125,108,.3);border:1px solid rgba(13,125,108,.4);color:#fff}
+.tag-gold{background:rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3);color:var(--accent)}
+
+h1{font-family:'Playfair Display',serif;font-size:clamp(40px,8vw,80px);font-weight:700;line-height:1.05;margin-bottom:16px;text-shadow:0 4px 30px rgba(0,0,0,.5)}
+h1 em{font-style:italic;color:var(--accent)}
+h2{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,52px);font-weight:700;line-height:1.1;margin-bottom:12px;text-shadow:0 4px 20px rgba(0,0,0,.4)}
+.subtitle{font-size:clamp(16px,2vw,20px);color:rgba(255,255,255,.7);line-height:1.7;max-width:520px;margin:0 auto 28px;text-shadow:0 2px 10px rgba(0,0,0,.3)}
+
+/* Stats */
+.stats{display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.stat{text-align:center}
+.stat-val{font-size:clamp(32px,4vw,52px);font-weight:900;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
+.stat-lbl{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.12em;margin-top:4px}
+
+/* Features cards */
+.features{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.feat-card{padding:20px 24px;background:rgba(255,255,255,.06);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:16px;text-align:center;min-width:140px;transition:transform .3s}
+.feat-card:hover{transform:translateY(-4px)}
+.feat-icon{font-size:28px;margin-bottom:8px}
+.feat-label{font-size:13px;font-weight:600}
+
+/* CTA */
+.cta-btn{display:inline-block;padding:18px 44px;background:var(--primary);color:#fff;font-size:17px;font-weight:700;border-radius:14px;text-decoration:none;transition:all .4s;box-shadow:0 8px 30px rgba(13,125,108,.35);margin-top:8px}
+.cta-btn:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(13,125,108,.5)}
+.cta-phone{display:block;margin-top:14px;font-size:28px;font-weight:900;color:var(--accent);text-decoration:none;text-shadow:0 2px 10px rgba(0,0,0,.3)}
+
+/* Progress bar en bas */
+.progress-bar{position:fixed;bottom:0;left:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--accent));z-index:100;width:0%;transition:width .1s linear}
+
+/* Scroll hint */
+.scroll-hint{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;align-items:center;gap:6px;opacity:1;transition:opacity .5s}
+.scroll-hint.hidden{opacity:0}
+.scroll-hint span{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.2em;text-transform:uppercase}
+.scroll-mouse{width:22px;height:34px;border:2px solid rgba(255,255,255,.3);border-radius:11px;position:relative}
+.scroll-mouse::after{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:3px;height:7px;background:rgba(255,255,255,.5);border-radius:2px;animation:mouseScroll 1.5s ease infinite}
+@keyframes mouseScroll{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(10px)}}
+
+/* Room dots */
+.room-dots{position:fixed;right:20px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:14px}
+.rdot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:all .3s}
+.rdot.active{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(201,168,76,.4);transform:scale(1.3)}
+
+/* Post-video content */
+.post-video{position:relative;z-index:20;background:var(--dark)}
+.pv-section{padding:80px 24px;max-width:1000px;margin:0 auto}
+.pv-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,40px);font-weight:700;margin-bottom:16px}
+.pv-text{color:rgba(255,255,255,.6);font-size:16px;line-height:1.8;max-width:600px}
+
+/* Services */
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:40px}
+.svc{padding:28px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;transition:all .4s cubic-bezier(.16,1,.3,1)}
+.svc:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.1);box-shadow:0 16px 40px rgba(0,0,0,.3)}
+.svc h3{font-size:17px;font-weight:700;margin:12px 0 6px}
+.svc p{font-size:13px;color:rgba(255,255,255,.5);line-height:1.6}
+.svc-icon{font-size:28px}
+
+/* Avis */
+.avis-row{display:flex;gap:16px;margin-top:32px;flex-wrap:wrap}
+.avis{flex:1;min-width:260px;padding:24px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px}
+.avis-stars{color:var(--accent);margin-bottom:8px;letter-spacing:2px}
+.avis q{font-size:14px;color:rgba(255,255,255,.6);line-height:1.7;display:block;margin-bottom:10px;font-style:italic}
+.avis cite{font-size:12px;font-weight:600;font-style:normal}
+
+.footer{text-align:center;padding:40px 24px;border-top:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.3);font-size:13px;position:relative;z-index:20;background:var(--dark)}
+.footer a{color:var(--accent);text-decoration:none}
+
+.reveal{opacity:0;transform:translateY(24px);transition:all .8s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:none}
+
+@media(max-width:768px){.room-dots{display:none}.features{flex-direction:column;align-items:center}}
+</style>
+</head>
+<body>
+
+<!-- ═══ VIDÉO FIXE EN FOND ═══ -->
+<div class="video-container">
+  <video id="scroll-video" muted playsinline preload="auto" poster="/studio/templates/demo-assets/generated-entree-cabinet.jpg">
+    <source src="/studio/generated/video-cabinet-walkthrough.mp4" type="video/mp4">
+  </video>
+</div>
+<div class="video-overlay" id="video-overlay"></div>
+
+<!-- ═══ BARRE DE PROGRESSION ═══ -->
+<div class="progress-bar" id="progress-bar"></div>
+
+<!-- ═══ SCROLL HINT ═══ -->
+<div class="scroll-hint" id="scroll-hint">
+  <span>Scrollez pour entrer</span>
+  <div class="scroll-mouse"></div>
+</div>
+
+<!-- ═══ ROOM DOTS ═══ -->
+<div class="room-dots" id="room-dots">
+  <div class="rdot active" data-section="0"></div>
+  <div class="rdot" data-section="1"></div>
+  <div class="rdot" data-section="2"></div>
+  <div class="rdot" data-section="3"></div>
+  <div class="rdot" data-section="4"></div>
+</div>
+
+<!-- ═══ SECTIONS TEXTE (par-dessus la vidéo) ═══ -->
+
+<!-- Section 0 : Entrée (0% - 20% du scroll) -->
+<div class="text-section" id="ts-0" data-start="0" data-end="0.18">
+  <div class="text-inner">
+    <div class="tag tag-glass">Bienvenue</div>
+    <h1>Cabinet Dentaire<br><em>Dr. Martin</em></h1>
+    <p class="subtitle">Poussez la porte et d&eacute;couvrez un espace de soins moderne, chaleureux et &eacute;quip&eacute; des derni&egrave;res technologies.</p>
+  </div>
+</div>
+
+<!-- Section 1 : Accueil (20% - 40%) -->
+<div class="text-section" id="ts-1" data-start="0.2" data-end="0.38">
+  <div class="text-inner">
+    <div class="tag tag-teal">Accueil</div>
+    <h2>Un accueil<br>personnalis&eacute;</h2>
+    <p class="subtitle">Notre &eacute;quipe vous re&ccedil;oit avec le sourire. Wifi, boissons, presse — d&eacute;tendez-vous, vous &ecirc;tes entre de bonnes mains.</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val">15</div><div class="stat-lbl">ans d'exp&eacute;rience</div></div>
+      <div class="stat"><div class="stat-val">8 000+</div><div class="stat-lbl">patients</div></div>
+      <div class="stat"><div class="stat-val">4.9</div><div class="stat-lbl">sur Google</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 2 : Salle de soin (40% - 60%) -->
+<div class="text-section" id="ts-2" data-start="0.4" data-end="0.58">
+  <div class="text-inner">
+    <div class="tag tag-gold">Technologies</div>
+    <h2>&Eacute;quipement de<br>derni&egrave;re g&eacute;n&eacute;ration</h2>
+    <p class="subtitle">Scanner 3D, cam&eacute;ra intra-orale, laser, chirurgie guid&eacute;e. Le meilleur de la technologie pour vos soins.</p>
+    <div class="features">
+      <div class="feat-card"><div class="feat-icon">&#x1F4F7;</div><div class="feat-label">Scanner 3D</div></div>
+      <div class="feat-card"><div class="feat-icon">&#x1F52C;</div><div class="feat-label">Cam&eacute;ra HD</div></div>
+      <div class="feat-card"><div class="feat-icon">&#x1F4A1;</div><div class="feat-label">Laser</div></div>
+      <div class="feat-card"><div class="feat-icon">&#x1F9B7;</div><div class="feat-label">CFAO</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 3 : Soins (60% - 80%) -->
+<div class="text-section" id="ts-3" data-start="0.6" data-end="0.78">
+  <div class="text-inner">
+    <div class="tag tag-teal">Nos soins</div>
+    <h2>Tous vos soins<br>au m&ecirc;me endroit</h2>
+    <p class="subtitle">Soins conservateurs, esth&eacute;tique, implantologie, orthodontie, p&eacute;diatrique, urgences — une prise en charge compl&egrave;te.</p>
+    <div class="features">
+      <div class="feat-card"><div class="feat-icon">&#x2728;</div><div class="feat-label">Esth&eacute;tique</div></div>
+      <div class="feat-card"><div class="feat-icon">&#x1FA7A;</div><div class="feat-label">Implants</div></div>
+      <div class="feat-card"><div class="feat-icon">&#x1F476;</div><div class="feat-label">Enfants</div></div>
+      <div class="feat-card"><div class="feat-icon">&#x1F6A8;</div><div class="feat-label">Urgences</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 4 : Contact (80% - 100%) -->
+<div class="text-section" id="ts-4" data-start="0.8" data-end="1">
+  <div class="text-inner">
+    <div class="tag tag-gold">Rendez-vous</div>
+    <h2>Prenez soin de<br>votre sourire</h2>
+    <p class="subtitle">Lundi &agrave; vendredi, 9h-19h. Rendez-vous en ligne 24h/24 ou par t&eacute;l&eacute;phone.</p>
+    <a href="#" class="cta-btn">Prendre rendez-vous</a>
+    <a href="tel:0320734512" class="cta-phone">03 20 73 45 12</a>
+  </div>
+</div>
+
+<!-- ═══ SCROLL SPACER (la hauteur = la durée du scroll) ═══ -->
+<div class="scroll-spacer" id="scroll-spacer"></div>
+
+<!-- ═══ CONTENU APRÈS LA VIDÉO ═══ -->
+<div class="post-video">
+  <!-- Services détaillés -->
+  <section class="pv-section reveal">
+    <div style="text-align:center;margin-bottom:48px">
+      <span class="tag tag-teal">D&eacute;tail des soins</span>
+      <h2 class="pv-title" style="margin-top:16px">Notre expertise &agrave; votre service</h2>
+    </div>
+    <div class="svc-grid">
+      <div class="svc reveal"><div class="svc-icon">&#x1F9B7;</div><h3>Soins conservateurs</h3><p>Caries, d&eacute;tartrage, blanchiment professionnel et soins pr&eacute;ventifs pour garder vos dents en pleine sant&eacute;.</p></div>
+      <div class="svc reveal"><div class="svc-icon">&#x2728;</div><h3>Esth&eacute;tique dentaire</h3><p>Facettes c&eacute;ramiques, couronnes tout-c&eacute;ramique, blanchiment. Votre sourire sur mesure.</p></div>
+      <div class="svc reveal"><div class="svc-icon">&#x1FA7A;</div><h3>Implantologie</h3><p>Implants titane, chirurgie guid&eacute;e 3D, proth&egrave;ses sur implants. Retrouvez votre sourire.</p></div>
+      <div class="svc reveal"><div class="svc-icon">&#x1F476;</div><h3>P&eacute;diatrique</h3><p>Soins adapt&eacute;s, ambiance ludique, pr&eacute;vention d&egrave;s le plus jeune &acirc;ge.</p></div>
+      <div class="svc reveal"><div class="svc-icon">&#x1F4A1;</div><h3>Orthodontie</h3><p>Aligneurs invisibles, bagues c&eacute;ramiques, suivi num&eacute;rique personnalis&eacute;.</p></div>
+      <div class="svc reveal"><div class="svc-icon">&#x1F6A8;</div><h3>Urgences</h3><p>Cr&eacute;neaux d'urgence chaque jour. Douleur, fracture, infection.</p></div>
+    </div>
+  </section>
+
+  <!-- Avis -->
+  <section class="pv-section reveal">
+    <div style="text-align:center;margin-bottom:16px">
+      <span class="tag tag-gold">Avis patients</span>
+      <h2 class="pv-title" style="margin-top:16px">Ils nous font confiance</h2>
+    </div>
+    <div class="avis-row">
+      <div class="avis reveal"><div class="avis-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><q>Cabinet exceptionnel. Aucune douleur, &eacute;quipe tr&egrave;s professionnelle. Je recommande.</q><cite>Marie D.</cite></div>
+      <div class="avis reveal"><div class="avis-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><q>Implant r&eacute;alis&eacute; en chirurgie guid&eacute;e. R&eacute;sultat parfait. Merci Dr Martin !</q><cite>Thomas L.</cite></div>
+      <div class="avis reveal"><div class="avis-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><q>Mes enfants adorent y aller. L'ambiance est rassurante et l'&eacute;quipe tr&egrave;s douce.</q><cite>Amira K.</cite></div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="pv-section reveal" style="text-align:center;padding-bottom:100px">
+    <span class="tag tag-teal">Informations pratiques</span>
+    <h2 class="pv-title" style="margin-top:16px">Nous trouver</h2>
+    <p class="pv-text" style="margin:0 auto 24px">12 rue de la Sant&eacute;, 59100 Roubaix<br>Lundi &agrave; vendredi : 9h00 - 19h00<br>T&eacute;l : 03 20 73 45 12 &mdash; contact@cabinet-martin.fr</p>
+    <a href="#" class="cta-btn">Prendre rendez-vous en ligne</a>
+  </section>
+
+  <footer class="footer">
+    Cabinet Dentaire Dr. Martin &mdash; 12 rue de la Sant&eacute;, 59100 Roubaix &mdash; Propuls&eacute; par <a href="https://jadomi.fr">JADOMI</a> &mdash; &copy; 2026
+  </footer>
+</div>
+
+<!-- ═══ SCRIPT — VIDÉO SYNCHRONISÉE AU SCROLL ═══ -->
+<script>
+(function() {
+  const video = document.getElementById('scroll-video');
+  const spacer = document.getElementById('scroll-spacer');
+  const overlay = document.getElementById('video-overlay');
+  const progressBar = document.getElementById('progress-bar');
+  const scrollHint = document.getElementById('scroll-hint');
+  const sections = document.querySelectorAll('.text-section');
+  const dots = document.querySelectorAll('.rdot');
+
+  let videoDuration = 0;
+  let ticking = false;
+
+  // Attendre que la vidéo soit chargée
+  video.addEventListener('loadedmetadata', () => {
+    videoDuration = video.duration;
+    video.currentTime = 0;
+    video.pause(); // On contrôle manuellement
+    console.log('[SCROLL-VIDEO] Durée:', videoDuration, 'sec');
+  });
+
+  // Force le chargement complet
+  video.load();
+
+  // ═══ SYNC SCROLL → VIDÉO ═══
+  function onScroll() {
+    if (!videoDuration) return;
+
+    const spacerRect = spacer.getBoundingClientRect();
+    const spacerTop = spacer.offsetTop;
+    const spacerHeight = spacer.offsetHeight - window.innerHeight;
+    const scrollY = window.scrollY;
+
+    // Progression dans le spacer (0 à 1)
+    const progress = Math.max(0, Math.min(1, scrollY / spacerHeight));
+
+    // Mapper sur la durée de la vidéo
+    const targetTime = progress * videoDuration;
+    video.currentTime = targetTime;
+
+    // Barre de progression
+    progressBar.style.width = (progress * 100) + '%';
+
+    // Cacher le scroll hint après 5%
+    scrollHint.classList.toggle('hidden', progress > 0.05);
+
+    // ═══ AFFICHER/MASQUER LES SECTIONS TEXTE ═══
+    sections.forEach((section, i) => {
+      const start = parseFloat(section.dataset.start);
+      const end = parseFloat(section.dataset.end);
+
+      if (progress >= start && progress <= end) {
+        // Dans la zone : visible
+        section.classList.add('visible');
+        section.classList.remove('exiting');
+      } else if (progress > end && progress < end + 0.05) {
+        // Juste après : sort vers le haut
+        section.classList.remove('visible');
+        section.classList.add('exiting');
+      } else {
+        // Hors zone
+        section.classList.remove('visible', 'exiting');
+      }
+    });
+
+    // ═══ DOTS NAVIGATION ═══
+    const activeSection = Math.min(4, Math.floor(progress * 5));
+    dots.forEach((d, i) => d.classList.toggle('active', i === activeSection));
+
+    // ═══ OVERLAY : plus sombre au début et à la fin ═══
+    let overlayOpacity = 0.25;
+    if (progress < 0.05) overlayOpacity = 0.4 - progress * 3; // Début : assombrir légèrement
+    if (progress > 0.9) overlayOpacity = 0.25 + (progress - 0.9) * 2; // Fin : assombrir
+    overlay.style.background = `rgba(10,26,24,${overlayOpacity})`;
+  }
+
+  // Throttle scroll avec requestAnimationFrame
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => { onScroll(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  // ═══ DOTS CLICK → SCROLL TO SECTION ═══
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.section);
+      const spacerHeight = spacer.offsetHeight - window.innerHeight;
+      const targetScroll = (idx / 5 + 0.02) * spacerHeight;
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    });
+  });
+
+  // ═══ REVEAL POUR POST-VIDEO ═══
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Init
+  onScroll();
+})();
+</script>
+</body>
+</html>

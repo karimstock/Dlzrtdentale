@@ -10,6 +10,7 @@ const { admin, requirePatient } = require('./shared');
 const router = express.Router();
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const { buildSystemPrompt, validateResponse } = require('../../lib/ai-studio/jadomi-brain');
 
 // =========================================================
 // POST /chat-ia/message — Patient pose une question a l'IA
@@ -94,25 +95,23 @@ router.post('/message', requirePatient(), async (req, res) => {
 
     const customPrompt = iaConfig?.ia_prompt_system || iaConfig?.prompt_system || '';
 
-    const systemPrompt = `Vous etes l'assistant IA du cabinet ${cabinet.nom} (${professionLabel}).
-Repondez aux questions des patients de maniere professionnelle et bienveillante.
-Vouvoyez toujours le patient. Pas d'emoji.
+    const systemPrompt = buildSystemPrompt('agenda', `Vous êtes l'assistant IA du cabinet ${cabinet.nom} (${professionLabel}).
 
 Informations du cabinet:
 ${knowledgeStr}
 
-Coordonnees:
-- Telephone: ${cabinet.telephone || 'Non renseigne'}
-- Email: ${cabinet.email || 'Non renseigne'}
-- Adresse: ${cabinet.adresse || 'Non renseignee'}
+Coordonnées:
+- Téléphone: ${cabinet.telephone || 'Non renseigné'}
+- Email: ${cabinet.email || 'Non renseigné'}
+- Adresse: ${cabinet.adresse || 'Non renseignée'}
 
-Si vous n'etes pas sur de la reponse (confiance < 70%), repondez:
-"[ESCALADE] Je ne suis pas en mesure de vous repondre avec certitude. Je transmets votre question a l'equipe du cabinet."
+Si vous n'êtes pas sûr de la réponse (confiance < 70%), répondez:
+"[ESCALADE] Je ne suis pas en mesure de vous répondre avec certitude. Je transmets votre question à l'équipe du cabinet."
 
-Ne donnez JAMAIS de diagnostic medical.
-Ne prescrivez JAMAIS de medicament.
+Ne donnez JAMAIS de diagnostic médical.
+Ne prescrivez JAMAIS de médicament.
 Orientez vers un RDV en cas de doute clinique.
-${customPrompt ? '\nInstructions supplementaires du cabinet:\n' + customPrompt : ''}`;
+${customPrompt ? '\nInstructions supplémentaires du cabinet:\n' + customPrompt : ''}`);
 
     // --- Appel Claude Haiku ---
     const claudeRes = await anthropic.messages.create({
