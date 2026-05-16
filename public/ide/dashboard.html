@@ -2682,11 +2682,12 @@ function _initJadomiMap() {
     if (window.maplibregl) { cb(); return; }
     var link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+    link.href = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css';
     document.head.appendChild(link);
     var script = document.createElement('script');
-    script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+    script.src = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js';
     script.onload = cb;
+    script.onerror = function() { showToast('Erreur chargement carte 3D'); };
     document.head.appendChild(script);
   }
 
@@ -2704,17 +2705,23 @@ function _initJadomiMap() {
     var existing = document.getElementById('jadomi-3d-map');
     if (existing) { if (window._glMap) { window._glMap.remove(); window._glMap = null; } existing.remove(); }
 
-    var tmBody = document.getElementById('tm-body');
-    var bodyRect = tmBody.getBoundingClientRect();
-
+    // Container plein écran avec dimensions window (pas parent)
     var gl3d = document.createElement('div');
     gl3d.id = 'jadomi-3d-map';
-    // Dimensions explicites en pixels pour que MapLibre puisse render
-    gl3d.style.cssText = 'position:absolute;top:0;left:0;width:' + bodyRect.width + 'px;height:' + bodyRect.height + 'px;z-index:1000';
-    tmBody.appendChild(gl3d);
+    gl3d.style.cssText = 'position:fixed;top:0;left:0;width:' + window.innerWidth + 'px;height:' + window.innerHeight + 'px;z-index:1000;background:#1a1a2e';
+    document.body.appendChild(gl3d);
 
-    // Petit délai pour que le DOM soit prêt
+    // Délai pour que le DOM soit prêt
     setTimeout(function() {
+      // Vérifier WebGL
+      var canvas = document.createElement('canvas');
+      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+        showToast('WebGL non disponible — retour carte standard');
+        _exit3DNav();
+        return;
+      }
+
       try {
         var glMap = new maplibregl.Map({
           container: 'jadomi-3d-map',
@@ -2724,13 +2731,17 @@ function _initJadomiMap() {
           pitch: 60,
           bearing: bearing,
           antialias: true,
-          attributionControl: false
+          attributionControl: false,
+          failIfMajorPerformanceCaveat: false
         });
 
         window._glMap = glMap;
 
-        // Navigation controls
         glMap.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right');
+
+        glMap.on('error', function(e) {
+          console.error('MapLibre error:', e.error);
+        });
 
         glMap.on('load', function() {
           // Tracer la route en bleu
@@ -2753,12 +2764,12 @@ function _initJadomiMap() {
             });
           }
 
-          // Marqueur destination (rouge pulsant)
+          // Marqueur destination
           var destEl = document.createElement('div');
           destEl.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#ef4444;border:4px solid #fff;box-shadow:0 0 0 4px rgba(239,68,68,.4),0 2px 16px rgba(239,68,68,.5)';
           new maplibregl.Marker({ element: destEl }).setLngLat([toLng, toLat]).addTo(glMap);
 
-          // Marqueur GPS flèche bleue (position actuelle)
+          // Marqueur GPS flèche bleue
           var gpsEl = document.createElement('div');
           gpsEl.id = 'gl-gps-marker';
           gpsEl.style.cssText = 'width:24px;height:24px;position:relative';
@@ -2766,14 +2777,26 @@ function _initJadomiMap() {
           window._glGpsMarker = new maplibregl.Marker({ element: gpsEl, rotationAlignment: 'map' })
             .setLngLat([fromLng, fromLat])
             .addTo(glMap);
+
+          // Forcer un resize pour être sûr
+          glMap.resize();
         });
+
+        // Timeout : si la carte charge pas en 8s, fallback
+        setTimeout(function() {
+          if (window._glMap && !window._glMap.loaded()) {
+            console.warn('MapLibre timeout — fallback Leaflet');
+            _exit3DNav();
+            showToast('Carte 3D trop lente — retour carte standard');
+          }
+        }, 8000);
+
       } catch(e) {
         console.error('MapLibre init error:', e);
-        // Fallback : réafficher Leaflet
         _exit3DNav();
-        showToast('Erreur carte 3D, retour carte standard');
+        showToast('Erreur carte 3D : ' + e.message);
       }
-    }, 100);
+    }, 150);
   }
 
   function _exit3DNav() {
@@ -2783,6 +2806,8 @@ function _initJadomiMap() {
     if (window._glMap) { try { window._glMap.remove(); } catch(e) {} window._glMap = null; }
     var gl3d = document.getElementById('jadomi-3d-map');
     if (gl3d) gl3d.remove();
+    // Supprimer le panneau d'instructions s'il existe
+    if (window._navInfoPanel) { window._navInfoPanel.remove(); window._navInfoPanel = null; }
     // Réafficher Leaflet + bottom sheet
     var leafletEl = document.getElementById('jadomi-tournee-map');
     if (leafletEl) leafletEl.style.visibility = 'visible';
@@ -2853,7 +2878,7 @@ function _initJadomiMap() {
           if (window._navInfoPanel) window._navInfoPanel.remove();
           var infoPanel = document.createElement('div');
           var mob = window.innerWidth < 768;
-          infoPanel.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:1200;background:linear-gradient(180deg,rgba(26,26,46,.97) 0%,rgba(26,26,46,.85) 100%);backdrop-filter:blur(20px);padding:' + (mob ? '16px 14px' : '20px 24px') + ';color:#fff';
+          infoPanel.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:1200;background:linear-gradient(180deg,rgba(26,26,46,.97) 0%,rgba(26,26,46,.85) 100%);backdrop-filter:blur(20px);padding:' + (mob ? '16px 14px' : '20px 24px') + ';color:#fff';
           infoPanel.innerHTML =
             '<div style="display:flex;align-items:center;gap:16px">' +
               '<div style="flex-shrink:0;width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:28px">' + stepIcon + '</div>' +
@@ -2873,7 +2898,7 @@ function _initJadomiMap() {
               (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#4ade80">' + patientName + '</span>' : '') +
               '<button onclick="stopNavigation()" style="margin-left:' + (patientName ? '8px' : 'auto') + ';padding:6px 14px;background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Arr\u00eater</button>' +
             '</div>';
-          document.getElementById('tm-body').appendChild(infoPanel);
+          document.body.appendChild(infoPanel);
           window._navInfoPanel = infoPanel;
         });
       })
