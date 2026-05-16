@@ -12836,6 +12836,109 @@ process.on('uncaughtException', (err) => {
 });
 
 // =============================================
+// SUIVI PATIENT TEMPS RÉEL (Uber-like)
+// =============================================
+
+// GET position live de l'infirmier pour le patient (accès via token unique)
+app.get('/api/ide/visite/:id/tracking-live', rateLimit({ windowMs: 60000, max: 30 }), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const visiteId = req.params.id;
+    const token = req.query.token;
+    if (!token || typeof token !== 'string' || token.length > 200) return res.status(401).json({ error: 'Token requis.' });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(visiteId)) {
+      return res.status(400).json({ error: 'ID invalide.' });
+    }
+
+    const { data: visite, error } = await db.from('ide_visites')
+      .select('id, nurse_id, status, tracking_token, patient_name, soin, heure, lat, lng')
+      .eq('id', visiteId).single();
+    if (error || !visite) return res.status(404).json({ error: 'Visite non trouvée.' });
+
+    // Vérification token
+    if (!visite.tracking_token || token !== visite.tracking_token) {
+      return res.status(403).json({ error: 'Token invalide.' });
+    }
+
+    // Infos infirmier
+    const { data: nurse } = await db.from('ide_nurses').select('prenom, lat, lng, last_position_at').eq('id', visite.nurse_id).single();
+
+    // Calculer ETA si on a la position de l'infirmier et du patient
+    let etaMinutes = null;
+    let nurseLat = nurse ? nurse.lat : null;
+    let nurseLng = nurse ? nurse.lng : null;
+
+    if (nurseLat && nurseLng && visite.lat && visite.lng) {
+      // Distance approximative en km
+      const dLat = (visite.lat - nurseLat) * 111.32;
+      const dLng = (visite.lng - nurseLng) * 111.32 * Math.cos(nurseLat * Math.PI / 180);
+      const distKm = Math.sqrt(dLat * dLat + dLng * dLng);
+      etaMinutes = Math.max(1, Math.round(distKm / 0.5)); // ~30km/h en ville
+    }
+
+    res.json({
+      ok: true,
+      nurse_name: nurse ? nurse.prenom : 'Votre infirmier(e)',
+      nurse_lat: nurseLat,
+      nurse_lng: nurseLng,
+      patient_lat: visite.lat,
+      patient_lng: visite.lng,
+      status: visite.status,
+      soin: visite.soin,
+      heure: visite.heure,
+      eta_minutes: etaMinutes
+    });
+  } catch (e) {
+    console.error('[Tracking Live] Error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// GET démo suivi patient (pour tester sans vraie visite)
+app.get('/api/ide/visite/demo/tracking-live', (req, res) => {
+  // Simule une infirmière en route vers un patient à Roubaix
+  const nurseLat = 50.6912 + (Math.random() - 0.5) * 0.005;
+  const nurseLng = 3.1746 + (Math.random() - 0.5) * 0.005;
+  res.json({
+    ok: true,
+    nurse_name: 'Fatima',
+    nurse_lat: nurseLat,
+    nurse_lng: nurseLng,
+    patient_lat: 50.6920,
+    patient_lng: 3.1760,
+    status: 'en_route',
+    soin: 'Insuline',
+    heure: '08:30',
+    eta_minutes: Math.floor(Math.random() * 8) + 2
+  });
+});
+
+// POST patient signale son absence
+app.post('/api/ide/visite/:id/patient-absent', async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const visiteId = req.params.id;
+    const { token } = req.body;
+    if (!token) return res.status(401).json({ error: 'Token requis.' });
+
+    const { data: visite, error } = await db.from('ide_visites')
+      .select('id, tracking_token, nurse_id')
+      .eq('id', visiteId).single();
+    if (error || !visite) return res.status(404).json({ error: 'Visite non trouvée.' });
+    if (!visite.tracking_token || token !== visite.tracking_token) {
+      return res.status(403).json({ error: 'Token invalide.' });
+    }
+
+    // Marquer la visite comme patient absent
+    await db.from('ide_visites').update({ status: 'patient_absent', patient_absent_at: new Date().toISOString() }).eq('id', visiteId);
+
+    res.json({ ok: true, message: 'Absence signalée.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// =============================================
 // ALERTES ROUTE COMMUNAUTAIRES (style Waze)
 // =============================================
 
