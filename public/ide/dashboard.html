@@ -2237,7 +2237,7 @@ function _launchWithApp(app) {
     _showJadomiMap();
   } else {
     // Waze ou Google Maps — ouvrir dans un nouvel onglet
-    var firstIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    var firstIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
     if (firstIdx >= 0) {
       var first = _tourneeVisites[firstIdx];
       var url = _tourneeNavApp === 'waze' ? _wazeUrl(first) : _gmapsUrl(first);
@@ -2443,15 +2443,35 @@ function _initJadomiMap() {
   }
 
   // ── Bottom Sheet style Waze ──
+  // ── Style nom patient selon statut notif/absence ──
+  // v.notif_viewed = true/false (le patient a ouvert le lien de suivi)
+  // v.statut = 'absent' (marqué absent)
+  function _patientNameHtml(v) {
+    var name = esc(v.patient);
+    if (v.statut === 'absent') {
+      // Barré + croix rouge
+      return '<span style="text-decoration:line-through;color:#ef4444">' + name + ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" style="vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>';
+    }
+    if (v.statut === 'termine') {
+      return '<span style="color:#22c55e">' + name + ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" style="vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg></span>';
+    }
+    if (v.notif_viewed) {
+      // Vert = a ouvert la notif
+      return '<span style="color:#10b981" title="A vu la notification">' + name + ' <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;vertical-align:middle"></span></span>';
+    }
+    // Rouge = pas encore vu la notif
+    return '<span style="color:#f59e0b" title="N\'a pas encore vu la notification">' + name + ' <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;vertical-align:middle"></span></span>';
+  }
+
   function _updateBottomSheet() {
     var existing = document.getElementById('jadomi-bottom-sheet');
     if (existing) existing.remove();
 
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
     var current = currentIdx >= 0 ? _tourneeVisites[currentIdx] : null;
-    var nextIdx = _tourneeVisites.findIndex(function(v, i) { return i > currentIdx && v.statut !== 'termine'; });
+    var nextIdx = _tourneeVisites.findIndex(function(v, i) { return i > currentIdx && v.statut !== 'termine' && v.statut !== 'absent'; });
     var next = nextIdx >= 0 ? _tourneeVisites[nextIdx] : null;
-    var doneCount = _tourneeVisites.filter(function(v) { return v.statut === 'termine'; }).length;
+    var doneCount = _tourneeVisites.filter(function(v) { return v.statut === 'termine' || v.statut === 'absent'; }).length;
     var totalCount = _tourneeVisites.length;
     var remaining = totalCount - doneCount;
 
@@ -2459,7 +2479,7 @@ function _initJadomiMap() {
     var legInfo = window._jadomiLegs && window._jadomiLegs.length > 0 ? window._jadomiLegs[0] : null;
     // Chercher le leg correspondant au patient courant
     if (window._jadomiLegs && currentIdx >= 0) {
-      var pending = _tourneeVisites.filter(function(v) { return v.statut !== 'termine'; });
+      var pending = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
       var pendingIdx = pending.indexOf(current);
       if (pendingIdx > 0 && window._jadomiLegs[pendingIdx - 1]) {
         legInfo = window._jadomiLegs[pendingIdx - 1];
@@ -2510,7 +2530,7 @@ function _initJadomiMap() {
       html += '<div style="display:flex;align-items:center;gap:14px">' +
         '<div style="flex-shrink:0;width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#0d9488,#0d7d6c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800">' + (currentIdx + 1) + '</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:' + (mob ? '15' : '16') + 'px;font-weight:800;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(current.patient) + '</div>' +
+          '<div style="font-size:' + (mob ? '15' : '16') + 'px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _patientNameHtml(current) + '</div>' +
           '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">' +
             '<span style="font-size:12px;font-weight:700;color:#0d9488">' + current.heure + '</span>' +
             '<span style="font-size:12px;color:#6b7280">' + soinLabel(current.soin) + '</span>' +
@@ -2529,7 +2549,7 @@ function _initJadomiMap() {
       if (next) {
         var nextLeg = null;
         if (window._jadomiLegs) {
-          var pendingList = _tourneeVisites.filter(function(v) { return v.statut !== 'termine'; });
+          var pendingList = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
           var nextPendIdx = pendingList.indexOf(next);
           if (nextPendIdx > 0 && window._jadomiLegs[nextPendIdx - 1]) nextLeg = window._jadomiLegs[nextPendIdx - 1];
         }
@@ -2539,7 +2559,7 @@ function _initJadomiMap() {
           '<div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#6366f1">' + (nextIdx + 1) + '</div>' +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:600;color:#1a1a2e;display:flex;align-items:center;gap:6px">' +
-              '<span style="color:#9ca3af;font-size:11px;font-weight:400">Ensuite</span> ' + esc(next.patient) +
+              '<span style="color:#9ca3af;font-size:11px;font-weight:400">Ensuite</span> ' + _patientNameHtml(next) +
             '</div>' +
             '<div style="font-size:11px;color:#9ca3af">' + next.heure + ' — ' + soinLabel(next.soin) +
               (nDist ? ' — <span style="color:#6366f1;font-weight:600">' + nDist + ' &middot; ' + nDur + '</span>' : '') +
@@ -2590,13 +2610,14 @@ function _initJadomiMap() {
 
     _tourneeVisites.forEach(function(v, i) {
       var isDone = v.statut === 'termine';
-      var isCurrent = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine'; }) === i;
-      var cls = isDone ? 'jmap-leg-done' : (isCurrent ? 'jmap-leg-active' : 'jmap-leg');
+      var isAbsent = v.statut === 'absent';
+      var isCurrent = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; }) === i;
+      var cls = (isDone || isAbsent) ? 'jmap-leg-done' : (isCurrent ? 'jmap-leg-active' : 'jmap-leg');
 
       // Trouver le leg correspondant
       var legDist = '';
       if (window._jadomiLegs && i > 0) {
-        var pending = _tourneeVisites.filter(function(x) { return x.statut !== 'termine'; });
+        var pending = _tourneeVisites.filter(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; });
         var pidx = pending.indexOf(v);
         if (pidx > 0 && window._jadomiLegs[pidx - 1]) {
           var lg = window._jadomiLegs[pidx - 1];
@@ -2606,11 +2627,11 @@ function _initJadomiMap() {
 
       html += '<div class="' + cls + '" onclick="' + (v.lat && v.lng ? 'window._jadomiMap.flyTo([' + v.lat + ',' + v.lng + '],16)' : '') + '" style="margin-bottom:2px;border-radius:8px">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
-          '<div style="width:28px;height:28px;border-radius:50%;background:' + (isDone ? '#22c55e' : (isCurrent ? '#0d9488' : 'rgba(0,0,0,.08)')) + ';color:' + (isDone || isCurrent ? '#fff' : '#666') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' +
-            (isDone ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : (i + 1)) +
+          '<div style="width:28px;height:28px;border-radius:50%;background:' + (isAbsent ? '#ef4444' : (isDone ? '#22c55e' : (isCurrent ? '#0d9488' : 'rgba(0,0,0,.08)'))) + ';color:' + (isDone || isCurrent || isAbsent ? '#fff' : '#666') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' +
+            (isAbsent ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' : (isDone ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : (i + 1))) +
           '</div>' +
           '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:13px;font-weight:' + (isCurrent ? '700' : '600') + ';color:#1a1a2e">' + esc(v.patient) + '</div>' +
+            '<div style="font-size:13px;font-weight:' + (isCurrent ? '700' : '600') + '">' + _patientNameHtml(v) + '</div>' +
             '<div style="font-size:11px;color:#9ca3af">' + v.heure + ' — ' + soinLabel(v.soin) + ' — ' + (v.duree||15) + ' min</div>' +
             (legDist ? '<div style="font-size:10px;color:#3b82f6;font-weight:600;margin-top:2px">' + legDist + '</div>' : '') +
           '</div>' +
@@ -3305,7 +3326,7 @@ function _initJadomiMap() {
         if (typeof stopIdx === 'number' && _tourneeVisites[stopIdx]) {
           patientName = _tourneeVisites[stopIdx].patient || '';
         }
-        var remaining = _tourneeVisites.filter(function(v) { return v.statut !== 'termine'; }).length;
+        var remaining = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; }).length;
 
         // Lancer le mode navigation Leaflet (zoom rue + route + simulation GPS)
         _enterNavMode(from.lat, from.lng, lat, lng, coords);
@@ -3357,11 +3378,12 @@ function _initJadomiMap() {
             '<div style="display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M12 2a8 8 0 00-8 8c0 5.4 7 12 8 12s8-6.6 8-12a8 8 0 00-8-8z"/><circle cx="12" cy="10" r="3"/></svg><span style="font-size:13px;font-weight:700;color:#4ade80">Arriv\u00e9e ' + etaStr + '</span></div>' +
             (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#0d9488">' + patientName + '</span>' : '') +
           '</div>' +
-          // Ligne 3 : boutons ARRIVÉ + SUIVANT + compteur
-          '<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
-            '<button onclick="_onArrived()" style="flex:1;padding:12px;background:#10b981;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Arriv\u00e9</button>' +
-            '<button onclick="_onNext()" style="flex:1;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Suivant</button>' +
-            '<div style="text-align:center;padding:8px 12px;background:rgba(255,255,255,.1);border-radius:10px;flex-shrink:0"><div style="font-size:18px;font-weight:900;color:#fff">' + remaining + '</div><div style="font-size:9px;color:rgba(255,255,255,.5)">restant' + (remaining > 1 ? 's' : '') + '</div></div>' +
+          // Ligne 3 : boutons ARRIVÉ + ABSENT + SUIVANT + compteur
+          '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+            '<button onclick="_onArrived()" style="flex:1;padding:' + (mob?'10':'12') + 'px;background:#10b981;color:#fff;border:none;border-radius:12px;font-size:' + (mob?'12':'14') + 'px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Arriv\u00e9</button>' +
+            '<button onclick="_onAbsent()" style="padding:' + (mob?'10':'12') + 'px;background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:12px;font-size:' + (mob?'11':'12') + 'px;font-weight:700;cursor:pointer;white-space:nowrap">Absent</button>' +
+            '<button onclick="_onNext()" style="flex:1;padding:' + (mob?'10':'12') + 'px;background:#3b82f6;color:#fff;border:none;border-radius:12px;font-size:' + (mob?'12':'14') + 'px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Suivant</button>' +
+            '<div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.1);border-radius:10px;flex-shrink:0"><div style="font-size:16px;font-weight:900;color:#fff">' + remaining + '</div><div style="font-size:8px;color:rgba(255,255,255,.5)">restant' + (remaining > 1 ? 's' : '') + '</div></div>' +
           '</div>';
         mapDiv.appendChild(infoPanel);
         window._navInfoPanel = infoPanel;
@@ -3371,7 +3393,7 @@ function _initJadomiMap() {
 
   // ── ARRIVÉ : enregistre preuve GPS + affiche confirmation ──
   window._onArrived = function() {
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
     if (currentIdx < 0) return;
     var v = _tourneeVisites[currentIdx];
 
@@ -3423,7 +3445,7 @@ function _initJadomiMap() {
     showToast('\u2705 Arriv\u00e9 chez ' + v.patient + ' \u2014 preuve GPS enregistr\u00e9e');
 
     // Checker s'il reste des patients
-    var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine'; });
+    var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; });
     if (nextIdx < 0) {
       // Tournée terminée !
       stopNavigation();
@@ -3431,16 +3453,48 @@ function _initJadomiMap() {
     }
   };
 
+  // ── CLIENT ABSENT : marquer le patient comme absent et passer au suivant ──
+  window._onAbsent = function() {
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    if (currentIdx < 0) return;
+    var v = _tourneeVisites[currentIdx];
+
+    v.statut = 'absent';
+    var dv = DEMO_VISITES.find(function(x) { return x.id === v.id; });
+    if (dv) dv.statut = 'absent';
+
+    // Sauvegarder en base
+    if (navigator.onLine) {
+      apiFetch('/api/ide/visite/' + v.id + '/status', { method: 'PATCH', body: JSON.stringify({ statut: 'absent' }) });
+    } else {
+      _queueOffline('/api/ide/visite/' + v.id + '/status', { statut: 'absent' });
+    }
+
+    // Mettre à jour le marqueur (croix rouge barrée)
+    if (window._jadomiMarkers && window._jadomiMarkers[currentIdx] && window.L) {
+      window._jadomiMarkers[currentIdx].setIcon(L.divIcon({
+        className: '',
+        html: '<div style="width:40px;height:40px;border-radius:50%;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,.4)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>',
+        iconSize: [40, 40], iconAnchor: [20, 20]
+      }));
+    }
+
+    showToast('\u274C ' + v.patient + ' \u2014 marqu\u00e9 absent, passage au suivant');
+
+    // Passer au suivant automatiquement
+    setTimeout(function() { _onNext(); }, 500);
+  };
+
   // ── SUIVANT : passer au patient suivant automatiquement ──
   window._onNext = function() {
     // D'abord marquer comme arrivé si pas déjà fait
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
     if (currentIdx >= 0 && _tourneeVisites[currentIdx].statut !== 'termine') {
       _onArrived();
     }
 
     // Naviguer vers le suivant
-    var nextIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    var nextIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
     if (nextIdx >= 0) {
       var next = _tourneeVisites[nextIdx];
       if (next.lat && next.lng) {
@@ -3564,7 +3618,7 @@ function renderTourneeSteps() {
   document.getElementById('tm-progress').textContent = doneCount + '/' + total + ' terminée' + (doneCount > 1 ? 's' : '') + ' — ' + (total - doneCount) + ' restante' + ((total - doneCount) > 1 ? 's' : '');
 
   // Trouver la première visite non terminée
-  var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+  var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
 
   // UN SEUL stop pharmacie — regrouper TOUS les traitements chroniques
   var allPharmaPatients = [];
@@ -3723,7 +3777,7 @@ async function markTourneeStepDone(idx) {
   }
 
   // Navigation suivante IMMÉDIATE
-  var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine'; });
+  var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; });
   if (nextIdx >= 0) {
     var next = _tourneeVisites[nextIdx];
     // Check-in arrivée silencieux pour le prochain patient
