@@ -2277,8 +2277,22 @@ function _showJadomiMap() {
     document.head.appendChild(link);
     var script = document.createElement('script');
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = function() { _initJadomiMap(); };
+    script.onload = function() {
+      // Charger leaflet-rotate pour pouvoir tourner la carte avec le bearing
+      var rotateScript = document.createElement('script');
+      rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/leaflet-rotate-src.js';
+      rotateScript.onload = function() { _initJadomiMap(); };
+      rotateScript.onerror = function() { _initJadomiMap(); }; // fallback sans rotation
+      document.head.appendChild(rotateScript);
+    };
     document.head.appendChild(script);
+  } else if (!L.Map.prototype.setBearing) {
+    // Leaflet déjà chargé mais pas le plugin rotate
+    var rotateScript = document.createElement('script');
+    rotateScript.src = 'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/leaflet-rotate-src.js';
+    rotateScript.onload = function() { _initJadomiMap(); };
+    rotateScript.onerror = function() { _initJadomiMap(); };
+    document.head.appendChild(rotateScript);
   } else {
     _initJadomiMap();
   }
@@ -2305,7 +2319,10 @@ function _initJadomiMap() {
   var firstActive = _tourneeVisites.find(function(v) { return v.statut !== 'termine' && v.lat && v.lng; });
   var center = firstActive ? [firstActive.lat, firstActive.lng] : [50.6920, 3.1700];
 
-  var map = L.map('jadomi-tournee-map', { zoomControl: false }).setView(center, 14);
+  // Activer la rotation si le plugin est dispo
+  var mapOpts = { zoomControl: false };
+  if (L.Map.prototype.setBearing) mapOpts.rotate = true;
+  var map = L.map('jadomi-tournee-map', mapOpts).setView(center, 14);
   L.control.zoom({ position: 'topright' }).addTo(map);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '', maxZoom: 19, subdomains: 'abcd'
@@ -2630,19 +2647,47 @@ function _initJadomiMap() {
         if (window._navFollowing) {
           map.setView([lat, lng], Math.max(map.getZoom(), 16), { animate: true });
         }
-        if (window._lastGpsPos) {
+        // Heading natif (iPhone donne la direction via le GPS)
+        var heading = pos.coords.heading;
+        var speed = pos.coords.speed; // m/s
+
+        // Si pas de heading natif, calculer à partir du mouvement
+        if ((heading === null || heading === undefined || isNaN(heading)) && window._lastGpsPos) {
           var dLng = lng - window._lastGpsPos.lng;
           var dLat = lat - window._lastGpsPos.lat;
           if (Math.abs(dLng) > 0.00001 || Math.abs(dLat) > 0.00001) {
-            var heading = Math.atan2(dLng, dLat) * 180 / Math.PI;
-            var gpsDot = gpsMarker.getElement();
-            if (gpsDot) gpsDot.style.transform = 'rotate(' + heading + 'deg)';
-            // En mode navigation : suivre la position sur la carte
-            if (window._navActive && window._navFollowing) {
-              map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
-            }
+            heading = _calcBearing(window._lastGpsPos.lat, window._lastGpsPos.lng, lat, lng);
           }
         }
+
+        // Tourner le marqueur GPS
+        if (heading !== null && heading !== undefined && !isNaN(heading)) {
+          var gpsDot = gpsMarker.getElement();
+          if (gpsDot) gpsDot.style.transform = 'rotate(' + heading + 'deg)';
+        }
+
+        // En mode navigation : tourner la carte + suivre la position
+        if (window._navActive && window._navFollowing) {
+          if (heading !== null && heading !== undefined && !isNaN(heading) && map.setBearing) {
+            // TOURNER LA CARTE dans la direction du déplacement (comme Waze)
+            map.setBearing(heading);
+          }
+          map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
+
+          // Indicateur de vitesse
+          if (speed !== null && speed !== undefined && speed > 0) {
+            var kmh = Math.round(speed * 3.6);
+            var speedEl = document.getElementById('jadomi-speed');
+            if (!speedEl) {
+              speedEl = document.createElement('div');
+              speedEl.id = 'jadomi-speed';
+              speedEl.style.cssText = 'position:absolute;bottom:20px;right:16px;z-index:1100;width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.8);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
+              mapDiv.appendChild(speedEl);
+            }
+            speedEl.innerHTML = '<div style="font-size:22px;font-weight:900;line-height:1">' + kmh + '</div><div style="font-size:9px;opacity:.6">km/h</div>';
+          }
+        }
+
         window._lastGpsPos = { lat: lat, lng: lng };
       }
     }, function(err) {
@@ -2690,7 +2735,11 @@ function _initJadomiMap() {
       })
     }).addTo(map);
 
-    // Zoom sur le départ au niveau rue
+    // Calculer le bearing initial vers la destination
+    var initBearing = _calcBearing(fromLat, fromLng, toLat, toLng);
+
+    // Tourner la carte dans la direction de la destination + zoom rue
+    if (map.setBearing) map.setBearing(initBearing);
     map.setView([fromLat, fromLng], 18, { animate: true, duration: 0.8 });
 
     // Simulation GPS si pas de géoloc (desktop)
@@ -2699,10 +2748,15 @@ function _initJadomiMap() {
 
   function _exitNavMode() {
     window._navActive = false;
+    // Remettre la carte au nord
+    if (map.setBearing) map.setBearing(0);
     // Arrêter simulation GPS
     if (window._simGpsInterval) { clearInterval(window._simGpsInterval); window._simGpsInterval = null; }
     var simBadge = document.getElementById('sim-gps-badge');
     if (simBadge) simBadge.remove();
+    // Supprimer indicateur vitesse
+    var speedEl = document.getElementById('jadomi-speed');
+    if (speedEl) speedEl.remove();
     // Nettoyer route et marqueurs
     if (window._navInfoPanel) { window._navInfoPanel.remove(); window._navInfoPanel = null; }
     if (window._navDestMarker) { map.removeLayer(window._navDestMarker); window._navDestMarker = null; }
@@ -2769,7 +2823,8 @@ function _initJadomiMap() {
         var arrow = document.getElementById('sim-gps-arrow');
         if (arrow) arrow.style.transform = 'rotate(' + bearing + 'deg)';
 
-        // Centrer la carte (suivre le mouvement)
+        // TOURNER LA CARTE dans la direction du mouvement + suivre
+        if (map.setBearing) map.setBearing(bearing);
         map.setView(cur, 18, { animate: true, duration: 0.08 });
       }, speed);
     }
