@@ -2861,8 +2861,20 @@ function _initJadomiMap() {
         if (gpsDot) gpsDot.style.transform = 'rotate(' + heading + 'deg)';
       }
 
-      // En mode navigation : tourner la carte + suivre la position
-      if (window._navActive && window._navFollowing) {
+      // En mode 3D MapLibre : bouger marqueur + tourner carte nativement
+      if (window._glNavActive && window._glMap && window._glCarMarker) {
+        var snap3d = _snapToRoute(lat, lng);
+        window._glCarMarker.setLngLat([snap3d.lng, snap3d.lat]);
+        if (heading !== null && heading !== undefined && !isNaN(heading)) {
+          window._glCarMarker.setRotation(heading);
+          window._glMap.easeTo({ center: [snap3d.lng, snap3d.lat], bearing: heading, pitch: 55, zoom: 17, duration: 800 });
+        } else {
+          window._glMap.easeTo({ center: [snap3d.lng, snap3d.lat], duration: 500 });
+        }
+      }
+
+      // En mode Leaflet : suivre la position
+      if (window._navActive && window._navFollowing && !window._glNavActive) {
         // Mettre à jour l'icône GPS en voiture si pas encore fait
         if (gpsMarker && !window._gpsIsNursCar) {
           gpsMarker.setIcon(L.divIcon({
@@ -2958,29 +2970,158 @@ function _initJadomiMap() {
   }
 
   // ── Mode navigation Leaflet (zoom rue + suivi + simulation GPS desktop) ──
+  // ── Charger MapLibre pour la navigation 3D ──
+  function _loadMapLibreNav(cb) {
+    if (window.maplibregl) { cb(); return; }
+    var link = document.createElement('link'); link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css'; document.head.appendChild(link);
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js';
+    s.onload = cb;
+    s.onerror = function() { window._maplibreFailed = true; cb(); };
+    document.head.appendChild(s);
+  }
+
   function _enterNavMode(fromLat, fromLng, toLat, toLng, routeCoords) {
     window._navActive = true;
-    window._navExtras = []; // marqueurs/layers supplémentaires à nettoyer
+    window._navExtras = [];
 
     // Cacher le bottom sheet
     var sheet = document.getElementById('jadomi-bottom-sheet');
     if (sheet) sheet.style.display = 'none';
 
-    // ── Route avec flèches directionnelles ──
+    // Tenter MapLibre 3D (pitch + bearing natifs, zero lag)
+    _loadMapLibreNav(function() {
+      if (window.maplibregl && !window._maplibreFailed) {
+        _enterNavMode3D(fromLat, fromLng, toLat, toLng, routeCoords);
+      } else {
+        // Fallback Leaflet (pas de 3D, mais fonctionne partout)
+        _enterNavModeLeaflet(fromLat, fromLng, toLat, toLng, routeCoords);
+      }
+    });
+  }
+
+  // ── NAVIGATION MAPLIBRE 3D (pitch 60° + bearing + rotation fluide) ──
+  function _enterNavMode3D(fromLat, fromLng, toLat, toLng, routeCoords) {
+    var bearing = _calcBearing(fromLat, fromLng, toLat, toLng);
+
+    // Cacher Leaflet
+    var leafletEl = document.getElementById('jadomi-tournee-map');
+    if (leafletEl) leafletEl.style.visibility = 'hidden';
+
+    // Container MapLibre plein écran
+    var existing = document.getElementById('jadomi-3d-nav');
+    if (existing) existing.remove();
+    var gl = document.createElement('div');
+    gl.id = 'jadomi-3d-nav';
+    gl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:800;background:#1a1a2e';
+    document.getElementById('tm-body').appendChild(gl);
+
+    // MapLibre avec tuiles RASTER (mêmes que Leaflet = garantie de marcher)
+    try {
+      var glMap = new maplibregl.Map({
+        container: 'jadomi-3d-nav',
+        style: {
+          version: 8,
+          sources: {
+            'carto': {
+              type: 'raster',
+              tiles: ['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'],
+              tileSize: 256,
+              maxzoom: 19
+            }
+          },
+          layers: [{ id: 'carto-tiles', type: 'raster', source: 'carto' }]
+        },
+        center: [fromLng, fromLat],
+        zoom: 17,
+        pitch: 55,
+        bearing: bearing,
+        antialias: true,
+        attributionControl: false,
+        failIfMajorPerformanceCaveat: false
+      });
+
+      window._glMap = glMap;
+      window._glNavActive = true;
+
+      glMap.on('load', function() {
+        // Route
+        glMap.addSource('route', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords.map(function(c) { return [c[1], c[0]]; }) } }
+        });
+        glMap.addLayer({ id: 'route-shadow', type: 'line', source: 'route',
+          paint: { 'line-color': '#1e40af', 'line-width': 12, 'line-opacity': 0.2, 'line-blur': 2 } });
+        glMap.addLayer({ id: 'route-line', type: 'line', source: 'route',
+          paint: { 'line-color': '#3b82f6', 'line-width': 7, 'line-opacity': 0.9 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' } });
+
+        // Marqueur destination
+        var destEl = document.createElement('div');
+        destEl.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#ef4444;border:4px solid #fff;box-shadow:0 0 0 4px rgba(239,68,68,.4)';
+        new maplibregl.Marker({ element: destEl }).setLngLat([toLng, toLat]).addTo(glMap);
+
+        // Marqueur GPS voiture
+        var carEl = document.createElement('div');
+        carEl.id = 'gl-nav-car';
+        carEl.innerHTML = _nursCarSvg;
+        carEl.style.cssText = 'transition:transform .3s ease';
+        window._glCarMarker = new maplibregl.Marker({ element: carEl, rotationAlignment: 'map' })
+          .setLngLat([fromLng, fromLat]).addTo(glMap);
+
+        // Card patient à la destination
+        if (typeof window._navStopIdx === 'number' && _tourneeVisites[window._navStopIdx]) {
+          var pv = _tourneeVisites[window._navStopIdx];
+          var popup = new maplibregl.Popup({ offset: 30, closeButton: false, closeOnClick: false })
+            .setLngLat([toLng, toLat])
+            .setHTML('<div style="font-size:13px;font-weight:800">' + esc(pv.patient) + '</div><div style="font-size:11px;color:#0d9488">' + (pv.heure||'') + ' — ' + soinLabel(pv.soin) + '</div>')
+            .addTo(glMap);
+        }
+
+        glMap.resize();
+      });
+
+      glMap.on('error', function(e) { console.warn('MapLibre err:', e.error); });
+
+      // Timeout fallback 6s
+      setTimeout(function() {
+        if (window._glMap && !window._glMap.loaded()) {
+          console.warn('MapLibre timeout');
+          _exitNavMode3D();
+          _enterNavModeLeaflet(fromLat, fromLng, toLat, toLng, routeCoords);
+          showToast('Carte 3D indisponible — mode standard');
+        }
+      }, 6000);
+
+    } catch(e) {
+      console.error('MapLibre fail:', e);
+      _exitNavMode3D();
+      _enterNavModeLeaflet(fromLat, fromLng, toLat, toLng, routeCoords);
+    }
+  }
+
+  function _exitNavMode3D() {
+    window._glNavActive = false;
+    window._glCarMarker = null;
+    if (window._glMap) { try { window._glMap.remove(); } catch(e) {} window._glMap = null; }
+    var gl = document.getElementById('jadomi-3d-nav');
+    if (gl) gl.remove();
+    var leafletEl = document.getElementById('jadomi-tournee-map');
+    if (leafletEl) leafletEl.style.visibility = 'visible';
+  }
+
+  // ── FALLBACK LEAFLET (pas de 3D) ──
+  function _enterNavModeLeaflet(fromLat, fromLng, toLat, toLng, routeCoords) {
+    // Route Leaflet classique
     if (window._navRouteLine) { map.removeLayer(window._navRouteLine); if (window._navRouteLine._shadow) map.removeLayer(window._navRouteLine._shadow); }
-    // Route unique (pas d'ombre = 2x moins de SVG à repositionner)
     var line = L.polyline(routeCoords, { color: '#3b82f6', weight: 7, opacity: 0.85, lineCap: 'round', lineJoin: 'round', smoothFactor: 3 }).addTo(map);
-    var shadow = null;
-    line._shadow = shadow;
+    line._shadow = null;
     window._navRouteLine = line;
 
-    // Flèches de direction via CSS dashArray sur une 2ème polyline fine
-    // Pas de decorator SVG = zero lag à la rotation
     var arrowLine = L.polyline(routeCoords, {
       color: '#1e3a8a', weight: 3, opacity: 0.7,
-      dashArray: '0 12 8 12', // point-tiret = simule des flèches
-      lineCap: 'butt',
-      smoothFactor: 3
+      dashArray: '0 12 8 12', lineCap: 'butt', smoothFactor: 3
     }).addTo(map);
     window._navExtras.push(arrowLine);
 
@@ -3178,6 +3319,8 @@ function _initJadomiMap() {
 
   function _exitNavMode() {
     window._navActive = false;
+    // Fermer MapLibre 3D si actif
+    if (window._glNavActive) _exitNavMode3D();
     // Remettre le marqueur GPS en point bleu
     if (gpsMarker && window._gpsIsNursCar) {
       gpsMarker.setIcon(L.divIcon({
