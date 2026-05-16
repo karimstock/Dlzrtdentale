@@ -12836,6 +12836,48 @@ process.on('uncaughtException', (err) => {
 });
 
 // =============================================
+// ALERTES ROUTE COMMUNAUTAIRES (style Waze)
+// =============================================
+
+// GET alertes dans une zone géographique
+app.get('/api/ide/alertes-route', async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const { minLat, maxLat, minLng, maxLng } = req.query;
+    if (!minLat || !maxLat || !minLng || !maxLng) return res.json([]);
+    const { data, error } = await db.from('alertes_route')
+      .select('id, type, lat, lng, description, votes_up, votes_down, created_at')
+      .eq('active', true)
+      .gt('expires_at', new Date().toISOString())
+      .gte('lat', parseFloat(minLat)).lte('lat', parseFloat(maxLat))
+      .gte('lng', parseFloat(minLng)).lte('lng', parseFloat(maxLng))
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST créer une alerte
+app.post('/api/ide/alertes-route', requireAuth(), async (req, res) => {
+  try {
+    const db = supaAdminOrThrow();
+    const { type, lat, lng, description } = req.body;
+    const validTypes = ['travaux', 'bouchon', 'accident', 'route_barree', 'police', 'danger', 'verglas'];
+    if (!type || !validTypes.includes(type)) return res.status(400).json({ error: 'Type invalide' });
+    if (!lat || !lng || typeof lat !== 'number' || typeof lng !== 'number') return res.status(400).json({ error: 'Coordonnées invalides' });
+    const userId = req.user?.id || req.userId || null;
+    const { data, error } = await db.from('alertes_route').insert({
+      user_id: userId, type, lat, lng,
+      description: description ? String(description).slice(0, 200) : null,
+      expires_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString()
+    }).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// =============================================
 // Start server (skip on Vercel — exporte l'app pour @vercel/node)
 // =============================================
 if (!process.env.VERCEL) {
