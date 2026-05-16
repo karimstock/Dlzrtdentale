@@ -2347,7 +2347,8 @@ function _initJadomiMap() {
   };
   if (L.Map.prototype.setBearing) {
     mapOpts.rotate = true;
-    mapOpts.touchRotate = true; // rotation avec 2 doigts
+    mapOpts.touchRotate = false; // désactivé — cause du lag sur les polylines
+    mapOpts.rotateControl = false;
   }
   var map = L.map('jadomi-tournee-map', mapOpts).setView(center, 14);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -2770,24 +2771,12 @@ function _initJadomiMap() {
     if (accuracy > 100 && _gpsBestAccuracy < 50) return;
     if (accuracy < _gpsBestAccuracy) _gpsBestAccuracy = accuracy;
 
-    // Détecter "Position approximative" activée sur iPhone et alerter l'utilisateur
+    // Détecter "Position approximative" — bannière discrète en haut (pas un gros popup)
     if (accuracy > 80 && !window._gpsPrecisionWarned) {
       window._gpsPrecisionWarned = true;
-      var alertDiv = document.createElement('div');
-      alertDiv.id = 'jadomi-gps-alert';
-      alertDiv.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:#fff;border-radius:20px;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,.2);max-width:320px;text-align:center;font-family:Inter,system-ui,sans-serif';
-      alertDiv.innerHTML =
-        '<div style="font-size:32px;margin-bottom:12px">&#x1F4CD;</div>' +
-        '<div style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:8px">Pr\u00e9cision GPS insuffisante</div>' +
-        '<div style="font-size:13px;color:#6b7280;line-height:1.5;margin-bottom:16px">' +
-          'Votre position est impr\u00e9cise (\u00b1' + Math.round(accuracy) + 'm).<br><br>' +
-          '<b>Pour activer la position exacte :</b><br>' +
-          'R\u00e9glages \u2192 Confidentialit\u00e9 \u2192 Service de localisation \u2192 Safari \u2192 <span style="color:#10b981;font-weight:700">Position exacte ON</span>' +
-        '</div>' +
-        '<button onclick="document.getElementById(\'jadomi-gps-alert\').remove()" style="width:100%;padding:12px;background:#0d9488;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">Compris</button>';
-      mapDiv.appendChild(alertDiv);
-      // Auto-dismiss après 15s
-      setTimeout(function() { var el = document.getElementById('jadomi-gps-alert'); if (el) el.remove(); }, 15000);
+      _showGpsBanner('Position impr\u00e9cise (\u00b1' + Math.round(accuracy) + 'm) \u2014 R\u00e9glages \u2192 Safari \u2192 Position exacte ON');
+      // Auto-dismiss après 10s
+      setTimeout(function() { _hideGpsBanner(); }, 10000);
     }
 
     // GPS reçu → masquer la bannière rouge + reset timer
@@ -3603,22 +3592,9 @@ function _initJadomiMap() {
   btnLeft.appendChild(closeBtn);
   mapDiv.appendChild(btnLeft);
 
-  // ── Boutons flottants — droite (recentrer + zoom + boussole) ──
+  // ── Boutons droite (zoom + boussole) ──
   var btnRight = document.createElement('div');
   btnRight.style.cssText = 'position:absolute;top:12px;right:12px;z-index:1050;display:flex;flex-direction:column;gap:8px';
-
-  // RECENTRER (gros bouton bien visible)
-  var gpsBtn = document.createElement('div');
-  gpsBtn.style.cssText = _btnStyle + ';background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.2)';
-  gpsBtn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
-  gpsBtn.onclick = function() {
-    if (gpsMarker) {
-      map.setView(gpsMarker.getLatLng(), 18, { animate: true });
-      if (map.setBearing) map.setBearing(0);
-    }
-    showToast('Recentr\u00e9');
-  };
-  btnRight.appendChild(gpsBtn);
 
   // Zoom +
   var zoomIn = document.createElement('div');
@@ -3662,6 +3638,22 @@ function _initJadomiMap() {
   }
 
   mapDiv.appendChild(btnRight);
+
+  // ── GROS BOUTON RECENTRER en bas à droite (bien visible) ──
+  var recenterBtn = document.createElement('div');
+  recenterBtn.style.cssText = 'position:absolute;bottom:20px;right:16px;z-index:1050;width:56px;height:56px;border-radius:50%;background:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+  recenterBtn.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+  recenterBtn.onclick = function() {
+    if (gpsMarker) {
+      map.setView(gpsMarker.getLatLng(), 18, { animate: true, duration: 0.5 });
+    } else {
+      // Recentrer sur tous les stops
+      var ac = _tourneeVisites.filter(function(v) { return v.lat && v.lng; }).map(function(v) { return [v.lat, v.lng]; });
+      if (ac.length > 1) map.fitBounds(ac, { padding: [40, 40] });
+    }
+    if (map.setBearing) map.setBearing(0);
+  };
+  mapDiv.appendChild(recenterBtn);
 
   // Ajuster la vue puis calculer la route
   if (allCoords.length > 1) map.fitBounds(allCoords, { padding: [60, 60] });
