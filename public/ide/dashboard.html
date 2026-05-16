@@ -2622,91 +2622,132 @@ function _initJadomiMap() {
     panel.innerHTML = html;
   }
 
-  // ── GPS LIVE ──
+  // ── GPS LIVE — Précision maximale ──
+  // maximumAge:0 = toujours une position FRAÎCHE (jamais de cache)
+  // timeout:5000 = 5s max pour obtenir un fix
+  // enableHighAccuracy:true = utilise le GPS hardware (pas le wifi/cellulaire)
+  var _gpsWatchId = null;
+  var _gpsBestAccuracy = 9999;
+
   if (navigator.geolocation) {
-    navigator.geolocation.watchPosition(function(pos) {
-      var lat = pos.coords.latitude;
-      var lng = pos.coords.longitude;
-      var accuracy = pos.coords.accuracy;
+    // Premier fix rapide (peut être imprécis)
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      _handleGpsPosition(pos);
+    }, function() {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 
-      if (!gpsMarker) {
-        // Voiture infirmière (en navigation) ou point bleu (en vue d'ensemble)
-        gpsMarker = L.marker([lat, lng], {
-          icon: L.divIcon({
-            className: '',
-            html: window._navActive
-              ? '<div id="gps-car" style="transition:transform .3s ease">' + _nursCarSvg + '</div>'
-              : '<div style="position:relative"><div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 3px rgba(59,130,246,.3),0 2px 8px rgba(0,0,0,.3)"></div><div style="position:absolute;inset:-10px;border-radius:50%;border:2px solid rgba(59,130,246,.3);animation:gpsPulse 2s ease infinite"></div></div>',
-            iconSize: window._navActive ? [40, 56] : [18, 18],
-            iconAnchor: window._navActive ? [20, 28] : [9, 9]
-          }),
-          zoomPanOptions: { animate: true },
-          zIndexOffset: 9999
-        }).addTo(map);
-        gpsCircle = L.circle([lat, lng], { radius: accuracy, color: '#3b82f6', fillColor: '#3b82f680', fillOpacity: 0.15, weight: 1 }).addTo(map);
-        map.setView([lat, lng], 16);
-      } else {
-        gpsMarker.setLatLng([lat, lng]);
-        gpsCircle.setLatLng([lat, lng]);
-        gpsCircle.setRadius(accuracy);
-        if (window._navFollowing) {
-          map.setView([lat, lng], Math.max(map.getZoom(), 16), { animate: true });
-        }
-        // Heading natif (iPhone donne la direction via le GPS)
-        var heading = pos.coords.heading;
-        var speed = pos.coords.speed; // m/s
-
-        // Si pas de heading natif, calculer à partir du mouvement
-        if ((heading === null || heading === undefined || isNaN(heading)) && window._lastGpsPos) {
-          var dLng = lng - window._lastGpsPos.lng;
-          var dLat = lat - window._lastGpsPos.lat;
-          if (Math.abs(dLng) > 0.00001 || Math.abs(dLat) > 0.00001) {
-            heading = _calcBearing(window._lastGpsPos.lat, window._lastGpsPos.lng, lat, lng);
-          }
-        }
-
-        // Tourner le marqueur GPS
-        if (heading !== null && heading !== undefined && !isNaN(heading)) {
-          var gpsDot = gpsMarker.getElement();
-          if (gpsDot) gpsDot.style.transform = 'rotate(' + heading + 'deg)';
-        }
-
-        // En mode navigation : tourner la carte + suivre la position
-        if (window._navActive && window._navFollowing) {
-          // Mettre à jour l'icône GPS en voiture si pas encore fait
-          if (gpsMarker && !window._gpsIsNursCar) {
-            gpsMarker.setIcon(L.divIcon({
-              className: '',
-              html: '<div id="gps-car" style="transition:transform .3s ease">' + _nursCarSvg + '</div>',
-              iconSize: [40, 56], iconAnchor: [20, 28]
-            }));
-            window._gpsIsNursCar = true;
-          }
-          // Tourner la carte SI mode boussole = bearing (comme Waze)
-          if (heading !== null && heading !== undefined && !isNaN(heading) && map.setBearing && window._compassMode === 'bearing') {
-            map.setBearing(heading);
-          }
-          map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
-
-          // Indicateur de vitesse
-          if (speed !== null && speed !== undefined && speed > 0) {
-            var kmh = Math.round(speed * 3.6);
-            var speedEl = document.getElementById('jadomi-speed');
-            if (!speedEl) {
-              speedEl = document.createElement('div');
-              speedEl.id = 'jadomi-speed';
-              speedEl.style.cssText = 'position:absolute;bottom:20px;right:16px;z-index:1100;width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.8);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
-              mapDiv.appendChild(speedEl);
-            }
-            speedEl.innerHTML = '<div style="font-size:22px;font-weight:900;line-height:1">' + kmh + '</div><div style="font-size:9px;opacity:.6">km/h</div>';
-          }
-        }
-
-        window._lastGpsPos = { lat: lat, lng: lng };
-      }
+    // Suivi continu haute précision
+    _gpsWatchId = navigator.geolocation.watchPosition(function(pos) {
+      _handleGpsPosition(pos);
     }, function(err) {
-      console.log('GPS error:', err.message);
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
+      console.log('GPS error:', err.code, err.message);
+      // Si précision refuse, essayer sans haute précision en fallback
+      if (err.code === 1) showToast('Activez la localisation pour la navigation');
+    }, {
+      enableHighAccuracy: true,
+      timeout: 5000,      // 5s max — assez rapide pour la navigation
+      maximumAge: 0        // ZERO cache — toujours position fraîche
+    });
+  }
+
+  function _handleGpsPosition(pos) {
+    var lat = pos.coords.latitude;
+    var lng = pos.coords.longitude;
+    var accuracy = pos.coords.accuracy;
+
+    // Ignorer les positions trop imprécises (>100m) si on en a déjà une meilleure
+    if (accuracy > 100 && _gpsBestAccuracy < 50) return;
+    if (accuracy < _gpsBestAccuracy) _gpsBestAccuracy = accuracy;
+
+    // Badge précision GPS (visible pendant la navigation)
+    if (window._navActive) {
+      var precBadge = document.getElementById('jadomi-gps-precision');
+      if (!precBadge) {
+        precBadge = document.createElement('div');
+        precBadge.id = 'jadomi-gps-precision';
+        precBadge.style.cssText = 'position:absolute;bottom:80px;right:80px;z-index:1100;padding:4px 8px;border-radius:8px;font-size:10px;font-weight:700;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
+        mapDiv.appendChild(precBadge);
+      }
+      var precColor = accuracy <= 10 ? '#10b981' : (accuracy <= 30 ? '#f59e0b' : '#ef4444');
+      precBadge.style.background = precColor + '20';
+      precBadge.style.color = precColor;
+      precBadge.textContent = '\u00b1' + Math.round(accuracy) + 'm';
+    }
+
+    if (!gpsMarker) {
+      // Voiture infirmière (en navigation) ou point bleu (en vue d'ensemble)
+      gpsMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: '',
+          html: window._navActive
+            ? '<div id="gps-car" style="transition:transform .3s ease">' + _nursCarSvg + '</div>'
+            : '<div style="position:relative"><div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 3px rgba(59,130,246,.3),0 2px 8px rgba(0,0,0,.3)"></div><div style="position:absolute;inset:-10px;border-radius:50%;border:2px solid rgba(59,130,246,.3);animation:gpsPulse 2s ease infinite"></div></div>',
+          iconSize: window._navActive ? [40, 56] : [18, 18],
+          iconAnchor: window._navActive ? [20, 28] : [9, 9]
+        }),
+        zoomPanOptions: { animate: true },
+        zIndexOffset: 9999
+      }).addTo(map);
+      gpsCircle = L.circle([lat, lng], { radius: accuracy, color: '#3b82f6', fillColor: '#3b82f680', fillOpacity: 0.15, weight: 1 }).addTo(map);
+      map.setView([lat, lng], 16);
+    } else {
+      gpsMarker.setLatLng([lat, lng]);
+      gpsCircle.setLatLng([lat, lng]);
+      gpsCircle.setRadius(accuracy);
+      if (window._navFollowing) {
+        map.setView([lat, lng], Math.max(map.getZoom(), 16), { animate: true });
+      }
+      // Heading natif (iPhone donne la direction via le GPS)
+      var heading = pos.coords.heading;
+      var speed = pos.coords.speed; // m/s
+
+      // Si pas de heading natif, calculer à partir du mouvement
+      if ((heading === null || heading === undefined || isNaN(heading)) && window._lastGpsPos) {
+        var dLng = lng - window._lastGpsPos.lng;
+        var dLat = lat - window._lastGpsPos.lat;
+        if (Math.abs(dLng) > 0.00001 || Math.abs(dLat) > 0.00001) {
+          heading = _calcBearing(window._lastGpsPos.lat, window._lastGpsPos.lng, lat, lng);
+        }
+      }
+
+      // Tourner le marqueur GPS
+      if (heading !== null && heading !== undefined && !isNaN(heading)) {
+        var gpsDot = gpsMarker.getElement();
+        if (gpsDot) gpsDot.style.transform = 'rotate(' + heading + 'deg)';
+      }
+
+      // En mode navigation : tourner la carte + suivre la position
+      if (window._navActive && window._navFollowing) {
+        // Mettre à jour l'icône GPS en voiture si pas encore fait
+        if (gpsMarker && !window._gpsIsNursCar) {
+          gpsMarker.setIcon(L.divIcon({
+            className: '',
+            html: '<div id="gps-car" style="transition:transform .3s ease">' + _nursCarSvg + '</div>',
+            iconSize: [40, 56], iconAnchor: [20, 28]
+          }));
+          window._gpsIsNursCar = true;
+        }
+        // Tourner la carte SI mode boussole = bearing (comme Waze)
+        if (heading !== null && heading !== undefined && !isNaN(heading) && map.setBearing && window._compassMode === 'bearing') {
+          map.setBearing(heading);
+        }
+        map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
+
+        // Indicateur de vitesse
+        if (speed !== null && speed !== undefined && speed > 0) {
+          var kmh = Math.round(speed * 3.6);
+          var speedEl = document.getElementById('jadomi-speed');
+          if (!speedEl) {
+            speedEl = document.createElement('div');
+            speedEl.id = 'jadomi-speed';
+            speedEl.style.cssText = 'position:absolute;bottom:20px;right:16px;z-index:1100;width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.8);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
+            mapDiv.appendChild(speedEl);
+          }
+          speedEl.innerHTML = '<div style="font-size:22px;font-weight:900;line-height:1">' + kmh + '</div><div style="font-size:9px;opacity:.6">km/h</div>';
+        }
+      }
+
+      window._lastGpsPos = { lat: lat, lng: lng };
+    }
   }
 
   // ── Navigation vers un patient ──
@@ -3021,6 +3062,8 @@ function _initJadomiMap() {
     // Supprimer indicateur vitesse + bouton signaler
     var speedEl = document.getElementById('jadomi-speed');
     if (speedEl) speedEl.remove();
+    var precBadge = document.getElementById('jadomi-gps-precision');
+    if (precBadge) precBadge.remove();
     var sigBtn = document.getElementById('jadomi-signaler-btn');
     if (sigBtn) sigBtn.remove();
     if (window._clockInterval) { clearInterval(window._clockInterval); window._clockInterval = null; }
