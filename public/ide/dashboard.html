@@ -2637,21 +2637,9 @@ function _initJadomiMap() {
             var heading = Math.atan2(dLng, dLat) * 180 / Math.PI;
             var gpsDot = gpsMarker.getElement();
             if (gpsDot) gpsDot.style.transform = 'rotate(' + heading + 'deg)';
-            // En mode 3D MapLibre : tourner la carte + bouger le marqueur GPS
-            if (window._nav3D && window._glMap) {
-              var bearing3d = _calcBearing(window._lastGpsPos.lat, window._lastGpsPos.lng, lat, lng);
-              window._glMap.easeTo({
-                center: [lng, lat],
-                bearing: bearing3d,
-                pitch: 60,
-                zoom: 17.5,
-                duration: 1000
-              });
-              // Déplacer le marqueur GPS sur la carte 3D
-              if (window._glGpsMarker) {
-                window._glGpsMarker.setLngLat([lng, lat]);
-                window._glGpsMarker.setRotation(bearing3d);
-              }
+            // En mode navigation : suivre la position sur la carte
+            if (window._navActive && window._navFollowing) {
+              map.setView([lat, lng], 18, { animate: true, duration: 0.5 });
             }
           }
         }
@@ -2677,143 +2665,125 @@ function _initJadomiMap() {
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }
 
-  // ── Mode navigation 3D avec MapLibre GL JS (pitch + bearing natifs) ──
-  function _loadMapLibre(cb) {
-    if (window.maplibregl) { cb(); return; }
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css';
-    document.head.appendChild(link);
-    var script = document.createElement('script');
-    script.src = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js';
-    script.onload = cb;
-    script.onerror = function() { showToast('Erreur chargement carte 3D'); };
-    document.head.appendChild(script);
-  }
+  // ── Mode navigation Leaflet (zoom rue + suivi + simulation GPS desktop) ──
+  function _enterNavMode(fromLat, fromLng, toLat, toLng, routeCoords) {
+    window._navActive = true;
 
-  function _enter3DNav(fromLat, fromLng, toLat, toLng, routeCoords) {
-    window._nav3D = true;
-    var bearing = _calcBearing(fromLat, fromLng, toLat, toLng);
-
-    // Cacher la carte Leaflet et les overlays
-    var leafletEl = document.getElementById('jadomi-tournee-map');
-    if (leafletEl) leafletEl.style.visibility = 'hidden';
+    // Cacher le bottom sheet
     var sheet = document.getElementById('jadomi-bottom-sheet');
     if (sheet) sheet.style.display = 'none';
 
-    // Créer le container MapLibre 3D par-dessus
-    var existing = document.getElementById('jadomi-3d-map');
-    if (existing) { if (window._glMap) { window._glMap.remove(); window._glMap = null; } existing.remove(); }
+    // Tracer la route sur Leaflet
+    if (window._navRouteLine) { map.removeLayer(window._navRouteLine); if (window._navRouteLine._shadow) map.removeLayer(window._navRouteLine._shadow); }
+    var shadow = L.polyline(routeCoords, { color: '#1e40af', weight: 12, opacity: 0.2 }).addTo(map);
+    var line = L.polyline(routeCoords, { color: '#3b82f6', weight: 7, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    line._shadow = shadow;
+    window._navRouteLine = line;
 
-    // Container plein écran avec dimensions window (pas parent)
-    var gl3d = document.createElement('div');
-    gl3d.id = 'jadomi-3d-map';
-    gl3d.style.cssText = 'position:fixed;top:0;left:0;width:' + window.innerWidth + 'px;height:' + window.innerHeight + 'px;z-index:1000;background:#1a1a2e';
-    document.body.appendChild(gl3d);
+    // Marqueur destination pulsant
+    if (window._navDestMarker) map.removeLayer(window._navDestMarker);
+    window._navDestMarker = L.marker([toLat, toLng], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="width:24px;height:24px;border-radius:50%;background:#ef4444;border:4px solid #fff;box-shadow:0 0 0 4px rgba(239,68,68,.4),0 2px 16px rgba(239,68,68,.5)"></div>',
+        iconSize: [24, 24], iconAnchor: [12, 12]
+      })
+    }).addTo(map);
 
-    // Délai pour que le DOM soit prêt
-    setTimeout(function() {
-      // Vérifier WebGL
-      var canvas = document.createElement('canvas');
-      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) {
-        showToast('WebGL non disponible — retour carte standard');
-        _exit3DNav();
-        return;
-      }
+    // Zoom sur le départ au niveau rue
+    map.setView([fromLat, fromLng], 18, { animate: true, duration: 0.8 });
 
-      try {
-        var glMap = new maplibregl.Map({
-          container: 'jadomi-3d-map',
-          style: 'https://tiles.openfreemap.org/styles/liberty',
-          center: [fromLng, fromLat],
-          zoom: 17.5,
-          pitch: 60,
-          bearing: bearing,
-          antialias: true,
-          attributionControl: false,
-          failIfMajorPerformanceCaveat: false
-        });
-
-        window._glMap = glMap;
-
-        glMap.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right');
-
-        glMap.on('error', function(e) {
-          console.error('MapLibre error:', e.error);
-        });
-
-        glMap.on('load', function() {
-          // Tracer la route en bleu
-          if (routeCoords && routeCoords.length > 0) {
-            glMap.addSource('nav-route', {
-              type: 'geojson',
-              data: {
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: routeCoords.map(function(c) { return [c[1], c[0]]; }) }
-              }
-            });
-            glMap.addLayer({
-              id: 'nav-route-shadow', type: 'line', source: 'nav-route',
-              paint: { 'line-color': '#1e40af', 'line-width': 14, 'line-opacity': 0.3, 'line-blur': 3 }
-            });
-            glMap.addLayer({
-              id: 'nav-route-line', type: 'line', source: 'nav-route',
-              paint: { 'line-color': '#3b82f6', 'line-width': 8, 'line-opacity': 0.95 },
-              layout: { 'line-cap': 'round', 'line-join': 'round' }
-            });
-          }
-
-          // Marqueur destination
-          var destEl = document.createElement('div');
-          destEl.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#ef4444;border:4px solid #fff;box-shadow:0 0 0 4px rgba(239,68,68,.4),0 2px 16px rgba(239,68,68,.5)';
-          new maplibregl.Marker({ element: destEl }).setLngLat([toLng, toLat]).addTo(glMap);
-
-          // Marqueur GPS flèche bleue
-          var gpsEl = document.createElement('div');
-          gpsEl.id = 'gl-gps-marker';
-          gpsEl.style.cssText = 'width:24px;height:24px;position:relative';
-          gpsEl.innerHTML = '<div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:22px solid #3b82f6;filter:drop-shadow(0 2px 6px rgba(59,130,246,.7));margin:0 auto"></div><div style="position:absolute;top:7px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#fff"></div>';
-          window._glGpsMarker = new maplibregl.Marker({ element: gpsEl, rotationAlignment: 'map' })
-            .setLngLat([fromLng, fromLat])
-            .addTo(glMap);
-
-          // Forcer un resize pour être sûr
-          glMap.resize();
-        });
-
-        // Timeout : si la carte charge pas en 8s, fallback
-        setTimeout(function() {
-          if (window._glMap && !window._glMap.loaded()) {
-            console.warn('MapLibre timeout — fallback Leaflet');
-            _exit3DNav();
-            showToast('Carte 3D trop lente — retour carte standard');
-          }
-        }, 8000);
-
-      } catch(e) {
-        console.error('MapLibre init error:', e);
-        _exit3DNav();
-        showToast('Erreur carte 3D : ' + e.message);
-      }
-    }, 150);
+    // Simulation GPS si pas de géoloc (desktop)
+    _trySimulateGps(routeCoords, fromLat, fromLng);
   }
 
-  function _exit3DNav() {
-    window._nav3D = false;
-    window._glGpsMarker = null;
-    // Supprimer la carte MapLibre 3D
-    if (window._glMap) { try { window._glMap.remove(); } catch(e) {} window._glMap = null; }
-    var gl3d = document.getElementById('jadomi-3d-map');
-    if (gl3d) gl3d.remove();
-    // Supprimer le panneau d'instructions s'il existe
+  function _exitNavMode() {
+    window._navActive = false;
+    // Arrêter simulation GPS
+    if (window._simGpsInterval) { clearInterval(window._simGpsInterval); window._simGpsInterval = null; }
+    var simBadge = document.getElementById('sim-gps-badge');
+    if (simBadge) simBadge.remove();
+    // Nettoyer route et marqueurs
     if (window._navInfoPanel) { window._navInfoPanel.remove(); window._navInfoPanel = null; }
-    // Réafficher Leaflet + bottom sheet
-    var leafletEl = document.getElementById('jadomi-tournee-map');
-    if (leafletEl) leafletEl.style.visibility = 'visible';
-    var sheet = document.getElementById('jadomi-bottom-sheet');
-    if (sheet) sheet.style.display = '';
-    setTimeout(function() { if (map) map.invalidateSize(); }, 200);
+    if (window._navDestMarker) { map.removeLayer(window._navDestMarker); window._navDestMarker = null; }
+    if (window._navRouteLine) {
+      if (window._navRouteLine._shadow) map.removeLayer(window._navRouteLine._shadow);
+      map.removeLayer(window._navRouteLine);
+      window._navRouteLine = null;
+    }
+    if (window._simGpsMarker) { map.removeLayer(window._simGpsMarker); window._simGpsMarker = null; }
+    // Réafficher le bottom sheet
+    var sheetEl = document.getElementById('jadomi-bottom-sheet');
+    if (sheetEl) sheetEl.style.display = '';
+    // Vue d'ensemble
+    var ac = _tourneeVisites.filter(function(v) { return v.lat && v.lng; }).map(function(v) { return [v.lat, v.lng]; });
+    if (ac.length > 1) map.fitBounds(ac, { padding: [40, 40] });
+  }
+
+  // ── GPS simulé : avance le long de la route (desktop) ──
+  function _trySimulateGps(routeCoords, fromLat, fromLng) {
+    if (!routeCoords || routeCoords.length < 2) return;
+
+    function startSim() {
+      var idx = 0;
+      var speed = 100; // ms entre points (~40km/h)
+
+      // Marqueur GPS simulé (flèche bleue)
+      if (window._simGpsMarker) map.removeLayer(window._simGpsMarker);
+      window._simGpsMarker = L.marker([routeCoords[0][0], routeCoords[0][1]], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div id="sim-gps-arrow" style="transition:transform .1s linear"><div style="width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:26px solid #3b82f6;filter:drop-shadow(0 2px 6px rgba(59,130,246,.7))"></div><div style="position:absolute;top:8px;left:5px;width:10px;height:10px;border-radius:50%;background:#fff"></div></div>',
+          iconSize: [20, 20], iconAnchor: [10, 10]
+        }),
+        zIndexOffset: 9999
+      }).addTo(map);
+
+      // Badge
+      var simBadge = document.createElement('div');
+      simBadge.id = 'sim-gps-badge';
+      simBadge.style.cssText = 'position:absolute;bottom:16px;right:16px;z-index:1100;padding:8px 14px;background:rgba(245,158,11,.9);color:#fff;border-radius:10px;font-size:12px;font-weight:700';
+      simBadge.textContent = 'GPS Simul\u00e9';
+      mapDiv.appendChild(simBadge);
+
+      window._simGpsInterval = setInterval(function() {
+        if (!window._navActive) {
+          clearInterval(window._simGpsInterval);
+          return;
+        }
+        idx++;
+        if (idx >= routeCoords.length) {
+          clearInterval(window._simGpsInterval);
+          showToast('Arriv\u00e9 \u00e0 destination');
+          return;
+        }
+
+        var cur = routeCoords[idx];
+        var prev = routeCoords[idx - 1];
+
+        // Bearing
+        var bearing = _calcBearing(prev[0], prev[1], cur[0], cur[1]);
+
+        // Déplacer le marqueur
+        window._simGpsMarker.setLatLng(cur);
+        var arrow = document.getElementById('sim-gps-arrow');
+        if (arrow) arrow.style.transform = 'rotate(' + bearing + 'deg)';
+
+        // Centrer la carte (suivre le mouvement)
+        map.setView(cur, 18, { animate: true, duration: 0.08 });
+      }, speed);
+    }
+
+    // Vérifier si géoloc dispo (tel) ou non (desktop → simuler)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function() { /* GPS réel disponible — pas besoin de simuler */ },
+        function() { startSim(); },
+        { timeout: 2000 }
+      );
+    } else {
+      startSim();
+    }
   }
 
   window.naviguerVers = function(lat, lng, stopIdx) {
@@ -2830,7 +2800,7 @@ function _initJadomiMap() {
     window._navFollowing = true;
     window._navStopIdx = stopIdx;
 
-    // Calculer la route OSRM d'abord, puis lancer le mode 3D
+    // Calculer la route OSRM puis lancer le mode navigation
     fetch('https://router.project-osrm.org/route/v1/driving/' + from.lng + ',' + from.lat + ';' + lng + ',' + lat + '?overview=full&geometries=geojson&steps=true&annotations=true')
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -2870,37 +2840,35 @@ function _initJadomiMap() {
           patientName = _tourneeVisites[stopIdx].patient || '';
         }
 
-        // Charger MapLibre puis lancer le 3D
-        _loadMapLibre(function() {
-          _enter3DNav(from.lat, from.lng, lat, lng, coords);
+        // Lancer le mode navigation Leaflet (zoom rue + route + simulation GPS)
+        _enterNavMode(from.lat, from.lng, lat, lng, coords);
 
-          // Panneau instructions par-dessus la carte 3D
-          if (window._navInfoPanel) window._navInfoPanel.remove();
-          var infoPanel = document.createElement('div');
-          var mob = window.innerWidth < 768;
-          infoPanel.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:1200;background:linear-gradient(180deg,rgba(26,26,46,.97) 0%,rgba(26,26,46,.85) 100%);backdrop-filter:blur(20px);padding:' + (mob ? '16px 14px' : '20px 24px') + ';color:#fff';
-          infoPanel.innerHTML =
-            '<div style="display:flex;align-items:center;gap:16px">' +
-              '<div style="flex-shrink:0;width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:28px">' + stepIcon + '</div>' +
-              '<div style="flex:1">' +
-                '<div style="font-size:' + (mob ? '20' : '24') + 'px;font-weight:900;letter-spacing:-.02em">' + stepName + '</div>' +
-                '<div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:2px">dans ' + stepDist + '</div>' +
-              '</div>' +
-              '<div style="text-align:center;flex-shrink:0;padding-left:16px;border-left:1px solid rgba(255,255,255,.12)">' +
-                '<div style="font-size:' + (mob ? '28' : '32') + 'px;font-weight:900;color:#4ade80">' + duree + '</div>' +
-                '<div style="font-size:10px;color:rgba(255,255,255,.5)">min</div>' +
-              '</div>' +
+        // Panneau instructions en haut de la carte
+        if (window._navInfoPanel) window._navInfoPanel.remove();
+        var infoPanel = document.createElement('div');
+        var mob = window.innerWidth < 768;
+        infoPanel.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:1100;background:linear-gradient(180deg,rgba(26,26,46,.97) 0%,rgba(26,26,46,.85) 100%);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);padding:' + (mob ? '16px 14px' : '20px 24px') + ';color:#fff';
+        infoPanel.innerHTML =
+          '<div style="display:flex;align-items:center;gap:16px">' +
+            '<div style="flex-shrink:0;width:' + (mob ? '48' : '56') + 'px;height:' + (mob ? '48' : '56') + 'px;border-radius:14px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:' + (mob ? '24' : '28') + 'px">' + stepIcon + '</div>' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-size:' + (mob ? '18' : '22') + 'px;font-weight:900;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + stepName + '</div>' +
+              '<div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:2px">dans ' + stepDist + '</div>' +
             '</div>' +
-            '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
-              '<span style="font-size:12px;color:rgba(255,255,255,.5)">' + dist + '</span>' +
-              '<span style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.2)"></span>' +
-              '<span style="font-size:12px;color:rgba(255,255,255,.5)">ETA ' + etaStr + '</span>' +
-              (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#4ade80">' + patientName + '</span>' : '') +
-              '<button onclick="stopNavigation()" style="margin-left:' + (patientName ? '8px' : 'auto') + ';padding:6px 14px;background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Arr\u00eater</button>' +
-            '</div>';
-          document.body.appendChild(infoPanel);
-          window._navInfoPanel = infoPanel;
-        });
+            '<div style="text-align:center;flex-shrink:0;padding-left:16px;border-left:1px solid rgba(255,255,255,.12)">' +
+              '<div style="font-size:' + (mob ? '26' : '30') + 'px;font-weight:900;color:#4ade80">' + duree + '</div>' +
+              '<div style="font-size:10px;color:rgba(255,255,255,.5)">min</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+            '<span style="font-size:12px;color:rgba(255,255,255,.5)">' + dist + '</span>' +
+            '<span style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.2)"></span>' +
+            '<span style="font-size:12px;color:rgba(255,255,255,.5)">ETA ' + etaStr + '</span>' +
+            (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#4ade80">' + patientName + '</span>' : '') +
+            '<button onclick="stopNavigation()" style="margin-left:' + (patientName ? '8px' : 'auto') + ';padding:8px 16px;background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">Arr\u00eater</button>' +
+          '</div>';
+        mapDiv.appendChild(infoPanel);
+        window._navInfoPanel = infoPanel;
       })
       .catch(function(e) { showToast('Erreur: ' + e.message); });
   };
@@ -2908,17 +2876,8 @@ function _initJadomiMap() {
   window.stopNavigation = function() {
     window._navFollowing = false;
     window._navTarget = null;
-    // Sortir du mode 3D MapLibre
-    _exit3DNav();
-    if (window._navInfoPanel) { window._navInfoPanel.remove(); window._navInfoPanel = null; }
-    if (window._navDestMarker) { map.removeLayer(window._navDestMarker); window._navDestMarker = null; }
-    if (window._navRouteLine) {
-      if (window._navRouteLine._shadow) map.removeLayer(window._navRouteLine._shadow);
-      map.removeLayer(window._navRouteLine);
-      window._navRouteLine = null;
-    }
-    var ac = _tourneeVisites.filter(function(v) { return v.lat && v.lng; }).map(function(v) { return [v.lat, v.lng]; });
-    if (ac.length > 1) map.fitBounds(ac, { padding: [40, 40] });
+    // Sortir du mode navigation
+    _exitNavMode();
     // Recalculer le bottom sheet
     if (window._jadomiUpdateSheet) window._jadomiUpdateSheet();
   };
@@ -2968,13 +2927,10 @@ function closeTourneeMode() {
   // Restaurer le header du modal
   var tmHeader = document.getElementById('tm-title') ? document.getElementById('tm-title').parentElement : null;
   if (tmHeader) tmHeader.style.display = '';
-  // Nettoyer les cartes (Leaflet + MapLibre 3D)
-  if (window._glMap) { window._glMap.remove(); window._glMap = null; }
-  var gl3d = document.getElementById('jadomi-3d-map');
-  if (gl3d) gl3d.remove();
+  // Nettoyer la carte et la navigation
+  if (window._navActive) _exitNavMode();
   if (window._jadomiMap) { window._jadomiMap.remove(); window._jadomiMap = null; }
   window._navFollowing = false;
-  window._nav3D = false;
   // Refresh le planning pour refléter les changements de statut
   pageLoadedMap.planning = false;
   loadPlanning();
