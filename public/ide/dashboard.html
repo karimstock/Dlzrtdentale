@@ -2237,7 +2237,7 @@ function _launchWithApp(app) {
     _showJadomiMap();
   } else {
     // Waze ou Google Maps — ouvrir dans un nouvel onglet
-    var firstIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    var firstIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     if (firstIdx >= 0) {
       var first = _tourneeVisites[firstIdx];
       var url = _tourneeNavApp === 'waze' ? _wazeUrl(first) : _gmapsUrl(first);
@@ -2443,23 +2443,27 @@ function _initJadomiMap() {
   }
 
   // ── Bottom Sheet style Waze ──
-  // ── Style nom patient selon statut notif/absence ──
-  // v.notif_viewed = true/false (le patient a ouvert le lien de suivi)
-  // v.statut = 'absent' (marqué absent)
+  // ── Style nom patient selon statut ──
+  // Statuts : absent (pas là, croix rouge), annule (a annulé, orange barré), termine (fait, vert check)
+  // Notif : notif_viewed = true (vert), false (orange)
   function _patientNameHtml(v) {
     var name = esc(v.patient);
     if (v.statut === 'absent') {
-      // Barré + croix rouge
-      return '<span style="text-decoration:line-through;color:#ef4444">' + name + ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" style="vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>';
+      // ABSENT : croix rouge, fond rouge, pas barré — c'est un no-show
+      return '<span style="color:#ef4444;font-weight:800">' + name + ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" style="vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>';
+    }
+    if (v.statut === 'annule') {
+      // ANNULÉ : orange, barré — le patient a prévenu
+      return '<span style="text-decoration:line-through;color:#f59e0b">' + name + '</span>';
     }
     if (v.statut === 'termine') {
       return '<span style="color:#22c55e">' + name + ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" style="vertical-align:middle"><polyline points="20 6 9 17 4 12"/></svg></span>';
     }
     if (v.notif_viewed) {
-      // Vert = a ouvert la notif
+      // Vert = a ouvert la notif, il est prêt
       return '<span style="color:#10b981" title="A vu la notification">' + name + ' <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;vertical-align:middle"></span></span>';
     }
-    // Rouge = pas encore vu la notif
+    // Orange = pas encore vu la notif
     return '<span style="color:#f59e0b" title="N\'a pas encore vu la notification">' + name + ' <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;vertical-align:middle"></span></span>';
   }
 
@@ -2467,11 +2471,11 @@ function _initJadomiMap() {
     var existing = document.getElementById('jadomi-bottom-sheet');
     if (existing) existing.remove();
 
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     var current = currentIdx >= 0 ? _tourneeVisites[currentIdx] : null;
-    var nextIdx = _tourneeVisites.findIndex(function(v, i) { return i > currentIdx && v.statut !== 'termine' && v.statut !== 'absent'; });
+    var nextIdx = _tourneeVisites.findIndex(function(v, i) { return i > currentIdx && v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     var next = nextIdx >= 0 ? _tourneeVisites[nextIdx] : null;
-    var doneCount = _tourneeVisites.filter(function(v) { return v.statut === 'termine' || v.statut === 'absent'; }).length;
+    var doneCount = _tourneeVisites.filter(function(v) { return v.statut === 'termine' || v.statut === 'absent' || v.statut === 'annule'; }).length;
     var totalCount = _tourneeVisites.length;
     var remaining = totalCount - doneCount;
 
@@ -2479,7 +2483,7 @@ function _initJadomiMap() {
     var legInfo = window._jadomiLegs && window._jadomiLegs.length > 0 ? window._jadomiLegs[0] : null;
     // Chercher le leg correspondant au patient courant
     if (window._jadomiLegs && currentIdx >= 0) {
-      var pending = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+      var pending = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
       var pendingIdx = pending.indexOf(current);
       if (pendingIdx > 0 && window._jadomiLegs[pendingIdx - 1]) {
         legInfo = window._jadomiLegs[pendingIdx - 1];
@@ -2549,7 +2553,7 @@ function _initJadomiMap() {
       if (next) {
         var nextLeg = null;
         if (window._jadomiLegs) {
-          var pendingList = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+          var pendingList = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
           var nextPendIdx = pendingList.indexOf(next);
           if (nextPendIdx > 0 && window._jadomiLegs[nextPendIdx - 1]) nextLeg = window._jadomiLegs[nextPendIdx - 1];
         }
@@ -2611,13 +2615,15 @@ function _initJadomiMap() {
     _tourneeVisites.forEach(function(v, i) {
       var isDone = v.statut === 'termine';
       var isAbsent = v.statut === 'absent';
-      var isCurrent = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; }) === i;
-      var cls = (isDone || isAbsent) ? 'jmap-leg-done' : (isCurrent ? 'jmap-leg-active' : 'jmap-leg');
+      var isAnnule = v.statut === 'annule';
+      var isSkipped = isAbsent || isAnnule;
+      var isCurrent = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent' && x.statut !== 'annule'; }) === i;
+      var cls = (isDone || isSkipped) ? 'jmap-leg-done' : (isCurrent ? 'jmap-leg-active' : 'jmap-leg');
 
       // Trouver le leg correspondant
       var legDist = '';
       if (window._jadomiLegs && i > 0) {
-        var pending = _tourneeVisites.filter(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; });
+        var pending = _tourneeVisites.filter(function(x) { return x.statut !== 'termine' && x.statut !== 'absent' && x.statut !== 'annule'; });
         var pidx = pending.indexOf(v);
         if (pidx > 0 && window._jadomiLegs[pidx - 1]) {
           var lg = window._jadomiLegs[pidx - 1];
@@ -2627,8 +2633,8 @@ function _initJadomiMap() {
 
       html += '<div class="' + cls + '" onclick="' + (v.lat && v.lng ? 'window._jadomiMap.flyTo([' + v.lat + ',' + v.lng + '],16)' : '') + '" style="margin-bottom:2px;border-radius:8px">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
-          '<div style="width:28px;height:28px;border-radius:50%;background:' + (isAbsent ? '#ef4444' : (isDone ? '#22c55e' : (isCurrent ? '#0d9488' : 'rgba(0,0,0,.08)'))) + ';color:' + (isDone || isCurrent || isAbsent ? '#fff' : '#666') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' +
-            (isAbsent ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' : (isDone ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : (i + 1))) +
+          '<div style="width:28px;height:28px;border-radius:50%;background:' + (isAbsent ? '#ef4444' : (isAnnule ? '#f59e0b' : (isDone ? '#22c55e' : (isCurrent ? '#0d9488' : 'rgba(0,0,0,.08)')))) + ';color:' + (isDone || isCurrent || isSkipped ? '#fff' : '#666') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">' +
+            (isAbsent ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' : (isAnnule ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>' : (isDone ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : (i + 1)))) +
           '</div>' +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:13px;font-weight:' + (isCurrent ? '700' : '600') + '">' + _patientNameHtml(v) + '</div>' +
@@ -3326,7 +3332,7 @@ function _initJadomiMap() {
         if (typeof stopIdx === 'number' && _tourneeVisites[stopIdx]) {
           patientName = _tourneeVisites[stopIdx].patient || '';
         }
-        var remaining = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; }).length;
+        var remaining = _tourneeVisites.filter(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; }).length;
 
         // Lancer le mode navigation Leaflet (zoom rue + route + simulation GPS)
         _enterNavMode(from.lat, from.lng, lat, lng, coords);
@@ -3381,7 +3387,8 @@ function _initJadomiMap() {
           // Ligne 3 : boutons ARRIVÉ + ABSENT + SUIVANT + compteur
           '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
             '<button onclick="_onArrived()" style="flex:1;padding:' + (mob?'10':'12') + 'px;background:#10b981;color:#fff;border:none;border-radius:12px;font-size:' + (mob?'12':'14') + 'px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Arriv\u00e9</button>' +
-            '<button onclick="_onAbsent()" style="padding:' + (mob?'10':'12') + 'px;background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:12px;font-size:' + (mob?'11':'12') + 'px;font-weight:700;cursor:pointer;white-space:nowrap">Absent</button>' +
+            '<button onclick="_onAbsent()" style="padding:' + (mob?'8px 6px':'10px 8px') + ';background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:10px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.2" title="Le patient n\'est pas l\u00e0 (no-show)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" style="vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><br>Absent</button>' +
+            '<button onclick="_onAnnule()" style="padding:' + (mob?'8px 6px':'10px 8px') + ';background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.2" title="Le patient a annul\u00e9"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" style="vertical-align:middle"><line x1="5" y1="12" x2="19" y2="12"/></svg><br>Annul\u00e9</button>' +
             '<button onclick="_onNext()" style="flex:1;padding:' + (mob?'10':'12') + 'px;background:#3b82f6;color:#fff;border:none;border-radius:12px;font-size:' + (mob?'12':'14') + 'px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Suivant</button>' +
             '<div style="text-align:center;padding:6px 10px;background:rgba(255,255,255,.1);border-radius:10px;flex-shrink:0"><div style="font-size:16px;font-weight:900;color:#fff">' + remaining + '</div><div style="font-size:8px;color:rgba(255,255,255,.5)">restant' + (remaining > 1 ? 's' : '') + '</div></div>' +
           '</div>';
@@ -3393,7 +3400,7 @@ function _initJadomiMap() {
 
   // ── ARRIVÉ : enregistre preuve GPS + affiche confirmation ──
   window._onArrived = function() {
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     if (currentIdx < 0) return;
     var v = _tourneeVisites[currentIdx];
 
@@ -3445,7 +3452,7 @@ function _initJadomiMap() {
     showToast('\u2705 Arriv\u00e9 chez ' + v.patient + ' \u2014 preuve GPS enregistr\u00e9e');
 
     // Checker s'il reste des patients
-    var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; });
+    var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent' && x.statut !== 'annule'; });
     if (nextIdx < 0) {
       // Tournée terminée !
       stopNavigation();
@@ -3455,7 +3462,7 @@ function _initJadomiMap() {
 
   // ── CLIENT ABSENT : marquer le patient comme absent et passer au suivant ──
   window._onAbsent = function() {
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     if (currentIdx < 0) return;
     var v = _tourneeVisites[currentIdx];
 
@@ -3485,16 +3492,45 @@ function _initJadomiMap() {
     setTimeout(function() { _onNext(); }, 500);
   };
 
+  // ── ANNULÉ : le patient a prévenu qu'il annule (moins grave qu'absent) ──
+  window._onAnnule = function() {
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule' && v.statut !== 'annule'; });
+    if (currentIdx < 0) return;
+    var v = _tourneeVisites[currentIdx];
+
+    v.statut = 'annule';
+    var dv = DEMO_VISITES.find(function(x) { return x.id === v.id; });
+    if (dv) dv.statut = 'annule';
+
+    if (navigator.onLine) {
+      apiFetch('/api/ide/visite/' + v.id + '/status', { method: 'PATCH', body: JSON.stringify({ statut: 'annule' }) });
+    } else {
+      _queueOffline('/api/ide/visite/' + v.id + '/status', { statut: 'annule' });
+    }
+
+    // Marqueur orange barré
+    if (window._jadomiMarkers && window._jadomiMarkers[currentIdx] && window.L) {
+      window._jadomiMarkers[currentIdx].setIcon(L.divIcon({
+        className: '',
+        html: '<div style="width:40px;height:40px;border-radius:50%;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,.4)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg></div>',
+        iconSize: [40, 40], iconAnchor: [20, 20]
+      }));
+    }
+
+    showToast('\u{1F7E0} ' + v.patient + ' \u2014 RDV annul\u00e9');
+    setTimeout(function() { _onNext(); }, 500);
+  };
+
   // ── SUIVANT : passer au patient suivant automatiquement ──
   window._onNext = function() {
     // D'abord marquer comme arrivé si pas déjà fait
-    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     if (currentIdx >= 0 && _tourneeVisites[currentIdx].statut !== 'termine') {
       _onArrived();
     }
 
     // Naviguer vers le suivant
-    var nextIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+    var nextIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
     if (nextIdx >= 0) {
       var next = _tourneeVisites[nextIdx];
       if (next.lat && next.lng) {
@@ -3618,7 +3654,7 @@ function renderTourneeSteps() {
   document.getElementById('tm-progress').textContent = doneCount + '/' + total + ' terminée' + (doneCount > 1 ? 's' : '') + ' — ' + (total - doneCount) + ' restante' + ((total - doneCount) > 1 ? 's' : '');
 
   // Trouver la première visite non terminée
-  var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent'; });
+  var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine' && v.statut !== 'absent' && v.statut !== 'annule'; });
 
   // UN SEUL stop pharmacie — regrouper TOUS les traitements chroniques
   var allPharmaPatients = [];
@@ -3777,7 +3813,7 @@ async function markTourneeStepDone(idx) {
   }
 
   // Navigation suivante IMMÉDIATE
-  var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent'; });
+  var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine' && x.statut !== 'absent' && x.statut !== 'annule'; });
   if (nextIdx >= 0) {
     var next = _tourneeVisites[nextIdx];
     // Check-in arrivée silencieux pour le prochain patient
