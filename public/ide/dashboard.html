@@ -2622,10 +2622,52 @@ function _initJadomiMap() {
     panel.innerHTML = html;
   }
 
-  // ── GPS LIVE — Précision maximale ──
-  // maximumAge:0 = toujours une position FRAÎCHE (jamais de cache)
-  // timeout:5000 = 5s max pour obtenir un fix
-  // enableHighAccuracy:true = utilise le GPS hardware (pas le wifi/cellulaire)
+  // ── SNAP TO ROUTE — projeter le GPS sur la route calculée ──
+  // Même si le GPS dit ±60m, la voiture sera SUR la route (précision ~0-5m)
+  function _snapToRoute(lat, lng) {
+    var routeCoords = window._navRouteCoords;
+    if (!routeCoords || routeCoords.length < 2 || !window._navActive) return { lat: lat, lng: lng, snapped: false };
+
+    var minDist = Infinity;
+    var bestLat = lat, bestLng = lng;
+
+    for (var i = 0; i < routeCoords.length - 1; i++) {
+      var p1 = routeCoords[i]; // [lat, lng]
+      var p2 = routeCoords[i + 1];
+
+      // Projection du point GPS sur le segment p1→p2
+      var dx = p2[1] - p1[1]; // delta lng
+      var dy = p2[0] - p1[0]; // delta lat
+      var lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) continue;
+
+      // t = position relative sur le segment (0=p1, 1=p2)
+      var t = ((lng - p1[1]) * dx + (lat - p1[0]) * dy) / lenSq;
+      t = Math.max(0, Math.min(1, t)); // clamp [0,1]
+
+      var projLat = p1[0] + t * dy;
+      var projLng = p1[1] + t * dx;
+
+      // Distance au point projeté (approximation rapide en mètres)
+      var dLat = (lat - projLat) * 111320;
+      var dLng = (lng - projLng) * 111320 * Math.cos(lat * Math.PI / 180);
+      var dist = Math.sqrt(dLat * dLat + dLng * dLng);
+
+      if (dist < minDist) {
+        minDist = dist;
+        bestLat = projLat;
+        bestLng = projLng;
+      }
+    }
+
+    // Ne snapper que si le GPS est à moins de 150m de la route (sinon l'infirmier est peut-être hors route)
+    if (minDist < 150) {
+      return { lat: bestLat, lng: bestLng, snapped: true, distFromRoute: Math.round(minDist) };
+    }
+    return { lat: lat, lng: lng, snapped: false, distFromRoute: Math.round(minDist) };
+  }
+
+  // ── GPS LIVE — Précision maximale + snap-to-route ──
   var _gpsWatchId = null;
   var _gpsBestAccuracy = 9999;
 
@@ -2650,13 +2692,18 @@ function _initJadomiMap() {
   }
 
   function _handleGpsPosition(pos) {
-    var lat = pos.coords.latitude;
-    var lng = pos.coords.longitude;
+    var rawLat = pos.coords.latitude;
+    var rawLng = pos.coords.longitude;
     var accuracy = pos.coords.accuracy;
 
     // Ignorer les positions trop imprécises (>100m) si on en a déjà une meilleure
     if (accuracy > 100 && _gpsBestAccuracy < 50) return;
     if (accuracy < _gpsBestAccuracy) _gpsBestAccuracy = accuracy;
+
+    // SNAP TO ROUTE : projeter la position GPS sur la route calculée
+    var snap = _snapToRoute(rawLat, rawLng);
+    var lat = snap.lat;
+    var lng = snap.lng;
 
     // Badge précision GPS (visible pendant la navigation)
     if (window._navActive) {
@@ -2667,10 +2714,13 @@ function _initJadomiMap() {
         precBadge.style.cssText = 'position:absolute;bottom:80px;right:80px;z-index:1100;padding:4px 8px;border-radius:8px;font-size:10px;font-weight:700;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
         mapDiv.appendChild(precBadge);
       }
-      var precColor = accuracy <= 10 ? '#10b981' : (accuracy <= 30 ? '#f59e0b' : '#ef4444');
+      var effectiveAccuracy = snap.snapped ? Math.min(5, Math.round(accuracy)) : Math.round(accuracy);
+      var precColor = effectiveAccuracy <= 10 ? '#10b981' : (effectiveAccuracy <= 30 ? '#f59e0b' : '#ef4444');
       precBadge.style.background = precColor + '20';
       precBadge.style.color = precColor;
-      precBadge.textContent = '\u00b1' + Math.round(accuracy) + 'm';
+      precBadge.textContent = snap.snapped
+        ? '\u2713 sur route'
+        : '\u00b1' + Math.round(accuracy) + 'm';
     }
 
     if (!gpsMarker) {
@@ -2687,12 +2737,15 @@ function _initJadomiMap() {
         zoomPanOptions: { animate: true },
         zIndexOffset: 9999
       }).addTo(map);
-      gpsCircle = L.circle([lat, lng], { radius: accuracy, color: '#3b82f6', fillColor: '#3b82f680', fillOpacity: 0.15, weight: 1 }).addTo(map);
+      // Le cercle montre la précision GPS brute (avant snap), le marqueur est snappé
+      gpsCircle = L.circle([rawLat, rawLng], { radius: accuracy, color: snap.snapped ? '#10b981' : '#3b82f6', fillColor: snap.snapped ? '#10b98120' : '#3b82f680', fillOpacity: 0.1, weight: 1, dashArray: snap.snapped ? '4' : '' }).addTo(map);
       map.setView([lat, lng], 16);
     } else {
       gpsMarker.setLatLng([lat, lng]);
-      gpsCircle.setLatLng([lat, lng]);
+      gpsCircle.setLatLng([rawLat, rawLng]); // cercle sur la position brute
       gpsCircle.setRadius(accuracy);
+      if (snap.snapped) { gpsCircle.setStyle({ color: '#10b981', fillColor: '#10b98120', dashArray: '4' }); }
+      else { gpsCircle.setStyle({ color: '#3b82f6', fillColor: '#3b82f680', dashArray: '' }); }
       if (window._navFollowing) {
         map.setView([lat, lng], Math.max(map.getZoom(), 16), { animate: true });
       }
