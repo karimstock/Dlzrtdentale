@@ -2333,11 +2333,23 @@ function _initJadomiMap() {
   var firstActive = _tourneeVisites.find(function(v) { return v.statut !== 'termine' && v.lat && v.lng; });
   var center = firstActive ? [firstActive.lat, firstActive.lng] : [50.6920, 3.1700];
 
-  // Activer la rotation si le plugin est dispo
-  var mapOpts = { zoomControl: false };
-  if (L.Map.prototype.setBearing) mapOpts.rotate = true;
+  // Activer la rotation + tactile optimisé
+  var mapOpts = {
+    zoomControl: false,
+    touchZoom: true,         // pinch zoom
+    scrollWheelZoom: true,   // scroll zoom desktop
+    doubleClickZoom: true,   // double tap zoom
+    dragging: true,          // drag pour bouger
+    inertia: true,           // inertie fluide
+    inertiaDeceleration: 2000,
+    zoomSnap: 0.5,           // zoom plus fin
+    zoomDelta: 0.5
+  };
+  if (L.Map.prototype.setBearing) {
+    mapOpts.rotate = true;
+    mapOpts.touchRotate = true; // rotation avec 2 doigts
+  }
   var map = L.map('jadomi-tournee-map', mapOpts).setView(center, 14);
-  L.control.zoom({ position: 'topright' }).addTo(map);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '', maxZoom: 19, subdomains: 'abcd'
   }).addTo(map);
@@ -3354,24 +3366,23 @@ function _initJadomiMap() {
         // Lancer le mode navigation Leaflet (zoom rue + route + simulation GPS)
         _enterNavMode(from.lat, from.lng, lat, lng, coords);
 
-        // ── Marqueurs d'instructions aux intersections (tournez à droite, rond-point...) ──
+        // ── Instructions aux virages importants seulement (pas tous les steps) ──
         steps.forEach(function(s) {
-          if (s.maneuver.type === 'depart') return;
-          var loc = s.maneuver.location; // [lng, lat]
+          if (s.maneuver.type === 'depart' || s.maneuver.type === 'new name') return;
+          if (s.maneuver.modifier === 'straight') return; // pas besoin de marqueur "tout droit"
+          var loc = s.maneuver.location;
           if (!loc) return;
-          var iconSvg = _getManeuverIcon(s.maneuver.type, s.maneuver.modifier);
           var text = _getManeuverText(s.maneuver.type, s.maneuver.modifier, s.name);
-          var bgColor = s.maneuver.type === 'arrive' ? '#ef4444' : (s.maneuver.type === 'roundabout' ? '#8b5cf6' : '#1a1a2e');
-          var instrMarker = L.marker([loc[1], loc[0]], {
+          // Petit label texte discret au lieu d'un gros cercle
+          var label = L.marker([loc[1], loc[0]], {
             icon: L.divIcon({
               className: '',
-              html: '<div style="width:36px;height:36px;border-radius:50%;background:' + bgColor + ';display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">' + iconSvg + '</div>',
-              iconSize: [36, 36], iconAnchor: [18, 18]
+              html: '<div style="background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;color:#1a1a2e;white-space:nowrap;box-shadow:0 1px 6px rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.06);max-width:140px;overflow:hidden;text-overflow:ellipsis">' + text + '</div>',
+              iconSize: [0, 0], iconAnchor: [0, 12]
             }),
-            zIndexOffset: 200
+            interactive: false, zIndexOffset: 150
           }).addTo(map);
-          instrMarker.bindPopup('<div style="font-size:13px;font-weight:600;white-space:nowrap">' + text + '</div>', { closeButton: false });
-          window._navExtras.push(instrMarker);
+          window._navExtras.push(label);
         });
 
         // Panneau instructions en haut de la carte
@@ -3572,68 +3583,85 @@ function _initJadomiMap() {
     if (window._jadomiUpdateSheet) window._jadomiUpdateSheet();
   };
 
-  // ── Boutons flottants (recentrer GPS + toggle liste) ──
-  var btnWrap = document.createElement('div');
-  btnWrap.style.cssText = 'position:absolute;top:12px;left:12px;z-index:1050;display:flex;flex-direction:column;gap:8px';
+  // ── Boutons flottants — gauche (liste + fermer) ──
+  var btnLeft = document.createElement('div');
+  btnLeft.style.cssText = 'position:absolute;top:12px;left:12px;z-index:1050;display:flex;flex-direction:column;gap:8px';
+  var _btnStyle = 'width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 12px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer';
 
-  // Bouton liste
+  // Liste
   var listBtn = document.createElement('div');
-  listBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer';
+  listBtn.style.cssText = _btnStyle;
   listBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
   listBtn.onclick = function() { _toggleRouteList(); };
-  btnWrap.appendChild(listBtn);
+  btnLeft.appendChild(listBtn);
 
-  // Bouton GPS recentrer
+  // Fermer
+  var closeBtn = document.createElement('div');
+  closeBtn.style.cssText = _btnStyle.replace('rgba(255,255,255,.95)', 'rgba(239,68,68,.1)').replace('rgba(0,0,0,.08)', 'rgba(239,68,68,.15)');
+  closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  closeBtn.onclick = function() { closeTourneeMode(); };
+  btnLeft.appendChild(closeBtn);
+  mapDiv.appendChild(btnLeft);
+
+  // ── Boutons flottants — droite (recentrer + zoom + boussole) ──
+  var btnRight = document.createElement('div');
+  btnRight.style.cssText = 'position:absolute;top:12px;right:12px;z-index:1050;display:flex;flex-direction:column;gap:8px';
+
+  // RECENTRER (gros bouton bien visible)
   var gpsBtn = document.createElement('div');
-  gpsBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer';
-  gpsBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
-  gpsBtn.onclick = function() { if (gpsMarker) map.setView(gpsMarker.getLatLng(), 16); };
-  btnWrap.appendChild(gpsBtn);
+  gpsBtn.style.cssText = _btnStyle + ';background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.2)';
+  gpsBtn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
+  gpsBtn.onclick = function() {
+    if (gpsMarker) {
+      map.setView(gpsMarker.getLatLng(), 18, { animate: true });
+      if (map.setBearing) map.setBearing(0);
+    }
+    showToast('Recentr\u00e9');
+  };
+  btnRight.appendChild(gpsBtn);
 
-  // Bouton boussole (toggle nord / direction du trajet)
-  window._compassMode = 'north'; // 'north' = carte au nord, 'bearing' = carte suit le déplacement
+  // Zoom +
+  var zoomIn = document.createElement('div');
+  zoomIn.style.cssText = _btnStyle;
+  zoomIn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  zoomIn.onclick = function() { map.zoomIn(); };
+  btnRight.appendChild(zoomIn);
+
+  // Zoom -
+  var zoomOut = document.createElement('div');
+  zoomOut.style.cssText = _btnStyle;
+  zoomOut.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  zoomOut.onclick = function() { map.zoomOut(); };
+  btnRight.appendChild(zoomOut);
+
+  // Boussole
+  window._compassMode = 'north';
   var compassBtn = document.createElement('div');
   compassBtn.id = 'jadomi-compass-btn';
-  compassBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative';
+  compassBtn.style.cssText = _btnStyle;
   compassBtn.innerHTML = '<svg id="compass-needle" width="24" height="24" viewBox="0 0 24 24" style="transition:transform .3s ease"><polygon points="12,2 15,12 12,10 9,12" fill="#ef4444"/><polygon points="12,22 9,12 12,14 15,12" fill="#1a1a2e"/></svg>';
-  compassBtn.title = 'Boussole — cliquez pour orienter la carte';
   compassBtn.onclick = function() {
     if (window._compassMode === 'north') {
-      // Passer en mode "suit le déplacement" (comme Waze)
       window._compassMode = 'bearing';
       compassBtn.style.background = 'rgba(13,148,136,.15)';
       compassBtn.style.borderColor = '#0d9488';
-      showToast('Mode Waze : carte suit la direction');
     } else {
-      // Revenir au nord
       window._compassMode = 'north';
       compassBtn.style.background = 'rgba(255,255,255,.95)';
       compassBtn.style.borderColor = 'rgba(0,0,0,.08)';
       if (map.setBearing) map.setBearing(0);
-      showToast('Mode Nord : carte orient\u00e9e au nord');
     }
   };
-  btnWrap.appendChild(compassBtn);
+  btnRight.appendChild(compassBtn);
 
-  // Mettre à jour l'aiguille de la boussole quand la carte tourne
   if (map.setBearing) {
     map.on('rotate', function() {
       var needle = document.getElementById('compass-needle');
-      if (needle) {
-        var b = map.getBearing ? map.getBearing() : 0;
-        needle.style.transform = 'rotate(' + (-b) + 'deg)';
-      }
+      if (needle) needle.style.transform = 'rotate(' + (-(map.getBearing ? map.getBearing() : 0)) + 'deg)';
     });
   }
 
-  // Bouton fermer
-  var closeBtn = document.createElement('div');
-  closeBtn.style.cssText = 'width:44px;height:44px;border-radius:12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.15);box-shadow:0 2px 10px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;cursor:pointer';
-  closeBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  closeBtn.onclick = function() { closeTourneeMode(); };
-  btnWrap.appendChild(closeBtn);
-
-  mapDiv.appendChild(btnWrap);
+  mapDiv.appendChild(btnRight);
 
   // Ajuster la vue puis calculer la route
   if (allCoords.length > 1) map.fitBounds(allCoords, { padding: [60, 60] });
