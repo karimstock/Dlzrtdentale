@@ -3305,6 +3305,7 @@ function _initJadomiMap() {
         if (typeof stopIdx === 'number' && _tourneeVisites[stopIdx]) {
           patientName = _tourneeVisites[stopIdx].patient || '';
         }
+        var remaining = _tourneeVisites.filter(function(v) { return v.statut !== 'termine'; }).length;
 
         // Lancer le mode navigation Leaflet (zoom rue + route + simulation GPS)
         _enterNavMode(from.lat, from.lng, lat, lng, coords);
@@ -3347,31 +3348,112 @@ function _initJadomiMap() {
               '<div style="font-size:10px;color:rgba(255,255,255,.5)">min</div>' +
             '</div>' +
           '</div>' +
-          // Ligne 2 : heure actuelle + distance + ETA arrivée + patient + arrêter
-          '<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
-            // Heure actuelle
-            '<div style="display:flex;align-items:center;gap:4px">' +
-              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-              '<span style="font-size:13px;font-weight:700;color:#fff">' + nowStr + '</span>' +
-            '</div>' +
+          // Ligne 2 : heure + distance + ETA
+          '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">' +
+            '<div style="display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span style="font-size:13px;font-weight:700;color:#fff">' + nowStr + '</span></div>' +
             '<span style="width:1px;height:14px;background:rgba(255,255,255,.1)"></span>' +
-            // Distance
             '<span style="font-size:12px;color:rgba(255,255,255,.5)">' + dist + '</span>' +
             '<span style="width:1px;height:14px;background:rgba(255,255,255,.1)"></span>' +
-            // Heure d'arrivée estimée
-            '<div style="display:flex;align-items:center;gap:4px">' +
-              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M12 2a8 8 0 00-8 8c0 5.4 7 12 8 12s8-6.6 8-12a8 8 0 00-8-8z"/><circle cx="12" cy="10" r="3"/></svg>' +
-              '<span style="font-size:13px;font-weight:700;color:#4ade80">' + etaStr + '</span>' +
-            '</div>' +
-            // Patient
-            (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#0d9488;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + patientName + '</span>' : '') +
-            // Arrêter
-            '<button onclick="stopNavigation()" style="margin-left:' + (patientName ? '4px' : 'auto') + ';padding:6px 12px;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Arr\u00eater</button>' +
+            '<div style="display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M12 2a8 8 0 00-8 8c0 5.4 7 12 8 12s8-6.6 8-12a8 8 0 00-8-8z"/><circle cx="12" cy="10" r="3"/></svg><span style="font-size:13px;font-weight:700;color:#4ade80">Arriv\u00e9e ' + etaStr + '</span></div>' +
+            (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#0d9488">' + patientName + '</span>' : '') +
+          '</div>' +
+          // Ligne 3 : boutons ARRIVÉ + SUIVANT + compteur
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+            '<button onclick="_onArrived()" style="flex:1;padding:12px;background:#10b981;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Arriv\u00e9</button>' +
+            '<button onclick="_onNext()" style="flex:1;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Suivant</button>' +
+            '<div style="text-align:center;padding:8px 12px;background:rgba(255,255,255,.1);border-radius:10px;flex-shrink:0"><div style="font-size:18px;font-weight:900;color:#fff">' + remaining + '</div><div style="font-size:9px;color:rgba(255,255,255,.5)">restant' + (remaining > 1 ? 's' : '') + '</div></div>' +
           '</div>';
         mapDiv.appendChild(infoPanel);
         window._navInfoPanel = infoPanel;
       })
       .catch(function(e) { showToast('Erreur: ' + e.message); });
+  };
+
+  // ── ARRIVÉ : enregistre preuve GPS + affiche confirmation ──
+  window._onArrived = function() {
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    if (currentIdx < 0) return;
+    var v = _tourneeVisites[currentIdx];
+
+    // Enregistrer la preuve GPS
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        var proof = {
+          type: 'arrivee',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          timestamp: new Date().toISOString(),
+          patient: v.patient,
+          visite_id: v.id
+        };
+        // Sauvegarder en base
+        apiFetch('/api/ide/visite/' + v.id + '/checkin', {
+          method: 'POST',
+          body: JSON.stringify(proof)
+        }).catch(function() {
+          // Hors ligne → queue
+          _queueOffline('/api/ide/visite/' + v.id + '/checkin', proof);
+        });
+      }, function() {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+    }
+
+    // Marquer comme terminé
+    v.statut = 'termine';
+    var dv = DEMO_VISITES.find(function(x) { return x.id === v.id; });
+    if (dv) dv.statut = 'termine';
+
+    // Mettre à jour via API
+    if (navigator.onLine) {
+      apiFetch('/api/ide/visite/' + v.id + '/status', { method: 'PATCH', body: JSON.stringify({ statut: 'termine' }) });
+    } else {
+      _queueOffline('/api/ide/visite/' + v.id + '/status', { statut: 'termine' });
+    }
+
+    // Mettre à jour le marqueur sur la carte (vert check)
+    if (window._jadomiMarkers && window._jadomiMarkers[currentIdx] && window.L) {
+      window._jadomiMarkers[currentIdx].setIcon(L.divIcon({
+        className: '',
+        html: '<div style="width:40px;height:40px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,.4)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>',
+        iconSize: [40, 40], iconAnchor: [20, 20]
+      }));
+    }
+
+    // Toast confirmation
+    showToast('\u2705 Arriv\u00e9 chez ' + v.patient + ' \u2014 preuve GPS enregistr\u00e9e');
+
+    // Checker s'il reste des patients
+    var nextIdx = _tourneeVisites.findIndex(function(x) { return x.statut !== 'termine'; });
+    if (nextIdx < 0) {
+      // Tournée terminée !
+      stopNavigation();
+      showToast('\u{1F389} Tourn\u00e9e termin\u00e9e ! Toutes les visites sont faites.');
+    }
+  };
+
+  // ── SUIVANT : passer au patient suivant automatiquement ──
+  window._onNext = function() {
+    // D'abord marquer comme arrivé si pas déjà fait
+    var currentIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    if (currentIdx >= 0 && _tourneeVisites[currentIdx].statut !== 'termine') {
+      _onArrived();
+    }
+
+    // Naviguer vers le suivant
+    var nextIdx = _tourneeVisites.findIndex(function(v) { return v.statut !== 'termine'; });
+    if (nextIdx >= 0) {
+      var next = _tourneeVisites[nextIdx];
+      if (next.lat && next.lng) {
+        // Fermer la navigation actuelle et relancer vers le suivant
+        _exitNavMode();
+        setTimeout(function() {
+          naviguerVers(next.lat, next.lng, nextIdx);
+        }, 300);
+      }
+    } else {
+      stopNavigation();
+      showToast('\u{1F389} Tourn\u00e9e termin\u00e9e !');
+    }
   };
 
   window.stopNavigation = function() {
