@@ -2347,7 +2347,8 @@ function _initJadomiMap() {
   };
   if (L.Map.prototype.setBearing) {
     mapOpts.rotate = true;
-    mapOpts.touchRotate = true; // rotation 2 doigts
+    mapOpts.touchRotate = true;
+    mapOpts.shiftKeyRotate = true;
   }
   var map = L.map('jadomi-tournee-map', mapOpts).setView(center, 14);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -2966,31 +2967,15 @@ function _initJadomiMap() {
     line._shadow = shadow;
     window._navRouteLine = line;
 
-    // Flèches intégrées dans la ligne de route
-    if (L.polylineDecorator) {
-      var arrowDeco = L.polylineDecorator(line, {
-        patterns: [{
-          offset: 30,
-          repeat: 100,
-          symbol: L.Symbol.arrowHead({
-            pixelSize: 12,
-            polygon: true,
-            pathOptions: { color: '#1e3a8a', fillColor: '#1e3a8a', fillOpacity: 0.85, weight: 0 }
-          })
-        }]
-      }).addTo(map);
-      window._navExtras.push(arrowDeco);
-
-      // Cacher flèches + extras pendant la rotation
-      map.on('rotatestart', function() {
-        try { if (arrowDeco._map) map.removeLayer(arrowDeco); } catch(e) {}
-        window._navExtras.forEach(function(x) { try { if (x._icon) x._icon.style.display = 'none'; } catch(e) {} });
-      });
-      map.on('rotateend', function() {
-        try { if (!arrowDeco._map) arrowDeco.addTo(map); } catch(e) {}
-        window._navExtras.forEach(function(x) { try { if (x._icon) x._icon.style.display = ''; } catch(e) {} });
-      });
-    }
+    // Flèches de direction via CSS dashArray sur une 2ème polyline fine
+    // Pas de decorator SVG = zero lag à la rotation
+    var arrowLine = L.polyline(routeCoords, {
+      color: '#1e3a8a', weight: 3, opacity: 0.7,
+      dashArray: '0 12 8 12', // point-tiret = simule des flèches
+      lineCap: 'butt',
+      smoothFactor: 3
+    }).addTo(map);
+    window._navExtras.push(arrowLine);
 
     // ── Card patient à la destination ──
     var patientInfo = '';
@@ -3634,6 +3619,12 @@ function _initJadomiMap() {
   btnRight.appendChild(compassBtn);
 
   if (map.setBearing) {
+    // Forcer le SVG overlay à tourner avec les tiles via CSS transform (zero lag)
+    var overlayPane = map.getPane('overlayPane');
+    var markerPane = map.getPane('markerPane');
+    if (overlayPane) overlayPane.style.willChange = 'transform';
+    if (markerPane) markerPane.style.willChange = 'transform';
+
     map.on('rotate', function() {
       var needle = document.getElementById('compass-needle');
       if (needle) needle.style.transform = 'rotate(' + (-(map.getBearing ? map.getBearing() : 0)) + 'deg)';
