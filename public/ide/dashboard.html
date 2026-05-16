@@ -2843,6 +2843,7 @@ function _initJadomiMap() {
     // ── Alertes communautaires ──
     _loadCommunityAlerts(fromLat, fromLng);
     _addSignalerButton();
+    _addClockWidget();
 
     // Passer le marqueur GPS en voiture infirmière si il existe déjà
     if (gpsMarker && !window._gpsIsNursCar) {
@@ -2931,6 +2932,20 @@ function _initJadomiMap() {
       .catch(function() { /* pas d'alertes si API down */ });
   }
 
+  // Horloge live sur la carte
+  function _addClockWidget() {
+    var clock = document.createElement('div');
+    clock.id = 'jadomi-clock';
+    clock.style.cssText = 'position:absolute;bottom:80px;left:16px;z-index:1100;padding:6px 12px;background:rgba(0,0,0,.75);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:10px;color:#fff;font-size:16px;font-weight:800;font-family:Inter,system-ui,monospace;letter-spacing:.02em';
+    function updateClock() {
+      var n = new Date();
+      clock.textContent = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+    }
+    updateClock();
+    window._clockInterval = setInterval(updateClock, 10000);
+    mapDiv.appendChild(clock);
+  }
+
   // Bouton "Signaler" flottant pendant la navigation
   function _addSignalerButton() {
     var btn = document.createElement('div');
@@ -3008,6 +3023,9 @@ function _initJadomiMap() {
     if (speedEl) speedEl.remove();
     var sigBtn = document.getElementById('jadomi-signaler-btn');
     if (sigBtn) sigBtn.remove();
+    if (window._clockInterval) { clearInterval(window._clockInterval); window._clockInterval = null; }
+    var clockEl = document.getElementById('jadomi-clock');
+    if (clockEl) clockEl.remove();
     var sigModal = document.getElementById('jadomi-signaler-modal');
     if (sigModal) sigModal.remove();
     // Nettoyer route et marqueurs
@@ -3121,7 +3139,9 @@ function _initJadomiMap() {
         var dist = route.distance >= 1000 ? (Math.round(route.distance / 100) / 10) + ' km' : Math.round(route.distance) + ' m';
         var duree = Math.max(1, Math.round(route.duration / 60));
         var eta = new Date(Date.now() + route.duration * 1000);
-        var etaStr = eta.getHours() + ':' + String(eta.getMinutes()).padStart(2, '0');
+        var etaStr = String(eta.getHours()).padStart(2, '0') + ':' + String(eta.getMinutes()).padStart(2, '0');
+        var now = new Date();
+        var nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
 
         // Instructions turn-by-turn
         var steps = route.legs[0].steps || [];
@@ -3175,23 +3195,38 @@ function _initJadomiMap() {
         var mob = window.innerWidth < 768;
         infoPanel.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:1100;background:linear-gradient(180deg,rgba(26,26,46,.97) 0%,rgba(26,26,46,.85) 100%);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);padding:' + (mob ? '16px 14px' : '20px 24px') + ';color:#fff';
         infoPanel.innerHTML =
-          '<div style="display:flex;align-items:center;gap:16px">' +
-            '<div style="flex-shrink:0;width:' + (mob ? '48' : '56') + 'px;height:' + (mob ? '48' : '56') + 'px;border-radius:14px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:' + (mob ? '24' : '28') + 'px">' + stepIcon + '</div>' +
+          // Ligne 1 : instruction + temps
+          '<div style="display:flex;align-items:center;gap:12px">' +
+            '<div style="flex-shrink:0;width:' + (mob ? '44' : '52') + 'px;height:' + (mob ? '44' : '52') + 'px;border-radius:12px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:' + (mob ? '22' : '26') + 'px">' + stepIcon + '</div>' +
             '<div style="flex:1;min-width:0">' +
-              '<div style="font-size:' + (mob ? '18' : '22') + 'px;font-weight:900;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + stepName + '</div>' +
-              '<div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:2px">dans ' + stepDist + '</div>' +
+              '<div style="font-size:' + (mob ? '17' : '20') + 'px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + stepName + '</div>' +
+              '<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px">dans ' + stepDist + '</div>' +
             '</div>' +
-            '<div style="text-align:center;flex-shrink:0;padding-left:16px;border-left:1px solid rgba(255,255,255,.12)">' +
-              '<div style="font-size:' + (mob ? '26' : '30') + 'px;font-weight:900;color:#4ade80">' + duree + '</div>' +
+            '<div style="text-align:center;flex-shrink:0;padding-left:12px;border-left:1px solid rgba(255,255,255,.1)">' +
+              '<div style="font-size:' + (mob ? '24' : '28') + 'px;font-weight:900;color:#4ade80">' + duree + '</div>' +
               '<div style="font-size:10px;color:rgba(255,255,255,.5)">min</div>' +
             '</div>' +
           '</div>' +
-          '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+          // Ligne 2 : heure actuelle + distance + ETA arrivée + patient + arrêter
+          '<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+            // Heure actuelle
+            '<div style="display:flex;align-items:center;gap:4px">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+              '<span style="font-size:13px;font-weight:700;color:#fff">' + nowStr + '</span>' +
+            '</div>' +
+            '<span style="width:1px;height:14px;background:rgba(255,255,255,.1)"></span>' +
+            // Distance
             '<span style="font-size:12px;color:rgba(255,255,255,.5)">' + dist + '</span>' +
-            '<span style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.2)"></span>' +
-            '<span style="font-size:12px;color:rgba(255,255,255,.5)">ETA ' + etaStr + '</span>' +
-            (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#4ade80">' + patientName + '</span>' : '') +
-            '<button onclick="stopNavigation()" style="margin-left:' + (patientName ? '8px' : 'auto') + ';padding:8px 16px;background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer">Arr\u00eater</button>' +
+            '<span style="width:1px;height:14px;background:rgba(255,255,255,.1)"></span>' +
+            // Heure d'arrivée estimée
+            '<div style="display:flex;align-items:center;gap:4px">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M12 2a8 8 0 00-8 8c0 5.4 7 12 8 12s8-6.6 8-12a8 8 0 00-8-8z"/><circle cx="12" cy="10" r="3"/></svg>' +
+              '<span style="font-size:13px;font-weight:700;color:#4ade80">' + etaStr + '</span>' +
+            '</div>' +
+            // Patient
+            (patientName ? '<span style="margin-left:auto;font-size:12px;font-weight:600;color:#0d9488;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + patientName + '</span>' : '') +
+            // Arrêter
+            '<button onclick="stopNavigation()" style="margin-left:' + (patientName ? '4px' : 'auto') + ';padding:6px 12px;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Arr\u00eater</button>' +
           '</div>';
         mapDiv.appendChild(infoPanel);
         window._navInfoPanel = infoPanel;
