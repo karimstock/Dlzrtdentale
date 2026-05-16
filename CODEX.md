@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 15 mai 2026
-**Derniere passe** : Session Studio ZENDO + Flyer Builder (14-15 mai) + Passe 79 (12 mai)
+**Derniere mise a jour** : 16 mai 2026
+**Derniere passe** : Passe 81 (16 mai) — GPS Navigation Infirmier + Organisation Mobile
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -1978,6 +1978,91 @@ carte GPS MapLibre, app Flutter améliorée.
 - scripts/cron-scrape-all.sh (APIs d'abord, Puppeteer en fallback)
 - scripts/scrape-venta-api.js (ref_fabricant capturée)
 - jadomi-app : 8 fichiers Flutter modifiés/créés
+
+## Passe 81 (16 mai 2026) — GPS Navigation Infirmier(e) + Organisation Mobile
+
+SESSION MARATHON. Construction complete du systeme de navigation GPS
+turn-by-turn pour les infirmier(e)s, style Waze/Google Maps.
+
+### GPS Navigation Infirmier — JADOMI Maps v2
+- Carte Leaflet plein ecran avec bottom sheet (patient en cours + suivant + km + ETA)
+- Itineraire OSRM complet avec distances/temps par segment
+- Plugin **leaflet-rotate** : carte tourne dans la direction du deplacement
+- Boussole toggle Nord/Bearing (mode Waze)
+- Voiture infirmiere SVG (croix medicale, phares, roues) au lieu de fleche
+- Point bleu pulsant en vue d'ensemble, voiture en navigation
+- Fleches directionnelles bleues le long du trace de route
+- Card patient a la destination (nom, heure, soin)
+- Instructions aux intersections (tournez a droite/gauche, rond-point, arrivee)
+  avec marqueurs ronds SVG sur la carte
+- Indicateur de vitesse (km/h) rond noir
+- Horloge live sur la carte
+- Heure actuelle + heure d'arrivee estimee dans le panneau
+- GPS simulation sur desktop (voiture qui avance le long de la route)
+- Banniere rouge "Aucune donnee GPS" comme Waze
+- Detection "Position approximative" iOS + popup guide utilisateur
+- **Snap-to-route** : projection GPS sur la route OSRM (precision ~0-5m)
+
+### Boutons Navigation
+- **Arrive** (vert) : enregistre preuve GPS (lat, lng, accuracy, timestamp)
+  en base Supabase — justificatif CPAM/assurance
+- **Absent** (rouge, croix) : no-show, impact scoring patient
+- **Annule** (orange, trait) : patient a prevenu, moins grave
+- **Suivant** (bleu) : marque arrive + nav auto vers le prochain
+- Compteur patients restants visible
+
+### Statuts visuels noms patients
+- Vert + pastille : patient a vu la notification
+- Orange + pastille : pas encore vu
+- Rouge + croix : absent (no-show)
+- Orange barre : annule (a prevenu)
+- Vert + check : visite terminee
+
+### POI sur la carte
+- Pharmacies + stations essence via Overpass API (rayon 800m)
+- Emojis cliquables avec popup nom
+
+### Alertes communautaires (style Waze)
+- Table Supabase `alertes_route` (7 types, expiration 2h, RLS)
+- Endpoints GET/POST /api/ide/alertes-route
+- Bouton signaler flottant : travaux, bouchon, accident, route barree,
+  police, danger, verglas
+- Les utilisateurs JADOMI renseignent les autres en temps reel
+
+### Vue patient temps reel (Uber-like)
+- Page /patient/suivi-infirmier.html (acces via lien unique token)
+- Carte avec position live de l'infirmier(e) (polling 5s)
+- ETA en gros, nom infirmier(e), soin prevu
+- Bouton "Je ne serai pas la" → signale absence
+- Endpoints : GET /api/ide/visite/:id/tracking-live, POST patient-absent
+- Endpoint demo : /api/ide/visite/demo/tracking-live
+
+### Organisation mobile
+- Hamburger menu + bottom nav (5 onglets) + slide panel
+- Top bar fixe JADOMI + deconnexion
+- Menu slide : Administration, Documents, Studio, Acces rapides
+- Liens vers tous les dashboards metiers
+
+### SQL
+- sql/82_alertes_route.sql : table alertes communautaires + index + RLS
+
+### Fichiers crees
+- CREE : public/patient/suivi-infirmier.html (vue patient Uber-like)
+- CREE : sql/82_alertes_route.sql (alertes communautaires)
+
+### Fichiers modifies
+- public/ide/dashboard.html (+2500 lignes GPS navigation)
+- server.js (endpoints tracking-live, patient-absent, alertes-route, demo)
+- organisation.html (navigation mobile)
+
+### Prochain chantier
+- Brancher le meme GPS navigation dans l'app livreur prothesiste
+  (public/labo/livreur-app.html) — meme code, labels differents
+- Vue dentiste temps reel (comme vue patient)
+- Tracker lecture notification (notif_viewed)
+- Scoring patient (no-show, annulations)
+
+---
 
 ===============================================================
 # ⚠ ATTENTION — TACHES CRITIQUES A PREVOIR
