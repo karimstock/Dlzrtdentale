@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 16 mai 2026
-**Derniere passe** : Passe 81 (16 mai) — GPS Navigation Infirmier + Organisation Mobile
+**Derniere mise a jour** : 17 mai 2026
+**Derniere passe** : Passe 82 (17 mai) — Dashboards natifs Flutter + donnees test Lille/Roubaix
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4417,7 +4417,72 @@ Architecture 3 niveaux pour reduire les couts :
 - public/organisation.html (tab app-mobile, sidebar reorganisee)
 - public/app-preview/ (rebuild Flutter web complet)
 
+## Passe 82 (17 mai 2026) — Dashboards natifs Flutter + donnees test Lille/Roubaix
+
+### Dashboard Prothesiste natif (labo_dashboard_screen.dart)
+- Carte temps reel positions livreurs (refresh 15s via /labo/tournees/positions/live)
+- Bottom nav native : Production / Suivi carte / Livreurs / Plus
+- Bouton retour AppBar
+- Livreurs ouvre LivreurScreen natif (plus d'ouverture web externe)
+- Suivi carte affiche SnackBar (ecran natif a venir)
+
+### Dashboard IDE natif (ide_dashboard_screen.dart)
+- Navigation JADOMI au lieu de Waze/Google Maps par defaut
+- Bouton retour AppBar ajoute
+- Fix status tournee : 'termine' (pas 'terminee')
+- Bouton "Dashboard complet" ouvre la version web
+
+### Drawer dentiste refonte (home_screen.dart)
+- Sections organisees : ESSENTIEL (natif) + PLUS (web)
+- Snap Photos renomme "Scanner"
+- Liens web ouverts via url_launcher (plus natif quand disponible)
+
+### Fixes UI globaux
+- Fausse status bar retiree du simulateur
+- Care : AppBar propre avec bouton retour
+- Avocat : ecran natif 4 cards (coffre, clients, agenda, compta)
+- Patient : ameliorations UI
+- Admin Hub : WebView JADOMI integree
+- jadomi_map_stub.dart : conditional import pour compilation web
+
+### Backend fixes
+- Jointure arrets tournee : adresse_ligne1 (pas adresse) + retrait latitude/longitude inexistants
+- Routes app livreur accessibles sans auth Supabase
+
+### Donnees de test creees en base
+- Labo Prothese du Nord : 4 livreurs (Nordine, Youssef, Antoine, Mehdi)
+- Tournee Nordine 17/05 matin : 5 arrets a Lille (Dupont, Martin, Lefebvre, Bernard, Moreau)
+- 5 demandes de passage creees (origine: dentiste)
+- Cabinet IDE Roubaix : 5 patients (Delcourt, Bouali, Vandenberghe, Carpentier, Deroubaix)
+- 5 visites IDE matin Roubaix
+
+### Build et deploiement
+- Flutter build web deploye /app-preview/ avec tous les fixes
+- PM2 reload OK, server stable
+
+### Fichiers modifies (jadomi)
+- routes/labo/tournees-livreur.js (jointure arrets fix)
+- uploads/flyers/_metadata.json + PDF ZENDO
+
+### Fichiers modifies (jadomi-app)
+- lib/screens/labo_dashboard_screen.dart (carte live + bottom nav + livreur import)
+- lib/screens/ide_dashboard_screen.dart (nav JADOMI + bouton retour)
+- lib/screens/home_screen.dart (drawer refonte)
+- lib/screens/admin_hub_screen.dart (WebView enrichi)
+- lib/screens/livreur_screen.dart (fixes)
+- lib/screens/navigation_map_screen.dart (ameliorations)
+- lib/screens/patient_home_screen.dart (UI)
+- lib/widgets/jadomi_map.dart (markers livreurs)
+- lib/widgets/jadomi_map_stub.dart (nouveau — stub web)
+- lib/screens/jadomi_webview_screen.dart (nouveau — WebView native)
+- pubspec.yaml + pubspec.lock (url_launcher)
+
+### Demandes en attente (prochaine session)
+1. Page accueil web dentiste (pas ouvrir direct sur stock)
+2. Lien dentiste <-> prothesiste (module connexion cabinet/labo)
+3. Bouton retour Care a verifier
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 17 mai 2026 (Passe 79 — App Mobile Flutter + Simulateur)
+Derniere mise a jour : 17 mai 2026 (Passe 82 — Dashboards natifs Flutter + donnees test)
 ===============================================================
