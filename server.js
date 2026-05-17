@@ -4667,6 +4667,66 @@ app.get('/api/facturation/mandate-template/pdf', requireAuth(), async (req, res)
   }
 });
 
+// ===== JADOMI — Crédits API IA (DeepSeek, Claude, Mistral) =====
+
+// GET /api/admin/ai-credits — Soldes et usage des API IA
+app.get('/api/admin/ai-credits', requireAuth(), async (req, res) => {
+  try {
+    const results = { deepseek: null, anthropic: null, mistral: null };
+
+    // 1. DeepSeek — vrai endpoint balance
+    if (deepseekApiKey) {
+      try {
+        const dsRes = await fetch('https://api.deepseek.com/user/balance', {
+          headers: { 'Authorization': `Bearer ${deepseekApiKey}` },
+        });
+        if (dsRes.ok) {
+          const dsData = await dsRes.json();
+          const info = dsData.balance_infos?.[0];
+          results.deepseek = {
+            available: dsData.is_available,
+            total_balance: info?.total_balance || '0',
+            granted_balance: info?.granted_balance || '0',
+            topped_up_balance: info?.topped_up_balance || '0',
+            currency: info?.currency || 'CNY',
+          };
+        }
+      } catch (e) {
+        results.deepseek = { error: e.message };
+      }
+    }
+
+    // 2. Anthropic — pas d'endpoint balance, on renvoie le statut clé
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    results.anthropic = {
+      configured: !!anthropicKey,
+      key_prefix: anthropicKey ? anthropicKey.substring(0, 10) + '...' : null,
+      note: 'Vérifier le solde sur console.anthropic.com/settings/billing',
+      dashboard_url: 'https://console.anthropic.com/settings/billing',
+    };
+
+    // 3. Mistral — pas d'endpoint balance
+    results.mistral = {
+      configured: !!mistral,
+      note: 'Vérifier le solde sur console.mistral.ai/usage',
+      dashboard_url: 'https://console.mistral.ai/usage/',
+    };
+
+    // 4. Pricing référence
+    results.pricing = {
+      deepseek_chat: { input: '$0.14/M tokens', output: '$0.28/M tokens', cache_hit: '$0.0028/M tokens' },
+      claude_haiku: { input: '$0.25/M tokens', output: '$1.25/M tokens' },
+      claude_sonnet: { input: '$3/M tokens', output: '$15/M tokens' },
+      mistral_small: { input: '$0.2/M tokens', output: '$0.6/M tokens' },
+    };
+
+    res.json({ ok: true, credits: results });
+  } catch (e) {
+    console.error('[AI Credits]', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // ===== JADOMI SÉCURITÉ — API Rapports + Scan manuel =====
 
 // POST /api/admin/security-report — Recevoir rapport scan nocturne
