@@ -119,4 +119,20 @@ module.exports = function mountDentistePro(app) {
   } catch (e) {
     console.warn('[dentiste-pro] Agenda non charge:', e.message);
   }
+
+  // Liaison Cabinet ↔ Labo (demandes de liaison bidirectionnelle)
+  try {
+    app.use(`${base}/liaison-labo`, require('./liaison-labo'));
+    console.log('[dentiste-pro] Routes liaison-labo montees');
+  } catch (e) {
+    console.warn('[dentiste-pro] Liaison-labo non charge:', e.message);
+  }
+
+  // Chat IA Patient + Prise de RDV automatisée
+  try {
+    app.use(`${base}/chat-patient-ia`, require('./chat-patient-ia'));
+    console.log('[dentiste-pro] Routes chat-patient-ia montees');
+  } catch (e) {
+    console.warn('[dentiste-pro] Chat-patient-ia non charge:', e.message);
+  }
 };

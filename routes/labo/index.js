@@ -111,6 +111,9 @@ function createLaboRouter() {
   router.use('/fichiers3d', requireFeature('fichiers_3d'), fichiers3dRouter);
   router.use('/reseau', requireFeature('reseau_annuaire'), require('./reseau'));
 
+  // Liaison Labo ↔ Dentiste (demandes de liaison bidirectionnelle)
+  router.use('/liaison-dentiste', require('./liaison-dentiste'));
+
   return router;
 }
 

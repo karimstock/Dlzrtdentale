@@ -68,13 +68,13 @@ const Router = (() => {
 
     // Redirect authenticated users away from login
     if (path === '/login' && LaboAPI.isAuthenticated()) {
-      window.location.hash = '#/mes-cas';
+      window.location.hash = '#/accueil';
       return;
     }
 
     const matched = matchRoute(path);
     if (!matched) {
-      window.location.hash = LaboAPI.isAuthenticated() ? '#/mes-cas' : '#/login';
+      window.location.hash = LaboAPI.isAuthenticated() ? '#/accueil' : '#/login';
       return;
     }
 
@@ -140,7 +140,7 @@ const Router = (() => {
 
     // Initial route
     if (!window.location.hash) {
-      window.location.hash = LaboAPI.isAuthenticated() ? '#/mes-cas' : '#/login';
+      window.location.hash = LaboAPI.isAuthenticated() ? '#/accueil' : '#/login';
     } else {
       onHashChange();
     }
