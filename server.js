@@ -1556,24 +1556,67 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'Field "messages" (array), "message" (string) or "prompt" (string) required' });
     }
 
-    // ═══ OPTIMISATION COÛTS : rediriger Haiku → DeepSeek (30x moins cher) → Mistral Small (15x) ═══
-    // Seulement si pas de tools et pas d'images. DeepSeek = premier choix (meilleur JSON, moins cher).
+    // ═══ SUPER TRAVAILLEURS DeepSeek — spécialisés, pas généralistes ═══
+    // Chaque tâche = un worker expert qui sait EXACTEMENT pourquoi il est là.
+    // DeepSeek (30x moins cher) → Mistral Small (15x) → Claude Haiku (dernier recours)
     const isHaiku = model && model.includes('haiku');
     const hasImages = messages.some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image'));
     if (isHaiku && !tools && !hasImages) {
-      // 1. Essayer DeepSeek (le moins cher, excellent en structuration JSON/OCR)
+      // 1. DeepSeek — mode JSON forcé + prefix + ultra spécialisé
       if (deepseekApiKey) {
         try {
-          const deepseekMsgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
-          const dsRes = await fetch('https://api.deepseek.com/chat/completions', {
+          // Détecter le type de tâche pour aiguiller le bon "super travailleur"
+          const systemStr = system || '';
+          const isOcrScan = systemStr.includes('OCR') || systemStr.includes('emballage') || systemStr.includes('produit');
+
+          let deepseekMsgs;
+          if (isOcrScan) {
+            // ══ SUPER TRAVAILLEUR : Extracteur OCR Produits Dentaires ══
+            const expertSystem = `Tu es l'EXTRACTEUR JADOMI — un super travailleur spécialisé UNIQUEMENT dans la lecture d'emballages de produits dentaires et médicaux.
+
+TU CONNAIS PAR COEUR :
+- Marques : 3M ESPE, Septodont, Pierre Rolland, GC, Ivoclar, Kerr, Dentsply Sirona, Acteon, Bien Air, NSK, Kulzer, VOCO, Coltene, SDI, Ultradent, Hu-Friedy
+- Fournisseurs : DPI, GACD, Henry Schein, Mega Dental, Dental Express, Medistock, Promodentaire
+- Catégories : Consommables, Instruments, Anesthésie, Endodontie, Prothèse, Hygiène, Implantologie, Orthodontie, Chirurgie, Radiologie, Empreinte, Composite, Céramique, Collage, Autre
+
+RÈGLES ABSOLUES :
+- Réponds UNIQUEMENT en JSON valide, RIEN d'autre
+- Si un champ est introuvable dans le texte, mets null (pas de string vide, pas d'invention)
+- date_peremption au format YYYY-MM ou YYYY-MM-DD
+- NE JAMAIS inventer un produit — tu extrais ce qui EST ÉCRIT
+
+Exemple entrée OCR : "3M ESPE Filtek Z250 XT\\nREF 6020A2\\nLOT N834\\nEXP 2026/03\\nUniversal Restorative"
+Exemple sortie json : {"nom":"Filtek Z250 XT Universal Restorative","marque":"3M ESPE","reference":"6020A2","categorie":"Composite","date_peremption":"2026-03","lot":"N834","fournisseur":null,"confidence":0.95}`;
+            deepseekMsgs = [
+              { role: 'system', content: expertSystem },
+              ...messages,
+              { role: 'assistant', content: '{', prefix: true }
+            ];
+          } else {
+            // ══ SUPER TRAVAILLEUR : Structurateur JSON générique ══
+            deepseekMsgs = system
+              ? [{ role: 'system', content: system }, ...messages, { role: 'assistant', content: '{', prefix: true }]
+              : [...messages, { role: 'assistant', content: '{', prefix: true }];
+          }
+
+          const dsRes = await fetch('https://api.deepseek.com/beta/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekApiKey}` },
-            body: JSON.stringify({ model: 'deepseek-chat', messages: deepseekMsgs, max_tokens, temperature: 0.1 }),
+            body: JSON.stringify({
+              model: 'deepseek-chat',
+              messages: deepseekMsgs,
+              max_tokens: max_tokens || 512,
+              temperature: 0.1,
+              top_p: 0.1,
+              response_format: { type: 'json_object' },
+            }),
           });
           if (dsRes.ok) {
             const dsData = await dsRes.json();
-            const txt = dsData.choices?.[0]?.message?.content || '';
-            console.log('[/api/claude] Haiku → DeepSeek (économie ~30x)');
+            let txt = dsData.choices?.[0]?.message?.content || '';
+            // Le prefix '{' n'est pas inclus dans la réponse — on le rajoute
+            if (txt && !txt.startsWith('{')) txt = '{' + txt;
+            console.log(`[/api/claude] Haiku → DeepSeek Super Worker${isOcrScan ? ' (OCR Expert)' : ''} (économie ~30x)`);
             return res.json({
               content: [{ type: 'text', text: txt }],
               model: 'deepseek-chat',
