@@ -4712,30 +4712,25 @@ app.get('/api/admin/ai-credits', requireAuth(), async (req, res) => {
       dashboard_url: 'https://console.mistral.ai/usage/',
     };
 
-    // 4. Vidu (vidéo IA)
+    // 4. Vidu (vidéo IA) — api.vidu.com/ent/v2/credits
     if (process.env.VIDU_API_KEY) {
       try {
-        const viduRes = await fetch('https://platform.vidu.com/ent/v1/account', {
+        const viduRes = await fetch('https://api.vidu.com/ent/v2/credits', {
           headers: { 'Authorization': `Bearer ${process.env.VIDU_API_KEY}`, 'Accept': 'application/json' },
         });
         if (viduRes.ok) {
           const viduData = await viduRes.json();
+          const metered = (viduData.remains || []).find(r => r.type === 'metered');
           results.vidu = {
             configured: true,
-            balance: viduData.balance ?? viduData.credits ?? viduData.remaining_credits ?? null,
-            raw: viduData,
+            credit_remain: metered?.credit_remain ?? 0,
+            concurrency_limit: metered?.concurrency_limit ?? 0,
+            current_concurrency: metered?.current_concurrency ?? 0,
+            queue_count: viduData.queue_count ?? 0,
+            packages: viduData.packages || [],
           };
         } else {
-          // Fallback: log de dépenses
-          let totalSpent = 0;
-          try {
-            const fs = require('fs');
-            if (fs.existsSync('/tmp/vidu-spending.log')) {
-              const lines = fs.readFileSync('/tmp/vidu-spending.log', 'utf8').trim().split('\n');
-              for (const l of lines) { try { totalSpent += JSON.parse(l).credits || 0; } catch(_){} }
-            }
-          } catch(_){}
-          results.vidu = { configured: true, balance: null, total_spent_credits: totalSpent, note: 'Solde API indisponible, dépenses calculées depuis les logs' };
+          results.vidu = { configured: true, error: `HTTP ${viduRes.status}` };
         }
       } catch (e) {
         results.vidu = { configured: true, error: e.message };

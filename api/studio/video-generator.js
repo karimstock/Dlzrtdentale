@@ -19,8 +19,8 @@ function viduRequest(method, path, body) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
     const options = {
-      hostname: 'platform.vidu.com',
-      path: '/ent/v1' + path,
+      hostname: 'api.vidu.com',
+      path: '/ent/v2' + path,
       method,
       headers: {
         'Authorization': 'Bearer ' + VIDU_KEY,
@@ -369,13 +369,16 @@ router.get('/balance', async (req, res) => {
       return res.status(500).json({ ok: false, error: 'Vidu API key non configuree' });
     }
 
-    // Tentative de recuperation du solde via l'API Vidu
+    // Recuperation du solde via l'API Vidu v2
     try {
-      const result = await viduRequest('GET', '/account');
+      const result = await viduRequest('GET', '/credits');
+      const metered = (result.remains || []).find(r => r.type === 'metered');
       res.json({
         ok: true,
-        balance: result.balance || result.credits || result.remaining_credits || null,
-        raw: result,
+        credit_remain: metered?.credit_remain ?? 0,
+        concurrency_limit: metered?.concurrency_limit ?? 0,
+        current_concurrency: metered?.current_concurrency ?? 0,
+        queue_count: result.queue_count ?? 0,
       });
     } catch (apiErr) {
       // Fallback : calculer depuis les logs
