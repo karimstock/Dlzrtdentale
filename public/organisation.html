@@ -1253,6 +1253,90 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
     </div>
   </div>
 
+  <!-- CRÉDITS API IA -->
+  <div class="ar-section" data-cat="outils">
+    <div class="ar-section-title">💳 Crédits API IA</div>
+    <div id="aiCreditsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px;">
+      <div class="card" style="padding:16px;text-align:center;"><div style="font-size:12px;color:var(--text3);">Chargement des soldes...</div></div>
+    </div>
+  </div>
+  <script>
+  (function loadAiCredits(){
+    // Attendre que tk soit défini (chargé par la session Supabase)
+    if(typeof tk==='undefined'||!tk){setTimeout(loadAiCredits,500);return;}
+    fetch('/api/admin/ai-credits', {headers:{'Authorization':'Bearer '+tk}})
+      .then(r=>r.json()).then(d=>{
+        if(!d.ok) return;
+        const c = d.credits;
+        const box = document.getElementById('aiCreditsCards');
+        if(!box) return;
+        let h = '';
+
+        // DeepSeek
+        if(c.deepseek && !c.deepseek.error){
+          h += `<div class="card" style="padding:16px;border-left:3px solid #6366F1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:18px;">✨</span>
+              <div><div style="font-size:13px;font-weight:700;color:var(--text);">DeepSeek</div><div style="font-size:10px;color:var(--text3);">OCR scan produits</div></div>
+              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.deepseek.available?'Actif':'Épuisé'}</span>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:4px;">$${c.deepseek.total_balance}</div>
+            <div style="font-size:11px;color:var(--text3);">Rechargé: $${c.deepseek.topped_up_balance} | Offerts: $${c.deepseek.granted_balance}</div>
+            <a href="${c.deepseek.recharge_url||'https://platform.deepseek.com/top_up'}" target="_blank" class="btn bp bs" style="width:100%;margin-top:10px;font-size:11px;padding:8px;">Recharger</a>
+          </div>`;
+        }
+
+        // Vidu
+        if(c.vidu && c.vidu.configured && !c.vidu.error){
+          h += `<div class="card" style="padding:16px;border-left:3px solid #8B5CF6;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:18px;">🎬</span>
+              <div><div style="font-size:13px;font-weight:700;color:var(--text);">Vidu</div><div style="font-size:10px;color:var(--text3);">Vidéo IA</div></div>
+              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">Actif</span>
+            </div>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:4px;">${(c.vidu.credit_remain||0).toLocaleString()} crédits</div>
+            <div style="font-size:11px;color:var(--text3);">Concurrence: ${c.vidu.current_concurrency||0}/${c.vidu.concurrency_limit||0} | File: ${c.vidu.queue_count||0}</div>
+            <a href="${c.vidu.recharge_url||'https://platform.vidu.com/pricing'}" target="_blank" class="btn bp bs" style="width:100%;margin-top:10px;font-size:11px;padding:8px;">Recharger</a>
+          </div>`;
+        }
+
+        // Claude
+        if(c.anthropic){
+          h += `<div class="card" style="padding:16px;border-left:3px solid #D97706;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:18px;">🧠</span>
+              <div><div style="font-size:13px;font-weight:700;color:var(--text);">Claude</div><div style="font-size:10px;color:var(--text3);">Patients, factures, chat</div></div>
+              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.anthropic.configured?'Configuré':'—'}</span>
+            </div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Solde sur le dashboard Anthropic</div>
+            <div style="display:flex;gap:6px;">
+              <a href="${c.anthropic.recharge_url||'https://console.anthropic.com/settings/billing'}" target="_blank" class="btn bp bs" style="flex:1;font-size:11px;padding:8px;">Recharger</a>
+              <a href="${c.anthropic.dashboard_url||'https://console.anthropic.com/settings/usage'}" target="_blank" class="btn bg bs" style="flex:1;font-size:11px;padding:8px;">Usage</a>
+            </div>
+          </div>`;
+        }
+
+        // Mistral
+        if(c.mistral){
+          h += `<div class="card" style="padding:16px;border-left:3px solid #FF6B35;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:18px;">🌬️</span>
+              <div><div style="font-size:13px;font-weight:700;color:var(--text);">Mistral</div><div style="font-size:10px;color:var(--text3);">IA française souveraine</div></div>
+              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.mistral.configured?'Configuré':'—'}</span>
+            </div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Solde sur le dashboard Mistral</div>
+            <div style="display:flex;gap:6px;">
+              <a href="${c.mistral.recharge_url||'https://console.mistral.ai/billing/'}" target="_blank" class="btn bp bs" style="flex:1;font-size:11px;padding:8px;">Recharger</a>
+              <a href="${c.mistral.dashboard_url||'https://console.mistral.ai/usage/'}" target="_blank" class="btn bg bs" style="flex:1;font-size:11px;padding:8px;">Usage</a>
+            </div>
+          </div>`;
+        }
+
+        box.innerHTML = h || '<div class="card" style="padding:16px;"><div style="color:var(--text3);font-size:12px;">Aucun crédit configuré</div></div>';
+      }).catch(()=>{});
+  })();
+  </script>
+
   <!-- SIMULATEUR APP MOBILE -->
   <div class="ar-section" data-cat="outils">
     <div class="ar-section-title">📱 Simulateur App Mobile</div>
