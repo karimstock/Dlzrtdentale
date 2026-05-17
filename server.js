@@ -4712,7 +4712,51 @@ app.get('/api/admin/ai-credits', requireAuth(), async (req, res) => {
       dashboard_url: 'https://console.mistral.ai/usage/',
     };
 
-    // 4. Pricing référence
+    // 4. Vidu (vidéo IA)
+    if (process.env.VIDU_API_KEY) {
+      try {
+        const viduRes = await fetch('https://platform.vidu.com/ent/v1/account', {
+          headers: { 'Authorization': `Bearer ${process.env.VIDU_API_KEY}`, 'Accept': 'application/json' },
+        });
+        if (viduRes.ok) {
+          const viduData = await viduRes.json();
+          results.vidu = {
+            configured: true,
+            balance: viduData.balance ?? viduData.credits ?? viduData.remaining_credits ?? null,
+            raw: viduData,
+          };
+        } else {
+          // Fallback: log de dépenses
+          let totalSpent = 0;
+          try {
+            const fs = require('fs');
+            if (fs.existsSync('/tmp/vidu-spending.log')) {
+              const lines = fs.readFileSync('/tmp/vidu-spending.log', 'utf8').trim().split('\n');
+              for (const l of lines) { try { totalSpent += JSON.parse(l).credits || 0; } catch(_){} }
+            }
+          } catch(_){}
+          results.vidu = { configured: true, balance: null, total_spent_credits: totalSpent, note: 'Solde API indisponible, dépenses calculées depuis les logs' };
+        }
+      } catch (e) {
+        results.vidu = { configured: true, error: e.message };
+      }
+    } else {
+      results.vidu = { configured: false };
+    }
+
+    // 5. NanoBanana (images IA)
+    results.nanobanana = { configured: !!process.env.NANOBANANA_API_KEY };
+
+    // 6. Wallet JADOMI Coins (crédits internes)
+    try {
+      const db = supaAdminOrThrow();
+      const { data: wallet } = await db.from('user_coins_wallet').select('balance, total_earned, total_spent').eq('user_id', req.user.id).single();
+      results.jadomi_coins = wallet || { balance: 0, total_earned: 0, total_spent: 0 };
+    } catch(_) {
+      results.jadomi_coins = { balance: 0, total_earned: 0, total_spent: 0 };
+    }
+
+    // 7. Pricing référence
     results.pricing = {
       deepseek_chat: { input: '$0.14/M tokens', output: '$0.28/M tokens', cache_hit: '$0.0028/M tokens' },
       claude_haiku: { input: '$0.25/M tokens', output: '$1.25/M tokens' },
