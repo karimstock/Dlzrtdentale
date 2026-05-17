@@ -4689,6 +4689,8 @@ app.get('/api/admin/ai-credits', requireAuth(), async (req, res) => {
             granted_balance: info?.granted_balance || '0',
             topped_up_balance: info?.topped_up_balance || '0',
             currency: info?.currency || 'CNY',
+            recharge_url: 'https://platform.deepseek.com/top_up',
+            dashboard_url: 'https://platform.deepseek.com/usage',
           };
         }
       } catch (e) {
@@ -4701,14 +4703,14 @@ app.get('/api/admin/ai-credits', requireAuth(), async (req, res) => {
     results.anthropic = {
       configured: !!anthropicKey,
       key_prefix: anthropicKey ? anthropicKey.substring(0, 10) + '...' : null,
-      note: 'Vérifier le solde sur console.anthropic.com/settings/billing',
-      dashboard_url: 'https://console.anthropic.com/settings/billing',
+      recharge_url: 'https://console.anthropic.com/settings/billing',
+      dashboard_url: 'https://console.anthropic.com/settings/usage',
     };
 
     // 3. Mistral — pas d'endpoint balance
     results.mistral = {
       configured: !!mistral,
-      note: 'Vérifier le solde sur console.mistral.ai/usage',
+      recharge_url: 'https://console.mistral.ai/billing/',
       dashboard_url: 'https://console.mistral.ai/usage/',
     };
 
@@ -4728,6 +4730,8 @@ app.get('/api/admin/ai-credits', requireAuth(), async (req, res) => {
             current_concurrency: metered?.current_concurrency ?? 0,
             queue_count: viduData.queue_count ?? 0,
             packages: viduData.packages || [],
+            recharge_url: 'https://platform.vidu.com/pricing',
+            dashboard_url: 'https://platform.vidu.com/dashboard',
           };
         } else {
           results.vidu = { configured: true, error: `HTTP ${viduRes.status}` };
