@@ -364,6 +364,10 @@ const mistral = process.env.MISTRAL_API_KEY
   : null;
 if (!mistral) console.warn('[JADOMI] MISTRAL_API_KEY non défini — Mistral désactivé, fallback Claude');
 
+// --- DeepSeek AI client (low-cost, excellent JSON structuration, zéro données santé) ---
+const deepseekApiKey = process.env.DEEPSEEK_API_KEY || null;
+if (!deepseekApiKey) console.warn('[JADOMI] DEEPSEEK_API_KEY non défini — DeepSeek désactivé');
+
 // --- Supabase client ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vsbomwjzehnfinfjvhqp.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -1552,30 +1556,57 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
       return res.status(400).json({ error: 'Field "messages" (array), "message" (string) or "prompt" (string) required' });
     }
 
-    // ═══ OPTIMISATION COÛTS : rediriger Haiku → Mistral Small (15x moins cher) ═══
-    // Seulement si Mistral est disponible ET pas de tools (Mistral gère pas les tools Claude)
+    // ═══ OPTIMISATION COÛTS : rediriger Haiku → DeepSeek (30x moins cher) → Mistral Small (15x) ═══
+    // Seulement si pas de tools et pas d'images. DeepSeek = premier choix (meilleur JSON, moins cher).
     const isHaiku = model && model.includes('haiku');
     const hasImages = messages.some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image'));
-    if (isHaiku && mistral && !tools && !hasImages) {
-      try {
-        const mistralMsgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
-        const mResponse = await mistral.chat.complete({
-          model: 'mistral-small-latest',
-          messages: mistralMsgs,
-          maxTokens: max_tokens,
-        });
-        const txt = mResponse.choices?.[0]?.message?.content || '';
-        console.log('[/api/claude] Haiku → Mistral Small (économie ~15x)');
-        return res.json({
-          content: [{ type: 'text', text: txt }],
-          model: 'mistral-small-latest',
-          provider: 'mistral',
-          usage: mResponse.usage,
-        });
-      } catch (mErr) {
-        console.warn('[/api/claude] Mistral fallback failed, using Claude:', mErr.message);
-        // Continue vers Claude ci-dessous
+    if (isHaiku && !tools && !hasImages) {
+      // 1. Essayer DeepSeek (le moins cher, excellent en structuration JSON/OCR)
+      if (deepseekApiKey) {
+        try {
+          const deepseekMsgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
+          const dsRes = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekApiKey}` },
+            body: JSON.stringify({ model: 'deepseek-chat', messages: deepseekMsgs, max_tokens, temperature: 0.1 }),
+          });
+          if (dsRes.ok) {
+            const dsData = await dsRes.json();
+            const txt = dsData.choices?.[0]?.message?.content || '';
+            console.log('[/api/claude] Haiku → DeepSeek (économie ~30x)');
+            return res.json({
+              content: [{ type: 'text', text: txt }],
+              model: 'deepseek-chat',
+              provider: 'deepseek',
+              usage: dsData.usage,
+            });
+          }
+        } catch (dsErr) {
+          console.warn('[/api/claude] DeepSeek failed, trying Mistral:', dsErr.message);
+        }
       }
+      // 2. Fallback Mistral Small
+      if (mistral) {
+        try {
+          const mistralMsgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
+          const mResponse = await mistral.chat.complete({
+            model: 'mistral-small-latest',
+            messages: mistralMsgs,
+            maxTokens: max_tokens,
+          });
+          const txt = mResponse.choices?.[0]?.message?.content || '';
+          console.log('[/api/claude] Haiku → Mistral Small (économie ~15x)');
+          return res.json({
+            content: [{ type: 'text', text: txt }],
+            model: 'mistral-small-latest',
+            provider: 'mistral',
+            usage: mResponse.usage,
+          });
+        } catch (mErr) {
+          console.warn('[/api/claude] Mistral fallback failed, using Claude:', mErr.message);
+        }
+      }
+      // 3. Si les deux échouent → continue vers Claude Haiku ci-dessous
     }
 
     const params = { model, max_tokens, messages };
