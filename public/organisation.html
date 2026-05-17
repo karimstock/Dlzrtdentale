@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JADOMI — Dashboard</title>
 <script>
-// Auth guard instantané — bloque AVANT le rendu si pas de session Supabase
 (function(){
   try {
     var keys = Object.keys(localStorage);
@@ -208,9 +207,8 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 .stab.a{background:var(--accent);color:#fff;}
 
 @media(max-width:768px){
-  body{flex-direction:column;overflow:auto;}
-  .sidebar{width:100%;height:auto;max-height:50px;overflow:hidden;}
-  .sb-nav,.sb-soc,.sb-user,.sb-logo p,.sb-section{display:none;}
+  body{flex-direction:column;overflow:auto;padding-bottom:70px;}
+  .sidebar{display:none;}
   .main{height:auto;overflow:visible;}
   .mi{padding:14px;}
   .sg{grid-template-columns:1fr 1fr;}
@@ -219,14 +217,83 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   #sd-categories-tree{display:none!important;}
   #t-documents [style*="200px 1fr"]{grid-template-columns:1fr!important;}
   .sd-row{grid-template-columns:30px 1fr 90px!important;}
+  /* Hamburger top bar */
+  .mob-topbar{display:flex!important;}
+  /* Bottom nav */
+  .mob-bottomnav{display:flex!important;}
+  /* Slide-over menu */
+  .mob-menu-overlay{display:block!important;}
 }
+.mob-topbar{display:none;position:fixed;top:0;left:0;right:0;z-index:999;height:56px;background:rgba(17,10,40,.97);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);align-items:center;padding:0 16px;gap:12px;border-bottom:1px solid rgba(255,255,255,.06);}
+.mob-topbar h1{font-size:18px;font-weight:800;color:#fff;flex:1;}
+.mob-topbar .ham{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.mob-bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:999;height:64px;background:rgba(17,10,40,.97);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);align-items:center;justify-content:space-around;border-top:1px solid rgba(255,255,255,.06);padding:0 8px;}
+.mob-bottomnav .bnav{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 10px;border-radius:10px;cursor:pointer;color:rgba(255,255,255,.45);font-size:10px;font-weight:600;transition:all .2s;}
+.mob-bottomnav .bnav.act{color:#a78bfa;background:rgba(167,139,250,.1);}
+.mob-bottomnav .bnav span{font-size:20px;}
+.mob-menu-overlay{display:none;position:fixed;inset:0;z-index:1000;}
+.mob-menu-bg{position:absolute;inset:0;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
+.mob-menu-panel{position:absolute;top:0;left:0;bottom:0;width:300px;background:linear-gradient(180deg,#1a1030 0%,#110a28 100%);padding:20px 16px;overflow-y:auto;transform:translateX(-100%);transition:transform .3s cubic-bezier(.16,1,.3,1);}
+.mob-menu-panel.open{transform:translateX(0);}
+.mob-menu-panel .mm-item{padding:12px 14px;border-radius:10px;color:rgba(255,255,255,.7);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all .2s;}
+.mob-menu-panel .mm-item:active,.mob-menu-panel .mm-item.act{background:rgba(167,139,250,.12);color:#fff;}
+.mob-menu-panel .mm-group{font-size:11px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.05em;padding:16px 14px 6px;font-weight:700;}
 </style>
 </head>
 <body data-help-context="organisation">
 
+<!-- MOBILE : Top bar + Bottom nav + Slide menu -->
+<div class="mob-topbar">
+  <div class="ham" onclick="_openMobMenu()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+  <h1>JADOMI</h1>
+  <div class="ham" onclick="lo()" title="Quitter"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+</div>
+
+<div class="mob-bottomnav">
+  <div class="bnav act" onclick="_mobTab('overview',this)"><span>&#x1F4CA;</span>Accueil</div>
+  <div class="bnav" onclick="_mobTab('compta',this)"><span>&#x1F4B0;</span>Compta</div>
+  <div class="bnav" onclick="_mobTab('users',this)"><span>&#x1F465;</span>Clients</div>
+  <div class="bnav" onclick="_mobTab('messages',this)"><span>&#x1F4E7;</span>Messages</div>
+  <div class="bnav" onclick="_openMobMenu()"><span>&#x2630;</span>Plus</div>
+</div>
+
+<div class="mob-menu-overlay" id="mobMenuOverlay" style="display:none">
+  <div class="mob-menu-bg" onclick="_closeMobMenu()"></div>
+  <div class="mob-menu-panel" id="mobMenuPanel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:800;color:#fff">JADOMI</div>
+      <div class="ham" onclick="_closeMobMenu()" style="background:rgba(255,255,255,.06)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="mm-group">Administration</div>
+    <div class="mm-item act" onclick="_mobNav('overview',this)">&#x1F4CA; Vue d'ensemble</div>
+    <div class="mm-item" onclick="_mobNav('compta',this)">&#x1F4B0; Comptabilit&eacute;</div>
+    <div class="mm-item" onclick="_mobNav('users',this)">&#x1F465; Clients &amp; Users</div>
+    <div class="mm-item" onclick="_mobNav('messages',this)">&#x1F4E7; Messages</div>
+    <div class="mm-item" onclick="_mobNav('analytics',this)">&#x1F4C8; Analytics</div>
+    <div class="mm-item" onclick="_mobNav('sectors',this)">&#x1F3E2; Secteurs</div>
+    <div class="mm-item" onclick="_mobNav('plans',this)">&#x1F4B3; Abonnements</div>
+    <div class="mm-item" onclick="_mobNav('settings',this)">&#x2699;&#xFE0F; Param&egrave;tres</div>
+    <div class="mm-item" onclick="_mobNav('securite',this)">&#x1F6E1;&#xFE0F; S&eacute;curit&eacute;</div>
+    <div class="mm-group">Documents</div>
+    <div class="mm-item" onclick="_mobNav('documents',this)">&#x1F4C4; Documents</div>
+    <div class="mm-item" onclick="_mobNav('signature',this)">&#x270D;&#xFE0F; Signature &eacute;lectronique</div>
+    <div class="mm-item" onclick="_mobNav('rapide',this)">&#x1F680; Acc&egrave;s rapide</div>
+    <div class="mm-group">JADOMI Studio</div>
+    <div class="mm-item" onclick="_mobNav('studio-home',this)">&#x2728; Vue d'ensemble</div>
+    <div class="mm-item" onclick="window.location.href='/studio/hub.html'">&#x1F3A8; Studio cr&eacute;atif</div>
+    <div class="mm-item" onclick="window.location.href='/dashboard-annonceur.html'">&#x1F4E2; Mes pubs</div>
+    <div class="mm-group">Acc&egrave;s rapides</div>
+    <div class="mm-item" onclick="window.location.href='/index.html'">&#x1F3E5; Dashboard Stock</div>
+    <div class="mm-item" onclick="window.location.href='/admin/dentiste-pro.html'">&#x1FA77; Cabinet dentaire</div>
+    <div class="mm-item" onclick="window.location.href='/ide/dashboard.html'">&#x1F489; Infirmier(e)</div>
+    <div class="mm-item" onclick="window.location.href='/labo/expeditions.html'">&#x1F9F7; Proth&eacute;siste</div>
+    <div class="mm-item" onclick="window.location.href='/juridique/dashboard.html'">&#x2696;&#xFE0F; Juridique</div>
+  </div>
+</div>
+
 <div class="loader-screen" id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;">
   <div style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;"></div>
-  <style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+  <style>@keyframes spin{to{transform:rotate(360deg);}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
 </div>
 
 <div class="ob-ov hide" id="onboard">
@@ -270,7 +337,23 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       </div>
     </div>
 
-    <!-- ACCORDEON 3: JADOMI Studio -->
+    <!-- ACCORDEON 3: Accès rapide & Orgas -->
+    <div class="nav-group" data-nav-group="acces-orgas">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">🚀</span> Accès rapide
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="sb-item" onclick="sT('rapide',this)"><span class="ico">🚀</span>Tous les modules</div>
+        <div class="sb-item" onclick="sT('mes-orgas',this)"><span class="ico">🏢</span>Mes orgas perso</div>
+        <div class="sb-item" onclick="sT('equipment',this)"><span class="ico">🏭</span>Equipment</div>
+        <div class="sb-item" onclick="sT('scraping',this)"><span class="ico">🔍</span>Scraping</div>
+        <div class="sb-item" onclick="sT('test-apps',this)"><span class="ico">🧪</span>Tester une app</div>
+        <div class="sb-item" onclick="sT('app-mobile',this)"><span class="ico">📱</span>App Mobile</div>
+        <div class="sb-item" onclick="sT('ai-credits',this)"><span class="ico">💳</span>Crédits IA</div>
+      </div>
+    </div>
+
+    <!-- ACCORDEON 4: JADOMI Studio -->
     <div class="nav-group" data-nav-group="jadomi-studio">
       <div class="nav-group-title" onclick="toggleNavGroup(this)">
         <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">✨</span> JADOMI Studio
@@ -279,6 +362,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
         <div class="sb-item" onclick="sT('studio-home',this)"><span class="ico">✨</span>Vue d'ensemble</div>
         <div class="sb-item" onclick="window.location.href='/studio/cms/'"><span class="ico">🌐</span>Mon site</div>
         <div class="sb-item" onclick="window.location.href='/studio/onboarding/'"><span class="ico">🔍</span>Créer / analyser</div>
+        <div class="sb-item" onclick="window.location.href='/studio/hub.html'"><span class="ico">🎨</span>Studio cr&eacute;atif</div>
         <div class="sb-item" onclick="window.location.href='/dashboard-annonceur.html'"><span class="ico">📢</span>Mes pubs</div>
         <div class="sb-item" onclick="sT('studio-abo',this)"><span class="ico">💎</span>Mon abonnement</div>
       </div>
@@ -451,27 +535,6 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
         <a href="/docs/CODEX-JADOMI.html" target="_blank" style="padding:8px 16px;background:#8b5cf6;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">Voir</a>
         <a href="/docs/CODEX-JADOMI.html" download style="padding:8px 16px;border:1px solid var(--border,#e2e8f0);border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:var(--text);">Télécharger</a>
         <button onclick="copyCodexLink()" style="padding:8px 16px;border:1px solid var(--border,#e2e8f0);border-radius:8px;font-size:12px;font-weight:600;background:transparent;color:var(--text);cursor:pointer;" id="codex-copy-btn">Copier le lien</button>
-      </div>
-    </div>
-
-
-    <div class="ar-card" style="padding:28px;" onclick="event.stopPropagation();">
-      <div style="font-size:36px;margin-bottom:14px;">🏛️</div>
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Courrier ARS</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:16px;">Présentation de l'outil de preuve de passage IDEL — demande d'avis</div>
-      <div style="display:flex;gap:8px;">
-        <a href="/docs/courrier-ars-preuve-passage.html" target="_blank" style="padding:8px 16px;background:#0d9488;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">Voir</a>
-        <a href="/docs/courrier-ars-preuve-passage.html" download style="padding:8px 16px;border:1px solid var(--border,#e2e8f0);border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:var(--text);">Télécharger</a>
-      </div>
-    </div>
-
-    <div class="ar-card" style="padding:28px;" onclick="event.stopPropagation();">
-      <div style="font-size:36px;margin-bottom:14px;">🏥</div>
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Courrier CPAM</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:16px;">Présentation de l'outil de preuve de passage — ce type de données est-il recevable ?</div>
-      <div style="display:flex;gap:8px;">
-        <a href="/docs/courrier-cpam-tracabilite.html" target="_blank" style="padding:8px 16px;background:#3b82f6;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">Voir</a>
-        <a href="/docs/courrier-cpam-tracabilite.html" download style="padding:8px 16px;border:1px solid var(--border,#e2e8f0);border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:var(--text);">Télécharger</a>
       </div>
     </div>
 
@@ -1155,6 +1218,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
     <button class="btn bg bs ar-filter" onclick="filterARCat('createurs',this)" style="font-size:11px;padding:6px 12px;">✨ Créateurs</button>
     <button class="btn bg bs ar-filter" onclick="filterARCat('immobilier',this)" style="font-size:11px;padding:6px 12px;">🏠 Immobilier</button>
     <button class="btn bg bs ar-filter" onclick="filterARCat('commerce',this)" style="font-size:11px;padding:6px 12px;">🏢 Commerce</button>
+    <button class="btn bg bs ar-filter" onclick="filterARCat('studio',this)" style="font-size:11px;padding:6px 12px;">🌐 Studio</button>
     <button class="btn bg bs ar-filter" onclick="filterARCat('outils',this)" style="font-size:11px;padding:6px 12px;">⚡ Outils</button>
   </div>
 
@@ -1162,16 +1226,16 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div class="ar-section" data-cat="sante">
     <div class="ar-section-title">🦷 Santé</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/admin/dentiste-pro" data-kw="cabinet dentaire stock commandes sos agenda"><div class="ar-ico">🦷</div><div class="ar-name">Cabinet dentaire</div><div class="ar-desc">Dashboard praticien, agenda, patients</div></a>
+      <a class="ar-card" href="/dentiste" data-kw="cabinet dentaire stock commandes sos"><div class="ar-ico">🦷</div><div class="ar-name">Cabinet dentaire</div><div class="ar-desc">Stock, commandes, SOS</div></a>
       <a class="ar-card" href="/labo/dashboard.html" data-kw="labo prothesiste bons livraison"><div class="ar-ico">🔬</div><div class="ar-name">Labo prothésiste</div><div class="ar-desc">Dashboard labo</div></a>
       <a class="ar-card" href="/labo/facturation.html" data-kw="facture facturation labo"><div class="ar-ico">💰</div><div class="ar-name">Facturation Labo</div><div class="ar-desc">Factures labo</div></a>
       <a class="ar-card" href="/labo/stock.html" data-kw="stock materiaux scanner labo"><div class="ar-ico">📦</div><div class="ar-name">Stock Labo</div><div class="ar-desc">Matériaux &amp; fournitures</div></a>
       <a class="ar-card" href="/labo/dentistes.html" data-kw="dentistes clients labo"><div class="ar-ico">👥</div><div class="ar-name">Mes dentistes</div><div class="ar-desc">Clients du labo</div></a>
       <a class="ar-card" href="/orthodontiste" data-kw="orthodontiste orthodontie aligneurs bagues"><div class="ar-ico">🦴</div><div class="ar-name">Orthodontiste</div><div class="ar-desc">Patients, traitements, planning</div></a>
-      <a class="ar-card" href="/ide" data-kw="infirmiere tournee agenda planning patient ide idel soins domicile waze pharmacie ordonnance" style="border:1px solid rgba(13,148,136,.3);background:linear-gradient(135deg,rgba(13,148,136,.06),rgba(13,148,136,.02));position:relative;overflow:hidden;"><div class="ar-ico" style="font-size:24px;">👩‍⚕️</div><div class="ar-name" style="color:#0d9488;">Infirmière libérale</div><div class="ar-desc">Tournées GPS, ordonnances, pharmacie, Waze</div><span style="position:absolute;top:6px;right:8px;font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;background:#0d9488;color:#fff;letter-spacing:.5px;">COMPLET</span></a>
       <a class="ar-card" href="/medecin" data-kw="medecin generaliste consultation cabinet medical"><div class="ar-ico">🩺</div><div class="ar-name">Médecin généraliste</div><div class="ar-desc">Consultations, ordonnances, agenda</div></a>
       <a class="ar-card ar-card--soon" href="#" onclick="event.preventDefault();alert('Dashboard Dermatologue en cours de développement. Disponible prochainement.')" data-kw="dermatologue dermatologie peau"><div class="ar-ico">🔬</div><div class="ar-name">Dermatologue</div><div class="ar-desc">Bientôt disponible</div></a>
-      <a class="ar-card ar-card--soon" href="#" onclick="event.preventDefault();alert('Dashboard Ophtalmologue en cours de développement. Disponible prochainement.')" data-kw="ophtalmologue ophtalmologie yeux vision"><div class="ar-ico">👁️</div><div class="ar-name">Ophtamologue</div><div class="ar-desc">Bientôt disponible</div></a>
+      <a class="ar-card ar-card--soon" href="#" onclick="event.preventDefault();alert('Dashboard Ophtalmologue en cours de développement. Disponible prochainement.')" data-kw="ophtalmologue ophtalmologie yeux vision"><div class="ar-ico">👁️</div><div class="ar-name">Ophtalmologue</div><div class="ar-desc">Bientôt disponible</div></a>
+      <a class="ar-card" href="/ide" data-kw="infirmiere tournee agenda planning patient ide"><div class="ar-ico">🏥</div><div class="ar-name">Infirmière libérale</div><div class="ar-desc">Tournées &amp; Planning IDE</div></a>
       <a class="ar-card" href="/equipment/offres" data-kw="equipment equipement groupe achat fabricant"><div class="ar-ico">🏭</div><div class="ar-name">Equipment groupe</div><div class="ar-desc">Achat groupé équipement</div></a>
     </div>
   </div>
@@ -1179,7 +1243,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div class="ar-section" data-cat="paramedical">
     <div class="ar-section-title">🩺 Paramédical</div>
     <div class="ar-grid">
-      <a class="ar-card" href="/ide" data-kw="infirmiere liberale idel tournee planning soins domicile waze gps preuve passage" style="border:1px solid rgba(13,148,136,.3);background:linear-gradient(135deg,rgba(13,148,136,.06),rgba(13,148,136,.02));"><div class="ar-ico" style="font-size:24px;">👩‍⚕️</div><div class="ar-name" style="color:#0d9488;">Infirmière (IDEL)</div><div class="ar-desc">Tournées GPS, Waze, preuve de passage, ordonnances</div></a>
+      <a class="ar-card" href="/ide" data-kw="infirmiere liberale idel tournee planning soins"><div class="ar-ico">🏥</div><div class="ar-name">Infirmière (IDEL)</div><div class="ar-desc">Tournées, patients, soins</div></a>
       <a class="ar-card" href="/kine" data-kw="kinesitherapeute kine reeducation"><div class="ar-ico">🦴</div><div class="ar-name">Kinésithérapeute</div><div class="ar-desc">Séances, bilans, paiements</div></a>
       <a class="ar-card ar-card--soon" href="#" onclick="event.preventDefault();alert('Dashboard Ostéopathe en cours de développement. Disponible prochainement.')" data-kw="osteopathe osteo"><div class="ar-ico">🤲</div><div class="ar-name">Ostéopathe</div><div class="ar-desc">Bientôt disponible</div></a>
       <a class="ar-card" href="/podologue" data-kw="podologue pedicure semelle"><div class="ar-ico">🦶</div><div class="ar-name">Podologue</div><div class="ar-desc">Semelles, bilans, fabrication</div></a>
@@ -1239,6 +1303,16 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
     </div>
   </div>
 
+  <div class="ar-section" data-cat="studio">
+    <div class="ar-section-title">🌐 JADOMI Studio — Créer votre site</div>
+    <div class="ar-grid">
+      <a class="ar-card" href="/studio/onboarding/" data-kw="studio creer site internet vitrine"><div class="ar-ico">🚀</div><div class="ar-name">Créer un site</div><div class="ar-desc">Nouveau site internet</div></a>
+      <a class="ar-card" href="/studio/cms/" data-kw="studio cms modifier site textes photos"><div class="ar-ico">🌐</div><div class="ar-name">Mon site (CMS)</div><div class="ar-desc">Modifier textes, photos, horaires</div></a>
+      <a class="ar-card" href="/studio/mes-sites/" data-kw="studio mes sites liste gestion"><div class="ar-ico">📋</div><div class="ar-name">Mes sites</div><div class="ar-desc">Gérer tous vos sites</div></a>
+      <a class="ar-card" href="/studio/mon-site/" data-kw="studio mon site apercu"><div class="ar-ico">👁️</div><div class="ar-name">Aperçu site</div><div class="ar-desc">Voir votre site en ligne</div></a>
+    </div>
+  </div>
+
   <div class="ar-section" data-cat="outils">
     <div class="ar-section-title">⚡ Outils JADOMI</div>
     <div class="ar-grid">
@@ -1248,138 +1322,320 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       <a class="ar-card" href="/deals/index.html" data-kw="deals promotions offres"><div class="ar-ico">🤝</div><div class="ar-name">Deals</div><div class="ar-desc">Offres exclusives</div></a>
       <a class="ar-card" href="/membres-societe.html" data-kw="membres equipe roles"><div class="ar-ico">👥</div><div class="ar-name">Membres</div><div class="ar-desc">Équipe &amp; rôles</div></a>
       <a class="ar-card" href="/settings-societe.html" data-kw="parametres configuration societe"><div class="ar-ico">⚙️</div><div class="ar-name">Paramètres</div><div class="ar-desc">Configuration société</div></a>
-      <a class="ar-card" href="#" onclick="event.preventDefault();sT('equipment',document.querySelector('[onclick*=equipment]'))" data-kw="equipment equipement groupe achat"><div class="ar-ico">🏭</div><div class="ar-name">Equipment</div><div class="ar-desc">Achat groupé équipement</div></a>
-      <a class="ar-card" href="/admin/scan-stats.html" data-kw="scraping catalogue prix"><div class="ar-ico">🔍</div><div class="ar-name">Scraping</div><div class="ar-desc">Catalogue &amp; prix fournisseurs</div></a>
-    </div>
-  </div>
-
-  <!-- CRÉDITS API IA -->
-  <div class="ar-section" data-cat="outils">
-    <div class="ar-section-title">💳 Crédits API IA</div>
-    <div id="aiCreditsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px;">
-      <div class="card" style="padding:16px;text-align:center;"><div style="font-size:12px;color:var(--text3);">Chargement des soldes...</div></div>
-    </div>
-  </div>
-  <script>
-  (function loadAiCredits(){
-    // Attendre que tk soit défini (chargé par la session Supabase)
-    if(typeof tk==='undefined'||!tk){setTimeout(loadAiCredits,500);return;}
-    fetch('/api/admin/ai-credits', {headers:{'Authorization':'Bearer '+tk}})
-      .then(r=>r.json()).then(d=>{
-        if(!d.ok) return;
-        const c = d.credits;
-        const box = document.getElementById('aiCreditsCards');
-        if(!box) return;
-        let h = '';
-
-        // DeepSeek
-        if(c.deepseek && !c.deepseek.error){
-          h += `<div class="card" style="padding:16px;border-left:3px solid #6366F1;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:18px;">✨</span>
-              <div><div style="font-size:13px;font-weight:700;color:var(--text);">DeepSeek</div><div style="font-size:10px;color:var(--text3);">OCR scan produits</div></div>
-              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.deepseek.available?'Actif':'Épuisé'}</span>
-            </div>
-            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:4px;">$${c.deepseek.total_balance}</div>
-            <div style="font-size:11px;color:var(--text3);">Rechargé: $${c.deepseek.topped_up_balance} | Offerts: $${c.deepseek.granted_balance}</div>
-            <a href="${c.deepseek.recharge_url||'https://platform.deepseek.com/top_up'}" target="_blank" class="btn bp bs" style="width:100%;margin-top:10px;font-size:11px;padding:8px;">Recharger</a>
-          </div>`;
-        }
-
-        // Vidu
-        if(c.vidu && c.vidu.configured && !c.vidu.error){
-          h += `<div class="card" style="padding:16px;border-left:3px solid #8B5CF6;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:18px;">🎬</span>
-              <div><div style="font-size:13px;font-weight:700;color:var(--text);">Vidu</div><div style="font-size:10px;color:var(--text3);">Vidéo IA</div></div>
-              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">Actif</span>
-            </div>
-            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:4px;">${(c.vidu.credit_remain||0).toLocaleString()} crédits</div>
-            <div style="font-size:11px;color:var(--text3);">Concurrence: ${c.vidu.current_concurrency||0}/${c.vidu.concurrency_limit||0} | File: ${c.vidu.queue_count||0}</div>
-            <a href="${c.vidu.recharge_url||'https://platform.vidu.com/pricing'}" target="_blank" class="btn bp bs" style="width:100%;margin-top:10px;font-size:11px;padding:8px;">Recharger</a>
-          </div>`;
-        }
-
-        // Claude
-        if(c.anthropic){
-          h += `<div class="card" style="padding:16px;border-left:3px solid #D97706;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:18px;">🧠</span>
-              <div><div style="font-size:13px;font-weight:700;color:var(--text);">Claude</div><div style="font-size:10px;color:var(--text3);">Patients, factures, chat</div></div>
-              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.anthropic.configured?'Configuré':'—'}</span>
-            </div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Solde sur le dashboard Anthropic</div>
-            <div style="display:flex;gap:6px;">
-              <a href="${c.anthropic.recharge_url||'https://console.anthropic.com/settings/billing'}" target="_blank" class="btn bp bs" style="flex:1;font-size:11px;padding:8px;">Recharger</a>
-              <a href="${c.anthropic.dashboard_url||'https://console.anthropic.com/settings/usage'}" target="_blank" class="btn bg bs" style="flex:1;font-size:11px;padding:8px;">Usage</a>
-            </div>
-          </div>`;
-        }
-
-        // Mistral
-        if(c.mistral){
-          h += `<div class="card" style="padding:16px;border-left:3px solid #FF6B35;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:18px;">🌬️</span>
-              <div><div style="font-size:13px;font-weight:700;color:var(--text);">Mistral</div><div style="font-size:10px;color:var(--text3);">IA française souveraine</div></div>
-              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.mistral.configured?'Configuré':'—'}</span>
-            </div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Solde sur le dashboard Mistral</div>
-            <div style="display:flex;gap:6px;">
-              <a href="${c.mistral.recharge_url||'https://console.mistral.ai/billing/'}" target="_blank" class="btn bp bs" style="flex:1;font-size:11px;padding:8px;">Recharger</a>
-              <a href="${c.mistral.dashboard_url||'https://console.mistral.ai/usage/'}" target="_blank" class="btn bg bs" style="flex:1;font-size:11px;padding:8px;">Usage</a>
-            </div>
-          </div>`;
-        }
-
-        box.innerHTML = h || '<div class="card" style="padding:16px;"><div style="color:var(--text3);font-size:12px;">Aucun crédit configuré</div></div>';
-      }).catch(()=>{});
-  })();
-  </script>
-
-  <!-- SIMULATEUR APP MOBILE -->
-  <div class="ar-section" data-cat="outils">
-    <div class="ar-section-title">📱 Simulateur App Mobile</div>
-    <div style="display:flex;gap:24px;flex-wrap:wrap;">
-      <div style="width:390px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <span style="font-size:11px;color:var(--text2);font-weight:600;">SIMULATEUR INTERACTIF</span>
-          <span class="pill pi" style="font-size:9px;">LIVE</span>
-          <button class="btn bg bs" style="margin-left:auto;font-size:10px;" onclick="document.getElementById('appFrame').src='/app-preview/'">Recharger</button>
-        </div>
-        <div style="background:#000;border-radius:44px;padding:18px 14px;box-shadow:0 25px 80px rgba(0,0,0,.5);border:3px solid #222;position:relative;overflow:hidden;">
-          <div style="width:100px;height:28px;background:#000;border-radius:0 0 14px 14px;position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;"></div>
-          <iframe id="appFrame" src="/app-preview/" style="width:100%;height:720px;border:none;border-radius:30px;background:#0F0F14;"></iframe>
-          <div style="width:100px;height:4px;background:#444;border-radius:2px;margin:10px auto 0;"></div>
-        </div>
-      </div>
-      <div style="flex:1;min-width:280px;">
-        <div class="card">
-          <div class="ct">Informations build</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.8;">
-            <div><strong>Version :</strong> 1.0.0+1</div>
-            <div><strong>Framework :</strong> Flutter 3.29</div>
-            <div><strong>Scanner :</strong> mobile_scanner 7.2.0</div>
-            <div><strong>Carte :</strong> MapLibre GL + MapTiler</div>
-            <div><strong>OCR :</strong> VisionKit (iOS) / ML Kit (Android)</div>
-            <div><strong>IA Scan :</strong> DeepSeek Super Worker</div>
-            <div><strong>Auth :</strong> Supabase JWT</div>
-            <div><strong>GPS :</strong> Geolocator + Geofencing 80m</div>
-          </div>
-        </div>
-        <div class="card" style="margin-top:12px;">
-          <div class="ct">Build CodeMagic</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.8;">
-            <div>iOS : TestFlight (Mac Mini M2)</div>
-            <div>Android : APK release (Linux x2)</div>
-            <div style="margin-top:8px;"><a href="https://codemagic.io/apps" target="_blank" class="btn bp bs" style="font-size:12px;">Ouvrir CodeMagic</a></div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
   </div>
 </div>
+
+<!-- MES ORGAS PERSO -->
+<div class="tp" id="t-mes-orgas">
+  <style>
+    .orga-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px;}
+    .orga-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:all 0.3s;position:relative;overflow:hidden;}
+    .orga-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+    .orga-card:hover{transform:translateY(-3px);box-shadow:var(--glow2);}
+    .orga-card-header{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+    .orga-card-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+    .orga-card-name{font-size:15px;font-weight:700;color:var(--text);}
+    .orga-card-type{font-size:11px;color:var(--text3);margin-top:2px;}
+    .orga-card-actions{display:flex;gap:8px;margin-top:14px;}
+    .orga-card-actions .btn{font-size:11px;padding:7px 12px;}
+  </style>
+
+  <p style="color:var(--text3);font-size:12px;margin-bottom:20px;">Vos organisations personnelles — accès direct aux dashboards de chaque structure</p>
+
+  <div class="orga-grid">
+    <!-- LK Immo -->
+    <div class="orga-card">
+      <div class="orga-card-header">
+        <div class="orga-card-ico" style="background:rgba(6,182,212,0.12);">🏠</div>
+        <div>
+          <div class="orga-card-name">LK Immo</div>
+          <div class="orga-card-type">SCI — Immobilier</div>
+        </div>
+      </div>
+      <div class="orga-card-actions">
+        <button class="btn bp bs" onclick="openOrgaPerso('lk-immo','sci')">Ouvrir dashboard</button>
+        <button class="btn bg bs" onclick="window.location.href='/sci-dashboard'">SCI →</button>
+      </div>
+    </div>
+
+    <!-- Dental Evolution -->
+    <div class="orga-card">
+      <div class="orga-card-header">
+        <div class="orga-card-ico" style="background:rgba(99,102,241,0.12);">🦷</div>
+        <div>
+          <div class="orga-card-name">Dental Evolution</div>
+          <div class="orga-card-type">Commerce dentaire — E-commerce</div>
+        </div>
+      </div>
+      <div class="orga-card-actions">
+        <button class="btn bp bs" onclick="openOrgaPerso('dental-evolution','commerce')">Ouvrir dashboard</button>
+        <button class="btn bg bs" onclick="window.location.href='/commerce.html'">Commerce →</button>
+      </div>
+    </div>
+
+    <!-- Précision Dentaire -->
+    <div class="orga-card">
+      <div class="orga-card-header">
+        <div class="orga-card-ico" style="background:rgba(139,92,246,0.12);">🔬</div>
+        <div>
+          <div class="orga-card-name">Précision Dentaire</div>
+          <div class="orga-card-type">Labo prothèse dentaire</div>
+        </div>
+      </div>
+      <div class="orga-card-actions">
+        <button class="btn bp bs" onclick="openOrgaPerso('precision-dentaire','prothesiste')">Ouvrir dashboard</button>
+        <button class="btn bg bs" onclick="window.location.href='/labo/dashboard.html'">Labo →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px;margin-top:12px;">
+    <div style="font-size:12px;color:var(--text2);">
+      <strong>Astuce :</strong> Cliquez sur "Ouvrir dashboard" pour accéder au dashboard complet de chaque organisation avec toutes les données. Le bouton rapide à droite ouvre directement le module métier.
+    </div>
+  </div>
+</div>
+
+<!-- TESTER UNE APP (admin) -->
+<div class="tp" id="t-test-apps">
+  <style>
+    .test-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+    .test-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all 0.25s;text-align:center;}
+    .test-card:hover{transform:translateY(-3px);border-color:rgba(99,102,241,0.5);box-shadow:0 0 20px rgba(99,102,241,0.15);}
+    .test-card-ico{font-size:36px;margin-bottom:10px;}
+    .test-card-name{font-size:14px;font-weight:700;color:var(--text);}
+    .test-card-desc{font-size:11px;color:var(--text3);margin-top:4px;}
+    .test-card-status{display:inline-block;margin-top:10px;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;}
+    .test-card-status.live{background:rgba(16,185,129,0.15);color:#10b981;}
+    .test-card-status.dev{background:rgba(245,158,11,0.15);color:#f59e0b;}
+  </style>
+
+  <p style="color:var(--text3);font-size:12px;margin-bottom:20px;">Tester chaque app métier en mode admin — accès direct sans changer de compte</p>
+
+  <div class="test-grid">
+    <div class="test-card" onclick="testApp('/admin/dentiste-pro.html')">
+      <div class="test-card-ico">🦷</div>
+      <div class="test-card-name">Dentiste</div>
+      <div class="test-card-desc">Cabinet dentaire complet</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/labo/dashboard.html')">
+      <div class="test-card-ico">🔬</div>
+      <div class="test-card-name">Prothésiste</div>
+      <div class="test-card-desc">Labo prothèse dentaire</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/orthodontiste')">
+      <div class="test-card-ico">🦴</div>
+      <div class="test-card-name">Orthodontiste</div>
+      <div class="test-card-desc">Aligneurs, bagues, planning</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/juridique/dashboard.html')">
+      <div class="test-card-ico">⚖️</div>
+      <div class="test-card-name">Avocat</div>
+      <div class="test-card-desc">Dossiers, clients, coffre-fort</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/ide/dashboard.html')">
+      <div class="test-card-ico">🏥</div>
+      <div class="test-card-name">Infirmière (IDE)</div>
+      <div class="test-card-desc">Tournées, patients, soins</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/medecin')">
+      <div class="test-card-ico">🩺</div>
+      <div class="test-card-name">Médecin</div>
+      <div class="test-card-desc">Consultations, ordonnances</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/kine')">
+      <div class="test-card-ico">🦴</div>
+      <div class="test-card-name">Kinésithérapeute</div>
+      <div class="test-card-desc">Séances, bilans</div>
+      <span class="test-card-status dev">DEV</span>
+    </div>
+    <div class="test-card" onclick="testApp('/btp/dashboard.html')">
+      <div class="test-card-ico">🔧</div>
+      <div class="test-card-name">Artisan BTP</div>
+      <div class="test-card-desc">Chantiers, factures</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/services/dashboard.html')">
+      <div class="test-card-ico">🛍️</div>
+      <div class="test-card-name">Services</div>
+      <div class="test-card-desc">Coiffeur, esthétique</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/sci-dashboard')">
+      <div class="test-card-ico">🏠</div>
+      <div class="test-card-name">SCI / Immo</div>
+      <div class="test-card-desc">Biens, locataires</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/commerce.html')">
+      <div class="test-card-ico">🏢</div>
+      <div class="test-card-name">Commerce</div>
+      <div class="test-card-desc">Stock, factures, devis</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+    <div class="test-card" onclick="testApp('/showroom/dashboard.html')">
+      <div class="test-card-ico">✨</div>
+      <div class="test-card-name">Créateur</div>
+      <div class="test-card-desc">Showroom vitrine</div>
+      <span class="test-card-status live">LIVE</span>
+    </div>
+  </div>
+</div>
+
+<!-- APP MOBILE — Simulateur Flutter -->
+<div class="tp" id="t-app-mobile">
+  <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+    <div style="width:375px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <button class="btn bg bs" style="font-size:11px;" onclick="document.getElementById('flutterFrame').src='/app-preview/'">↻ Recharger</button>
+        <span style="margin-left:auto;font-size:10px;color:var(--text3);">iPhone 15 Pro — Flutter Web</span>
+      </div>
+      <div style="width:375px;height:812px;background:#1C1C1E;border-radius:54px;padding:16px;box-shadow:0 30px 100px rgba(0,0,0,.6),inset 0 0 0 2px #3A3A3C,inset 0 0 0 4px #1C1C1E;position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-3px;top:180px;width:3px;height:80px;background:#3A3A3C;border-radius:2px 0 0 2px;"></div>
+        <div style="position:absolute;left:-3px;top:140px;width:3px;height:30px;background:#3A3A3C;border-radius:0 2px 2px 0;"></div>
+        <div style="position:absolute;left:-3px;top:185px;width:3px;height:50px;background:#3A3A3C;border-radius:0 2px 2px 0;"></div>
+        <div style="position:absolute;left:-3px;top:245px;width:3px;height:50px;background:#3A3A3C;border-radius:0 2px 2px 0;"></div>
+        <div style="width:100%;height:100%;border-radius:40px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;top:0;left:0;right:0;height:50px;z-index:100;display:flex;align-items:center;padding:14px 28px 0;">
+            <div style="font-size:15px;font-weight:600;color:#fff;font-family:-apple-system,sans-serif;" id="simTime">9:41</div>
+            <div style="margin:0 auto;width:120px;height:34px;background:#000;border-radius:20px;"></div>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><rect x="0" y="9" width="3" height="3" rx=".5" fill="#fff"/><rect x="4.5" y="6" width="3" height="6" rx=".5" fill="#fff"/><rect x="9" y="3" width="3" height="9" rx=".5" fill="#fff"/><rect x="13.5" y="0" width="3" height="12" rx=".5" fill="#fff"/></svg>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M8 11.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" fill="#fff"/><path d="M4.5 7.5c1-.9 2.2-1.4 3.5-1.4s2.5.5 3.5 1.4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><path d="M2 5c1.7-1.6 3.8-2.5 6-2.5s4.3.9 6 2.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <div style="display:flex;align-items:center;gap:1px;"><div style="width:22px;height:11px;border:1.5px solid rgba(255,255,255,.5);border-radius:3px;padding:1px;"><div style="width:80%;height:100%;background:#32D74B;border-radius:1.5px;"></div></div><div style="width:1.5px;height:5px;background:rgba(255,255,255,.5);border-radius:0 1px 1px 0;"></div></div>
+            </div>
+          </div>
+          <iframe id="flutterFrame" src="/app-preview/" style="width:100%;height:100%;border:none;background:#0F0F14;" onload="injectTokenToFlutter()"></iframe>
+          <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;background:rgba(255,255,255,.3);border-radius:3px;z-index:100;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+      <div class="card">
+        <div class="ct">Informations build</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+          <div><strong>Version :</strong> 1.0.0+1</div>
+          <div><strong>Framework :</strong> Flutter 3.29</div>
+          <div><strong>Scanner :</strong> mobile_scanner 7.2.0</div>
+          <div><strong>Carte :</strong> MapLibre GL + MapTiler</div>
+          <div><strong>OCR :</strong> VisionKit / ML Kit</div>
+          <div><strong>IA Scan :</strong> DeepSeek Super Worker</div>
+          <div><strong>Auth :</strong> Supabase JWT</div>
+          <div><strong>GPS :</strong> Geolocator + Geofencing 80m</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px;">
+        <div class="ct">Déploiement</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+          <div>iOS : TestFlight (Mac Mini M2)</div>
+          <div>Android : APK release (Linux x2)</div>
+          <div style="margin-top:8px;"><a href="https://codemagic.io/apps" target="_blank" class="btn bp bs" style="font-size:12px;">Ouvrir CodeMagic</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var e=document.getElementById('simTime');
+    function u(){if(e){var d=new Date();e.textContent=d.getHours()+':'+(d.getMinutes()<10?'0':'')+d.getMinutes();}}
+    u();setInterval(u,30000);
+  })();
+  function injectTokenToFlutter(){
+    try{
+      var f=document.getElementById('flutterFrame');
+      if(f&&f.contentWindow&&typeof tk!=='undefined'&&tk){
+        f.contentWindow.postMessage({type:'jadomi_auth',token:tk},'*');
+      }
+    }catch(e){}
+  }
+  // Aussi: charger l'iframe avec le token en query param
+  (function(){
+    if(typeof tk!=='undefined'&&tk){
+      var f=document.getElementById('flutterFrame');
+      if(f) f.src='/app-preview/#/auth?token='+encodeURIComponent(tk);
+    }
+  })();
+  </script>
+</div>
+
+<!-- CRÉDITS IA -->
+<div class="tp" id="t-ai-credits">
+  <p style="color:var(--text3);font-size:12px;margin-bottom:20px;">Soldes en temps réel — cliquez pour recharger</p>
+  <div id="aiCreditsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;">
+    <div class="card" style="padding:16px;text-align:center;"><div style="font-size:12px;color:var(--text3);">Chargement des soldes...</div></div>
+  </div>
+</div>
+<script>
+(function loadAiCredits(){
+  if(typeof tk==='undefined'||!tk){setTimeout(loadAiCredits,500);return;}
+  fetch('/api/admin/ai-credits',{headers:{'Authorization':'Bearer '+tk}})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return;
+      const c=d.credits, box=document.getElementById('aiCreditsCards');
+      if(!box)return;
+      let h='';
+      if(c.deepseek&&!c.deepseek.error){
+        h+=`<div class="card" style="padding:18px;border-left:3px solid #6366F1;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="font-size:22px;">✨</span>
+            <div><div style="font-size:14px;font-weight:700;color:var(--text);">DeepSeek</div><div style="font-size:11px;color:var(--text3);">OCR scan produits, JSON</div></div>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.deepseek.available?'Actif':'Épuisé'}</span>
+          </div>
+          <div style="font-size:28px;font-weight:800;color:var(--text);margin-bottom:6px;">$${c.deepseek.total_balance}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Rechargé: $${c.deepseek.topped_up_balance} | Offerts: $${c.deepseek.granted_balance}</div>
+          <a href="${c.deepseek.recharge_url||'https://platform.deepseek.com/top_up'}" target="_blank" class="btn bp bs" style="width:100%;font-size:11px;padding:8px;">Recharger</a>
+        </div>`;
+      }
+      if(c.vidu&&c.vidu.configured&&!c.vidu.error){
+        h+=`<div class="card" style="padding:18px;border-left:3px solid #8B5CF6;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="font-size:22px;">🎬</span>
+            <div><div style="font-size:14px;font-weight:700;color:var(--text);">Vidu</div><div style="font-size:11px;color:var(--text3);">Vidéo IA</div></div>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">Actif</span>
+          </div>
+          <div style="font-size:28px;font-weight:800;color:var(--text);margin-bottom:6px;">${(c.vidu.credit_remain||0).toLocaleString()} crédits</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Concurrence: ${c.vidu.current_concurrency||0}/${c.vidu.concurrency_limit||0} | File: ${c.vidu.queue_count||0}</div>
+          <a href="${c.vidu.recharge_url||'https://platform.vidu.com/pricing'}" target="_blank" class="btn bp bs" style="width:100%;font-size:11px;padding:8px;">Recharger</a>
+        </div>`;
+      }
+      if(c.anthropic){
+        h+=`<div class="card" style="padding:18px;border-left:3px solid #D97706;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="font-size:22px;">🧠</span>
+            <div><div style="font-size:14px;font-weight:700;color:var(--text);">Claude (Anthropic)</div><div style="font-size:11px;color:var(--text3);">Patients, factures, chat IA</div></div>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.anthropic.configured?'OK':'—'}</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a href="${c.anthropic.recharge_url||'https://console.anthropic.com/settings/billing'}" target="_blank" class="btn bp bs" style="flex:1;font-size:11px;padding:8px;">Recharger</a>
+            <a href="${c.anthropic.dashboard_url||'https://console.anthropic.com/settings/usage'}" target="_blank" class="btn bg bs" style="flex:1;font-size:11px;padding:8px;">Usage</a>
+          </div>
+        </div>`;
+      }
+      if(c.mistral){
+        h+=`<div class="card" style="padding:18px;border-left:3px solid #FF6B35;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="font-size:22px;">🌬️</span>
+            <div><div style="font-size:14px;font-weight:700;color:var(--text);">Mistral AI</div><div style="font-size:11px;color:var(--text3);">IA française souveraine</div></div>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(50,215,75,.15);color:#32D74B;">${c.mistral.configured?'OK':'—'}</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a href="${c.mistral.recharge_url||'https://console.mistral.ai/billing/'}" target="_blank" class="btn bp bs" style="flex:1;font-size:11px;padding:8px;">Recharger</a>
+            <a href="${c.mistral.dashboard_url||'https://console.mistral.ai/usage/'}" target="_blank" class="btn bg bs" style="flex:1;font-size:11px;padding:8px;">Usage</a>
+          </div>
+        </div>`;
+      }
+      box.innerHTML=h||'<div class="card" style="padding:16px;color:var(--text3);font-size:12px;">Aucun crédit configuré</div>';
+    }).catch(()=>{});
+})();
+</script>
 
 <!-- JADOMI STUDIO — Vue d'ensemble (Passe 36) -->
 <div class="tp" id="t-studio-home">
@@ -1427,206 +1683,173 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
   <div style="text-align:center;font-size:11px;color:var(--text3);">Propulsé par JADOMI IA</div>
 </div>
 
-<!-- APP MOBILE PREVIEW (déplacé dans Accès rapide) -->
-<div class="tp" id="t-app-preview" style="display:none;"></div>
-<div style="display:none;">
-    <!-- Infos -->
-    <div style="flex:1;min-width:280px;">
-      <div class="card">
-        <div class="ct">Informations build</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.8;">
-          <div><strong>Version :</strong> 1.0.0+1</div>
-          <div><strong>Framework :</strong> Flutter 3.29</div>
-          <div><strong>Scanner :</strong> mobile_scanner 7.2.0</div>
-          <div><strong>Carte :</strong> MapLibre GL + MapTiler</div>
-          <div><strong>OCR :</strong> VisionKit (iOS) / ML Kit (Android)</div>
-          <div><strong>IA Scan :</strong> DeepSeek Super Worker</div>
-          <div><strong>Auth :</strong> Supabase JWT</div>
-          <div><strong>GPS :</strong> Geolocator + Geofencing 80m</div>
-        </div>
-      </div>
-      <div class="card" style="margin-top:12px;">
-        <div class="ct">Build CodeMagic</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.8;">
-          <div>iOS : TestFlight (Mac Mini M2)</div>
-          <div>Android : APK release (Linux x2)</div>
-          <div style="margin-top:8px;"><a href="https://codemagic.io/apps" target="_blank" class="btn bp bs" style="font-size:12px;">Ouvrir CodeMagic</a></div>
-        </div>
-      </div>
+<!-- SCRAPING & VEILLE CONCURRENTIELLE -->
+<div class="tp" id="t-scraping">
+
+  <!-- Upload PDF -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Upload de catalogues PDF</div>
+    <div id="scrapUploadZone" style="border:2px dashed var(--border);border-radius:var(--rs);padding:40px;text-align:center;cursor:pointer;transition:all .3s cubic-bezier(.16,1,.3,1);position:relative;"
+         ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.05)';"
+         ondragleave="this.style.borderColor='var(--border)';this.style.background='transparent';"
+         ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='transparent';handleFlyerDrop(event);"
+         onclick="document.getElementById('scrapFileInput').click();">
+      <input type="file" id="scrapFileInput" accept="application/pdf,image/*" multiple style="display:none;" onchange="handleFlyerSelect(this);">
+      <div style="font-size:32px;margin-bottom:8px;color:var(--text3);">PDF</div>
+      <div style="font-size:13px;color:var(--text2);">Glissez un ou plusieurs PDF ici ou cliquez pour parcourir</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">Catalogues, flyers, grilles tarifaires, factures (max 800 Mo chacun)</div>
+    </div>
+    <!-- Sélection marque/fournisseur -->
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center;">
+      <select id="scrapBrandSelect" style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+        <option value="">-- Marque / Fournisseur --</option>
+        <option value="GACD">GACD</option>
+        <option value="Henry Schein">Henry Schein</option>
+        <option value="Dental Promotion (DPI)">Dental Promotion (DPI)</option>
+        <option value="DoctorAI">DoctorAI</option>
+        <option value="DoctorStrong">DoctorStrong</option>
+        <option value="MegaDental">MegaDental</option>
+        <option value="DentalGoodDeal">DentalGoodDeal</option>
+        <option value="B2B-Dental">B2B-Dental</option>
+        <option value="DentalRee">DentalRee</option>
+        <option value="DentalPrive">DentalPrivé</option>
+        <option value="DentAlachat">DentAlachat</option>
+        <option value="Godentaire">Go-Dentaire</option>
+        <option value="DentalEvolution">DentalEvolution</option>
+        <option value="Dental-France">Dental-France</option>
+        <option value="TopDentaire">TopDentaire</option>
+        <option value="Autre">Autre...</option>
+      </select>
+      <input id="scrapBrandCustom" type="text" placeholder="Nom si Autre..." style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;display:none;">
+      <select id="scrapDocType" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+        <option value="flyer">Flyer / Promo</option>
+        <option value="catalogue">Catalogue</option>
+        <option value="facture">Facture</option>
+        <option value="email">Email promo</option>
+      </select>
+    </div>
+    <div id="scrapUploadStatus" style="margin-top:12px;font-size:12px;color:var(--text3);"></div>
+
+    <!-- Fichiers classés par marque -->
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">Fichiers importés (par marque)</div>
+      <div id="scrapFlyersList" style="font-size:12px;color:var(--text3);">Chargement...</div>
     </div>
   </div>
-</div>
 
-<script>
-/* Ancien simulateur statique supprimé — remplacé par iframe Flutter web */
-function _appPV_deprecated() {
-  const dark = '#0F0F14', surf = '#1A1A24', acc = '#6366F1', txt = '#E8E8ED', txt2 = '#8B8B9E', brd = '#2A2A3A';
-  const green = '#32D74B', red = '#EF4444', blue = '#3B82F6', orange = '#F59E0B', purple = '#8B5CF6', pink = '#EC4899';
+  <!-- Produits extraits -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Produits extraits</div>
+    <div id="scrapProductsTable" style="font-size:12px;color:var(--text3);">Importez un PDF pour extraire les produits et les prix.</div>
+  </div>
 
-  const screens = {
-    hub: `
-      <div style="padding:50px 20px 20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-          <div style="color:${txt};font-size:20px;font-weight:800;">JADOMI Admin</div>
-          <div style="color:${txt2};font-size:18px;">&#x2190;</div>
-        </div>
-        <div style="color:${txt};font-size:16px;font-weight:700;margin-bottom:12px;">Accès rapide</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px;">
-          ${[{i:'🦷',l:'Cabinet dentaire',c:blue},{i:'🔧',l:'Orthodontie',c:purple},{i:'⚙️',l:'Prothésiste',c:orange},{i:'💉',l:'Infirmier (IDE)',c:green},{i:'⚖️',l:'Avocat',c:'#6366F1'},{i:'❤️',l:'JADOMI Care',c:pink}].map(m=>`
-            <div style="background:${surf};border:1px solid ${brd};border-radius:14px;padding:14px;">
-              <div style="width:36px;height:36px;background:${m.c}20;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:8px;">${m.i}</div>
-              <div style="color:${txt};font-size:12px;font-weight:600;">${m.l}</div>
-            </div>
-          `).join('')}
-        </div>
-        <div style="color:${txt};font-size:16px;font-weight:700;margin-bottom:12px;">Mes organisations</div>
-        ${['Precision Dentaire','DentlEvolution','LK Immo'].map(n=>`
-          <div style="background:${surf};border:1px solid ${brd};border-radius:11px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;">
-            <div style="width:36px;height:36px;background:${acc}15;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;">🏢</div>
-            <div style="flex:1;color:${txt};font-size:13px;font-weight:600;">${n}</div>
-            <div style="color:${txt2};font-size:14px;">›</div>
-          </div>
-        `).join('')}
-        <div style="margin-top:20px;background:linear-gradient(135deg,${acc}10,${orange}10);border:1px solid ${brd};border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;">
-          <div style="width:40px;height:40px;background:${acc}20;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;">💳</div>
-          <div style="flex:1;"><div style="color:${txt};font-size:13px;font-weight:700;">Crédits API IA</div><div style="color:${txt2};font-size:11px;">DeepSeek, Claude, Mistral</div></div>
-          <div style="color:${txt2};">›</div>
-        </div>
-      </div>`,
-
-    scanner: `
-      <div style="background:#000;min-height:650px;position:relative;">
-        <div style="padding:50px 16px 12px;display:flex;justify-content:space-between;align-items:center;">
-          <div style="color:#fff;font-size:15px;font-weight:700;">Scanner JADOMI</div>
-          <div style="display:flex;gap:8px;">
-            <div style="background:${green}30;padding:4px 10px;border-radius:12px;color:${green};font-size:11px;font-weight:700;">3 scannés</div>
-            <div style="width:32px;height:32px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">⚡</div>
-          </div>
-        </div>
-        <div style="margin:60px auto;width:260px;height:160px;position:relative;">
-          <div style="position:absolute;top:0;left:0;width:24px;height:24px;border-left:3px solid ${green};border-top:3px solid ${green};"></div>
-          <div style="position:absolute;top:0;right:0;width:24px;height:24px;border-right:3px solid ${green};border-top:3px solid ${green};"></div>
-          <div style="position:absolute;bottom:0;left:0;width:24px;height:24px;border-left:3px solid ${green};border-bottom:3px solid ${green};"></div>
-          <div style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-right:3px solid ${green};border-bottom:3px solid ${green};"></div>
-          <div style="position:absolute;top:50%;left:8px;right:8px;height:2px;background:linear-gradient(90deg,transparent,${green}CC,transparent);animation:scanline 2s ease-in-out infinite alternate;"></div>
-        </div>
-        <div style="position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:10px 20px;border-radius:20px;color:#fff;font-size:12px;font-weight:500;">Pointe vers le code-barres</div>
+  <!-- Promos -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Calculateur de promotions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Type de promo</label>
+        <select id="promoType" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <option value="x_achetes_y_offerts">X achetés Y offerts</option>
+          <option value="lot_remise">Lot - X%</option>
+          <option value="palier_degressif">Palier dégressif</option>
+        </select>
       </div>
-      <style>@keyframes scanline{from{top:20%}to{top:80%}}</style>`,
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Prix unitaire catalogue</label>
+        <input id="promoUnitPrice" type="number" step="0.01" min="0" placeholder="10.00" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+    </div>
 
-    ide: `
-      <div style="padding:50px 0 0;">
-        <div style="padding:0 16px 12px;display:flex;justify-content:space-between;align-items:center;">
-          <div style="color:${txt};font-size:18px;font-weight:800;">IDE Infirmière</div>
-          <div style="background:${green}20;padding:4px 10px;border-radius:8px;color:${green};font-size:11px;font-weight:700;">GPS actif</div>
-        </div>
-        <div style="background:#1a2744;height:180px;display:flex;align-items:center;justify-content:center;color:${txt2};font-size:12px;position:relative;">
-          <div style="color:${txt2};">🗺️ Carte MapLibre — Tournée du jour</div>
-          ${[{x:30,y:40,c:green},{x:60,y:70,c:blue},{x:80,y:30,c:'#9CA3AF'}].map((p,i)=>`<div style="position:absolute;left:${p.x}%;top:${p.y}%;width:${i===1?20:14}px;height:${i===1?20:14}px;background:${p.c};border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700;">${i+1}</div>`).join('')}
-        </div>
-        <div style="background:${green}15;padding:6px 16px;display:flex;align-items:center;gap:8px;">
-          <span style="font-size:14px;">✅</span><span style="color:${green};font-size:11px;font-weight:600;">Sur place — 12m</span>
-          <span style="margin-left:auto;color:${green};font-size:10px;">● GPS actif</span>
-        </div>
-        <div style="padding:16px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-            <span style="color:${txt};font-size:12px;font-weight:600;">Visite 2/5</span>
-            <span style="color:${txt2};font-size:11px;">1h23</span>
-          </div>
-          <div style="background:${brd};border-radius:4px;height:6px;overflow:hidden;margin-bottom:16px;">
-            <div style="background:${acc};height:100%;width:40%;border-radius:4px;"></div>
-          </div>
-          <div style="background:${surf};border:1px solid ${brd};border-radius:14px;padding:14px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-              <div style="background:${pink}20;padding:4px 8px;border-radius:6px;color:${pink};font-size:10px;font-weight:700;">Injection</div>
-              <span style="color:${txt2};font-size:11px;">09:30</span>
-            </div>
-            <div style="color:${txt};font-size:15px;font-weight:700;">Mme Dupont Marie</div>
-            <div style="color:${txt2};font-size:12px;margin-top:2px;">14 rue de la Paix, 59100 Roubaix</div>
-            <div style="margin-top:12px;">
-              <div style="background:${acc};color:#fff;text-align:center;padding:12px;border-radius:12px;font-size:13px;font-weight:700;">🗺️ Naviguer vers le patient</div>
-            </div>
-          </div>
-        </div>
-        <div style="padding:0 16px;display:flex;gap:10px;">
-          <div style="flex:1;background:${orange}20;border:1px solid ${orange}40;border-radius:12px;padding:12px;text-align:center;color:${orange};font-size:13px;font-weight:700;">ABSENT</div>
-          <div style="flex:2;background:${green};border-radius:12px;padding:12px;text-align:center;color:#fff;font-size:13px;font-weight:700;">TERMINÉ ✓</div>
-        </div>
-      </div>`,
+    <!-- Params X achetés Y offerts -->
+    <div id="promoParamsXY" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">X achetés</label>
+        <input id="promoX" type="number" min="1" value="5" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Y offerts</label>
+        <input id="promoY" type="number" min="0" value="3" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+    </div>
 
-    labo: `
-      <div style="padding:50px 16px 20px;">
-        <div style="color:${txt};font-size:18px;font-weight:800;margin-bottom:16px;">Labo Prothèse</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
-          ${[{v:'12',l:'En cours',c:blue},{v:'3',l:'Livraisons',c:green},{v:'1',l:'En retard',c:red},{v:'8.4k€',l:'CA mois',c:acc}].map(k=>`
-            <div style="background:${surf};border:1px solid ${brd};border-radius:12px;padding:12px;text-align:center;">
-              <div style="color:${k.c};font-size:20px;font-weight:800;">${k.v}</div>
-              <div style="color:${txt2};font-size:10px;font-weight:600;margin-top:2px;">${k.l}</div>
-            </div>
-          `).join('')}
-        </div>
-        <div style="color:${txt};font-size:14px;font-weight:700;margin-bottom:10px;">Production</div>
-        ${['Réception','Fabrication','Contrôle','Prêt livrer'].map((s,i)=>`
-          <div style="background:${surf};border:1px solid ${brd};border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
-            <div style="color:${txt};font-size:12px;font-weight:600;">${s}</div>
-            <div style="background:${[orange,blue,purple,green][i]}30;color:${[orange,blue,purple,green][i]};padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">${[4,5,2,1][i]}</div>
-          </div>
-        `).join('')}
-      </div>`,
+    <!-- Params Lot remise -->
+    <div id="promoParamsLot" style="display:none;margin-top:12px;">
+      <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Remise (%)</label>
+      <input id="promoPct" type="number" min="0" max="100" value="20" style="width:200px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+    </div>
 
-    patient: `
-      <div style="padding:50px 16px 20px;background:#F8FAFB;min-height:650px;">
-        <div style="color:#1A1A2E;font-size:20px;font-weight:800;margin-bottom:4px;">Bonjour Marie !</div>
-        <div style="color:#6B7280;font-size:13px;margin-bottom:20px;">JADOMI Care — Votre espace santé</div>
-        <div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:12px;">
-          <div style="color:#6B7280;font-size:11px;font-weight:600;margin-bottom:6px;">PROCHAIN RENDEZ-VOUS</div>
-          <div style="color:#1A1A2E;font-size:15px;font-weight:700;">Dr. Bahmed — Cabinet dentaire</div>
-          <div style="color:#0D9488;font-size:13px;margin-top:4px;">Lundi 19 mai — 14h30</div>
+    <!-- Params Palier dégressif -->
+    <div id="promoParamsPalier" style="display:none;margin-top:12px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;">Paliers (quantité / prix unitaire)</div>
+      <div id="palierRows">
+        <div class="palier-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;margin-bottom:6px;">
+          <input type="number" placeholder="Min" value="1" class="palier-min" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <input type="number" placeholder="Max" value="10" class="palier-max" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <input type="number" step="0.01" placeholder="Prix" value="10.00" class="palier-price" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+          <div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-          ${[{i:'📅',l:'Rendez-vous'},{i:'📋',l:'Mon dossier'},{i:'💬',l:'Messages'},{i:'📄',l:'Documents'}].map(t=>`
-            <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.04);">
-              <div style="font-size:22px;margin-bottom:6px;">${t.i}</div>
-              <div style="color:#1A1A2E;font-size:12px;font-weight:600;">${t.l}</div>
-            </div>
-          `).join('')}
-        </div>
-      </div>`,
+      </div>
+      <button onclick="addPalierRow()" style="padding:6px 14px;background:rgba(99,102,241,0.15);color:var(--accent);border-radius:var(--rs);font-size:11px;font-weight:600;margin-top:4px;">+ Ajouter un palier</button>
+      <div style="margin-top:8px;">
+        <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;">Quantité souhaitée</label>
+        <input id="palierQty" type="number" min="1" value="5" style="width:200px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">
+      </div>
+    </div>
 
-    credits: `
-      <div style="padding:50px 16px 20px;">
-        <div style="color:${txt};font-size:18px;font-weight:800;margin-bottom:16px;">Crédits API IA</div>
-        <div style="background:${surf};border:1px solid ${brd};border-radius:14px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-            <div style="width:36px;height:36px;background:${acc}15;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;">✨</div>
-            <div style="flex:1;"><div style="color:${txt};font-size:14px;font-weight:700;">DeepSeek</div><div style="color:${txt2};font-size:10px;">OCR scan produits</div></div>
-            <div style="background:${green}20;padding:3px 8px;border-radius:6px;color:${green};font-size:10px;font-weight:700;">Actif</div>
-          </div>
-          <div style="border-top:1px solid ${brd};padding-top:10px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:${txt2};font-size:12px;">Solde total</span><span style="color:${txt};font-size:12px;font-weight:700;">$43.85 USD</span></div>
-            <div style="display:flex;justify-content:space-between;"><span style="color:${txt2};font-size:12px;">Rechargé</span><span style="color:${txt};font-size:12px;font-weight:600;">$43.85 USD</span></div>
-          </div>
-        </div>
-        <div style="background:${surf};border:1px solid ${brd};border-radius:14px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:36px;height:36px;background:${orange}15;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;">🧠</div>
-            <div style="flex:1;"><div style="color:${txt};font-size:14px;font-weight:700;">Claude (Anthropic)</div><div style="color:${txt2};font-size:10px;">Patients, factures, chat IA</div></div>
-            <div style="background:${green}20;padding:3px 8px;border-radius:6px;color:${green};font-size:10px;font-weight:700;">Configuré</div>
-          </div>
-        </div>
-        <div style="background:${surf};border:1px solid ${brd};border-radius:14px;padding:14px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:36px;height:36px;background:${orange}15;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;">🌬️</div>
-            <div style="flex:1;"><div style="color:${txt};font-size:14px;font-weight:700;">Mistral AI</div><div style="color:${txt2};font-size:10px;">Fallback européen souverain</div></div>
-            <div style="background:${green}20;padding:3px 8px;border-radius:6px;color:${green};font-size:10px;font-weight:700;">Configuré</div>
-          </div>
-        </div>
-      </div>`
-  };
-  S.innerHTML = screens[screen] || '<div style="padding:80px 20px;text-align:center;color:#8B8B9E;">Écran en construction</div>';
-}
-document.addEventListener('DOMContentLoaded', () => { const s = document.getElementById('appScreen'); if(s) appPV('hub', document.querySelector('#t-app-preview .stab')); });
-</script>
+    <button onclick="calcPromo()" style="margin-top:16px;padding:10px 24px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:var(--rs);font-size:13px;font-weight:600;transition:all .3s cubic-bezier(.16,1,.3,1);">Calculer le prix effectif</button>
+    <div id="promoResult" style="margin-top:14px;padding:14px;background:var(--surface2);border-radius:var(--rs);font-size:13px;color:var(--text);display:none;"></div>
+  </div>
+
+  <!-- Paliers Dégressifs - Tableau de référence -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Paliers dégressifs de référence</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Saisissez une grille de prix dégressifs pour un produit. Le comparateur pourra ensuite afficher le prix exact selon la quantité commandée.</p>
+    <div id="palierRefTable">
+      <table class="tbl">
+        <thead><tr><th>Quantité min</th><th>Quantité max</th><th>Prix unitaire</th><th>Actions</th></tr></thead>
+        <tbody id="palierRefBody">
+          <tr>
+            <td><input type="number" value="1" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" value="10" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" step="0.01" value="12.50" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><input type="number" value="11" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" value="50" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" step="0.01" value="10.80" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td><input type="number" value="51" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" value="" placeholder="+" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td><input type="number" step="0.01" value="9.20" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <button onclick="addPalierRefRow()" style="margin-top:10px;padding:6px 14px;background:rgba(99,102,241,0.15);color:var(--accent);border-radius:var(--rs);font-size:11px;font-weight:600;">+ Ajouter un palier</button>
+  </div>
+
+  <!-- Monitoring Scrapers -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="ct">Monitoring des scrapers VPS</div>
+    <button onclick="loadScrapersStatus()" style="margin-bottom:12px;padding:8px 18px;background:rgba(6,182,212,0.15);color:var(--accent3);border-radius:var(--rs);font-size:12px;font-weight:600;">Rafraichir</button>
+    <table class="tbl" id="scrapersTable">
+      <thead><tr><th>Site</th><th>Produits</th><th>Dernière mise à jour</th><th>Statut</th></tr></thead>
+      <tbody id="scrapersBody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Cliquez sur Rafraichir pour charger les données</td></tr></tbody>
+    </table>
+
+    <!-- Brain status -->
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">Moteur brain.json</div>
+      <div id="brainStatus" style="padding:12px;background:var(--surface2);border-radius:var(--rs);font-size:12px;color:var(--text3);">Non chargé</div>
+    </div>
+  </div>
+
+</div>
 
 <!-- SOC SECTION -->
 <div style="margin-top:36px;" id="socS">
@@ -1640,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', () => { const s = document.getElem
 
 <script>
 const SU='https://vsbomwjzehnfinfjvhqp.supabase.co',SK='sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF',AE='karim_bahmed@yahoo.fr';
-const MR={cabinet_dentaire:'/admin/dentiste-pro',veterinaire:'/index',prothesiste:'/labo/dashboard',orthodontiste:'/labo/dashboard',sci:'/sci-dashboard',juridique:'/juridique/dashboard',services:'/services/dashboard',artisan_btp:'/btp',createur:'/createur',societe_commerciale:'/commerce',sas:'/commerce',sarl:'/commerce',eurl:'/commerce',sa:'/commerce',snc:'/commerce',ei:'/commerce',auto_entrepreneur:'/commerce',profession_liberale:'/commerce',association:'/commerce',autre:'/commerce'};
+const MR={cabinet_dentaire:'/dentiste',veterinaire:'/dentiste',prothesiste:'/labo/dashboard.html',orthodontiste:'/labo/dashboard.html',sci:'/sci-dashboard',juridique:'/juridique/dashboard.html',services:'/services/dashboard.html',artisan_btp:'/btp/dashboard.html',createur:'/showroom/dashboard.html',societe_commerciale:'commerce.html',sas:'commerce.html',sarl:'commerce.html',eurl:'commerce.html',sa:'commerce.html',snc:'commerce.html',ei:'commerce.html',auto_entrepreneur:'commerce.html',profession_liberale:'commerce.html',association:'commerce.html',autre:'commerce.html'};
 const TM={cabinet_dentaire:{i:'🦷',l:'Cabinet dentaire'},prothesiste:{i:'🔬',l:'Labo prothese'},orthodontiste:{i:'🦴',l:'Orthodontie'},veterinaire:{i:'🐾',l:'Veterinaire'},sci:{i:'🏠',l:'SCI'},societe_commerciale:{i:'🏢',l:'Societe commerciale'},sas:{i:'🏢',l:'SAS'},sarl:{i:'🏢',l:'SARL'},eurl:{i:'🏢',l:'EURL'},ei:{i:'👤',l:'EI'},auto_entrepreneur:{i:'📊',l:'Auto-entrepreneur'},autre:{i:'🏷️',l:'Autre'}};
 const CT=['societe_commerciale','sas','sarl','eurl','sa','snc','ei','auto_entrepreneur','profession_liberale','association','autre'];
 const ME=[{k:'chirurgien_dentiste',i:'🦷',l:'Dentiste'},{k:'orthodontiste',i:'🦴',l:'Orthodontiste'},{k:'prothesiste',i:'🔬',l:'Prothesiste'},{k:'veterinaire',i:'🐾',l:'Veterinaire'},{k:'dirigeant',i:'🏢',l:'Dirigeant'},{k:'auto_entrepreneur',i:'📊',l:'Auto-entrepreneur'}];
@@ -1694,8 +1917,8 @@ async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'applic
 
 function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
-  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Sécurité JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature électronique',equipment:'JADOMI Equipment','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio'};
-  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();}
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Sécurité JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature électronique',equipment:'JADOMI Equipment',scraping:'Scraping & Veille concurrentielle','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio','test-apps':'Simulateur Apps','ai-credits':'Crédits API IA','mes-orgas':'Mes organisations'};
+  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();if(t==='scraping')loadScrapingDashboard();}
 function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
   el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
 function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
@@ -2710,6 +2933,306 @@ async function loadSignedDocsTab() {
   }
 }
 
+/* ===== SCRAPING TAB ===== */
+function loadScrapingDashboard(){
+  loadFlyersList();
+  loadScrapersStatus();
+}
+
+async function handleFlyerDrop(ev){
+  const files=ev.dataTransfer?.files;
+  if(files&&files.length>0) uploadMultipleFlyers(Array.from(files));
+}
+function handleFlyerSelect(input){
+  const files=input.files;
+  if(files&&files.length>0) uploadMultipleFlyers(Array.from(files));
+  input.value='';
+}
+
+function uploadMultipleFlyers(files){
+  const pdfs=files.filter(f=>f.type==='application/pdf'||f.name.endsWith('.pdf')||f.type.startsWith('image/'));
+  if(pdfs.length===0){toast('Aucun fichier PDF valide.');return;}
+  pdfs.forEach(f=>uploadFlyer(f));
+}
+
+let _uploadSlotId=0;
+async function uploadFlyer(file){
+  if(file.size>800*1024*1024){toast(file.name+' : trop volumineux (max 800 Mo).');return;}
+  const brand=$('scrapBrandSelect')?.value||'';
+  const brandVal=brand==='Autre'?($('scrapBrandCustom')?.value?.trim()||''):brand;
+  const docType=$('scrapDocType')?.value||'';
+  const st=$('scrapUploadStatus');
+  const sizeMb=(file.size/1024/1024).toFixed(1);
+  const slotId='upload-slot-'+(_uploadSlotId++);
+
+  // Add a slot for this file
+  st.insertAdjacentHTML('beforeend','<div id="'+slotId+'" style="margin-bottom:10px;padding:10px;background:var(--surface2);border-radius:var(--rs);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><b style="font-size:12px;">'+esc(file.name)+'</b><span style="font-size:11px;color:var(--text3);">'+sizeMb+' Mo</span></div><div style="background:var(--surface);border-radius:6px;overflow:hidden;height:6px;"><div id="'+slotId+'-bar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:6px;"></div></div><div id="'+slotId+'-txt" style="font-size:11px;color:var(--text3);margin-top:4px;">Envoi 0%</div></div>');
+
+  try{
+    const fd=new FormData();fd.append('pdf',file);
+    if(brandVal)fd.append('brand',brandVal);
+    if(docType)fd.append('docType',docType);
+    const xhr=new XMLHttpRequest();
+    const result=await new Promise((resolve,reject)=>{
+      xhr.upload.onprogress=function(e){
+        if(e.lengthComputable){
+          const pct=Math.round(e.loaded/e.total*100);
+          const bar=document.getElementById(slotId+'-bar');
+          const txt=document.getElementById(slotId+'-txt');
+          if(bar)bar.style.width=pct+'%';
+          if(txt)txt.textContent='Envoi '+pct+'% — '+(e.loaded/1024/1024).toFixed(1)+' / '+sizeMb+' Mo';
+        }
+      };
+      xhr.onload=function(){
+        if(xhr.status>=200&&xhr.status<300){
+          try{resolve(JSON.parse(xhr.responseText))}catch(e){reject(new Error('Réponse invalide'))}
+        }else{
+          try{const err=JSON.parse(xhr.responseText);reject(new Error(err.error||'Erreur '+xhr.status))}catch(e){reject(new Error('Erreur '+xhr.status))}
+        }
+      };
+      xhr.onerror=function(){reject(new Error('Erreur réseau'))};
+      xhr.ontimeout=function(){reject(new Error('Timeout'))};
+      xhr.timeout=600000; // 10 min pour gros fichiers
+      xhr.open('POST','/api/scan-dashboard/upload');
+      xhr.send(fd);
+    });
+    const d=result;
+    const slot=document.getElementById(slotId);
+    if(d.error){slot.innerHTML='<span style="color:var(--danger);">'+esc(file.name)+' : '+esc(d.error)+'</span>';return;}
+
+    // Check if async parsing (large file)
+    if(d.async){
+      const txt=document.getElementById(slotId+'-txt');
+      if(txt)txt.innerHTML='<span style="color:var(--accent);">Fichier reçu. Analyse en cours...</span>';
+      const bar=document.getElementById(slotId+'-bar');
+      if(bar){bar.style.width='100%';bar.style.background='var(--accent)';bar.style.animation='pulse 1.5s infinite';}
+      // Poll for results
+      pollParseStatus(d.filename, slotId, file.name);
+    } else {
+      // Instant result
+      showUploadResult(d, slotId, file.name);
+    }
+    loadFlyersList();
+  }catch(e){
+    const slot=document.getElementById(slotId);
+    if(slot)slot.innerHTML='<span style="color:var(--danger);">'+esc(file.name)+' : '+esc(e.message)+'</span>';
+  }
+}
+
+function showUploadResult(d, slotId, fileName){
+  const slot=document.getElementById(slotId);
+  if(!slot)return;
+  const brandInfo=d.brandAutoDetected?' <span style="color:var(--accent);font-size:11px;">(auto)</span>':'';
+  const prodCount=(d.products||[]).length;
+  slot.innerHTML='<div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--success);font-size:16px;font-weight:800;">OK</span><span style="font-size:12px;"><b>'+esc(d.brand||'')+'</b>'+brandInfo+' / '+esc(fileName)+' — '+d.pages+' page(s), '+prodCount+' produit(s)</span></div>';
+  if(prodCount>0)renderExtractedProducts(d.products);
+}
+
+async function pollParseStatus(filename, slotId, fileName){
+  let tries=0;
+  const maxTries=120; // 120 x 2s = 4 min max
+  const poll=async()=>{
+    try{
+      const r=await fetch('/api/scan-dashboard/parse-status/'+encodeURIComponent(filename));
+      const job=await r.json();
+      const txt=document.getElementById(slotId+'-txt');
+      if(job.status==='done'){
+        // Show final result
+        const d={...job,filename,originalName:fileName};
+        showUploadResult(d,slotId,fileName);
+        loadFlyersList();
+        return;
+      }
+      const icon=job.status==='queued'?'En attente... ':'';
+      if(txt)txt.innerHTML='<span style="color:var(--accent);">'+icon+esc(job.progress||'Analyse...')+'</span>';
+    }catch(e){}
+    if(++tries<maxTries)setTimeout(poll,2000);
+    else{
+      const txt=document.getElementById(slotId+'-txt');
+      if(txt)txt.innerHTML='<span style="color:var(--warn);">Analyse longue. Rafraîchissez la page pour voir les résultats.</span>';
+    }
+  };
+  setTimeout(poll,2000);
+}
+// Show/hide custom brand input
+document.addEventListener('DOMContentLoaded',function(){
+  const sel=document.getElementById('scrapBrandSelect');
+  if(sel)sel.addEventListener('change',function(){
+    const ci=document.getElementById('scrapBrandCustom');
+    if(ci)ci.style.display=this.value==='Autre'?'block':'none';
+  });
+});
+
+function renderExtractedProducts(products){
+  let h='<table class="tbl"><thead><tr><th>Produit</th><th>Marque</th><th>Réf.</th><th>Prix catalogue</th><th>Prix promo</th><th>Remise</th></tr></thead><tbody>';
+  products.forEach(p=>{
+    const name=p.product||p.label||'-';
+    const brand=p.brand||'';
+    const ref=p.ref||'';
+    const cat=p.prixCatalogue!=null?p.prixCatalogue.toFixed(2)+' €':'';
+    const promo=p.prixPromo!=null?p.prixPromo.toFixed(2)+' €':(p.price!=null?p.price.toFixed(2)+' €':'');
+    const remise=p.remise||'';
+    const desc=p.description||p.raw||'';
+    h+='<tr title="'+esc(desc)+'">';
+    h+='<td style="font-weight:500;">'+esc(name)+'</td>';
+    h+='<td style="font-size:11px;color:var(--text2);">'+esc(brand)+'</td>';
+    h+='<td style="font-size:11px;font-family:monospace;">'+esc(ref)+'</td>';
+    h+='<td style="font-size:12px;color:var(--text3);text-decoration:line-through;">'+cat+'</td>';
+    h+='<td style="font-weight:600;color:var(--success);">'+promo+'</td>';
+    h+='<td style="font-size:11px;color:var(--accent);font-weight:600;">'+esc(remise)+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  $('scrapProductsTable').innerHTML=h;
+}
+
+async function loadFlyersList(){
+  try{
+    const r=await fetch('/api/scan-dashboard/flyers');
+    const d=await r.json();
+    const el=$('scrapFlyersList');
+    if(!d.flyers||d.flyers.length===0){el.innerHTML='Aucun fichier importé pour le moment.';return;}
+
+    // Grouper par marque
+    const byBrand={};
+    d.flyers.forEach(f=>{
+      const brand=f.brand||'Non classé';
+      if(!byBrand[brand])byBrand[brand]=[];
+      byBrand[brand].push(f);
+    });
+
+    // Trier les marques alphabétiquement, puis les fichiers par date décroissante
+    const sortedBrands=Object.keys(byBrand).sort((a,b)=>a==='Non classé'?1:b==='Non classé'?-1:a.localeCompare(b));
+
+    let h='';
+    sortedBrands.forEach(brand=>{
+      const files=byBrand[brand].sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const colors=['#6366f1','#f59e0b','#22c55e','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316'];
+      const color=colors[brand.charCodeAt(0)%colors.length];
+      h+='<details open style="margin-bottom:10px;"><summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);border-radius:var(--rs);font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;">';
+      h+='<span style="width:8px;height:8px;border-radius:50%;background:'+color+';display:inline-block;"></span>';
+      h+=esc(brand)+' <span style="color:var(--text3);font-weight:400;font-size:11px;">('+files.length+' fichier'+(files.length>1?'s':'')+')</span></summary>';
+      h+='<div style="padding:4px 0 0 20px;display:flex;flex-direction:column;gap:4px;">';
+      files.forEach(f=>{
+        const sz=(f.size/1024).toFixed(0);
+        const dt=new Date(f.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const typeLabel=f.docType==='facture'?'Facture':f.docType==='catalogue'?'Catalogue':f.docType==='email'?'Email':'Flyer';
+        const typeBg=f.docType==='facture'?'rgba(34,197,94,0.15)':f.docType==='catalogue'?'rgba(99,102,241,0.15)':f.docType==='email'?'rgba(6,182,212,0.15)':'rgba(245,158,11,0.15)';
+        const typeColor=f.docType==='facture'?'#22c55e':f.docType==='catalogue'?'#6366f1':f.docType==='email'?'#06b6d4':'#f59e0b';
+        h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border);">';
+        h+='<span style="display:flex;align-items:center;gap:8px;"><span style="padding:2px 8px;background:'+typeBg+';color:'+typeColor+';border-radius:4px;font-size:10px;font-weight:600;">'+typeLabel+'</span>';
+        h+='<span style="font-weight:500;color:var(--text);font-size:12px;">'+esc(f.displayName||f.name)+'</span></span>';
+        h+='<span style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text3);font-size:11px;">'+sz+' Ko — '+dt+'</span>';
+        h+='<button onclick="deleteFlyer(\''+esc(f.name)+'\')" style="padding:2px 8px;background:rgba(239,68,68,0.15);color:#f87171;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;">Suppr.</button></span></div>';
+      });
+      h+='</div></details>';
+    });
+    el.innerHTML=h;
+  }catch(e){$('scrapFlyersList').textContent='Erreur de chargement.';}
+}
+
+async function deleteFlyer(name){
+  if(!confirm('Supprimer ce fichier ?'))return;
+  try{
+    await fetch('/api/scan-dashboard/flyers/'+encodeURIComponent(name),{method:'DELETE'});
+    loadFlyersList();toast('Fichier supprimé.');
+  }catch(e){toast('Erreur suppression.');}
+}
+
+/* Promo type switcher */
+document.addEventListener('DOMContentLoaded',function(){
+  const sel=document.getElementById('promoType');
+  if(sel)sel.addEventListener('change',function(){
+    const v=this.value;
+    const xy=document.getElementById('promoParamsXY');
+    const lot=document.getElementById('promoParamsLot');
+    const pal=document.getElementById('promoParamsPalier');
+    if(xy)xy.style.display=v==='x_achetes_y_offerts'?'grid':'none';
+    if(lot)lot.style.display=v==='lot_remise'?'block':'none';
+    if(pal)pal.style.display=v==='palier_degressif'?'block':'none';
+  });
+});
+
+function addPalierRow(){
+  const container=$('palierRows');
+  const row=document.createElement('div');
+  row.className='palier-row';
+  row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;margin-bottom:6px;';
+  row.innerHTML='<input type="number" placeholder="Min" class="palier-min" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">'
+    +'<input type="number" placeholder="Max" class="palier-max" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">'
+    +'<input type="number" step="0.01" placeholder="Prix" class="palier-price" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;">'
+    +'<button onclick="this.parentElement.remove()" style="padding:4px;background:rgba(239,68,68,0.15);color:#f87171;border-radius:6px;font-size:11px;">X</button>';
+  container.appendChild(row);
+}
+
+async function calcPromo(){
+  const type=$('promoType').value;
+  const unitPrice=parseFloat($('promoUnitPrice').value);
+  if(!unitPrice||unitPrice<=0){toast('Veuillez saisir un prix unitaire valide.');return;}
+  let params={};
+  if(type==='x_achetes_y_offerts'){
+    params.x=parseInt($('promoX').value)||1;
+    params.y=parseInt($('promoY').value)||0;
+  }else if(type==='lot_remise'){
+    params.pct=parseFloat($('promoPct').value)||0;
+  }else if(type==='palier_degressif'){
+    params.qty=parseInt($('palierQty').value)||1;
+    params.tiers=[];
+    document.querySelectorAll('#palierRows .palier-row').forEach(r=>{
+      const min=parseInt(r.querySelector('.palier-min').value)||0;
+      const max=parseInt(r.querySelector('.palier-max').value)||null;
+      const price=parseFloat(r.querySelector('.palier-price').value)||0;
+      if(price>0)params.tiers.push({min,max,price});
+    });
+  }
+  try{
+    const r=await fetch('/api/scan-dashboard/promo/calc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,unitPrice,params})});
+    const d=await r.json();
+    const el=$('promoResult');
+    if(d.error){el.style.display='block';el.innerHTML='<span style="color:var(--danger);">'+esc(d.error)+'</span>';return;}
+    el.style.display='block';
+    el.innerHTML='<div style="font-size:18px;font-weight:800;color:var(--success);margin-bottom:6px;">'+d.effectivePrice.toFixed(2)+' EUR / unité</div><div style="font-size:12px;color:var(--text2);">'+esc(d.detail)+'</div><div style="margin-top:8px;font-size:11px;color:var(--text3);">Économie : '+(unitPrice-d.effectivePrice).toFixed(2)+' EUR/unité (-'+((1-d.effectivePrice/unitPrice)*100).toFixed(1)+'%)</div>';
+  }catch(e){toast('Erreur réseau.');}
+}
+
+function addPalierRefRow(){
+  const tbody=$('palierRefBody');
+  const tr=document.createElement('tr');
+  tr.innerHTML='<td><input type="number" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>'
+    +'<td><input type="number" style="width:80px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;" placeholder="+"></td>'
+    +'<td><input type="number" step="0.01" style="width:100px;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;"></td>'
+    +'<td><button onclick="this.closest(\'tr\').remove()" style="padding:3px 8px;background:rgba(239,68,68,0.15);color:#f87171;border-radius:6px;font-size:10px;">X</button></td>';
+  tbody.appendChild(tr);
+}
+
+async function loadScrapersStatus(){
+  try{
+    const r=await fetch('/api/scan-dashboard/scrapers');
+    const d=await r.json();
+    const tbody=$('scrapersBody');
+    if(!d.scrapers||d.scrapers.length===0){
+      tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px;">Aucun scraper détecté sur le VPS</td></tr>';
+    }else{
+      let h='';
+      d.scrapers.forEach(s=>{
+        const dt=s.lastUpdate?new Date(s.lastUpdate).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+        const stCls=s.status==='actif'?'pe':(s.status==='erreur'?'pr':'po');
+        h+='<tr><td style="font-weight:600;">'+esc(s.site)+'</td><td>'+s.products+'</td><td style="color:var(--text3);">'+dt+'</td><td><span class="pill '+stCls+'">'+esc(s.status)+'</span></td></tr>';
+      });
+      tbody.innerHTML=h;
+    }
+    // Brain
+    const brainEl=$('brainStatus');
+    if(d.brain){
+      brainEl.innerHTML='<div style="color:var(--success);font-weight:600;margin-bottom:4px;">Moteur actif</div><pre style="white-space:pre-wrap;font-size:11px;color:var(--text3);max-height:200px;overflow:auto;">'+esc(JSON.stringify(d.brain,null,2))+'</pre>';
+    }else{
+      brainEl.textContent='brain.json non disponible sur ce serveur.';
+    }
+  }catch(e){
+    $('scrapersBody').innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:20px;">Erreur de chargement</td></tr>';
+  }
+}
+
 async function resendSignature(docId) {
   if (!docId) return;
   try {
@@ -2730,6 +3253,29 @@ async function resendSignature(docId) {
   }
 }
 </script>
-<script src="/js/contextual-help.js" defer></script>
-</body>
-</html>
+<script>
+// ── Mobile navigation ──
+function _openMobMenu(){
+  var ov=document.getElementById('mobMenuOverlay');
+  ov.style.display='block';
+  setTimeout(function(){document.getElementById('mobMenuPanel').classList.add('open');},20);
+}
+function _closeMobMenu(){
+  document.getElementById('mobMenuPanel').classList.remove('open');
+  setTimeout(function(){document.getElementById('mobMenuOverlay').style.display='none';},300);
+}
+function _mobTab(tab,el){
+  sT(tab);
+  document.querySelectorAll('.mob-bottomnav .bnav').forEach(function(b){b.classList.remove('act');});
+  if(el)el.classList.add('act');
+  // Scroll en haut
+  window.scrollTo({top:0,behavior:'smooth'});
+  // Ajouter le padding-top pour le topbar fixe
+  document.querySelector('.main').style.paddingTop='56px';
+}
+function _mobNav(tab,el){
+  sT(tab);
+  _closeMobMenu();
+  document.querySelectorAll('.mob-menu-panel .mm-item').forEach(function(b){b.classList.remove('act');});
+  if(el)el.classList.add('act');
+  // Mettre à jour la bottom nav si c'est un onglet pri

@@ -83,7 +83,12 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=self');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://cdn.jsdelivr.net https://unpkg.com https://*.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://router.project-osrm.org; frame-src 'self' https://js.stripe.com http://localhost:3100; worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net;");
+  // Pas de CSP restrictif pour l'app Flutter (simulateur admin)
+  if (req.path.startsWith('/app-preview')) {
+    res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;");
+  } else {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://www.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://vsbomwjzehnfinfjvhqp.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://cdn.jsdelivr.net https://unpkg.com https://*.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://router.project-osrm.org https://www.gstatic.com; frame-src 'self' https://js.stripe.com http://localhost:3100; worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net https://www.gstatic.com;");
+  }
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   if (req.path.startsWith('/api/')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -210,7 +215,7 @@ app.use((req, res, next) => {
   //   '/btp', '/sci', '/createurs', '/coiffeurs'];
   // const isPublic = publicPaths.includes(req.path) || publicPaths.includes(req.path.replace(/\.html$/, ''));
   // const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebot|twitterbot|linkedinbot/i.test(req.headers['user-agent'] || '');
-  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio')) {
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit')) {
     return next();
   }
   // Vérifier le cookie
@@ -351,7 +356,17 @@ app.use('/docs', (req, res, next) => {
   }
   next();
 }, express.static(path.join(__dirname, 'docs'), { maxAge: '1d' }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // --- Anthropic Claude client ---
 const anthropic = new Anthropic({
@@ -12982,8 +12997,8 @@ try {
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || path.extname(req.path)) return next();
   const candidates = [
-    path.join(__dirname, req.path + '.html'),
     path.join(__dirname, 'public' + req.path + '.html'),
+    path.join(__dirname, req.path + '.html'),
     path.join(__dirname, 'public/vitrines' + req.path + '.html')
   ];
   for (const c of candidates) {
