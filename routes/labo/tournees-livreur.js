@@ -916,7 +916,7 @@ async function findLivreurByToken(token) {
   if (!token) return null;
   const { data } = await admin()
     .from('labo_livreurs')
-    .select('*, labo_prothesistes:prothesiste_id(id, nom_labo, adresse, ville, telephone)')
+    .select('*, labo_prothesistes:prothesiste_id(id, raison_sociale, adresse_ligne1, ville, telephone)')
     .eq('access_token', token)
     .eq('actif', true)
     .maybeSingle();
@@ -1061,7 +1061,7 @@ router.get('/app/tournee', async (req, res) => {
     // Charger les arrêts
     const { data: arrets } = await admin()
       .from('labo_arrets_tournee')
-      .select('*, dentistes_clients(nom, prenom, titre, adresse, ville, code_postal, telephone, latitude, longitude), labo_demandes_passage(type_passage, references_travaux, description, nb_colis, priorite)')
+      .select('*, dentistes_clients(nom, prenom, titre, adresse_ligne1, ville, code_postal, telephone), labo_demandes_passage(type_passage, references_travaux, description, nb_colis, priorite)')
       .eq('tournee_id', tournee.id)
       .order('ordre');
 

@@ -7199,7 +7199,7 @@ app.get('/api/documents/signed', requireAuth(), async (req, res) => {
 
     // Admin sees all, users see their own societe or docs where they are signer
     if (req.user.role !== 'admin') {
-      const societeId = req.user.societe_id;
+      const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
       if (societeId) {
         query = query.or(`societe_id.eq.${escapePostgrest(societeId)},signer_email.eq.${escapePostgrest(req.user.email)}`);
       } else {
@@ -8800,7 +8800,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
     const userId = req.user.id;
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee a votre compte.' });
 
     const { patient_initials, initiales, urgency_type, type, description, quartier, deadline, delai, latitude, longitude, rayon_km } = req.body;
@@ -8892,7 +8892,7 @@ app.post('/api/sos-urgence/create', requireAuth(), async (req, res) => {
 app.get('/api/sos-urgence/incoming', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     // Auto-expirer les vieilles urgences (>24h) a chaque polling
@@ -8920,7 +8920,7 @@ app.get('/api/sos-urgence/incoming', requireAuth(), async (req, res) => {
 app.get('/api/sos-urgence/my-requests', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const { data, error } = await db.from('sos_urgence_requests')
@@ -8943,7 +8943,7 @@ app.post('/api/sos-urgence/:id/accept', requireAuth(), async (req, res) => {
     const db = supaAdminOrThrow();
     const requestId = req.params.id;
     const userId = req.user.id;
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     // Vérifier que la request est encore open ET mettre à jour atomiquement
@@ -9045,7 +9045,7 @@ app.post('/api/sos-urgence/:id/decline', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
     const requestId = req.params.id;
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const { error } = await db.from('sos_urgence_notifications')
@@ -9067,7 +9067,7 @@ app.post('/api/sos-urgence/:id/cancel', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
     const requestId = req.params.id;
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     // Vérifier que c'est bien MA demande ET qu'elle est encore open
@@ -9174,7 +9174,7 @@ async function _ideGeocode(adresse) {
 app.post('/api/ide/cabinet', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const nom = _ideSanitize(req.body.nom, 200);
@@ -9218,7 +9218,7 @@ app.post('/api/ide/cabinet', requireAuth(), _ideGeocodeLimiter, async (req, res)
 app.get('/api/ide/cabinet', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const { data, error } = await db.from('ide_cabinets').select('*').eq('societe_id', societeId).single();
@@ -9232,15 +9232,21 @@ app.get('/api/ide/cabinet', requireAuth(), async (req, res) => {
 
 // Helper: get cabinet_id for the current user
 async function _ideGetCabinetId(db, societeId) {
-  const { data } = await db.from('ide_cabinets').select('id').eq('societe_id', societeId).single();
-  return data?.id || null;
+  let { data } = await db.from('ide_cabinets').select('id').eq('societe_id', societeId).maybeSingle();
+  if (data?.id) return data.id;
+  // Auto-création cabinet IDE si inexistant
+  const { data: soc } = await db.from('societes').select('nom').eq('id', societeId).maybeSingle();
+  const { data: created } = await db.from('ide_cabinets')
+    .insert({ societe_id: societeId, nom: soc?.nom || 'Cabinet IDE' })
+    .select('id').maybeSingle();
+  return created?.id || null;
 }
 
 // 3. POST /api/ide/nurses — Ajouter une infirmiere au cabinet
 app.post('/api/ide/nurses', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9273,7 +9279,7 @@ app.post('/api/ide/nurses', requireAuth(), async (req, res) => {
 app.get('/api/ide/nurses', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9292,7 +9298,7 @@ app.get('/api/ide/nurses', requireAuth(), async (req, res) => {
 app.patch('/api/ide/nurses/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9323,7 +9329,7 @@ app.patch('/api/ide/nurses/:id', requireAuth(), async (req, res) => {
 app.post('/api/ide/patients', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9361,7 +9367,7 @@ app.post('/api/ide/patients', requireAuth(), _ideGeocodeLimiter, async (req, res
 app.get('/api/ide/patients', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9391,7 +9397,7 @@ app.get('/api/ide/patients', requireAuth(), async (req, res) => {
 app.patch('/api/ide/patients/:id', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9434,7 +9440,7 @@ app.patch('/api/ide/patients/:id', requireAuth(), _ideGeocodeLimiter, async (req
 app.post('/api/ide/patients/:id/ban', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9455,7 +9461,7 @@ app.post('/api/ide/patients/:id/ban', requireAuth(), async (req, res) => {
 app.post('/api/ide/patients/:id/unban', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9476,7 +9482,7 @@ app.post('/api/ide/patients/:id/unban', requireAuth(), async (req, res) => {
 app.post('/api/ide/soins', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9529,7 +9535,7 @@ app.post('/api/ide/soins', requireAuth(), async (req, res) => {
 app.get('/api/ide/soins/:patient_id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9549,7 +9555,7 @@ app.get('/api/ide/soins/:patient_id', requireAuth(), async (req, res) => {
 app.delete('/api/ide/soins/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9569,7 +9575,7 @@ app.delete('/api/ide/soins/:id', requireAuth(), async (req, res) => {
 app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9646,7 +9652,7 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
 app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9733,7 +9739,7 @@ app.post('/api/ide/planning/generate', requireAuth(), async (req, res) => {
 app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9841,7 +9847,7 @@ app.post('/api/ide/tournee/optimize', requireAuth(), async (req, res) => {
 app.post('/api/ide/patient/place', requireAuth(), _ideGeocodeLimiter, async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -9943,7 +9949,7 @@ app.post('/api/ide/patient/place', requireAuth(), _ideGeocodeLimiter, async (req
 app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10022,7 +10028,7 @@ app.post('/api/ide/patient/place/confirm', requireAuth(), async (req, res) => {
 app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10065,7 +10071,7 @@ app.patch('/api/ide/visite/:id/status', requireAuth(), async (req, res) => {
 app.patch('/api/ide/visite/:id/notes', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
     const cabinetId = await _ideGetCabinetId(db, societeId);
     if (!cabinetId) return res.status(404).json({ error: 'Cabinet non trouvé.' });
@@ -10286,7 +10292,7 @@ app.post('/api/ide/visite/:id/send-medecin', requireAuth(), async (req, res) => 
 app.post('/api/ide/absence', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10323,7 +10329,7 @@ app.post('/api/ide/absence', requireAuth(), async (req, res) => {
 app.get('/api/ide/absences', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10357,7 +10363,7 @@ app.get('/api/ide/absences', requireAuth(), async (req, res) => {
 app.get('/api/ide/dashboard', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10478,7 +10484,7 @@ app.post('/api/ide/ordonnances/upload', requireAuth(), (req, res) => {
       if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni.' });
 
       const db = supaAdminOrThrow();
-      const societeId = req.user.societe_id;
+      const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
       if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
       const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10646,7 +10652,7 @@ IMPORTANT :
 app.get('/api/ide/ordonnances', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10687,7 +10693,7 @@ app.get('/api/ide/ordonnances', requireAuth(), async (req, res) => {
 app.get('/api/ide/ordonnances/expiring', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10731,7 +10737,7 @@ app.get('/api/ide/ordonnances/expiring', requireAuth(), async (req, res) => {
 app.get('/api/ide/ordonnances/:id/download', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10763,7 +10769,7 @@ app.get('/api/ide/ordonnances/:id/download', requireAuth(), async (req, res) => 
 app.patch('/api/ide/ordonnances/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10807,7 +10813,7 @@ app.patch('/api/ide/ordonnances/:id', requireAuth(), async (req, res) => {
 app.post('/api/ide/ordonnances/:id/email', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10869,7 +10875,7 @@ app.post('/api/ide/compta/upload', requireAuth(), (req, res) => {
         return res.status(status).json({ error: multerErr.message });
       }
       const db = supaAdminOrThrow();
-      const societeId = req.user.societe_id;
+      const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
       if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
       const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10952,7 +10958,7 @@ app.post('/api/ide/compta/upload', requireAuth(), (req, res) => {
 app.get('/api/ide/compta', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -10996,7 +11002,7 @@ app.get('/api/ide/compta', requireAuth(), async (req, res) => {
 app.get('/api/ide/compta/:id/download', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -11028,7 +11034,7 @@ app.get('/api/ide/compta/:id/download', requireAuth(), async (req, res) => {
 app.get('/api/ide/compta/bilan/:mois', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -11091,7 +11097,7 @@ app.get('/api/ide/compta/bilan/:mois', requireAuth(), async (req, res) => {
 app.patch('/api/ide/compta/:id', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -11812,7 +11818,7 @@ app.use('/api/ide/remplacement', _ideRemplacementLimiter);
 app.post('/api/ide/remplacement/search', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -11894,7 +11900,7 @@ app.post('/api/ide/remplacement/search', requireAuth(), async (req, res) => {
 app.post('/api/ide/remplacement/request', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -11949,7 +11955,7 @@ app.post('/api/ide/remplacement/request', requireAuth(), async (req, res) => {
 app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -12013,7 +12019,7 @@ app.post('/api/ide/remplacement/accept', requireAuth(), async (req, res) => {
 app.post('/api/ide/remplacement/decline', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -12061,7 +12067,7 @@ app.post('/api/ide/remplacement/decline', requireAuth(), async (req, res) => {
 app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -12187,7 +12193,7 @@ app.post('/api/ide/remplacement/contrat', requireAuth(), async (req, res) => {
 app.post('/api/ide/remplacement/envoyer-ordre', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -12279,7 +12285,7 @@ app.post('/api/ide/remplacement/envoyer-ordre', requireAuth(), async (req, res) 
 app.get('/api/ide/remplacement/requests', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune societe associee.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -12477,7 +12483,7 @@ app.post('/api/ide/demandes-soins', _ideDemandesSoinsLimiter, (req, res) => {
 app.get('/api/ide/demandes-soins/disponibles', requireAuth(), async (req, res) => {
   try {
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune société associée.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);
@@ -12606,7 +12612,7 @@ app.post('/api/ide/demandes-soins/:id/accepter', requireAuth(), _ideAccepterLimi
     if (!_ideValidUuid(demandeId)) return res.status(400).json({ error: 'Identifiant invalide.' });
 
     const db = supaAdminOrThrow();
-    const societeId = req.user.societe_id;
+    const societeId = req.user.user_metadata?.societe_id || req.user.societe_id || req.headers['x-societe-id'];
     if (!societeId) return res.status(400).json({ error: 'Aucune société associée.' });
 
     const cabinetId = await _ideGetCabinetId(db, societeId);

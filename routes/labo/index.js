@@ -10,7 +10,18 @@ const { requireFeature, requireTechnicienSlot, requireBLSlot } = require('./feat
 function createLaboRouter() {
   const router = express.Router();
 
-  // Auth obligatoire sur toutes les routes labo
+  // Routes publiques livreur app (auth par token livreur, PAS par Supabase)
+  // Montées AVANT le middleware auth Supabase
+  const tourneeRouter = require('./tournees-livreur');
+  router.use('/tournees', (req, res, next) => {
+    // Si le path commence par /app/, skip l'auth Supabase
+    if (req.path.startsWith('/app/') || req.path === '/app') {
+      return tourneeRouter(req, res, next);
+    }
+    next();
+  });
+
+  // Auth obligatoire sur toutes les AUTRES routes labo
   router.use(authSupabase());
 
   // Middleware : charge le prothesiste_id depuis X-Societe-Id

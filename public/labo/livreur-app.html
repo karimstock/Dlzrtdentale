@@ -490,20 +490,10 @@
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">Navigation GPS</div>
-    <div class="nav-option" onclick="setNavPref('waze')" id="navOptWaze">
-      <div class="nav-option-icon waze">W</div>
-      <div>
-        <div class="nav-option-name">Waze</div>
-        <div class="nav-option-desc">Navigation communautaire en temps réel</div>
-      </div>
-    </div>
-    <div class="nav-option" onclick="setNavPref('gmaps')" id="navOptGmaps">
-      <div class="nav-option-icon gmaps">G</div>
-      <div>
-        <div class="nav-option-name">Google Maps</div>
-        <div class="nav-option-desc">Navigation fiable et détaillée</div>
-      </div>
+    <div class="modal-title">Navigation JADOMI</div>
+    <div style="padding:16px 0;color:var(--text2);font-size:13px;line-height:1.6;">
+      La navigation utilise la carte JADOMI avec itinéraire optimisé (OSRM).<br>
+      Instructions turn-by-turn intégrées directement dans l'application.
     </div>
     <button class="btn btn-navigate" style="margin-top:16px;width:100%;" onclick="closeSettings()">Fermer</button>
   </div>
@@ -1050,15 +1040,15 @@ function navigate(address) {
   let destLat = dem.latitude || d.latitude;
   let destLng = dem.longitude || d.longitude;
 
-  // Si pas de coordonnées, fallback sur Waze/GMaps externe
+  // Si pas de coordonnées, géocoder l'adresse via Nominatim puis ouvrir la carte JADOMI
   if (!destLat || !destLng) {
-    const encoded = encodeURIComponent(address || '');
-    if (state.navPref === 'waze') {
-      window.open(`https://waze.com/ul?q=${encoded}&navigate=yes`, '_blank');
-    } else {
-      window.open(`https://www.google.com/maps/dir/?api=1&destination=${encoded}`, '_blank');
-    }
-    return;
+    if (!address) { alert('Adresse introuvable'); return; }
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`);
+      const geo = await r.json();
+      if (geo.length > 0) { destLat = parseFloat(geo[0].lat); destLng = parseFloat(geo[0].lon); }
+      else { alert('Impossible de localiser cette adresse'); return; }
+    } catch(e) { alert('Erreur de géolocalisation'); return; }
   }
 
   // Position de départ
