@@ -2071,15 +2071,31 @@ turn-by-turn pour les infirmier(e)s, style Waze/Google Maps.
 Les taches ci-dessous sont PLANIFIEES et doivent etre traitees dans
 les prochaines passes. NE PAS les oublier.
 
-## 🔴 BUILD FLUTTER CASSÉ (Passe 79 — À FIXER EN PREMIER)
-Codemagic build échoué. 7 erreurs à corriger :
-- jadomi_map.dart : MapLibreMap → utiliser maplibre_gl correctement
-  (MapLibreMapController, MyLocationTrackingMode.tracking, Point)
-- home_screen.dart:461 : SupabaseService non importé (logout)
-- ide_tournee_screen.dart:117 : _validerVisite() n'existe pas
-- gps_service.dart:2 : import dart:math inutile
-- settings_cabinet_screen.dart : activeColor deprecated → activeThumbColor
-ACTION : Fixer ces 7 erreurs, relancer Codemagic build
+## 🟢 BUILD FLUTTER FIXÉ (Passe 81)
+7 erreurs corrigées, flutter analyze = 0 erreur.
+Build iOS uploadé sur App Store Connect (build 36).
+Permissions Info.plist ajoutées : NSMicrophone, NSSpeechRecognition, NSLocation.
+RESTE À FAIRE :
+- [ ] Ajouter ITSAppUsesNonExemptEncryption=false dans Info.plist
+  (export compliance — modifier directement sur GitHub)
+- [ ] Relancer build iOS sur Codemagic → TestFlight
+- [ ] Dashboard IDE infirmier : erreur 401 à investiguer (token auth)
+
+## 🔴 CATALOGUE ZENDO — EN COURS
+319 images NIC scrappées. Page sélection photos créée.
+Template loupes = référence design (Playfair Display, cards crème/or).
+RESTE À FAIRE :
+- [ ] Karim sélectionne les bonnes photos (pas les boîtes)
+- [ ] Reconstruire avec template exact du flyer loupes
+- [ ] Photo couverture (NanoBanana — clé Gemini US à renouveler)
+- [ ] Photo Irriflex pour Hypoclean
+- [ ] Prix validés : 24,90-29,90€ catalogue, 22,90€ offre x10
+
+## 🔵 VISION CABINET BRAIN + COPILOT (nouveau)
+Architecture à rédiger : Desktop Agent (Tauri) + Cloud + Cabinet Brain
++ Mail Copilot (OAuth) + Connecteurs (Doctolib, Logos, caméras).
+Document détaillé demandé par le fondateur.
+Serveur HDS prévu pour héberger les données de santé.
 
 ## Comparateur — chantiers prioritaires (Passe 80)
 - [ ] Cross-matching fournisseurs par ref fabricant (le coeur du comparateur)
@@ -4374,7 +4390,34 @@ Architecture 3 niveaux pour reduire les couts :
 - index.html (pages JADOMI IA corrigees)
 - server.js (import-prices + ia-local)
 
+## Passe 79 (17 mai 2026) — App Mobile Flutter + Simulateur Dashboard
+
+### Simulateur App Mobile
+- Build Flutter web deploye a /app-preview/ (flutter build web --base-href=/app-preview/)
+- Nouveau tab "App Mobile" dans sidebar Acces rapide avec cadre iPhone 15 Pro
+- Status bar live (heure, signal, wifi, batterie) + Dynamic Island + home indicator
+- Iframe charge la vraie app Flutter compilee (pas un mockup)
+- CSP desactive pour /app-preview (app admin interne, pas public)
+- Gate middleware autorise /app-preview, /canvaskit, .wasm sans auth
+
+### Reorganisation sidebar organisation.html
+- Accordion "Acces rapide" avec sous-boutons : Tous les modules, Equipment, Scraping, App Mobile, Credits IA
+- Chaque sous-bouton ouvre son propre onglet dedie (pas de melange)
+- Fix priorite catch-all server.js : public/ servi avant root/ (evite fichier obsolete)
+- Fix cache HTML : no-cache sur fichiers .html pour voir les changements immediatement
+
+### App Flutter (jadomi-app/)
+- Supabase auth + AdminHubScreen pour admin
+- LoginScreen pour utilisateurs standards
+- Config : supabaseUrl, anonKey, apiBase = https://jadomi.fr/api
+- Scanner, MapLibre, DeepSeek OCR, Geolocator integres
+
+### Fichiers modifies
+- server.js (CSP, gate, cache headers, catch-all priority)
+- public/organisation.html (tab app-mobile, sidebar reorganisee)
+- public/app-preview/ (rebuild Flutter web complet)
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 11 mai 2026 (Passe 78 — Agenda World-Class + IA Locale + Comparateur)
+Derniere mise a jour : 17 mai 2026 (Passe 79 — App Mobile Flutter + Simulateur)
 ===============================================================
