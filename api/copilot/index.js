@@ -258,7 +258,7 @@ router.post('/message', async (req, res) => {
               reply += '\n--- AUTRES (' + autres.length + ') ---\n\n';
               autres.forEach(m => { reply += formatMailLine(m); });
             }
-            return res.json({ reply, intent });
+            return res.json({ reply, intent, mails: important.concat(autres) });
           }
 
           // (résumé géré plus haut)
@@ -270,7 +270,7 @@ router.post('/message', async (req, res) => {
               .eq('societe_id', sid).eq('needs_response', true).eq('replied', false)
               .order('date_received', { ascending: false }).limit(10);
             if (!mails || mails.length === 0) return res.json({ reply: 'Bonne nouvelle Docteur, aucun mail n\'attend de réponse. Tout est traité.', intent });
-            return res.json({ reply: formatMailList(mails, mails.length + ' mails attendent votre réponse :'), intent });
+            return res.json({ reply: mails.length + ' mails attendent votre réponse.', intent, mails });
           }
 
           // "Factures" / "devis" / "avoir"
@@ -300,7 +300,7 @@ router.post('/message', async (req, res) => {
               .eq('societe_id', sid).eq('category', cat)
               .order('date_received', { ascending: false }).limit(10);
             if (!mails || mails.length === 0) return res.json({ reply: 'Aucun mail de catégorie "' + cat + '" trouvé.', intent });
-            return res.json({ reply: formatMailList(mails, 'Mails ' + cat + ' :'), intent });
+            return res.json({ reply: mails.length + ' mails ' + cat + '.', intent, mails });
           }
 
           // Recherche par mots-clés ("retrouve le mail de...", "cherche reservation voiture")
@@ -313,16 +313,16 @@ router.post('/message', async (req, res) => {
               .or('subject.ilike.%' + searchTerms + '%,from_name.ilike.%' + searchTerms + '%,body_preview.ilike.%' + searchTerms + '%')
               .order('date_received', { ascending: false }).limit(10);
             if (found && found.length > 0) {
-              return res.json({ reply: formatMailList(found, found.length + ' mail(s) trouvé(s) pour "' + searchTerms + '" :'), intent });
+              return res.json({ reply: found.length + ' mail(s) trouvé(s) pour "' + searchTerms + '".', intent, mails: found });
             }
           }
 
           // Fallback mail : montrer les derniers mails
           const { data: recent } = await db().from('mails_inbox')
-            .select('from_name, from_address, subject, date_received, category, needs_response')
+            .select('id, from_name, from_address, subject, date_received, category, priority, needs_response, has_pdf, financial_type, financial_montant, body_preview')
             .eq('societe_id', sid).eq('is_spam', false).eq('is_newsletter', false)
             .order('date_received', { ascending: false }).limit(10);
-          return res.json({ reply: formatMailList(recent, 'Voici vos derniers mails :'), intent });
+          return res.json({ reply: 'Voici vos derniers mails.', intent, mails: recent || [] });
 
         } catch (e) {
           console.error('[COPILOT] mail error:', e.message);
