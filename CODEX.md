@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 17 mai 2026
-**Derniere passe** : Passe 84 (18 mai 2026) — Cabinet Brain + Mail Copilot
+**Derniere passe** : Passe 85 (18 mai 2026) — JADOMI Copilot Global
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4623,7 +4623,95 @@ Architecture 3 niveaux pour reduire les couts :
 4. Push jadomi (erreur 500 GitHub)
 5. Tester chat IA patient dans l'app
 
+## Passe 85 (18 mai 2026 soir) — JADOMI Copilot Global + Mail Copilot enrichi
+
+### JADOMI Copilot — Widget flottant global
+- public/js/jadomi-copilot.js (347 lignes) — widget auto-injectable
+- FAB violet bottom-right, panneau chat glassmorphism slide-in
+- Micro vocal integre (Web Speech API, 0EUR, fr-FR)
+- Badge notifications rouge clignotant (mails en attente + taches urgentes)
+- Detection contexte page automatique (stock, agenda, labo, orga...)
+- Suggestions cliquables dans le message d'accueil
+- Inclus dans : organisation, index, dentiste-pro, IDE, medecin, kine, ortho
+- api/copilot/index.js (570 lignes) — backend unique
+
+### Detection d'intent locale (0EUR, instantanee)
+20+ categories detectees par regex + normalisation sans accents :
+- mail, compose, agenda, patient, urgence, stock, comparateur
+- compta, labo, rappels, traitement, stats, equipe, site, document
+- greeting, merci, aide, general
+- Tolere : fautes orthographe, accents manquants, tutoiement,
+  abreviations (bjr, slt, mel, rdv, g, jveu, stp)
+- 75/75 tests passes (batterie complete)
+
+### Reponses directes (pas d'IA quand inutile)
+- "mes mails du jour" → requete mails_inbox, retour direct
+- "mails d'hier" / "de lundi" / "cette semaine" → parseDate() langage naturel
+- "resume boite" → stats directes (non lus, attendent reponse, factures)
+- "mails importants" → filtre needs_response + priority urgent/high
+- "retrouve reservation voiture" → recherche mots-cles dans sujet/body
+- "mes factures" → requete financial_type dans mails_inbox
+- "envoie un mail au comptable" → Agent Mistral Compositeur, vrai mail pret
+
+### Filtrage bruit (isNoiseMail)
+Filtre automatiquement : newsletters, promos, sondages, notifs systeme
+(Yahoo/Google), webinaires, charite/crowdfunding, rapports auto JADOMI,
+maintenance services tiers, DEKRA, France Travail, ClearCorrect summaries
+
+### Mail Copilot — Daemon sync permanent
+- Daemon node-cron toutes les 5 min, sync automatique IMAP
+- Table mails_inbox (SQL 88) — tous les mails classes en permanence
+- Sequence numbers (pas UIDs — fix Yahoo IMAP)
+- Scan dossier Envoyes pour marquer mails deja repondus
+- 30 mails par batch, remonte jusqu'a janvier 2026
+- Classification 19 categories locales (fournisseur, comptable, banque,
+  labo, patient, assurance, facture, juridique, rh, formation, ordre,
+  impots, commercial, notaire, cpam, mutuelle, informatique, immobilier,
+  maintenance)
+- Detection documents financiers : facture vs devis vs avoir vs relance
+  vs mise en demeure vs bon commande vs bon livraison vs releve
+- Detection "attend une reponse" : questions, demandes documents/validation
+  /paiement/rdv, relances, urgence
+
+### Agents Mistral enrichis
+- 4 agents (classifieur 12 categories, redacteur, extracteur, compositeur)
+- System prompts detailles avec exemples concrets
+- Compositeur : trouve les contacts du cabinet, compose le mail complet
+- validateResponse() corrige : regex tutoiement strict (plus de faux positif)
+- Cascade : Local (0EUR) → Mistral (0.13EUR/M) → Claude (fallback)
+
+### Fichiers crees
+- CREE : api/copilot/index.js (570 lignes)
+- CREE : public/js/jadomi-copilot.js (347 lignes)
+
+### Fichiers modifies
+- server.js (mount /api/copilot)
+- lib/ai-studio/jadomi-brain.js (fix validateResponse tutoiement)
+- lib/brain/mail-sync-daemon.js (fix since scope, sequence numbers Yahoo)
+- lib/brain/mail-scorer.js (19 categories, isNoiseMail enrichi)
+- api/copilot/index.js (20+ intents, parseDate, isNoiseMail, handlers directs)
+- index.html, organisation.html, dentiste-pro.html, IDE, medecin, kine, ortho
+  (inclusion jadomi-copilot.js)
+- index.html (Comptabilite = onglet principal sidebar)
+
+### Decisions
+- 1 seul chatbot pour TOUT JADOMI (pas un par module)
+- Widget flottant present sur toutes les pages (pas un onglet)
+- Reponses directes depuis la BDD quand possible (pas d'IA)
+- IA uniquement pour : composer un mail, repondre a une question complexe
+- Le dentiste tutoie, JADOMI vouvoie toujours
+- Titre "Docteur" dans toutes les reponses
+- Migration OVH HDS : commercial appelle mercredi 21 mai 2026
+
+### Priorites prochaine session
+1. Tester le copilot widget en conditions reelles sur mobile
+2. Ajouter actions directes (creer RDV, chercher patient depuis le copilot)
+3. Brancher le copilot sur l'agenda IA (analyzeDay, optimizeDay, detectGaps)
+4. Brancher le copilot sur le stock (requeter products_database)
+5. Build Flutter Codemagic
+6. Push jadomi (erreur 500 GitHub)
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 18 mai 2026 (Passe 84 — Cabinet Brain + Mail Copilot)
+Derniere mise a jour : 18 mai 2026 (Passe 85 — JADOMI Copilot Global)
 ===============================================================
