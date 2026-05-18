@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0d9488"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Medecin — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f1a2e;--surface:#1a2744;--surface2:#1f2f52;--border:rgba(13,148,136,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#0d9488;--accent-dark:#14b8a6;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* -- DESKTOP SIDEBAR LAYOUT -- */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #0a1428 0%, #111d38 50%, #0a1428 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* -- SIDEBAR -- */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(13,148,136,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* -- TOPBAR -- */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* -- BUTTONS -- */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#0f766e;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+
+/* -- CONTENT -- */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* -- KPI STATS -- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* -- CARDS -- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* -- TABLE -- */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* -- BADGES -- */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(96,208,144,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(13,148,136,0.15);color:var(--accent);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+
+/* -- FILTERS -- */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* -- ACTION BUTTONS -- */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(13,148,136,0.1);border-color:var(--accent);color:var(--accent);}
+
+/* -- TIMELINE -- */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.timeline-item{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);transition:background 0.15s;}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-item:hover{background:var(--surface2);border-radius:var(--radius-sm);}
+.timeline-hour{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);min-width:50px;padding-top:2px;}
+.timeline-dot{width:12px;height:12px;border-radius:50%;background:var(--accent);margin-top:4px;flex-shrink:0;position:relative;}
+.timeline-dot::after{content:'';position:absolute;top:14px;left:5px;width:2px;height:calc(100% + 20px);background:var(--border);}
+.timeline-item:last-child .timeline-dot::after{display:none;}
+.timeline-content{flex:1;}
+.timeline-patient{font-weight:600;font-size:14px;}
+.timeline-motif{font-size:12px;color:var(--muted);margin-top:2px;}
+.timeline-meta{display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--muted);}
+
+/* -- MODAL -- */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* -- TOAST -- */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* -- MOBILE NAV -- */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 12px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* -- COMPTA GRID -- */
+.compta-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.compta-row:last-child{border-bottom:none;}
+
+/* -- RESPONSIVE -- */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+  .compta-grid-wrap{grid-template-columns:1fr !important;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Medecin generaliste</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Navigation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item active" onclick="showPage('patients',this)"><span class="ni">&#x1F9D1;</span>Mes patients</div>
+    <div class="nav-item" onclick="showPage('consultations',this)"><span class="ni">&#x1FA7A;</span>Consultations du jour</div>
+    <div class="nav-item" onclick="showPage('agenda',this)"><span class="ni">&#x1F4C5;</span>Agenda</div>
+    <div class="nav-item" onclick="showPage('ordonnances',this)"><span class="ni">&#x1F4DC;</span>Ordonnances</div>
+    <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+    <div class="nav-item" onclick="showPage('correspondants',this)"><span class="ni">&#x1F91D;</span>Correspondants</div>
+    <div class="nav-item" onclick="showPage('statistiques',this)"><span class="ni">&#x1F4CA;</span>Statistiques</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Mon cabinet</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Medecin</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Mes patients</div>
+    <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>
+    </div>
+    <div class="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- =============================== -->
+    <!-- PAGE : PATIENTS                 -->
+    <!-- =============================== -->
+    <div class="page active" id="page-patients">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Patients actifs</div><div class="stat-value c-accent" id="kpi-patients">--</div><div class="stat-sub">suivis en cours</div></div>
+        <div class="stat"><div class="stat-label">Consultations aujourd'hui</div><div class="stat-value c-green" id="kpi-consult">--</div><div class="stat-sub">rendez-vous du jour</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value" id="kpi-ca">--</div><div class="stat-sub">facturation courante</div></div>
+        <div class="stat"><div class="stat-label">Ordonnances ce mois</div><div class="stat-value c-amber" id="kpi-ordo">--</div><div class="stat-sub">prescriptions emises</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un patient..." id="search-patients" oninput="filterPatients()" aria-label="Rechercher un patient">
+        </div>
+        <select class="filter-select" id="filter-patho" onchange="filterPatients()" aria-label="Filtrer par pathologie">
+          <option value="">Toutes pathologies</option>
+          <option value="diabete">Diabete</option>
+          <option value="hypertension">Hypertension</option>
+          <option value="asthme">Asthme</option>
+          <option value="cholesterol">Cholesterol</option>
+          <option value="depression">Depression</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des patients</div>
+          <div class="card-count" id="patients-count">0 patients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Age</th>
+                <th>Derniere consultation</th>
+                <th>Pathologies</th>
+                <th>Telephone</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patients-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : CONSULTATIONS DU JOUR    -->
+    <!-- =============================== -->
+    <div class="page" id="page-consultations">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Consultations du jour</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="consult-date-label">--</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalConsult()">+ Nouvelle consultation</button>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="timeline" id="consultations-timeline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : AGENDA                   -->
+    <!-- =============================== -->
+    <div class="page" id="page-agenda">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Agenda de la semaine</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Creneaux de 15, 20 ou 30 minutes</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="agendaPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="agendaToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="agendaNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" id="agenda-grid" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : ORDONNANCES              -->
+    <!-- =============================== -->
+    <div class="page" id="page-ordonnances">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Ordonnances</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Prescriptions et renouvellements</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalOrdo()">+ Nouvelle ordonnance</button>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher une ordonnance..." id="search-ordo" oninput="filterOrdonnances()" aria-label="Rechercher une ordonnance">
+        </div>
+        <select class="filter-select" id="filter-ordo-status" onchange="filterOrdonnances()" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          <option value="active">Active</option>
+          <option value="renouveler">A renouveler</option>
+          <option value="expiree">Expiree</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des ordonnances</div>
+          <div class="card-count" id="ordo-count">0 ordonnances</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Date</th>
+                <th>Medicaments</th>
+                <th>Renouvellement</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordo-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : COMPTABILITE             -->
+    <!-- =============================== -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese mensuelle de votre activite</div>
+        </div>
+        <select class="filter-select" id="compta-mois" onchange="renderCompta()" aria-label="Mois">
+          <option value="2026-04">Avril 2026</option>
+          <option value="2026-03">Mars 2026</option>
+          <option value="2026-02">Fevrier 2026</option>
+          <option value="2026-01">Janvier 2026</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Consultations</div><div class="stat-value c-accent" id="compta-consults">--</div><div class="stat-sub">ce mois</div></div>
+        <div class="stat"><div class="stat-label">Actes techniques</div><div class="stat-value c-green" id="compta-actes">--</div><div class="stat-sub">ECG, sutures, etc.</div></div>
+        <div class="stat"><div class="stat-label">Tiers payant</div><div class="stat-value c-amber" id="compta-tp">--</div><div class="stat-sub">part secu + mutuelle</div></div>
+        <div class="stat"><div class="stat-label">Resultat net</div><div class="stat-value" id="compta-net">--</div><div class="stat-sub">benefice mensuel</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" class="compta-grid-wrap">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par type</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Depenses par poste</div></div>
+          <div class="card-body" id="compta-depenses-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : CORRESPONDANTS           -->
+    <!-- =============================== -->
+    <div class="page" id="page-correspondants">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Correspondants</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Medecins specialistes referents</div>
+        </div>
+        <button class="btn btn-accent" onclick="showToast('Ajout de correspondant -- a venir')">+ Ajouter un correspondant</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Mes correspondants</div>
+          <div class="card-count" id="corresp-count">0 correspondants</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Specialite</th>
+                <th>Telephone</th>
+                <th>Email</th>
+                <th>Adresse</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="corresp-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : STATISTIQUES             -->
+    <!-- =============================== -->
+    <div class="page" id="page-statistiques">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Statistiques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Vue d'ensemble de votre activite</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Patients total</div><div class="stat-value c-accent" id="stat-total-patients">--</div><div class="stat-sub">depuis l'ouverture</div></div>
+        <div class="stat"><div class="stat-label">Consultations / mois</div><div class="stat-value c-green" id="stat-consult-mois">--</div><div class="stat-sub">moyenne glissante</div></div>
+        <div class="stat"><div class="stat-label">Ordonnances / mois</div><div class="stat-value c-amber" id="stat-ordo-mois">--</div><div class="stat-sub">prescriptions</div></div>
+        <div class="stat"><div class="stat-label">CA annuel</div><div class="stat-value" id="stat-ca-annuel">--</div><div class="stat-sub">projection 2026</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" class="compta-grid-wrap">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Repartition des pathologies</div></div>
+          <div class="card-body" id="stat-patho-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Activite mensuelle</div></div>
+          <div class="card-body" id="stat-activite-detail"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('patients',this)" aria-label="Patients"><span class="mnav-icon">&#x1F9D1;</span>Patients</button>
+    <button class="mnav-item" onclick="showPage('consultations',this)" aria-label="Consultations"><span class="mnav-icon">&#x1FA7A;</span>Consult.</button>
+    <button class="mnav-item" onclick="showPage('agenda',this)" aria-label="Agenda"><span class="mnav-icon">&#x1F4C5;</span>Agenda</button>
+    <button class="mnav-item" onclick="showPage('ordonnances',this)" aria-label="Ordonnances"><span class="mnav-icon">&#x1F4DC;</span>Ordo.</button>
+    <button class="mnav-item" onclick="showPage('compta',this)" aria-label="Comptabilite"><span class="mnav-icon">&#x1F4B0;</span>Compta</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouveau patient -->
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal">
+    <div class="modal-title">Nouveau patient</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom</label><input class="form-input" id="pat-nom" placeholder="Nom de famille"></div>
+      <div class="form-field"><label class="form-label">Prenom</label><input class="form-input" id="pat-prenom" placeholder="Prenom"></div>
+      <div class="form-field"><label class="form-label">Date de naissance</label><input class="form-input" id="pat-ddn" type="date"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="pat-tel" placeholder="06 ..."></div>
+      <div class="form-field full"><label class="form-label">Pathologies connues</label><input class="form-input" id="pat-patho" placeholder="Diabete, hypertension..."></div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="pat-notes" placeholder="Notes supplementaires..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-patient')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterPatient()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouvelle consultation -->
+<div class="modal-overlay" id="modal-consult">
+  <div class="modal">
+    <div class="modal-title">Nouvelle consultation</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="consult-patient" placeholder="Nom du patient"></div>
+      <div class="form-field"><label class="form-label">Heure</label><input class="form-input" id="consult-heure" type="time" value="09:00"></div>
+      <div class="form-field"><label class="form-label">Duree (min)</label><input class="form-input" id="consult-duree" type="number" value="20"></div>
+      <div class="form-field full"><label class="form-label">Motif</label><input class="form-input" id="consult-motif" placeholder="Motif de la consultation"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-consult')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterConsult()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouvelle ordonnance -->
+<div class="modal-overlay" id="modal-ordo">
+  <div class="modal">
+    <div class="modal-title">Nouvelle ordonnance</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Patient</label><input class="form-input" id="ordo-patient" placeholder="Nom du patient"></div>
+      <div class="form-field full"><label class="form-label">Medicaments</label><input class="form-input" id="ordo-medics" placeholder="Amoxicilline 1g, Doliprane 1000..."></div>
+      <div class="form-field"><label class="form-label">Date</label><input class="form-input" id="ordo-date" type="date"></div>
+      <div class="form-field"><label class="form-label">Renouvellement</label>
+        <select class="form-select" id="ordo-renouv">
+          <option value="non">Non renouvelable</option>
+          <option value="1">1 mois</option>
+          <option value="3">3 mois</option>
+          <option value="6">6 mois</option>
+          <option value="12">12 mois</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-ordo')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerOrdonnance()">Creer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====================================
+// SUPABASE INIT
+// ====================================
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ====================================
+// AUTH CHECK
+// ====================================
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ====================================
+// PAGE NAVIGATION
+// ====================================
+const pageTitles = {
+  patients: 'Mes patients',
+  consultations: 'Consultations du jour',
+  agenda: 'Agenda',
+  ordonnances: 'Ordonnances',
+  compta: 'Comptabilite',
+  correspondants: 'Correspondants',
+  statistiques: 'Statistiques'
+};
+
+const pageActions = {
+  patients: '<button class="btn btn-accent" onclick="ouvrirModalPatient()">+ Nouveau patient</button>',
+  consultations: '<button class="btn btn-accent" onclick="ouvrirModalConsult()">+ Nouvelle consultation</button>',
+  ordonnances: '<button class="btn btn-accent" onclick="ouvrirModalOrdo()">+ Nouvelle ordonnance</button>',
+  correspondants: '<button class="btn btn-accent" onclick="showToast(\'Ajout de correspondant -- a venir\')">+ Ajouter un correspondant</button>',
+  agenda: '',
+  compta: '',
+  statistiques: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) el.classList.add('active');
+  if (id === 'agenda' && !agendaRendered) renderAgenda();
+  if (id === 'compta') renderCompta();
+  if (id === 'statistiques') renderStatistiques();
+}
+
+// ====================================
+// SIDEBAR TOGGLE (MOBILE)
+// ====================================
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ====================================
+// TOAST
+// ====================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ====================================
+// MODAL HELPERS
+// ====================================
+function ouvrirModalPatient() { document.getElementById('modal-patient').classList.add('open'); }
+function ouvrirModalConsult() { document.getElementById('modal-consult').classList.add('open'); }
+function ouvrirModalOrdo() { document.getElementById('modal-ordo').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ====================================
+// DEMO DATA
+// ====================================
+const DEMO_PATIENTS = [
+  { id:1, nom:'Dupont', prenom:'Jean', ddn:'1958-03-12', tel:'06 12 34 56 78', pathologies:['hypertension','diabete'], derniere:'2026-04-22', notes:'Sous metformine + amlodipine' },
+  { id:2, nom:'Martin', prenom:'Marie', ddn:'1975-08-30', tel:'06 98 76 54 32', pathologies:['asthme'], derniere:'2026-04-25', notes:'Ventoline PRN + Seretide 250' },
+  { id:3, nom:'Petit', prenom:'Lucas', ddn:'1990-01-15', tel:'06 11 22 33 44', pathologies:[], derniere:'2026-04-20', notes:'Bonne sante generale' },
+  { id:4, nom:'Bernard', prenom:'Sophie', ddn:'1963-11-05', tel:'06 55 66 77 88', pathologies:['cholesterol','hypertension'], derniere:'2026-04-18', notes:'Statines + IEC, controle lipidique trimestriel' },
+  { id:5, nom:'Dubois', prenom:'Pierre', ddn:'1982-06-22', tel:'06 44 33 22 11', pathologies:['depression'], derniere:'2026-04-15', notes:'Sertraline 50mg, suivi mensuel' },
+  { id:6, nom:'Moreau', prenom:'Camille', ddn:'2001-09-14', tel:'06 77 88 99 00', pathologies:[], derniere:'2026-04-10', notes:'Contraception + suivi gyneco annuel' },
+  { id:7, nom:'Garcia', prenom:'Antoine', ddn:'1970-04-28', tel:'06 22 11 33 55', pathologies:['diabete'], derniere:'2026-04-24', notes:'DT2 equilibre, HbA1c 6.8%' },
+  { id:8, nom:'Leroy', prenom:'Nathalie', ddn:'1955-12-01', tel:'06 66 55 44 33', pathologies:['hypertension','cholesterol'], derniere:'2026-03-28', notes:'Polymedication, bilan annuel a prevoir' },
+  { id:9, nom:'Roux', prenom:'Thomas', ddn:'1995-07-19', tel:'06 33 44 55 66', pathologies:['asthme'], derniere:'2026-04-26', notes:'Asthme effort, spirometrie normale' },
+  { id:10, nom:'Fournier', prenom:'Isabelle', ddn:'1968-02-08', tel:'06 99 88 77 66', pathologies:['depression','hypertension'], derniere:'2026-04-12', notes:'Venlafaxine 75mg + losartan' },
+];
+
+const DEMO_CONSULTATIONS = [
+  { heure:'08:30', patient:'Dupont Jean', motif:'Renouvellement ordonnance diabete + HTA', duree:20 },
+  { heure:'09:00', patient:'Roux Thomas', motif:'Toux persistante depuis 10 jours', duree:20 },
+  { heure:'09:30', patient:'Martin Marie', motif:'Controle asthme trimestriel', duree:15 },
+  { heure:'10:00', patient:'Garcia Antoine', motif:'Resultat HbA1c + bilan lipidique', duree:20 },
+  { heure:'10:30', patient:'Petit Lucas', motif:'Certificat medical sport', duree:15 },
+  { heure:'11:00', patient:'Bernard Sophie', motif:'Douleur lombaire aigue', duree:30 },
+  { heure:'14:00', patient:'Dubois Pierre', motif:'Suivi depression mensuel', duree:20 },
+  { heure:'14:30', patient:'Fournier Isabelle', motif:'Ajustement traitement HTA', duree:20 },
+  { heure:'15:00', patient:'Leroy Nathalie', motif:'Bilan annuel complet', duree:30 },
+  { heure:'16:00', patient:'Moreau Camille', motif:'Renouvellement contraception', duree:15 },
+];
+
+const DEMO_ORDONNANCES = [
+  { id:1, patient:'Dupont Jean', date:'2026-04-22', medics:'Metformine 1000mg x2/j, Amlodipine 5mg x1/j', renouv:'3 mois', statut:'active' },
+  { id:2, patient:'Martin Marie', date:'2026-04-25', medics:'Seretide 250 x2/j, Ventoline PRN', renouv:'6 mois', statut:'active' },
+  { id:3, patient:'Bernard Sophie', date:'2026-04-18', medics:'Atorvastatine 20mg x1/j, Ramipril 5mg x1/j', renouv:'3 mois', statut:'active' },
+  { id:4, patient:'Dubois Pierre', date:'2026-04-15', medics:'Sertraline 50mg x1/j', renouv:'1 mois', statut:'renouveler' },
+  { id:5, patient:'Garcia Antoine', date:'2026-04-24', medics:'Metformine 850mg x3/j, Gliclazide 30mg x1/j', renouv:'3 mois', statut:'active' },
+  { id:6, patient:'Fournier Isabelle', date:'2026-04-12', medics:'Venlafaxine 75mg x1/j, Losartan 50mg x1/j', renouv:'1 mois', statut:'renouveler' },
+  { id:7, patient:'Leroy Nathalie', date:'2026-03-01', medics:'Amlodipine 10mg, Atorvastatine 40mg, Omeprazole 20mg', renouv:'3 mois', statut:'expiree' },
+  { id:8, patient:'Moreau Camille', date:'2026-04-10', medics:'Leeloo Ge x1/j', renouv:'12 mois', statut:'active' },
+];
+
+const DEMO_CORRESPONDANTS = [
+  { nom:'Dr Lefebvre', specialite:'Cardiologie', tel:'01 42 34 56 78', email:'lefebvre@cardio.fr', adresse:'12 rue de la Sante, 75013 Paris' },
+  { nom:'Dr Nguyen', specialite:'Endocrinologie', tel:'01 43 45 67 89', email:'nguyen@endocrino.fr', adresse:'8 avenue Parmentier, 75011 Paris' },
+  { nom:'Dr Schmitt', specialite:'Pneumologie', tel:'01 44 56 78 90', email:'schmitt@pneumo.fr', adresse:'25 boulevard Voltaire, 75011 Paris' },
+  { nom:'Dr Rossi', specialite:'Psychiatrie', tel:'01 45 67 89 01', email:'rossi@psy.fr', adresse:'3 rue Oberkampf, 75011 Paris' },
+  { nom:'Dr Kowalski', specialite:'Rhumatologie', tel:'01 46 78 90 12', email:'kowalski@rhumato.fr', adresse:'15 rue de Charonne, 75011 Paris' },
+  { nom:'Dr Yamamoto', specialite:'Dermatologie', tel:'01 47 89 01 23', email:'yamamoto@dermato.fr', adresse:'42 rue du Faubourg Saint-Antoine, 75012 Paris' },
+];
+
+// ====================================
+// RENDER: PATIENTS
+// ====================================
+let patientsData = [...DEMO_PATIENTS];
+
+function renderPatients() {
+  const tbody = document.getElementById('patients-body');
+  const search = (document.getElementById('search-patients')?.value || '').toLowerCase();
+  const pathoFilter = document.getElementById('filter-patho')?.value || '';
+
+  let filtered = patientsData.filter(p => {
+    if (search && !(p.nom + ' ' + p.prenom).toLowerCase().includes(search)) return false;
+    if (pathoFilter && !p.pathologies.includes(pathoFilter)) return false;
+    return true;
+  });
+
+  document.getElementById('patients-count').textContent = filtered.length + ' patient' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucun patient trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const age = calcAge(p.ddn);
+    const pathoBadges = p.pathologies.length > 0
+      ? p.pathologies.map(pt => pathoLabel(pt)).join(' ')
+      : '<span style="color:var(--muted);font-size:12px;">Aucune</span>';
+    const derniere = p.derniere ? formatDate(p.derniere) : '<span style="color:var(--muted);">--</span>';
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(p.nom)} ${esc(p.prenom)}</div><div style="font-size:11px;color:var(--muted);">${esc(p.notes)}</div></td>
+      <td>${age} ans</td>
+      <td>${derniere}</td>
+      <td>${pathoBadges}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${esc(p.tel)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Dossier medical" aria-label="Dossier medical" onclick="showToast('Dossier patient -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Ordonnance" aria-label="Nouvelle ordonnance" onclick="showToast('Ordonnance rapide -- a venir')">&#x1F4DC;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPatients() { renderPatients(); }
+
+// ====================================
+// RENDER: CONSULTATIONS DU JOUR
+// ====================================
+function renderConsultations() {
+  const container = document.getElementById('consultations-timeline');
+  const today = new Date();
+  document.getElementById('consult-date-label').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  if (DEMO_CONSULTATIONS.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Aucune consultation prevue aujourd\'hui</div>';
+    return;
+  }
+
+  container.innerHTML = DEMO_CONSULTATIONS.map(c => {
+    return `<div class="timeline-item">
+      <div class="timeline-hour">${esc(c.heure)}</div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-content">
+        <div class="timeline-patient">${esc(c.patient)}</div>
+        <div class="timeline-motif">${esc(c.motif)}</div>
+        <div class="timeline-meta">
+          <span>${c.duree} min</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ====================================
+// RENDER: AGENDA
+// ====================================
+let agendaRendered = false;
+let agendaWeekOffset = 0;
+
+function renderAgenda() {
+  agendaRendered = true;
+  const container = document.getElementById('agenda-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + agendaWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+  const creneaux = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+
+  const rdvs = [
+    { jour:0, heure:'08:30', duree:20, patient:'Dupont Jean', note:'Renouvellement HTA' },
+    { jour:0, heure:'09:00', duree:20, patient:'Roux Thomas', note:'Toux persistante' },
+    { jour:0, heure:'09:30', duree:15, patient:'Martin Marie', note:'Controle asthme' },
+    { jour:0, heure:'10:00', duree:20, patient:'Garcia Antoine', note:'Resultats labo' },
+    { jour:0, heure:'10:30', duree:15, patient:'Petit Lucas', note:'Certificat sport' },
+    { jour:0, heure:'11:00', duree:30, patient:'Bernard Sophie', note:'Douleur lombaire' },
+    { jour:0, heure:'14:00', duree:20, patient:'Dubois Pierre', note:'Suivi depression' },
+    { jour:0, heure:'14:30', duree:20, patient:'Fournier Isabelle', note:'Ajustement HTA' },
+    { jour:0, heure:'15:00', duree:30, patient:'Leroy Nathalie', note:'Bilan annuel' },
+    { jour:0, heure:'16:00', duree:15, patient:'Moreau Camille', note:'Contraception' },
+    { jour:1, heure:'08:30', duree:20, patient:'Dupont Jean', note:'ECG controle' },
+    { jour:1, heure:'09:30', duree:20, patient:'Nouveau patient', note:'Premiere consultation' },
+    { jour:1, heure:'10:30', duree:30, patient:'Leroy Nathalie', note:'Vaccin grippe' },
+    { jour:1, heure:'14:00', duree:20, patient:'Garcia Antoine', note:'Glycemie capillaire' },
+    { jour:1, heure:'15:00', duree:20, patient:'Roux Thomas', note:'Suivi toux' },
+    { jour:2, heure:'09:00', duree:20, patient:'Martin Marie', note:'Spirometrie' },
+    { jour:2, heure:'10:00', duree:30, patient:'Bernard Sophie', note:'Suivi lombaire' },
+    { jour:2, heure:'14:30', duree:20, patient:'Dubois Pierre', note:'Point sertraline' },
+    { jour:3, heure:'09:00', duree:15, patient:'Petit Lucas', note:'Resultats analyses' },
+    { jour:3, heure:'10:00', duree:20, patient:'Fournier Isabelle', note:'Controle TA' },
+    { jour:3, heure:'14:00', duree:30, patient:'Nouveau patient', note:'Bilan complet' },
+    { jour:4, heure:'08:30', duree:20, patient:'Dupont Jean', note:'Ajustement metformine' },
+    { jour:4, heure:'09:30', duree:20, patient:'Garcia Antoine', note:'Education therapeutique' },
+    { jour:4, heure:'14:00', duree:15, patient:'Moreau Camille', note:'Resultats frottis' },
+    { jour:4, heure:'15:30', duree:20, patient:'Roux Thomas', note:'Controle toux' },
+  ];
+
+  let html = '<table style="min-width:700px;">';
+  html += '<thead><tr><th style="width:80px;">Heure</th>';
+  for (let j = 0; j < 5; j++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + j);
+    const isToday = d.toDateString() === today.toDateString();
+    html += '<th style="' + (isToday ? 'color:var(--accent);' : '') + '">' + jours[j] + ' ' + d.getDate() + '/' + (d.getMonth()+1) + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  creneaux.forEach(function(h) {
+    html += '<tr><td style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 12px;">' + h + '</td>';
+    for (let j = 0; j < 5; j++) {
+      var rdv = rdvs.find(function(r) { return r.jour === j && r.heure === h; });
+      if (rdv) {
+        var color = rdv.duree >= 30 ? 'var(--accent)' : rdv.duree >= 20 ? 'var(--green)' : 'var(--purple)';
+        html += '<td style="padding:4px;">' +
+          '<div style="background:' + color + '15;border-left:3px solid ' + color + ';border-radius:6px;padding:8px 10px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'\'">' +
+            '<div style="font-size:12px;font-weight:600;">' + esc(rdv.patient) + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + rdv.duree + ' min -- ' + esc(rdv.note) + '</div>' +
+          '</div></td>';
+      } else {
+        html += '<td style="padding:4px;"></td>';
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function agendaPrev() { agendaWeekOffset--; renderAgenda(); }
+function agendaNext() { agendaWeekOffset++; renderAgenda(); }
+function agendaToday() { agendaWeekOffset = 0; renderAgenda(); }
+
+// ====================================
+// RENDER: ORDONNANCES
+// ====================================
+let ordoData = [...DEMO_ORDONNANCES];
+
+function renderOrdonnances() {
+  const tbody = document.getElementById('ordo-body');
+  const search = (document.getElementById('search-ordo')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('filter-ordo-status')?.value || '';
+
+  let filtered = ordoData.filter(function(o) {
+    if (search && !o.patient.toLowerCase().includes(search) && !o.medics.toLowerCase().includes(search)) return false;
+    if (statusFilter && o.statut !== statusFilter) return false;
+    return true;
+  });
+
+  document.getElementById('ordo-count').textContent = filtered.length + ' ordonnance' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Aucune ordonnance trouvee</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(o) {
+    var statutBadge;
+    if (o.statut === 'active') statutBadge = '<span class="badge badge-ok">Active</span>';
+    else if (o.statut === 'renouveler') statutBadge = '<span class="badge badge-warn">A renouveler</span>';
+    else statutBadge = '<span class="badge badge-crit">Expiree</span>';
+    return '<tr>' +
+      '<td style="font-weight:500;">' + esc(o.patient) + '</td>' +
+      '<td>' + formatDate(o.date) + '</td>' +
+      '<td><div style="max-width:260px;font-size:12px;color:var(--muted);line-height:1.4;">' + esc(o.medics) + '</div></td>' +
+      '<td>' + esc(o.renouv) + '</td>' +
+      '<td>' + statutBadge + '</td>' +
+      '<td><div class="action-btns">' +
+        '<button class="icon-btn cmd" title="Renouveler" aria-label="Renouveler ordonnance" onclick="showToast(\'Renouvellement -- a venir\')">&#x1F504;</button>' +
+        '<button class="icon-btn" title="Imprimer" aria-label="Imprimer ordonnance" onclick="showToast(\'Impression -- a venir\')">&#x1F5A8;</button>' +
+      '</div></td></tr>';
+  }).join('');
+}
+
+function filterOrdonnances() { renderOrdonnances(); }
+
+// ====================================
+// RENDER: COMPTABILITE
+// ====================================
+function renderCompta() {
+  var consultations = 142;
+  var actes = 18;
+  var tp = 8960;
+  var recettes = 11380;
+  var depenses = 2850;
+  var net = recettes - depenses;
+
+  document.getElementById('compta-consults').textContent = consultations;
+  document.getElementById('compta-actes').textContent = actes;
+  document.getElementById('compta-tp').textContent = fmtEur(tp);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+
+  var recDetail = [
+    { label: 'Consultations (C a 26,50 EUR)', montant: 7632 },
+    { label: 'Actes techniques (ECG, sutures)', montant: 1440 },
+    { label: 'Visites a domicile', montant: 1120 },
+    { label: 'Majoration nuit / dimanche', montant: 588 },
+    { label: 'Certificats et documents', montant: 600 },
+  ];
+  document.getElementById('compta-recettes-detail').innerHTML = recDetail.map(function(r) {
+    return '<div class="compta-row"><span>' + r.label + '</span><span style="font-family:var(--mono);font-weight:500;">' + fmtEur(r.montant) + '</span></div>';
+  }).join('');
+
+  var depDetail = [
+    { label: 'Loyer cabinet', montant: 1200 },
+    { label: 'Materiel medical', montant: 450 },
+    { label: 'Logiciels / Abonnements', montant: 180 },
+    { label: 'Cotisations URSSAF / CARMF', montant: 820 },
+    { label: 'Fournitures', montant: 200 },
+  ];
+  document.getElementById('compta-depenses-detail').innerHTML = depDetail.map(function(r) {
+    return '<div class="compta-row"><span>' + r.label + '</span><span style="font-family:var(--mono);font-weight:500;color:var(--red);">' + fmtEur(r.montant) + '</span></div>';
+  }).join('');
+}
+
+// ====================================
+// RENDER: CORRESPONDANTS
+// ====================================
+function renderCorrespondants() {
+  var tbody = document.getElementById('corresp-body');
+  document.getElementById('corresp-count').textContent = DEMO_CORRESPONDANTS.length + ' correspondant' + (DEMO_CORRESPONDANTS.length > 1 ? 's' : '');
+
+  tbody.innerHTML = DEMO_CORRESPONDANTS.map(function(c) {
+    return '<tr>' +
+      '<td style="font-weight:500;">' + esc(c.nom) + '</td>' +
+      '<td><span class="badge badge-blue">' + esc(c.specialite) + '</span></td>' +
+      '<td style="font-family:var(--mono);font-size:12px;">' + esc(c.tel) + '</td>' +
+      '<td style="font-size:12px;">' + esc(c.email) + '</td>' +
+      '<td style="font-size:12px;color:var(--muted);max-width:200px;">' + esc(c.adresse) + '</td>' +
+      '<td><button class="icon-btn cmd" title="Adresser un patient" aria-label="Adresser un patient" onclick="showToast(\'Adressage patient -- a venir\')">&#x1F4E8;</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ====================================
+// RENDER: STATISTIQUES
+// ====================================
+function renderStatistiques() {
+  document.getElementById('stat-total-patients').textContent = patientsData.length;
+  document.getElementById('stat-consult-mois').textContent = '148';
+  document.getElementById('stat-ordo-mois').textContent = ordoData.length;
+  document.getElementById('stat-ca-annuel').textContent = fmtEur(136560);
+
+  var pathoStats = [
+    { label: 'Hypertension', count: 4, pct: 40 },
+    { label: 'Diabete', count: 3, pct: 30 },
+    { label: 'Asthme', count: 2, pct: 20 },
+    { label: 'Cholesterol', count: 2, pct: 20 },
+    { label: 'Depression', count: 2, pct: 20 },
+    { label: 'Sans pathologie chronique', count: 2, pct: 20 },
+  ];
+  document.getElementById('stat-patho-detail').innerHTML = pathoStats.map(function(s) {
+    var barColor = s.pct >= 30 ? 'var(--accent)' : s.pct >= 20 ? 'var(--amber)' : 'var(--green)';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">' +
+      '<span style="font-size:13px;min-width:180px;">' + s.label + '</span>' +
+      '<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:' + s.pct + '%;height:100%;background:' + barColor + ';border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);"></div></div>' +
+      '<span style="font-family:var(--mono);font-size:12px;color:var(--muted);min-width:50px;text-align:right;">' + s.count + ' pat.</span>' +
+    '</div>';
+  }).join('');
+
+  var activiteStats = [
+    { mois: 'Janvier', consults: 138, ca: 10920 },
+    { mois: 'Fevrier', consults: 125, ca: 9875 },
+    { mois: 'Mars', consults: 152, ca: 12008 },
+    { mois: 'Avril', consults: 148, ca: 11380 },
+  ];
+  document.getElementById('stat-activite-detail').innerHTML = activiteStats.map(function(s) {
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+      '<span style="font-weight:500;">' + s.mois + ' 2026</span>' +
+      '<span style="color:var(--muted);">' + s.consults + ' consult.</span>' +
+      '<span style="font-family:var(--mono);font-weight:500;">' + fmtEur(s.ca) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// ====================================
+// KPI UPDATE
+// ====================================
+function updateKPIs() {
+  document.getElementById('kpi-patients').textContent = patientsData.length;
+  document.getElementById('kpi-consult').textContent = DEMO_CONSULTATIONS.length;
+  document.getElementById('kpi-ca').textContent = fmtEur(11380);
+  document.getElementById('kpi-ordo').textContent = ordoData.length;
+}
+
+// ====================================
+// FORM ACTIONS (DEMO)
+// ====================================
+function ajouterPatient() {
+  var nom = document.getElementById('pat-nom').value.trim();
+  var prenom = document.getElementById('pat-prenom').value.trim();
+  if (!nom || !prenom) { showToast('Veuillez renseigner le nom et le prenom'); return; }
+
+  patientsData.push({
+    id: Date.now(), nom: nom, prenom: prenom,
+    ddn: document.getElementById('pat-ddn').value || '1990-01-01',
+    tel: document.getElementById('pat-tel').value,
+    pathologies: (document.getElementById('pat-patho').value || '').split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean),
+    derniere: null,
+    notes: document.getElementById('pat-notes').value
+  });
+
+  fermerModal('modal-patient');
+  renderPatients();
+  updateKPIs();
+  showToast('Patient ajoute avec succes');
+  ['pat-nom','pat-prenom','pat-ddn','pat-tel','pat-patho','pat-notes'].forEach(function(id) { document.getElementById(id).value = ''; });
+}
+
+function ajouterConsult() {
+  showToast('Consultation ajoutee (demo)');
+  fermerModal('modal-consult');
+}
+
+function creerOrdonnance() {
+  showToast('Ordonnance creee (demo)');
+  fermerModal('modal-ordo');
+}
+
+// ====================================
+// HELPERS
+// ====================================
+function esc(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtEur(n) {
+  if (n == null || isNaN(n)) return '--';
+  return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' EUR';
+}
+
+function formatDate(str) {
+  if (!str) return '--';
+  var d = new Date(str);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function calcAge(ddn) {
+  if (!ddn) return '--';
+  var born = new Date(ddn);
+  var now = new Date();
+  var age = now.getFullYear() - born.getFullYear();
+  if (now.getMonth() < born.getMonth() || (now.getMonth() === born.getMonth() && now.getDate() < born.getDate())) age--;
+  return age;
+}
+
+function pathoLabel(patho) {
+  var map = {
+    diabete: { label: 'Diabete', cls: 'badge-warn' },
+    hypertension: { label: 'HTA', cls: 'badge-crit' },
+    asthme: { label: 'Asthme', cls: 'badge-blue' },
+    cholesterol: { label: 'Cholesterol', cls: 'badge-purple' },
+    depression: { label: 'Depression', cls: 'badge-warn' },
+  };
+  var m = map[patho] || { label: patho || '--', cls: 'badge-ok' };
+  return '<span class="badge ' + m.cls + '">' + m.label + '</span>';
+}
+
+// ====================================
+// INIT
+// ====================================
+document.addEventListener('DOMContentLoaded', async function() {
+  var session = await checkAuth();
+  updateKPIs();
+  renderPatients();
+  renderConsultations();
+  renderOrdonnances();
+  renderCorrespondants();
+});
+</script>
+</body>
+</html>

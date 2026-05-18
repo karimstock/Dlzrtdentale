@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#f97316"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Créateur — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#1a0f05;--surface:#261808;--surface2:#30200e;--border:rgba(249,115,22,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#f97316;--accent-dark:#fb923c;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* ── DESKTOP SIDEBAR LAYOUT ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #1a0a00 0%, #2a1508 50%, #1a0a00 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(249,115,22,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.nav-group{padding:2px 0;margin:0 8px;}
+.nav-group-title{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:color 0.15s;border-radius:var(--radius-sm);}
+.nav-group-title:hover{color:var(--text);}
+.nav-group-arrow{font-size:8px;width:12px;transition:transform 0.3s cubic-bezier(.16,1,.3,1);display:inline-block;}
+.nav-group-arrow.open{transform:rotate(90deg);}
+.nav-group-ico{font-size:14px;}
+.nav-group-items .nav-item{padding-left:40px;font-size:12px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#ea580c;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── KPI STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(16,185,129,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+.badge-accent{background:rgba(249,115,22,0.15);color:var(--accent);}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+.progress-fill-green{background:var(--green);}
+.progress-fill-amber{background:var(--amber);}
+.progress-fill-red{background:var(--red);}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* ── ACTION BUTTONS ── */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(249,115,22,0.1);border-color:var(--accent);color:var(--accent);}
+.icon-btn.del:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* ── PIPELINE CARDS ── */
+.pipeline-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.pipeline-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.pipeline-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.pipeline-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.pipeline-name{font-weight:600;font-size:14px;}
+.pipeline-amount{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--accent);}
+.pipeline-detail{font-size:12px;color:var(--muted);margin-bottom:10px;}
+
+/* ── PORTFOLIO GRID ── */
+.portfolio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
+.portfolio-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.portfolio-item:hover{border-color:var(--accent);transform:translateY(-2px);}
+.portfolio-visual{height:180px;display:flex;align-items:center;justify-content:center;font-size:48px;background:var(--surface2);}
+.portfolio-body{padding:18px;}
+.portfolio-title{font-family:var(--font-display);font-size:16px;font-weight:600;margin-bottom:6px;}
+.portfolio-desc{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;}
+.portfolio-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.portfolio-testimonial{font-size:12px;font-style:italic;color:var(--muted);padding:10px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid var(--accent);}
+
+/* ── PLANNING WEEK ── */
+.planning-day{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-height:120px;}
+.planning-day-title{font-family:var(--font-display);font-size:13px;font-weight:600;margin-bottom:10px;color:var(--accent);}
+.planning-event{padding:8px 10px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:12px;border-left:3px solid var(--accent);}
+.planning-event.deadline{background:rgba(239,68,68,0.1);border-left-color:var(--red);color:var(--red);}
+.planning-event.rdv{background:rgba(6,182,212,0.1);border-left-color:var(--blue);color:var(--blue);}
+.planning-event.task{background:rgba(249,115,22,0.1);border-left-color:var(--accent);color:var(--accent);}
+
+/* ── COMPTA LINE ── */
+.compta-line{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.compta-line:last-child{border-bottom:none;}
+
+/* ── LOADING ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .pipeline-grid{grid-template-columns:1fr;}
+  .portfolio-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Créateur</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Organisation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <!-- Activité -->
+    <div class="nav-group" data-nav-group="activite">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow open">&#9654;</span><span class="nav-group-ico">&#x1F4CA;</span> Activité
+      </div>
+      <div class="nav-group-items" style="display:block;">
+        <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="ni">&#x1F4CA;</span>Tableau de bord</div>
+        <div class="nav-item" onclick="showPage('projets',this)"><span class="ni">&#x1F4C1;</span>Mes projets</div>
+        <div class="nav-item" onclick="showPage('clients',this)"><span class="ni">&#x1F465;</span>Clients</div>
+      </div>
+    </div>
+
+    <!-- Commercial -->
+    <div class="nav-group" data-nav-group="commercial">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4B0;</span> Commercial
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('devis',this)"><span class="ni">&#x1F4C4;</span>Devis & Factures<span class="nav-badge" id="devis-badge">3</span></div>
+        <div class="nav-item" onclick="showPage('portfolio',this)"><span class="ni">&#x1F3A8;</span>Portfolio</div>
+      </div>
+    </div>
+
+    <!-- Finances -->
+    <div class="nav-group" data-nav-group="finances">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F4C5;</span> Finances
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('planning',this)"><span class="ni">&#x1F4C5;</span>Planning</div>
+        <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+      </div>
+    </div>
+
+    <!-- Outils -->
+    <div class="nav-group" data-nav-group="outils">
+      <div class="nav-group-title" onclick="toggleNavGroup(this)">
+        <span class="nav-group-arrow">&#9654;</span><span class="nav-group-ico">&#x1F6E0;</span> Outils
+      </div>
+      <div class="nav-group-items" style="display:none;">
+        <div class="nav-item" onclick="showPage('outils',this)"><span class="ni">&#x1F6E0;</span>Templates & Outils</div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Mon activité</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Créateur</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Tableau de bord</div>
+    <div class="topbar-right" id="topbar-actions"></div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : TABLEAU DE BORD         -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Projets en cours</div><div class="stat-value c-accent" id="kpi-projets">--</div><div class="stat-sub">missions actives</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value c-green" id="kpi-ca">--</div><div class="stat-sub">facturation courante</div></div>
+        <div class="stat"><div class="stat-label">Devis en attente</div><div class="stat-value c-amber" id="kpi-devis">--</div><div class="stat-sub">en attente de réponse</div></div>
+        <div class="stat"><div class="stat-label">Factures impayées</div><div class="stat-value c-red" id="kpi-impayes">--</div><div class="stat-sub">à relancer</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Pipeline projets</div>
+            <div class="card-count" id="pipeline-count">0 projets</div>
+          </div>
+          <div class="card-body">
+            <div id="pipeline-summary"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Objectif mensuel</div>
+          </div>
+          <div class="card-body">
+            <div style="text-align:center;margin-bottom:16px;">
+              <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Progression CA / Objectif</div>
+              <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--accent);" id="objectif-pct">--</div>
+            </div>
+            <div class="progress-bar" style="height:10px;margin-bottom:12px;">
+              <div class="progress-fill" id="objectif-fill" style="width:0%;background:var(--accent);"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);">
+              <span>CA : <strong id="objectif-ca" style="color:var(--text);">--</strong></span>
+              <span>Objectif : <strong id="objectif-target" style="color:var(--text);">--</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Trésorerie</div>
+        </div>
+        <div class="card-body">
+          <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:0;">
+            <div class="stat" style="border:none;padding:12px;"><div class="stat-label">Encaissé ce mois</div><div class="stat-value c-green" id="treso-encaisse" style="font-size:22px;">--</div></div>
+            <div class="stat" style="border:none;padding:12px;"><div class="stat-label">En attente</div><div class="stat-value c-amber" id="treso-attente" style="font-size:22px;">--</div></div>
+            <div class="stat" style="border:none;padding:12px;"><div class="stat-label">Charges prévues</div><div class="stat-value c-red" id="treso-charges" style="font-size:22px;">--</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : MES PROJETS             -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-projets">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un projet..." id="search-projets" oninput="filterProjets()" aria-label="Rechercher un projet">
+        </div>
+        <select class="filter-select" id="filter-statut-projet" onchange="filterProjets()" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          <option value="prospect">Prospect</option>
+          <option value="devis_envoye">Devis envoyé</option>
+          <option value="en_cours">En cours</option>
+          <option value="livre">Livré</option>
+          <option value="facture">Facturé</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des projets</div>
+          <div class="card-count" id="projets-count">0 projets</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Projet</th>
+                <th>Client</th>
+                <th>Statut</th>
+                <th>Montant</th>
+                <th>Deadline</th>
+                <th>Progression</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="projets-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : CLIENTS                 -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-clients">
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un client..." id="search-clients" oninput="filterClients()" aria-label="Rechercher un client">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des clients</div>
+          <div class="card-count" id="clients-count">0 clients</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Nb projets</th>
+                <th>CA total</th>
+                <th>Dernier contact</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : DEVIS & FACTURES        -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-devis">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Devis emis</div><div class="stat-value c-accent" id="df-devis">--</div><div class="stat-sub">ce trimestre</div></div>
+        <div class="stat"><div class="stat-label">Taux conversion</div><div class="stat-value c-green" id="df-taux">--</div><div class="stat-sub">devis acceptes</div></div>
+        <div class="stat"><div class="stat-label">Factures emises</div><div class="stat-value c-blue" id="df-factures" style="color:var(--blue);">--</div><div class="stat-sub">ce trimestre</div></div>
+        <div class="stat"><div class="stat-label">Montant impaye</div><div class="stat-value c-red" id="df-impayes">--</div><div class="stat-sub">a encaisser</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher un document..." id="search-devis" oninput="filterDevis()" aria-label="Rechercher un document">
+        </div>
+        <select class="filter-select" id="filter-type-doc" onchange="filterDevis()" aria-label="Type de document">
+          <option value="">Tous les types</option>
+          <option value="devis">Devis</option>
+          <option value="facture">Facturé</option>
+        </select>
+        <select class="filter-select" id="filter-statut-doc" onchange="filterDevis()" aria-label="Statut">
+          <option value="">Tous les statuts</option>
+          <option value="brouillon">Brouillon</option>
+          <option value="envoye">Envoye</option>
+          <option value="accepte">Accepte</option>
+          <option value="refuse">Refuse</option>
+          <option value="paye">Paye</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Documents commerciaux</div>
+          <div class="card-count" id="devis-count">0 documents</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Numero</th>
+                <th>Type</th>
+                <th>Client</th>
+                <th>Objet</th>
+                <th>Montant HT</th>
+                <th>Date</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="devis-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PLANNING                -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-planning">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Planning</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Vos deadlines, rendez-vous et taches de la semaine</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="planningPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="planningToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="planningNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--red);display:inline-block;"></span> Deadlines</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--blue);display:inline-block;"></span> Rendez-vous</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block;"></span> Taches</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;" id="planning-grid"></div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : PORTFOLIO               -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-portfolio">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Portfolio</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Vos projets realises, a partager avec vos prospects</div>
+        </div>
+      </div>
+      <div class="portfolio-grid" id="portfolio-grid"></div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : COMPTABILITE            -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese de votre activite -- regime auto-entrepreneur</div>
+        </div>
+        <select class="filter-select" id="compta-trimestre" onchange="renderCompta()" aria-label="Trimestre">
+          <option value="T2-2026">T2 2026 (Avril-Juin)</option>
+          <option value="T1-2026">T1 2026 (Janvier-Mars)</option>
+          <option value="T4-2025">T4 2025 (Octobre-Decembre)</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value c-green" id="compta-ca">--</div><div class="stat-sub">recettes encaissees</div></div>
+        <div class="stat"><div class="stat-label">Charges estimees</div><div class="stat-value c-red" id="compta-charges">--</div><div class="stat-sub">outils + abonnements</div></div>
+        <div class="stat"><div class="stat-label">URSSAF (22%)</div><div class="stat-value c-amber" id="compta-urssaf">--</div><div class="stat-sub">cotisations sociales</div></div>
+        <div class="stat"><div class="stat-label">Resultat net</div><div class="stat-value c-accent" id="compta-net">--</div><div class="stat-sub">apres cotisations</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="compta-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par client</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Charges mensuelles</div></div>
+          <div class="card-body" id="compta-charges-detail"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-head"><div class="card-title">Declaration trimestrielle URSSAF</div></div>
+        <div class="card-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <div style="font-size:13px;">CA declarable ce trimestre : <strong id="compta-declarable" style="color:var(--accent);">--</strong></div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Franchise en base de TVA (seuil : 36 800 EUR / an)</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="compta-tva-status">Statut TVA : --</div>
+            </div>
+            <button class="btn btn-accent" onclick="showToast('Export declaration URSSAF -- a venir')">Exporter la declaration</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════ -->
+    <!-- PAGE : OUTILS                  -->
+    <!-- ═══════════════════════════════ -->
+    <div class="page" id="page-outils">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Templates & Outils</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Vos documents types et outils de productivite</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+        <div class="card" style="cursor:pointer;" onclick="showToast('Template devis -- generation a venir')">
+          <div class="card-body" style="text-align:center;padding:28px;">
+            <div style="font-size:36px;margin-bottom:12px;">&#x1F4C4;</div>
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">Template devis</div>
+            <div style="font-size:12px;color:var(--muted);">Generez un devis professionnel en quelques clics avec vos informations pre-remplies.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="showToast('Template facture -- generation a venir')">
+          <div class="card-body" style="text-align:center;padding:28px;">
+            <div style="font-size:36px;margin-bottom:12px;">&#x1F9FE;</div>
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">Template facture</div>
+            <div style="font-size:12px;color:var(--muted);">Convertissez vos devis en factures ou creez une facture directement avec numerotation auto.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="showToast('Mentions legales -- generation a venir')">
+          <div class="card-body" style="text-align:center;padding:28px;">
+            <div style="font-size:36px;margin-bottom:12px;">&#x2696;</div>
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">Mentions legales</div>
+            <div style="font-size:12px;color:var(--muted);">Generez vos mentions legales conformes pour votre site web et vos documents.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="showToast('CGV -- generation a venir')">
+          <div class="card-body" style="text-align:center;padding:28px;">
+            <div style="font-size:36px;margin-bottom:12px;">&#x1F4DD;</div>
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">CGV / CGS</div>
+            <div style="font-size:12px;color:var(--muted);">Conditions generales de vente ou de service adaptees a votre activite de createur.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="showToast('Signature email -- generation a venir')">
+          <div class="card-body" style="text-align:center;padding:28px;">
+            <div style="font-size:36px;margin-bottom:12px;">&#x2709;</div>
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">Signature email</div>
+            <div style="font-size:12px;color:var(--muted);">Creez une signature email professionnelle avec vos coordonnees et votre logo.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="showToast('Calculateur TJM -- a venir')">
+          <div class="card-body" style="text-align:center;padding:28px;">
+            <div style="font-size:36px;margin-bottom:12px;">&#x1F4B1;</div>
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-bottom:6px;">Calculateur TJM</div>
+            <div style="font-size:12px;color:var(--muted);">Calculez votre taux journalier moyen ideal en fonction de vos charges et objectifs.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('dashboard',this)" aria-label="Dashboard"><span class="mnav-icon">&#x1F4CA;</span>Dashboard</button>
+    <button class="mnav-item" onclick="showPage('projets',this)" aria-label="Projets"><span class="mnav-icon">&#x1F4C1;</span>Projets</button>
+    <button class="mnav-item" onclick="showPage('devis',this)" aria-label="Devis"><span class="mnav-icon">&#x1F4C4;</span>Devis</button>
+    <button class="mnav-item" onclick="showPage('planning',this)" aria-label="Planning"><span class="mnav-icon">&#x1F4C5;</span>Planning</button>
+    <button class="mnav-item" onclick="showPage('compta',this)" aria-label="Compta"><span class="mnav-icon">&#x1F4B0;</span>Compta</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouveau projet -->
+<div class="modal-overlay" id="modal-projet">
+  <div class="modal">
+    <div class="modal-title">Nouveau projet</div>
+    <div class="form-grid">
+      <div class="form-field full"><label class="form-label">Nom du projet</label><input class="form-input" id="proj-nom" placeholder="Ex: Refonte site web"></div>
+      <div class="form-field"><label class="form-label">Client</label><input class="form-input" id="proj-client" placeholder="Nom du client"></div>
+      <div class="form-field">
+        <label class="form-label">Statut</label>
+        <select class="form-select" id="proj-statut">
+          <option value="prospect">Prospect</option>
+          <option value="devis_envoye">Devis envoyé</option>
+          <option value="en_cours">En cours</option>
+          <option value="livre">Livré</option>
+          <option value="facture">Facturé</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Montant HT</label><input class="form-input" id="proj-montant" type="number" placeholder="2500"></div>
+      <div class="form-field"><label class="form-label">Deadline</label><input class="form-input" id="proj-deadline" type="date"></div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="proj-notes" placeholder="Description du projet..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-projet')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterProjet()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau client -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <div class="modal-title">Nouveau client</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom / Entreprise</label><input class="form-input" id="cli-nom" placeholder="Nom du client"></div>
+      <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="cli-email" placeholder="email@exemple.fr"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="cli-tel" placeholder="06 ..."></div>
+      <div class="form-field"><label class="form-label">Adresse</label><input class="form-input" id="cli-adresse" placeholder="Adresse complete"></div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="cli-notes" placeholder="Notes sur le client..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-client')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterClient()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouveau devis -->
+<div class="modal-overlay" id="modal-devis">
+  <div class="modal">
+    <div class="modal-title">Nouveau devis</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Client</label><input class="form-input" id="dev-client" placeholder="Nom du client"></div>
+      <div class="form-field">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="dev-type">
+          <option value="devis">Devis</option>
+          <option value="facture">Facturé</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Objet</label><input class="form-input" id="dev-objet" placeholder="Ex: Creation logo + charte graphique"></div>
+      <div class="form-field"><label class="form-label">Montant HT</label><input class="form-input" id="dev-montant" type="number" placeholder="1500"></div>
+      <div class="form-field"><label class="form-label">Date</label><input class="form-input" id="dev-date" type="date"></div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="dev-notes" placeholder="Conditions particulieres..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-devis')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterDevis()">Creer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ═══════════════════════════════════
+// AUTH CHECK
+// ═══════════════════════════════════
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════════
+const pageTitles = {
+  dashboard: 'Tableau de bord',
+  projets: 'Mes projets',
+  clients: 'Clients',
+  devis: 'Devis & Factures',
+  planning: 'Planning',
+  portfolio: 'Portfolio',
+  compta: 'Comptabilite',
+  outils: 'Templates & Outils'
+};
+
+const pageActions = {
+  dashboard: '',
+  projets: '<button class="btn btn-accent" onclick="ouvrirModalProjet()">+ Nouveau projet</button>',
+  clients: '<button class="btn btn-accent" onclick="ouvrirModalClient()">+ Nouveau client</button>',
+  devis: '<button class="btn btn-accent" onclick="ouvrirModalDevis()">+ Nouveau devis</button>',
+  planning: '',
+  portfolio: '<button class="btn btn-accent" onclick="showToast(\'Ajout portfolio -- a venir\')">+ Ajouter un projet</button>',
+  compta: '',
+  outils: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) { el.classList.add('active'); openParentNavGroup(el); }
+  // Lazy render
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'projets') renderProjets();
+  if (id === 'clients') renderClients();
+  if (id === 'devis') renderDevis();
+  if (id === 'planning' && !planningRendered) renderPlanning();
+  if (id === 'portfolio') renderPortfolio();
+  if (id === 'compta') renderCompta();
+}
+
+// ═══════════════════════════════════
+// NAV GROUP ACCORDION
+// ═══════════════════════════════════
+function toggleNavGroup(title) {
+  const items = title.nextElementSibling;
+  const arrow = title.querySelector('.nav-group-arrow');
+  if (!items) return;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+function openParentNavGroup(el) {
+  const group = el.closest('.nav-group-items');
+  if (group && group.style.display === 'none') {
+    group.style.display = 'block';
+    const arrow = group.previousElementSibling?.querySelector('.nav-group-arrow');
+    if (arrow) arrow.classList.add('open');
+  }
+}
+
+// ═══════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════
+function ouvrirModalProjet() { document.getElementById('modal-projet').classList.add('open'); }
+function ouvrirModalClient() { document.getElementById('modal-client').classList.add('open'); }
+function ouvrirModalDevis() { document.getElementById('modal-devis').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtEur(n) { return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR' }).format(n); }
+
+// ═══════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════
+const DEMO_PROJETS = [
+  { id:1, nom:'Refonte site vitrine', client:'Boulangerie Moreau', statut:'en_cours', montant:3200, deadline:'2026-05-15', progression:65, notes:'WordPress vers design sur-mesure, 5 pages + blog' },
+  { id:2, nom:'Creation logo + charte', client:'StartUp FinTech Alpha', statut:'en_cours', montant:1800, deadline:'2026-05-08', progression:40, notes:'Logo, palette couleurs, typographie, declinaisons' },
+  { id:3, nom:'Campagne Google Ads', client:'Cabinet Dr Laurent', statut:'devis_envoye', montant:2500, deadline:'2026-06-01', progression:0, notes:'Setup + gestion 3 mois, budget ads non inclus' },
+  { id:4, nom:'Application mobile MVP', client:'CoachFit SAS', statut:'en_cours', montant:8500, deadline:'2026-07-30', progression:20, notes:'React Native, planning entrainement, suivi progres' },
+  { id:5, nom:'Identite visuelle complete', client:'Restaurant Le Jardin', statut:'livre', montant:2800, deadline:'2026-04-10', progression:100, notes:'Logo, menu, carte de visite, signalisation' },
+  { id:6, nom:'Landing page produit', client:'EcoBottle SAS', statut:'facture', montant:1500, deadline:'2026-03-20', progression:100, notes:'Page de lancement + integration Stripe' },
+  { id:7, nom:'Redesign e-commerce', client:'Maison Dupont', statut:'prospect', montant:6000, deadline:'2026-08-15', progression:0, notes:'Migration Shopify, 200 produits, nouveau design' },
+  { id:8, nom:'Motion design video', client:'StartUp FinTech Alpha', statut:'devis_envoye', montant:3500, deadline:'2026-06-20', progression:0, notes:'Video explicative 90s, 2D animation' },
+  { id:9, nom:'SEO & content strategy', client:'Cabinet Dr Laurent', statut:'prospect', montant:1800, deadline:'2026-07-01', progression:0, notes:'Audit SEO, 12 articles blog, maillage interne' },
+  { id:10, nom:'Packaging design', client:'EcoBottle SAS', statut:'en_cours', montant:2200, deadline:'2026-05-25', progression:55, notes:'Design etiquettes 3 gammes, mockups 3D' },
+];
+
+const DEMO_CLIENTS = [
+  { id:1, nom:'Boulangerie Moreau', email:'contact@moreau-boulangerie.fr', tel:'01 42 33 44 55', nb_projets:1, ca_total:3200, dernier_contact:'2026-04-25', notes:'Client fidele, potentiel site e-commerce a venir' },
+  { id:2, nom:'StartUp FinTech Alpha', email:'ceo@fintechalpha.io', tel:'06 78 90 12 34', nb_projets:2, ca_total:5300, dernier_contact:'2026-04-22', notes:'Startup en levee de fonds, budget marketing croissant' },
+  { id:3, nom:'Cabinet Dr Laurent', email:'dr.laurent@cabinet-med.fr', tel:'01 55 66 77 88', nb_projets:2, ca_total:4300, dernier_contact:'2026-04-20', notes:'Medecin generaliste, veut developper sa presence en ligne' },
+  { id:4, nom:'CoachFit SAS', email:'hello@coachfit.app', tel:'06 11 22 33 44', nb_projets:1, ca_total:8500, dernier_contact:'2026-04-24', notes:'Startup sport/sante, gros projet app mobile' },
+  { id:5, nom:'Restaurant Le Jardin', email:'lejardin@resto.fr', tel:'01 44 55 66 77', nb_projets:1, ca_total:2800, dernier_contact:'2026-04-10', notes:'Restaurant gastronomique, projet livre et paye' },
+  { id:6, nom:'EcoBottle SAS', email:'contact@ecobottle.green', tel:'06 55 66 77 88', nb_projets:2, ca_total:3700, dernier_contact:'2026-04-23', notes:'Marque eco-responsable, design premium recherche' },
+  { id:7, nom:'Maison Dupont', email:'info@maison-dupont.com', tel:'01 88 99 00 11', nb_projets:1, ca_total:0, dernier_contact:'2026-04-18', notes:'E-commerce artisanat, prospect en discussion' },
+];
+
+const DEMO_DOCUMENTS = [
+  { id:1, numero:'DEV-2026-001', type:'devis', client:'Boulangerie Moreau', objet:'Refonte site vitrine WordPress', montant:3200, date:'2026-03-15', statut:'accepte' },
+  { id:2, numero:'FAC-2026-001', type:'facture', client:'Boulangerie Moreau', objet:'Refonte site vitrine - Acompte 50%', montant:1600, date:'2026-03-20', statut:'paye' },
+  { id:3, numero:'DEV-2026-002', type:'devis', client:'StartUp FinTech Alpha', objet:'Creation logo + charte graphique', montant:1800, date:'2026-04-01', statut:'accepte' },
+  { id:4, numero:'DEV-2026-003', type:'devis', client:'Cabinet Dr Laurent', objet:'Campagne Google Ads 3 mois', montant:2500, date:'2026-04-18', statut:'envoye' },
+  { id:5, numero:'FAC-2026-002', type:'facture', client:'Restaurant Le Jardin', objet:'Identite visuelle complete', montant:2800, date:'2026-04-10', statut:'paye' },
+  { id:6, numero:'FAC-2026-003', type:'facture', client:'EcoBottle SAS', objet:'Landing page produit', montant:1500, date:'2026-03-25', statut:'paye' },
+  { id:7, numero:'DEV-2026-004', type:'devis', client:'CoachFit SAS', objet:'Application mobile MVP React Native', montant:8500, date:'2026-04-05', statut:'accepte' },
+  { id:8, numero:'FAC-2026-004', type:'facture', client:'CoachFit SAS', objet:'App mobile - Acompte 30%', montant:2550, date:'2026-04-08', statut:'envoye' },
+  { id:9, numero:'DEV-2026-005', type:'devis', client:'Maison Dupont', objet:'Redesign e-commerce Shopify', montant:6000, date:'2026-04-15', statut:'envoye' },
+  { id:10, numero:'DEV-2026-006', type:'devis', client:'StartUp FinTech Alpha', objet:'Motion design video explicative 90s', montant:3500, date:'2026-04-20', statut:'brouillon' },
+  { id:11, numero:'DEV-2026-007', type:'devis', client:'EcoBottle SAS', objet:'Packaging design 3 gammes', montant:2200, date:'2026-04-12', statut:'accepte' },
+  { id:12, numero:'FAC-2026-005', type:'facture', client:'EcoBottle SAS', objet:'Packaging design - Acompte 50%', montant:1100, date:'2026-04-14', statut:'envoye' },
+];
+
+const DEMO_PORTFOLIO = [
+  { id:1, nom:'Site vitrine Restaurant Le Jardin', client:'Restaurant Le Jardin', visual:'&#x1F37D;', desc:'Refonte complete de l\'identite visuelle et du site web du restaurant gastronomique Le Jardin. Design elegant, menu interactif, reservation en ligne.', tags:['Web Design','WordPress','UI/UX','Responsive'], temoignage:'Un travail remarquable. Notre nouveau site reflete parfaitement l\'esprit de notre restaurant. -- Chef Laurent M.' },
+  { id:2, nom:'Landing page EcoBottle', client:'EcoBottle SAS', visual:'&#x1F30D;', desc:'Page de lancement pour la nouvelle gamme de gourdes eco-responsables. Integration paiement Stripe, animations scroll, optimisation conversion.', tags:['Landing Page','Stripe','Animation','SEO'], temoignage:'Le taux de conversion a augmente de 340% grace a cette landing page. Impressionnant. -- Sarah D., CEO EcoBottle' },
+  { id:3, nom:'Branding FinTech Alpha', client:'StartUp FinTech Alpha', visual:'&#x1F4B3;', desc:'Creation de l\'identite de marque complete : logo, palette de couleurs, typographie, guidelines, templates presentations.', tags:['Branding','Logo','Charte graphique','Figma'], temoignage:'JADOMI a su capturer l\'essence de notre vision. L\'identite est moderne et inspire confiance. -- Thomas K., CTO' },
+  { id:4, nom:'Packaging EcoBottle', client:'EcoBottle SAS', visual:'&#x1F3A8;', desc:'Design des etiquettes et packaging pour 3 gammes de produits. Mockups 3D, declinaisons couleurs, preparation fichiers impression.', tags:['Packaging','Print','Illustrator','3D Mockup'], temoignage:'' },
+];
+
+const DEMO_PLANNING = [
+  { jour:0, type:'task', label:'Maquettes site Moreau', heure:'09:00' },
+  { jour:0, type:'rdv', label:'Call FinTech Alpha', heure:'14:00' },
+  { jour:0, type:'deadline', label:'Livraison logo V2', heure:'' },
+  { jour:1, type:'task', label:'Integration WordPress', heure:'09:00' },
+  { jour:1, type:'task', label:'Packaging mockups', heure:'14:00' },
+  { jour:2, type:'rdv', label:'RDV CoachFit - Sprint review', heure:'10:00' },
+  { jour:2, type:'task', label:'Design ecrans app', heure:'14:00' },
+  { jour:2, type:'deadline', label:'Devis e-commerce relance', heure:'' },
+  { jour:3, type:'task', label:'SEO audit Dr Laurent', heure:'09:00' },
+  { jour:3, type:'rdv', label:'Call EcoBottle validation', heure:'15:00' },
+  { jour:4, type:'task', label:'Video motion design', heure:'09:00' },
+  { jour:4, type:'deadline', label:'Livrable packaging V1', heure:'' },
+  { jour:4, type:'task', label:'Facturation mensuelle', heure:'16:00' },
+  { jour:5, type:'task', label:'Veille design + formation', heure:'09:00' },
+];
+
+// ═══════════════════════════════════
+// STATUS HELPERS
+// ═══════════════════════════════════
+function statutProjetLabel(s) {
+  const map = {
+    prospect: '<span class="badge badge-purple">Prospect</span>',
+    devis_envoye: '<span class="badge badge-warn">Devis envoye</span>',
+    en_cours: '<span class="badge badge-accent">En cours</span>',
+    livre: '<span class="badge badge-ok">Livre</span>',
+    facture: '<span class="badge badge-blue">Facture</span>'
+  };
+  return map[s] || s;
+}
+
+function statutDocLabel(s) {
+  const map = {
+    brouillon: '<span class="badge" style="background:rgba(148,163,184,0.15);color:var(--muted);">Brouillon</span>',
+    envoye: '<span class="badge badge-warn">Envoye</span>',
+    accepte: '<span class="badge badge-ok">Accepte</span>',
+    refuse: '<span class="badge badge-crit">Refuse</span>',
+    paye: '<span class="badge badge-blue">Paye</span>'
+  };
+  return map[s] || s;
+}
+
+function typeDocLabel(t) {
+  return t === 'facture' ? '<span class="badge badge-blue">Facture</span>' : '<span class="badge badge-accent">Devis</span>';
+}
+
+// ═══════════════════════════════════
+// RENDER: DASHBOARD
+// ═══════════════════════════════════
+function renderDashboard() {
+  const enCours = DEMO_PROJETS.filter(p => p.statut === 'en_cours').length;
+  const devisAttente = DEMO_DOCUMENTS.filter(d => d.type === 'devis' && d.statut === 'envoye').length;
+  const facturesImpayees = DEMO_DOCUMENTS.filter(d => d.type === 'facture' && (d.statut === 'envoye')).length;
+  const caMois = DEMO_DOCUMENTS.filter(d => d.type === 'facture' && d.statut === 'paye' && d.date.startsWith('2026-04')).reduce((s, d) => s + d.montant, 0);
+
+  document.getElementById('kpi-projets').textContent = enCours;
+  document.getElementById('kpi-ca').textContent = fmtEur(caMois);
+  document.getElementById('kpi-devis').textContent = devisAttente;
+  document.getElementById('kpi-impayes').textContent = facturesImpayees;
+
+  // Pipeline summary
+  const statuts = ['prospect','devis_envoye','en_cours','livre','facture'];
+  const statutNames = { prospect:'Prospect', devis_envoye:'Devis envoye', en_cours:'En cours', livre:'Livre', facture:'Facture' };
+  const statutColors = { prospect:'var(--purple)', devis_envoye:'var(--amber)', en_cours:'var(--accent)', livre:'var(--green)', facture:'var(--blue)' };
+  let pipelineHtml = '';
+  let totalPipeline = 0;
+  statuts.forEach(s => {
+    const count = DEMO_PROJETS.filter(p => p.statut === s).length;
+    const montant = DEMO_PROJETS.filter(p => p.statut === s).reduce((sum, p) => sum + p.montant, 0);
+    totalPipeline += count;
+    pipelineHtml += `<div class="compta-line">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${statutColors[s]};display:inline-block;"></span>
+        <span style="font-weight:500;">${statutNames[s]}</span>
+        <span style="font-size:11px;color:var(--muted);">(${count})</span>
+      </div>
+      <span style="font-family:var(--mono);color:${statutColors[s]};">${fmtEur(montant)}</span>
+    </div>`;
+  });
+  document.getElementById('pipeline-summary').innerHTML = pipelineHtml;
+  document.getElementById('pipeline-count').textContent = totalPipeline + ' projets';
+
+  // Objectif mensuel
+  const objectif = 8000;
+  const caTotal = DEMO_DOCUMENTS.filter(d => d.type === 'facture' && d.statut === 'paye').reduce((s, d) => s + d.montant, 0);
+  const pct = Math.min(100, Math.round((caTotal / objectif) * 100));
+  document.getElementById('objectif-pct').textContent = pct + '%';
+  document.getElementById('objectif-fill').style.width = pct + '%';
+  document.getElementById('objectif-ca').textContent = fmtEur(caTotal);
+  document.getElementById('objectif-target').textContent = fmtEur(objectif);
+
+  // Tresorerie
+  const encaisse = DEMO_DOCUMENTS.filter(d => d.statut === 'paye').reduce((s, d) => s + d.montant, 0);
+  const attente = DEMO_DOCUMENTS.filter(d => d.statut === 'envoye' && d.type === 'facture').reduce((s, d) => s + d.montant, 0);
+  document.getElementById('treso-encaisse').textContent = fmtEur(encaisse);
+  document.getElementById('treso-attente').textContent = fmtEur(attente);
+  document.getElementById('treso-charges').textContent = fmtEur(850);
+}
+
+// ═══════════════════════════════════
+// RENDER: PROJETS
+// ═══════════════════════════════════
+function renderProjets() {
+  const tbody = document.getElementById('projets-body');
+  const search = (document.getElementById('search-projets')?.value || '').toLowerCase();
+  const statutFilter = document.getElementById('filter-statut-projet')?.value || '';
+
+  let filtered = DEMO_PROJETS.filter(p => {
+    if (search && !(p.nom + ' ' + p.client).toLowerCase().includes(search)) return false;
+    if (statutFilter && p.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('projets-count').textContent = filtered.length + ' projet' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun projet trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const barColor = p.progression >= 80 ? 'var(--green)' : p.progression >= 40 ? 'var(--accent)' : 'var(--amber)';
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(p.nom)}</div><div style="font-size:11px;color:var(--muted);">${esc(p.notes)}</div></td>
+      <td>${esc(p.client)}</td>
+      <td>${statutProjetLabel(p.statut)}</td>
+      <td style="font-family:var(--mono);font-weight:500;">${fmtEur(p.montant)}</td>
+      <td style="font-size:12px;">${p.deadline}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="progress-bar" style="max-width:80px;"><div class="progress-fill" style="width:${p.progression}%;background:${barColor};"></div></div>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--muted);">${p.progression}%</span>
+        </div>
+      </td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le projet" aria-label="Voir le projet" onclick="showToast('Detail projet -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Modifier" aria-label="Modifier" onclick="showToast('Modification -- a venir')">&#x270F;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterProjets() { renderProjets(); }
+
+// ═══════════════════════════════════
+// RENDER: CLIENTS
+// ═══════════════════════════════════
+function renderClients() {
+  const tbody = document.getElementById('clients-body');
+  const search = (document.getElementById('search-clients')?.value || '').toLowerCase();
+
+  let filtered = DEMO_CLIENTS.filter(c => {
+    if (search && !(c.nom + ' ' + c.email).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  document.getElementById('clients-count').textContent = filtered.length + ' client' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucun client trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    return `<tr>
+      <td style="font-weight:500;">${esc(c.nom)}</td>
+      <td style="font-size:12px;">${esc(c.email)}</td>
+      <td style="font-size:12px;">${esc(c.tel)}</td>
+      <td style="font-family:var(--mono);text-align:center;">${c.nb_projets}</td>
+      <td style="font-family:var(--mono);font-weight:500;">${fmtEur(c.ca_total)}</td>
+      <td style="font-size:12px;">${c.dernier_contact}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Voir le client" aria-label="Voir le client" onclick="showToast('Fiche client -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Notes" aria-label="Notes" onclick="showToast('${esc(c.notes)}')">&#x1F4DD;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterClients() { renderClients(); }
+
+// ═══════════════════════════════════
+// RENDER: DEVIS & FACTURES
+// ═══════════════════════════════════
+function renderDevis() {
+  const tbody = document.getElementById('devis-body');
+  const search = (document.getElementById('search-devis')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('filter-type-doc')?.value || '';
+  const statutFilter = document.getElementById('filter-statut-doc')?.value || '';
+
+  let filtered = DEMO_DOCUMENTS.filter(d => {
+    if (search && !(d.numero + ' ' + d.client + ' ' + d.objet).toLowerCase().includes(search)) return false;
+    if (typeFilter && d.type !== typeFilter) return false;
+    if (statutFilter && d.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('devis-count').textContent = filtered.length + ' document' + (filtered.length > 1 ? 's' : '');
+
+  // KPIs
+  const devisEmis = DEMO_DOCUMENTS.filter(d => d.type === 'devis').length;
+  const devisAcceptes = DEMO_DOCUMENTS.filter(d => d.type === 'devis' && d.statut === 'accepte').length;
+  const taux = devisEmis > 0 ? Math.round((devisAcceptes / devisEmis) * 100) : 0;
+  const facturesEmises = DEMO_DOCUMENTS.filter(d => d.type === 'facture').length;
+  const impayesMontant = DEMO_DOCUMENTS.filter(d => d.type === 'facture' && d.statut === 'envoye').reduce((s, d) => s + d.montant, 0);
+
+  document.getElementById('df-devis').textContent = devisEmis;
+  document.getElementById('df-taux').textContent = taux + '%';
+  document.getElementById('df-factures').textContent = facturesEmises;
+  document.getElementById('df-impayes').textContent = fmtEur(impayesMontant);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted);">Aucun document trouve</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(d => {
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px;font-weight:500;">${esc(d.numero)}</td>
+      <td>${typeDocLabel(d.type)}</td>
+      <td style="font-weight:500;">${esc(d.client)}</td>
+      <td style="font-size:12px;">${esc(d.objet)}</td>
+      <td style="font-family:var(--mono);font-weight:500;">${fmtEur(d.montant)}</td>
+      <td style="font-size:12px;">${d.date}</td>
+      <td>${statutDocLabel(d.statut)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Telecharger PDF" aria-label="Telecharger PDF" onclick="showToast('Export PDF -- a venir')">&#x1F4E5;</button>
+          <button class="icon-btn" title="Envoyer par email" aria-label="Envoyer par email" onclick="showToast('Envoi email -- a venir')">&#x2709;</button>
+          ${d.type === 'devis' && d.statut === 'accepte' ? '<button class="icon-btn cmd" title="Convertir en facture" aria-label="Convertir en facture" onclick="showToast(\'Conversion devis en facture -- a venir\')">&#x1F4B3;</button>' : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterDevis() { renderDevis(); }
+
+// ═══════════════════════════════════
+// RENDER: PLANNING
+// ═══════════════════════════════════
+let planningRendered = false;
+let planningWeekOffset = 0;
+
+function renderPlanning() {
+  planningRendered = true;
+  const container = document.getElementById('planning-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + planningWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+
+  let html = '';
+  jours.forEach((jour, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+    const isToday = d.toDateString() === today.toDateString();
+
+    const events = DEMO_PLANNING.filter(e => e.jour === i);
+    let eventsHtml = '';
+    if (events.length === 0) {
+      eventsHtml = '<div style="font-size:11px;color:var(--muted);padding:8px;">Aucun evenement</div>';
+    } else {
+      events.forEach(e => {
+        const heureStr = e.heure ? e.heure + ' -- ' : '';
+        eventsHtml += `<div class="planning-event ${e.type}">
+          <div style="font-weight:500;">${heureStr}${esc(e.label)}</div>
+        </div>`;
+      });
+    }
+
+    html += `<div class="planning-day" style="${isToday ? 'border-color:var(--accent);' : ''}">
+      <div class="planning-day-title" style="${isToday ? 'color:var(--accent);' : 'color:var(--muted);'}">${jour} ${dateStr}</div>
+      ${eventsHtml}
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function planningPrev() { planningWeekOffset--; renderPlanning(); }
+function planningNext() { planningWeekOffset++; renderPlanning(); }
+function planningToday() { planningWeekOffset = 0; renderPlanning(); }
+
+// ═══════════════════════════════════
+// RENDER: PORTFOLIO
+// ═══════════════════════════════════
+function renderPortfolio() {
+  const container = document.getElementById('portfolio-grid');
+  if (DEMO_PORTFOLIO.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F3A8;</div><div class="empty-title">Aucun projet en portfolio</div><div class="empty-sub">Ajoutez vos realisations pour les partager avec vos prospects.</div></div>';
+    return;
+  }
+  container.innerHTML = DEMO_PORTFOLIO.map(p => {
+    const tagsHtml = p.tags.map(t => `<span class="badge badge-accent">${esc(t)}</span>`).join('');
+    const testimonialHtml = p.temoignage ? `<div class="portfolio-testimonial">"${esc(p.temoignage)}"</div>` : '';
+    return `<div class="portfolio-item">
+      <div class="portfolio-visual">${p.visual}</div>
+      <div class="portfolio-body">
+        <div class="portfolio-title">${esc(p.nom)}</div>
+        <div style="font-size:11px;color:var(--accent);margin-bottom:6px;">${esc(p.client)}</div>
+        <div class="portfolio-desc">${esc(p.desc)}</div>
+        <div class="portfolio-tags">${tagsHtml}</div>
+        ${testimonialHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// RENDER: COMPTABILITE
+// ═══════════════════════════════════
+function renderCompta() {
+  const ca = 5900; // Q2 so far
+  const charges = 850;
+  const urssaf = Math.round(ca * 0.22);
+  const net = ca - charges - urssaf;
+
+  document.getElementById('compta-ca').textContent = fmtEur(ca);
+  document.getElementById('compta-charges').textContent = fmtEur(charges);
+  document.getElementById('compta-urssaf').textContent = fmtEur(urssaf);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+
+  // Recettes par client
+  const recettes = [
+    { client:'Restaurant Le Jardin', montant:2800 },
+    { client:'EcoBottle SAS', montant:1500 },
+    { client:'Boulangerie Moreau', montant:1600 },
+  ];
+  document.getElementById('compta-recettes-detail').innerHTML = recettes.map(r =>
+    `<div class="compta-line"><span>${esc(r.client)}</span><span style="font-family:var(--mono);color:var(--green);">${fmtEur(r.montant)}</span></div>`
+  ).join('');
+
+  // Charges
+  const chargesDetail = [
+    { poste:'Adobe Creative Cloud', montant:59.99 },
+    { poste:'Figma Pro', montant:15 },
+    { poste:'Domaines + Hebergement', montant:45 },
+    { poste:'Abonnement JADOMI', montant:29.90 },
+    { poste:'Telephone professionnel', montant:25 },
+    { poste:'Banque pro', montant:9.90 },
+    { poste:'Assurance RC Pro', montant:35 },
+    { poste:'Coworking (10 jours)', montant:150 },
+    { poste:'Divers (fournitures)', montant:30 },
+  ];
+  document.getElementById('compta-charges-detail').innerHTML = chargesDetail.map(c =>
+    `<div class="compta-line"><span>${esc(c.poste)}</span><span style="font-family:var(--mono);color:var(--red);">-${fmtEur(c.montant)}</span></div>`
+  ).join('');
+
+  // Declaration
+  document.getElementById('compta-declarable').textContent = fmtEur(ca);
+  const caAnnuel = 18200; // projection
+  document.getElementById('compta-tva-status').textContent = caAnnuel < 36800
+    ? 'Statut TVA : Franchise en base (pas de TVA a facturer)'
+    : 'Statut TVA : Seuil depasse, assujettissement TVA';
+}
+
+// ═══════════════════════════════════
+// ADD ACTIONS
+// ═══════════════════════════════════
+function ajouterProjet() {
+  const nom = document.getElementById('proj-nom').value.trim();
+  if (!nom) { showToast('Veuillez renseigner le nom du projet'); return; }
+  const newP = {
+    id: DEMO_PROJETS.length + 1,
+    nom: nom,
+    client: document.getElementById('proj-client').value.trim() || 'Client inconnu',
+    statut: document.getElementById('proj-statut').value,
+    montant: parseFloat(document.getElementById('proj-montant').value) || 0,
+    deadline: document.getElementById('proj-deadline').value || '--',
+    progression: 0,
+    notes: document.getElementById('proj-notes').value.trim()
+  };
+  DEMO_PROJETS.unshift(newP);
+  fermerModal('modal-projet');
+  renderProjets();
+  showToast('Projet ajoute avec succes');
+}
+
+function ajouterClient() {
+  const nom = document.getElementById('cli-nom').value.trim();
+  if (!nom) { showToast('Veuillez renseigner le nom du client'); return; }
+  const newC = {
+    id: DEMO_CLIENTS.length + 1,
+    nom: nom,
+    email: document.getElementById('cli-email').value.trim(),
+    tel: document.getElementById('cli-tel').value.trim(),
+    nb_projets: 0,
+    ca_total: 0,
+    dernier_contact: new Date().toISOString().slice(0, 10),
+    notes: document.getElementById('cli-notes').value.trim()
+  };
+  DEMO_CLIENTS.unshift(newC);
+  fermerModal('modal-client');
+  renderClients();
+  showToast('Client ajoute avec succes');
+}
+
+function ajouterDevis() {
+  const client = document.getElementById('dev-client').value.trim();
+  if (!client) { showToast('Veuillez renseigner le client'); return; }
+  const type = document.getElementById('dev-type').value;
+  const prefix = type === 'facture' ? 'FAC' : 'DEV';
+  const num = DEMO_DOCUMENTS.filter(d => d.type === type).length + 1;
+  const newD = {
+    id: DEMO_DOCUMENTS.length + 1,
+    numero: `${prefix}-2026-${String(num).padStart(3, '0')}`,
+    type: type,
+    client: client,
+    objet: document.getElementById('dev-objet').value.trim() || 'Sans objet',
+    montant: parseFloat(document.getElementById('dev-montant').value) || 0,
+    date: document.getElementById('dev-date').value || new Date().toISOString().slice(0, 10),
+    statut: 'brouillon'
+  };
+  DEMO_DOCUMENTS.unshift(newD);
+  fermerModal('modal-devis');
+  renderDevis();
+  showToast(type === 'facture' ? 'Facture creee avec succes' : 'Devis cree avec succes');
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  renderDashboard();
+  renderProjets();
+  renderClients();
+  renderDevis();
+  renderPortfolio();
+  renderCompta();
+});
+</script>
+</body>
+</html>

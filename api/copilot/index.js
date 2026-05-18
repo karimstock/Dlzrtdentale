@@ -487,28 +487,13 @@ router.post('/message', async (req, res) => {
       }
 
       case 'compta': {
-        // Chercher les factures/devis dans les mails
-        try {
-          const { data: mails } = await db().from('mails_inbox')
-            .select('from_name, from_address, subject, financial_type, financial_montant, date_received, has_pdf')
-            .eq('societe_id', sid).not('financial_type', 'is', null)
-            .order('date_received', { ascending: false }).limit(15);
-          if (mails && mails.length > 0) {
-            let reply = 'Docteur, voici vos documents financiers détectés dans vos mails :\n\n';
-            mails.forEach(function(m) {
-              reply += '- ' + (m.from_name || m.from_address) + ' : ';
-              if (m.financial_type && m.financial_type !== 'inconnu') reply += m.financial_type + ' ';
-              reply += '"' + (m.subject || '') + '"';
-              if (m.financial_montant) reply += ' — ' + m.financial_montant + ' EUR';
-              if (m.has_pdf) reply += ' [PDF]';
-              reply += ' — ' + new Date(m.date_received).toLocaleDateString('fr-FR');
-              reply += '\n';
-            });
-            reply += '\nPour un scan complet de vos factures par email, utilisez le module Comptabilité dans le dashboard Stock.';
-            return res.json({ reply, intent });
-          }
-          return res.json({ reply: 'Aucun document financier détecté dans vos mails récents. Pour scanner vos factures, utilisez le module Comptabilité dans le dashboard Stock.', intent });
-        } catch (e) { extraContext = 'Module compta indisponible.'; break; }
+        return res.json({
+          reply: 'Docteur, pour scanner et analyser vos factures mois par mois, utilisez le module Comptabilité :\n\n' +
+            'jadomi.fr → Comptabilité → Scanner mes mails\n\n' +
+            'Ce module analyse chaque PDF avec l\'IA (montant, TVA, fournisseur, catégorie) et vous permet de vérifier avant d\'importer.\n\n' +
+            'Vous pouvez aussi me demander "les mails de GACD" ou "les mails avec facture" pour retrouver un mail spécifique.',
+          intent
+        });
       }
 
       case 'greeting': {

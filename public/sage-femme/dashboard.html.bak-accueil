@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#e11d48"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="JADOMI"><title>JADOMI Sage-femme — Tableau de bord</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/ms-switcher.js" defer></script>
+<script src="/js/jadomi-legal-widget.js" defer></script>
+<script src="/js/jadomi-network-widget.js" defer></script>
+<script src="/js/jadomi-conformite-badge.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/jadomi-theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f1a2e;--surface:#1a2744;--surface2:#1f2f52;--border:rgba(225,29,72,0.25);
+  --text:#f1f5f9;--muted:#94a3b8;--accent:#e11d48;--accent-dark:#fb7185;
+  --amber:#f0a030;--amber-l:#2a1f0a;--red:#ef4444;--red-l:#2a0f0f;
+  --blue:#06b6d4;--blue-l:#0a1525;--purple:#a060f0;--purple-l:#160a2a;
+  --green:#10b981;--green-l:#0a2018;--rose:#e11d48;--rose-l:#2a0a14;
+  --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden;}
+
+/* -- DESKTOP SIDEBAR LAYOUT -- */
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:linear-gradient(180deg, #0a1428 0%, #111d38 50%, #0a1428 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:50;transition:transform 0.3s cubic-bezier(.16,1,.3,1);}
+.main{flex:1;margin-left:240px;display:flex;flex-direction:column;min-height:100vh;}
+
+/* -- SIDEBAR -- */
+.logo-wrap{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo{font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px;}
+.logo-tagline{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
+
+.nav{padding:16px 0;flex:1;overflow-y:auto;}
+.nav-section{padding:12px 24px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 24px;font-size:13px;color:var(--muted);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;font-weight:500;text-decoration:none;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(225,29,72,0.06);border-left-color:var(--accent);}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+
+.sidebar-bottom{padding:16px 20px;border-top:1px solid var(--border);}
+.cabinet-card{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.cabinet-name{font-size:12px;font-weight:600;}
+.cabinet-plan{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* -- TOPBAR -- */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:40;gap:12px;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+.topbar-icons{display:flex;gap:14px;align-items:center;}
+
+/* -- BUTTONS -- */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s cubic-bezier(.16,1,.3,1);font-family:var(--font);border:none;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#be123c;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+
+/* -- CONTENT -- */
+.content{padding:24px 28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:pageIn 0.4s cubic-bezier(.16,1,.3,1);}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* -- KPI STATS -- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-value{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}
+.c-green{color:var(--green);}
+.c-amber{color:var(--amber);}
+.c-red{color:var(--red);}
+
+/* -- CARDS -- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-title{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.card-count{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.card-body{padding:20px;}
+
+/* -- TABLE -- */
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;padding:10px 20px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;background:var(--surface2);border-bottom:1px solid var(--border);}
+tbody td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* -- BADGES -- */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ok{background:rgba(96,208,144,0.15);color:var(--green);}
+.badge-warn{background:rgba(240,160,48,0.15);color:var(--amber);}
+.badge-crit{background:rgba(240,80,80,0.15);color:var(--red);}
+.badge-blue{background:rgba(6,182,212,0.15);color:var(--blue);}
+.badge-purple{background:rgba(160,96,240,0.15);color:var(--purple);}
+.badge-rose{background:rgba(225,29,72,0.15);color:var(--accent);}
+
+/* -- PROGRESS BAR -- */
+.progress-wrap{display:flex;align-items:center;gap:10px;}
+.progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.5s cubic-bezier(.16,1,.3,1);}
+
+/* -- FILTERS -- */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;max-width:300px;}
+.search-wrap input{border:none;outline:none;font-size:13px;font-family:var(--font);background:transparent;color:var(--text);flex:1;}
+.search-wrap input::placeholder{color:var(--muted);}
+.filter-select{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+
+/* -- ACTION BUTTONS -- */
+.action-btns{display:flex;gap:6px;}
+.icon-btn{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.15s;color:var(--muted);}
+.icon-btn:hover{background:var(--surface2);color:var(--text);}
+.icon-btn.cmd:hover{background:rgba(225,29,72,0.1);border-color:var(--accent);color:var(--accent);}
+
+/* -- TIMELINE -- */
+.timeline{position:relative;padding-left:24px;}
+.timeline::before{content:'';position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--border);}
+.timeline-item{position:relative;padding-bottom:20px;}
+.timeline-item:last-child{padding-bottom:0;}
+.timeline-dot{position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;border:2px solid var(--accent);background:var(--bg);}
+.timeline-dot.done{background:var(--accent);border-color:var(--accent);}
+.timeline-dot.current{background:var(--accent);border-color:var(--accent-dark);box-shadow:0 0 0 4px rgba(225,29,72,0.2);}
+.timeline-label{font-size:12px;font-weight:600;margin-bottom:2px;}
+.timeline-sub{font-size:11px;color:var(--muted);}
+
+/* -- SUIVI CARDS -- */
+.suivi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.suivi-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.suivi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;}
+
+/* -- SESSION CARDS -- */
+.session-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all 0.2s cubic-bezier(.16,1,.3,1);}
+.session-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+
+/* -- MODAL -- */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:520px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+.modal-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field.full{grid-column:1/-1;}
+.form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input,.form-select{padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);outline:none;transition:all 0.15s;background:var(--surface2);color:var(--text);}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* -- LOADING -- */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;color:var(--muted);gap:12px;}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* -- EMPTY -- */
+.empty{text-align:center;padding:56px 20px;}
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:0.5;}
+.empty-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(--muted);}
+
+/* -- TOAST -- */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s cubic-bezier(.16,1,.3,1);pointer-events:none;border:1px solid var(--border);white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* -- MOBILE NAV -- */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:50;padding:8px 0 env(safe-area-inset-bottom);}
+.mobile-nav-inner{display:flex;justify-content:space-around;}
+.mnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all 0.15s;border:none;background:none;font-family:var(--font);}
+.mnav-item.active{color:var(--accent);}
+.mnav-icon{font-size:20px;}
+
+/* -- RESPONSIVE -- */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-nav{display:block;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:16px;padding-bottom:80px;}
+  .topbar{padding:14px 16px;}
+  .suivi-grid{grid-template-columns:1fr;}
+  .session-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .filters{flex-direction:column;align-items:stretch;}
+  .search-wrap{max-width:100%;}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">JADOMI</div>
+    <div class="logo-tagline">Sage-femme</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Navigation</div>
+    <div class="nav-item" onclick="location.href='/organisation.html'"><span class="ni">&#x1F3E2;</span>Retour dashboard</div>
+    <div class="nav-item" onclick="location.href='/billing.html'"><span class="ni">&#x1F4B3;</span>Abonnement</div>
+
+    <div class="nav-section">Activite</div>
+    <div class="nav-item active" onclick="showPage('patientes',this)"><span class="ni">&#x1F930;</span>Mes patientes</div>
+    <div class="nav-item" onclick="showPage('suivi',this)"><span class="ni">&#x1F4CB;</span>Suivi grossesse</div>
+    <div class="nav-item" onclick="showPage('planning',this)"><span class="ni">&#x1F4C5;</span>Planning</div>
+    <div class="nav-item" onclick="showPage('preparation',this)"><span class="ni">&#x1F393;</span>Preparation accouchement</div>
+    <div class="nav-item" onclick="showPage('postnatal',this)"><span class="ni">&#x1F476;</span>Post-natal</div>
+
+    <div class="nav-section">Gestion</div>
+    <div class="nav-item" onclick="showPage('compta',this)"><span class="ni">&#x1F4B0;</span>Comptabilite</div>
+    <div class="nav-item" onclick="showPage('stats',this)"><span class="ni">&#x1F4CA;</span>Statistiques</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="cabinet-card">
+      <div class="cabinet-name" id="cabinet-name">Mon cabinet</div>
+      <div class="cabinet-plan" id="cabinet-plan">JADOMI Sage-femme</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost" onclick="toggleSidebar()" style="display:none;padding:8px;" id="burger-btn" aria-label="Menu">&#9776;</button>
+    <div class="page-title" id="page-title">Mes patientes</div>
+    <div class="topbar-right" id="topbar-actions">
+      <button class="btn btn-accent" onclick="ouvrirModalPatiente()">+ Nouvelle patiente</button>
+    </div>
+    <div class="topbar-icons" id="topbar-icons">
+      <div style="position:relative;cursor:pointer;" aria-label="Notifications">
+        <span style="font-size:18px;">&#x1F514;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- =============================== -->
+    <!-- PAGE : MES PATIENTES            -->
+    <!-- =============================== -->
+    <div class="page active" id="page-patientes">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Patientes suivies</div><div class="stat-value c-accent" id="kpi-patientes">--</div><div class="stat-sub">suivi actif</div></div>
+        <div class="stat"><div class="stat-label">RDV aujourd'hui</div><div class="stat-value c-green" id="kpi-rdv">--</div><div class="stat-sub">consultations du jour</div></div>
+        <div class="stat"><div class="stat-label">Accouchements prevus ce mois</div><div class="stat-value c-amber" id="kpi-accouchements">--</div><div class="stat-sub">termes avril 2026</div></div>
+        <div class="stat"><div class="stat-label">CA du mois</div><div class="stat-value" id="kpi-ca">--</div><div class="stat-sub">facturation courante</div></div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher une patiente..." id="search-patientes" oninput="filterPatientes()" aria-label="Rechercher une patiente">
+        </div>
+        <select class="filter-select" id="filter-trimestre" onchange="filterPatientes()" aria-label="Filtrer par trimestre">
+          <option value="">Tous les trimestres</option>
+          <option value="T1">1er trimestre</option>
+          <option value="T2">2eme trimestre</option>
+          <option value="T3">3eme trimestre</option>
+          <option value="postnatal">Post-natal</option>
+        </select>
+        <select class="filter-select" id="filter-statut" onchange="filterPatientes()" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          <option value="suivi">Suivi en cours</option>
+          <option value="terme_proche">Terme proche</option>
+          <option value="accouchee">Accouchee</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Liste des patientes</div>
+          <div class="card-count" id="patientes-count">0 patientes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patiente</th>
+                <th>Terme prevu</th>
+                <th>SA</th>
+                <th>Trimestre</th>
+                <th>Derniere visite</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patientes-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : SUIVI GROSSESSE          -->
+    <!-- =============================== -->
+    <div class="page" id="page-suivi">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Suivi de grossesse</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Timeline par patiente : trimestres, echographies, analyses</div>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="search-wrap">
+          <span style="color:var(--muted);">&#x1F50D;</span>
+          <input type="text" placeholder="Rechercher..." id="search-suivi" oninput="filterSuivi()" aria-label="Rechercher un suivi">
+        </div>
+      </div>
+
+      <div class="suivi-grid" id="suivi-list"></div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : PLANNING                 -->
+    <!-- =============================== -->
+    <div class="page" id="page-planning">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Planning de la semaine</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Consultations, visites a domicile, preparations</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="planningPrev()">&#8592; Semaine prec.</button>
+          <button class="btn btn-accent" onclick="planningToday()">Aujourd'hui</button>
+          <button class="btn btn-ghost" onclick="planningNext()">Semaine suiv. &#8594;</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" id="planning-grid" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : PREPARATION ACCOUCHEMENT -->
+    <!-- =============================== -->
+    <div class="page" id="page-preparation">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Preparation a l'accouchement</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Sessions de groupe, inscriptions et planning des cours</div>
+        </div>
+        <button class="btn btn-accent" onclick="ouvrirModalSession()">+ Nouvelle session</button>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">Sessions ce mois</div><div class="stat-value c-accent" id="prep-sessions">--</div><div class="stat-sub">cours programmes</div></div>
+        <div class="stat"><div class="stat-label">Participantes inscrites</div><div class="stat-value c-green" id="prep-inscrites">--</div><div class="stat-sub">toutes sessions confondues</div></div>
+        <div class="stat"><div class="stat-label">Taux de remplissage</div><div class="stat-value c-amber" id="prep-taux">--</div><div class="stat-sub">moyenne</div></div>
+      </div>
+
+      <div class="session-grid" id="sessions-list"></div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : POST-NATAL               -->
+    <!-- =============================== -->
+    <div class="page" id="page-postnatal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Suivi post-natal</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Suivi post-accouchement, allaitement, reeducation perineale</div>
+        </div>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><div class="stat-label">Patientes post-natal</div><div class="stat-value c-accent" id="pn-patientes">--</div><div class="stat-sub">suivi actif</div></div>
+        <div class="stat"><div class="stat-label">Seances reeducation</div><div class="stat-value c-green" id="pn-reeduc">--</div><div class="stat-sub">planifiees ce mois</div></div>
+        <div class="stat"><div class="stat-label">Consultations allaitement</div><div class="stat-value c-amber" id="pn-allait">--</div><div class="stat-sub">ce mois</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-head">
+          <div class="card-title">Suivi post-accouchement</div>
+          <div class="card-count" id="postnatal-count">0 patientes</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Patiente</th>
+                <th>Date accouchement</th>
+                <th>Type</th>
+                <th>Allaitement</th>
+                <th>Reeducation perineale</th>
+                <th>Prochaine visite</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="postnatal-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : COMPTABILITE             -->
+    <!-- =============================== -->
+    <div class="page" id="page-compta">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Comptabilite</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Synthese mensuelle par type d'acte</div>
+        </div>
+        <select class="filter-select" id="compta-mois" onchange="renderCompta()" aria-label="Mois">
+          <option value="2026-04">Avril 2026</option>
+          <option value="2026-03">Mars 2026</option>
+          <option value="2026-02">Fevrier 2026</option>
+          <option value="2026-01">Janvier 2026</option>
+        </select>
+      </div>
+
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat"><div class="stat-label">Recettes</div><div class="stat-value c-green" id="compta-recettes">--</div><div class="stat-sub">facturation totale</div></div>
+        <div class="stat"><div class="stat-label">Depenses</div><div class="stat-value c-red" id="compta-depenses">--</div><div class="stat-sub">charges + materiel</div></div>
+        <div class="stat"><div class="stat-label">Resultat net</div><div class="stat-value c-accent" id="compta-net">--</div><div class="stat-sub">benefice mensuel</div></div>
+        <div class="stat"><div class="stat-label">Marge</div><div class="stat-value" id="compta-marge">--</div><div class="stat-sub">pourcentage</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="compta-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recettes par type d'acte</div></div>
+          <div class="card-body" id="compta-recettes-detail"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Depenses par poste</div></div>
+          <div class="card-body" id="compta-depenses-detail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================== -->
+    <!-- PAGE : STATISTIQUES             -->
+    <!-- =============================== -->
+    <div class="page" id="page-stats">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700;">Statistiques</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Vue d'ensemble de votre activite</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Accouchements 2026</div><div class="stat-value c-accent" id="stat-accouchements">--</div><div class="stat-sub">depuis janvier</div></div>
+        <div class="stat"><div class="stat-label">Nouvelles patientes</div><div class="stat-value c-green" id="stat-nouvelles">--</div><div class="stat-sub">ce trimestre</div></div>
+        <div class="stat"><div class="stat-label">Seances preparation</div><div class="stat-value c-amber" id="stat-seances">--</div><div class="stat-sub">ce trimestre</div></div>
+        <div class="stat"><div class="stat-label">Taux de satisfaction</div><div class="stat-value" id="stat-satisfaction">--</div><div class="stat-sub">retours patientes</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Repartition des actes</div></div>
+          <div class="card-body" id="stats-actes"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Evolution mensuelle du CA</div></div>
+          <div class="card-body" id="stats-ca"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnav-item active" onclick="showPage('patientes',this)" aria-label="Patientes"><span class="mnav-icon">&#x1F930;</span>Patientes</button>
+    <button class="mnav-item" onclick="showPage('suivi',this)" aria-label="Suivi"><span class="mnav-icon">&#x1F4CB;</span>Suivi</button>
+    <button class="mnav-item" onclick="showPage('planning',this)" aria-label="Planning"><span class="mnav-icon">&#x1F4C5;</span>Planning</button>
+    <button class="mnav-item" onclick="showPage('preparation',this)" aria-label="Preparation"><span class="mnav-icon">&#x1F393;</span>Prepa.</button>
+    <button class="mnav-item" onclick="showPage('compta',this)" aria-label="Comptabilite"><span class="mnav-icon">&#x1F4B0;</span>Compta</button>
+  </div>
+</nav>
+
+<!-- MODAL : Nouvelle patiente -->
+<div class="modal-overlay" id="modal-patiente">
+  <div class="modal">
+    <div class="modal-title">Nouvelle patiente</div>
+    <div class="form-grid">
+      <div class="form-field"><label class="form-label">Nom</label><input class="form-input" id="pat-nom" placeholder="Nom de famille"></div>
+      <div class="form-field"><label class="form-label">Prenom</label><input class="form-input" id="pat-prenom" placeholder="Prenom"></div>
+      <div class="form-field"><label class="form-label">Date de naissance</label><input class="form-input" id="pat-ddn" type="date"></div>
+      <div class="form-field"><label class="form-label">Telephone</label><input class="form-input" id="pat-tel" placeholder="06 ..."></div>
+      <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="pat-email" placeholder="email@exemple.fr"></div>
+      <div class="form-field"><label class="form-label">Date des dernieres regles</label><input class="form-input" id="pat-ddr" type="date"></div>
+      <div class="form-field"><label class="form-label">Terme prevu</label><input class="form-input" id="pat-terme" type="date"></div>
+      <div class="form-field">
+        <label class="form-label">Parite</label>
+        <select class="form-select" id="pat-parite">
+          <option value="primipare">Primipare</option>
+          <option value="multipare">Multipare</option>
+        </select>
+      </div>
+      <div class="form-field full"><label class="form-label">Notes</label><input class="form-input" id="pat-notes" placeholder="Antecedents, remarques..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-patiente')">Annuler</button>
+      <button class="btn btn-accent" onclick="ajouterPatiente()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : Nouvelle session de preparation -->
+<div class="modal-overlay" id="modal-session">
+  <div class="modal">
+    <div class="modal-title">Nouvelle session de preparation</div>
+    <div class="form-grid">
+      <div class="form-field full">
+        <label class="form-label">Theme</label>
+        <select class="form-select" id="ses-theme">
+          <option value="respiration">Respiration et relaxation</option>
+          <option value="positions">Positions d'accouchement</option>
+          <option value="gestion_douleur">Gestion de la douleur</option>
+          <option value="allaitement">Preparation a l'allaitement</option>
+          <option value="peridurale">Peridurale et alternatives</option>
+          <option value="projet_naissance">Projet de naissance</option>
+          <option value="retour_maison">Retour a la maison</option>
+          <option value="piscine">Preparation en piscine</option>
+        </select>
+      </div>
+      <div class="form-field"><label class="form-label">Date</label><input class="form-input" id="ses-date" type="date"></div>
+      <div class="form-field"><label class="form-label">Heure</label><input class="form-input" id="ses-heure" type="time" value="10:00"></div>
+      <div class="form-field"><label class="form-label">Duree (min)</label><input class="form-input" id="ses-duree" type="number" value="90"></div>
+      <div class="form-field"><label class="form-label">Places max</label><input class="form-input" id="ses-places" type="number" value="8"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fermerModal('modal-session')">Annuler</button>
+      <button class="btn btn-accent" onclick="creerSession()">Creer la session</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================================
+// SUPABASE INIT
+// ===================================
+let db = null;
+try {
+  const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF';
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) { console.warn('Supabase init failed:', e); }
+
+// ===================================
+// AUTH CHECK
+// ===================================
+async function checkAuth() {
+  try {
+    if (!db) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { location.href = '/login.html'; return null; }
+    return session;
+  } catch(e) {
+    console.warn('Auth check failed:', e);
+    return null;
+  }
+}
+
+// ===================================
+// PAGE NAVIGATION
+// ===================================
+const pageTitles = {
+  patientes: 'Mes patientes',
+  suivi: 'Suivi grossesse',
+  planning: 'Planning',
+  preparation: 'Preparation accouchement',
+  postnatal: 'Post-natal',
+  compta: 'Comptabilite',
+  stats: 'Statistiques'
+};
+
+const pageActions = {
+  patientes: '<button class="btn btn-accent" onclick="ouvrirModalPatiente()">+ Nouvelle patiente</button>',
+  preparation: '<button class="btn btn-accent" onclick="ouvrirModalSession()">+ Nouvelle session</button>',
+  suivi: '',
+  planning: '',
+  postnatal: '',
+  compta: '',
+  stats: ''
+};
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item,.mnav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id] || id;
+  document.getElementById('topbar-actions').innerHTML = pageActions[id] || '';
+  if (el) el.classList.add('active');
+  if (id === 'planning' && !planningRendered) renderPlanning();
+  if (id === 'compta') renderCompta();
+  if (id === 'stats') renderStats();
+}
+
+// ===================================
+// SIDEBAR TOGGLE (MOBILE)
+// ===================================
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+(function(){
+  const mq = window.matchMedia('(max-width:768px)');
+  function check(e) { document.getElementById('burger-btn').style.display = e.matches ? 'inline-flex' : 'none'; }
+  mq.addEventListener('change', check);
+  check(mq);
+})();
+
+// ===================================
+// TOAST
+// ===================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===================================
+// MODAL HELPERS
+// ===================================
+function ouvrirModalPatiente() { document.getElementById('modal-patiente').classList.add('open'); }
+function ouvrirModalSession() { document.getElementById('modal-session').classList.add('open'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ===================================
+// DEMO DATA
+// ===================================
+const DEMO_PATIENTES = [
+  { id:1, nom:'Lefebvre', prenom:'Marie', ddn:'1992-06-14', tel:'06 12 34 56 78', email:'marie.lefebvre@email.fr', ddr:'2025-10-01', terme:'2026-07-08', sa:30, trimestre:'T3', statut:'suivi', derniereVisite:'2026-04-22', parite:'primipare', notes:'Grossesse normale, pas de complications', accouchement:null, allaitement:null, reeduc:null },
+  { id:2, nom:'Dupont', prenom:'Sophie', ddn:'1988-03-21', tel:'06 98 76 54 32', email:'sophie.dupont@email.fr', ddr:'2025-08-15', terme:'2026-05-22', sa:36, trimestre:'T3', statut:'terme_proche', derniereVisite:'2026-04-25', parite:'multipare', notes:'2eme grossesse, diabete gestationnel controle', accouchement:null, allaitement:null, reeduc:null },
+  { id:3, nom:'Moreau', prenom:'Julie', ddn:'1995-11-08', tel:'06 11 22 33 44', email:'julie.moreau@email.fr', ddr:'2025-11-20', terme:'2026-08-27', sa:23, trimestre:'T2', statut:'suivi', derniereVisite:'2026-04-18', parite:'primipare', notes:'Grossesse gemellaire', accouchement:null, allaitement:null, reeduc:null },
+  { id:4, nom:'Bernard', prenom:'Camille', ddn:'1990-09-03', tel:'06 55 66 77 88', email:'camille.bernard@email.fr', ddr:'2025-07-10', terme:'2026-04-16', sa:41, trimestre:'T3', statut:'terme_proche', derniereVisite:'2026-04-26', parite:'primipare', notes:'Depassement de terme, surveillance rapprochee', accouchement:null, allaitement:null, reeduc:null },
+  { id:5, nom:'Petit', prenom:'Laura', ddn:'1993-01-25', tel:'06 44 33 22 11', email:'laura.petit@email.fr', ddr:'2026-01-05', terme:'2026-10-12', sa:16, trimestre:'T2', statut:'suivi', derniereVisite:'2026-04-15', parite:'multipare', notes:'3eme grossesse, antecedent cesarienne', accouchement:null, allaitement:null, reeduc:null },
+  { id:6, nom:'Roux', prenom:'Emilie', ddn:'1991-07-17', tel:'06 77 88 99 00', email:'emilie.roux@email.fr', ddr:'2026-02-10', terme:'2026-11-17', sa:11, trimestre:'T1', statut:'suivi', derniereVisite:'2026-04-20', parite:'primipare', notes:'1ere grossesse, nausees persistantes', accouchement:null, allaitement:null, reeduc:null },
+  { id:7, nom:'Martin', prenom:'Lea', ddn:'1987-04-30', tel:'06 22 11 33 55', email:'lea.martin@email.fr', ddr:'2025-09-01', terme:'2026-06-08', sa:34, trimestre:'T3', statut:'suivi', derniereVisite:'2026-04-24', parite:'multipare', notes:'4eme grossesse, accouchement a domicile prevu', accouchement:null, allaitement:null, reeduc:null },
+  { id:8, nom:'Garcia', prenom:'Ines', ddn:'1994-12-12', tel:'06 66 55 44 33', email:'ines.garcia@email.fr', ddr:null, terme:null, sa:null, trimestre:'postnatal', statut:'accouchee', derniereVisite:'2026-04-23', parite:'primipare', notes:'Accouchement voie basse le 10/04/2026', accouchement:'2026-04-10', allaitement:'maternel', reeduc:'en_cours' },
+  { id:9, nom:'Thomas', prenom:'Clara', ddn:'1989-08-05', tel:'06 33 44 55 66', email:'clara.thomas@email.fr', ddr:null, terme:null, sa:null, trimestre:'postnatal', statut:'accouchee', derniereVisite:'2026-04-21', parite:'multipare', notes:'Cesarienne programmee le 02/04/2026', accouchement:'2026-04-02', allaitement:'mixte', reeduc:'a_planifier' },
+  { id:10, nom:'Leroy', prenom:'Alice', ddn:'1996-02-28', tel:'06 99 88 77 66', email:'alice.leroy@email.fr', ddr:null, terme:null, sa:null, trimestre:'postnatal', statut:'accouchee', derniereVisite:'2026-04-19', parite:'primipare', notes:'Accouchement voie basse le 18/03/2026', accouchement:'2026-03-18', allaitement:'maternel', reeduc:'en_cours' }
+];
+
+const DEMO_SESSIONS = [
+  { id:1, theme:'respiration', date:'2026-04-28', heure:'10:00', duree:90, places:8, inscrites:6 },
+  { id:2, theme:'positions', date:'2026-04-30', heure:'14:00', duree:90, places:8, inscrites:7 },
+  { id:3, theme:'gestion_douleur', date:'2026-05-02', heure:'10:00', duree:90, places:8, inscrites:5 },
+  { id:4, theme:'allaitement', date:'2026-05-05', heure:'14:00', duree:60, places:10, inscrites:8 },
+  { id:5, theme:'peridurale', date:'2026-05-07', heure:'10:00', duree:90, places:8, inscrites:4 },
+  { id:6, theme:'projet_naissance', date:'2026-05-09', heure:'14:00', duree:60, places:8, inscrites:3 },
+  { id:7, theme:'retour_maison', date:'2026-05-12', heure:'10:00', duree:60, places:10, inscrites:9 },
+  { id:8, theme:'piscine', date:'2026-05-14', heure:'11:00', duree:60, places:6, inscrites:6 },
+];
+
+// ===================================
+// RENDER: PATIENTES
+// ===================================
+let patientesData = [...DEMO_PATIENTES];
+
+function renderPatientes() {
+  const tbody = document.getElementById('patientes-body');
+  const search = (document.getElementById('search-patientes')?.value || '').toLowerCase();
+  const triFilter = document.getElementById('filter-trimestre')?.value || '';
+  const statutFilter = document.getElementById('filter-statut')?.value || '';
+
+  let filtered = patientesData.filter(p => {
+    if (search && !(p.nom + ' ' + p.prenom).toLowerCase().includes(search)) return false;
+    if (triFilter && p.trimestre !== triFilter) return false;
+    if (statutFilter && p.statut !== statutFilter) return false;
+    return true;
+  });
+
+  document.getElementById('patientes-count').textContent = filtered.length + ' patiente' + (filtered.length > 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucune patiente trouvee</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const terme = p.terme ? formatDate(p.terme) : '<span style="color:var(--muted);">--</span>';
+    const saDisplay = p.sa ? p.sa + ' SA' : '<span style="color:var(--muted);">--</span>';
+    const triBadge = trimestreLabel(p.trimestre);
+    const statutBadge = statutLabel(p.statut);
+    const derniereVisite = p.derniereVisite ? formatDate(p.derniereVisite) : '<span style="color:var(--muted);">--</span>';
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(p.nom)} ${esc(p.prenom)}</div><div style="font-size:11px;color:var(--muted);">${esc(p.email)}</div></td>
+      <td>${terme}</td>
+      <td style="font-family:var(--mono);font-weight:500;">${saDisplay}</td>
+      <td>${triBadge}</td>
+      <td>${derniereVisite}</td>
+      <td>${statutBadge}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Dossier patiente" aria-label="Voir le dossier" onclick="showToast('Dossier patiente -- a venir')">&#x1F4C4;</button>
+          <button class="icon-btn" title="Historique" aria-label="Historique" onclick="showToast('Historique -- a venir')">&#x1F4C5;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPatientes() { renderPatientes(); }
+
+// ===================================
+// RENDER: SUIVI GROSSESSE
+// ===================================
+function renderSuivi() {
+  const container = document.getElementById('suivi-list');
+  const search = (document.getElementById('search-suivi')?.value || '').toLowerCase();
+
+  let filtered = patientesData.filter(p => {
+    if (p.statut === 'accouchee') return false;
+    if (search && !(p.nom + ' ' + p.prenom).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CB;</div><div class="empty-title">Aucun suivi en cours</div><div class="empty-sub">Vos suivis de grossesse apparaitront ici.</div></div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => {
+    const saVal = p.sa || 0;
+    const progressPct = Math.min(100, Math.round((saVal / 41) * 100));
+    const barColor = saVal >= 37 ? 'var(--accent)' : saVal >= 28 ? 'var(--green)' : saVal >= 14 ? 'var(--blue)' : 'var(--amber)';
+
+    // Timeline items
+    let timelineHtml = '';
+    const events = [
+      { sa: 8, label: '1ere consultation', sub: 'Declaration grossesse, bilan sanguin' },
+      { sa: 12, label: 'Echographie T1', sub: 'Mesure de la clarte nucale, datation' },
+      { sa: 16, label: 'Consultation T2 debut', sub: 'Depistage trisomie, suivi poids' },
+      { sa: 22, label: 'Echographie T2', sub: 'Morphologie complete' },
+      { sa: 28, label: 'Consultation T3 debut', sub: 'Bilan 6e mois, test O\'Sullivan' },
+      { sa: 32, label: 'Echographie T3', sub: 'Croissance, position foetale' },
+      { sa: 36, label: 'Consultation pre-terme', sub: 'Monitoring, projet de naissance' },
+      { sa: 41, label: 'Terme', sub: 'Declenchement si depassement' }
+    ];
+
+    timelineHtml = '<div class="timeline" style="margin-top:16px;">';
+    events.forEach(ev => {
+      const done = saVal >= ev.sa;
+      const current = saVal >= ev.sa - 2 && saVal < ev.sa + 2;
+      const dotClass = done ? 'done' : current ? 'current' : '';
+      timelineHtml += `<div class="timeline-item">
+        <div class="timeline-dot ${dotClass}"></div>
+        <div class="timeline-label" style="${done ? '' : 'color:var(--muted);'}">${ev.sa} SA -- ${ev.label}</div>
+        <div class="timeline-sub">${ev.sub}</div>
+      </div>`;
+    });
+    timelineHtml += '</div>';
+
+    return `<div class="suivi-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-weight:600;font-size:15px;">${esc(p.nom)} ${esc(p.prenom)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(p.parite)} -- ${esc(p.notes)}</div>
+        </div>
+        <div style="text-align:right;">
+          ${trimestreLabel(p.trimestre)}
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Terme : ${p.terme ? formatDate(p.terme) : '--'}</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:500;">${saVal} SA / 41 SA</span>
+          <span style="font-size:12px;font-family:var(--mono);color:var(--muted);">${progressPct}%</span>
+        </div>
+        <div class="progress-bar" style="height:8px;">
+          <div class="progress-fill" style="width:${progressPct}%;background:${barColor};height:100%;"></div>
+        </div>
+      </div>
+      ${timelineHtml}
+    </div>`;
+  }).join('');
+}
+
+function filterSuivi() { renderSuivi(); }
+
+// ===================================
+// RENDER: PLANNING
+// ===================================
+let planningRendered = false;
+let planningWeekOffset = 0;
+
+function renderPlanning() {
+  planningRendered = true;
+  const container = document.getElementById('planning-grid');
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() + 1 + planningWeekOffset * 7);
+
+  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+  const creneaux = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30'];
+
+  const rdvs = [
+    { jour:0, heure:'08:30', duree:30, patient:'Lefebvre Marie', type:'consultation', note:'Suivi mensuel 30 SA' },
+    { jour:0, heure:'09:30', duree:45, patient:'Dupont Sophie', type:'monitoring', note:'Monitoring 36 SA' },
+    { jour:0, heure:'10:30', duree:90, patient:'Groupe', type:'preparation', note:'Preparation : respiration et relaxation' },
+    { jour:0, heure:'14:00', duree:30, patient:'Moreau Julie', type:'echographie', note:'Controle gemellaire' },
+    { jour:1, heure:'08:00', duree:45, patient:'Bernard Camille', type:'monitoring', note:'Surveillance depassement terme' },
+    { jour:1, heure:'09:30', duree:30, patient:'Petit Laura', type:'consultation', note:'Suivi 16 SA, bilan sanguin' },
+    { jour:1, heure:'14:00', duree:30, patient:'Garcia Ines', type:'postnatal', note:'Visite post-natale J17' },
+    { jour:1, heure:'15:00', duree:45, patient:'Leroy Alice', type:'reeduc', note:'Reeducation perineale seance 4' },
+    { jour:2, heure:'09:00', duree:30, patient:'Roux Emilie', type:'consultation', note:'Consultation T1, 11 SA' },
+    { jour:2, heure:'10:00', duree:30, patient:'Martin Lea', type:'consultation', note:'Suivi 34 SA, projet naissance' },
+    { jour:2, heure:'14:00', duree:90, patient:'Groupe', type:'preparation', note:'Preparation : positions d\'accouchement' },
+    { jour:3, heure:'08:30', duree:30, patient:'Thomas Clara', type:'postnatal', note:'Suivi cesarienne J25' },
+    { jour:3, heure:'09:30', duree:30, patient:'Dupont Sophie', type:'consultation', note:'Controle 36 SA + plan naissance' },
+    { jour:3, heure:'14:00', duree:45, patient:'Lefebvre Marie', type:'echographie', note:'Echo croissance T3' },
+    { jour:4, heure:'09:00', duree:30, patient:'Nouvelle patiente', type:'consultation', note:'1ere consultation' },
+    { jour:4, heure:'10:00', duree:60, patient:'Groupe', type:'preparation', note:'Preparation : allaitement' },
+    { jour:4, heure:'14:30', duree:45, patient:'Leroy Alice', type:'reeduc', note:'Reeducation perineale seance 5' },
+  ];
+
+  const typeColors = {
+    consultation: 'var(--accent)',
+    monitoring: 'var(--amber)',
+    preparation: 'var(--purple)',
+    echographie: 'var(--blue)',
+    postnatal: 'var(--green)',
+    reeduc: '#06b6d4'
+  };
+
+  let html = '<table style="min-width:700px;">';
+  html += '<thead><tr><th style="width:80px;">Heure</th>';
+  for (let j = 0; j < 5; j++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + j);
+    const isToday = d.toDateString() === today.toDateString();
+    html += `<th style="${isToday ? 'color:var(--accent);' : ''}">${jours[j]} ${d.getDate()}/${d.getMonth()+1}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  creneaux.forEach(h => {
+    html += `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 12px;">${h}</td>`;
+    for (let j = 0; j < 5; j++) {
+      const rdv = rdvs.find(r => r.jour === j && r.heure === h);
+      if (rdv) {
+        const color = typeColors[rdv.type] || 'var(--accent)';
+        html += `<td style="padding:4px;">
+          <div style="background:${color}15;border-left:3px solid ${color};border-radius:6px;padding:8px 10px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+            <div style="font-size:12px;font-weight:600;">${esc(rdv.patient)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">${rdv.duree} min -- ${esc(rdv.note)}</div>
+          </div>
+        </td>`;
+      } else {
+        html += '<td style="padding:4px;"></td>';
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function planningPrev() { planningWeekOffset--; renderPlanning(); }
+function planningNext() { planningWeekOffset++; renderPlanning(); }
+function planningToday() { planningWeekOffset = 0; renderPlanning(); }
+
+// ===================================
+// RENDER: PREPARATION ACCOUCHEMENT
+// ===================================
+function renderPreparation() {
+  const container = document.getElementById('sessions-list');
+  const themeLabels = {
+    respiration: 'Respiration et relaxation',
+    positions: 'Positions d\'accouchement',
+    gestion_douleur: 'Gestion de la douleur',
+    allaitement: 'Preparation a l\'allaitement',
+    peridurale: 'Peridurale et alternatives',
+    projet_naissance: 'Projet de naissance',
+    retour_maison: 'Retour a la maison',
+    piscine: 'Preparation en piscine'
+  };
+
+  let totalInscrites = 0;
+  let totalPlaces = 0;
+  DEMO_SESSIONS.forEach(s => { totalInscrites += s.inscrites; totalPlaces += s.places; });
+
+  document.getElementById('prep-sessions').textContent = DEMO_SESSIONS.length;
+  document.getElementById('prep-inscrites').textContent = totalInscrites;
+  document.getElementById('prep-taux').textContent = Math.round((totalInscrites / totalPlaces) * 100) + '%';
+
+  container.innerHTML = DEMO_SESSIONS.map(s => {
+    const pct = Math.round((s.inscrites / s.places) * 100);
+    const barColor = pct >= 90 ? 'var(--accent)' : pct >= 60 ? 'var(--green)' : 'var(--amber)';
+    const complet = s.inscrites >= s.places;
+    return `<div class="session-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div>
+          <div style="font-weight:600;font-size:14px;">${themeLabels[s.theme] || s.theme}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">${formatDate(s.date)} a ${s.heure} -- ${s.duree} min</div>
+        </div>
+        ${complet ? '<span class="badge badge-crit">Complet</span>' : '<span class="badge badge-ok">Places disponibles</span>'}
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span style="color:var(--muted);">Inscrites</span>
+          <span style="font-family:var(--mono);color:var(--muted);">${s.inscrites} / ${s.places}</span>
+        </div>
+        <div class="progress-bar" style="height:6px;">
+          <div class="progress-fill" style="width:${pct}%;background:${barColor};height:100%;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px;">
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="showToast('Liste des inscrites -- a venir')">Voir inscrites</button>
+        ${!complet ? '<button class="btn btn-accent" style="font-size:12px;padding:6px 12px;" onclick="showToast(\'Inscription ajoutee (demo)\')">Inscrire</button>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================================
+// RENDER: POST-NATAL
+// ===================================
+function renderPostnatal() {
+  const tbody = document.getElementById('postnatal-body');
+  const postnatales = patientesData.filter(p => p.statut === 'accouchee');
+
+  document.getElementById('pn-patientes').textContent = postnatales.length;
+  document.getElementById('pn-reeduc').textContent = postnatales.filter(p => p.reeduc === 'en_cours').length * 4;
+  document.getElementById('pn-allait').textContent = postnatales.filter(p => p.allaitement).length;
+  document.getElementById('postnatal-count').textContent = postnatales.length + ' patiente' + (postnatales.length > 1 ? 's' : '');
+
+  if (postnatales.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">Aucune patiente en post-natal</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = postnatales.map(p => {
+    const accDate = p.accouchement ? formatDate(p.accouchement) : '--';
+    const typeAccouchement = p.notes.includes('Cesarienne') ? '<span class="badge badge-warn">Cesarienne</span>' : '<span class="badge badge-ok">Voie basse</span>';
+    const allaitBadge = allaitementLabel(p.allaitement);
+    const reeducBadge = reeducLabel(p.reeduc);
+    const prochaineVisite = formatDate(new Date(new Date(p.derniereVisite).getTime() + 7 * 86400000).toISOString().slice(0, 10));
+    return `<tr>
+      <td><div style="font-weight:500;">${esc(p.nom)} ${esc(p.prenom)}</div><div style="font-size:11px;color:var(--muted);">${esc(p.parite)}</div></td>
+      <td>${accDate}</td>
+      <td>${typeAccouchement}</td>
+      <td>${allaitBadge}</td>
+      <td>${reeducBadge}</td>
+      <td>${prochaineVisite}</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn cmd" title="Dossier" aria-label="Voir le dossier" onclick="showToast('Dossier post-natal -- a venir')">&#x1F4C4;</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ===================================
+// RENDER: COMPTABILITE
+// ===================================
+function renderCompta() {
+  const recettes = 8650;
+  const depenses = 1480;
+  const net = recettes - depenses;
+  const marge = Math.round((net / recettes) * 100);
+
+  document.getElementById('compta-recettes').textContent = fmtEur(recettes);
+  document.getElementById('compta-depenses').textContent = fmtEur(depenses);
+  document.getElementById('compta-net').textContent = fmtEur(net);
+  document.getElementById('compta-marge').textContent = marge + '%';
+
+  const recDetail = [
+    { label: 'Consultations prenatales', montant: 2800 },
+    { label: 'Preparation accouchement', montant: 1920 },
+    { label: 'Monitoring', montant: 1200 },
+    { label: 'Suivi post-natal', montant: 980 },
+    { label: 'Reeducation perineale', montant: 1050 },
+    { label: 'Echographies', montant: 700 },
+  ];
+  document.getElementById('compta-recettes-detail').innerHTML = recDetail.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${r.label}</span><span style="font-family:var(--mono);font-weight:500;">${fmtEur(r.montant)}</span>
+    </div>`
+  ).join('');
+
+  const depDetail = [
+    { label: 'Materiel medical', montant: 480 },
+    { label: 'Consommables', montant: 320 },
+    { label: 'Location cabinet', montant: 450 },
+    { label: 'Assurance professionnelle', montant: 230 },
+  ];
+  document.getElementById('compta-depenses-detail').innerHTML = depDetail.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${r.label}</span><span style="font-family:var(--mono);font-weight:500;color:var(--red);">${fmtEur(r.montant)}</span>
+    </div>`
+  ).join('');
+}
+
+// ===================================
+// RENDER: STATISTIQUES
+// ===================================
+function renderStats() {
+  document.getElementById('stat-accouchements').textContent = '14';
+  document.getElementById('stat-nouvelles').textContent = '9';
+  document.getElementById('stat-seances').textContent = '32';
+  document.getElementById('stat-satisfaction').textContent = '97%';
+
+  const actesData = [
+    { label: 'Consultations prenatales', count: 86, pct: 34 },
+    { label: 'Preparation accouchement', count: 48, pct: 19 },
+    { label: 'Monitoring', count: 32, pct: 13 },
+    { label: 'Suivi post-natal', count: 28, pct: 11 },
+    { label: 'Reeducation perineale', count: 36, pct: 14 },
+    { label: 'Echographies', count: 22, pct: 9 },
+  ];
+  document.getElementById('stats-actes').innerHTML = actesData.map(a => {
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+        <span>${a.label}</span>
+        <span style="font-family:var(--mono);color:var(--muted);">${a.count} actes (${a.pct}%)</span>
+      </div>
+      <div class="progress-bar" style="height:6px;">
+        <div class="progress-fill" style="width:${a.pct}%;background:var(--accent);height:100%;"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const caData = [
+    { mois: 'Janv.', montant: 7200 },
+    { mois: 'Fev.', montant: 7800 },
+    { mois: 'Mars', montant: 8100 },
+    { mois: 'Avr.', montant: 8650 },
+  ];
+  const maxCA = Math.max(...caData.map(c => c.montant));
+  document.getElementById('stats-ca').innerHTML = `
+    <div style="display:flex;align-items:flex-end;gap:20px;height:160px;padding:10px 0;">
+      ${caData.map(c => {
+        const h = Math.round((c.montant / maxCA) * 130);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <span style="font-size:11px;font-family:var(--mono);color:var(--muted);">${fmtEur(c.montant)}</span>
+          <div style="width:100%;max-width:60px;height:${h}px;background:var(--accent);border-radius:6px 6px 0 0;transition:height 0.5s cubic-bezier(.16,1,.3,1);"></div>
+          <span style="font-size:11px;color:var(--muted);">${c.mois}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ===================================
+// KPI UPDATE
+// ===================================
+function updateKPIs() {
+  const actives = patientesData.filter(p => p.statut !== 'accouchee');
+  const termesProches = patientesData.filter(p => p.statut === 'terme_proche');
+  document.getElementById('kpi-patientes').textContent = actives.length;
+  document.getElementById('kpi-rdv').textContent = '4';
+  document.getElementById('kpi-accouchements').textContent = termesProches.length;
+  document.getElementById('kpi-ca').textContent = fmtEur(8650);
+}
+
+// ===================================
+// FORM ACTIONS (DEMO)
+// ===================================
+function ajouterPatiente() {
+  const nom = document.getElementById('pat-nom').value.trim();
+  const prenom = document.getElementById('pat-prenom').value.trim();
+  if (!nom || !prenom) { showToast('Veuillez renseigner le nom et le prenom'); return; }
+
+  patientesData.push({
+    id: Date.now(),
+    nom, prenom,
+    ddn: document.getElementById('pat-ddn').value || '1990-01-01',
+    tel: document.getElementById('pat-tel').value,
+    email: document.getElementById('pat-email').value,
+    ddr: document.getElementById('pat-ddr').value || null,
+    terme: document.getElementById('pat-terme').value || null,
+    sa: null,
+    trimestre: 'T1',
+    statut: 'suivi',
+    derniereVisite: new Date().toISOString().slice(0, 10),
+    parite: document.getElementById('pat-parite').value,
+    notes: document.getElementById('pat-notes').value,
+    accouchement: null,
+    allaitement: null,
+    reeduc: null
+  });
+
+  fermerModal('modal-patiente');
+  renderPatientes();
+  updateKPIs();
+  showToast('Patiente ajoutee avec succes');
+  ['pat-nom','pat-prenom','pat-ddn','pat-tel','pat-email','pat-ddr','pat-terme','pat-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+function creerSession() {
+  showToast('Session de preparation creee (demo)');
+  fermerModal('modal-session');
+}
+
+// ===================================
+// HELPERS
+// ===================================
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtEur(n) {
+  if (n == null || isNaN(n)) return '--';
+  return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' EUR';
+}
+
+function formatDate(str) {
+  if (!str) return '--';
+  const d = new Date(str);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function trimestreLabel(tri) {
+  const map = {
+    T1: { label: '1er trimestre', cls: 'badge-blue' },
+    T2: { label: '2eme trimestre', cls: 'badge-purple' },
+    T3: { label: '3eme trimestre', cls: 'badge-rose' },
+    postnatal: { label: 'Post-natal', cls: 'badge-ok' },
+  };
+  const m = map[tri] || { label: tri || '--', cls: 'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function statutLabel(statut) {
+  const map = {
+    suivi: { label: 'Suivi en cours', cls: 'badge-ok' },
+    terme_proche: { label: 'Terme proche', cls: 'badge-warn' },
+    accouchee: { label: 'Accouchee', cls: 'badge-blue' },
+  };
+  const m = map[statut] || { label: statut, cls: 'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function allaitementLabel(type) {
+  const map = {
+    maternel: { label: 'Maternel', cls: 'badge-ok' },
+    mixte: { label: 'Mixte', cls: 'badge-warn' },
+    artificiel: { label: 'Artificiel', cls: 'badge-blue' },
+  };
+  if (!type) return '<span style="color:var(--muted);">--</span>';
+  const m = map[type] || { label: type, cls: 'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+function reeducLabel(statut) {
+  const map = {
+    en_cours: { label: 'En cours', cls: 'badge-ok' },
+    a_planifier: { label: 'A planifier', cls: 'badge-warn' },
+    termine: { label: 'Terminee', cls: 'badge-blue' },
+  };
+  if (!statut) return '<span style="color:var(--muted);">--</span>';
+  const m = map[statut] || { label: statut, cls: 'badge-ok' };
+  return `<span class="badge ${m.cls}">${m.label}</span>`;
+}
+
+// ===================================
+// INIT
+// ===================================
+document.addEventListener('DOMContentLoaded', async function() {
+  const session = await checkAuth();
+  updateKPIs();
+  renderPatientes();
+  renderSuivi();
+  renderPreparation();
+  renderPostnatal();
+  renderCompta();
+  renderStats();
+});
+</script>
+</body>
+</html>
