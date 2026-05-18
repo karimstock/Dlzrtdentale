@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 17 mai 2026
-**Derniere passe** : Passe 85 (18 mai 2026) — JADOMI Copilot Global
+**Derniere passe** : Passe 86 (18 mai 2026) — Copilot + Panneau lateral + 10K mails
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4703,11 +4703,35 @@ maintenance services tiers, DEKRA, France Travail, ClearCorrect summaries
 - Titre "Docteur" dans toutes les reponses
 - Migration OVH HDS : commercial appelle mercredi 21 mai 2026
 
+### Passe 86 (18 mai 2026 soir) — Panneau lateral + lecture mails + import 10K + DeepSeek
+
+- Widget split view : chat gauche + panneau lateral droit (cards, brouillon, lecture)
+- Cards mail cliquables → "Lire" telecharge le contenu complet depuis IMAP a la demande
+- Body sauvegarde en cache apres premier chargement
+- Brouillon mail editable (contenteditable) avec bouton Envoyer + Modifier via chat
+- Import bulk 10 000 mails (ranges IMAP 500, bypass limite Yahoo SEARCH 1000)
+- 9 000 mails classes : 649 fournisseurs, 448 banque, 232 factures, 398 formations...
+- Capture factures auto : PDF joints + factures inline (corps mail)
+- 10+ factures PDF captees (EDF, Anthropic, CIC, comptable, fournisseurs)
+- DeepSeek intent parser pour requetes ambigues (0.00003 EUR/req)
+  "mon notaire depuis 2026" → category:notaire, since:2026-01-01
+- parseDate enrichi : "depuis 2 semaines", "depuis 3 mois", jours de la semaine
+- Fix greeting : "salut retrouve mes mails" ne bloque plus sur greeting
+- Fix notaire faux positif : "compromis" → "compromis de vente"
+- Fix isNoiseMail : VistaPrint, Boulanger, messagerie vocale Free, noreply
+- Fix needs_response : noreply = JAMAIS reponse attendue
+- 6 faux positifs corriges en BDD automatiquement
+- Compta handler redirige vers le vrai scanner (index.html) pas de faux resultats
+- Raccourcis directs sur page accueil organisation (Compta, Precision Dentaire, Stock, Comparateur)
+- Lien Comptabilite dans sidebar Mon Cabinet
+
 ### Priorites prochaine session
-1. Tester le copilot widget en conditions reelles sur mobile
-2. Ajouter actions directes (creer RDV, chercher patient depuis le copilot)
-3. Brancher le copilot sur l'agenda IA (analyzeDay, optimizeDay, detectGaps)
-4. Brancher le copilot sur le stock (requeter products_database)
+1. AUTO-SCANNER FACTURES : brancher le scanner existant (analyserDocumentIA + Claude)
+   sur le compte mail connecte du Copilot. Scan automatique, resultats par mois,
+   checkboxes validation. Meme UI que index.html#compta mais automatique.
+2. Panneau lateral : afficher les factures scannees avec checkboxes comme dans index.html
+3. Tester le copilot widget sur mobile
+4. Brancher le copilot sur l'agenda IA (analyzeDay, optimizeDay, detectGaps)
 5. Build Flutter Codemagic
 6. Push jadomi (erreur 500 GitHub)
 
