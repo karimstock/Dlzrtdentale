@@ -632,6 +632,189 @@ router.post('/bulk-import', async (req, res) => {
 });
 
 // =============================================
+// CAPTURE FACTURES AUTO — 2ème passe
+// Télécharge le contenu complet UNIQUEMENT des mails
+// classés facture/fournisseur, extrait les PDF, indexe
+// =============================================
+router.post('/capture-factures', async (req, res) => {
+  req.setTimeout(300000); // 5 min max
+  res.setTimeout(300000);
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const { account_id } = req.body;
+
+    const { data: account } = await db()
+      .from('comptes_email_societe')
+      .select('*')
+      .eq('id', account_id)
+      .eq('societe_id', sid)
+      .single();
+    if (!account) return res.status(404).json({ error: 'Compte non trouvé' });
+
+    const password = decryptPassword(account);
+    if (!password) return res.status(500).json({ error: 'Erreur déchiffrement' });
+
+    // Récupérer les mails facture/fournisseur pas encore scannés pour PDF
+    const { data: mailsToScan } = await db()
+      .from('mails_inbox')
+      .select('id, mail_uid, message_id, from_address, from_name, subject, date_received, category')
+      .eq('societe_id', sid)
+      .eq('account_id', account.id)
+      .in('category', ['facture', 'fournisseur', 'comptable', 'banque', 'assurance', 'labo'])
+      .eq('has_pdf', false)
+      .order('date_received', { ascending: false })
+      .limit(100);
+
+    if (!mailsToScan || mailsToScan.length === 0) {
+      return res.json({ ok: true, scanned: 0, factures_found: 0, message: 'Aucun mail à scanner.' });
+    }
+
+    // Se connecter IMAP
+    const imapConfig = buildImapConfig(account, password);
+    imapConfig.connTimeout = 60000;
+    const client = new ImapFlow({ ...imapConfig, logger: false });
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+
+    // Chercher les mails par message-id et télécharger le contenu complet
+    let facturesFound = 0;
+    let scanned = 0;
+
+    // On doit retrouver ces mails par leur sujet+date (pas d'UID fiable sur Yahoo)
+    // Stratégie : search par date, fetch avec source, matcher par message_id
+    const dates = [...new Set(mailsToScan.map(m => m.date_received?.split('T')[0]).filter(Boolean))];
+    const oldestDate = dates.sort()[0] || '2026-01-01';
+
+    const seqs = await client.search({ since: new Date(oldestDate) });
+
+    // Fetch par batch de 20 (avec source complète cette fois)
+    for (let i = 0; i < seqs.length; i += 20) {
+      const batch = seqs.slice(i, i + 20);
+      if (batch.length === 0) break;
+
+      for await (const msg of client.fetch(batch.join(','), { source: true, flags: true }, { uid: false })) {
+        try {
+          const parsed = await simpleParser(msg.source);
+          const msgId = parsed.messageId || '';
+
+          // Est-ce que ce mail est dans notre liste à scanner ?
+          const match = mailsToScan.find(m => m.message_id === msgId);
+          if (!match) continue;
+
+          scanned++;
+
+          // Chercher les PJ PDF
+          const pdfAttachments = (parsed.attachments || []).filter(a =>
+            String(a.contentType || '').includes('pdf') || String(a.filename || '').endsWith('.pdf')
+          );
+
+          const hasAnyAttachment = (parsed.attachments || []).length > 0;
+
+          // Mettre à jour le mail dans mails_inbox
+          const updates = {
+            has_attachments: hasAnyAttachment,
+            has_pdf: pdfAttachments.length > 0,
+            body_preview: (parsed.text || '').substring(0, 500)
+          };
+
+          // Détecter le type financier plus précisément avec le body
+          if (parsed.text) {
+            const bodyLower = (parsed.text || '').toLowerCase();
+            if (/facture|invoice/.test(bodyLower) && !/proforma|pro.forma/.test(bodyLower)) {
+              updates.financial_type = 'facture';
+            } else if (/devis|quote|proposition/.test(bodyLower)) {
+              updates.financial_type = 'devis';
+            } else if (/avoir|credit.note/.test(bodyLower)) {
+              updates.financial_type = 'avoir';
+            }
+            // Extraire le montant
+            const montantMatch = bodyLower.match(/(?:total|montant|ttc|net)\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*(?:€|eur)/i);
+            if (montantMatch) {
+              const montant = parseFloat(montantMatch[1].replace(/\s/g, '').replace(',', '.'));
+              if (montant > 0 && montant < 500000) updates.financial_montant = montant;
+            }
+          }
+
+          await db().from('mails_inbox').update(updates).eq('id', match.id);
+
+          // Facture dans le CORPS du mail (pas de PDF joint)
+          if (pdfAttachments.length === 0 && parsed.text) {
+            const bodyText = (parsed.text || '').substring(0, 3000);
+            const isInvoiceInBody = /facture\s*n[°o]|invoice\s*#|montant\s*ttc|total\s*[àa]\s*r[eé]gler|r[eé]f[eé]rence\s*commande|bon\s*de\s*commande/i.test(bodyText);
+            if (isInvoiceInBody) {
+              facturesFound++;
+              const checksum = crypto.createHash('md5').update('body:' + msgId).digest('hex');
+              await db().from('cabinet_brain_documents').upsert({
+                societe_id: sid,
+                title: 'Facture (corps mail) — ' + (match.from_name || match.from_address),
+                doc_type: updates.financial_type || 'facture',
+                source: 'mail',
+                content_text: bodyText.substring(0, 1000),
+                metadata: {
+                  from: match.from_address,
+                  from_name: match.from_name,
+                  subject: match.subject,
+                  date_mail: match.date_received,
+                  type: 'inline_invoice',
+                  montant: updates.financial_montant,
+                  mail_id: match.id
+                },
+                checksum
+              }, { onConflict: 'societe_id,checksum' });
+            }
+          }
+
+          // Si PDF trouvé → indexer dans cabinet_brain_documents
+          if (pdfAttachments.length > 0) {
+            for (const pdf of pdfAttachments) {
+              facturesFound++;
+              const checksum = crypto.createHash('md5').update('pdf:' + msgId + ':' + (pdf.filename || '')).digest('hex');
+              await db().from('cabinet_brain_documents').upsert({
+                societe_id: sid,
+                title: pdf.filename || match.subject,
+                doc_type: updates.financial_type || 'facture',
+                source: 'mail',
+                content_text: (match.from_name || match.from_address) + ' — ' + match.subject +
+                  (updates.financial_montant ? ' — ' + updates.financial_montant + ' EUR' : ''),
+                metadata: {
+                  from: match.from_address,
+                  from_name: match.from_name,
+                  subject: match.subject,
+                  date_mail: match.date_received,
+                  filename: pdf.filename,
+                  size: pdf.size,
+                  montant: updates.financial_montant,
+                  mail_id: match.id
+                },
+                file_size: pdf.size,
+                mime_type: 'application/pdf',
+                checksum
+              }, { onConflict: 'societe_id,checksum' });
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Log progression
+      if (i > 0 && i % 100 === 0) console.log('[CAPTURE-FACTURES] ' + scanned + '/' + mailsToScan.length + ' scannés, ' + facturesFound + ' factures PDF trouvées');
+    }
+
+    lock.release();
+    await client.logout();
+
+    res.json({
+      ok: true,
+      scanned,
+      factures_found: facturesFound,
+      total_to_scan: mailsToScan.length
+    });
+  } catch (e) {
+    console.error('[MAIL-COPILOT] capture-factures error:', e.message);
+    res.status(500).json({ error: 'Erreur : ' + e.message });
+  }
+});
+
+// =============================================
 // HELPERS
 // =============================================
 
