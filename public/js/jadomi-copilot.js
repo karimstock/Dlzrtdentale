@@ -232,10 +232,24 @@
     function showTyping() { var d = document.createElement('div'); d.className = 'jcp-typing'; d.id = 'jcp-typing'; d.innerHTML = '<span></span><span></span><span></span>'; messages.appendChild(d); messages.scrollTop = messages.scrollHeight; }
     function hideTyping() { var e = document.getElementById('jcp-typing'); if (e) e.remove(); }
 
-    // Welcome
-    var sugs = ['Mes mails du jour', 'Mails importants', 'Résumé boîte mail', 'Envoie un mail au comptable', 'Aide'];
+    // Welcome dynamique — résumé du matin
+    function loadWelcome() {
+      fetch('/api/copilot/message', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ message: '__welcome__', context: ctx }) })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (data && data.reply && data.reply !== '__default__') {
+            var el = document.querySelector('.jcp-msg-bot .jcp-bubble');
+            if (el) el.innerHTML = data.reply;
+          }
+        }).catch(function() {});
+    }
+
+    var sugs = ['Mes mails du jour', 'Mails importants', 'Scan mes factures', 'Envoie un mail au comptable', 'Aide'];
     addMsg('Bonjour Docteur, comment puis-je vous aider ?<br><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">' +
       sugs.map(function (s) { return '<button class="jcp-sug" onclick="window.__jcpSend(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>'; }).join('') + '</div>', false);
+
+    // Charger le résumé dynamique après 2s
+    setTimeout(loadWelcome, 2000);
 
     // ================================================================
     // RENDER CARDS dans le panneau latéral

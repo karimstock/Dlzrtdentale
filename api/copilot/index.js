@@ -288,6 +288,46 @@ router.post('/message', async (req, res) => {
       return res.status(400).json({ error: 'Message trop court' });
     }
 
+    // Message d'accueil dynamique
+    if (message === '__welcome__') {
+      try {
+        const [unreadRes, needsRes, tasksRes, facturesRes] = await Promise.all([
+          db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid).eq('is_read', false).eq('is_spam', false).eq('is_newsletter', false),
+          db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid).eq('needs_response', true).eq('replied', false),
+          db().from('cabinet_brain_tasks').select('id, title', { count: 'exact' }).eq('societe_id', sid).eq('status', 'todo').order('created_at', { ascending: false }).limit(3),
+          db().from('cabinet_brain_documents').select('id', { count: 'exact', head: true }).eq('societe_id', sid).eq('source', 'auto_scan').gte('created_at', new Date(Date.now() - 86400000).toISOString())
+        ]);
+
+        const unread = unreadRes.count || 0;
+        const needs = needsRes.count || 0;
+        const tasks = tasksRes.data || [];
+        const newFactures = facturesRes.count || 0;
+
+        let welcome = 'Bonjour Docteur.';
+        const parts = [];
+        if (newFactures > 0) parts.push('J\'ai trié <strong>' + newFactures + ' nouvelle(s) facture(s)</strong> ce matin');
+        if (unread > 0) parts.push('<strong>' + unread + '</strong> mail(s) non lu(s)');
+        if (needs > 0) parts.push('<strong>' + needs + '</strong> mail(s) attendent une réponse');
+        if (tasks.length > 0) parts.push('<strong>' + tasks.length + '</strong> tâche(s) en attente');
+
+        if (parts.length > 0) {
+          welcome += ' ' + parts.join(', ') + '.';
+          if (needs > 0) welcome += '<br>Voulez-vous que je vous aide à répondre ?';
+          if (newFactures > 0) welcome += '<br>Dites "mes factures" pour les voir.';
+        } else {
+          welcome += ' Tout est en ordre. Comment puis-je vous aider ?';
+        }
+
+        var sugs = ['Mes mails du jour', 'Mails importants', 'Scan mes factures', 'Envoie un mail au comptable', 'Aide'];
+        welcome += '<br><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">' +
+          sugs.map(function (s) { return '<button class="jcp-sug" onclick="window.__jcpSend(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>'; }).join('') + '</div>';
+
+        return res.json({ reply: welcome });
+      } catch (_) {
+        return res.json({ reply: '__default__' });
+      }
+    }
+
     const intent = detectIntent(message);
 
     // Récupérer le contexte Brain
