@@ -1194,6 +1194,14 @@ try {
   console.warn('[JADOMI] Module Connecteur non chargé:', e.message);
 }
 
+// === JADOMI Copilot (chatbot global) ===
+try {
+  app.use('/api/copilot', require('./api/copilot'));
+  console.log('[JADOMI] Module Copilot monté (chatbot global IA)');
+} catch (e) {
+  console.warn('[JADOMI] Module Copilot non chargé:', e.message);
+}
+
 // === JADOMI Cabinet Brain (cerveau central intelligent) ===
 try {
   app.use('/api/brain', require('./api/brain'));
