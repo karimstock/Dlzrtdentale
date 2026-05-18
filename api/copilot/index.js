@@ -49,6 +49,62 @@ function rateLimit() {
 router.use(requireAuth(), rateLimit());
 
 // =============================================
+// DEEPSEEK INTENT PARSER (pour requêtes ambiguës)
+// Coût : ~0.00003€ par requête. Quasi gratuit.
+// =============================================
+async function deepseekParseIntent(message) {
+  try {
+    if (!process.env.DEEPSEEK_API_KEY) return null;
+    const OpenAI = require('openai');
+    const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: 'https://api.deepseek.com' });
+
+    const response = await client.chat.completions.create({
+      model: 'deepseek-chat',
+      max_tokens: 200,
+      temperature: 0,
+      messages: [
+        { role: 'system', content: `Tu es un parseur d'intent pour un assistant de cabinet dentaire. Tu retournes UNIQUEMENT du JSON.
+
+ACTIONS POSSIBLES :
+- search_mail : chercher des mails (par expéditeur, sujet, catégorie)
+- list_mail : lister les mails d'une période
+- compose_mail : écrire/envoyer un mail
+- search_patient : chercher un patient
+- check_agenda : consulter le planning
+- check_stock : consulter le stock
+- check_factures : voir les factures/devis
+- greeting : salutation
+- help : demande d'aide
+- general : question générale
+
+CATÉGORIES MAIL : fournisseur, comptable, banque, labo, patient, assurance, facture, juridique, rh, formation, ordre, impots, commercial, notaire, cpam, mutuelle, informatique, immobilier, maintenance
+
+FORMAT JSON :
+{"action":"search_mail","search_term":"nom ou mot-clé","category":"notaire","since":"2026-01-01","until":null}
+{"action":"compose_mail","to_role":"comptable","instruction":"dire que j'envoie les docs vendredi"}
+{"action":"list_mail","period":"today","filter":"important"}
+{"action":"check_agenda","date":"demain"}
+
+RÈGLES :
+- "mon notaire" / "mon comptable" / "ma banque" → category, PAS search_term
+- "depuis 2026" → since: "2026-01-01"
+- "depuis 2 semaines" → calcule la date
+- "du mois" → since: premier jour du mois en cours
+- JAMAIS de texte avant ou après le JSON` },
+        { role: 'user', content: message }
+      ]
+    });
+
+    const text = response.choices?.[0]?.message?.content || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) : null;
+  } catch (e) {
+    console.warn('[COPILOT] DeepSeek parse error:', e.message);
+    return null;
+  }
+}
+
+// =============================================
 // DÉTECTION D'INTENT (local, 0€)
 // =============================================
 function detectIntent(text) {
@@ -140,6 +196,17 @@ function parseDate(text) {
   if (/cette\s*semaine/.test(n)) { const d = new Date(today); d.setDate(d.getDate() - d.getDay() + 1); return { since: d, label: 'cette semaine' }; }
   if (/semaine\s*derni/.test(n)) { const d = new Date(today); d.setDate(d.getDate() - d.getDay() - 6); const u = new Date(today); u.setDate(u.getDate() - u.getDay() + 1); return { since: d, until: u, label: 'semaine dernière' }; }
   if (/ce\s*mois/.test(n)) return { since: new Date(now.getFullYear(), now.getMonth(), 1), label: 'ce mois' };
+  // "depuis X jours/semaines/mois"
+  var depuisMatch = n.match(/depuis\s+(\d+)\s*(jour|semaine|mois)/);
+  if (depuisMatch) {
+    var num = parseInt(depuisMatch[1]);
+    var unit = depuisMatch[2];
+    var d = new Date(today);
+    if (unit.startsWith('jour')) d.setDate(d.getDate() - num);
+    else if (unit.startsWith('semaine')) d.setDate(d.getDate() - num * 7);
+    else if (unit.startsWith('mois')) d.setMonth(d.getMonth() - num);
+    return { since: d, label: 'depuis ' + num + ' ' + unit + (num > 1 ? 's' : '') };
+  }
   const jours = { lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6, dimanche: 0 };
   for (const [nom, idx] of Object.entries(jours)) {
     if (n.includes(nom)) { const d = new Date(today); d.setDate(d.getDate() - ((d.getDay() - idx + 7) % 7 || 7)); const u = new Date(d); u.setDate(u.getDate() + 1); return { since: d, until: u, label: nom }; }
@@ -173,6 +240,17 @@ function isNoiseMail(m) {
   if (/summary for|daily digest|weekly summary/.test(sub)) return true;
   // DEKRA, France Travail, etc. (pas lié au cabinet)
   if (/dekra|france travail/.test(from)) return true;
+  // Messagerie vocale / répondeur
+  if (/messagerie vocale|nouveau message re[cç]u.*\d|message vocal|voicemail|messages? audio/.test(sub)) return true;
+  // Promos évidentes (marques non dentaires)
+  if (/vistaprint|aliexpress|wish\.com|temu|shein|groupon|vente.priv|showroom|cdiscount|lidl|auchan|carrefour/.test(from)) return true;
+  if (/offre myst[eè]re|gagnez|tirage|jeu concours|loterie|grattez|juste pour vous/.test(sub)) return true;
+  // Actualités / news génériques (pas lié au cabinet directement)
+  if (/mesures.*soutien|crise.*moyen.orient|actualit[eé].*professionnel|pour [eê]tre s[uû]r de ne rater/.test(sub)) return true;
+  // TGS France newsletters génériques (sauf si c'est vraiment comptable)
+  if (/tgs france/.test(from) && !/votre d[eé]claration|vos comptes|bilan|liasse|votre cabinet/.test(sub)) return true;
+  // noreply + contenu non pertinent
+  if (/noreply|no.reply|ne.pas.repondre/.test(from) && !/facture|commande|confirmation|paiement|r[eè]glement/.test(sub)) return true;
   return false;
 }
 
@@ -215,7 +293,40 @@ router.post('/message', async (req, res) => {
           const lower = message.toLowerCase();
           const norm = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-          // "Résumé" / "combien" — en PREMIER avant la liste
+          // RECHERCHE INTELLIGENTE — DeepSeek comprend "mon notaire", "depuis 2026", etc.
+          // Regex uniquement pour les cas SIMPLES (mes mails, résumé, importants)
+          // Tout le reste → DeepSeek parse l'intention
+          const isSimple = /^(mes\s*mail|donne.*mail|montre.*mail|check.*mail|mail\s*du\s*jour|mail\s*important|mail\s*urgent|resum|combien.*mail|mail.*attendent|boite)/i.test(norm);
+          if (!isSimple) {
+            // Requête complexe → DeepSeek
+            const parsed = await deepseekParseIntent(message);
+            if (parsed && (parsed.action === 'search_mail' || parsed.action === 'list_mail')) {
+              let query = db().from('mails_inbox')
+                .select('id, from_name, from_address, subject, date_received, category, priority, needs_response, has_pdf, financial_type, financial_montant, body_preview, response_type')
+                .eq('societe_id', sid).eq('is_spam', false).eq('is_newsletter', false);
+              if (parsed.category) query = query.eq('category', parsed.category);
+              if (parsed.search_term) query = query.or('from_name.ilike.%' + parsed.search_term + '%,from_address.ilike.%' + parsed.search_term + '%,subject.ilike.%' + parsed.search_term + '%');
+              if (parsed.since) query = query.gte('date_received', parsed.since);
+              if (parsed.until) query = query.lt('date_received', parsed.until);
+              if (parsed.filter === 'important') query = query.eq('needs_response', true);
+              query = query.order('date_received', { ascending: false }).limit(20);
+              const { data: found } = await query;
+              const filtered = (found || []).filter(m => !isNoiseMail(m));
+              const label = parsed.category || parsed.search_term || 'recherche';
+              if (filtered.length > 0) return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent, mails: filtered });
+              return res.json({ reply: 'Aucun mail trouvé pour "' + label + '", Docteur.', intent });
+            }
+            // Si DeepSeek retourne compose_mail → rediriger vers compose
+            if (parsed && parsed.action === 'compose_mail') {
+              try {
+                const agents = require('../../lib/brain/agents');
+                actionResult = await agents.composeMail(parsed.instruction || message, brain || {});
+              } catch (e) { /* fallback */ }
+              if (actionResult) break;
+            }
+          }
+
+          // "Résumé" / "combien"
           if (/resum|combien.*mail|statut|status/.test(norm)) {
             const { count: total } = await db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid).eq('is_spam', false).eq('is_newsletter', false);
             const { count: unread } = await db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid).eq('is_read', false).eq('is_spam', false).eq('is_newsletter', false);
@@ -317,7 +428,33 @@ router.post('/message', async (req, res) => {
             }
           }
 
-          // Fallback mail : montrer les derniers mails
+          // DEEPSEEK FALLBACK : si aucun pattern regex n'a matché, demander à DeepSeek
+          const parsed = await deepseekParseIntent(message);
+          if (parsed && parsed.action === 'search_mail') {
+            let query = db().from('mails_inbox')
+              .select('id, from_name, from_address, subject, date_received, category, priority, needs_response, has_pdf, financial_type, financial_montant, body_preview, response_type')
+              .eq('societe_id', sid).eq('is_spam', false).eq('is_newsletter', false);
+
+            // Filtre par catégorie
+            if (parsed.category) query = query.eq('category', parsed.category);
+            // Filtre par mot-clé
+            if (parsed.search_term) query = query.or('from_name.ilike.%' + parsed.search_term + '%,from_address.ilike.%' + parsed.search_term + '%,subject.ilike.%' + parsed.search_term + '%');
+            // Filtre par date
+            if (parsed.since) query = query.gte('date_received', parsed.since);
+            if (parsed.until) query = query.lt('date_received', parsed.until);
+
+            query = query.order('date_received', { ascending: false }).limit(20);
+            const { data: found } = await query;
+            const filtered = (found || []).filter(m => !isNoiseMail(m));
+
+            if (filtered.length > 0) {
+              const label = parsed.category ? 'catégorie ' + parsed.category : (parsed.search_term || 'recherche');
+              return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent, mails: filtered });
+            }
+            return res.json({ reply: 'Aucun mail trouvé pour cette recherche, Docteur.', intent });
+          }
+
+          // Fallback final : montrer les derniers mails
           const { data: recent } = await db().from('mails_inbox')
             .select('id, from_name, from_address, subject, date_received, category, priority, needs_response, has_pdf, financial_type, financial_montant, body_preview')
             .eq('societe_id', sid).eq('is_spam', false).eq('is_newsletter', false)
