@@ -701,18 +701,37 @@ router.post('/scan-factures', async (req, res) => {
               const text = response.content?.[0]?.text || '';
               const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
-                const analyse = JSON.parse(jsonMatch[0]);
-                documents.push({
-                  from: parsed.from?.text || '',
-                  date_mail: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : '',
-                  subject: parsed.subject || '',
-                  filename: att.filename || 'document.pdf',
-                  analyse,
-                  selectionne: analyse.selectionne !== false
-                });
+                let jsonStr = jsonMatch[0];
+                // Fix JSON tronqué : fermer les tableaux/objets ouverts
+                try {
+                  JSON.parse(jsonStr);
+                } catch (_) {
+                  // Compter les { et [ ouverts
+                  let opens = 0, closes = 0;
+                  for (const c of jsonStr) { if (c === '{' || c === '[') opens++; if (c === '}' || c === ']') closes++; }
+                  // Tronquer après le dernier } ou ] complet, puis fermer
+                  const lastComplete = Math.max(jsonStr.lastIndexOf('}'), jsonStr.lastIndexOf(']'));
+                  if (lastComplete > 10) jsonStr = jsonStr.substring(0, lastComplete + 1);
+                  // Fermer les accolades/crochets manquants
+                  while (opens > closes) { jsonStr += (jsonStr.includes('"produits"') && opens - closes > 1) ? ']' : '}'; closes++; }
+                }
+                try {
+                  const analyse = JSON.parse(jsonStr);
+                  documents.push({
+                    from: parsed.from?.text || '',
+                    date_mail: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : '',
+                    subject: parsed.subject || '',
+                    filename: att.filename || 'document.pdf',
+                    analyse,
+                    selectionne: analyse.selectionne !== false
+                  });
+                } catch (jsonErr) {
+                  // JSON vraiment irrécupérable — on skip
+                  console.warn('[SCAN-FACTURES] JSON irrécupérable pour', att.filename);
+                }
               }
             } catch (claudeErr) {
-              console.warn('[SCAN-FACTURES] Claude error:', claudeErr.message);
+              console.warn('[SCAN-FACTURES] Claude error:', claudeErr.message?.substring(0, 80));
             }
           }
 

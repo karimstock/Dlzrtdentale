@@ -113,11 +113,20 @@ module.exports = async function scanFacturesSSE(req, res, db) {
               ]}]
             });
             const text = resp.content?.[0]?.text || '';
-            const m = text.match(/\{[\s\S]*\}/);
-            if (m) {
-              const a = JSON.parse(m[0]);
-              documents.push({ from: parsed.from?.text||'', date_mail: parsed.date?.toISOString()?.slice(0,10)||'', subject: parsed.subject||'', filename: att.filename||'doc.pdf', analyse: a, selectionne: a.selectionne !== false });
-              send({ status: 'found', progress: Math.round((done/seqs.length)*90)+5, message: (a.fournisseur_ou_etablissement||'?') + ' — ' + (a.total_ttc||'?') + ' EUR', found: documents.length });
+            const mt = text.match(/\{[\s\S]*\}/);
+            if (mt) {
+              let js = mt[0];
+              try { JSON.parse(js); } catch (_) {
+                let o=0,c=0; for(const ch of js){if(ch==='{'||ch==='[')o++;if(ch==='}'||ch===']')c++;}
+                const lc=Math.max(js.lastIndexOf('}'),js.lastIndexOf(']'));
+                if(lc>10)js=js.substring(0,lc+1);
+                while(o>c){js+=(js.includes('"produits"')&&o-c>1)?']':'}';c++;}
+              }
+              try {
+                const a = JSON.parse(js);
+                documents.push({ from: parsed.from?.text||'', date_mail: parsed.date?.toISOString()?.slice(0,10)||'', subject: parsed.subject||'', filename: att.filename||'doc.pdf', analyse: a, selectionne: a.selectionne !== false });
+                send({ status: 'found', progress: Math.round((done/seqs.length)*90)+5, message: (a.fournisseur_ou_etablissement||'?') + ' — ' + (a.total_ttc||'?') + ' EUR', found: documents.length });
+              } catch(_) { console.warn('[SSE-SCAN] JSON skip:', (att.filename||'?')); }
             }
           }
         } catch (_) { done++; }
