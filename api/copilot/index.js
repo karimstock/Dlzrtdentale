@@ -46,10 +46,24 @@ function rateLimit() {
   };
 }
 
-// SSE scan-factures AVANT le middleware auth (auth manuelle via query param)
-router.get('/scan-factures', async (req, res) => { return require('./scan-factures-sse')(req, res, db); });
-
 router.use(requireAuth(), rateLimit());
+
+// Scan factures POST (après auth middleware)
+router.post('/scan-factures', async (req, res) => {
+  req.setTimeout(600000); res.setTimeout(600000);
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const { account_id, mois, annee } = req.body;
+    let aid = account_id;
+    if (!aid) { const { data: accs } = await db().from('comptes_email_societe').select('id').eq('societe_id', sid).eq('actif', true).limit(1); if (!accs?.length) return res.json({ error: 'Aucun compte connecte' }); aid = accs[0].id; }
+    const http = require('http');
+    const body = JSON.stringify({ account_id: aid, mois, annee });
+    const pReq = http.request({ hostname: 'localhost', port: 3001, path: '/api/brain/mail/scan-factures', method: 'POST', timeout: 600000,
+      headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization, 'X-Societe-Id': sid, 'Content-Length': Buffer.byteLength(body) }
+    }, pRes => { let d = ''; pRes.on('data', c => d += c); pRes.on('end', () => { try { res.json(JSON.parse(d)); } catch (_) { res.json({ error: 'Erreur parse' }); } }); });
+    pReq.setTimeout(600000); pReq.on('error', e => res.json({ error: e.message })); pReq.write(body); pReq.end();
+  } catch (e) { res.json({ error: e.message }); }
+});
 
 // =============================================
 // DEEPSEEK INTENT PARSER (pour requêtes ambiguës)
