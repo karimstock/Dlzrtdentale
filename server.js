@@ -1194,6 +1194,21 @@ try {
   console.warn('[JADOMI] Module Connecteur non chargé:', e.message);
 }
 
+// === JADOMI Cabinet Brain (cerveau central intelligent) ===
+try {
+  app.use('/api/brain', require('./api/brain'));
+  console.log('[JADOMI] Module Cabinet Brain monté (identité, documents, règles, tâches, recherche, digest)');
+  // Démarrer le daemon mail en fond
+  try {
+    const { startMailDaemon } = require('./lib/brain/mail-sync-daemon');
+    startMailDaemon();
+  } catch (daemonErr) {
+    console.warn('[JADOMI] Mail Daemon non démarré:', daemonErr.message);
+  }
+} catch (e) {
+  console.warn('[JADOMI] Module Cabinet Brain non chargé:', e.message);
+}
+
 // === JADOMI IA Documentaire (cerveau IA cabinet) ===
 try {
   app.use('/api/ia-doc', require('./api/ia-doc'));

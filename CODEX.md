@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 17 mai 2026
-**Derniere passe** : Passe 82 (17 mai) — Dashboards natifs Flutter + donnees test Lille/Roubaix
+**Derniere passe** : Passe 84 (18 mai 2026) — Cabinet Brain + Mail Copilot
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4482,7 +4482,148 @@ Architecture 3 niveaux pour reduire les couts :
 2. Lien dentiste <-> prothesiste (module connexion cabinet/labo)
 3. Bouton retour Care a verifier
 
+## Passe 83 (17 mai 2026 soir) — Pages accueil tous metiers + Chat IA patient + Navigation GPS
+
+### Pages d'accueil (12 dashboards)
+- Cabinet dentaire (index.html) : accueil avec KPIs stock, raccourcis, alertes
+- Dentiste Pro (dentiste-pro.html) : accueil agenda, patients, labo
+- IDE, medecin, orthodontiste, kine, podologue, orthophoniste, psychomotricien, dieteticien, sage-femme, bien-etre, createur
+- Chaque accueil : KPIs metier, raccourcis rapides, alertes, prochains RDV/taches
+- Orthographe : 130+ corrections d'accents sur 12 fichiers
+
+### Module Dentiste ↔ Prothesiste
+- Onglet Mon Labo restructure (3 sous-onglets : Labos, Cas, Chat Labo)
+- Bouton "Relier a un labo" sur les cas sans labo + nom labo affiche
+- API liaison bidirectionnelle (liaison-labo.js + liaison-dentiste.js)
+- SQL : table liaisons_cabinet_labo (83)
+
+### App Patient — Chat IA + RDV automatise
+- Backend chat-patient-ia.js : DeepSeek (0.14EUR/M) + fallback local mots-cles
+- Prise de RDV automatisee : intent detection → recherche creneaux → proposition → confirmation
+- Moderation ZERO TOLERANCE (insultes/sexuel/racisme → blocage)
+- Triage urgence dentaire : cellulite (critique), fracture/expulsion (critique), abces (urgent), douleur (semi-urgent)
+- Conseils premiers secours adaptes (garder morceau dans lait, compression hemorragie)
+- Inscription automatique liste urgence cabinet + notification dentiste
+- Envoi photos/documents (radio, devis mutuelle, courrier specialiste)
+- Resume pre-RDV pour le dentiste (ce que le patient a dit, soins a prevoir, documents)
+- Gestion famille (multi-profils : conjoint, enfant, parent)
+- Reponse multilingue (detection langue + code retourne pour TTS)
+- SQL : tables chat_patient_ia_messages (84) + patient_famille_membres (85)
+
+### App Flutter Patient
+- Ecran chat IA (transcription vocale multilingue speech_to_text, cards creneaux RDV)
+- Ecran gestion famille (CRUD membres)
+- Page accueil enrichie (cards Assistant JADOMI + Ma famille)
+- Login enrichi (profil complet a l'inscription)
+
+### Navigation GPS tournee IDE (Leaflet)
+- Carte Leaflet avec rotation bearing (sens de la route)
+- Barre instructions turn-by-turn en haut (fleche + distance + nom de rue)
+- Barre patient en bas (nom + heure + soin + ETA)
+- Compteur vitesse + panneau limite + clignotement depassement
+- Instructions vocales (Web Speech API, gratuit, cooldown 8s)
+- Zones de danger OSM (radars fixes via Overpass API, gratuit)
+- Alertes communautaires (signaler travaux, bouchon, zone de danger)
+- Trace 3 couches (ombre + bordure + centre lumineux)
+- Simulation GPS desktop (500ms/point, vitesse realiste)
+- POI pharmacies/stations essence a proximite
+
+### Organisation
+- JADOMI Copilot dans acces rapide (ex "Dentiste Pro")
+- Societe dentaire (orga generique pour les societes dentaires)
+- Mon Equipe fonctionnel (invite par email, 6 roles, permissions, retirer)
+- Mes pubs deplace de cabinet dentaire vers DentalEvolution
+- Carte livreurs Labo → lien vers suivi-livreurs.html (existant)
+
+### Infrastructure
+- MCP Supabase configure (acces direct BDD, token permanent)
+- 3 tables SQL creees et validees (83, 84, 85)
+- PM2 reload OK, toutes routes montees
+- Commits : jadomi (4ef158d) + jadomi-app (b9c04a1)
+
+### Priorites prochaine session
+1. Build Flutter Codemagic (MapLibre natif pour navigation)
+2. Push jadomi (erreur 500 GitHub temporaire)
+3. Tester chat IA patient dans l'app
+4. Fleches directionnelles sur la carte (a refaire proprement sur MapLibre)
+5. Polir sites Expert + Product Compositor
+6. Migration HDS — des devis OVH recu
+
+## Passe 84 (18 mai 2026) — Cabinet Brain + Mail Copilot
+
+### Document d'architecture
+- docs/ARCHITECTURE-CABINET-BRAIN.html (1 775 lignes, 15 sections)
+- Vision complete : Desktop Agent (Tauri v2), Cloud, Cabinet Brain,
+  Mail Copilot, Connecteurs, systeme d'agents IA, securite RGPD/HDS,
+  stack technique, multi-tenant SaaS, roadmap MVP → avancee
+- Card ajoutee dans Documents BASEPLAN (organisation.html)
+
+### Cabinet Brain — API + Dashboard
+- 5 tables SQL deployees sur Supabase :
+  cabinet_brain, cabinet_brain_documents, cabinet_brain_events,
+  cabinet_brain_rules, cabinet_brain_tasks
+- RLS + GRANT + 2 fonctions RPC (search_brain_documents, get_brain_stats)
+- pgvector active pour recherche semantique (embeddings 1536)
+- API /api/brain/* — 17 endpoints :
+  GET/PUT identity, GET/POST/DELETE documents, GET search,
+  GET/POST/PUT/DELETE rules, POST rules/:id/correct (feedback loop),
+  GET/POST/PUT/DELETE tasks, GET events, GET stats, GET digest, POST ask
+- Dashboard "Mon Cabinet" dans organisation.html — 3 onglets :
+  Mon cabinet (resume + recherche + infos repliable),
+  Mes mails (copilot), Mes taches (todo + auto)
+- Ajout lien "Mon Cabinet" dans 10 dashboards metier
+  (dentiste-pro, IDE, medecin, kine, orthodontiste, sage-femme,
+  podologue, dieteticien, psychomotricien, orthophoniste)
+
+### Mail Copilot — branche sur scanner existant
+- api/brain/mail-copilot.js — 6 endpoints :
+  POST connect (test IMAP + sauvegarde comptes_email_societe),
+  GET accounts, DELETE accounts/:id,
+  POST sync (lire mails + classifier + indexer factures dans brain_documents),
+  POST draft (JADOMI redige reponse avec contexte Brain),
+  POST send (envoi SMTP via compte du praticien),
+  POST compose ("envoie un mail au comptable" → JADOMI compose)
+- Utilise comptes_email_societe EXISTANT (pas de table doublon)
+- Tables mails_copilot + comptes_email_copilot supprimees (doublons)
+- Classification mails locale 0EUR (regex, mots-cles, fournisseurs connus)
+- Cascade IA : Local (0EUR) → Mistral (0.13EUR/M, RGPD FR) → Claude (fallback)
+- DeepSeek JAMAIS sur donnees mails (Data Guard bloque)
+- Factures PDF detectees auto-indexees dans cabinet_brain_documents
+
+### Fichiers crees
+- CREE : docs/ARCHITECTURE-CABINET-BRAIN.html
+- CREE : sql/86_cabinet_brain.sql (5 tables + fonctions + RLS)
+- CREE : api/brain/index.js (877 lignes, 17 endpoints)
+- CREE : api/brain/mail-copilot.js (350 lignes, 6 endpoints)
+
+### Fichiers modifies
+- server.js (mount /api/brain)
+- organisation.html (sidebar Mon Cabinet, 6 panels Brain, Mail Copilot UI)
+- public/admin/dentiste-pro.html (lien Mon Cabinet)
+- public/medecin/dashboard.html (lien Mon Cabinet)
+- public/kine/dashboard.html (lien Mon Cabinet)
+- public/orthodontiste/dashboard.html (lien Mon Cabinet)
+- public/sage-femme/dashboard.html (lien Mon Cabinet)
+- public/podologue/dashboard.html (lien Mon Cabinet)
+- public/dieteticien/dashboard.html (lien Mon Cabinet)
+- public/psychomotricien/dashboard.html (lien Mon Cabinet)
+- public/orthophoniste/dashboard.html (lien Mon Cabinet)
+
+### Decisions
+- "Brain" renomme "Mon Cabinet" partout (comprehensible par le praticien)
+- 7 onglets fusionnes en 3 (Mon cabinet, Mes mails, Mes taches)
+- Mail Copilot = pas de doublon avec scanner existant, meme table comptes_email_societe
+- Classification mails = locale (0EUR), pas d'IA. Mistral pour les reponses.
+- Migration OVH HDS : commercial appelle mercredi 21 mai 2026 (GPU + HDS)
+
+### Priorites prochaine session
+1. Tester connexion Gmail avec mot de passe d'application
+2. Optimiser scanner compta existant : Mistral Pixtral au lieu de Claude (20x moins cher)
+3. Build Flutter Codemagic
+4. Push jadomi (erreur 500 GitHub)
+5. Tester chat IA patient dans l'app
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 17 mai 2026 (Passe 82 — Dashboards natifs Flutter + donnees test)
+Derniere mise a jour : 18 mai 2026 (Passe 84 — Cabinet Brain + Mail Copilot)
 ===============================================================

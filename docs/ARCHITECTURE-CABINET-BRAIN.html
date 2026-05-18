@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI — Architecture Cabinet Brain + Copilot</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a25;
+    --border: #2a2a3a;
+    --gold: #d4a853;
+    --gold-dim: #a68638;
+    --blue: #4e8cff;
+    --green: #34d399;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --purple: #a78bfa;
+    --text: #e4e4e7;
+    --text-dim: #9ca3af;
+    --text-muted: #6b7280;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Header */
+  .doc-header {
+    text-align: center;
+    padding: 80px 0 60px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+  }
+  .doc-header .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+    color: #000;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 18px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+  }
+  .doc-header h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 0%, var(--gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .doc-header .subtitle {
+    font-size: 18px;
+    color: var(--text-dim);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .doc-header .meta {
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 60px;
+  }
+  .toc h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--gold);
+    margin-bottom: 20px;
+  }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 8px; }
+  .toc a { color: var(--blue); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .sub { padding-left: 20px; list-style: disc; }
+
+  /* Sections */
+  section { margin-bottom: 64px; }
+  h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+    color: #fff;
+    padding-top: 32px;
+  }
+  h2 .num {
+    color: var(--gold);
+    font-weight: 800;
+  }
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    color: #fff;
+  }
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 24px 0 8px;
+    color: var(--gold);
+  }
+  p { margin-bottom: 14px; color: var(--text); }
+  .lead { font-size: 16px; color: var(--text-dim); margin-bottom: 24px; }
+
+  /* Diagram boxes */
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 24px 0;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text-dim);
+  }
+  .diagram .hl { color: var(--gold); font-weight: 600; }
+  .diagram .bl { color: var(--blue); }
+  .diagram .gr { color: var(--green); }
+  .diagram .rd { color: var(--red); }
+  .diagram .pr { color: var(--purple); }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 24px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: var(--gold-dim); }
+  .card .icon { font-size: 28px; margin-bottom: 12px; }
+  .card h4 { margin-top: 0; }
+  .card p { font-size: 14px; color: var(--text-dim); margin-bottom: 0; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--surface2);
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  tr:hover td { background: var(--surface); }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tag-gold { background: rgba(212,168,83,0.15); color: var(--gold); }
+  .tag-blue { background: rgba(78,140,255,0.15); color: var(--blue); }
+  .tag-green { background: rgba(52,211,153,0.15); color: var(--green); }
+  .tag-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .tag-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .tag-orange { background: rgba(245,158,11,0.15); color: var(--orange); }
+
+  /* Lists */
+  ul, ol { padding-left: 24px; margin-bottom: 16px; }
+  li { margin-bottom: 6px; color: var(--text-dim); }
+  li strong { color: var(--text); }
+
+  /* Separator */
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  /* Alert */
+  .alert {
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .alert-gold {
+    background: rgba(212,168,83,0.08);
+    border-left: 3px solid var(--gold);
+  }
+  .alert-blue {
+    background: rgba(78,140,255,0.08);
+    border-left: 3px solid var(--blue);
+  }
+  .alert-red {
+    background: rgba(239,68,68,0.08);
+    border-left: 3px solid var(--red);
+  }
+  .alert-green {
+    background: rgba(52,211,153,0.08);
+    border-left: 3px solid var(--green);
+  }
+
+  /* Code */
+  code {
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--gold);
+  }
+
+  /* Print */
+  @media print {
+    body { background: #fff; color: #111; font-size: 11pt; }
+    .card, .diagram, .toc, .alert { border-color: #ddd; background: #f9f9f9; }
+    h2, h3, h4 { color: #111; }
+    .doc-header h1 { background: none; -webkit-text-fill-color: #111; }
+    .tag { border: 1px solid #ccc; }
+  }
+
+  @media (max-width: 768px) {
+    .container { padding: 20px 16px; }
+    .card-grid { grid-template-columns: 1fr; }
+    .diagram { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- HEADER -->
+<!-- ============================================================ -->
+<header class="doc-header">
+  <div class="badge">Document d'architecture</div>
+  <h1>JADOMI Cabinet Brain + Copilot</h1>
+  <p class="subtitle">
+    Architecture technique du cerveau central intelligent pour cabinets dentaires et m&eacute;dicaux
+  </p>
+  <p class="meta">
+    Version 1.0 &mdash; 18 mai 2026 &mdash; Dr Karim Bahmed, Fondateur JADOMI<br>
+    Confidentiel &mdash; Usage interne uniquement
+  </p>
+</header>
+
+<!-- ============================================================ -->
+<!-- TABLE DES MATIERES -->
+<!-- ============================================================ -->
+<nav class="toc">
+  <h2>Table des mati&egrave;res</h2>
+  <ol>
+    <li><a href="#vision">Vision et probl&egrave;me</a></li>
+    <li><a href="#archi">Architecture globale</a></li>
+    <li><a href="#desktop">JADOMI Desktop Agent</a></li>
+    <li><a href="#cloud">JADOMI Cloud</a></li>
+    <li><a href="#brain">JADOMI Cabinet Brain</a></li>
+    <li><a href="#copilot">JADOMI Mail Copilot</a></li>
+    <li><a href="#connecteurs">Connecteurs &amp; Int&eacute;grations</a></li>
+    <li><a href="#ia">Syst&egrave;me d'agents IA</a></li>
+    <li><a href="#securite">S&eacute;curit&eacute;, RGPD &amp; HDS</a></li>
+    <li><a href="#stack">Stack technique compl&egrave;te</a></li>
+    <li><a href="#multi-tenant">Architecture multi-tenant SaaS</a></li>
+    <li><a href="#comm">Communication Desktop &harr; Cloud</a></li>
+    <li><a href="#roadmap">Roadmap MVP &rarr; Version avanc&eacute;e</a></li>
+    <li><a href="#existant">Ce qui existe d&eacute;j&agrave;</a></li>
+    <li><a href="#recommandations">Recommandations r&eacute;alistes</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<!-- 1. VISION -->
+<!-- ============================================================ -->
+<section id="vision">
+<h2><span class="num">01.</span> Vision et probl&egrave;me</h2>
+<p class="lead">
+JADOMI ne remplace PAS les logiciels existants. JADOMI cr&eacute;e une <strong>couche intelligente au-dessus</strong> de tous les outils du cabinet.
+</p>
+
+<h3>Le probl&egrave;me</h3>
+<p>Un cabinet dentaire utilise en moyenne <strong>12 &agrave; 18 outils s&eacute;par&eacute;s</strong> :</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="icon">&#x1f4e7;</div>
+    <h4>Communication</h4>
+    <p>Mails (Gmail, Outlook, Yahoo), SMS patients, WhatsApp, Doctolib messagerie</p>
+  </div>
+  <div class="card">
+    <div class="icon">&#x1f4c5;</div>
+    <h4>Agenda</h4>
+    <p>Doctolib, Google Calendar, agenda logiciel de gestion, planning remplacement</p>
+  </div>
+  <div class="card">
+    <div class="icon">&#x1f4bb;</div>
+    <h4>Logiciel de gestion</h4>
+    <p>Logos_w, Julie, Visiodent, Desmos &mdash; t&eacute;l&eacute;transmission CPAM, fiches patient, FSE</p>
+  </div>
+  <div class="card">
+    <div class="icon">&#x1f4f7;</div>
+    <h4>Imagerie</h4>
+    <p>Cam&eacute;ra intra-orale, CBCT, radio panoramique, scanner STL, microscope</p>
+  </div>
+  <div class="card">
+    <div class="icon">&#x1f4c4;</div>
+    <h4>Documents</h4>
+    <p>Factures PDF, devis, ordonnances, certificats, courriers sp&eacute;cialistes</p>
+  </div>
+  <div class="card">
+    <div class="icon">&#x1f4b0;</div>
+    <h4>Finance</h4>
+    <p>Comptabilit&eacute;, banque, fournisseurs, laboratoire proth&egrave;se, mutuelle</p>
+  </div>
+</div>
+
+<div class="alert alert-gold">
+  <strong>Constat :</strong> Tout est fragment&eacute;. Aucun outil ne comprend le <em>contexte global</em> du cabinet.
+  Le praticien perd 1h30/jour en t&acirc;ches administratives qui pourraient &ecirc;tre automatis&eacute;es ou assist&eacute;es.
+</div>
+
+<h3>La solution JADOMI</h3>
+<p>
+Un <strong>assistant IA intelligent</strong> qui comprend le contexte du cabinet, lit les mails autoris&eacute;s,
+retrouve les documents, pr&eacute;pare les r&eacute;ponses, g&eacute;n&egrave;re des t&acirc;ches, et connecte les diff&eacute;rents flux.
+</p>
+<p>
+<strong>Inspirations :</strong> Notion AI (m&eacute;moire + recherche), Microsoft Copilot (Office),
+Claude Connectors (int&eacute;grations), Slack AI (r&eacute;sum&eacute;s), ClickUp AI (t&acirc;ches).
+Mais sp&eacute;cialis&eacute; cabinets dentaires/m&eacute;dicaux.
+</p>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 2. ARCHITECTURE GLOBALE -->
+<!-- ============================================================ -->
+<section id="archi">
+<h2><span class="num">02.</span> Architecture globale</h2>
+
+<div class="diagram">
+<span class="hl">                    JADOMI — ARCHITECTURE CABINET BRAIN</span>
+
+    ┌─────────────────────────────────────────────────────────────────┐
+    │                    <span class="bl">JADOMI CLOUD (VPS OVH / HDS)</span>                  │
+    │                                                                 │
+    │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
+    │  │<span class="gr"> Cabinet  </span>│  │<span class="pr"> Mail     </span>│  │<span class="hl"> Task     </span>│  │<span class="bl"> Dashboard   </span>│   │
+    │  │<span class="gr"> Brain    </span>│  │<span class="pr"> Copilot  </span>│  │<span class="hl"> Engine   </span>│  │<span class="bl"> Web + API   </span>│   │
+    │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬───────┘   │
+    │       │              │              │               │           │
+    │  ┌────┴──────────────┴──────────────┴───────────────┴────────┐  │
+    │  │              <span class="hl">IA Router (Ollama → Mistral → Claude)</span>        │  │
+    │  │              + Data Guard (PII sanitizer)                  │  │
+    │  │              + Shared Intelligence (event bus)             │  │
+    │  └────┬──────────────┬──────────────┬───────────────┬────────┘  │
+    │       │              │              │               │           │
+    │  ┌────┴────┐   ┌─────┴────┐   ┌────┴─────┐   ┌────┴────────┐  │
+    │  │<span class="gr">Supabase </span>│   │<span class="pr">Connecteurs</span>│   │<span class="bl">R2 Storage</span>│   │<span class="hl">Cron / Queue</span>│  │
+    │  │<span class="gr">PostgreSQL</span>│   │<span class="pr">Framework </span>│   │<span class="bl">Cloudflare</span>│   │<span class="hl">node-cron   </span>│  │
+    │  └─────────┘   └──────────┘   └──────────┘   └─────────────┘  │
+    └──────────────────────┬──────────────────────────────────────────┘
+                           │
+              <span class="rd">TLS 1.3 + mTLS + JWT + chiffrement E2E</span>
+                           │
+    ┌──────────────────────┴──────────────────────────────────────────┐
+    │                  <span class="hl">JADOMI DESKTOP AGENT (Tauri v2)</span>                │
+    │                                                                 │
+    │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │
+    │  │ File     │  │ OCR      │  │ Connector│  │ Sync         │   │
+    │  │ Watcher  │  │ Local    │  │ Bridge   │  │ Engine       │   │
+    │  └──────────┘  └──────────┘  └──────────┘  └──────────────┘   │
+    │                                                                 │
+    │  Surveille dossiers · Import PDF/STL · OCR hors-ligne          │
+    │  Pont logiciels dentaires · Sync cloud bidirectionnelle        │
+    └─────────────────────────────────────────────────────────────────┘
+                           │
+    ┌──────────────────────┴──────────────────────────────────────────┐
+    │                       <span class="gr">PERIPHERIQUES CABINET</span>                     │
+    │  Logos_w · Doctolib · Gmail · Outlook · Cam&eacute;ra intra-orale      │
+    │  Scanner STL · Imprimante 3D · CBCT · Dossiers Windows/Mac    │
+    └─────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>Flux de donn&eacute;es principal</h3>
+<ol>
+  <li><strong>Capture</strong> &mdash; Le Desktop Agent surveille les dossiers, capture les PDF/STL/images, fait l'OCR local</li>
+  <li><strong>Sync</strong> &mdash; Les donn&eacute;es sont chiffr&eacute;es et envoy&eacute;es au Cloud via WebSocket/HTTPS</li>
+  <li><strong>Intelligence</strong> &mdash; Le Cabinet Brain indexe, classifie, et enrichit (IA multi-niveaux)</li>
+  <li><strong>Action</strong> &mdash; Le Task Engine g&eacute;n&egrave;re des t&acirc;ches, le Mail Copilot pr&eacute;pare des r&eacute;ponses</li>
+  <li><strong>Restitution</strong> &mdash; Le Dashboard affiche r&eacute;sum&eacute;s, alertes, et suggestions au praticien</li>
+</ol>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 3. DESKTOP AGENT -->
+<!-- ============================================================ -->
+<section id="desktop">
+<h2><span class="num">03.</span> JADOMI Desktop Agent</h2>
+<p class="lead">
+Application l&eacute;g&egrave;re install&eacute;e sur le PC du cabinet. Tourne en arri&egrave;re-plan, ic&ocirc;ne dans la barre syst&egrave;me.
+</p>
+
+<h3>Choix technologique : Tauri v2</h3>
+
+<table>
+  <tr>
+    <th>Crit&egrave;re</th>
+    <th>Tauri v2</th>
+    <th>Electron</th>
+    <th>Flutter Desktop</th>
+  </tr>
+  <tr>
+    <td>Taille binaire</td>
+    <td><span class="tag tag-green">~8 MB</span></td>
+    <td><span class="tag tag-red">~150 MB</span></td>
+    <td><span class="tag tag-orange">~25 MB</span></td>
+  </tr>
+  <tr>
+    <td>RAM au repos</td>
+    <td><span class="tag tag-green">~30 MB</span></td>
+    <td><span class="tag tag-red">~150 MB</span></td>
+    <td><span class="tag tag-orange">~80 MB</span></td>
+  </tr>
+  <tr>
+    <td>Acc&egrave;s filesystem natif</td>
+    <td><span class="tag tag-green">Natif Rust</span></td>
+    <td><span class="tag tag-green">Node.js</span></td>
+    <td><span class="tag tag-orange">Plugins</span></td>
+  </tr>
+  <tr>
+    <td>S&eacute;curit&eacute;</td>
+    <td><span class="tag tag-green">Sandbox Rust</span></td>
+    <td><span class="tag tag-red">Node.js complet</span></td>
+    <td><span class="tag tag-orange">Moyen</span></td>
+  </tr>
+  <tr>
+    <td>Auto-update</td>
+    <td><span class="tag tag-green">Int&eacute;gr&eacute;</span></td>
+    <td><span class="tag tag-green">Int&eacute;gr&eacute;</span></td>
+    <td><span class="tag tag-red">Manuel</span></td>
+  </tr>
+  <tr>
+    <td>App mobile partag&eacute;e</td>
+    <td><span class="tag tag-orange">v2 (Android/iOS)</span></td>
+    <td><span class="tag tag-red">Non</span></td>
+    <td><span class="tag tag-green">Natif</span></td>
+  </tr>
+</table>
+
+<div class="alert alert-gold">
+  <strong>Recommandation :</strong> Tauri v2 pour le Desktop Agent (l&eacute;ger, s&eacute;curis&eacute;, Rust natif pour file watcher + OCR).
+  Flutter reste pour l'app mobile patient/praticien (d&eacute;j&agrave; cod&eacute;e). Pas de conflit : 2 apps, 2 contextes.
+</div>
+
+<h3>Modules du Desktop Agent</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>File Watcher</h4>
+    <p>Surveillance de dossiers configur&eacute;s (Documents, T&eacute;l&eacute;chargements, export Logos_w).
+    D&eacute;tection nouveaux fichiers par polling + <code>notify</code> (crate Rust).
+    Filtres : PDF, STL, OBJ, PLY, DICOM, JPG/PNG, XLSX, CSV.</p>
+  </div>
+  <div class="card">
+    <h4>OCR Local</h4>
+    <p>Tesseract (via <code>leptess</code> crate Rust) pour extraction texte hors-ligne.
+    Aucune donn&eacute;e patient ne quitte le PC pour l'OCR.
+    Enrichissement IA c&ocirc;t&eacute; cloud apr&egrave;s anonymisation.</p>
+  </div>
+  <div class="card">
+    <h4>Connector Bridge</h4>
+    <p>Pont vers les logiciels locaux : lecture base Firebird (Logos_w),
+    lecture exports CSV/XML (Julie, Visiodent), interception fichiers cam&eacute;ra.
+    Mode read-only strict &mdash; jamais d'&eacute;criture dans le logiciel source.</p>
+  </div>
+  <div class="card">
+    <h4>Sync Engine</h4>
+    <p>File d'attente locale (SQLite) + sync cloud via HTTPS/WebSocket.
+    Chiffrement AES-256-GCM avant envoi. Reprise sur coupure.
+    Delta sync (ne renvoie que les changements).</p>
+  </div>
+  <div class="card">
+    <h4>Tray UI</h4>
+    <p>Ic&ocirc;ne barre syst&egrave;me avec statut sync (vert/orange/rouge).
+    Menu : Ouvrir dashboard, Param&egrave;tres, Dossiers surveill&eacute;s, Pause/Reprendre, D&eacute;connexion.
+    Mini-fen&ecirc;tre WebView pour les notifications.</p>
+  </div>
+  <div class="card">
+    <h4>Auto-Updater</h4>
+    <p>Mise &agrave; jour silencieuse via Tauri updater int&eacute;gr&eacute;.
+    V&eacute;rification signature RSA du binaire.
+    Rollback automatique si crash post-update.</p>
+  </div>
+</div>
+
+<h3>Structure du projet Tauri</h3>
+<div class="diagram">
+jadomi-desktop/
+├── src-tauri/                    <span class="hl"># Backend Rust</span>
+│   ├── src/
+│   │   ├── main.rs              <span class="gr"># Point d'entr&eacute;e, setup tray + watcher</span>
+│   │   ├── file_watcher.rs      <span class="gr"># Surveillance dossiers (notify crate)</span>
+│   │   ├── ocr.rs               <span class="gr"># Tesseract local (leptess)</span>
+│   │   ├── sync_engine.rs       <span class="gr"># Queue SQLite + upload chiffr&eacute;</span>
+│   │   ├── connector_bridge.rs  <span class="gr"># Lecture Logos_w / exports CSV</span>
+│   │   ├── crypto.rs            <span class="gr"># AES-256-GCM, cl&eacute;s, tokens</span>
+│   │   ├── config.rs            <span class="gr"># Pr&eacute;f&eacute;rences utilisateur</span>
+│   │   └── commands.rs          <span class="gr"># API Tauri &harr; frontend</span>
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── src/                          <span class="bl"># Frontend (HTML/CSS/JS ou React)</span>
+│   ├── index.html               <span class="bl"># Dashboard mini</span>
+│   ├── settings.html            <span class="bl"># Configuration dossiers/connecteurs</span>
+│   └── js/
+│       ├── sync-status.js
+│       └── connector-ui.js
+├── icons/                        <span class="pr"># Ic&ocirc;nes tray/app</span>
+└── package.json
+</div>
+
+<h3>S&eacute;quence d'installation utilisateur</h3>
+<ol>
+  <li>T&eacute;l&eacute;chargement depuis jadomi.fr/desktop (MSI Windows, DMG Mac)</li>
+  <li>Installation en 1 clic (pas d'admin Windows requis &mdash; user-space)</li>
+  <li>Login avec compte JADOMI (m&ecirc;me identifiants que le web)</li>
+  <li>Assistant de configuration : choisir les dossiers &agrave; surveiller</li>
+  <li>D&eacute;tection automatique des logiciels install&eacute;s (Logos_w, Julie...)</li>
+  <li>Premi&egrave;re sync : import initial des documents d&eacute;tect&eacute;s</li>
+  <li>L'agent passe en arri&egrave;re-plan (tray icon)</li>
+</ol>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 4. JADOMI CLOUD -->
+<!-- ============================================================ -->
+<section id="cloud">
+<h2><span class="num">04.</span> JADOMI Cloud</h2>
+<p class="lead">
+Serveur central s&eacute;curis&eacute;. C'est le c&oelig;ur du syst&egrave;me &mdash; IA, stockage, synchronisation, dashboard.
+</p>
+
+<h3>Architecture serveur</h3>
+<div class="diagram">
+<span class="hl">                         JADOMI CLOUD</span>
+
+  ┌─────────────────────────────────────────────────────┐
+  │  <span class="bl">NGINX (reverse proxy, TLS 1.3, rate limit)</span>         │
+  └────────────────────────┬────────────────────────────┘
+                           │
+  ┌────────────────────────┴────────────────────────────┐
+  │  <span class="gr">Node.js / Express (PM2 cluster mode)</span>               │
+  │                                                      │
+  │  ├── /api/brain/*        <span class="hl">Cabinet Brain API</span>          │
+  │  ├── /api/copilot/*      <span class="pr">Mail Copilot API</span>           │
+  │  ├── /api/tasks/*        <span class="hl">Task Engine API</span>            │
+  │  ├── /api/sync/*         <span class="bl">Desktop Sync API</span>           │
+  │  ├── /api/search/*       <span class="gr">Recherche intelligente</span>     │
+  │  ├── /api/connector/*    <span class="pr">Connecteurs (existant)</span>     │
+  │  ├── /api/ia-*           <span class="hl">Modules IA (existants)</span>     │
+  │  ├── /ws/desktop         <span class="bl">WebSocket Desktop Agent</span>    │
+  │  └── /ws/realtime        <span class="bl">WebSocket Dashboard</span>        │
+  └────────────────────────┬────────────────────────────┘
+                           │
+  ┌────────┬───────────────┼───────────────┬────────────┐
+  │        │               │               │            │
+  ▼        ▼               ▼               ▼            ▼
+<span class="gr">Supabase</span>  <span class="bl">R2</span>          <span class="hl">IA Router</span>     <span class="pr">Redis*</span>     <span class="hl">BullMQ*</span>
+PostgreSQL Cloudflare  Ollama/Mistral  Cache/PubSub  Job Queue
+           (fichiers)  /Claude         (futur)      (futur)
+</div>
+
+<div class="alert alert-blue">
+  <strong>*Redis + BullMQ :</strong> ajout&eacute;s en Phase 2 quand le volume justifie une queue de jobs
+  (> 50 cabinets). En Phase 1, <code>node-cron</code> + EventEmitter suffisent largement.
+</div>
+
+<h3>Modules Cloud &agrave; cr&eacute;er</h3>
+
+<table>
+  <tr>
+    <th>Module</th>
+    <th>Fichier</th>
+    <th>R&ocirc;le</th>
+    <th>Priorit&eacute;</th>
+  </tr>
+  <tr>
+    <td><strong>Brain API</strong></td>
+    <td><code>api/brain/index.js</code></td>
+    <td>M&eacute;moire cabinet CRUD + recherche s&eacute;mantique</td>
+    <td><span class="tag tag-red">P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>Mail Copilot API</strong></td>
+    <td><code>api/copilot/mail.js</code></td>
+    <td>OAuth, lecture, classement, pr&eacute;paration r&eacute;ponses</td>
+    <td><span class="tag tag-red">P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>Task Engine</strong></td>
+    <td><code>api/tasks/engine.js</code></td>
+    <td>T&acirc;ches auto-g&eacute;n&eacute;r&eacute;es + manuelles + rappels</td>
+    <td><span class="tag tag-orange">P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>Sync API</strong></td>
+    <td><code>api/sync/index.js</code></td>
+    <td>R&eacute;ception fichiers Desktop Agent + delta sync</td>
+    <td><span class="tag tag-orange">P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>Search Engine</strong></td>
+    <td><code>api/search/index.js</code></td>
+    <td>Recherche full-text + s&eacute;mantique (pgvector)</td>
+    <td><span class="tag tag-blue">P2</span></td>
+  </tr>
+  <tr>
+    <td><strong>Morning Digest</strong></td>
+    <td><code>lib/brain/digest.js</code></td>
+    <td>R&eacute;sum&eacute; matinal automatis&eacute; par cabinet</td>
+    <td><span class="tag tag-blue">P2</span></td>
+  </tr>
+</table>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 5. CABINET BRAIN -->
+<!-- ============================================================ -->
+<section id="brain">
+<h2><span class="num">05.</span> JADOMI Cabinet Brain</h2>
+<p class="lead">
+M&eacute;moire structur&eacute;e et &eacute;volutive du cabinet. Le Brain apprend progressivement les habitudes, les pr&eacute;f&eacute;rences, et le contexte de chaque cabinet.
+</p>
+
+<h3>Mod&egrave;le de donn&eacute;es Brain</h3>
+
+<div class="diagram">
+<span class="hl">cabinet_brain</span> (table principale — 1 row par cabinet)
+├── id (uuid, PK)
+├── societe_id (FK → societes)
+├── identity JSONB         <span class="gr"># SIRET, TVA, RPPS, n° Ordre, banque...</span>
+├── team JSONB             <span class="gr"># salari&eacute;s, r&ocirc;les, horaires, cong&eacute;s</span>
+├── contacts JSONB         <span class="gr"># comptable, banque, avocat, assureur...</span>
+├── preferences JSONB      <span class="gr"># r&egrave;gles mails, ton, workflows...</span>
+├── workflows JSONB[]      <span class="gr"># s&eacute;quences automatis&eacute;es apprises</span>
+├── updated_at timestamp
+
+<span class="bl">cabinet_brain_documents</span> (index des documents du cabinet)
+├── id (uuid, PK)
+├── societe_id (FK)
+├── source (enum: desktop_agent, mail, upload, scan, connector)
+├── type (enum: facture, devis, ordonnance, certificat, contrat, stl, radio, photo, courrier, autre)
+├── title text
+├── content_text text       <span class="gr"># OCR / extraction texte</span>
+├── metadata JSONB          <span class="gr"># montant, TVA, fournisseur, patient, date_doc...</span>
+├── embedding vector(1536)  <span class="gr"># pgvector pour recherche s&eacute;mantique</span>
+├── storage_path text       <span class="gr"># chemin R2 ou local</span>
+├── checksum text           <span class="gr"># SHA-256 int&eacute;grit&eacute;</span>
+├── indexed_at timestamp
+
+<span class="pr">cabinet_brain_events</span> (journal d'&eacute;v&eacute;nements — apprentissage)
+├── id (uuid, PK)
+├── societe_id (FK)
+├── event_type text         <span class="gr"># mail_received, document_filed, task_created...</span>
+├── context JSONB           <span class="gr"># qui, quoi, quand, r&eacute;sultat</span>
+├── user_action text        <span class="gr"># ce que l'utilisateur a fait (correction Brain)</span>
+├── created_at timestamp
+
+<span class="hl">cabinet_brain_rules</span> (r&egrave;gles apprises / configur&eacute;es)
+├── id (uuid, PK)
+├── societe_id (FK)
+├── category text           <span class="gr"># mail, compta, agenda, fournisseur, patient...</span>
+├── rule_text text          <span class="gr"># "Mails comptables → ton professionnel"</span>
+├── conditions JSONB        <span class="gr"># quand appliquer</span>
+├── actions JSONB           <span class="gr"># que faire</span>
+├── confidence float        <span class="gr"># 0.0 → 1.0 (apprise vs configur&eacute;e)</span>
+├── source text             <span class="gr"># 'user_configured' | 'learned' | 'default'</span>
+├── active boolean
+</div>
+
+<h3>Comment le Brain apprend</h3>
+
+<div class="diagram">
+<span class="hl">BOUCLE D'APPRENTISSAGE CABINET BRAIN</span>
+
+  1. <span class="bl">OBSERVATION</span>
+     Le Brain observe les actions de l'utilisateur :
+     → Mail class&eacute; dans "Comptabilit&eacute;" → le Brain retient le pattern
+     → Document renomm&eacute; de "scan_001" → "Facture GACD mars 2026"
+     → T&acirc;che cr&eacute;&eacute;e manuellement apr&egrave;s r&eacute;ception d'un mail fournisseur
+
+  2. <span class="gr">EXTRACTION DE PATTERN</span>
+     IA (Mistral Small, co&ucirc;t ~0€) analyse les s&eacute;quences r&eacute;p&eacute;t&eacute;es :
+     → "Chaque facture GACD est class&eacute;e en Comptabilit&eacute;"
+     → "Chaque mail du comptable re&ccedil;oit une r&eacute;ponse sous 24h"
+     → "Le lundi matin, le Dr v&eacute;rifie toujours les mails banque en premier"
+
+  3. <span class="hl">PROPOSITION DE REGLE</span>
+     Le Brain propose : "Voulez-vous que je classe automatiquement
+     les factures GACD en Comptabilit&eacute; ?"
+     → Oui → r&egrave;gle cr&eacute;&eacute;e (confidence: 1.0, source: 'user_configured')
+     → Non → pattern not&eacute; mais pas de r&egrave;gle (confidence: 0.3)
+
+  4. <span class="pr">APPLICATION</span>
+     Les r&egrave;gles valid&eacute;es s'appliquent automatiquement.
+     Les r&egrave;gles apprises (confidence > 0.7) s'appliquent avec notification.
+     Les r&egrave;gles incertaines (confidence < 0.7) → suggestion uniquement.
+
+  5. <span class="rd">CORRECTION</span>
+     Si l'utilisateur corrige une action automatique :
+     → confidence baisse de 0.2
+     → Si < 0.3 → r&egrave;gle d&eacute;sactiv&eacute;e
+     → Le Brain ne refait plus la m&ecirc;me erreur
+</div>
+
+<h3>Exemples de r&egrave;gles Brain</h3>
+
+<table>
+  <tr>
+    <th>Cat&eacute;gorie</th>
+    <th>R&egrave;gle</th>
+    <th>Action</th>
+    <th>Source</th>
+  </tr>
+  <tr>
+    <td>Mail</td>
+    <td>Mail du comptable M. Dupont</td>
+    <td>Ton professionnel, joindre docs si disponibles, ne jamais valider un montant seul</td>
+    <td><span class="tag tag-gold">Configur&eacute;e</span></td>
+  </tr>
+  <tr>
+    <td>Compta</td>
+    <td>Facture fournisseur > 500&euro;</td>
+    <td>Cr&eacute;er t&acirc;che "V&eacute;rifier montant" + notifier</td>
+    <td><span class="tag tag-gold">Configur&eacute;e</span></td>
+  </tr>
+  <tr>
+    <td>Agenda</td>
+    <td>Patient Mme Martin annule souvent le vendredi</td>
+    <td>Sugg&eacute;rer cr&eacute;neau mardi/mercredi pour elle</td>
+    <td><span class="tag tag-purple">Apprise</span></td>
+  </tr>
+  <tr>
+    <td>Fournisseur</td>
+    <td>GACD livre toujours le mardi</td>
+    <td>Planifier commande le lundi soir</td>
+    <td><span class="tag tag-purple">Apprise</span></td>
+  </tr>
+  <tr>
+    <td>Document</td>
+    <td>STL re&ccedil;u du labo</td>
+    <td>Classer dans dossier patient + notifier praticien</td>
+    <td><span class="tag tag-gold">Configur&eacute;e</span></td>
+  </tr>
+</table>
+
+<h3>Recherche intelligente</h3>
+<p>Le Brain permet une recherche en langage naturel sur tous les documents et donn&eacute;es du cabinet :</p>
+<div class="diagram">
+<span class="bl">Exemples de recherches Brain :</span>
+
+  "Facture GACD de mars"
+  → Recherche hybride : full-text (trigram) + s&eacute;mantique (pgvector)
+  → R&eacute;sultat : Facture GACD n° 2026-0342, 1 245,80&euro; HT
+
+  "Combien on a d&eacute;pens&eacute; chez Henry Schein ce trimestre ?"
+  → Agr&eacute;gation SQL + r&eacute;ponse IA format&eacute;e
+  → R&eacute;sultat : 3 847,20&euro; HT (T1 2026), +12% vs T4 2025
+
+  "Le patient qui avait un probl&egrave;me de bridge la semaine derni&egrave;re"
+  → Recherche s&eacute;mantique sur notes cliniques + agenda
+  → R&eacute;sultat : M. Leroy, 14 mai, descellement bridge 36-37
+
+  "Envoie la facture du labo au comptable"
+  → Intent detection + action : retrouve la derni&egrave;re facture labo,
+    pr&eacute;pare le mail au comptable, attend validation
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 6. MAIL COPILOT -->
+<!-- ============================================================ -->
+<section id="copilot">
+<h2><span class="num">06.</span> JADOMI Mail Copilot</h2>
+<p class="lead">
+Assistant mail intelligent connect&eacute; via OAuth s&eacute;curis&eacute;. Lit, classifie, pr&eacute;pare, mais ne d&eacute;cide jamais seul pour les sujets sensibles.
+</p>
+
+<h3>Workflow OAuth s&eacute;curis&eacute;</h3>
+
+<div class="diagram">
+<span class="hl">FLUX OAUTH — CONNEXION MAIL</span>
+
+  1. Praticien clique "Connecter ma messagerie" dans JADOMI
+     │
+  2. Redirection vers Google/Microsoft/Yahoo OAuth
+     │  (scope limit&eacute; : <span class="gr">lecture seule + envoi</span>, PAS gestion compte)
+     │
+  3. Praticien autorise JADOMI sur son compte
+     │
+  4. OAuth retourne un <span class="bl">authorization code</span>
+     │
+  5. JADOMI &eacute;change le code contre <span class="hl">access_token + refresh_token</span>
+     │  Tokens stock&eacute;s chiffr&eacute;s (AES-256) en base
+     │  refresh_token permet de renouveler sans re-login
+     │
+  6. JADOMI lit les mails via IMAP (Google: <span class="gr">imap.gmail.com:993</span>)
+     │  ou API REST (Microsoft Graph, Gmail API)
+     │
+  <span class="rd">JAMAIS</span> de stockage de mot de passe utilisateur.
+  <span class="rd">JAMAIS</span> d'acc&egrave;s au-del&agrave; des scopes demand&eacute;s.
+  L'utilisateur peut r&eacute;voquer l'acc&egrave;s &agrave; tout moment.
+</div>
+
+<h3>Scopes OAuth demand&eacute;s</h3>
+
+<table>
+  <tr>
+    <th>Provider</th>
+    <th>Scopes</th>
+    <th>Ce que &ccedil;a permet</th>
+  </tr>
+  <tr>
+    <td>Gmail</td>
+    <td><code>gmail.readonly</code> + <code>gmail.send</code></td>
+    <td>Lire mails + envoyer (avec validation)</td>
+  </tr>
+  <tr>
+    <td>Outlook</td>
+    <td><code>Mail.Read</code> + <code>Mail.Send</code></td>
+    <td>Idem Microsoft Graph API</td>
+  </tr>
+  <tr>
+    <td>Yahoo</td>
+    <td><code>mail-r</code> + <code>mail-w</code></td>
+    <td>Lecture + envoi IMAP OAuth</td>
+  </tr>
+</table>
+
+<h3>Pipeline de traitement mail</h3>
+
+<div class="diagram">
+<span class="hl">PIPELINE MAIL COPILOT</span>
+
+  Mail re&ccedil;u
+     │
+     ▼
+  ┌──────────────────┐
+  │ <span class="bl">1. CLASSIFICATION</span> │  Mistral Small (0.13&euro;/M tokens)
+  │                  │  → Cat&eacute;gories : Comptabilit&eacute;, Fournisseur, Patient,
+  │                  │    Labo, Banque, Assurance, RH, Personnel, Spam
+  └────────┬─────────┘
+           │
+     ▼     ▼
+  ┌──────────────────┐
+  │ <span class="gr">2. EXTRACTION</span>    │  Si pi&egrave;ce jointe PDF :
+  │                  │  → OCR + extraction montant/TVA/ref/fournisseur
+  │                  │  → Classement auto dans documents Brain
+  └────────┬─────────┘
+           │
+     ▼     ▼
+  ┌──────────────────┐
+  │ <span class="hl">3. ENRICHISSEMENT</span>│  Croisement avec Cabinet Brain :
+  │                  │  → Fournisseur connu ? → historique commandes
+  │                  │  → Patient connu ? → dernier RDV, dossier
+  │                  │  → Comptable ? → r&egrave;gles de r&eacute;ponse sp&eacute;cifiques
+  └────────┬─────────┘
+           │
+     ▼     ▼
+  ┌──────────────────┐
+  │ <span class="pr">4. ACTION</span>       │  Selon r&egrave;gles Brain + niveau autonomie :
+  │                  │
+  │  Niveau 1 :      │  Pr&eacute;parer uniquement (brouillon + notification)
+  │  Niveau 2 :      │  Envoyer mails simples (confirmation RDV, accus&eacute;...)
+  │  Niveau 3 :      │  <span class="rd">VALIDATION OBLIGATOIRE</span> pour :
+  │                  │  juridique, comptable, RH, banque, montant > seuil
+  └──────────────────┘
+</div>
+
+<h3>R&eacute;sum&eacute; matinal</h3>
+<p>Chaque matin &agrave; l'heure configur&eacute;e (par d&eacute;faut 7h30), le Copilot g&eacute;n&egrave;re :</p>
+
+<div class="card" style="max-width: 600px; margin: 20px auto;">
+  <h4 style="color: var(--gold); margin-top: 0;">Bonjour Dr Bahmed,</h4>
+  <p style="margin: 8px 0;"><strong>3</strong> mails prioritaires</p>
+  <p style="margin: 8px 0;"><strong>2</strong> factures d&eacute;tect&eacute;es (GACD 845&euro; + Henry Schein 1 230&euro;)</p>
+  <p style="margin: 8px 0;"><strong>1</strong> relance banque (virement en attente depuis 5j)</p>
+  <p style="margin: 8px 0;"><strong>1</strong> fournisseur en attente de r&eacute;ponse (DentalEvolution &mdash; devis implants)</p>
+  <p style="margin: 8px 0;"><strong>2</strong> t&acirc;ches administratives g&eacute;n&eacute;r&eacute;es</p>
+  <p style="margin: 8px 0; font-size: 13px; color: var(--text-muted);">
+    R&eacute;ponses pr&eacute;par&eacute;es pour 2 mails. 1 n&eacute;cessite votre validation.
+  </p>
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 7. CONNECTEURS -->
+<!-- ============================================================ -->
+<section id="connecteurs">
+<h2><span class="num">07.</span> Connecteurs &amp; Int&eacute;grations</h2>
+
+<h3>Phases d'int&eacute;gration</h3>
+
+<table>
+  <tr>
+    <th>Phase</th>
+    <th>Int&eacute;grations</th>
+    <th>M&eacute;thode</th>
+    <th>Complexit&eacute;</th>
+  </tr>
+  <tr>
+    <td><span class="tag tag-green">Phase 1</span><br>MVP</td>
+    <td>Gmail, Outlook, Yahoo, Google Calendar, PDF, Excel, dossiers locaux</td>
+    <td>OAuth + IMAP + API REST + File Watcher</td>
+    <td>Moyenne</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-blue">Phase 2</span><br>V1</td>
+    <td>Doctolib, Logos_w, Julie, Visiodent</td>
+    <td>Compte secr&eacute;taire Doctolib (lecture seule), Firebird direct (Logos), CSV/XML (Julie, Visiodent)</td>
+    <td>&Eacute;lev&eacute;e</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-purple">Phase 3</span><br>V2</td>
+    <td>Cam&eacute;ras intra-orales, STL, scanners, imprimantes 3D, CBCT, microscopes</td>
+    <td>Desktop Agent (d&eacute;tection fichiers + TWAIN/WIA drivers)</td>
+    <td>Tr&egrave;s &eacute;lev&eacute;e</td>
+  </tr>
+</table>
+
+<h3>Framework de connecteurs (existant)</h3>
+<div class="alert alert-green">
+  <strong>D&eacute;j&agrave; cod&eacute; :</strong> <code>lib/connector/framework.js</code> avec classe abstraite <code>ConnectorAdapter</code>,
+  adaptateurs Logos_w (Firebird), Doctolib (Playwright + iCal), et CSV g&eacute;n&eacute;rique.
+  Le Desktop Agent r&eacute;utilise ce framework c&ocirc;t&eacute; serveur.
+</div>
+
+<h3>Diagramme connecteurs</h3>
+<div class="diagram">
+<span class="hl">CONNECTEURS JADOMI</span>
+
+  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+  │ <span class="gr">Gmail</span>       │    │ <span class="bl">Outlook</span>     │    │ <span class="pr">Yahoo</span>       │
+  │ OAuth 2.0   │    │ OAuth 2.0   │    │ OAuth 2.0   │
+  │ IMAP / API  │    │ Graph API   │    │ IMAP        │
+  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
+         │                  │                  │
+         └──────────────────┼──────────────────┘
+                            │
+                   ┌────────┴────────┐
+                   │ <span class="hl">Mail Copilot</span>    │
+                   │ (unifi&eacute;)        │
+                   └────────┬────────┘
+                            │
+  ┌─────────────┐    ┌──────┴──────┐    ┌─────────────┐
+  │ <span class="gr">Doctolib</span>    │    │ <span class="hl">BRAIN</span>       │    │ <span class="bl">Google Cal</span>  │
+  │ iCal/Pwght  │───▶│ Orchestrator│◀───│ CalDAV/API  │
+  └─────────────┘    └──────┬──────┘    └─────────────┘
+                            │
+  ┌─────────────┐    ┌──────┴──────┐    ┌─────────────┐
+  │ <span class="gr">Logos_w</span>     │    │ <span class="pr">Desktop</span>     │    │ <span class="bl">Dossiers</span>    │
+  │ Firebird    │───▶│ <span class="pr">Agent</span>       │◀───│ <span class="bl">Win/Mac</span>     │
+  └─────────────┘    └─────────────┘    └─────────────┘
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 8. SYSTEME IA -->
+<!-- ============================================================ -->
+<section id="ia">
+<h2><span class="num">08.</span> Syst&egrave;me d'agents IA</h2>
+<p class="lead">
+Architecture multi-agents sp&eacute;cialis&eacute;s, orchestr&eacute;s par le Brain, avec optimisation de co&ucirc;ts &agrave; 3 niveaux.
+</p>
+
+<h3>Router IA (existant, &agrave; enrichir)</h3>
+<div class="diagram">
+<span class="hl">ROUTER IA — 3 NIVEAUX DE COUT</span>
+
+  <span class="gr">Niveau 1 — GRATUIT (instant)</span>
+  ├── Moteur de r&egrave;gles local (regex, lookup tables)
+  ├── Classification d'intent (compromise.js + natural.js)
+  ├── D&eacute;tection actes dentaires (FDI, CCAM)
+  ├── Alertes m&eacute;dicales (AVK, bisphosphonates)
+  └── Templates de r&eacute;ponse pr&eacute;-configur&eacute;s
+
+  <span class="bl">Niveau 2 — LOW-COST (1-5s)</span>
+  ├── Ollama local Qwen 2.5:14B (0&euro;, extraction structur&eacute;e)
+  ├── Mistral Small API (0.13&euro;/M tokens, chat/classif)
+  ├── Mistral Pixtral (0.13&euro;/M, vision/OCR)
+  └── DeepSeek Chat (0.14&euro;/M, catalogues)
+
+  <span class="hl">Niveau 3 — PREMIUM (2-15s)</span>
+  ├── Claude Sonnet (3&euro;/M, documents complexes, g&eacute;n&eacute;ration)
+  └── GPT-4o (2.5&euro;/M, Whisper transcription)
+
+  <span class="rd">REGLE : Toujours essayer Niveau 1, puis 2, puis 3.</span>
+  <span class="rd">Objectif : 80% des requ&ecirc;tes trait&eacute;es en Niveau 1-2 (co&ucirc;t ~0&euro;).</span>
+</div>
+
+<h3>Agents sp&eacute;cialis&eacute;s</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>Agent Classifieur</h4>
+    <p><span class="tag tag-green">Niveau 1-2</span><br>
+    Classifie les mails, documents, et &eacute;v&eacute;nements.
+    Utilise d'abord des r&egrave;gles (exp&eacute;diteur connu → cat&eacute;gorie), puis IA si ambigu&iuml;t&eacute;.</p>
+  </div>
+  <div class="card">
+    <h4>Agent Extracteur</h4>
+    <p><span class="tag tag-blue">Niveau 2</span><br>
+    Extrait donn&eacute;es structur&eacute;es des PDF : montants, TVA, r&eacute;f&eacute;rences, dates.
+    OCR local (Tesseract) + enrichissement Mistral Pixtral.</p>
+  </div>
+  <div class="card">
+    <h4>Agent R&eacute;dacteur</h4>
+    <p><span class="tag tag-gold">Niveau 2-3</span><br>
+    G&eacute;n&egrave;re brouillons de r&eacute;ponse mail, certificats, courriers.
+    Respecte le ton configur&eacute; par le Brain (professionnel, chaleureux...).</p>
+  </div>
+  <div class="card">
+    <h4>Agent Planificateur</h4>
+    <p><span class="tag tag-green">Niveau 1-2</span><br>
+    G&egrave;re les t&acirc;ches, les rappels, les deadlines.
+    D&eacute;tection automatique des dates dans les mails et documents.</p>
+  </div>
+  <div class="card">
+    <h4>Agent Comptable</h4>
+    <p><span class="tag tag-blue">Niveau 2</span><br>
+    Rapprochement factures/commandes, alertes &eacute;carts,
+    pr&eacute;paration exports comptable (FEC, Factur-X).</p>
+  </div>
+  <div class="card">
+    <h4>Agent S&eacute;curit&eacute;</h4>
+    <p><span class="tag tag-red">Toujours actif</span><br>
+    Sanitise PII avant envoi IA externe (Data Guard).
+    V&eacute;rifie les r&egrave;gles RGPD/HDS. Audit trail.</p>
+  </div>
+</div>
+
+<h3>Logique m&eacute;moire IA (Knowledge Store)</h3>
+<div class="diagram">
+<span class="hl">STOCKAGE DES CONNAISSANCES DU CABINET</span>
+
+  ┌─────────────────────────────────────────────┐
+  │ <span class="gr">1. STRUCTURED KNOWLEDGE (PostgreSQL)</span>         │
+  │    Identit&eacute; cabinet, contacts, r&egrave;gles,        │
+  │    historique fournisseurs, patients          │
+  │    → Requetable SQL, rapide, certain         │
+  └─────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────┐
+  │ <span class="bl">2. SEMANTIC KNOWLEDGE (pgvector)</span>             │
+  │    Embeddings de documents, notes cliniques,  │
+  │    mails, conversations                       │
+  │    → Recherche s&eacute;mantique, similarit&eacute;        │
+  └─────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────┐
+  │ <span class="pr">3. BEHAVIORAL KNOWLEDGE (events)</span>             │
+  │    Actions utilisateur, corrections,          │
+  │    patterns d&eacute;tect&eacute;s, r&egrave;gles apprises          │
+  │    → Apprentissage, personnalisation          │
+  └─────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────┐
+  │ <span class="hl">4. CONTEXT WINDOW (in-memory)</span>                │
+  │    Session courante, conversation active,     │
+  │    documents r&eacute;cemment consult&eacute;s              │
+  │    → R&eacute;ponse contextuelle imm&eacute;diate           │
+  └─────────────────────────────────────────────┘
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 9. SECURITE -->
+<!-- ============================================================ -->
+<section id="securite">
+<h2><span class="num">09.</span> S&eacute;curit&eacute;, RGPD &amp; HDS</h2>
+
+<div class="alert alert-red">
+  <strong>CRITIQUE :</strong> Les donn&eacute;es de sant&eacute; sont soumises &agrave; la r&eacute;glementation HDS
+  (H&eacute;bergement de Donn&eacute;es de Sant&eacute;) en France, au RGPD europ&eacute;en,
+  et au secret m&eacute;dical (art. L1110-4 du Code de la sant&eacute; publique).
+</div>
+
+<h3>Architecture s&eacute;curit&eacute;</h3>
+
+<table>
+  <tr>
+    <th>Couche</th>
+    <th>Mesure</th>
+    <th>&Eacute;tat</th>
+  </tr>
+  <tr>
+    <td><strong>Transport</strong></td>
+    <td>TLS 1.3 obligatoire, HSTS, mTLS Desktop &harr; Cloud</td>
+    <td><span class="tag tag-green">Fait</span> (TLS) / <span class="tag tag-orange">MVP</span> (mTLS)</td>
+  </tr>
+  <tr>
+    <td><strong>Authentification</strong></td>
+    <td>Supabase Auth + MFA TOTP + JWT sign&eacute;s + refresh tokens</td>
+    <td><span class="tag tag-green">Fait</span></td>
+  </tr>
+  <tr>
+    <td><strong>Autorisation</strong></td>
+    <td>RLS Supabase (39 policies), RBAC, societe_id scoping</td>
+    <td><span class="tag tag-green">Fait</span></td>
+  </tr>
+  <tr>
+    <td><strong>Chiffrement repos</strong></td>
+    <td>AES-256-GCM pour tokens OAuth, documents sensibles, coffre-fort</td>
+    <td><span class="tag tag-green">Fait</span> (coffre) / <span class="tag tag-orange">MVP</span> (tokens)</td>
+  </tr>
+  <tr>
+    <td><strong>PII Sanitizer</strong></td>
+    <td>Data Guard : scrub RPPS, NIR, IBAN, noms patients avant IA externe</td>
+    <td><span class="tag tag-green">Fait</span></td>
+  </tr>
+  <tr>
+    <td><strong>Audit Trail</strong></td>
+    <td>Log de toutes les actions sensibles (acc&egrave;s documents, envoi mails)</td>
+    <td><span class="tag tag-orange">MVP</span></td>
+  </tr>
+  <tr>
+    <td><strong>RGPD</strong></td>
+    <td>DPO d&eacute;sign&eacute;, registre traitements, consentements, droit &agrave; l'oubli</td>
+    <td><span class="tag tag-orange">MVP</span></td>
+  </tr>
+  <tr>
+    <td><strong>HDS</strong></td>
+    <td>H&eacute;bergeur certifi&eacute; (OVH Healthcare ou Scaleway HDS)</td>
+    <td><span class="tag tag-red">&Agrave; migrer</span></td>
+  </tr>
+</table>
+
+<h3>Flux s&eacute;curit&eacute; Desktop &harr; Cloud</h3>
+<div class="diagram">
+<span class="hl">SECURITE DESKTOP AGENT ↔ CLOUD</span>
+
+  Desktop Agent                          Cloud
+  ┌──────────┐                          ┌──────────┐
+  │ Document │                          │ API      │
+  │ d&eacute;tect&eacute;  │                          │ /sync    │
+  └────┬─────┘                          └────┬─────┘
+       │                                     │
+  1. OCR local (texte extrait)               │
+  2. Hash SHA-256 (int&eacute;grit&eacute;)                │
+  3. <span class="gr">Chiffrement AES-256-GCM</span>               │
+     (cl&eacute; d&eacute;riv&eacute;e du JWT utilisateur)       │
+  4. Envoi HTTPS POST ──────────────────────▶│
+       │                                     │
+       │    <span class="rd">TLS 1.3 (canal chiffr&eacute;)</span>         │
+       │    + payload chiffr&eacute; E2E            │
+       │    = double chiffrement             │
+       │                                     │
+       │                          5. V&eacute;rification JWT
+       │                          6. D&eacute;chiffrement AES
+       │                          7. V&eacute;rification hash
+       │                          8. <span class="hl">Data Guard (PII scrub)</span>
+       │                          9. Indexation + stockage R2
+       │                          10. Audit log
+       │◀────────────── ACK ────────────────│
+</div>
+
+<h3>R&egrave;gles IA et donn&eacute;es de sant&eacute;</h3>
+<ul>
+  <li><strong>JAMAIS</strong> de donn&eacute;es patient identifiantes envoy&eacute;es &agrave; une IA externe (Claude, Mistral, DeepSeek)</li>
+  <li>Data Guard scrub AVANT chaque appel IA externe : noms, NIR, RPPS, dates de naissance</li>
+  <li>Ollama local pour les donn&eacute;es sensibles (0 fuite, 0 co&ucirc;t)</li>
+  <li>DeepSeek = catalogues produits UNIQUEMENT (jamais donn&eacute;es sant&eacute;)</li>
+  <li>Logs IA purg&eacute;s apr&egrave;s 90 jours (configurable)</li>
+  <li>Le patient peut demander l'export et la suppression de ses donn&eacute;es (RGPD art. 17)</li>
+</ul>
+
+<h3>Migration HDS</h3>
+<div class="alert alert-gold">
+  <strong>Pr&eacute;vu :</strong> Migration vers serveur certifi&eacute; HDS (OVH Healthcare / Scaleway HDS).
+  Devis OVH re&ccedil;u. Obligatoire d&egrave;s qu'on stocke des donn&eacute;es de sant&eacute; &agrave; caract&egrave;re personnel.
+  En attendant, les donn&eacute;es de sant&eacute; restent dans Supabase (chiffr&eacute;es) avec RLS strict.
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 10. STACK TECHNIQUE -->
+<!-- ============================================================ -->
+<section id="stack">
+<h2><span class="num">10.</span> Stack technique compl&egrave;te</h2>
+
+<h3>Backend (Cloud)</h3>
+<table>
+  <tr><th>Composant</th><th>Technologie</th><th>Justification</th></tr>
+  <tr><td>Runtime</td><td><code>Node.js 20 LTS</code></td><td>D&eacute;j&agrave; en prod, &eacute;cosyst&egrave;me riche, async natif</td></tr>
+  <tr><td>Framework</td><td><code>Express 4</code></td><td>D&eacute;j&agrave; en prod, 200+ routes existantes</td></tr>
+  <tr><td>Process manager</td><td><code>PM2 (cluster)</code></td><td>Zero-downtime reload, monitoring</td></tr>
+  <tr><td>Database</td><td><code>Supabase PostgreSQL</code></td><td>RLS, Auth, Realtime, pgvector</td></tr>
+  <tr><td>Cache (futur)</td><td><code>Redis / Valkey</code></td><td>Sessions, PubSub, cache IA, rate limiting</td></tr>
+  <tr><td>Queue (futur)</td><td><code>BullMQ</code></td><td>Jobs asynchrones (OCR, digest, sync)</td></tr>
+  <tr><td>Storage</td><td><code>Cloudflare R2</code></td><td>S3-compatible, pas d'egress fees, CDN natif</td></tr>
+  <tr><td>WebSocket</td><td><code>ws</code> (natif Node)</td><td>Sync Desktop, Realtime dashboard</td></tr>
+  <tr><td>Cron</td><td><code>node-cron</code></td><td>Digest matinal, sync p&eacute;riodique, alertes</td></tr>
+</table>
+
+<h3>IA</h3>
+<table>
+  <tr><th>Provider</th><th>Mod&egrave;le</th><th>Usage</th><th>Co&ucirc;t</th></tr>
+  <tr><td>Local</td><td>R&egrave;gles + NLP (compromise/natural)</td><td>Classification, d&eacute;tection intent</td><td><span class="tag tag-green">0&euro;</span></td></tr>
+  <tr><td>Ollama</td><td>Qwen 2.5:14B</td><td>Extraction structur&eacute;e, matching</td><td><span class="tag tag-green">0&euro;</span></td></tr>
+  <tr><td>Mistral</td><td>mistral-small + pixtral</td><td>Chat, classif, OCR vision</td><td><span class="tag tag-blue">0.13&euro;/M</span></td></tr>
+  <tr><td>DeepSeek</td><td>deepseek-chat</td><td>Catalogues, g&eacute;n&eacute;ration</td><td><span class="tag tag-blue">0.14&euro;/M</span></td></tr>
+  <tr><td>Anthropic</td><td>Claude Sonnet</td><td>Documents complexes, fallback</td><td><span class="tag tag-gold">3&euro;/M</span></td></tr>
+  <tr><td>OpenAI</td><td>Whisper</td><td>Transcription vocale</td><td><span class="tag tag-blue">0.006&euro;/min</span></td></tr>
+  <tr><td>Embeddings</td><td>pgvector + Mistral Embed</td><td>Recherche s&eacute;mantique documents</td><td><span class="tag tag-blue">0.1&euro;/M</span></td></tr>
+</table>
+
+<h3>Desktop Agent</h3>
+<table>
+  <tr><th>Composant</th><th>Technologie</th><th>Justification</th></tr>
+  <tr><td>Shell</td><td><code>Tauri v2</code></td><td>L&eacute;ger (8 MB), Rust natif, s&eacute;curis&eacute;</td></tr>
+  <tr><td>Backend natif</td><td><code>Rust</code></td><td>File watcher, OCR, crypto, perfs</td></tr>
+  <tr><td>Frontend</td><td><code>HTML/CSS/JS</code> (ou React lite)</td><td>Settings + tray window</td></tr>
+  <tr><td>OCR</td><td><code>Tesseract (leptess)</code></td><td>Hors-ligne, gratuit, bon FR</td></tr>
+  <tr><td>File watch</td><td><code>notify</code> (crate Rust)</td><td>Natif OS, &eacute;v&eacute;nementiel</td></tr>
+  <tr><td>DB locale</td><td><code>SQLite</code></td><td>Queue sync, config, cache</td></tr>
+  <tr><td>Crypto</td><td><code>ring / aes-gcm</code> (crate)</td><td>Chiffrement E2E avant upload</td></tr>
+  <tr><td>Auto-update</td><td><code>tauri-plugin-updater</code></td><td>Int&eacute;gr&eacute;, sign&eacute; RSA</td></tr>
+</table>
+
+<h3>Mobile</h3>
+<table>
+  <tr><th>Composant</th><th>Technologie</th><th>Justification</th></tr>
+  <tr><td>App praticien + patient</td><td><code>Flutter</code></td><td>D&eacute;j&agrave; cod&eacute;e, iOS + Android</td></tr>
+  <tr><td>Maps</td><td><code>MapLibre</code></td><td>GPS, tourn&eacute;es, libre</td></tr>
+  <tr><td>Push</td><td><code>Firebase FCM</code></td><td>Standard, fiable</td></tr>
+</table>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 11. MULTI-TENANT -->
+<!-- ============================================================ -->
+<section id="multi-tenant">
+<h2><span class="num">11.</span> Architecture multi-tenant SaaS</h2>
+
+<div class="diagram">
+<span class="hl">MULTI-TENANT — ISOLATION PAR SOCIETE</span>
+
+  Chaque cabinet = 1 <span class="gr">soci&eacute;t&eacute;</span> dans Supabase (table societes)
+
+  ┌──────────────────────────────────────────────┐
+  │ Utilisateur (auth.users)                      │
+  │  └── N societes (users_societes, r&ocirc;le RBAC)  │
+  │       └── Brain (cabinet_brain)               │
+  │       └── Documents (cabinet_brain_documents) │
+  │       └── Rules (cabinet_brain_rules)         │
+  │       └── Events (cabinet_brain_events)       │
+  │       └── Tasks (cabinet_tasks)               │
+  │       └── Mail tokens (mail_oauth_tokens)     │
+  └──────────────────────────────────────────────┘
+
+  <span class="rd">R&Egrave;GLE ABSOLUE :</span>
+  Chaque requ&ecirc;te SQL inclut <span class="hl">WHERE societe_id = $1</span>
+  + RLS Supabase en deuxi&egrave;me rempart.
+  Un cabinet ne voit JAMAIS les donn&eacute;es d'un autre.
+
+  <span class="bl">R&Ocirc;LES RBAC :</span>
+  - owner     : acc&egrave;s total + facturation + suppression
+  - admin     : configuration Brain + connecteurs + &eacute;quipe
+  - praticien : dashboard + agenda + documents propres
+  - assistant : t&acirc;ches assign&eacute;es + documents autoris&eacute;s
+  - comptable : factures + exports + rapports financiers
+  - viewer    : lecture seule
+</div>
+
+<h3>Abonnements Brain</h3>
+<table>
+  <tr>
+    <th>Fonctionnalit&eacute;</th>
+    <th><span class="tag tag-green">Essentiel (29&euro;)</span></th>
+    <th><span class="tag tag-blue">Standard (79&euro;)</span></th>
+    <th><span class="tag tag-gold">Premium (179&euro;)</span></th>
+    <th><span class="tag tag-purple">Signature (279&euro;)</span></th>
+  </tr>
+  <tr>
+    <td>Dashboard + stock</td>
+    <td>Oui</td><td>Oui</td><td>Oui</td><td>Oui</td>
+  </tr>
+  <tr>
+    <td>Comparateur prix</td>
+    <td>Oui</td><td>Oui</td><td>Oui</td><td>Oui</td>
+  </tr>
+  <tr>
+    <td>Desktop Agent</td>
+    <td>&mdash;</td><td>Oui</td><td>Oui</td><td>Oui</td>
+  </tr>
+  <tr>
+    <td>Mail Copilot</td>
+    <td>&mdash;</td><td>1 boite</td><td>3 boites</td><td>Illimit&eacute;</td>
+  </tr>
+  <tr>
+    <td>Cabinet Brain</td>
+    <td>&mdash;</td><td>Basique</td><td>Complet</td><td>Complet + IA premium</td>
+  </tr>
+  <tr>
+    <td>Connecteurs logiciels</td>
+    <td>&mdash;</td><td>&mdash;</td><td>Doctolib + Logos</td><td>Tous</td>
+  </tr>
+  <tr>
+    <td>R&eacute;sum&eacute; matinal</td>
+    <td>&mdash;</td><td>&mdash;</td><td>Oui</td><td>Oui + vocal</td>
+  </tr>
+  <tr>
+    <td>Support</td>
+    <td>Email</td><td>Email + chat</td><td>Prioritaire</td><td>D&eacute;di&eacute;</td>
+  </tr>
+</table>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 12. COMMUNICATION DESKTOP <-> CLOUD -->
+<!-- ============================================================ -->
+<section id="comm">
+<h2><span class="num">12.</span> Communication Desktop &harr; Cloud</h2>
+
+<h3>Protocoles</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>HTTPS REST</h4>
+    <p><span class="tag tag-green">Principal</span><br>
+    Upload fichiers, CRUD Brain, configuration.
+    Retry automatique avec backoff exponentiel.
+    Authentification JWT Bearer.</p>
+  </div>
+  <div class="card">
+    <h4>WebSocket</h4>
+    <p><span class="tag tag-blue">Temps r&eacute;el</span><br>
+    Notifications push Cloud → Desktop (nouvelle t&acirc;che, alerte).
+    Heartbeat 30s. Reconnexion automatique.
+    Authentification ticket JWT.</p>
+  </div>
+  <div class="card">
+    <h4>Delta Sync</h4>
+    <p><span class="tag tag-gold">Optimis&eacute;</span><br>
+    Seuls les fichiers modifi&eacute;s sont envoy&eacute;s (hash comparison).
+    Queue SQLite locale pour r&eacute;silience coupure r&eacute;seau.
+    Sync bidirectionnelle (Cloud peut pousser des configs).</p>
+  </div>
+</div>
+
+<h3>S&eacute;quence de sync</h3>
+<div class="diagram">
+<span class="hl">SEQUENCE SYNC DESKTOP → CLOUD</span>
+
+  Desktop Agent                    Cloud
+  ─────────────                    ─────
+       │                              │
+  1. File Watcher d&eacute;tecte           │
+     nouveau PDF dans                 │
+     C:\Users\Dr\Documents\           │
+       │                              │
+  2. OCR local (Tesseract)            │
+     → extrait texte + m&eacute;tadonn&eacute;es   │
+       │                              │
+  3. Hash SHA-256 du fichier          │
+       │                              │
+  4. V&eacute;rifie queue SQLite :           │
+     d&eacute;j&agrave; sync&eacute; ? (hash connu)        │
+     → Non → ajouter &agrave; la queue      │
+       │                              │
+  5. Chiffre AES-256-GCM             │
+       │                              │
+  6. POST /api/sync/upload ──────────▶│
+     {file, metadata, hash, ocr}      │
+       │                              │
+       │                   7. V&eacute;rifie JWT
+       │                   8. D&eacute;chiffre
+       │                   9. V&eacute;rifie hash
+       │                  10. Classe (Agent Classifieur)
+       │                  11. Indexe (Brain + pgvector)
+       │                  12. Stocke (R2)
+       │                  13. G&eacute;n&egrave;re t&acirc;che si n&eacute;cessaire
+       │                              │
+       │◀───── 200 OK ───────────────│
+       │  {doc_id, classification}    │
+       │                              │
+  14. Met &agrave; jour queue SQLite        │
+      (marque comme sync&eacute;)            │
+       │                              │
+       │◀── WS notification ─────────│
+       │  "Facture GACD class&eacute;e en    │
+       │   Comptabilit&eacute;. T&acirc;che cr&eacute;&eacute;e : │
+       │   V&eacute;rifier montant 845&euro;"     │
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 13. ROADMAP -->
+<!-- ============================================================ -->
+<section id="roadmap">
+<h2><span class="num">13.</span> Roadmap MVP &rarr; Version avanc&eacute;e</h2>
+
+<h3>Phase 1 &mdash; MVP Brain (4-6 semaines)</h3>
+<div class="alert alert-green">
+  <strong>Objectif :</strong> Prouver la valeur sur 1 cabinet (le v&ocirc;tre).
+</div>
+<table>
+  <tr><th>Semaine</th><th>Livrable</th><th>D&eacute;tails</th></tr>
+  <tr>
+    <td>S1-S2</td>
+    <td><strong>Cabinet Brain API</strong></td>
+    <td>Tables SQL, CRUD, recherche full-text, API /api/brain/*. Dashboard "Mon Cabinet" dans organisation.html.</td>
+  </tr>
+  <tr>
+    <td>S2-S3</td>
+    <td><strong>Mail Copilot v1</strong></td>
+    <td>OAuth Gmail (votre compte). Classification mails. D&eacute;tection factures PDF. R&eacute;sum&eacute; matinal basique.</td>
+  </tr>
+  <tr>
+    <td>S3-S4</td>
+    <td><strong>Task Engine v1</strong></td>
+    <td>T&acirc;ches auto-g&eacute;n&eacute;r&eacute;es depuis mails + documents. Vue kanban dans dashboard.</td>
+  </tr>
+  <tr>
+    <td>S4-S5</td>
+    <td><strong>Desktop Agent v1</strong></td>
+    <td>Tauri shell. File watcher + OCR. Sync basique vers cloud. Tray icon.</td>
+  </tr>
+  <tr>
+    <td>S5-S6</td>
+    <td><strong>Int&eacute;gration + test</strong></td>
+    <td>Brain + Copilot + Agent fonctionnent ensemble. Test sur votre cabinet.</td>
+  </tr>
+</table>
+
+<h3>Phase 2 &mdash; V1 Compl&egrave;te (2-3 mois)</h3>
+<table>
+  <tr><th>Livrable</th><th>D&eacute;tails</th></tr>
+  <tr>
+    <td><strong>Recherche s&eacute;mantique</strong></td>
+    <td>pgvector + embeddings Mistral. "Trouve la facture du labo de mars"</td>
+  </tr>
+  <tr>
+    <td><strong>Apprentissage Brain</strong></td>
+    <td>D&eacute;tection patterns, proposition r&egrave;gles, feedback loop</td>
+  </tr>
+  <tr>
+    <td><strong>Connecteur Doctolib</strong></td>
+    <td>iCal + Playwright, import agenda, sync bidirectionnelle</td>
+  </tr>
+  <tr>
+    <td><strong>Connecteur Logos_w</strong></td>
+    <td>Firebird read-only, import patients + actes</td>
+  </tr>
+  <tr>
+    <td><strong>Multi-provider mail</strong></td>
+    <td>Outlook + Yahoo en plus de Gmail</td>
+  </tr>
+  <tr>
+    <td><strong>R&eacute;sum&eacute; vocal</strong></td>
+    <td>TTS du digest matinal (ElevenLabs ou Web Speech API)</td>
+  </tr>
+  <tr>
+    <td><strong>Auto-updater Desktop</strong></td>
+    <td>Mise &agrave; jour silencieuse + rollback</td>
+  </tr>
+</table>
+
+<h3>Phase 3 &mdash; Version avanc&eacute;e (6-12 mois)</h3>
+<table>
+  <tr><th>Livrable</th><th>D&eacute;tails</th></tr>
+  <tr>
+    <td><strong>Connecteurs imagerie</strong></td>
+    <td>D&eacute;tection auto cam&eacute;ra intra-orale, import DICOM/STL</td>
+  </tr>
+  <tr>
+    <td><strong>Brain avanc&eacute;</strong></td>
+    <td>Workflows multi-&eacute;tapes, automatisations complexes, pr&eacute;dictions</td>
+  </tr>
+  <tr>
+    <td><strong>Multi-cabinets</strong></td>
+    <td>Groupe de cabinets avec Brain partag&eacute; (SCM, centres dentaires)</td>
+  </tr>
+  <tr>
+    <td><strong>API ouverte</strong></td>
+    <td>Webhooks + API publique pour int&eacute;grateurs tiers</td>
+  </tr>
+  <tr>
+    <td><strong>Certification HDS</strong></td>
+    <td>Migration serveur certifi&eacute;, audit s&eacute;curit&eacute;, conformit&eacute; compl&egrave;te</td>
+  </tr>
+  <tr>
+    <td><strong>IA on-device</strong></td>
+    <td>Mod&egrave;le embarqu&eacute; dans le Desktop Agent (ONNX Runtime)</td>
+  </tr>
+</table>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 14. CE QUI EXISTE DEJA -->
+<!-- ============================================================ -->
+<section id="existant">
+<h2><span class="num">14.</span> Ce qui existe d&eacute;j&agrave; dans JADOMI</h2>
+<p class="lead">
+Le projet n'est pas &agrave; z&eacute;ro. Voici tout ce qui est d&eacute;j&agrave; cod&eacute; et exploitable pour le Cabinet Brain.
+</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>IA Router 3 niveaux</h4>
+    <p><code>lib/ia-router.js</code><br>
+    Local → Ollama → Mistral → Claude. Fallback cascade. D&eacute;j&agrave; en prod.</p>
+  </div>
+  <div class="card">
+    <h4>JADOMI Brain (base)</h4>
+    <p><code>lib/ai-studio/jadomi-brain.js</code><br>
+    Prompts m&eacute;tier, r&egrave;gles par module, validateResponse(). Socle du Brain.</p>
+  </div>
+  <div class="card">
+    <h4>Data Guard</h4>
+    <p><code>lib/ai-studio/data-guard.js</code><br>
+    Sanitisation PII (RPPS, NIR, IBAN, noms) avant toute IA externe.</p>
+  </div>
+  <div class="card">
+    <h4>Shared Intelligence</h4>
+    <p><code>lib/shared-intelligence.js</code><br>
+    Event bus qui enregistre habitudes et &eacute;v&eacute;nements en base.</p>
+  </div>
+  <div class="card">
+    <h4>Connecteur Doctolib</h4>
+    <p><code>lib/connector/adapters/doctolib.js</code><br>
+    Playwright + iCal. Lecture agenda via compte secr&eacute;taire.</p>
+  </div>
+  <div class="card">
+    <h4>Connecteur Logos_w</h4>
+    <p><code>lib/connector/adapters/logos.js</code><br>
+    Firebird direct. Import patients, actes, historique.</p>
+  </div>
+  <div class="card">
+    <h4>IMAP Scanner</h4>
+    <p><code>server.js</code> (l. 5267-6323) + <code>api/admin-email.js</code><br>
+    Lecture mails OVH + Yahoo OAuth. Extraction PJ. D&eacute;j&agrave; fonctionnel.</p>
+  </div>
+  <div class="card">
+    <h4>IA Secr&eacute;taire</h4>
+    <p><code>api/ia-secretary/</code> + <code>lib/ia-secretary/brain.js</code><br>
+    Triage urgence, scoring patient, optimisation planning. 6 m&eacute;tiers.</p>
+  </div>
+  <div class="card">
+    <h4>Documents + Coffre-fort</h4>
+    <p><code>api/documents/</code><br>
+    Upload, classement, chiffrement AES-256 pour docs sensibles.</p>
+  </div>
+  <div class="card">
+    <h4>40+ packages npm install&eacute;s</h4>
+    <p>Anthropic, OpenAI, Mistral, imapflow, nodemailer, pdfkit, sharp, puppeteer, playwright, supabase-js, exceljs...</p>
+  </div>
+</div>
+
+<div class="alert alert-gold">
+  <strong>Estimation :</strong> environ 40% de l'infrastructure technique du Cabinet Brain est d&eacute;j&agrave; en place.
+  Le travail restant est l'orchestration (Brain loop), le Desktop Agent (Tauri, nouveau), et l'OAuth multi-provider (nouveau).
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- 15. RECOMMANDATIONS -->
+<!-- ============================================================ -->
+<section id="recommandations">
+<h2><span class="num">15.</span> Recommandations r&eacute;alistes</h2>
+
+<h3>Strat&eacute;gie de d&eacute;veloppement</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>1. Brain d'abord, Desktop ensuite</h4>
+    <p>Construire le Brain + Mail Copilot c&ocirc;t&eacute; web <strong>avant</strong> le Desktop Agent.
+    Le web est testable imm&eacute;diatement. Le Desktop Agent est un canal de capture suppl&eacute;mentaire &mdash;
+    il ajoute de la valeur mais n'est pas bloquant pour le MVP.</p>
+  </div>
+  <div class="card">
+    <h4>2. Votre cabinet = premier beta</h4>
+    <p>Tester sur vous-m&ecirc;me pendant 2 semaines avant d'ouvrir.
+    Connecter votre Gmail, votre Logos_w, vos dossiers.
+    Le Brain apprend VOS habitudes → product-market fit garanti.</p>
+  </div>
+  <div class="card">
+    <h4>3. OAuth Gmail en premier</h4>
+    <p>Gmail est le plus simple (documentation Google excellente, librairie <code>googleapis</code>).
+    Outlook (Microsoft Graph) en second. Yahoo d&eacute;j&agrave; en partie fait (OAuth tokens en base).</p>
+  </div>
+  <div class="card">
+    <h4>4. Pas de Redis/BullMQ au MVP</h4>
+    <p><code>node-cron</code> + <code>EventEmitter</code> suffisent pour 1 &agrave; 50 cabinets.
+    Redis quand le volume le justifie (> 50 cabinets, > 10K mails/jour).
+    &Eacute;viter la complexit&eacute; pr&eacute;matur&eacute;e.</p>
+  </div>
+  <div class="card">
+    <h4>5. Tauri v2, pas Electron</h4>
+    <p>Tauri = 8 MB vs 150 MB Electron. Rust = s&eacute;curit&eacute; + performances.
+    Tauri v2 supporte mobile (Android/iOS) en bonus.
+    Le frontend peut &ecirc;tre du HTML/CSS/JS simple (pas besoin de React).</p>
+  </div>
+  <div class="card">
+    <h4>6. HDS d&egrave;s que possible</h4>
+    <p>Migrer vers serveur certifi&eacute; HDS avant d'accepter des donn&eacute;es de sant&eacute; de tiers.
+    Pour votre propre cabinet c'est tol&eacute;r&eacute;, mais pour du SaaS multi-cabinets c'est obligatoire.
+    OVH Healthcare ou Scaleway HDS.</p>
+  </div>
+</div>
+
+<h3>Risques et mitigation</h3>
+
+<table>
+  <tr>
+    <th>Risque</th>
+    <th>Impact</th>
+    <th>Mitigation</th>
+  </tr>
+  <tr>
+    <td>Doctolib bloque le scraping</td>
+    <td><span class="tag tag-red">Haut</span></td>
+    <td>Approche iCal (l&eacute;gitime). Compte secr&eacute;taire (usage pr&eacute;vu par Doctolib). Pas de reverse-engineering.</td>
+  </tr>
+  <tr>
+    <td>Google r&eacute;voque l'app OAuth</td>
+    <td><span class="tag tag-red">Haut</span></td>
+    <td>Certification Google OAuth (app verifi&eacute;e). Respecter les scopes. Privacy policy conforme.</td>
+  </tr>
+  <tr>
+    <td>Co&ucirc;ts IA explosent</td>
+    <td><span class="tag tag-orange">Moyen</span></td>
+    <td>Router 3 niveaux d&eacute;j&agrave; en place. 80% des requ&ecirc;tes en Niveau 1-2 (0 &agrave; 0.13&euro;/M).</td>
+  </tr>
+  <tr>
+    <td>Conformit&eacute; RGPD/HDS</td>
+    <td><span class="tag tag-red">Haut</span></td>
+    <td>Data Guard, chiffrement E2E, audit trail. Migration HDS planifi&eacute;e. DPO &agrave; d&eacute;signer.</td>
+  </tr>
+  <tr>
+    <td>Adoption praticiens</td>
+    <td><span class="tag tag-orange">Moyen</span></td>
+    <td>Installation en 1 clic, r&eacute;sum&eacute; matinal = valeur imm&eacute;diate, pas besoin de changer d'habitudes.</td>
+  </tr>
+</table>
+
+<h3>Chiffrage pr&eacute;visionnel</h3>
+
+<table>
+  <tr>
+    <th>Poste</th>
+    <th>Co&ucirc;t estim&eacute;</th>
+    <th>D&eacute;tail</th>
+  </tr>
+  <tr>
+    <td>Serveur HDS</td>
+    <td>~80-150&euro;/mois</td>
+    <td>OVH Healthcare ou Scaleway HDS (d&eacute;di&eacute;)</td>
+  </tr>
+  <tr>
+    <td>IA (50 cabinets)</td>
+    <td>~50-100&euro;/mois</td>
+    <td>Mistral principalement, Claude en fallback</td>
+  </tr>
+  <tr>
+    <td>Supabase Pro</td>
+    <td>25&euro;/mois</td>
+    <td>D&eacute;j&agrave; en place</td>
+  </tr>
+  <tr>
+    <td>R2 Storage</td>
+    <td>~5-15&euro;/mois</td>
+    <td>Cloudflare, pas d'egress fees</td>
+  </tr>
+  <tr>
+    <td>Google OAuth verification</td>
+    <td>0&euro;</td>
+    <td>Gratuit, mais processus de revue (2-4 semaines)</td>
+  </tr>
+  <tr>
+    <td>Certificat code signing</td>
+    <td>~200&euro;/an</td>
+    <td>Pour signer l'installeur Desktop (EV recommand&eacute;)</td>
+  </tr>
+  <tr>
+    <td><strong>Total MVP (mensuel)</strong></td>
+    <td><strong>~160-290&euro;/mois</strong></td>
+    <td>Rentable d&egrave;s 3-4 cabinets Standard (79&euro;/mois)</td>
+  </tr>
+</table>
+
+<div class="alert alert-gold">
+  <strong>Rentabilit&eacute; :</strong> Avec 10 cabinets en formule Standard (79&euro;/mois) = 790&euro;/mois de revenus.
+  Co&ucirc;ts infra ~200&euro;/mois. Marge brute ~75%. Scalable sans augmentation lin&eacute;aire des co&ucirc;ts.
+</div>
+</section>
+
+<hr>
+
+<!-- ============================================================ -->
+<!-- FOOTER -->
+<!-- ============================================================ -->
+<footer style="text-align: center; padding: 48px 0; color: var(--text-muted); font-size: 13px;">
+  <p><strong>JADOMI</strong> &mdash; Cabinet Brain + Copilot &mdash; Architecture v1.0</p>
+  <p>Document g&eacute;n&eacute;r&eacute; le 18 mai 2026 &mdash; Confidentiel</p>
+  <p style="margin-top: 16px;">jadomi.fr</p>
+</footer>
+
+</div><!-- /.container -->
+</body>
+</html>
