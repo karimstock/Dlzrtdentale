@@ -511,6 +511,13 @@
       .then(function (d) { if (d && d.accounts && d.accounts.length) window.__jcpAccountId = d.accounts[0].id; })
       .catch(function () {});
 
+    // Badge cliquable → ouvre le copilot et montre les notifications
+    fab.addEventListener('dblclick', function(e) {
+      e.preventDefault();
+      if (!isOpen) toggle();
+      send('quels mails attendent une réponse');
+    });
+
     setTimeout(checkNotif, 5000);
     setInterval(checkNotif, 60000);
   }
