@@ -109,12 +109,16 @@ RÈGLES :
 // =============================================
 function detectIntent(text) {
   const lower = (text || '').toLowerCase();
-  const norm = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  var norm = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // === SALUTATIONS (en premier pour réponse instantanée) ===
-  if (/^(bonjour|salut|hello|bonsoir|coucou|hey|yo|bjr|slt)\b/i.test(norm))
+  // === SALUTATIONS (seulement si c'est JUSTE une salutation, pas "salut peux tu trouver...") ===
+  if (/^(bonjour|salut|hello|bonsoir|coucou|hey|yo|bjr|slt)\s*[,.!?]?\s*$/i.test(norm))
     return 'greeting';
-  if (/^(merci|thanks|parfait|super|top|genial|excellent|ok\s*merci|c\s*bon)\b/i.test(norm))
+  // Salutation + question → on strip la salutation et on continue
+  if (/^(bonjour|salut|hello|bonsoir|coucou|hey|yo|bjr|slt)\b/i.test(norm)) {
+    norm = norm.replace(/^(bonjour|salut|hello|bonsoir|coucou|hey|yo|bjr|slt)\s*[,.!?]?\s*/i, '');
+  }
+  if (/^(merci|thanks|parfait|super|top|genial|excellent|ok\s*merci|c\s*bon)\s*[,.!?]?\s*$/i.test(norm))
     return 'merci';
 
   // === COMPOSER / ENVOYER un mail (AVANT les catégories) ===
@@ -296,7 +300,7 @@ router.post('/message', async (req, res) => {
           // RECHERCHE INTELLIGENTE — DeepSeek comprend "mon notaire", "depuis 2026", etc.
           // Regex uniquement pour les cas SIMPLES (mes mails, résumé, importants)
           // Tout le reste → DeepSeek parse l'intention
-          const isSimple = /^(mes\s*mail|donne.*mail|montre.*mail|check.*mail|mail\s*du\s*jour|mail\s*important|mail\s*urgent|resum|combien.*mail|mail.*attendent|boite)/i.test(norm);
+          const isSimple = /^(mes\s*mail|donne.*mail|montre.*mail|check.*mail|mail\s*du\s*jour|mail\s*important|mail\s*urgent|resum|combien.*mail|mail.*attendent|boite)/i.test(norm) || /\bresum/i.test(norm);
           if (!isSimple) {
             // Requête complexe → DeepSeek
             const parsed = await deepseekParseIntent(message);
@@ -314,7 +318,12 @@ router.post('/message', async (req, res) => {
               const filtered = (found || []).filter(m => !isNoiseMail(m));
               const label = parsed.category || parsed.search_term || 'recherche';
               if (filtered.length > 0) return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent, mails: filtered });
-              return res.json({ reply: 'Aucun mail trouvé pour "' + label + '", Docteur.', intent });
+              // Expliquer pourquoi 0 résultat
+              const { count: totalMails } = await db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid);
+              const { data: acc } = await db().from('comptes_email_societe').select('dernier_scan').eq('societe_id', sid).limit(1).maybeSingle();
+              let hint = 'Aucun mail trouvé pour "' + label + '", Docteur.';
+              if ((totalMails || 0) < 100) hint += '\n\nNote : JADOMI a indexé ' + (totalMails||0) + ' mails pour l\'instant. La synchronisation continue automatiquement toutes les 5 minutes et remonte progressivement dans le temps.';
+              return res.json({ reply: hint, intent });
             }
             // Si DeepSeek retourne compose_mail → rediriger vers compose
             if (parsed && parsed.action === 'compose_mail') {
