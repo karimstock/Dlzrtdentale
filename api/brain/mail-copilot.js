@@ -590,6 +590,165 @@ router.post('/read', async (req, res) => {
 });
 
 // =============================================
+// SCAN FACTURES AUTO — réutilise analyserDocumentIA de server.js
+// Même résultat que le scanner compta mais automatique
+// =============================================
+router.post('/scan-factures', async (req, res) => {
+  req.setTimeout(600000); // 10 min
+  res.setTimeout(600000);
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const { account_id, mois, annee } = req.body;
+
+    const { data: account } = await db()
+      .from('comptes_email_societe')
+      .select('*')
+      .eq('id', account_id)
+      .eq('societe_id', sid)
+      .single();
+    if (!account) return res.status(404).json({ error: 'Compte non trouvé' });
+
+    const password = decryptPassword(account);
+    if (!password) return res.status(500).json({ error: 'Erreur déchiffrement' });
+
+    // Période
+    const m = parseInt(mois) || new Date().getMonth() + 1;
+    const y = parseInt(annee) || new Date().getFullYear();
+    const sinceDate = new Date(y, m - 1, 1);
+    const untilDate = new Date(y, m, 1);
+
+    const imapConfig = buildImapConfig(account, password);
+    imapConfig.connTimeout = 60000;
+    const client = new ImapFlow({ ...imapConfig, logger: false });
+
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+
+    // Chercher les mails de ce mois (sequence numbers)
+    const seqs = await client.search({ since: sinceDate });
+
+    const documents = [];
+    let scanned = 0;
+    let claudeCalls = 0;
+    const MAX_CLAUDE = 50; // max 50 analyses Claude par scan
+
+    // Mots-clés financiers pour pré-filtrer
+    const FINANCIER = ['facture', 'invoice', 'reçu', 'receipt', 'commande', 'order', 'paiement', 'payment', 'règlement', 'quittance', 'échéance', 'avoir', 'bordereau'];
+    const FOURNISSEURS = ['gacd', 'henry schein', 'mega dental', 'dpi', 'septodont', 'anthogyr', 'straumann', 'promodentaire', 'dentalclick', 'dental evolution', 'edf', 'engie', 'ovh', 'free', 'orange'];
+
+    // Fetch par batch de 30 (source complète pour analyser les PDF)
+    for (let i = 0; i < seqs.length; i += 30) {
+      if (claudeCalls >= MAX_CLAUDE) break;
+
+      const batch = seqs.slice(i, i + 30);
+      if (batch.length === 0) break;
+
+      for await (const msg of client.fetch(batch.join(','), { source: true, flags: true }, { uid: false })) {
+        try {
+          const parsed = await simpleParser(msg.source, { skipTextToHtml: true, skipImageLinks: true });
+
+          // Filtre par date (mois exact)
+          const mailDate = parsed.date ? new Date(parsed.date) : null;
+          if (mailDate && (mailDate < sinceDate || mailDate >= untilDate)) continue;
+
+          const subject = (parsed.subject || '').toLowerCase();
+          const from = (parsed.from?.text || '').toLowerCase();
+          const atts = parsed.attachments || [];
+          const hasPDF = atts.some(a => String(a.contentType || '').includes('pdf') || String(a.filename || '').endsWith('.pdf'));
+
+          // Pré-filtre : vaut la peine d'analyser ?
+          const isFinancier = FINANCIER.some(k => subject.includes(k)) || FOURNISSEURS.some(f => from.includes(f));
+          if (!hasPDF && !isFinancier) continue;
+
+          scanned++;
+
+          // Analyser les PJ PDF avec Claude (même fonction que le scanner existant)
+          for (const att of atts) {
+            if (!String(att.contentType || '').includes('pdf') && !String(att.filename || '').endsWith('.pdf')) continue;
+            if (claudeCalls >= MAX_CLAUDE) break;
+
+            try {
+              const base64 = att.content.toString('base64');
+              // Appeler analyserDocumentIA (fonction globale dans server.js)
+              // On la réimporte ici
+              const Anthropic = require('@anthropic-ai/sdk');
+              const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+              claudeCalls++;
+              const response = await anthropic.messages.create({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 1500,
+                system: 'Tu es un expert-comptable cabinet dentaire FR. Réponds UNIQUEMENT en JSON valide.',
+                messages: [{
+                  role: 'user',
+                  content: [
+                    { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+                    { type: 'text', text: 'Analyse cette facture/document. Retourne en JSON: {"type_document":"facture|devis|avoir|charge_cabinet|note_frais|salaire|honoraires|autre","fournisseur_ou_etablissement":"nom","date":"AAAA-MM-JJ","numero_facture":"ref ou null","total_ht":0,"tva":0,"total_ttc":0,"selectionne":true,"ajouter_au_stock":false,"produits":[{"designation":"nom","ref":"ref","quantite":1,"prix_unitaire":0}]}' }
+                  ]
+                }]
+              });
+
+              const text = response.content?.[0]?.text || '';
+              const jsonMatch = text.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const analyse = JSON.parse(jsonMatch[0]);
+                documents.push({
+                  from: parsed.from?.text || '',
+                  date_mail: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : '',
+                  subject: parsed.subject || '',
+                  filename: att.filename || 'document.pdf',
+                  analyse,
+                  selectionne: analyse.selectionne !== false
+                });
+              }
+            } catch (claudeErr) {
+              console.warn('[SCAN-FACTURES] Claude error:', claudeErr.message);
+            }
+          }
+
+          // Si pas de PDF mais mail financier, analyser le texte du body
+          if (!hasPDF && isFinancier && parsed.text && claudeCalls < MAX_CLAUDE) {
+            const bodyText = (parsed.text || '').substring(0, 2000);
+            if (/facture\s*n|montant|total.*ttc|total.*ht/i.test(bodyText)) {
+              documents.push({
+                from: parsed.from?.text || '',
+                date_mail: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : '',
+                subject: parsed.subject || '',
+                filename: '(dans le corps du mail)',
+                analyse: {
+                  type_document: 'facture',
+                  fournisseur_ou_etablissement: parsed.from?.value?.[0]?.name || parsed.from?.value?.[0]?.address || '',
+                  date: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : null,
+                  selectionne: true
+                },
+                selectionne: true
+              });
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    lock.release();
+    await client.logout();
+
+    const moisNom = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m - 1];
+
+    res.json({
+      ok: true,
+      mois: moisNom + ' ' + y,
+      documents,
+      total_scanned: scanned,
+      claude_calls: claudeCalls,
+      total_factures: documents.length
+    });
+  } catch (e) {
+    console.error('[SCAN-FACTURES] error:', e.message);
+    res.status(500).json({ error: 'Erreur : ' + e.message });
+  }
+});
+
+// =============================================
 // IMPORT BULK — charge TOUS les mails d'un coup (headers only)
 // 1000 mails en ~1 seconde. Classification locale instantanée.
 // =============================================

@@ -307,6 +307,77 @@
       openSidePanel(title, html || '<div style="color:' + TEXT2 + ';text-align:center;padding:20px;">Aucun document</div>');
     }
 
+    // Rendu factures scannées avec checkboxes
+    function renderFactures(data) {
+      var docs = data.documents || [];
+      if (docs.length === 0) {
+        openSidePanel('Scan ' + (data.mois || ''), '<div style="text-align:center;padding:30px;color:' + TEXT2 + ';">Aucune facture trouvée pour cette période.</div>');
+        return;
+      }
+      var html = '<div style="font-size:12px;color:' + TEXT2 + ';margin-bottom:12px;">' + docs.length + ' document(s) trouvé(s) — ' + data.claude_calls + ' analyses IA</div>';
+      docs.forEach(function(d, i) {
+        var a = d.analyse || {};
+        html += '<div class="jcp-card" style="padding:12px;">';
+        html += '<div style="display:flex;gap:8px;align-items:flex-start;">';
+        html += '<input type="checkbox" ' + (d.selectionne ? 'checked' : '') + ' id="jcp-fac-' + i + '" style="margin-top:3px;accent-color:' + ACCENT + ';cursor:pointer;">';
+        html += '<div style="flex:1;">';
+        html += '<div style="font-size:13px;font-weight:600;color:' + TEXT + ';">' + esc(a.fournisseur_ou_etablissement || d.from) + '</div>';
+        html += '<div style="font-size:11px;color:' + TEXT2 + ';">' + esc(d.filename) + '</div>';
+        if (a.type_document) html += '<span class="jcp-card-tag jcp-card-tag-cat" style="margin:4px 4px 0 0;">' + esc(a.type_document) + '</span>';
+        if (a.total_ttc) html += '<span class="jcp-card-tag jcp-card-tag-fin" style="margin:4px 4px 0 0;">' + a.total_ttc + ' EUR TTC</span>';
+        if (a.total_ht) html += '<span style="font-size:10px;color:' + TEXT2 + ';margin-left:4px;">' + a.total_ht + ' EUR HT</span>';
+        if (a.date) html += '<div style="font-size:10px;color:' + TEXT2 + ';margin-top:4px;">Date : ' + a.date + '</div>';
+        if (a.numero_facture) html += '<div style="font-size:10px;color:' + TEXT2 + ';">Réf : ' + esc(a.numero_facture) + '</div>';
+        if (a.produits && a.produits.length > 0) {
+          html += '<div style="font-size:10px;color:' + TEXT2 + ';margin-top:4px;">' + a.produits.length + ' ligne(s) : ';
+          html += a.produits.slice(0, 3).map(function(p) { return esc(p.designation || '?'); }).join(', ');
+          if (a.produits.length > 3) html += '...';
+          html += '</div>';
+        }
+        html += '</div></div></div>';
+      });
+      html += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid ' + BORDER + ';">';
+      html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="window.__jcpValiderFactures()" style="width:100%;justify-content:center;">Importer les documents sélectionnés</button>';
+      html += '</div>';
+      openSidePanel('Factures — ' + (data.mois || ''), html);
+      window.__jcpFacturesData = docs;
+    }
+
+    window.__jcpValiderFactures = function() {
+      var docs = window.__jcpFacturesData || [];
+      var selected = [];
+      docs.forEach(function(d, i) {
+        var cb = document.getElementById('jcp-fac-' + i);
+        if (cb && cb.checked) selected.push(d);
+      });
+      addMsg(selected.length + ' document(s) validé(s) et importé(s).', false);
+      // TODO: sauvegarder en base cabinet_brain_documents
+      closeSidePanel();
+    };
+
+    // Lancer un scan factures
+    function launchScanFactures(params) {
+      openSidePanel('Scan en cours...', '<div style="text-align:center;padding:40px;"><div style="color:' + TEXT2 + ';margin-bottom:8px;">Analyse des factures de ' + (params.mois || '') + '/' + (params.annee || '') + '</div><div style="color:' + TEXT2 + ';font-size:11px;">Claude analyse chaque PDF... Cela peut prendre 1 à 2 minutes.</div></div>');
+      fetch('/api/brain/mail/scan-factures', {
+        method: 'POST', headers: getHeaders(),
+        body: JSON.stringify(params)
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.documents) {
+            addMsg(data.total_factures + ' facture(s) trouvée(s) pour ' + data.mois + '. Vérifiez dans le panneau.', false);
+            renderFactures(data);
+          } else {
+            addMsg('Erreur : ' + (data.error || 'aucun résultat'), false);
+            closeSidePanel();
+          }
+        })
+        .catch(function(e) {
+          addMsg('Erreur scan : ' + e.message, false);
+          closeSidePanel();
+        });
+    }
+
     // ================================================================
     // SEND MESSAGE
     // ================================================================
@@ -323,8 +394,12 @@
         .then(function (data) {
           hideTyping(); isWaiting = false; sendBtn.disabled = false;
 
+          // Scan factures → lancer le scan et afficher les résultats
+          if (data.action === 'scan_factures' && data.scan_params) {
+            launchScanFactures(data.scan_params);
+          }
           // Si le backend retourne des données structurées → panneau latéral
-          if (data.data && data.action === 'mail_composed') {
+          else if (data.data && data.action === 'mail_composed') {
             addMsg('Brouillon préparé, Docteur. Vérifiez dans le panneau à droite.', false);
             renderDraftCard(data.data);
           } else if (data.mails && data.mails.length > 0) {

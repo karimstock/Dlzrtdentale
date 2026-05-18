@@ -487,11 +487,45 @@ router.post('/message', async (req, res) => {
       }
 
       case 'compta': {
+        // Détecter si c'est un scan de factures ou juste une question
+        const normC = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (/scan|scanne|importer.*facture|recuper.*facture|capter.*facture|toutes.*facture|capture.*facture/.test(normC)) {
+          // Lancer le scan automatique
+          try {
+            const { data: accs } = await db().from('comptes_email_societe').select('id').eq('societe_id', sid).eq('actif', true).limit(1);
+            if (!accs || accs.length === 0) {
+              return res.json({ reply: 'Docteur, vous devez d\'abord connecter votre boîte mail dans "Mes mails" pour scanner les factures automatiquement.', intent });
+            }
+            // Parser le mois demandé
+            let scanMois = new Date().getMonth() + 1;
+            let scanAnnee = new Date().getFullYear();
+            const moisMatch = normC.match(/(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)/);
+            if (moisMatch) {
+              const moisMap = { janvier:1, fevrier:2, mars:3, avril:4, mai:5, juin:6, juillet:7, aout:8, septembre:9, octobre:10, novembre:11, decembre:12 };
+              scanMois = moisMap[moisMatch[1]] || scanMois;
+            }
+            const anneeMatch = normC.match(/20\d{2}/);
+            if (anneeMatch) scanAnnee = parseInt(anneeMatch[0]);
+
+            const moisNom = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][scanMois - 1];
+            return res.json({
+              reply: 'Je lance le scan des factures de ' + moisNom + ' ' + scanAnnee + '. Les résultats apparaîtront dans le panneau avec des cases à cocher pour valider.',
+              intent,
+              action: 'scan_factures',
+              scan_params: { account_id: accs[0].id, mois: scanMois, annee: scanAnnee }
+            });
+          } catch (e) {
+            return res.json({ reply: 'Erreur : ' + e.message, intent });
+          }
+        }
+
+        // Question compta simple → rediriger
         return res.json({
-          reply: 'Docteur, pour scanner et analyser vos factures mois par mois, utilisez le module Comptabilité :\n\n' +
-            'jadomi.fr → Comptabilité → Scanner mes mails\n\n' +
-            'Ce module analyse chaque PDF avec l\'IA (montant, TVA, fournisseur, catégorie) et vous permet de vérifier avant d\'importer.\n\n' +
-            'Vous pouvez aussi me demander "les mails de GACD" ou "les mails avec facture" pour retrouver un mail spécifique.',
+          reply: 'Docteur, pour vos factures je peux :\n\n' +
+            '- "Scanne mes factures de mai" → je scan et analyse les PDF automatiquement\n' +
+            '- "Scanne mes factures de janvier à mai" → scan multi-mois\n' +
+            '- "Les mails de GACD" → retrouver un mail fournisseur\n\n' +
+            'Vous pouvez aussi utiliser le module Comptabilité : jadomi.fr → Comptabilité → Scanner mes mails',
           intent
         });
       }
