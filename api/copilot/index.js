@@ -171,7 +171,7 @@ function detectIntent(text) {
     return 'comparateur';
 
   // === COMPTA / FACTURES / DEVIS ===
-  if (/\b(compta|comptabilit|tva|bilan|declaration|urssaf|cfe)\b|chiffre.*affaire|mes\s*facture|les\s*facture|ya\s*des\s*devis|ya\s*des\s*facture|devis\s*en\s*cours|recette|depense|ca\s+du\s+mois|impot|tresor/i.test(norm))
+  if (/\b(compta|comptabilit|tva|bilan|declaration|urssaf|cfe)\b|chiffre.*affaire|mes\s*facture|les\s*facture|ya\s*des\s*devis|ya\s*des\s*facture|devis\s*en\s*cours|recette|depense|ca\s+du\s+mois|impot|tresor|scan.*factur|scaner.*factur|scanner.*factur|recuper.*factur|import.*factur|capter.*factur/i.test(norm))
     return 'compta';
 
   // === LABO / CAS PROTHÉTIQUE ===
@@ -506,7 +506,7 @@ router.post('/message', async (req, res) => {
       case 'compta': {
         // Détecter si c'est un scan de factures ou juste une question
         const normC = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        if (/scan|scanne|importer.*facture|recuper.*facture|capter.*facture|toutes.*facture|capture.*facture/.test(normC)) {
+        if (/scan|scann|scaner|scanner|importer.*factur|recuper.*factur|capter.*factur|toutes.*factur|capture.*factur|cherch.*factur|trouv.*factur|analys.*factur/.test(normC)) {
           // Lancer le scan automatique
           try {
             const { data: accs } = await db().from('comptes_email_societe').select('id').eq('societe_id', sid).eq('actif', true).limit(1);
