@@ -46,6 +46,9 @@ function rateLimit() {
   };
 }
 
+// SSE scan-factures AVANT le middleware auth (auth manuelle via query param)
+router.get('/scan-factures', async (req, res) => { return require('./scan-factures-sse')(req, res, db); });
+
 router.use(requireAuth(), rateLimit());
 
 // =============================================
@@ -654,51 +657,6 @@ ${extraContext ? 'CONTEXTE :\n' + extraContext : ''}`;
   }
 });
 
-// POST /api/copilot/scan-factures — proxy vers brain/mail/scan-factures (auth déjà gérée)
-router.post('/scan-factures', async (req, res) => {
-  req.setTimeout(600000);
-  res.setTimeout(600000);
-  try {
-    const sid = req.societe?.id || req.societeId;
-    const { account_id, mois, annee } = req.body;
-
-    // Si pas d'account_id fourni, trouver le premier compte actif
-    let aid = account_id;
-    if (!aid) {
-      const { data: accs } = await db().from('comptes_email_societe').select('id').eq('societe_id', sid).eq('actif', true).limit(1);
-      if (!accs || accs.length === 0) return res.json({ error: 'Aucun compte mail connecté' });
-      aid = accs[0].id;
-    }
-
-    // Appeler le scan-factures du mail-copilot en interne
-    const http = require('http');
-    const body = JSON.stringify({ account_id: aid, mois, annee });
-    const proxyReq = http.request({
-      hostname: 'localhost', port: 3001,
-      path: '/api/brain/mail/scan-factures',
-      method: 'POST', timeout: 600000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization,
-        'X-Societe-Id': sid,
-        'Content-Length': Buffer.byteLength(body)
-      }
-    }, proxyRes => {
-      let d = '';
-      proxyRes.on('data', c => d += c);
-      proxyRes.on('end', () => {
-        try { res.json(JSON.parse(d)); }
-        catch (_) { res.json({ error: 'Erreur parse résultat scan' }); }
-      });
-    });
-    proxyReq.setTimeout(600000);
-    proxyReq.on('error', e => res.json({ error: 'Erreur scan : ' + e.message }));
-    proxyReq.write(body);
-    proxyReq.end();
-  } catch (e) {
-    res.json({ error: 'Erreur : ' + e.message });
-  }
-});
 
 // GET /api/copilot/notifications — Notifications en attente (pour le badge clignotant)
 router.get('/notifications', async (req, res) => {

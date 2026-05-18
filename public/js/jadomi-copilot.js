@@ -377,29 +377,52 @@
       closeSidePanel();
     };
 
-    // Lancer un scan factures
+    // Lancer un scan factures avec barre de progression SSE
     function launchScanFactures(params) {
       var moisNoms = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
       var moisLabel = (moisNoms[(params.mois||1)-1] || '') + ' ' + (params.annee || '');
-      openSidePanel('Scan en cours...', '<div style="text-align:center;padding:40px;"><div style="color:' + TEXT2 + ';margin-bottom:8px;">Analyse des factures de ' + moisLabel + '</div><div style="color:' + TEXT2 + ';font-size:11px;">JADOMI IA analyse chaque document... Cela peut prendre 1 à 2 minutes.</div></div>');
-      fetch('/api/copilot/scan-factures', {
-        method: 'POST', headers: getHeaders(),
-        body: JSON.stringify(params)
-      })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.documents) {
-            addMsg(data.total_factures + ' facture(s) trouvée(s) pour ' + data.mois + '. Vérifiez dans le panneau.', false);
-            renderFactures(data);
+
+      // Panel avec barre de progression
+      function updateProgress(pct, msg, found) {
+        var html = '<div style="padding:30px;">';
+        html += '<div style="font-size:14px;font-weight:600;color:' + TEXT + ';margin-bottom:12px;">Scan ' + moisLabel + '</div>';
+        html += '<div style="background:' + BG3 + ';border-radius:8px;overflow:hidden;height:8px;margin-bottom:10px;">';
+        html += '<div style="height:100%;background:linear-gradient(90deg,' + ACCENT + ',#8b5cf6);width:' + pct + '%;transition:width .3s;border-radius:8px;"></div></div>';
+        html += '<div style="font-size:12px;color:' + TEXT2 + ';">' + esc(msg || 'Analyse en cours...') + '</div>';
+        if (found > 0) html += '<div style="font-size:13px;color:' + ACCENT + ';margin-top:8px;font-weight:600;">' + found + ' facture(s) trouvée(s)</div>';
+        html += '</div>';
+        openSidePanel('Scan en cours', html);
+      }
+
+      updateProgress(0, 'Connexion...', 0);
+
+      // SSE stream
+      var hdrs = getHeaders();
+      var url = '/api/copilot/scan-factures?mois=' + params.mois + '&annee=' + params.annee;
+
+      // EventSource ne supporte pas les headers custom, on passe le token en query
+      url += '&token=' + encodeURIComponent(hdrs.Authorization.replace('Bearer ', ''));
+      url += '&sid=' + encodeURIComponent(hdrs['X-Societe-Id'] || '');
+
+      var es = new EventSource(url);
+      es.onmessage = function(e) {
+        try {
+          var data = JSON.parse(e.data);
+          if (data.done) {
+            es.close();
+            if (data.error) {
+              addMsg('Erreur : ' + data.error, false);
+              closeSidePanel();
+            } else if (data.documents) {
+              addMsg(data.total_factures + ' facture(s) trouvée(s) pour ' + data.mois + '.', false);
+              renderFactures(data);
+            }
           } else {
-            addMsg('Erreur : ' + (data.error || 'aucun résultat'), false);
-            closeSidePanel();
+            updateProgress(data.progress || 0, data.message || '', data.found || 0);
           }
-        })
-        .catch(function(e) {
-          addMsg('Erreur scan : ' + e.message, false);
-          closeSidePanel();
-        });
+        } catch (_) {}
+      };
+      es.onerror = function() { es.close(); addMsg('Scan interrompu.', false); closeSidePanel(); };
     }
 
     // ================================================================
