@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 17 mai 2026
-**Derniere passe** : Passe 86 (18 mai 2026) — Copilot + Panneau lateral + 10K mails
+**Derniere passe** : Passe 86 (18 mai 2026) — Cabinet Brain + Copilot Global + Mail + Scan Factures
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4725,17 +4725,39 @@ maintenance services tiers, DEKRA, France Travail, ClearCorrect summaries
 - Raccourcis directs sur page accueil organisation (Compta, Precision Dentaire, Stock, Comparateur)
 - Lien Comptabilite dans sidebar Mon Cabinet
 
-### Priorites prochaine session
-1. AUTO-SCANNER FACTURES : brancher le scanner existant (analyserDocumentIA + Claude)
-   sur le compte mail connecte du Copilot. Scan automatique, resultats par mois,
-   checkboxes validation. Meme UI que index.html#compta mais automatique.
-2. Panneau lateral : afficher les factures scannees avec checkboxes comme dans index.html
-3. Tester le copilot widget sur mobile
-4. Brancher le copilot sur l'agenda IA (analyzeDay, optimizeDay, detectGaps)
-5. Build Flutter Codemagic
-6. Push jadomi (erreur 500 GitHub)
+### Corrections fin de session
+- Scan Envoyes desactive du daemon 5min (crash Yahoo, fait dans bulk import)
+- max_tokens Claude 1500 → 3000 pour eviter JSON tronque
+- Auto-repair JSON tronque (ferme accolades/crochets manquants)
+- Nginx timeout 600s ajoute pour /api/copilot/ et /api/brain/
+- Fix "compromis" faux positif notaire → "compromis de vente"
+- Fix greeting "salut retrouve mes mails" ne bloque plus
+- Widget auth : auto-fetch societe_id via /api/societes au chargement
+- Scan factures POST (pas SSE, nginx buffer) avec barre progression simulee
+
+### Bugs connus a corriger
+- Scan factures depuis le copilot peut faire crasher le serveur (memory)
+  → Solution : le faire UNIQUEMENT via le cron 6h, pas en temps reel
+- Le scanner compta index.html demande encore email/mdp manuellement
+  → Brancher sur comptes_email_societe (identifiants deja sauvegardes)
+- 392 restarts PM2 accumules → reset le compteur apres stabilisation
+- tab-agenda.js:1371 renderSkeleton null → bug existant non lie au copilot
+
+### Priorites prochaine session (Passe 87)
+1. STABILISER : le scan factures ne doit PAS crasher le serveur
+   → Worker separe (child_process.fork) ou limiter la memoire
+2. BRANCHER COPILOT SUR AGENDA : quand un patient annule par mail,
+   le copilot propose au dentiste d'annuler le RDV + proposer un autre creneau
+   Regle : JAMAIS annuler sans validation praticien
+3. SCANNER COMPTA index.html : utiliser comptes_email_societe au lieu de retaper les identifiants
+4. Copilot actions directes : chercher patient, creer RDV, voir planning
+5. Enrichir le message accueil : "3 factures triees, 2 mails urgents, 1 patient a annule"
+6. Tester copilot sur mobile
+7. Build Flutter Codemagic
+8. Push jadomi (erreur 500 GitHub)
+9. Commercial OVH HDS mercredi 21 mai
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 18 mai 2026 (Passe 85 — JADOMI Copilot Global)
+Derniere mise a jour : 18 mai 2026 (Passes 84-85-86 — Cabinet Brain + Copilot + Mails + Scan)
 ===============================================================
