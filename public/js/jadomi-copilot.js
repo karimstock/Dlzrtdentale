@@ -382,7 +382,7 @@
       var moisNoms = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
       var moisLabel = (moisNoms[(params.mois||1)-1] || '') + ' ' + (params.annee || '');
       openSidePanel('Scan en cours...', '<div style="text-align:center;padding:40px;"><div style="color:' + TEXT2 + ';margin-bottom:8px;">Analyse des factures de ' + moisLabel + '</div><div style="color:' + TEXT2 + ';font-size:11px;">JADOMI IA analyse chaque document... Cela peut prendre 1 à 2 minutes.</div></div>');
-      fetch('/api/brain/mail/scan-factures', {
+      fetch('/api/copilot/scan-factures', {
         method: 'POST', headers: getHeaders(),
         body: JSON.stringify(params)
       })
