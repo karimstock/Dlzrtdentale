@@ -669,11 +669,21 @@ router.post('/scan-factures', async (req, res) => {
 
             try {
               const base64 = att.content.toString('base64');
-              // Appeler analyserDocumentIA (fonction globale dans server.js)
-              // On la réimporte ici
+
+              // NIVEAU 1 : Mistral Pixtral pre-tri (0.001 EUR) — "c'est une facture ?"
+              let isRealInvoice = true;
+              try {
+                const iaRouter = require('../../lib/ia-router');
+                const preCheck = await iaRouter.mistralVision(base64,
+                  'Ce document est-il une facture, un devis, un avoir ou un document comptable ? Reponds OUI ou NON uniquement.',
+                  { maxTokens: 10 });
+                isRealInvoice = !/\bNON\b/i.test(preCheck);
+                if (!isRealInvoice) { console.log('[SCAN] Skip:', att.filename, '(pas facture)'); continue; }
+              } catch (_) {} // Mistral echoue → on analyse quand meme
+
+              // NIVEAU 2 : Claude extraction (uniquement les vraies factures)
               const Anthropic = require('@anthropic-ai/sdk');
               const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
               claudeCalls++;
               const response = await anthropic.messages.create({
                 model: 'claude-sonnet-4-6',
