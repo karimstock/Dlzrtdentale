@@ -490,6 +490,148 @@ router.post('/compose', async (req, res) => {
 });
 
 // =============================================
+// IMPORT BULK — charge TOUS les mails d'un coup (headers only)
+// 1000 mails en ~1 seconde. Classification locale instantanée.
+// =============================================
+router.post('/bulk-import', async (req, res) => {
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const { account_id } = req.body;
+
+    const { data: account, error: accErr } = await db()
+      .from('comptes_email_societe')
+      .select('*')
+      .eq('id', account_id)
+      .eq('societe_id', sid)
+      .single();
+    if (accErr || !account) return res.status(404).json({ error: 'Compte non trouvé' });
+
+    const password = decryptPassword(account);
+    if (!password) return res.status(500).json({ error: 'Erreur déchiffrement' });
+
+    const imapConfig = buildImapConfig(account, password);
+    imapConfig.connTimeout = 60000;
+
+    const client = new ImapFlow({ ...imapConfig, logger: false });
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+
+    const seqs = await client.search({ since: new Date('2026-01-01') });
+    const total = seqs.length;
+
+    // Fetch tous les headers en bulk
+    const mails = [];
+    for await (const msg of client.fetch(seqs.join(','), {
+      headers: ['from', 'subject', 'date', 'message-id'],
+      flags: true
+    }, { uid: false })) {
+      try {
+        const parsed = await simpleParser(msg.headers);
+        const fromAddr = parsed.from?.value?.[0]?.address || '';
+        const fromName = parsed.from?.value?.[0]?.name || '';
+        const subject = parsed.subject || '(sans objet)';
+        const date = parsed.date?.toISOString() || new Date().toISOString();
+        const messageId = parsed.messageId || msg.seq.toString();
+        const mailUid = crypto.createHash('md5').update(messageId + account.email).digest('hex');
+
+        // Classification locale (instantanée, 0€)
+        const mail = { from: fromAddr, fromName, subject, text: '', attachments: [], headers: {} };
+        const cat = scorer.classifyMailAdvanced(mail, sid);
+
+        mails.push({
+          societe_id: sid,
+          account_id: account.id,
+          mail_uid: mailUid,
+          message_id: messageId,
+          from_address: fromAddr,
+          from_name: fromName,
+          subject,
+          body_preview: '',
+          date_received: date,
+          is_read: msg.flags?.has('\\Seen') || false,
+          category: cat.category,
+          priority: cat.priority,
+          has_attachments: false,
+          has_pdf: false,
+          needs_response: cat.needs_response || false,
+          response_urgency: cat.response_urgency || 'none',
+          response_type: cat.response_type || null,
+          is_spam: cat.is_spam || false,
+          is_newsletter: cat.is_newsletter || false,
+          financial_type: cat.financial?.type || null,
+          financial_montant: cat.financial?.montant || null,
+          metadata: { reason: cat.reason, confidence: cat.confidence }
+        });
+      } catch (_) {}
+    }
+
+    lock.release();
+
+    // Aussi scanner les Envoyés pour marquer les répondus
+    const sentMails = [];
+    try {
+      const folders = await client.list();
+      const sentFolder = folders.find(f => f.specialUse === '\\Sent' || /^(Sent|Envoy)/i.test(f.path));
+      if (sentFolder) {
+        const sentLock = await client.getMailboxLock(sentFolder.path);
+        const sentSeqs = await client.search({ since: new Date('2026-01-01') });
+        for await (const msg of client.fetch(sentSeqs.join(','), {
+          headers: ['to', 'subject', 'date'],
+          flags: true
+        }, { uid: false })) {
+          try {
+            const parsed = await simpleParser(msg.headers);
+            sentMails.push({
+              to: parsed.to?.value?.[0]?.address || '',
+              subject: (parsed.subject || '').replace(/^Re:\s*/i, '').toLowerCase().trim()
+            });
+          } catch (_) {}
+        }
+        sentLock.release();
+      }
+    } catch (_) {}
+
+    await client.logout();
+
+    // Marquer les mails répondus
+    if (sentMails.length > 0) {
+      for (const m of mails) {
+        const inboxSubject = (m.subject || '').replace(/^Re:\s*/i, '').toLowerCase().trim();
+        if (sentMails.some(s => s.subject === inboxSubject && s.to === m.from_address)) {
+          m.replied = true;
+          m.needs_response = false;
+        }
+      }
+    }
+
+    // Insert en bulk par batch de 100 (upsert)
+    let inserted = 0;
+    for (let i = 0; i < mails.length; i += 100) {
+      const batch = mails.slice(i, i + 100);
+      const { error } = await db().from('mails_inbox').upsert(batch, { onConflict: 'societe_id,mail_uid' });
+      if (!error) inserted += batch.length;
+    }
+
+    // Mettre à jour le compte
+    await db().from('comptes_email_societe').update({
+      dernier_scan: new Date().toISOString(),
+      derniere_erreur: null
+    }).eq('id', account.id);
+
+    res.json({
+      ok: true,
+      total_found: total,
+      imported: inserted,
+      sent_checked: sentMails.length,
+      replied_marked: mails.filter(m => m.replied).length
+    });
+  } catch (e) {
+    console.error('[MAIL-COPILOT] bulk-import error:', e.message);
+    res.status(500).json({ error: 'Erreur import : ' + e.message });
+  }
+});
+
+// =============================================
 // HELPERS
 // =============================================
 
