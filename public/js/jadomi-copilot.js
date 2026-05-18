@@ -111,13 +111,35 @@
   };
 
   // Auth
-  function getHeaders() {
-    var tk = window._jToken || null;
-    if (!tk) { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') > 0) { try { tk = JSON.parse(localStorage.getItem(k)).access_token; } catch (_) {} break; } } }
-    if (!tk) try { tk = JSON.parse(localStorage.getItem('jadomi_session') || '{}').access_token; } catch (_) {}
-    var sid = window._jSocieteId || localStorage.getItem('jadomi_societe_active') || '';
-    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (tk || ''), 'X-Societe-Id': sid };
+  var _cpToken = null, _cpSocieteId = null;
+
+  function initAuth() {
+    // Token
+    if (window._jToken) _cpToken = window._jToken;
+    if (!_cpToken) { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') > 0) { try { _cpToken = JSON.parse(localStorage.getItem(k)).access_token; } catch (_) {} break; } } }
+    if (!_cpToken) try { _cpToken = JSON.parse(localStorage.getItem('jadomi_session') || '{}').access_token; } catch (_) {}
+    // Societe
+    _cpSocieteId = window._jSocieteId || localStorage.getItem('jadomi_societe_active') || null;
+    // Si pas de societe_id, aller chercher via API
+    if (!_cpSocieteId && _cpToken) {
+      fetch('/api/societes', { headers: { 'Authorization': 'Bearer ' + _cpToken } })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          if (d && d.societes && d.societes.length > 0) {
+            _cpSocieteId = d.societes[0].id;
+            localStorage.setItem('jadomi_societe_active', _cpSocieteId);
+          }
+        }).catch(function() {});
+    }
   }
+
+  function getHeaders() {
+    if (!_cpToken) initAuth();
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_cpToken || ''), 'X-Societe-Id': _cpSocieteId || '' };
+  }
+
+  // Init auth au chargement
+  setTimeout(initAuth, 500);
 
   function detectContext() {
     var p = window.location.pathname;
