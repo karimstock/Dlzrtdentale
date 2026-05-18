@@ -222,7 +222,8 @@
       var html = '';
       mails.forEach(function (m) {
         var date = m.date_received ? new Date(m.date_received).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-        html += '<div class="jcp-card">';
+        var mid = m.id || '';
+        html += '<div class="jcp-card" style="cursor:pointer;" onclick="window.__jcpReadMail(\'' + mid + '\')">';
         html += '<div class="jcp-card-from"><span>' + esc(m.from_name || m.from_address || '?') + '</span><span style="font-size:10px;color:' + TEXT2 + ';">' + date + '</span></div>';
         html += '<div class="jcp-card-subject">' + esc(m.subject || '(sans objet)') + '</div>';
         html += '<div class="jcp-card-meta">';
@@ -233,13 +234,50 @@
         if (m.financial_type && m.financial_type !== 'inconnu') html += '<span class="jcp-card-tag jcp-card-tag-fin">' + esc(m.financial_type) + (m.financial_montant ? ' ' + m.financial_montant + ' EUR' : '') + '</span>';
         html += '</div>';
         if (m.body_preview) html += '<div style="font-size:11px;color:' + TEXT2 + ';margin-top:6px;line-height:1.5;">' + esc(m.body_preview.substring(0, 120)) + '...</div>';
-        if (m.needs_response) {
-          html += '<div class="jcp-card-actions"><button class="jcp-card-btn jcp-card-btn-primary" onclick="window.__jcpSend(\'réponds à ' + esc(m.from_name || m.from_address).replace(/'/g, "\\'") + ' que \')">Répondre</button></div>';
-        }
+        html += '<div class="jcp-card-actions">';
+        html += '<button class="jcp-card-btn jcp-card-btn-ghost" onclick="event.stopPropagation();window.__jcpReadMail(\'' + mid + '\')">Lire</button>';
+        if (m.needs_response) html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="event.stopPropagation();window.__jcpSend(\'réponds à ' + esc(m.from_name || m.from_address).replace(/'/g, "\\'") + ' que \')">Répondre</button>';
+        html += '</div>';
         html += '</div>';
       });
       openSidePanel(title, html);
     }
+
+    // Lire un mail complet
+    window.__jcpReadMail = function(mailId) {
+      if (!mailId) return;
+      openSidePanel('Chargement...', '<div style="text-align:center;padding:30px;color:' + TEXT2 + ';">Téléchargement du mail...</div>');
+      fetch('/api/brain/mail/read', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ mail_id: mailId }) })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var html = '<div style="margin-bottom:14px;">';
+          html += '<div style="font-size:14px;font-weight:700;color:' + TEXT + ';margin-bottom:4px;">' + esc(data.subject || '') + '</div>';
+          html += '<div style="font-size:12px;color:' + TEXT2 + ';">De : ' + esc(data.from || '') + '</div>';
+          html += '<div style="font-size:11px;color:' + TEXT2 + ';">' + (data.date ? new Date(data.date).toLocaleString('fr-FR') : '') + '</div>';
+          if (data.category) html += '<span class="jcp-card-tag jcp-card-tag-cat" style="margin-top:6px;display:inline-block;">' + esc(data.category) + '</span>';
+          html += '</div>';
+          // Pièces jointes
+          if (data.attachments && data.attachments.length > 0) {
+            html += '<div style="margin-bottom:12px;padding:8px 10px;background:' + BG3 + ';border-radius:8px;">';
+            html += '<div style="font-size:10px;color:' + TEXT2 + ';margin-bottom:4px;font-weight:600;">Pièces jointes :</div>';
+            data.attachments.forEach(function(a) {
+              html += '<div style="font-size:12px;color:' + TEXT + ';">📎 ' + esc(a.filename || '?') + ' <span style="color:' + TEXT2 + ';">(' + Math.round((a.size||0)/1024) + ' KB)</span></div>';
+            });
+            html += '</div>';
+          }
+          // Corps du mail
+          html += '<div style="font-size:13px;color:' + TEXT + ';line-height:1.7;white-space:pre-wrap;padding:12px;background:' + BG3 + ';border-radius:10px;max-height:350px;overflow-y:auto;">' + esc(data.body || '(vide)') + '</div>';
+          // Actions
+          html += '<div class="jcp-card-actions" style="margin-top:12px;">';
+          html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="window.__jcpSend(\'réponds à ' + esc(data.from || '').replace(/'/g, "\\'") + ' que \')">Répondre</button>';
+          html += '<button class="jcp-card-btn jcp-card-btn-ghost" onclick="history.back()">Retour</button>';
+          html += '</div>';
+          openSidePanel('Mail', html);
+        })
+        .catch(function(e) {
+          openSidePanel('Erreur', '<div style="color:#ef4444;padding:20px;">' + esc(e.message) + '</div>');
+        });
+    };
 
     function renderDraftCard(data) {
       currentDraft = data;

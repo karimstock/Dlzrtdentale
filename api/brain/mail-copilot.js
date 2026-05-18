@@ -490,6 +490,106 @@ router.post('/compose', async (req, res) => {
 });
 
 // =============================================
+// LIRE UN MAIL — télécharge le contenu complet à la demande
+// =============================================
+router.post('/read', async (req, res) => {
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const { mail_id } = req.body;
+    if (!mail_id) return res.status(400).json({ error: 'mail_id requis' });
+
+    // Récupérer le mail en base
+    const { data: mail } = await db().from('mails_inbox')
+      .select('*')
+      .eq('id', mail_id)
+      .eq('societe_id', sid)
+      .single();
+    if (!mail) return res.status(404).json({ error: 'Mail non trouvé' });
+
+    // Si on a déjà le body, le retourner
+    if (mail.body_preview && mail.body_preview.length > 100) {
+      return res.json({ id: mail.id, body: mail.body_preview, html: null, from: mail.from_name || mail.from_address, subject: mail.subject, date: mail.date_received, attachments: mail.metadata?.attachments || [] });
+    }
+
+    // Sinon, télécharger le contenu depuis IMAP
+    const { data: account } = await db().from('comptes_email_societe')
+      .select('*')
+      .eq('id', mail.account_id)
+      .single();
+    if (!account) return res.json({ id: mail.id, body: '(Contenu non disponible — compte déconnecté)', from: mail.from_name, subject: mail.subject, date: mail.date_received });
+
+    const password = decryptPassword(account);
+    if (!password) return res.json({ id: mail.id, body: '(Erreur déchiffrement)', from: mail.from_name, subject: mail.subject, date: mail.date_received });
+
+    const imapConfig = buildImapConfig(account, password);
+    const client = new ImapFlow({ ...imapConfig, logger: false });
+
+    try {
+      await client.connect();
+      const lock = await client.getMailboxLock('INBOX');
+
+      // Chercher le mail par date (approximation) puis matcher par message_id
+      const searchDate = mail.date_received ? new Date(new Date(mail.date_received).getTime() - 86400000) : new Date('2024-01-01');
+      const seqs = await client.search({ since: searchDate });
+      const recent = seqs.slice(-200); // chercher dans les 200 plus récents depuis cette date
+
+      let foundBody = null;
+      let foundHtml = null;
+      let foundAttachments = [];
+
+      for await (const msg of client.fetch(recent.join(','), { source: true }, { uid: false })) {
+        try {
+          const parsed = await simpleParser(msg.source);
+          if (parsed.messageId === mail.message_id ||
+              (parsed.from?.value?.[0]?.address === mail.from_address &&
+               parsed.subject === mail.subject &&
+               Math.abs(new Date(parsed.date) - new Date(mail.date_received)) < 60000)) {
+            foundBody = parsed.text || '';
+            foundHtml = parsed.html || null;
+            foundAttachments = (parsed.attachments || []).map(a => ({
+              filename: a.filename,
+              contentType: a.contentType,
+              size: a.size
+            }));
+            break;
+          }
+        } catch (_) {}
+      }
+
+      lock.release();
+      await client.logout();
+
+      // Sauvegarder le body en base pour pas re-fetcher
+      if (foundBody) {
+        await db().from('mails_inbox').update({
+          body_preview: foundBody.substring(0, 2000),
+          has_attachments: foundAttachments.length > 0,
+          has_pdf: foundAttachments.some(a => a.contentType?.includes('pdf') || a.filename?.endsWith('.pdf')),
+          metadata: { ...mail.metadata, attachments: foundAttachments }
+        }).eq('id', mail.id);
+      }
+
+      res.json({
+        id: mail.id,
+        body: foundBody || '(Contenu non trouvé)',
+        html: foundHtml,
+        from: mail.from_name || mail.from_address,
+        subject: mail.subject,
+        date: mail.date_received,
+        category: mail.category,
+        attachments: foundAttachments
+      });
+    } catch (imapErr) {
+      try { await client.logout(); } catch (_) {}
+      res.json({ id: mail.id, body: '(Erreur IMAP : ' + imapErr.message + ')', from: mail.from_name, subject: mail.subject, date: mail.date_received });
+    }
+  } catch (e) {
+    console.error('[MAIL-COPILOT] read error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =============================================
 // IMPORT BULK — charge TOUS les mails d'un coup (headers only)
 // 1000 mails en ~1 seconde. Classification locale instantanée.
 // =============================================
