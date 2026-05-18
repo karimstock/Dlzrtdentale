@@ -105,7 +105,7 @@ module.exports = async function scanFacturesSSE(req, res, db) {
             const Anthropic = require('@anthropic-ai/sdk');
             const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
             const resp = await anthropic.messages.create({
-              model: 'claude-sonnet-4-6', max_tokens: 1500,
+              model: 'claude-sonnet-4-6', max_tokens: 3000,
               system: 'Expert-comptable dentaire FR. JSON uniquement.',
               messages: [{ role: 'user', content: [
                 { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },

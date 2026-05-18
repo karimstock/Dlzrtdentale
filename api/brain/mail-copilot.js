@@ -687,7 +687,7 @@ router.post('/scan-factures', async (req, res) => {
               claudeCalls++;
               const response = await anthropic.messages.create({
                 model: 'claude-sonnet-4-6',
-                max_tokens: 1500,
+                max_tokens: 3000,
                 system: 'Tu es un expert-comptable cabinet dentaire FR. Réponds UNIQUEMENT en JSON valide.',
                 messages: [{
                   role: 'user',
