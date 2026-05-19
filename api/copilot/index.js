@@ -685,18 +685,72 @@ router.post('/message', async (req, res) => {
           '- Questions sur votre cabinet, stock, agenda\n\n' +
           'Parlez naturellement, je comprends le français courant.', intent });
 
-      case 'patient':
-        extraContext = 'L\'utilisateur cherche un patient ou demande des infos patient. Pour chercher un patient : Précision Dentaire → onglet Patients. Pour le score de fiabilité, consultez l\'agenda IA.';
+      case 'patient': {
+        // Agent Patient de la fourmilière — recherche + résumé enrichi
+        try {
+          if (dispatcher) {
+            const wf = await dispatcher.dispatch(db(), sid, {
+              type: 'patient_request',
+              data: { command: message, text: message },
+              cabinetContext: { identity, contacts }
+            });
+            if (wf.finalOutput && wf.finalOutput.contextSummary) {
+              extraContext = 'Résultat agent patient : ' + wf.finalOutput.contextSummary + '. ';
+            }
+          }
+        } catch (e) {
+          console.warn('[COPILOT] dispatcher patient error:', e.message);
+        }
+        extraContext += 'Pour chercher un patient : Précision Dentaire → onglet Patients. Pour le score de fiabilité, consultez l\'agenda IA.';
         break;
-      case 'urgence':
-        extraContext = 'Urgence détectée. Pour le triage d\'urgence et la liste d\'attente : Précision Dentaire → onglet Agenda → bouton Triage. Niveaux : critique (cellulite, avulsion = immédiat), urgent (abcès = 24h), semi-urgent (douleur provoquée = 72h).';
+      }
+      case 'urgence': {
+        // Agent Agenda — chercher créneaux disponibles pour urgence
+        try {
+          const agendaAgent = require('../../lib/agents/agent-agenda');
+          const today = new Date().toISOString().substring(0, 10);
+          const slots = await agendaAgent.findReplacement(db(), sid, { date: today, duration: 15 });
+          if (slots.success && slots.slots.length > 0) {
+            extraContext = 'Créneaux disponibles pour urgence aujourd\'hui : ' + slots.slots.map(s => s.start + '-' + s.end).join(', ') + '. ';
+          }
+        } catch (e) {
+          console.warn('[COPILOT] agent-agenda urgence error:', e.message);
+        }
+        extraContext += 'Pour le triage d\'urgence : Précision Dentaire → onglet Agenda → bouton Triage. Niveaux : critique (cellulite, avulsion = immédiat), urgent (abcès = 24h), semi-urgent (douleur provoquée = 72h).';
         break;
-      case 'stock':
-        extraContext = 'Stock et commandes. Accédez au dashboard Stock : jadomi.fr → Stock. Alertes péremption, ruptures, panier intelligent et comparateur prix sont dans ce module.';
+      }
+      case 'stock': {
+        // Agent Stock — résumé rapide du stock
+        try {
+          const stockAgent = require('../../lib/agents/agent-stock');
+          const summary = await stockAgent.stockSummary(db(), sid);
+          if (summary.success) {
+            extraContext = 'État du stock : ' + summary.summary_text + ' ';
+          }
+        } catch (e) {
+          console.warn('[COPILOT] agent-stock error:', e.message);
+        }
+        extraContext += 'Accédez au dashboard Stock : jadomi.fr → Stock. Alertes péremption, ruptures, panier intelligent et comparateur prix sont dans ce module.';
         break;
-      case 'agenda':
-        extraContext = 'Agenda et planning. Accédez à Précision Dentaire : jadomi.fr/admin/dentiste-pro → Agenda. Analyse journée, optimisation, trous, créneaux disponibles, et copilot vocal sont dans ce module.';
+      }
+      case 'agenda': {
+        // Agent Agenda — analyse de la journée + créneaux
+        try {
+          const agendaAgent = require('../../lib/agents/agent-agenda');
+          const today = new Date().toISOString().substring(0, 10);
+          const dayAnalysis = await agendaAgent.optimizeDay(db(), sid, today);
+          if (dayAnalysis.success) {
+            extraContext = 'Analyse du jour : ' + dayAnalysis.rdv_count + ' RDV, occupation ' + dayAnalysis.occupancy_percent + '%. ';
+            if (dayAnalysis.suggestions.length > 0) {
+              extraContext += 'Suggestions : ' + dayAnalysis.suggestions.map(s => s.message).join(' | ') + '. ';
+            }
+          }
+        } catch (e) {
+          console.warn('[COPILOT] agent-agenda error:', e.message);
+        }
+        extraContext += 'Accédez à Précision Dentaire : jadomi.fr/admin/dentiste-pro → Agenda.';
         break;
+      }
       case 'comparateur':
         extraContext = 'Comparateur de prix fournisseurs. Accédez à : jadomi.fr → Achats & Fournisseurs → Comparateur prix. 172 000 produits, 16 fournisseurs FR comparés.';
         break;
@@ -733,6 +787,16 @@ router.post('/message', async (req, res) => {
       });
     }
 
+    // Charger le contexte agent enrichi (mémoire partagée fourmilière)
+    // trustLevel 'full' car Mistral et Claude sont conformes RGPD
+    let agentMemory = '';
+    try {
+      const memory = require('../../lib/agents/memory');
+      agentMemory = await memory.buildAgentContext(db(), sid, 'copilot', 'full');
+    } catch (e) {
+      // Fourmilière pas encore montée ou table manquante — pas bloquant
+    }
+
     // Construire le system prompt
     const systemPrompt = `Vous êtes JADOMI Copilot, l'assistant intelligent du cabinet "${identity.nom_cabinet || 'Cabinet dentaire'}".
 Vous accompagnez le praticien dans toutes ses tâches : mails, stock, agenda, commandes, documents.
@@ -754,7 +818,7 @@ RÈGLES ABSOLUES :
 - Quand vous renvoyez vers un module, indiquez le chemin précis
 - Adressez-vous au praticien avec respect ("Docteur", "Bonjour Docteur")
 
-${extraContext ? 'CONTEXTE :\n' + extraContext : ''}`;
+${agentMemory ? 'MÉMOIRE AGENT :\n' + agentMemory + '\n' : ''}${extraContext ? 'CONTEXTE :\n' + extraContext : ''}`;
 
     // Appel IA (Mistral d'abord)
     const iaRouter = require('../../lib/ia-router');
