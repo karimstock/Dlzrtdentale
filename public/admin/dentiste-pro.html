@@ -1300,7 +1300,13 @@ input, textarea, select { font-family:inherit; }
       <span style="font-family:var(--font-display); font-weight:700; font-size:16px;" id="agenda-week-label">21 - 26 Avril 2025</span>
       <button class="btn btn-secondary btn-sm" onclick="changeWeek(1)">&#8594;</button>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="switchTab('batch')">Batch RDV</button>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="lancerVisio()" title="Lancer une visioconférence">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Visio
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="switchTab('batch')">Batch RDV</button>
+    </div>
   </div>
 
   <div class="calendar-grid" id="calendar-grid">
@@ -5072,6 +5078,40 @@ window.confirmerRelierLabo = async function(laboId, laboNom) {
 };
 
 })();
+</script>
+
+<!-- ─── Visioconférence ─── -->
+<script>
+function _visioToast(msg) {
+  var old = document.getElementById('visio-toast');
+  if (old) old.remove();
+  var t = document.createElement('div');
+  t.id = 'visio-toast';
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:10001;background:var(--bg-card);border:1px solid var(--accent)44;border-left:4px solid var(--accent);border-radius:var(--radius-md);padding:14px 20px;color:var(--text-primary);font-size:13px;font-family:var(--font-body);box-shadow:var(--shadow-lg);animation:triSlideIn .3s ease;max-width:380px;';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove(); },300); }, 4000);
+}
+
+async function lancerVisio(patientName, patientEmail) {
+  try {
+    var token = (window.jadomiMultiSocietes && jadomiMultiSocietes.token) || '';
+    var sid = (window.jadomiMultiSocietes && jadomiMultiSocietes.societeId) || '';
+    var r = await fetch('/api/visio/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid },
+      body: JSON.stringify({ guest_name: patientName || '', guest_email: patientEmail || '', duration_minutes: 30, send_invite: !!patientEmail })
+    }).then(function(resp){ return resp.json(); });
+    if (r.token) {
+      var url = window.location.origin + '/visio/' + r.token;
+      window.open(url, '_blank');
+      navigator.clipboard.writeText(url).catch(function(){});
+      _visioToast(patientEmail ? 'Visio lancée — invitation envoyée à ' + patientEmail : 'Lien visio copié dans le presse-papier');
+    } else {
+      _visioToast('Erreur : ' + (r.error || 'Impossible de créer la visio'));
+    }
+  } catch (e) { _visioToast('Erreur visio : ' + e.message); }
+}
 </script>
 
 </body>

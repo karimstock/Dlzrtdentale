@@ -110,9 +110,12 @@ h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margi
 
   <!-- MAIN -->
   <div class="view" id="v-main">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
       <div style="font-size:12px;color:var(--success);">&#128994; Coffre deverrouille (session 15 min)</div>
-      <button class="btn btn-gold" onclick="showNewClient()">+ Nouveau client</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-s" onclick="lancerVisioAvocat()">&#128249; Nouvelle visio</button>
+        <button class="btn btn-gold" onclick="showNewClient()">+ Nouveau client</button>
+      </div>
     </div>
 
     <div id="clients-list"><div style="text-align:center;padding:40px;color:var(--ink-d);">Chargement...</div></div>
@@ -237,6 +240,7 @@ async function loadClients(){
       <div class="client-avatar">${esc((c.prenom||'?')[0])}${esc((c.nom||'?')[0])}</div>
       <div class="client-info"><div class="client-name">${esc(c.prenom||'')} ${esc(c.nom)}</div><div class="client-email">${esc(c.email)}</div></div>
       <span class="badge ${c.statut==='actif'?'badge-ok':'badge-new'}">${esc(c.statut)}</span>
+      <button class="btn btn-s" style="flex-shrink:0;font-size:11px;" onclick="event.stopPropagation();lancerVisioAvocat('${esc((c.prenom||'')+' '+(c.nom||''))}','${esc(c.email||'')}')">&#128249; Visio</button>
     </div>
   `).join('');
 }
@@ -273,8 +277,11 @@ async function openDossier(dossierId){
 
   document.getElementById('dossier-content').innerHTML=`
     <div class="card">
-      <h3>&#128193; ${esc(d.titre||d.reference)}</h3>
-      <div style="font-size:12px;color:var(--ink-d);">Ref : ${esc(d.reference||'—')} &middot; Type : ${esc(d.type||'—')} &middot; Client : ${esc(d.avocat_clients?.prenom||'')} ${esc(d.avocat_clients?.nom||'')}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <h3 style="margin:0;">&#128193; ${esc(d.titre||d.reference)}</h3>
+        <button class="btn btn-s" style="font-size:11px;flex-shrink:0;" onclick="lancerVisioAvocat('${esc((d.avocat_clients?.prenom||'')+' '+(d.avocat_clients?.nom||''))}','${esc(d.avocat_clients?.email||'')}')">&#128249; Consultation video</button>
+      </div>
+      <div style="font-size:12px;color:var(--ink-d);margin-top:8px;">Ref : ${esc(d.reference||'—')} &middot; Type : ${esc(d.type||'—')} &middot; Client : ${esc(d.avocat_clients?.prenom||'')} ${esc(d.avocat_clients?.nom||'')}</div>
     </div>
 
     <div class="card">
@@ -335,6 +342,34 @@ async function commentDoc(docId){
   if(!content)return;
   await api('POST','/coffre/documents/'+docId+'/comment',{content});
   showToast('Commentaire ajoute');
+}
+
+async function lancerVisioAvocat(clientNom, clientEmail){
+  try{
+    const r=await fetch('/api/visio/rooms',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':societeId},
+      body:JSON.stringify({
+        guest_name:clientNom||'',
+        guest_email:clientEmail||'',
+        duration_minutes:60,
+        room_type:'consultation',
+        send_invite:!!clientEmail
+      })
+    }).then(function(res){return res.json();});
+    if(r.token){
+      var url=window.location.origin+'/visio/'+r.token;
+      window.open(url,'_blank');
+      if(clientEmail){
+        showToast('Invitation envoyee a '+clientEmail);
+      }else{
+        navigator.clipboard.writeText(url).catch(function(){});
+        showToast('Lien copie — envoyez-le a votre client');
+      }
+    }else{
+      showToast(r.error||'Erreur creation visio');
+    }
+  }catch(e){showToast('Erreur : '+e.message);}
 }
 </script>
 </body>
