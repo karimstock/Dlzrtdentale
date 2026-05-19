@@ -813,15 +813,27 @@ router.post('/message', async (req, res) => {
             if (dateRange.until) query = query.lt('date_received', dateRange.until.toISOString());
 
             const { data: rawMails } = await query;
-            // Filtrer le bruit (pubs, notifs, sondages)
-            const mails = (rawMails || []).filter(m => !isNoiseMail(m));
+            // Aussi charger les pubs/newsletters (séparément)
+            let pubQuery = db().from('mails_inbox')
+              .select('id, from_name, from_address, subject, date_received, category, body_preview')
+              .eq('societe_id', sid)
+              .or('is_newsletter.eq.true,is_spam.eq.true')
+              .gte('date_received', dateRange.since.toISOString())
+              .order('date_received', { ascending: false }).limit(15);
+            if (dateRange.until) pubQuery = pubQuery.lt('date_received', dateRange.until.toISOString());
+            const { data: pubMails } = await pubQuery;
 
-            // Séparer : importants (needs_response) vs reste
-            const important = mails.filter(m => m.needs_response || m.priority === 'urgent' || m.priority === 'high' || m.financial_type);
-            const autres = mails.filter(m => !m.needs_response && m.priority !== 'urgent' && m.priority !== 'high' && !m.financial_type);
+            // Séparer en 3 catégories
+            const allMails = rawMails || [];
+            const important = allMails.filter(m => !isNoiseMail(m) && (m.needs_response || m.priority === 'urgent' || m.priority === 'high' || m.financial_type));
+            const autres = allMails.filter(m => !isNoiseMail(m) && !m.needs_response && m.priority !== 'urgent' && m.priority !== 'high' && !m.financial_type);
+            const pubs = (pubMails || []).concat(allMails.filter(m => isNoiseMail(m)));
+            // Dédupliquer les pubs par id
+            const pubIds = new Set();
+            const pubsUnique = pubs.filter(m => { if (!m.id || pubIds.has(m.id)) return false; pubIds.add(m.id); return true; });
 
-            if (mails.length === 0) {
-              return res.json({ reply: 'Aucun mail important ' + dateRange.label + '. Votre boîte est en ordre, Docteur.', intent: finalIntent });
+            if (important.length === 0 && autres.length === 0 && pubsUnique.length === 0) {
+              return res.json({ reply: 'Aucun mail ' + dateRange.label + '. Votre boîte est vide, Docteur.', intent: finalIntent });
             }
 
             let reply = 'Docteur, voici vos mails ' + dateRange.label + ' :\n\n';
@@ -833,7 +845,11 @@ router.post('/message', async (req, res) => {
               reply += '\n--- AUTRES (' + autres.length + ') ---\n\n';
               autres.forEach(m => { reply += formatMailLine(m); });
             }
-            return res.json({ reply, intent: finalIntent, mails: important.concat(autres) });
+            if (pubsUnique.length > 0) {
+              reply += '\n--- PUBS & NEWSLETTERS (' + pubsUnique.length + ') ---\n\n';
+              pubsUnique.forEach(m => { reply += formatMailLine(m); });
+            }
+            return res.json({ reply, intent: finalIntent, mails: important.concat(autres), pubs: pubsUnique });
           }
 
           // (résumé géré plus haut)

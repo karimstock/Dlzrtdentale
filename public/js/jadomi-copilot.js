@@ -311,29 +311,47 @@
     // ================================================================
     // RENDER CARDS dans le panneau latéral
     // ================================================================
-    function renderMailCards(mails, title) {
+    function renderMailCards(mails, title, pubs) {
       var html = '';
-      mails.forEach(function (m) {
-        var date = m.date_received ? new Date(m.date_received).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
-        var mid = m.id || '';
-        html += '<div class="jcp-card" style="cursor:pointer;" onclick="window.__jcpReadMail(\'' + mid + '\')">';
-        html += '<div class="jcp-card-from"><span>' + esc(m.from_name || m.from_address || '?') + '</span><span style="font-size:10px;color:' + TEXT2 + ';">' + date + '</span></div>';
-        html += '<div class="jcp-card-subject">' + esc(m.subject || '(sans objet)') + '</div>';
-        html += '<div class="jcp-card-meta">';
-        if (m.needs_response) html += '<span class="jcp-card-tag jcp-card-tag-response">Réponse attendue</span>';
-        if (m.priority === 'urgent') html += '<span class="jcp-card-tag jcp-card-tag-urgent">Urgent</span>';
-        if (m.category && m.category !== 'autre') html += '<span class="jcp-card-tag jcp-card-tag-cat">' + esc(m.category) + '</span>';
-        if (m.has_pdf) html += '<span class="jcp-card-tag jcp-card-tag-pdf">PDF</span>';
-        if (m.financial_type && m.financial_type !== 'inconnu') html += '<span class="jcp-card-tag jcp-card-tag-fin">' + esc(m.financial_type) + (m.financial_montant ? ' ' + m.financial_montant + ' EUR' : '') + '</span>';
-        html += '</div>';
-        if (m.body_preview) html += '<div style="font-size:11px;color:' + TEXT2 + ';margin-top:6px;line-height:1.5;">' + esc(m.body_preview.substring(0, 120)) + '...</div>';
-        html += '<div class="jcp-card-actions">';
-        html += '<button class="jcp-card-btn jcp-card-btn-ghost" onclick="event.stopPropagation();window.__jcpReadMail(\'' + mid + '\')">Lire</button>';
-        if (m.needs_response) html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="event.stopPropagation();window.__jcpSend(\'réponds à ' + esc(m.from_name || m.from_address).replace(/'/g, "\\'") + ' que \')">Répondre</button>';
-        html += '</div>';
-        html += '</div>';
-      });
+      // Section mails importants
+      if (mails && mails.length > 0) {
+        html += '<div style="font-size:12px;font-weight:700;color:' + ACCENT + ';margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Importants (' + mails.length + ')</div>';
+        mails.forEach(function (m) {
+          html += renderOneMailCard(m, true);
+        });
+      }
+      // Section pubs/newsletters (séparée, style atténué)
+      if (pubs && pubs.length > 0) {
+        html += '<div style="font-size:12px;font-weight:700;color:' + TEXT2 + ';margin:16px 0 8px;text-transform:uppercase;letter-spacing:1px;opacity:0.6;">Pubs & Newsletters (' + pubs.length + ')</div>';
+        pubs.forEach(function (m) {
+          html += renderOneMailCard(m, false);
+        });
+      }
       openSidePanel(title, html);
+    }
+
+    function renderOneMailCard(m, isImportant) {
+      var date = m.date_received ? new Date(m.date_received).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+      var mid = m.id || '';
+      var opacity = isImportant ? '1' : '0.6';
+      var html = '<div class="jcp-card" style="cursor:pointer;opacity:' + opacity + ';" onclick="window.__jcpReadMail(\'' + mid + '\')">';
+      html += '<div class="jcp-card-from"><span>' + esc(m.from_name || m.from_address || '?') + '</span><span style="font-size:10px;color:' + TEXT2 + ';">' + date + '</span></div>';
+      html += '<div class="jcp-card-subject">' + esc(m.subject || '(sans objet)') + '</div>';
+      html += '<div class="jcp-card-meta">';
+      if (m.needs_response) html += '<span class="jcp-card-tag jcp-card-tag-response">Réponse attendue</span>';
+      if (m.priority === 'urgent') html += '<span class="jcp-card-tag jcp-card-tag-urgent">Urgent</span>';
+      if (!isImportant) html += '<span class="jcp-card-tag" style="background:rgba(148,163,184,0.15);color:' + TEXT2 + ';">Pub</span>';
+      if (m.category && m.category !== 'autre' && m.category !== 'newsletter') html += '<span class="jcp-card-tag jcp-card-tag-cat">' + esc(m.category) + '</span>';
+      if (m.has_pdf) html += '<span class="jcp-card-tag jcp-card-tag-pdf">PDF</span>';
+      if (m.financial_type && m.financial_type !== 'inconnu') html += '<span class="jcp-card-tag jcp-card-tag-fin">' + esc(m.financial_type) + (m.financial_montant ? ' ' + m.financial_montant + ' EUR' : '') + '</span>';
+      html += '</div>';
+      if (m.body_preview) html += '<div style="font-size:11px;color:' + TEXT2 + ';margin-top:6px;line-height:1.5;">' + esc(m.body_preview.substring(0, 120)) + '...</div>';
+      html += '<div class="jcp-card-actions">';
+      html += '<button class="jcp-card-btn jcp-card-btn-ghost" onclick="event.stopPropagation();window.__jcpReadMail(\'' + mid + '\')">Lire</button>';
+      if (m.needs_response && isImportant) html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="event.stopPropagation();window.__jcpSend(\'réponds à ' + esc(m.from_name || m.from_address).replace(/'/g, "\\'") + ' que \')">Répondre</button>';
+      html += '</div>';
+      html += '</div>';
+      return html;
     }
 
     // Lire un mail complet
@@ -532,8 +550,9 @@
             addMsg('Brouillon préparé, Docteur. Vérifiez dans le panneau à droite.', false);
             renderDraftCard(data.data);
           } else if (data.mails && data.mails.length > 0) {
-            addMsg(data.mails.length + ' mail(s) trouvé(s). Détails dans le panneau.', false);
-            renderMailCards(data.mails, 'Mails');
+            var pubCount = data.pubs ? data.pubs.length : 0;
+            addMsg(data.mails.length + ' mail(s) important(s)' + (pubCount > 0 ? ' + ' + pubCount + ' pub(s)/newsletter(s)' : '') + '. Détails dans le panneau.', false);
+            renderMailCards(data.mails, 'Mails importants', data.pubs);
           } else if (data.documents && data.documents.length > 0) {
             addMsg(data.documents.length + ' document(s). Détails dans le panneau.', false);
             renderDocCards(data.documents, 'Documents');
