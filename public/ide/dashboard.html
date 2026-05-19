@@ -509,6 +509,14 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
 .accueil-timeline-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .accueil-timeline-text{font-size:13px;flex:1;color:var(--text);}
 @media(max-width:768px){.accueil-grid{grid-template-columns:repeat(2,1fr);}.accueil-two{grid-template-columns:1fr;}.accueil-shortcuts{flex-direction:column;}}
+@media(max-width:768px){
+  button,.btn,[onclick],.nav-item,.btn-icon,.btn-sm,.qa-btn,.accueil-shortcut,.plan-view-btn,.plan-sb-btn,.plan-sb-action,.plan-nurse-chip{
+    cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  }
+  .modal-overlay{
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(0,0,0,0.7)!important;
+  }
+}
 </style>
 <script src="/js/jadomi-copilot.js" defer></script>
 </head>
@@ -603,9 +611,9 @@ tbody tr:hover td{background:rgba(13,148,136,0.02);}
             <div class="accueil-kpi-sub">ordonnances à renouveler</div>
           </div>
         </div>
-        <div onclick="showPage('planning',document.querySelector('.nav-item[onclick*=planning]'))" style="animation:fadeInUp .5s ease both;animation-delay:.22s;background:linear-gradient(135deg,#0d9488,#0d7d6c);border-radius:16px;padding:24px 28px;margin-bottom:20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .2s;box-shadow:0 4px 16px rgba(13,148,136,.25);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(13,148,136,.35)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(13,148,136,.25)'">
+        <div onclick="_accueilLancerTournee(this)" style="animation:fadeInUp .5s ease both;animation-delay:.22s;background:linear-gradient(135deg,#0d9488,#0d7d6c);border-radius:16px;padding:24px 28px;margin-bottom:20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all .2s;box-shadow:0 4px 16px rgba(13,148,136,.25);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(13,148,136,.35)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(13,148,136,.25)'">
           <div style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></div>
-          <div><div style="font-size:18px;font-weight:700;color:#fff;">Démarrer la tournée</div><div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px;">Carte JADOMI — itinéraire optimisé, preuve de passage GPS</div></div>
+          <div><div style="font-size:18px;font-weight:700;color:#fff;">Démarrer la tournée</div><div id="accueil-tournee-sub" style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px;">Carte JADOMI — itinéraire optimisé, preuve de passage GPS</div></div>
           <div style="margin-left:auto;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
         <div class="accueil-shortcuts" style="animation:fadeInUp .5s ease both;animation-delay:.25s;">
@@ -4710,11 +4718,57 @@ function _carteToggleSidebar() {
 }
 
 function _carteLancerTournee() {
-  showPage('planning', document.querySelector('.nav-item[onclick*="planning"]'));
-  setTimeout(function() {
-    var btn = document.querySelector('[onclick*="lancerTournee"]') || document.querySelector('[onclick*="startTournee"]');
-    if (btn) btn.click();
-  }, 600);
+  _accueilLancerTournee();
+}
+
+/**
+ * Bouton accueil "Démarrer la tournée" → ouvre DIRECTEMENT la carte JADOMI
+ * Charge les visites du jour via l'API, puis lance startTourneeMode()
+ * PAS de redirection vers le planning — la carte s'ouvre immédiatement
+ */
+async function _accueilLancerTournee(btn) {
+  // Feedback visuel
+  var sub = document.getElementById('accueil-tournee-sub');
+  if (sub) sub.textContent = 'Chargement de la tournée...';
+  if (btn) btn.style.opacity = '0.7';
+
+  try {
+    var today = todayStr();
+    var data = await apiFetch('/api/ide/planning/' + today);
+    var visites = [];
+    var nurseName = '';
+
+    if (data && data.tournees && data.tournees.length > 0) {
+      // Prendre toutes les visites de toutes les tournées du jour
+      data.tournees.forEach(function(t) {
+        if (t.visites) visites.push.apply(visites, t.visites);
+        if (!nurseName && t.nurse) nurseName = t.nurse;
+      });
+    }
+
+    // Fallback démo si pas de données réelles
+    if (visites.length === 0) {
+      visites = generateDemoVisitesForDate(today);
+      nurseName = 'Tournée du jour';
+    }
+
+    // Trier par heure
+    visites.sort(function(a, b) { return (a.heure || '').localeCompare(b.heure || ''); });
+
+    // Restaurer le texte
+    if (sub) sub.textContent = visites.length + ' visites — ouverture de la carte...';
+    if (btn) btn.style.opacity = '1';
+
+    // Lancer directement la carte JADOMI
+    startTourneeMode(visites, nurseName || 'Tournée du jour');
+
+  } catch (e) {
+    console.error('[ACCUEIL] Erreur chargement tournée:', e.message);
+    if (sub) sub.textContent = 'Carte JADOMI — itinéraire optimisé, preuve de passage GPS';
+    if (btn) btn.style.opacity = '1';
+    // Fallback : ouvrir le planning
+    showPage('planning', document.querySelector('.nav-item[onclick*="planning"]'));
+  }
 }
 
 function _carteInitMap() {
