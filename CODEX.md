@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 19 mai 2026
-**Derniere passe** : Passe 88 (19 mai 2026) — Fourmiliere connectee + Module Avocat complet
+**Derniere passe** : Passe 88 (19 mai 2026) — Fourmiliere + Avocat + Visio + Copilot + Compta + Code Teams
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4828,7 +4828,76 @@ SECURITE CRITIQUE :
 - Migration SQL 93 : tables avocat_time_entries, avocat_dossier_transitions, avocat_honoraires, avocat_relances + enrichissement avocat_dossiers (etape, domaine, juridiction, numero_rg, dates audience/delibere/jugement/appel, taux_horaire_defaut, montants)
 - Toutes les routes montees dans server.js sous /api/avocat/*
 
+### Passe 88 suite (19 mai 2026 apres-midi) — Visio + Copilot + Compta + Code Teams
+
+**Visio universelle JADOMI :**
+- api/visio/index.js : 11 endpoints, WebRTC P2P natif, zero tiers
+- Salle d'attente (guest attend que le pro demarre, polling 3s)
+- Client externe : lien seul, entre son nom, zero inscription
+- Transcription IA : Web Speech API fr-FR + Mistral resume + sauvegarde dossier
+- Consentement RGPD obligatoire (modal des deux cotes)
+- Bouton "Visio" dans dentiste-pro.html (agenda) + coffre.html (avocat)
+- Migration SQL 94 : table visio_sessions + GRANTS + RLS
+- Route publique /visio/:token (pas d'auth requise)
+
+**Copilot refonte majeure :**
+- Reponses directes sans IA pour 70% des cas (stock, agenda, urgence, stats, etc.)
+- DeepSeek etendu anonymise pour TOUS les intents ambigus (deepseekParseGeneral)
+- Cerveau dynamique : cache memoire 5 min par cabinet (contacts, produits, patients, fournisseurs, regles apprises)
+- detectIntent enrichi par les vrais noms du cabinet (Dupont=comptable, GACD=stock)
+- Prompt Mistral restructure (question, intent, donnees, exemples, garde-fous)
+- Verification coherence post-reponse (keywords check, fallback safe)
+- Upload fichier : POST /message-with-file (multer 25MB, Claude Vision analyse PDF/images)
+- Bus copilot_notification : notifications fourmiliere dans les reponses
+
+**Mails — Separation importants/pubs :**
+- Tri en 3 categories : importants, autres, pubs&newsletters
+- Fournisseurs mixtes (Doctor Strong, GACD) : facture=important, promo=pub
+- KNOWN_NEWSLETTER_SENDERS : blacklist pure (CotizUp, Allomouton, Vistaprint...)
+- MIXED_SENDERS : detection par mots-cles sujet (facture vs festival)
+- Mails HTML affiches dans iframe sandbox (images, formatage preserves)
+- body_html sauvegarde en cache metadata pour eviter re-fetch IMAP
+
+**Compta universelle :**
+- api/compta/index.js : 9 endpoints (entries, summary, validate, reject, manual, export CSV, send-comptable, preferences)
+- Vue triee jour/mois/annee, KPIs (total HT/TTC/TVA, valides/en attente)
+- Auto-categorisation par mots-cles fournisseur (10 categories cabinet dentaire)
+- Onglet "Mes Factures" dans index.html (frontend complet)
+
+**Pipeline matinal automatique :**
+- 6h00 : daemon sync mails + dailyInvoiceScan
+- Post-scan : auto-classification compta des nouvelles factures
+- Rapport matinal stocke dans brain_events (morning_scan_report)
+- Copilot dashboard-summary affiche le rapport au premier chargement
+
+**Onboarding nouveau client :**
+- POST /api/brain/mail/onboarding-scan : chaine complete en 1 appel
+- Etape 1 : bulk import 6 derniers mois (dedup mail_uid)
+- Etape 2 : scan factures worker (Mistral + Claude, checksum dedup)
+- Etape 3 : auto-classification compta
+- Endpoint /connect retourne suggest_import si premiere connexion
+
+**Code Teams — Protocole multi-agents :**
+- Skill .claude/skills/code-teams
+- 5 phases : Architecte > Builders (worktree) > Reviewers > Integrateur > Deployeur
+- tmux Agent Teams active dans settings projet
+- MAX 5 builders paralleles, 10 fichiers par passe
+- Instauree Passe 88, remplace Builder/Reviewer simple
+
+**UI fourmiliere :**
+- Panneau "Fourmiliere IA" dans organisation.html (Mon Cabinet)
+- 10 toggles configurables : Auto (vert) / Proposer (bleu) / Desactive (rouge)
+- API GET/PUT /api/copilot/fourmiliere-prefs
+
+### Bugs connus apres Passe 88
+- Migration SQL 89 a verifier si executee proprement (agents_workflow)
+- Module avocat : backend complet, UI frontend a construire (chrono, kanban, honoraires)
+- Push + SMS effectifs dans recasage auto du dispatcher (emet evenement mais pas encore les notifs reelles)
+- Frontend onboarding : proposer le bulk import quand suggest_import=true
+- Tester le copilot refactore en production (pm2 reload)
+- Le copilot widget doit gerer l'upload fichier (drag-drop PDF dans le chat)
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 19 mai 2026 (Passe 88 — Fourmiliere connectee + Module Avocat complet)
+Derniere mise a jour : 19 mai 2026 (Passe 88 complete — Visio + Copilot + Compta + Code Teams)
 ===============================================================
