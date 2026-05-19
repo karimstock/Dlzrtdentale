@@ -5194,7 +5194,7 @@ function ouvrirOverlayScan(){
       </div>
       <div id="scan-result-panel" style="display:none;background:#1a1917;border-top:1px solid #2e2c29;padding:16px;color:#f0ede8;max-height:50vh;overflow-y:auto;"></div>`;
     document.body.appendChild(ov);
-    if(!document.getElementById('scan-css')){const st=document.createElement('style');st.id='scan-css';st.textContent='@keyframes scanLaser{0%,100%{top:20%;opacity:0.3;}50%{top:80%;opacity:1;}} #scan-camera video,#scan-camera canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important;object-fit:cover!important;}#scan-camera{position:absolute;inset:0;}';document.head.appendChild(st);}
+    if(!document.getElementById('scan-css')){const st=document.createElement('style');st.id='scan-css';st.textContent='@keyframes scanLaser{0%,100%{top:20%;opacity:0.3;}50%{top:80%;opacity:1;}} #scan-camera video{position:absolute;top:0;left:0;width:100%!important;height:100%!important;object-fit:cover!important;} #scan-camera canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important;object-fit:cover!important;background:transparent!important;opacity:0.6;} #scan-camera canvas.drawingBuffer{background:transparent!important;} #scan-camera{position:absolute;inset:0;}';document.head.appendChild(st);}
   }
   const ov=document.getElementById('scan-overlay');
   document.getElementById('scan-result-panel').style.display='none';
@@ -5240,8 +5240,14 @@ function demarrerQuagga(){
   },function(err){
     if(err){console.warn('Quagga failed, trying ZXing',err);if(window.ZXing)demarrerZXingFallback();else showToast('❌ Scanner non disponible');return;}
     Quagga.start();
+    // Forcer le canvas overlay transparent (supprime le filtre gris)
+    try{
+      const overlayCanvas=Quagga.canvas.dom.overlay;
+      if(overlayCanvas){overlayCanvas.style.background='transparent';overlayCanvas.style.opacity='0.5';}
+      const drawingBuffer=Quagga.canvas.dom.image;
+      if(drawingBuffer){drawingBuffer.style.display='none';}
+    }catch(_){}
     Quagga.onDetected(onQuaggaDetected);
-    // Dessiner les zones de détection
     Quagga.onProcessed(function(result){
       const drawingCanvas=Quagga.canvas.dom.overlay;
       if(!drawingCanvas)return;
