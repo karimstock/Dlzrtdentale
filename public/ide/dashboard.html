@@ -3449,77 +3449,66 @@ function _initJadomiMap() {
         var ld = document.getElementById('jadomi-map-loader');
         if (ld) ld.remove();
 
-        // ── Simulation GPS sur MapLibre 3D ──
-        var isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        if (!isMobile && routeCoords && routeCoords.length > 1) {
-          var simIdx = 0;
-          var simSpeed = 500;
-          _lastSpokenStep = -1;
+        // ── GPS RÉEL — watchPosition sur TOUS les appareils ──
+        _lastSpokenStep = -1;
 
-          // Badge simulation
-          var simBadge = document.createElement('div');
-          simBadge.style.cssText = 'position:absolute;bottom:16px;right:16px;z-index:900;padding:8px 14px;background:rgba(245,158,11,.9);color:#fff;border-radius:10px;font-size:12px;font-weight:700';
-          simBadge.textContent = 'GPS Simulé';
-          gl.appendChild(simBadge);
+        // Badge GPS réel
+        var gpsBadge = document.createElement('div');
+        gpsBadge.id = 'gps-badge';
+        gpsBadge.style.cssText = 'position:absolute;bottom:16px;right:16px;z-index:900;padding:8px 14px;background:rgba(13,148,136,.9);color:#fff;border-radius:10px;font-size:12px;font-weight:700';
+        gpsBadge.textContent = 'GPS en attente...';
+        gl.appendChild(gpsBadge);
 
-          // Compteur vitesse
-          var speedDiv = document.createElement('div');
-          speedDiv.id = 'jadomi-speed';
-          speedDiv.style.cssText = 'position:absolute;bottom:52px;right:20px;z-index:900;width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.8);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(8px);transition:all .3s ease';
-          gl.appendChild(speedDiv);
+        if (navigator.geolocation) {
+          window._glGpsWatchId = navigator.geolocation.watchPosition(function(pos) {
+            if (!window._glNavActive) return;
+            var cur = [pos.coords.latitude, pos.coords.longitude];
+            var prev = window._glLastGpsPos || cur;
+            window._glLastGpsPos = cur;
 
-          // Panneau limite
-          var limitDiv = document.createElement('div');
-          limitDiv.id = 'jadomi-speed-limit';
-          limitDiv.style.cssText = 'position:absolute;bottom:120px;right:24px;z-index:900;width:48px;height:48px;border-radius:50%;background:#fff;border:4px solid #ef4444;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#1a1a2e;box-shadow:0 2px 8px rgba(0,0,0,.2)';
-          gl.appendChild(limitDiv);
-
-          if (!document.getElementById('speed-flash-css')) {
-            var fc = document.createElement('style'); fc.id = 'speed-flash-css';
-            fc.textContent = '@keyframes speedFlash{0%{transform:scale(1);box-shadow:0 0 0 rgba(239,68,68,0);}100%{transform:scale(1.08);box-shadow:0 0 20px rgba(239,68,68,.6);}}';
-            document.head.appendChild(fc);
-          }
-
-          window._glSimInterval = setInterval(function() {
-            if (!window._glNavActive) { clearInterval(window._glSimInterval); return; }
-            simIdx++;
-            if (simIdx >= routeCoords.length) {
-              clearInterval(window._glSimInterval);
-              _speakNav('Vous êtes arrivé à destination.');
-              return;
-            }
-            var cur = routeCoords[simIdx];
-            var prev = routeCoords[simIdx - 1];
             var b = _calcBearing(prev[0], prev[1], cur[0], cur[1]);
 
-            // Déplacer marqueur + tourner carte — la route est TOUJOURS face à l'utilisateur
+            // Déplacer marqueur + tourner carte
             if (window._glCarMarker) {
               window._glCarMarker.setLngLat([cur[1], cur[0]]);
-              window._glCarMarker.setRotation(b); // voiture suit le sens de la route
+              if (_distMeters(prev[0], prev[1], cur[0], cur[1]) > 3) {
+                window._glCarMarker.setRotation(b);
+              }
             }
-            glMap.easeTo({ center: [cur[1], cur[0]], bearing: b, pitch: 60, zoom: 18.5, duration: 450 });
+            glMap.easeTo({ center: [cur[1], cur[0]], bearing: b, pitch: 60, zoom: 18.5, duration: 800 });
 
-            // Vitesse simulée
-            var distM = _distMeters(prev[0], prev[1], cur[0], cur[1]);
-            var simKmh = Math.round((distM / (simSpeed / 1000)) * 3.6);
-            if (simKmh > 130) simKmh = 30 + Math.round(Math.random() * 20);
-            var currentLimit = _getNearestSpeedLimit(cur[0], cur[1]);
-            var isOver = currentLimit > 0 && simKmh > currentLimit;
-            speedDiv.innerHTML = '<div style="font-size:22px;font-weight:900;line-height:1">' + simKmh + '</div><div style="font-size:9px;opacity:.6">km/h</div>';
-            speedDiv.style.background = isOver ? 'rgba(239,68,68,.95)' : 'rgba(0,0,0,.8)';
-            speedDiv.style.animation = isOver ? 'speedFlash .5s ease infinite alternate' : '';
-            if (currentLimit > 0) {
-              limitDiv.textContent = currentLimit;
-              limitDiv.style.animation = isOver ? 'speedFlash .5s ease infinite alternate' : '';
-            }
+            // Badge GPS actif
+            gpsBadge.textContent = 'GPS actif';
+            gpsBadge.style.background = 'rgba(16,185,129,.9)';
 
-            // Mise à jour barre d'instructions
-            if (window._glUpdateNavBar) window._glUpdateNavBar(cur, prev, simIdx, routeCoords.length);
-
-            // Instructions vocales + alertes
+            // Instructions vocales
             _checkNavInstructions(cur[0], cur[1]);
             _checkCommunityAlerts(cur[0], cur[1]);
-          }, simSpeed);
+
+            // Vérifier si arrivé (< 30m de la destination)
+            var distDest = _distMeters(cur[0], cur[1], toLat, toLng);
+            var etaEl = document.getElementById('gl-nav-arrive');
+            if (etaEl) {
+              if (distDest < 1000) etaEl.textContent = Math.round(distDest) + ' m';
+              else etaEl.textContent = (Math.round(distDest / 100) / 10) + ' km';
+            }
+            if (distDest < 30) {
+              _speakNav('Vous êtes arrivé à destination.');
+              gpsBadge.textContent = 'Arrivé';
+              gpsBadge.style.background = 'rgba(99,102,241,.9)';
+            }
+
+            // Barre d'instructions
+            if (window._glUpdateNavBar) window._glUpdateNavBar(cur, prev, 0, 1);
+
+          }, function(err) {
+            gpsBadge.textContent = 'GPS indisponible';
+            gpsBadge.style.background = 'rgba(239,68,68,.9)';
+            console.warn('GPS error:', err.message);
+          }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 });
+        } else {
+          gpsBadge.textContent = 'GPS non supporté';
+          gpsBadge.style.background = 'rgba(239,68,68,.9)';
         }
 
         // Charger zones de danger OSM + alertes communautaires
@@ -3638,6 +3627,7 @@ function _initJadomiMap() {
   function _exitNavMode3D() {
     window._glNavActive = false;
     window._glCarMarker = null;
+    if (window._glGpsWatchId) { navigator.geolocation.clearWatch(window._glGpsWatchId); window._glGpsWatchId = null; }
     if (window._glSimInterval) { clearInterval(window._glSimInterval); window._glSimInterval = null; }
     if (window._glMap) { try { window._glMap.remove(); } catch(e) {} window._glMap = null; }
     var gl = document.getElementById('jadomi-3d-nav');
@@ -6340,8 +6330,8 @@ function extraireAttestation(passId, date) {
 function _attestationHeader(title) {
   return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>' + title + '</title>' +
     '<style>body{font-family:Georgia,serif;max-width:800px;margin:30px auto;padding:0 30px;color:#1a1a2e;line-height:1.7;font-size:14px;}' +
-    '@media print{.no-print{display:none!important;}body{margin:10px;}}</style><script src="/js/jadomi-copilot.js" defer></script>
-</head><body>' +
+    '@media print{.no-print{display:none!important;}body{margin:10px;}}</style><scr' + 'ipt src="/js/jadomi-copilot.js" defer><\/scr' + 'ipt>' +
+'</head><body>' +
     '<button class="no-print" onclick="window.print()" style="background:#0d9488;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer;display:block;margin:0 auto 20px;">Imprimer</button>' +
     '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0d9488;padding-bottom:16px;margin-bottom:20px;">' +
     '<div><div style="font-size:22px;font-weight:bold;color:#0d9488;">JADOMI</div><div style="font-size:11px;color:#888;">Plateforme numérique pour professionnels de santé</div></div>' +
@@ -6919,8 +6909,8 @@ function downloadFlyer() {
     + '.badge{display:inline-block;background:rgba(13,148,136,0.08);color:#0d9488;font-size:13px;font-weight:600;padding:8px 20px;border-radius:40px;border:1px solid rgba(13,148,136,0.15);}'
     + '.footer-note{margin-top:24px;font-size:11px;color:#6b7f7b;line-height:1.5;}'
     + '@media print{body{padding:0;min-height:auto;}.flyer{border:none;border-radius:0;padding:48px 40px;width:100%;max-width:none;}}'
-    + '</style><script src="/js/jadomi-copilot.js" defer></script>
-</head><body><div class="flyer">'
+    + '</style><scr' + 'ipt src="/js/jadomi-copilot.js" defer><\/scr' + 'ipt>' +
+'</head><body><div class="flyer">'
     + '<div class="logo">JADOMI</div>'
     + '<div class="question">Votre m\u00e9decin vous a prescrit<br>des soins \u00e0 domicile ?</div>'
     + '<div class="answer">Trouvez une infirmi\u00e8re<br>en 2 minutes</div>'

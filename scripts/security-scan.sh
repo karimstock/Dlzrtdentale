@@ -99,9 +99,22 @@ fi
 # ===========================
 # 4. SCAN RESEAU + PROCESSUS
 # ===========================
-SUSPICIOUS_PORTS=$(ss -tlnp | grep -v -E "(22|80|443|3001|5432|53|127\.0\.0\.1)" | wc -l)
-SUSPICIOUS_PROCS=$(ps aux | grep -iE "(mine|xmr|monero|nc -l|ncat|socat)" | grep -v grep | wc -l)
-FAILED_SSH=$(journalctl -u ssh --since "24 hours ago" 2>/dev/null | grep -c "Failed password" || echo "0")
+SUSPICIOUS_PORTS=$(ss -tlnp 2>/dev/null | grep -v -E "(22|80|443|3001|5432|53|127\.0\.0\.1)" | wc -l | tr -d '[:space:]')
+SUSPICIOUS_PROCS=$(ps aux 2>/dev/null | grep -iE "(mine|xmr|monero|nc -l|ncat|socat)" | grep -v grep | wc -l | tr -d '[:space:]')
+FAILED_SSH="0"
+if command -v journalctl &> /dev/null; then
+  _fssh=$(journalctl -u ssh --since "24 hours ago" 2>/dev/null | grep -c "Failed password" 2>/dev/null) && FAILED_SSH="$_fssh"
+fi
+# Sanitize all numeric vars — force valid integers
+sanitize_int() { local v=$(echo "$1" | tr -d '[:space:]'); echo "${v:-0}" | grep -oE '^[0-9]+$' || echo "0"; }
+SUSPICIOUS_PORTS=$(sanitize_int "$SUSPICIOUS_PORTS")
+SUSPICIOUS_PROCS=$(sanitize_int "$SUSPICIOUS_PROCS")
+FAILED_SSH=$(sanitize_int "$FAILED_SSH")
+TMP_SUSPICIOUS=$(sanitize_int "$TMP_SUSPICIOUS")
+AV_SCANNED=$(sanitize_int "$AV_SCANNED")
+AV_INFECTED=$(sanitize_int "$AV_INFECTED")
+RK_WARNINGS=$(sanitize_int "$RK_WARNINGS")
+INTEGRITY_CHANGES=$(sanitize_int "$INTEGRITY_CHANGES")
 
 # ===========================
 # 5. UTILISATION RESSOURCES
@@ -162,7 +175,7 @@ echo "[OK] Rapport genere: $REPORT_FILE"
 # 7. ENVOYER AU DASHBOARD
 # ===========================
 # POST le rapport au dashboard JADOMI pour affichage admin
-curl -s -X POST "$JADOMI_URL/api/admin/security-report" \
+curl -s -X POST "$JADOMI_URL/api/internal/security-report" \
   -H "Content-Type: application/json" \
   -d @"$REPORT_FILE" 2>/dev/null || echo "[WARN] Dashboard non joignable"
 

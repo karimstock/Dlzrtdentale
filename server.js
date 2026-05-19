@@ -4919,7 +4919,8 @@ app.get('/api/admin/security-reports', requireAuth(), async (req, res) => {
       return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
     }
     const limit = Math.min(parseInt(req.query.limit) || 30, 90);
-    const { data } = await supabase.from('security_reports')
+    const db = supabaseAdmin || supabase;
+    const { data } = await db.from('security_reports')
       .select('id, report_date, security_score, antivirus_status, antivirus_infected, rootkit_status, integrity_status, memory_pct, disk_pct')
       .order('report_date', { ascending: false }).limit(limit);
     res.json({ reports: data || [] });
@@ -4941,6 +4942,35 @@ app.post('/api/admin/security-scan', requireAuth(), async (req, res) => {
     res.json({ success: true, message: 'Scan lance en arriere-plan. Resultat disponible dans ~5 minutes.' });
   } catch (e) {
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/internal/security-report — Recevoir le rapport du script bash (localhost only)
+app.post('/api/internal/security-report', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const score = body.score_securite || 0;
+    const row = {
+      report_date: body.date || new Date().toISOString(),
+      security_score: score,
+      antivirus_status: (body.antivirus?.status || 'unknown').substring(0, 20),
+      antivirus_infected: body.antivirus?.fichiers_infectes || 0,
+      rootkit_status: (body.rootkit?.status || 'unknown').substring(0, 20),
+      integrity_status: (body.integrite?.status || 'unknown').substring(0, 20),
+      memory_pct: body.ressources?.memoire_pct || 0,
+      disk_pct: body.ressources?.disque_pct || 0,
+      raw_report: body
+    };
+    const db = supabaseAdmin || supabase;
+    const { error } = await db.from('security_reports').insert(row);
+    if (error) {
+      console.error('[security-report] Supabase insert error:', error.message);
+      return res.json({ error: 'insert_failed', detail: error.message });
+    }
+    res.json({ ok: true, score });
+  } catch (e) {
+    console.error('[security-report]', e.message);
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 
