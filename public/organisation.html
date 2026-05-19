@@ -50,6 +50,11 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 ::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.2);border-radius:3px;}
 .hide{display:none!important;}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.fourm-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:11px;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;}
+.fourm-btn:hover{border-color:var(--text3);}
+.fourm-btn.active.auto{background:rgba(16,185,129,0.15);color:#10b981;border-color:#10b981;}
+.fourm-btn.active.propose{background:rgba(99,102,241,0.15);color:#6366f1;border-color:#6366f1;}
+.fourm-btn.active.off{background:rgba(239,68,68,0.1);color:#ef4444;border-color:#ef4444;}
 
 /* SIDEBAR */
 .sidebar{width:260px;height:100vh;background:linear-gradient(180deg,var(--bg2) 0%,#110a28 100%);
@@ -339,6 +344,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
         <div class="sb-item" onclick="sT('brain-dashboard',this)"><span class="ico">🏥</span>Mon cabinet</div>
         <div class="sb-item" onclick="sT('brain-mail',this)"><span class="ico">📧</span>Mes mails</div>
         <div class="sb-item" onclick="sT('brain-tasks',this)"><span class="ico">✅</span>Mes tâches</div>
+        <div class="sb-item" onclick="sT('fourmiliere',this)"><span class="ico">🐜</span>Fourmilière IA</div>
         <a class="sb-item" href="/dentiste#compta" style="text-decoration:none;color:inherit;"><span class="ico">💰</span>Comptabilité</a>
       </div>
     </div>
@@ -2386,6 +2392,16 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
 
 </div>
 
+<!-- FOURMILIERE IA -->
+<div class="tp" id="t-fourmiliere">
+  <h2 style="font-size:22px;font-weight:700;margin-bottom:4px;">Fourmilière IA — Configuration</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:24px;">Choisissez le niveau d'autonomie de JADOMI pour chaque action.</p>
+  <div class="card" style="padding:0;overflow:hidden;" id="fourmiliere-list"></div>
+  <div style="margin-top:16px;text-align:right;">
+    <button class="btn bp bs" onclick="saveFourmilierePrefs()" style="font-size:12px;padding:10px 24px;">Enregistrer les préférences</button>
+  </div>
+</div>
+
 <!-- SOC SECTION -->
 <div style="margin-top:36px;" id="socS">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;"><h2 style="font-size:17px;font-weight:800;">Mes sociétés</h2><span class="pill pi" id="sC">0</span></div>
@@ -2460,8 +2476,8 @@ async function aApi(u,o={}){return fetch(u,{...o,headers:{'Content-Type':'applic
 
 function sT(t,el){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('a'));document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
   const p=$('t-'+t);if(p)p.classList.add('a');if(el)el.classList.add('active');
-  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Sécurité JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature électronique',equipment:'JADOMI Equipment',scraping:'Scraping & Veille concurrentielle','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio','test-apps':'Simulateur Apps','ai-credits':'Crédits API IA','mes-orgas':'Mes organisations'};
-  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();if(t==='scraping')loadScrapingDashboard();}
+  const tt={overview:'Vue d\'ensemble',compta:'Comptabilité',users:'Clients & Users',messages:'Messages',analytics:'Analytics',sectors:'Secteurs',plans:'Abonnements',settings:'Paramètres',securite:'Sécurité JADOMI',documents:'Documents BASEPLAN',rapide:'Accès rapide',signature:'Signature électronique',equipment:'JADOMI Equipment',scraping:'Scraping & Veille concurrentielle','studio-home':'JADOMI Studio','studio-abo':'Mon abonnement Studio','test-apps':'Simulateur Apps','ai-credits':'Crédits API IA','mes-orgas':'Mes organisations',fourmiliere:'Fourmilière IA'};
+  $('pT').textContent=tt[t]||t;if(t==='securite')loadSecurityDashboard();if(t==='settings')loadMFAStatus();if(t==='signature')loadSignatureTab();if(t==='equipment')loadEquipmentProposals();if(t==='scraping')loadScrapingDashboard();if(t==='fourmiliere')loadFourmilierePrefs();}
 function sMT(t,el){['Inbox','Sug','Camp'].forEach(x=>{const p=$('m'+x);if(p)p.classList.toggle('hide',x.toLowerCase()!==t);});
   el.parentElement.querySelectorAll('.stab').forEach(b=>b.classList.remove('a'));el.classList.add('a');}
 function sK(){at=$('tI').value.trim();if(at){localStorage.setItem('jadomi_admin_token',at);$('tB').classList.add('hide');loadAdmin();toast('Token valide');}}
@@ -4733,6 +4749,59 @@ function stopVoice(){
 
 // Helper escape HTML
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ── Fourmilière IA Preferences ── */
+const FOURM_DEFS=[
+  {k:'annulation_detection',l:'Détecter les annulations dans les mails'},
+  {k:'annulation_action',l:"Proposer l'annulation du rendez-vous"},
+  {k:'recasage',l:'Chercher un patient pour le créneau libéré'},
+  {k:'tri_factures',l:'Trier et classer les factures automatiquement'},
+  {k:'brouillon_reponse',l:'Préparer un brouillon de réponse mail'},
+  {k:'alerte_stock',l:'Alerter quand un produit est en stock bas'},
+  {k:'commande_stock',l:'Passer commande automatiquement'},
+  {k:'resume_pre_consultation',l:'Résumé patient avant chaque rendez-vous'},
+  {k:'suivi_patients_perdus',l:'Alerter sur les patients sans prochain rendez-vous'},
+  {k:'optimisation_planning',l:"Suggestions d'optimisation du planning"}
+];
+let _fourmPrefs={};
+async function loadFourmilierePrefs(){
+  try{
+    const token=window._jToken||tk||'';const sid=(window.jadomiMultiSocietes||{}).societeId||'';
+    const r=await fetch('/api/copilot/fourmiliere-prefs',{headers:{'Authorization':'Bearer '+token,'X-Societe-Id':sid}}).then(r=>r.json());
+    _fourmPrefs=r.prefs||r.defaults||{};
+  }catch(e){_fourmPrefs={};}
+  renderFourmiliere();
+}
+function renderFourmiliere(){
+  const c=$('fourmiliere-list');if(!c)return;
+  c.innerHTML=FOURM_DEFS.map((d,i)=>{
+    const v=_fourmPrefs[d.k]||'propose';
+    const bg=i%2===0?'var(--surface)':'var(--surface2)';
+    return '<div data-fourm-key="'+d.k+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:'+bg+';gap:12px;">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+d.l+'</div></div>'
+      +'<div style="display:flex;gap:4px;flex-shrink:0;">'
+      +'<button class="fourm-btn auto'+(v==='auto'?' active':'')+'" data-mode="auto" onclick="setFourmMode(\''+d.k+'\',\'auto\',this)">Auto</button>'
+      +'<button class="fourm-btn propose'+(v==='propose'?' active':'')+'" data-mode="propose" onclick="setFourmMode(\''+d.k+'\',\'propose\',this)">Proposer</button>'
+      +'<button class="fourm-btn off'+(v==='off'?' active':'')+'" data-mode="off" onclick="setFourmMode(\''+d.k+'\',\'off\',this)">Désactivé</button>'
+      +'</div></div>';
+  }).join('');
+}
+function setFourmMode(key,mode,btn){
+  btn.parentElement.querySelectorAll('.fourm-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _fourmPrefs[key]=mode;
+}
+async function saveFourmilierePrefs(){
+  try{
+    const token=window._jToken||tk||'';const sid=(window.jadomiMultiSocietes||{}).societeId||'';
+    document.querySelectorAll('[data-fourm-key]').forEach(row=>{
+      const k=row.dataset.fourmKey;const a=row.querySelector('.fourm-btn.active');
+      if(a)_fourmPrefs[k]=a.dataset.mode;
+    });
+    await fetch('/api/copilot/fourmiliere-prefs',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Societe-Id':sid},body:JSON.stringify({prefs:_fourmPrefs})});
+    toast('Préférences Fourmilière enregistrées');
+  }catch(e){toast('Erreur lors de la sauvegarde');}
+}
 </script>
 
 <script>
