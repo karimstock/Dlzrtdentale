@@ -4897,7 +4897,38 @@ SECURITE CRITIQUE :
 - Tester le copilot refactore en production (pm2 reload)
 - Le copilot widget doit gerer l'upload fichier (drag-drop PDF dans le chat)
 
+### Passe 89 (19 mai 2026 soir) — Videos pub HyperFrames + Code Teams Flutter + Fixes
+
+**Videos publicitaires HyperFrames (4 videos):**
+- Pub principale JADOMI 21s : jadomi.fr/assets/videos/pubs/jadomi-pub-premium.mp4
+- Pub IDE Infirmiere 21s : jadomi.fr/assets/videos/pubs/jadomi-ide-pub.mp4
+- Pub Prothesiste Labo 21s : jadomi.fr/assets/videos/pubs/jadomi-prothesiste-pub.mp4
+- Video tournees IDE 40s : jadomi.fr/assets/videos/pubs/jadomi-tournees-ide.mp4
+- Outils : HyperFrames (HTML→MP4), Vidu AI (12+ videos img2video), ElevenLabs (voix Nicolas FR), Kokoro TTS, GSAP, Gemini (composites)
+- 5 iterations (v1→v5) : meme infirmiere, audio Vidu strippe, voix naturelle, musique ambient, PiP JADOMI, pas de mention controle
+- Cout total Vidu : ~500 credits (off-peak turbo)
+
+**Code Teams Flutter (5 builders paralleles):**
+- Builder 1 : Splash screen anime JADOMI (logo dore, fade-in + scale, 2.5s navigation auto)
+- Builder 2 : Navigation MapLibre (ETA, distance, FAB recentrer, marqueurs pulsants, route teal)
+- Builder 3 : Tournee IDE (barre progression X/Y, timer, cards colorees, animations smooth)
+- Builder 4 : Login premium (gradient, glow logo, stagger fade-in, error anime)
+- Builder 5 : Home + Drawer (header premium, sections groupees Essentiel/Outils/Plus, "Bonjour Dr")
+- 6 fichiers, +969 / -717 lignes, 0 erreurs flutter analyze
+- Push GitHub (10 commits), Codemagic ios-testflight a declencher manuellement
+
+**Fixes production:**
+- Page IDE : 2 </script> dans strings JS (lignes 6343 et 6922) cassaient tout le JS apres
+- Page organisation : doublon function esc() (ligne 2424 const + ligne 4751 function) crashait JS
+- Page organisation : backdrop-filter blur mobile supprime (topbar, bottomnav, menu)
+- Scan securite : endpoint POST /api/internal/security-report cree, JSON 00→0, RLS supabaseAdmin
+- Scan securite : GET utilise mauvais endpoint → corrige vers /api/admin/security-reports?limit=1
+- Tournee IDE : simulation GPS auto remplacee par vrai navigator.geolocation.watchPosition
+- Installation ClamAV + rkhunter + fail2ban en cours
+
+**Etat disque : 89% (11 Go libres) apres nettoyage backups + npm cache**
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 19 mai 2026 (Passe 88 complete — Visio + Copilot + Compta + Code Teams)
+Derniere mise a jour : 19 mai 2026 (Passe 89 — Videos HyperFrames + Code Teams Flutter + Fixes)
 ===============================================================
