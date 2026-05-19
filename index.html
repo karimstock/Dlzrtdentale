@@ -847,6 +847,7 @@ tbody tr:hover td{background:var(--surface2);}
       <!-- Sub-tabs -->
       <div style="display:flex;gap:8px;margin-bottom:20px;">
         <button class="btn btn-accent compta-subtab active" data-ctab="import" onclick="switchComptaTabPC('import')" style="font-size:12px;padding:7px 14px;">📥 Importer</button>
+        <button class="btn compta-subtab" data-ctab="factures" onclick="switchComptaTabPC('factures')" style="font-size:12px;padding:7px 14px;">📋 Mes Factures</button>
         <button class="btn compta-subtab" data-ctab="annuel" onclick="switchComptaTabPC('annuel')" style="font-size:12px;padding:7px 14px;">📊 Relevé Annuel</button>
         <button class="btn compta-subtab" data-ctab="tva" onclick="switchComptaTabPC('tva')" style="font-size:12px;padding:7px 14px;">⚡ TVA</button>
         <button class="btn compta-subtab" data-ctab="releve" onclick="switchComptaTabPC('releve')" style="font-size:12px;padding:7px 14px;">🏦 Relevé bancaire</button>
@@ -897,6 +898,25 @@ tbody tr:hover td{background:var(--surface2);}
         <div id="pc-compta-mail-form" style="display:none;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px;">
           <div style="font-weight:700;font-size:15px;margin-bottom:4px;">📧 Connexion boîte mail</div>
           <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">JADOMI récupère uniquement les factures et justificatifs</div>
+
+          <!-- Comptes sauvegardés (rempli dynamiquement) -->
+          <div id="pc-saved-accounts-section" style="display:none;margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Compte email enregistré :</label>
+            <select id="pc-saved-account-select" style="width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:8px;" onchange="pcOnSavedAccountChange()">
+            </select>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <a href="organisation.html#brain-mail" style="font-size:12px;color:var(--accent);text-decoration:none;">+ Ajouter un compte</a>
+              <span style="flex:1;"></span>
+              <a href="#" onclick="pcShowManualMailForm();return false;" style="font-size:11px;color:var(--muted);text-decoration:underline;">Saisie manuelle</a>
+            </div>
+          </div>
+          <!-- Message si aucun compte -->
+          <div id="pc-no-accounts-msg" style="display:none;background:rgba(240,175,50,0.08);border:1px solid rgba(240,175,50,0.3);border-radius:10px;padding:14px;margin-bottom:16px;text-align:center;">
+            <div style="font-size:13px;color:var(--text);margin-bottom:8px;">Connectez d'abord votre email dans <strong>Mon Cabinet</strong> → <strong>Mes mails</strong></div>
+            <a href="organisation.html#brain-mail" class="btn btn-accent" style="display:inline-block;padding:8px 16px;font-size:13px;text-decoration:none;">Configurer mon email</a>
+            <div style="margin-top:8px;"><a href="#" onclick="pcShowManualMailForm();return false;" style="font-size:11px;color:var(--muted);text-decoration:underline;">Ou saisir manuellement</a></div>
+          </div>
+          <div id="pc-manual-mail-section">
           <div id="pc-aide-mail" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">
             <div style="font-weight:700;font-size:14px;margin-bottom:12px;">Comment connecter votre boîte mail ?</div>
             <div id="pc-aide-gmail" style="display:none;margin-bottom:8px;">
@@ -964,6 +984,7 @@ tbody tr:hover td{background:var(--surface2);}
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:10px;cursor:pointer;">
             <input type="checkbox" id="pc-remember-mail" checked style="width:14px;height:14px;"> Se souvenir de ces identifiants
           </label>
+          </div><!-- /pc-manual-mail-section -->
 
           <div style="margin-bottom:12px;">
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Période de scan :</label>
@@ -1026,6 +1047,26 @@ tbody tr:hover td{background:var(--surface2);}
           <div style="color:var(--muted);">⏳ JADOMI analyse votre relevé...</div>
         </div>
         <div id="pc-compta-releve-result" style="display:none;"></div>
+      </div>
+
+      <!-- TAB: Mes Factures (auto-scannées + manuelles, triées jour/mois/année) -->
+      <div id="pc-compta-factures" style="display:none;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <select id="compta-factures-periode" onchange="comptaLoadFactures()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
+            <option value="month">Ce mois</option>
+            <option value="last_month">Mois dernier</option>
+            <option value="year">Cette année</option>
+          </select>
+          <span id="compta-factures-total" style="font-size:13px;color:var(--muted);margin-left:auto;"></span>
+          <button onclick="comptaExportCSV()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">Exporter CSV</button>
+          <button onclick="comptaEnvoyerComptable()" style="padding:7px 14px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:#fff;font-size:12px;cursor:pointer;">Envoyer au comptable</button>
+        </div>
+        <!-- KPIs -->
+        <div id="compta-factures-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;"></div>
+        <!-- Liste des factures groupées par jour -->
+        <div id="compta-factures-list" style="font-size:13px;">
+          <div style="text-align:center;padding:40px;color:var(--muted);">Chargement...</div>
+        </div>
       </div>
 
       <!-- TAB: Relevé annuel (nouvelle vue mensuelle) -->
@@ -8073,7 +8114,7 @@ init();
 let pcComptaDocAnalyse = null;
 
 function switchComptaTabPC(tab) {
-  ['import','docs','releve','annuel','tva'].forEach(t => {
+  ['import','docs','releve','annuel','tva','factures'].forEach(t => {
     const el = document.getElementById('pc-compta-'+t);
     if(el) el.style.display = t === tab ? '' : 'none';
   });
@@ -8084,6 +8125,140 @@ function switchComptaTabPC(tab) {
   if(tab === 'docs') pcComptaLoadDocs();
   if(tab === 'annuel') chargerRecap();
   if(tab === 'tva') chargerConfigTVA();
+  if(tab === 'factures') comptaLoadFactures();
+}
+
+// =============================================
+// COMPTA — Mes Factures (auto-scannées + manuelles)
+// =============================================
+async function comptaLoadFactures() {
+  const listEl = document.getElementById('compta-factures-list');
+  const kpisEl = document.getElementById('compta-factures-kpis');
+  const totalEl = document.getElementById('compta-factures-total');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Chargement...</div>';
+
+  const periode = document.getElementById('compta-factures-periode')?.value || 'month';
+  const now = new Date();
+  let year = now.getFullYear(), month = now.getMonth() + 1;
+  if (periode === 'last_month') { month--; if (month < 1) { month = 12; year--; } }
+  const periodParam = periode === 'year' ? 'period=year&year=' + year : 'period=month&year=' + year + '&month=' + month;
+
+  try {
+    const token = window.jadomiMultiSocietes?.token || '';
+    const sid = window.jadomiMultiSocietes?.societeId || '';
+
+    // Charger entries + summary en parallèle
+    const [entriesRes, summaryRes] = await Promise.all([
+      fetch('/api/compta/entries?' + periodParam, { headers: { 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid } }).then(r => r.json()),
+      fetch('/api/compta/summary?' + (periode === 'year' ? 'year=' + year : 'year=' + year + '&month=' + month), { headers: { 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid } }).then(r => r.json())
+    ]);
+
+    // KPIs
+    const s = summaryRes;
+    kpisEl.innerHTML = [
+      { label: 'Total TTC', value: (s.total_charges_ttc || 0).toFixed(2) + ' EUR', color: '#ef4444' },
+      { label: 'Total HT', value: (s.total_charges_ht || 0).toFixed(2) + ' EUR', color: '#6366f1' },
+      { label: 'TVA', value: (s.total_tva || 0).toFixed(2) + ' EUR', color: '#f59e0b' },
+      { label: 'Factures', value: s.nb_factures || 0, color: '#10b981' },
+      { label: 'Validees', value: s.nb_validated || 0, color: '#10b981' },
+      { label: 'En attente', value: s.nb_pending || 0, color: '#f59e0b' }
+    ].map(k => '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">'
+      + '<div style="font-size:20px;font-weight:700;color:' + k.color + ';">' + k.value + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:4px;">' + k.label + '</div></div>').join('');
+
+    totalEl.textContent = (s.nb_factures || 0) + ' facture(s)';
+
+    // Liste groupée par jour
+    const entries = entriesRes.entries || entriesRes || [];
+    if (!entries.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Aucune facture pour cette periode.</div>';
+      return;
+    }
+
+    // Grouper par date
+    const byDate = {};
+    entries.forEach(e => {
+      const d = e.date || 'Sans date';
+      if (!byDate[d]) byDate[d] = { entries: [], total: 0 };
+      byDate[d].entries.push(e);
+      byDate[d].total += parseFloat(e.montant_ttc || e.montant_ht || 0);
+    });
+
+    const moisFR = ['','Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+    let html = '';
+    Object.keys(byDate).sort().reverse().forEach(date => {
+      const group = byDate[date];
+      const parts = date.split('-');
+      const dateLabel = parts.length === 3 ? parseInt(parts[2]) + ' ' + moisFR[parseInt(parts[1])] + ' ' + parts[0] : date;
+      html += '<div style="margin-bottom:16px;">';
+      html += '<div style="font-weight:700;font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;">'
+        + '<span>' + dateLabel + '</span>'
+        + '<span style="color:var(--accent);">' + group.total.toFixed(2) + ' EUR</span></div>';
+      group.entries.forEach(e => {
+        const validated = e.validated;
+        const catLabel = e.category || 'Non classe';
+        const badge = validated
+          ? '<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">Valide</span>'
+          : '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">En attente</span>';
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;" onclick="comptaToggleValidate(\'' + e.id + '\',' + (validated ? 'false' : 'true') + ')">'
+          + '<div style="flex:1;"><div style="font-weight:600;">' + (e.fournisseur || e.title || 'Document') + '</div>'
+          + '<div style="font-size:11px;color:var(--muted);">' + (e.type || '') + ' - ' + catLabel + '</div></div>'
+          + '<div style="font-weight:700;white-space:nowrap;">' + (parseFloat(e.montant_ttc || e.montant_ht || 0)).toFixed(2) + ' EUR</div>'
+          + badge + '</div>';
+      });
+      html += '</div>';
+    });
+    listEl.innerHTML = html;
+  } catch (err) {
+    listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Erreur : ' + (err.message || 'Impossible de charger') + '</div>';
+  }
+}
+
+async function comptaToggleValidate(entryId, validate) {
+  try {
+    const token = window.jadomiMultiSocietes?.token || '';
+    const sid = window.jadomiMultiSocietes?.societeId || '';
+    const endpoint = validate ? '/api/compta/entries/' + entryId + '/validate' : '/api/compta/entries/' + entryId + '/reject';
+    await fetch(endpoint, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid },
+      body: JSON.stringify(validate ? { validated: true } : {})
+    });
+    comptaLoadFactures(); // Recharger
+  } catch (e) { showToast('Erreur de validation'); }
+}
+
+async function comptaExportCSV() {
+  try {
+    const token = window.jadomiMultiSocietes?.token || '';
+    const sid = window.jadomiMultiSocietes?.societeId || '';
+    const periode = document.getElementById('compta-factures-periode')?.value || 'month';
+    const now = new Date();
+    let year = now.getFullYear(), month = now.getMonth() + 1;
+    if (periode === 'last_month') { month--; if (month < 1) { month = 12; year--; } }
+    const params = periode === 'year' ? 'year=' + year : 'year=' + year + '&month=' + month;
+    const r = await fetch('/api/compta/export?' + params + '&format=csv', { headers: { 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid } });
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'compta-' + year + (periode !== 'year' ? '-' + String(month).padStart(2,'0') : '') + '.csv';
+    a.click(); URL.revokeObjectURL(url);
+    showToast('Export CSV telecharge');
+  } catch (e) { showToast('Erreur export'); }
+}
+
+async function comptaEnvoyerComptable() {
+  if (!confirm('Envoyer les factures de la periode au comptable ?')) return;
+  try {
+    const token = window.jadomiMultiSocietes?.token || '';
+    const sid = window.jadomiMultiSocietes?.societeId || '';
+    const r = await fetch('/api/compta/send-comptable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid },
+      body: JSON.stringify({ entry_ids: [], message: 'Voici les factures de la periode' })
+    }).then(r => r.json());
+    showToast(r.success ? 'Envoye au comptable' : (r.error || 'Erreur'));
+  } catch (e) { showToast('Erreur envoi'); }
 }
 
 function pcComptaPhoto() {
@@ -8217,7 +8392,75 @@ try { pcChargerMailConfig(); } catch(e) {}
 
 function pcComptaShowMail() {
   const f = document.getElementById('pc-compta-mail-form');
-  f.style.display = f.style.display === 'none' ? '' : 'none';
+  const wasHidden = f.style.display === 'none';
+  f.style.display = wasHidden ? '' : 'none';
+  if (wasHidden) pcLoadSavedAccounts();
+}
+
+// Charger les comptes sauvegardés depuis l'API brain
+async function pcLoadSavedAccounts() {
+  const savedSection = document.getElementById('pc-saved-accounts-section');
+  const noAccountsMsg = document.getElementById('pc-no-accounts-msg');
+  const manualSection = document.getElementById('pc-manual-mail-section');
+  if (!savedSection || !noAccountsMsg || !manualSection) return;
+
+  try {
+    const token = window.jadomiMultiSocietes && window.jadomiMultiSocietes.token;
+    const sid = window._societeId || (window.jadomiMultiSocietes && window.jadomiMultiSocietes.activeSocieteId) || localStorage.getItem('societe_active_id') || '';
+    if (!token) { manualSection.style.display = ''; return; }
+
+    const resp = await fetch('/api/brain/mail/accounts', {
+      headers: { 'Authorization': 'Bearer ' + token, 'X-Societe-Id': sid }
+    });
+    if (!resp.ok) { manualSection.style.display = ''; return; }
+    const accounts = await resp.json();
+    const actifs = (accounts || []).filter(function(a) { return a.actif; });
+
+    if (actifs.length > 0) {
+      // Remplir le dropdown
+      const sel = document.getElementById('pc-saved-account-select');
+      sel.innerHTML = '';
+      actifs.forEach(function(a) {
+        var masked = a.email.replace(/^(.{1,2})(.*)(@.*)$/, function(m, p1, p2, p3) {
+          return p1 + p2.replace(/./g, '*') + p3;
+        });
+        var opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = masked + ' (' + (a.provider || 'IMAP') + ')';
+        opt.dataset.email = a.email;
+        opt.dataset.provider = a.provider;
+        sel.appendChild(opt);
+      });
+      savedSection.style.display = '';
+      noAccountsMsg.style.display = 'none';
+      manualSection.style.display = 'none';
+      window._pcSavedAccountsLoaded = actifs;
+    } else {
+      savedSection.style.display = 'none';
+      noAccountsMsg.style.display = '';
+      manualSection.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('[COMPTA] Erreur chargement comptes:', e.message);
+    // Fallback : afficher le formulaire manuel
+    savedSection.style.display = 'none';
+    noAccountsMsg.style.display = 'none';
+    manualSection.style.display = '';
+  }
+}
+
+function pcOnSavedAccountChange() {
+  // Rien de spécial pour l'instant, le compte est sélectionné
+}
+
+function pcShowManualMailForm() {
+  var savedSection = document.getElementById('pc-saved-accounts-section');
+  var noAccountsMsg = document.getElementById('pc-no-accounts-msg');
+  var manualSection = document.getElementById('pc-manual-mail-section');
+  if (savedSection) savedSection.style.display = 'none';
+  if (noAccountsMsg) noAccountsMsg.style.display = 'none';
+  if (manualSection) manualSection.style.display = '';
+  try { pcChargerMailConfig(); } catch(e) {}
 }
 
 function _iconeType(t) {
@@ -8461,34 +8704,75 @@ function arreterProgressionScan() {
 
 async function pcComptaScanMail() {
   var btn = document.getElementById('pc-mail-scan-btn');
-  var email = document.getElementById('pc-mail-email').value;
-  var pass = document.getElementById('pc-mail-pass').value;
-  var provider = document.getElementById('pc-mail-provider').value;
   const _uidForProgress = await pcResolveUid();
+
+  // Déterminer si on utilise un compte sauvegardé ou le formulaire manuel
+  var useSavedAccount = false;
+  var accountId = null;
+  var email = '';
+  var pass = '';
+  var provider = '';
+
+  var savedSection = document.getElementById('pc-saved-accounts-section');
+  var manualSection = document.getElementById('pc-manual-mail-section');
+
+  if (savedSection && savedSection.style.display !== 'none') {
+    // Mode compte sauvegardé
+    var sel = document.getElementById('pc-saved-account-select');
+    if (sel && sel.value) {
+      useSavedAccount = true;
+      accountId = sel.value;
+      var opt = sel.options[sel.selectedIndex];
+      email = opt ? opt.dataset.email : '';
+      provider = opt ? opt.dataset.provider : '';
+    }
+  }
+
+  if (!useSavedAccount) {
+    // Mode formulaire manuel
+    email = document.getElementById('pc-mail-email').value;
+    pass = document.getElementById('pc-mail-pass').value;
+    provider = document.getElementById('pc-mail-provider').value;
+    if (!email || !pass) { alert('Renseignez email et mot de passe'); return; }
+  }
+
   demarrerProgressionScan(_uidForProgress);
-
-  console.log('JADOMI mail scan:', { provider: provider, email: email, passLength: pass ? pass.length : 0 });
-
-  if(!email || !pass) { alert('Renseignez email et mot de passe'); return; }
+  console.log('JADOMI mail scan:', { mode: useSavedAccount ? 'saved' : 'manual', provider: provider, email: email });
 
   btn.disabled = true;
   btn.textContent = 'Scan en cours...';
 
   try {
     var payload = {
-      email: email,
-      password: pass,
-      provider: provider,
       userId: _uidForProgress || pcGetUserId(),
       periode: document.getElementById('pc-scan-type-periode').value,
       mois: document.getElementById('pc-scan-mois').value,
       annee: document.getElementById('pc-scan-type-periode').value==='mensuel' ? document.getElementById('pc-scan-annee-mois').value : document.getElementById('pc-scan-annee').value
     };
-    console.log('JADOMI fetch /api/mail/scan payload:', JSON.stringify({provider: payload.provider, email: payload.email, periode: payload.periode}));
+
+    if (useSavedAccount) {
+      payload.account_id = accountId;
+      payload.provider = provider;
+    } else {
+      payload.email = email;
+      payload.password = pass;
+      payload.provider = provider;
+    }
+
+    // Ajouter societe_id pour la résolution account_id côté serveur
+    var sid = window._societeId || (window.jadomiMultiSocietes && window.jadomiMultiSocietes.activeSocieteId) || localStorage.getItem('societe_active_id') || '';
+    if (sid) payload.societe_id = sid;
+
+    console.log('JADOMI fetch /api/mail/scan payload:', JSON.stringify({mode: useSavedAccount ? 'saved' : 'manual', provider: payload.provider, email: payload.email || '(saved)', periode: payload.periode}));
+
+    var token = window.jadomiMultiSocietes && window.jadomiMultiSocietes.token;
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    if (sid) headers['X-Societe-Id'] = sid;
 
     var resp = await fetch('/api/mail/scan', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(payload)
     });
 
@@ -8520,7 +8804,7 @@ async function pcComptaScanMail() {
       return;
     }
 
-    pcSauvegarderMailConfig(provider, email, pass);
+    if (!useSavedAccount) pcSauvegarderMailConfig(provider, email, pass);
     window._scanFullDocs = (data && data.documents) || [];
     pcSaveScanResults(window._scanFullDocs);
     var rd = document.getElementById('pc-mail-results'); rd.style.display = 'none';
