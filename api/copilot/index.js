@@ -1476,6 +1476,23 @@ router.get('/dashboard-summary', async (req, res) => {
       }
     }
 
+    // Charger le rapport matinal (scan factures auto)
+    let morningReport = null;
+    try {
+      const today = new Date().toISOString().substring(0, 10);
+      const { data: reports } = await db().from('cabinet_brain_events')
+        .select('context')
+        .eq('societe_id', sid)
+        .eq('event_type', 'morning_scan_report')
+        .gte('created_at', today + 'T00:00:00')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (reports && reports.length > 0) morningReport = reports[0].context;
+    } catch (_) {}
+
+    // Charger les notifications fourmilière en attente
+    const fourmiliereNotifs = consumeNotifications(sid);
+
     res.json({
       mails: {
         unread: unreadRes.count || 0,
@@ -1496,6 +1513,8 @@ router.get('/dashboard-summary', async (req, res) => {
         pending: tasksRes.count || 0,
         urgent: tasksUrgentRes.count || 0
       },
+      morning_report: morningReport,
+      fourmiliere_notifications: fourmiliereNotifs.length > 0 ? fourmiliereNotifs : undefined,
       greeting: greeting
     });
   } catch (e) {

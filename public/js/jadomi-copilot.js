@@ -288,6 +288,20 @@
             html += buildDashboardCard('&#10003;', tkLabel, tkDetail, 'Mes taches en attente');
           }
 
+          // Rapport matinal (scan auto des factures)
+          if (d.morning_report && d.morning_report.total_factures > 0) {
+            var mrLabel = d.morning_report.total_factures + ' facture(s) triee(s) ce matin';
+            var mrDetail = d.morning_report.categorized > 0 ? d.morning_report.categorized + ' classee(s) automatiquement' : '';
+            html += buildDashboardCard('&#128204;', mrLabel, mrDetail, 'Mes factures');
+          }
+
+          // Notifications fourmilière (recasage, alertes, etc.)
+          if (d.fourmiliere_notifications && d.fourmiliere_notifications.length > 0) {
+            d.fourmiliere_notifications.forEach(function(n) {
+              html += buildDashboardCard('&#129520;', n.title, n.message, null);
+            });
+          }
+
           html += '</div>';
 
           // Suggestions rapides
