@@ -251,11 +251,130 @@ RÈGLES :
 }
 
 // =============================================
-// DÉTECTION D'INTENT (local, 0€)
+// CERVEAU DYNAMIQUE — Cache mémoire par cabinet
+// Se charge à la 1ère requête, refresh toutes les 5 min
+// Enrichit detectIntent avec les vraies données du cabinet
 // =============================================
-function detectIntent(text) {
+const _cabinetBrains = new Map(); // societeId → { contacts, products, patients, rules, loadedAt }
+const BRAIN_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function loadCabinetBrain(societeId) {
+  const cached = _cabinetBrains.get(societeId);
+  if (cached && (Date.now() - cached.loadedAt) < BRAIN_TTL) return cached;
+
+  const brain = { contacts: [], contactNames: [], productNames: [], patientNames: [], fournisseurNames: [], learnedRules: [], mailsToday: 0, loadedAt: Date.now() };
+
+  try {
+    // 1. Contacts du cabinet (comptable, labo, fournisseur...)
+    const { data: brainData } = await db().from('cabinet_brain')
+      .select('contacts, identity, preferences')
+      .eq('societe_id', societeId).maybeSingle();
+    if (brainData) {
+      brain.contacts = brainData.contacts || [];
+      brain.identity = brainData.identity || {};
+      brain.preferences = brainData.preferences || {};
+      brain.contactNames = brain.contacts.map(c => (c.nom || '').toLowerCase()).filter(Boolean);
+      brain.contactRoles = {};
+      brain.contacts.forEach(c => {
+        if (c.nom && c.role) brain.contactRoles[c.nom.toLowerCase()] = c.role;
+      });
+    }
+
+    // 2. Top produits en stock (noms pour enrichir le pattern stock)
+    const { data: products } = await db().from('produits_stock')
+      .select('nom, designation').eq('societe_id', societeId).limit(100);
+    if (products) {
+      brain.productNames = products
+        .map(p => (p.nom || p.designation || '').toLowerCase())
+        .filter(n => n.length > 3)
+        .slice(0, 50);
+    }
+
+    // 3. Fournisseurs connus
+    const { data: fournisseurs } = await db().from('mails_inbox')
+      .select('from_name').eq('societe_id', societeId).eq('category', 'fournisseur')
+      .limit(50);
+    if (fournisseurs) {
+      const seen = new Set();
+      brain.fournisseurNames = fournisseurs
+        .map(f => (f.from_name || '').toLowerCase())
+        .filter(n => n.length > 2 && !seen.has(n) && seen.add(n))
+        .slice(0, 30);
+    }
+
+    // 4. Patients fréquents (top 30 par nombre de RDV)
+    const { data: patients } = await db().from('rdv')
+      .select('patient_nom').eq('societe_id', societeId)
+      .order('date_rdv', { ascending: false }).limit(100);
+    if (patients) {
+      const countMap = {};
+      patients.forEach(p => { const n = (p.patient_nom || '').toLowerCase(); if (n.length > 2) countMap[n] = (countMap[n] || 0) + 1; });
+      brain.patientNames = Object.entries(countMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30)
+        .map(e => e[0]);
+    }
+
+    // 5. Règles apprises (fourmilière)
+    const { data: rules } = await db().from('cabinet_brain_rules')
+      .select('rule_name, rule_text, category, confidence')
+      .or(`societe_id.eq.${societeId},scope.eq.global`)
+      .is('disabled_at', null).eq('active', true)
+      .gte('confidence', 0.7).order('confidence', { ascending: false }).limit(20);
+    brain.learnedRules = rules || [];
+
+    // 6. Mails du jour (count pour contexte)
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const { count } = await db().from('mails_inbox')
+      .select('id', { count: 'exact', head: true })
+      .eq('societe_id', societeId).eq('is_spam', false).eq('is_newsletter', false)
+      .gte('date_received', todayStart.toISOString());
+    brain.mailsToday = count || 0;
+  } catch (e) {
+    console.warn('[COPILOT] loadCabinetBrain error:', e.message);
+  }
+
+  _cabinetBrains.set(societeId, brain);
+  return brain;
+}
+
+// =============================================
+// DÉTECTION D'INTENT (local, 0€) — enrichi par le cerveau cabinet
+// =============================================
+function detectIntent(text, cabinetBrain) {
   const lower = (text || '').toLowerCase();
   var norm = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // ── DYNAMIC : contacts du cabinet (avant les regex statiques) ──
+  if (cabinetBrain) {
+    // Si le message mentionne un contact connu par son nom → compose
+    for (const name of (cabinetBrain.contactNames || [])) {
+      if (name.length > 3 && norm.includes(name)) {
+        const role = cabinetBrain.contactRoles[name];
+        // "appelle Dupont" ou "dis à Dupont" → compose
+        if (/\b(envoie|ecris|dis|appelle|contacte|previens|mail)\b/i.test(norm)) return 'compose';
+        // "Dupont" seul → dépend du rôle
+        if (role === 'comptable') return 'compta';
+        if (role === 'labo' || role === 'prothesiste') return 'labo';
+        if (role === 'fournisseur') return 'stock';
+      }
+    }
+    // Si le message mentionne un produit en stock → stock
+    for (const prod of (cabinetBrain.productNames || [])) {
+      if (prod.length > 4 && norm.includes(prod)) return 'stock';
+    }
+    // Si le message mentionne un patient fréquent → patient
+    for (const pat of (cabinetBrain.patientNames || [])) {
+      if (pat.length > 3 && norm.includes(pat)) return 'patient';
+    }
+    // Si le message mentionne un fournisseur connu → stock ou mail
+    for (const fourn of (cabinetBrain.fournisseurNames || [])) {
+      if (fourn.length > 3 && norm.includes(fourn)) {
+        if (/\b(mail|message|recu|envoye)\b/i.test(norm)) return 'mail';
+        return 'stock';
+      }
+    }
+  }
 
   // === SALUTATIONS (seulement si c'est JUSTE une salutation, pas "salut peux tu trouver...") ===
   if (/^(bonjour|salut|hello|bonsoir|coucou|hey|yo|bjr|slt)\s*[,.!?]?\s*$/i.test(norm))
@@ -589,9 +708,12 @@ router.post('/message', async (req, res) => {
       }
     }
 
-    const intent = detectIntent(message);
+    // Charger le cerveau dynamique du cabinet (cache 5 min)
+    const cabinetBrain = await loadCabinetBrain(sid);
 
-    // Si l'intent est 'general' (regex n'a rien trouvé), DeepSeek tente de classifier
+    const intent = detectIntent(message, cabinetBrain);
+
+    // Si l'intent est 'general' (regex + cerveau n'ont rien trouvé), DeepSeek tente de classifier
     let finalIntent = intent;
     if (intent === 'general') {
       try {
