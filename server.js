@@ -1061,7 +1061,7 @@ try {
   console.warn('[JADOMI] Module Studio Analyse non charge:', e.message);
 }
 
-// === JADOMI AVOCAT EXPERT — Coffre-fort sécurisé (Passe 44C) ===
+// === JADOMI AVOCAT EXPERT — Coffre-fort sécurisé (Passe 44C) + Module complet (Passe 88) ===
 try {
   app.use('/api/avocat', require('./api/avocat/coffre'));
   app.use('/api/avocat/espace-client', require('./api/avocat/espace-client'));
@@ -1069,6 +1069,27 @@ try {
 } catch (e) {
   console.warn('[JADOMI] Module Avocat Expert non charge:', e.message);
 }
+// Avocat — Timetracking, Workflow, Honoraires, Relances, Dashboard
+try {
+  app.use('/api/avocat/time', require('./api/avocat/timetracking'));
+  console.log('[JADOMI] Module Avocat Timetracking monte');
+} catch (e) { console.warn('[JADOMI] Avocat Timetracking non charge:', e.message); }
+try {
+  app.use('/api/avocat/workflow', require('./api/avocat/workflow'));
+  console.log('[JADOMI] Module Avocat Workflow monte');
+} catch (e) { console.warn('[JADOMI] Avocat Workflow non charge:', e.message); }
+try {
+  app.use('/api/avocat/honoraires', require('./api/avocat/honoraires'));
+  console.log('[JADOMI] Module Avocat Honoraires monte');
+} catch (e) { console.warn('[JADOMI] Avocat Honoraires non charge:', e.message); }
+try {
+  app.use('/api/avocat/relances', require('./api/avocat/relances'));
+  console.log('[JADOMI] Module Avocat Relances monte');
+} catch (e) { console.warn('[JADOMI] Avocat Relances non charge:', e.message); }
+try {
+  app.use('/api/avocat/dashboard', require('./api/avocat/dashboard'));
+  console.log('[JADOMI] Module Avocat Dashboard monte');
+} catch (e) { console.warn('[JADOMI] Avocat Dashboard non charge:', e.message); }
 
 // === JADOMI Studio Video Generator — Vidu AI ===
 try {

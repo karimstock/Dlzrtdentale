@@ -58,7 +58,8 @@ router.post('/scan-factures', async (req, res) => {
     if (!aid) { const { data: accs } = await db().from('comptes_email_societe').select('id').eq('societe_id', sid).eq('actif', true).limit(1); if (!accs?.length) return res.json({ error: 'Aucun compte connecte' }); aid = accs[0].id; }
     const http = require('http');
     const body = JSON.stringify({ account_id: aid, mois, annee });
-    const pReq = http.request({ hostname: 'localhost', port: 3001, path: '/api/brain/mail/scan-factures', method: 'POST', timeout: 600000,
+    const serverPort = parseInt(process.env.PORT || '3001', 10);
+    const pReq = http.request({ hostname: 'localhost', port: serverPort, path: '/api/brain/mail/scan-factures', method: 'POST', timeout: 600000,
       headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization, 'X-Societe-Id': sid, 'Content-Length': Buffer.byteLength(body) }
     }, pRes => { let d = ''; pRes.on('data', c => d += c); pRes.on('end', () => { try { res.json(JSON.parse(d)); } catch (_) { res.json({ error: 'Erreur parse' }); } }); });
     pReq.setTimeout(600000); pReq.on('error', e => res.json({ error: e.message })); pReq.write(body); pReq.end();
@@ -841,7 +842,11 @@ ${agentMemory ? 'MÉMOIRE AGENT :\n' + agentMemory + '\n' : ''}${extraContext ? 
     const v = validateResponse(reply);
     if (!v.ok) reply = 'Je prépare une réponse adaptée. Veuillez reformuler.';
 
-    res.json({ reply, intent });
+    // Ajouter les notifications fourmilière en attente
+    const notifs = consumeNotifications(sid);
+    const response = { reply, intent };
+    if (notifs.length > 0) response.fourmiliere_notifications = notifs;
+    res.json(response);
   } catch (e) {
     console.error('[COPILOT] message error:', e.message);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -854,6 +859,154 @@ ${agentMemory ? 'MÉMOIRE AGENT :\n' + agentMemory + '\n' : ''}${extraContext ? 
 // =============================================
 let dispatcher;
 try { dispatcher = require('../../lib/agents/dispatcher'); } catch(e) { /* pas encore dispo */ }
+
+// =============================================
+// BUS LISTENER — Copilot écoute les notifications de la fourmilière
+// Les notifications sont stockées en mémoire et envoyées au prochain
+// appel /dashboard-summary ou /message
+// =============================================
+const _pendingNotifications = new Map(); // societeId → [notifications]
+
+try {
+  const { bus } = require('../../lib/shared-intelligence');
+
+  // Quand la fourmilière veut notifier le copilot (alerte stock, recasage, etc.)
+  bus.on('copilot_notification', (data) => {
+    if (!data || !data.societeId) return;
+    const key = data.societeId;
+    if (!_pendingNotifications.has(key)) _pendingNotifications.set(key, []);
+    const queue = _pendingNotifications.get(key);
+    queue.push({
+      type: data.type || 'info',
+      title: data.title || 'Notification',
+      message: data.message || '',
+      data: data.data || {},
+      timestamp: new Date().toISOString(),
+    });
+    // Garder max 20 notifications par société
+    if (queue.length > 20) queue.shift();
+    console.log(`[COPILOT] Notification reçue de la fourmilière : ${data.title}`);
+  });
+
+  // Quand un workflow termine — log seulement
+  bus.on('workflow_completed', (data) => {
+    if (!data || !data.societeId) return;
+    console.log(`[COPILOT] Workflow terminé : ${data.triggerType} (${data.durationMs}ms, ${data.steps} steps)`);
+  });
+} catch (_e) {
+  // Bus pas disponible — pas bloquant
+}
+
+/**
+ * Consomme les notifications en attente pour une société
+ * Appelé par dashboard-summary et /message
+ */
+function consumeNotifications(societeId) {
+  if (!_pendingNotifications.has(societeId)) return [];
+  const notifs = _pendingNotifications.get(societeId).splice(0);
+  return notifs;
+}
+
+// =============================================
+// GET /api/copilot/fourmiliere-prefs — Préférences fourmilière (defaults + overrides)
+// =============================================
+router.get('/fourmiliere-prefs', async (req, res) => {
+  try {
+    const sid = req.societe?.id || req.societeId;
+    if (!sid) return res.status(400).json({ error: 'Société non identifiée' });
+
+    const defaults = dispatcher
+      ? dispatcher.DEFAULT_FOURMILIERE_PREFS
+      : { annulation_detection: 'auto', annulation_action: 'propose', recasage: 'propose', tri_factures: 'auto', brouillon_reponse: 'propose', alerte_stock: 'auto', commande_stock: 'off', resume_pre_consultation: 'auto', suivi_patients_perdus: 'propose', optimisation_planning: 'propose' };
+
+    let overrides = {};
+    try {
+      const { data } = await db()
+        .from('cabinet_brain')
+        .select('preferences')
+        .eq('societe_id', sid)
+        .maybeSingle();
+      if (data?.preferences?.fourmiliere) {
+        overrides = data.preferences.fourmiliere;
+      }
+    } catch (_e) { /* table pas encore créée — pas bloquant */ }
+
+    const prefs = { ...defaults, ...overrides };
+    return res.json({ prefs, defaults });
+  } catch (err) {
+    console.error('[COPILOT] fourmiliere-prefs GET error:', err.message);
+    return res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =============================================
+// PUT /api/copilot/fourmiliere-prefs — Mise à jour préférences fourmilière
+// =============================================
+router.put('/fourmiliere-prefs', async (req, res) => {
+  try {
+    const sid = req.societe?.id || req.societeId;
+    if (!sid) return res.status(400).json({ error: 'Société non identifiée' });
+
+    const incoming = req.body?.prefs;
+    if (!incoming || typeof incoming !== 'object') {
+      return res.status(400).json({ error: 'Corps invalide — attendu { prefs: {...} }' });
+    }
+
+    const defaults = dispatcher
+      ? dispatcher.DEFAULT_FOURMILIERE_PREFS
+      : { annulation_detection: 'auto', annulation_action: 'propose', recasage: 'propose', tri_factures: 'auto', brouillon_reponse: 'propose', alerte_stock: 'auto', commande_stock: 'off', resume_pre_consultation: 'auto', suivi_patients_perdus: 'propose', optimisation_planning: 'propose' };
+
+    const validModes = ['auto', 'propose', 'off'];
+    const validKeys = Object.keys(defaults);
+
+    // Valider chaque clé/valeur
+    for (const [key, value] of Object.entries(incoming)) {
+      if (!validKeys.includes(key)) {
+        return res.status(400).json({ error: `Clé inconnue : ${key}` });
+      }
+      if (!validModes.includes(value)) {
+        return res.status(400).json({ error: `Valeur invalide pour ${key} : ${value} (attendu : auto, propose, off)` });
+      }
+    }
+
+    // Lire les préférences existantes pour merge
+    let existingPrefs = {};
+    try {
+      const { data } = await db()
+        .from('cabinet_brain')
+        .select('preferences')
+        .eq('societe_id', sid)
+        .maybeSingle();
+      if (data?.preferences) {
+        existingPrefs = data.preferences;
+      }
+    } catch (_e) { /* pas bloquant */ }
+
+    // Merge : on ne touche que la clé fourmiliere
+    const mergedFourmiliere = { ...(existingPrefs.fourmiliere || {}), ...incoming };
+    const mergedPreferences = { ...existingPrefs, fourmiliere: mergedFourmiliere };
+
+    // Upsert dans cabinet_brain
+    const { error } = await db()
+      .from('cabinet_brain')
+      .upsert({
+        societe_id: sid,
+        preferences: mergedPreferences,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'societe_id' });
+
+    if (error) {
+      console.error('[COPILOT] fourmiliere-prefs PUT upsert error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la sauvegarde' });
+    }
+
+    const finalPrefs = { ...defaults, ...mergedFourmiliere };
+    return res.json({ success: true, prefs: finalPrefs });
+  } catch (err) {
+    console.error('[COPILOT] fourmiliere-prefs PUT error:', err.message);
+    return res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // =============================================
 // GET /api/copilot/dashboard-summary — Résumé visuel pour le message d'accueil

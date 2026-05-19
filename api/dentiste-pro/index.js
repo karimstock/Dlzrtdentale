@@ -135,4 +135,14 @@ module.exports = function mountDentistePro(app) {
   } catch (e) {
     console.warn('[dentiste-pro] Chat-patient-ia non charge:', e.message);
   }
+
+  // Routes Patient App (JADOMI Care PWA)
+  // Endpoints /patient/* appelés par le frontend patient
+  // Inclut le branchement fourmilière sur annulation
+  try {
+    app.use(`${base}/patient`, require('./patient-app'));
+    console.log('[dentiste-pro] Routes patient-app montees');
+  } catch (e) {
+    console.warn('[dentiste-pro] Patient-app non charge:', e.message);
+  }
 };
