@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 19 mai 2026
-**Derniere passe** : Passe 87 (19 mai 2026) — Fourmiliere multi-agents + securite DeepSeek
+**Derniere passe** : Passe 88 (19 mai 2026) — Fourmiliere connectee + Module Avocat complet
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -2396,6 +2396,10 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 ===============================================================
 
 ## Bugs a corriger
+- Migration SQL 89 a verifier si executee proprement (agents_workflow)
+- UI dashboard preferences fourmiliere pas encore cree (backend only)
+- Push + SMS effectifs dans recasage auto du dispatcher (emet evenement mais pas encore les notifs reelles)
+- Module avocat : pas encore d'UI frontend (backend complet, coffre.html a enrichir)
 - 5 sites dupliques en BDD (garder a8ac57cc-90d2-4ca2-a16b-b288cc437620)
 - Doublons produits dans Panier intelligent
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
@@ -4786,7 +4790,45 @@ SECURITE CRITIQUE :
 6. Push jadomi (erreur 500 GitHub)
 7. Commercial OVH HDS mercredi 21 mai
 
+### Passe 88 (19 mai 2026) — Fourmiliere connectee + Module Avocat complet
+
+**Fourmiliere multi-agents — Branchements :**
+- Migration SQL 89 : table agents_workflow + colonnes learning (scope, agent_source, times_applied, disabled_at, etc.) sur cabinet_brain_rules
+- Dispatcher branche sur bus mail_received : auto-dispatch mails interessants (factures, urgents, reponse attendue)
+- Preferences fourmiliere par cabinet : 10 comportements configurables (auto/propose/off)
+  annulation_detection, annulation_action, recasage, tri_factures, brouillon_reponse, alerte_stock, commande_stock, resume_pre_consultation, suivi_patients_perdus, optimisation_planning
+- API GET/PUT /api/copilot/fourmiliere-prefs
+- Recasage intelligent branche sur dentiste_pro_waitlist existante (scoring 0-100, urgence slots, claim atomique)
+- _stepHandleCancelledRdv utilise agent-agenda.findReplacement (plus classifyIntent)
+- _stepRecaserCreneau : mode propose (attente validation dentiste) ou auto (lance urgence_slot + notifs)
+- Copilot ecoute bus copilot_notification + workflow_completed (notifications en attente consommees par /message et /dashboard-summary)
+- Fix localhost:3001 → process.env.PORT dans copilot scan-factures
+- Tables redondantes waitlist + recasage_proposals supprimees (doublons de dentiste_pro_*)
+
+**App patient JADOMI Care — Routes manquantes :**
+- Nouveau fichier api/dentiste-pro/patient-app.js (7 routes)
+- GET /patient/appointments, /visites, /cases, /documents
+- PATCH /patient/appointments/:id (annulation → declenche fourmiliere rdv_cancelled)
+- PATCH /patient/profile, DELETE /patient/profile (RGPD anonymisation)
+- POST /patient/confirm-visit
+- Monte dans dentiste-pro/index.js
+
+**Audit global JADOMI — Systemes deconnectes identifies :**
+- Bus copilot_notification et workflow_completed etaient orphelins → branches
+- Patient annulation via app ne declenchait pas le recasage → branche
+- 5 modules orphelins identifies (Rush, BTP, Avocat, Groupage, Services) → conserves
+- Routes /patient/* frontend appelaient des endpoints inexistants → crees
+
+**Module Avocat complet (5 nouveaux fichiers) :**
+- api/avocat/timetracking.js : chrono start/stop par dossier, entries manuelles, auto-calcul montant (taux_horaire x duree), summary facturables vs non
+- api/avocat/workflow.js : pipeline 10 etapes (nouveau→en_cours→mise_en_etat→audience→delibere→jugement→appel→execution→clos→archive), transitions historisees, deadlines auto, delai d'appel 30j auto-calcule, vue pipeline groupee
+- api/avocat/honoraires.js : generation note d'honoraires depuis le chrono (lignes honoraires + debours), TVA 20%, provision, mentions Art. 289 CGI, numerotation auto NH-YYYY-NNNN, statuts brouillon/envoyee/payee_partiel/payee/annulee/contentieux
+- api/avocat/relances.js : detection impayes, 3 niveaux (J+30 courtois, J+60 ferme, J+90 mise en demeure Art. 174 decret 91-1197), auto-passage contentieux
+- api/avocat/dashboard.js : CA mensuel avec evolution, honoraires factures vs encaisses, taux recouvrement, dossiers actifs par domaine, heures facturables/taux occupation, impayes, top clients, anciennete dossiers
+- Migration SQL 93 : tables avocat_time_entries, avocat_dossier_transitions, avocat_honoraires, avocat_relances + enrichissement avocat_dossiers (etape, domaine, juridiction, numero_rg, dates audience/delibere/jugement/appel, taux_horaire_defaut, montants)
+- Toutes les routes montees dans server.js sous /api/avocat/*
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 19 mai 2026 (Passe 87 — Fourmiliere + branchement copilot + carte infirmier)
+Derniere mise a jour : 19 mai 2026 (Passe 88 — Fourmiliere connectee + Module Avocat complet)
 ===============================================================
