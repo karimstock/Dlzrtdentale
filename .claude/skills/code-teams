@@ -1,0 +1,76 @@
+# Code Teams — Protocole multi-agents JADOMI
+
+## Déclenchement
+Quand le fondateur demande une tâche non-triviale (3+ fichiers, ou feature complète), activer Code Teams automatiquement.
+
+## Protocole
+
+### Phase 1 — ARCHITECTE (toi, le modèle principal)
+1. Analyser la demande
+2. Découper en sous-tâches indépendantes (1 tâche = 1 fichier max)
+3. Identifier les dépendances (qui bloque qui)
+4. Créer les tâches avec TaskCreate
+5. Briefer chaque agent builder avec un prompt COMPLET et autonome
+
+### Phase 2 — BUILDERS (agents parallèles avec isolation worktree)
+Règles pour chaque builder :
+- `isolation: "worktree"` obligatoire si le builder modifie du code
+- Le prompt doit inclure : contexte complet, fichiers à lire en premier, patterns à suivre, ce qu'il ne faut PAS toucher
+- 1 builder = 1 fichier à créer OU modifier, JAMAIS plus
+- Le builder fait `node -c` sur son fichier avant de terminer
+- Le builder ne touche AUCUN fichier en dehors de son périmètre
+
+Lancer tous les builders indépendants EN PARALLÈLE (un seul message avec N tool calls).
+
+### Phase 3 — REVIEWERS (agents parallèles, 1 par builder)
+Dès qu'un builder termine, lancer un reviewer dans la foulée.
+Le reviewer vérifie :
+- Sécurité (XSS, injection, IDOR, OWASP Top 10)
+- Bugs (null checks, edge cases, off-by-one)
+- Performance (N+1 queries, mémoire, boucles infinies)
+- Cohérence avec le reste du codebase (patterns, naming, auth)
+- Orthographe FR (accents, vouvoiement, pas d'emoji)
+Le reviewer corrige directement + `node -c` après chaque fix.
+
+### Phase 4 — INTÉGRATEUR (toi)
+1. Vérifier que tous les builders + reviewers ont terminé
+2. Lire les changements de chaque agent (pas faire confiance au résumé)
+3. Vérifier la cohérence inter-fichiers (imports, API contracts, noms)
+4. `node -c` sur TOUS les fichiers modifiés
+5. Si fichier HTML modifié : vérifier la syntaxe JS avec `new Function()`
+
+### Phase 5 — DÉPLOYEUR (toi)
+1. `git add` uniquement les fichiers modifiés (pas `git add .`)
+2. Commit avec message structuré (feat/fix/refactor + description)
+3. Si server.js modifié : rappeler que pm2 reload est nécessaire
+4. Mettre à jour TaskUpdate pour chaque tâche complétée
+
+## Règles de sécurité Code Teams
+
+### Fichiers intouchables (JAMAIS dans un builder)
+- mobile.html, api/rush.js, api/emailService.js, api/admin.js
+- routes/prothesistes.js, routes/commandes.js, .env
+
+### Fichiers sensibles (backup obligatoire avant modification)
+- server.js, index.html, organisation.html, landing.html
+
+### Limite stricte
+- MAX 10 fichiers modifiés par passe
+- MAX 5 builders en parallèle (au-delà = review impossible)
+- Chaque builder DOIT lire le fichier cible AVANT de le modifier
+
+## Quand NE PAS utiliser Code Teams
+- Tâche triviale (1 fichier, < 20 lignes)
+- Recherche / exploration (utiliser Agent Explore)
+- Question / discussion (répondre directement)
+
+## Rapport de fin de passe
+Après chaque Code Teams, produire :
+```
+CODE TEAMS RAPPORT — Passe X
+- Builders : N lancés, N réussis, N échoués
+- Reviewers : N lancés, X bugs corrigés
+- Fichiers : [liste]
+- Orthographe : X corrections sur Y fichiers
+- node -c : tous OK / [liste erreurs]
+```

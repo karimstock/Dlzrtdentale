@@ -77,14 +77,46 @@ Instauree apres l'incident catastrophique Passe 66 (audit 9 agents,
    redirections ou le comportement visible — seulement la securite interne
 Violation = incident de production. Zero tolerance.
 
-## Methode Builder/Reviewer OBLIGATOIRE
-Pour chaque tache non-triviale dans une passe :
-1. Lancer des agents BUILDERS en parallele (1 par tache)
-2. Des qu'un builder finit, lancer un agent REVIEWER derriere (dans la minute)
-3. Le reviewer verifie : securite, bugs, perf, edge cases, XSS, IDOR
-4. Le reviewer corrige directement + node -c apres chaque fix
-5. Bilan des corrections dans le rapport de passe
-Instauree Passe 52. Resultats : 57 bugs rattrapes sur 3 passes (52-54).
+## Code Teams — Protocole multi-agents JADOMI (ex Builder/Reviewer)
+Instauree Passe 52, enrichie Passe 88. Remplace la methode Builder/Reviewer simple.
+Skill : .claude/skills/code-teams
+
+### Phase 1 — ARCHITECTE (modele principal)
+1. Analyser la demande, decouper en sous-taches independantes
+2. 1 tache = 1 fichier max, identifier les dependances
+3. Creer les taches avec TaskCreate, briefer chaque builder
+
+### Phase 2 — BUILDERS (agents paralleles, isolation worktree)
+- isolation: "worktree" obligatoire si le builder modifie du code
+- Prompt COMPLET et autonome (contexte, fichiers a lire, patterns)
+- 1 builder = 1 fichier, JAMAIS plus
+- node -c obligatoire avant de terminer
+- MAX 5 builders en parallele
+
+### Phase 3 — REVIEWERS (1 par builder, en parallele)
+- Securite (XSS, injection, IDOR, OWASP Top 10)
+- Bugs (null checks, edge cases, off-by-one)
+- Performance (N+1 queries, memoire)
+- Orthographe FR (accents, vouvoiement, pas d'emoji)
+- Corrige directement + node -c apres chaque fix
+
+### Phase 4 — INTEGRATEUR (modele principal)
+- Verifier TOUS les changements (pas faire confiance au resume)
+- Verifier coherence inter-fichiers (imports, API contracts)
+- node -c sur TOUS les fichiers modifies
+- Si HTML : verifier JS avec new Function()
+
+### Phase 5 — DEPLOYEUR
+- git add fichiers specifiques (pas git add .)
+- Commit structure (feat/fix/refactor + description)
+- TaskUpdate pour chaque tache completee
+- Rapport Code Teams en fin de passe
+
+### Regles Code Teams
+- MAX 10 fichiers modifies par passe
+- NE PAS utiliser pour les taches triviales (1 fichier, < 20 lignes)
+- Chaque builder DOIT lire le fichier cible AVANT de le modifier
+- Fichiers intouchables : JAMAIS dans un builder (voir liste ci-dessus)
 
 ## Orthographe et accents — ZERO TOLERANCE
 Regle instauree Passe 66 par le fondateur. L'orthographe est CRITIQUE
