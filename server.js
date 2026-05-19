@@ -1091,6 +1091,17 @@ try {
   console.log('[JADOMI] Module Avocat Dashboard monte');
 } catch (e) { console.warn('[JADOMI] Avocat Dashboard non charge:', e.message); }
 
+// === JADOMI Visio Universelle — Téléconsultation tous métiers ===
+try {
+  app.use('/api/visio', require('./api/visio'));
+  console.log('[JADOMI] Module Visio Universelle monte');
+} catch (e) { console.warn('[JADOMI] Visio Universelle non charge:', e.message); }
+
+// Route publique — page visio (client externe accède sans auth)
+app.get('/visio/:token', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public/visio/index.html'));
+});
+
 // === JADOMI Studio Video Generator — Vidu AI ===
 try {
   app.use('/api/studio/video', require('./api/studio/video-generator'));
