@@ -55,7 +55,7 @@ function getClient() {
 async function extraireDepuisTexte(texte) {
   const client = getClient();
   const msg = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 8000,
     messages: [{
       role: 'user',
@@ -71,7 +71,7 @@ async function extraireDepuisTexte(texte) {
 async function extraireDepuisImage(base64Data, mediaType) {
   const client = getClient();
   const msg = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 8000,
     messages: [{
       role: 'user',

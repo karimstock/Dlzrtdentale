@@ -518,7 +518,7 @@ router.post('/practitioner/photos/:id/analyze', async (req, res) => {
     const presignedUrl = await getPresignedUrl(photo.r2_key);
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       messages: [{
         role: 'user',
@@ -599,7 +599,7 @@ router.post('/practitioner/steps/:id/ai-notes', async (req, res) => {
     });
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       messages: [{ role: 'user', content: imageContent }],
       system: 'You are a dental/medical assistant helping practitioners write clinical notes. Respond in French with professional clinical observations based on the provided photos.'

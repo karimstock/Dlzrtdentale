@@ -1,6 +1,6 @@
 // =============================================
 // JADOMI — Photo AI : Analyse IA des photos
-// Claude Vision (claude-sonnet-4-20250514) pour
+// Claude Vision (claude-sonnet-4-6) pour
 // triage urgence, teinte, clinique, labo, plaie
 // WORLD FIRST : AI dental photo triage system
 // =============================================
@@ -118,7 +118,7 @@ async function analyzePhoto(photoUrl, photoType, context) {
   }
 
   const response = await getAnthropic().messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     messages: [{
       role: 'user',
@@ -154,7 +154,7 @@ async function analyzePhoto(photoUrl, photoType, context) {
 // =============================================
 async function checkPhotoQuality(photoUrl) {
   const response = await getAnthropic().messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 512,
     messages: [{
       role: 'user',

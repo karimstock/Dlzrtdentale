@@ -386,7 +386,7 @@ router.post('/scan-peremption', async (req, res) => {
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 500,
       system: `Tu es un assistant expert spécialisé dans la lecture de dates de péremption sur des emballages de produits dentaires, médicaux et de laboratoire prothétique.
 

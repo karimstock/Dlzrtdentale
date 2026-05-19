@@ -969,7 +969,7 @@ app.post('/api/voice/generate-letter', authSupabase(), async (req, res) => {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: `Tu es le générateur de courriers professionnels de JADOMI, plateforme pour professionnels de santé.
 Tu génères des courriers en HTML propre, professionnels, en français, avec vouvoiement.
@@ -1632,7 +1632,7 @@ app.post('/api/claude', requireAuth(), async (req, res) => {
       message,
       prompt,
       system,
-      model = 'claude-sonnet-4-20250514',
+      model = 'claude-sonnet-4-6',
       max_tokens = 1000,
       tools,
     } = req.body || {};
@@ -1859,7 +1859,7 @@ app.post('/api/ia/router', requireAuth(), async (req, res) => {
     // NIVEAU 3 — Tâches complexes → Claude Sonnet
     const msgs = messages || [{ role: 'user', content: text }];
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens,
       messages: msgs,
     });
@@ -1881,7 +1881,7 @@ app.post('/api/ia/extract-facture', requireAuth(), async (req, res) => {
 
     const mtype = media_type || 'image/jpeg';
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{
         role: 'user',
@@ -2186,7 +2186,7 @@ app.post('/api/contrats/generer', requireAuth(), async (req, res) => {
 
     // Generate contract HTML via Claude
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 3000,
       messages: [{ role: 'user', content: `Génère un contrat d'abonnement HTML professionnel pour JADOMI.
 
@@ -2265,7 +2265,7 @@ app.post('/api/contrats/resilier', requireAuth(), async (req, res) => {
 
     // Generate resiliation contract via Claude
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2500,
       messages: [{ role: 'user', content: `Génère un contrat de résiliation HTML professionnel pour JADOMI.
 
@@ -2544,7 +2544,7 @@ app.post('/api/suggestions', requireAuth(), async (req, res) => {
     let analyse = { score: 5, categorie: categorie || 'autre', resume: titre, decision: 'etude', conseil_alternatif: '' };
     try {
       const iaResp = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 400,
         messages: [{ role: 'user', content: `Analyse cette suggestion d'un dentiste utilisant JADOMI (app de gestion stock dentaire IA).
 
@@ -2778,7 +2778,7 @@ app.post('/api/voice/labo/creer-bl', authSupabase(), async (req, res) => {
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 800,
       system: `Tu es l'IA de JADOMI LABO. Tu analyses une phrase du prothésiste pour créer un bon de livraison.
 
@@ -3254,9 +3254,9 @@ app.post('/api/scan/import-prices', async (req, res) => {
     for (let i = 0; i < products.length; i += 100) {
       const batch = products.slice(i, i + 100).map(p => ({
         supplier_name: source || 'unknown',
-        product_name: (p.name || '').substring(0, 500),
-        brand: (p.brand || '').substring(0, 200),
-        reference: (p.ref || '').substring(0, 100),
+        product_name: String(p.name || '').substring(0, 500),
+        brand: String(p.brand || '').substring(0, 200),
+        reference: String(p.ref || '').substring(0, 100),
         price: parseFloat(p.price) || null,
         price_original: parseFloat(p.price_original || p.oldPrice) || null,
         url: (p.url || '').substring(0, 1000),
@@ -10667,7 +10667,7 @@ app.post('/api/ide/ordonnances/analyser', requireAuth(), async (req, res) => {
     const mediaType = image_type || 'image/jpeg';
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{
         role: 'user',

@@ -204,7 +204,7 @@ router.post('/cases/:id/analyser', async (req, res) => {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: `Vous êtes un expert en colorimétrie dentaire avec 20 ans d'expérience en prothèse dentaire. Vous maîtrisez tous les teintiers (VITA Classical, VITA 3D-Master, Ivoclar Chromascop, etc.) et savez analyser les nuances de teinte à partir de photos cliniques.
 

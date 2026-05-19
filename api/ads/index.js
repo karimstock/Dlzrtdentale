@@ -92,7 +92,7 @@ async function claudeAsk(anthropic, prompt, maxTokens = 2000) {
   if (!anthropic) return { content: 'IA indisponible (Anthropic non initialisé)' };
   try {
     const r = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -482,7 +482,7 @@ module.exports = function mountAds(app, supabase, anthropic) {
       }
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -554,7 +554,7 @@ Répondez en français avec le vouvoiement. Format JSON :
 { "variants": [{ "style": string, "title": string, "hook": string, "body": string, "call_to_action": string }] }`;
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }]
       });

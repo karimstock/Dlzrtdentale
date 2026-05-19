@@ -17,7 +17,7 @@ async function suggestText(type, contexte_cabinet, texte_actuel, metier) {
   const metierCtx = METIER_CONTEXT[metier] || metier || 'professionnel de santé';
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 800,
     temperature: 0.7,
     system: `Tu es rédacteur web professionnel spécialisé ${metierCtx}.

@@ -63,7 +63,7 @@ module.exports = function (router) {
 
       // Appeler Claude
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         temperature: 0.6,
         system: `Tu es redacteur web expert specialise en ${metier}. Tu generes du contenu de haute qualite pour des sites professionnels. Reponds UNIQUEMENT en JSON strict.`,

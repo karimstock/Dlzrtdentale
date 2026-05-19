@@ -41,7 +41,7 @@ module.exports = function(router) {
       }
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: BASE_SYSTEM,
         messages: [{
@@ -87,7 +87,7 @@ Répondez UNIQUEMENT en JSON valide, format :
       }
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: BASE_SYSTEM,
         messages: [{
@@ -128,7 +128,7 @@ Répondez UNIQUEMENT avec le sous-titre, sans guillemets ni ponctuation finale.`
       }
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         system: BASE_SYSTEM,
         messages: [{
@@ -178,7 +178,7 @@ Répondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
       }
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: BASE_SYSTEM,
         messages: [{
@@ -261,7 +261,7 @@ Informations du cabinet :
 - Adresse : ${cabinet_data.address || 'Non précisée'}`;
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: BASE_SYSTEM,
         messages: [{
@@ -300,7 +300,7 @@ Répondez UNIQUEMENT avec le HTML, sans bloc de code markdown.`
       }
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: `Vous êtes un traducteur professionnel spécialisé dans le domaine juridique.
 Vous traduisez du français vers d'autres langues en préservant :
