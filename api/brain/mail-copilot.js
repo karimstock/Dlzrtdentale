@@ -506,9 +506,9 @@ router.post('/read', async (req, res) => {
       .single();
     if (!mail) return res.status(404).json({ error: 'Mail non trouvé' });
 
-    // Si on a déjà le body, le retourner
+    // Si on a déjà le body, le retourner (+ HTML si stocké)
     if (mail.body_preview && mail.body_preview.length > 100) {
-      return res.json({ id: mail.id, body: mail.body_preview, html: null, from: mail.from_name || mail.from_address, subject: mail.subject, date: mail.date_received, attachments: mail.metadata?.attachments || [] });
+      return res.json({ id: mail.id, body: mail.body_preview, html: mail.metadata?.body_html || null, from: mail.from_name || mail.from_address, subject: mail.subject, date: mail.date_received, category: mail.category, attachments: mail.metadata?.attachments || [] });
     }
 
     // Sinon, télécharger le contenu depuis IMAP
@@ -559,13 +559,13 @@ router.post('/read', async (req, res) => {
       lock.release();
       await client.logout();
 
-      // Sauvegarder le body en base pour pas re-fetcher
+      // Sauvegarder le body + HTML en base pour pas re-fetcher
       if (foundBody) {
         await db().from('mails_inbox').update({
           body_preview: foundBody.substring(0, 2000),
           has_attachments: foundAttachments.length > 0,
           has_pdf: foundAttachments.some(a => a.contentType?.includes('pdf') || a.filename?.endsWith('.pdf')),
-          metadata: { ...mail.metadata, attachments: foundAttachments }
+          metadata: { ...mail.metadata, attachments: foundAttachments, body_html: foundHtml ? foundHtml.substring(0, 50000) : null }
         }).eq('id', mail.id);
       }
 
@@ -600,177 +600,70 @@ router.post('/scan-factures', async (req, res) => {
     const sid = req.societe?.id || req.societeId;
     const { account_id, mois, annee } = req.body;
 
+    // Vérification rapide que le compte existe (avant de fork)
     const { data: account } = await db()
       .from('comptes_email_societe')
-      .select('*')
+      .select('id')
       .eq('id', account_id)
       .eq('societe_id', sid)
       .single();
     if (!account) return res.status(404).json({ error: 'Compte non trouvé' });
 
-    const password = decryptPassword(account);
-    if (!password) return res.status(500).json({ error: 'Erreur déchiffrement' });
-
-    // Période
-    const m = parseInt(mois) || new Date().getMonth() + 1;
-    const y = parseInt(annee) || new Date().getFullYear();
-    const sinceDate = new Date(y, m - 1, 1);
-    const untilDate = new Date(y, m, 1);
-
-    const imapConfig = buildImapConfig(account, password);
-    imapConfig.connTimeout = 60000;
-    const client = new ImapFlow({ ...imapConfig, logger: false });
-
-    await client.connect();
-    const lock = await client.getMailboxLock('INBOX');
-
-    // Chercher les mails de ce mois (sequence numbers)
-    const seqs = await client.search({ since: sinceDate });
-
-    const documents = [];
-    let scanned = 0;
-    let claudeCalls = 0;
-    const MAX_CLAUDE = 50; // max 50 analyses Claude par scan
-
-    // Mots-clés financiers pour pré-filtrer
-    const FINANCIER = ['facture', 'invoice', 'reçu', 'receipt', 'commande', 'order', 'paiement', 'payment', 'règlement', 'quittance', 'échéance', 'avoir', 'bordereau'];
-    const FOURNISSEURS = ['gacd', 'henry schein', 'mega dental', 'dpi', 'septodont', 'anthogyr', 'straumann', 'promodentaire', 'dentalclick', 'dental evolution', 'edf', 'engie', 'ovh', 'free', 'orange'];
-
-    // Fetch par batch de 30 (source complète pour analyser les PDF)
-    for (let i = 0; i < seqs.length; i += 30) {
-      if (claudeCalls >= MAX_CLAUDE) break;
-
-      const batch = seqs.slice(i, i + 30);
-      if (batch.length === 0) break;
-
-      for await (const msg of client.fetch(batch.join(','), { source: true, flags: true }, { uid: false })) {
-        try {
-          const parsed = await simpleParser(msg.source, { skipTextToHtml: true, skipImageLinks: true });
-
-          // Filtre par date (mois exact)
-          const mailDate = parsed.date ? new Date(parsed.date) : null;
-          if (mailDate && (mailDate < sinceDate || mailDate >= untilDate)) continue;
-
-          const subject = (parsed.subject || '').toLowerCase();
-          const from = (parsed.from?.text || '').toLowerCase();
-          const atts = parsed.attachments || [];
-          const hasPDF = atts.some(a => String(a.contentType || '').includes('pdf') || String(a.filename || '').endsWith('.pdf'));
-
-          // Pré-filtre : vaut la peine d'analyser ?
-          const isFinancier = FINANCIER.some(k => subject.includes(k)) || FOURNISSEURS.some(f => from.includes(f));
-          if (!hasPDF && !isFinancier) continue;
-
-          scanned++;
-
-          // Analyser les PJ PDF avec Claude (même fonction que le scanner existant)
-          for (const att of atts) {
-            if (!String(att.contentType || '').includes('pdf') && !String(att.filename || '').endsWith('.pdf')) continue;
-            if (claudeCalls >= MAX_CLAUDE) break;
-
-            try {
-              const base64 = att.content.toString('base64');
-
-              // NIVEAU 1 : Mistral Pixtral pre-tri (0.001 EUR) — "c'est une facture ?"
-              let isRealInvoice = true;
-              try {
-                const iaRouter = require('../../lib/ia-router');
-                const preCheck = await iaRouter.mistralVision(base64,
-                  'Ce document est-il une facture, un devis, un avoir ou un document comptable ? Reponds OUI ou NON uniquement.',
-                  { maxTokens: 10 });
-                isRealInvoice = !/\bNON\b/i.test(preCheck);
-                if (!isRealInvoice) { console.log('[SCAN] Skip:', att.filename, '(pas facture)'); continue; }
-              } catch (_) {} // Mistral echoue → on analyse quand meme
-
-              // NIVEAU 2 : Claude extraction (uniquement les vraies factures)
-              const Anthropic = require('@anthropic-ai/sdk');
-              const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-              claudeCalls++;
-              const response = await anthropic.messages.create({
-                model: 'claude-sonnet-4-6',
-                max_tokens: 3000,
-                system: 'Tu es un expert-comptable cabinet dentaire FR. Réponds UNIQUEMENT en JSON valide.',
-                messages: [{
-                  role: 'user',
-                  content: [
-                    { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-                    { type: 'text', text: 'Analyse cette facture/document. Retourne en JSON: {"type_document":"facture|devis|avoir|charge_cabinet|note_frais|salaire|honoraires|autre","fournisseur_ou_etablissement":"nom","date":"AAAA-MM-JJ","numero_facture":"ref ou null","total_ht":0,"tva":0,"total_ttc":0,"selectionne":true,"ajouter_au_stock":false,"produits":[{"designation":"nom","ref":"ref","quantite":1,"prix_unitaire":0}]}' }
-                  ]
-                }]
-              });
-
-              const text = response.content?.[0]?.text || '';
-              const jsonMatch = text.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                let jsonStr = jsonMatch[0];
-                // Fix JSON tronqué : fermer les tableaux/objets ouverts
-                try {
-                  JSON.parse(jsonStr);
-                } catch (_) {
-                  // Compter les { et [ ouverts
-                  let opens = 0, closes = 0;
-                  for (const c of jsonStr) { if (c === '{' || c === '[') opens++; if (c === '}' || c === ']') closes++; }
-                  // Tronquer après le dernier } ou ] complet, puis fermer
-                  const lastComplete = Math.max(jsonStr.lastIndexOf('}'), jsonStr.lastIndexOf(']'));
-                  if (lastComplete > 10) jsonStr = jsonStr.substring(0, lastComplete + 1);
-                  // Fermer les accolades/crochets manquants
-                  while (opens > closes) { jsonStr += (jsonStr.includes('"produits"') && opens - closes > 1) ? ']' : '}'; closes++; }
-                }
-                try {
-                  const analyse = JSON.parse(jsonStr);
-                  documents.push({
-                    from: parsed.from?.text || '',
-                    date_mail: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : '',
-                    subject: parsed.subject || '',
-                    filename: att.filename || 'document.pdf',
-                    analyse,
-                    selectionne: analyse.selectionne !== false
-                  });
-                } catch (jsonErr) {
-                  // JSON vraiment irrécupérable — on skip
-                  console.warn('[SCAN-FACTURES] JSON irrécupérable pour', att.filename);
-                }
-              }
-            } catch (claudeErr) {
-              console.warn('[SCAN-FACTURES] Claude error:', claudeErr.message?.substring(0, 80));
-            }
-          }
-
-          // Si pas de PDF mais mail financier, analyser le texte du body
-          if (!hasPDF && isFinancier && parsed.text && claudeCalls < MAX_CLAUDE) {
-            const bodyText = (parsed.text || '').substring(0, 2000);
-            if (/facture\s*n|montant|total.*ttc|total.*ht/i.test(bodyText)) {
-              documents.push({
-                from: parsed.from?.text || '',
-                date_mail: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : '',
-                subject: parsed.subject || '',
-                filename: '(dans le corps du mail)',
-                analyse: {
-                  type_document: 'facture',
-                  fournisseur_ou_etablissement: parsed.from?.value?.[0]?.name || parsed.from?.value?.[0]?.address || '',
-                  date: parsed.date ? new Date(parsed.date).toISOString().slice(0, 10) : null,
-                  selectionne: true
-                },
-                selectionne: true
-              });
-            }
-          }
-        } catch (_) {}
-      }
-    }
-
-    lock.release();
-    await client.logout();
-
-    const moisNom = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][m - 1];
-
-    res.json({
-      ok: true,
-      mois: moisNom + ' ' + y,
-      documents,
-      total_scanned: scanned,
-      claude_calls: claudeCalls,
-      total_factures: documents.length
+    // Fork du worker isolé en mémoire (256MB max)
+    const { fork } = require('child_process');
+    const path = require('path');
+    const workerPath = path.join(__dirname, '../../lib/workers/scan-factures-worker.js');
+    const worker = fork(workerPath, [], {
+      execArgv: ['--max-old-space-size=256'],
+      env: process.env
     });
+
+    let responded = false;
+
+    worker.send({ societeId: sid, accountId: account_id, mois, annee });
+
+    worker.on('message', (msg) => {
+      if (responded) return;
+      if (msg.type === 'done') {
+        responded = true;
+        res.json(msg.result);
+        if (!worker.killed) worker.kill();
+      } else if (msg.type === 'error') {
+        responded = true;
+        res.status(500).json({ error: msg.error });
+        if (!worker.killed) worker.kill();
+      }
+      // msg.type === 'progress' et 'ready' sont ignorés (pas de SSE)
+    });
+
+    worker.on('error', (err) => {
+      console.error('[SCAN-FACTURES] Worker error:', err.message);
+      if (!responded) {
+        responded = true;
+        res.status(500).json({ error: 'Erreur worker : ' + err.message });
+      }
+    });
+
+    worker.on('exit', (code) => {
+      if (!responded) {
+        responded = true;
+        if (code !== 0) {
+          res.status(500).json({ error: 'Worker crash (code ' + code + ')' });
+        } else {
+          // Worker exit propre sans 'done' — ne devrait pas arriver mais on évite le hang
+          res.status(500).json({ error: 'Worker terminé sans résultat' });
+        }
+      }
+    });
+
+    // Timeout 10 min — kill le worker si toujours en cours
+    setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        res.status(504).json({ error: 'Timeout scan factures (10 min)' });
+      }
+      if (!worker.killed) worker.kill();
+    }, 600000);
   } catch (e) {
     console.error('[SCAN-FACTURES] error:', e.message);
     res.status(500).json({ error: 'Erreur : ' + e.message });

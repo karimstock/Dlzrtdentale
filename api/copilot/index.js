@@ -501,6 +501,9 @@ function isNoiseMail(m) {
   if (/webinaire|d[eé]couvrez.*prochains|invitation exclusive|summary for|nouvel ouvrage|tout savoir sur/.test(sub)) return true;
   // Charité / crowdfunding / religieux
   if (/cotizup|cagnotte|don|mosque|construire.*mosqu|dhul|ramadan/.test(sub)) return true;
+  if (/cotizup|allomouton|allo.mouton/.test(from)) return true;
+  // Promos fournisseurs dentaires (newsletters marketing, pas commandes)
+  if (/festival.*prix|prix\s*bas|offre\s*flash|destockage|solde/i.test(sub) && /doctor.strong|dentalclick|promodentaire|godentaire/i.test(from)) return true;
   // Rapports auto JADOMI
   if (/rapport hebdomadaire|weekly report/.test(sub) && from.includes('jadomi')) return true;
   // Indisponibilité / maintenance de services tiers

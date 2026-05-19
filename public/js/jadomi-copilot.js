@@ -232,24 +232,81 @@
     function showTyping() { var d = document.createElement('div'); d.className = 'jcp-typing'; d.id = 'jcp-typing'; d.innerHTML = '<span></span><span></span><span></span>'; messages.appendChild(d); messages.scrollTop = messages.scrollHeight; }
     function hideTyping() { var e = document.getElementById('jcp-typing'); if (e) e.remove(); }
 
-    // Welcome dynamique — résumé du matin
+    // Welcome dynamique — résumé dashboard
+    function buildDashboardCard(icon, label, detail, command) {
+      return '<div onclick="window.__jcpSend(\'' + command.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + BG3 + ';border:1px solid ' + BORDER + ';border-radius:10px;cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor=\'rgba(99,102,241,.4)\'" onmouseout="this.style.borderColor=\'' + BORDER + '\'">' +
+        '<span style="font-size:15px;flex-shrink:0;width:20px;text-align:center;">' + icon + '</span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:12px;font-weight:600;color:' + TEXT + ';">' + label + '</div>' +
+          (detail ? '<div style="font-size:10px;color:' + TEXT2 + ';margin-top:1px;">' + detail + '</div>' : '') +
+        '</div>' +
+        '<span style="font-size:10px;color:' + TEXT2 + ';">&#9656;</span>' +
+      '</div>';
+    }
+
     function loadWelcome() {
-      fetch('/api/copilot/message', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ message: '__welcome__', context: ctx }) })
+      fetch('/api/copilot/dashboard-summary', { headers: getHeaders() })
         .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-          if (data && data.reply && data.reply !== '__default__') {
-            var el = document.querySelector('.jcp-msg-bot .jcp-bubble');
-            if (el) el.innerHTML = data.reply;
+        .then(function(d) {
+          if (!d) return;
+          var el = document.querySelector('.jcp-msg-bot .jcp-bubble');
+          if (!el) return;
+
+          var html = '<div style="font-size:13px;font-weight:600;color:' + TEXT + ';margin-bottom:10px;">' + (d.greeting || 'Bonjour Docteur') + '</div>';
+          html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
+
+          // Mails
+          var mailLabel = (d.mails.unread || 0) + ' mail(s) non lu(s)';
+          var mailDetail = '';
+          if (d.mails.needs_response > 0) mailDetail += d.mails.needs_response + ' attendent une reponse';
+          if (d.mails.urgent > 0) mailDetail += (mailDetail ? ' · ' : '') + d.mails.urgent + ' urgent(s)';
+          if (d.mails.factures_new > 0) mailDetail += (mailDetail ? ' · ' : '') + d.mails.factures_new + ' facture(s)';
+          html += buildDashboardCard('&#9993;', mailLabel, mailDetail, 'Mes mails du jour');
+
+          // Agenda
+          var agLabel = (d.agenda.today_count || 0) + ' RDV aujourd\'hui';
+          var agDetail = '';
+          if (d.agenda.next_patient) {
+            agDetail = 'Prochain : ' + d.agenda.next_patient.name + ' a ' + d.agenda.next_patient.time;
+            if (d.agenda.next_patient.acte) agDetail += ' (' + d.agenda.next_patient.acte + ')';
           }
-        }).catch(function() {});
+          if (d.agenda.cancellations_today > 0) agDetail += (agDetail ? ' · ' : '') + d.agenda.cancellations_today + ' annulation(s)';
+          html += buildDashboardCard('&#9735;', agLabel, agDetail, 'Mon agenda du jour');
+
+          // Stock (afficher seulement si alertes)
+          if ((d.stock.low_alerts || 0) > 0 || (d.stock.expiring_soon || 0) > 0) {
+            var stLabel = (d.stock.low_alerts || 0) + ' alerte(s) stock bas';
+            var stDetail = '';
+            if (d.stock.expiring_soon > 0) stDetail = d.stock.expiring_soon + ' produit(s) bientot perimes';
+            html += buildDashboardCard('&#9830;', stLabel, stDetail, 'Alertes stock');
+          }
+
+          // Tasks (afficher seulement si en attente)
+          if ((d.tasks.pending || 0) > 0) {
+            var tkLabel = (d.tasks.pending || 0) + ' tache(s) en attente';
+            var tkDetail = d.tasks.urgent > 0 ? d.tasks.urgent + ' urgente(s)' : '';
+            html += buildDashboardCard('&#10003;', tkLabel, tkDetail, 'Mes taches en attente');
+          }
+
+          html += '</div>';
+
+          // Suggestions rapides
+          var sugs2 = ['Mails importants', 'Scan mes factures', 'Aide'];
+          html += '<div style="display:flex;flex-wrap:wrap;gap:5px;">' +
+            sugs2.map(function (s) { return '<button class="jcp-sug" onclick="window.__jcpSend(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>'; }).join('') + '</div>';
+
+          el.innerHTML = html;
+        }).catch(function() {
+          // Fallback silencieux — le message par défaut reste affiché
+        });
     }
 
     var sugs = ['Mes mails du jour', 'Mails importants', 'Scan mes factures', 'Envoie un mail au comptable', 'Aide'];
     addMsg('Bonjour Docteur, comment puis-je vous aider ?<br><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">' +
       sugs.map(function (s) { return '<button class="jcp-sug" onclick="window.__jcpSend(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>'; }).join('') + '</div>', false);
 
-    // Charger le résumé dynamique après 2s
-    setTimeout(loadWelcome, 2000);
+    // Charger le résumé dynamique après 1.5s
+    setTimeout(loadWelcome, 1500);
 
     // ================================================================
     // RENDER CARDS dans le panneau latéral
@@ -301,8 +358,18 @@
             });
             html += '</div>';
           }
-          // Corps du mail
-          html += '<div style="font-size:13px;color:' + TEXT + ';line-height:1.7;white-space:pre-wrap;padding:12px;background:' + BG3 + ';border-radius:10px;max-height:350px;overflow-y:auto;">' + esc(data.body || '(vide)') + '</div>';
+          // Corps du mail — HTML dans une iframe sandbox (sécurisé) ou texte brut
+          if (data.html || (data.body && data.body.trim().startsWith('<'))) {
+            var mailHtml = data.html || data.body;
+            html += '<iframe id="jcp-mail-iframe" sandbox="allow-same-origin" style="width:100%;min-height:350px;max-height:500px;border:none;border-radius:10px;background:#fff;" onload="try{var d=this.contentDocument;d.open();d.write(atob(this.dataset.content));d.close();this.style.height=Math.min(d.body.scrollHeight+20,500)+\'px\';}catch(e){}"></iframe>';
+            // On encode le HTML en base64 pour éviter les injections dans le template
+            setTimeout(function() {
+              var iframe = document.getElementById('jcp-mail-iframe');
+              if (iframe) { iframe.dataset.content = btoa(unescape(encodeURIComponent(mailHtml))); iframe.onload(); }
+            }, 100);
+          } else {
+            html += '<div style="font-size:13px;color:' + TEXT + ';line-height:1.7;white-space:pre-wrap;padding:12px;background:' + BG3 + ';border-radius:10px;max-height:350px;overflow-y:auto;">' + esc(data.body || '(vide)') + '</div>';
+          }
           // Actions
           html += '<div class="jcp-card-actions" style="margin-top:12px;">';
           html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="window.__jcpSend(\'réponds à ' + esc(data.from || '').replace(/'/g, "\\'") + ' que \')">Répondre</button>';
