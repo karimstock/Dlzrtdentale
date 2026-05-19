@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 17 mai 2026
-**Derniere passe** : Passe 86 (18 mai 2026) — Cabinet Brain + Copilot Global + Mail + Scan Factures
+**Derniere mise a jour** : 19 mai 2026
+**Derniere passe** : Passe 87 (19 mai 2026) — Fourmiliere multi-agents + securite DeepSeek
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4743,13 +4743,30 @@ maintenance services tiers, DEKRA, France Travail, ClearCorrect summaries
 - 392 restarts PM2 accumules → reset le compteur apres stabilisation
 - tab-agenda.js:1371 renderSkeleton null → bug existant non lie au copilot
 
-### Priorites prochaine session (Passe 87)
-1. STABILISER : le scan factures ne doit PAS crasher le serveur
-   → Worker separe (child_process.fork) ou limiter la memoire
-2. BRANCHER COPILOT SUR AGENDA : quand un patient annule par mail,
-   le copilot propose au dentiste d'annuler le RDV + proposer un autre creneau
-   Regle : JAMAIS annuler sans validation praticien
-3. SCANNER COMPTA index.html : utiliser comptes_email_societe au lieu de retaper les identifiants
+### Passe 87 debut (19 mai 2026) — Fourmiliere multi-agents + securite DeepSeek
+
+- Fourmiliere complete : 7 fichiers lib/agents/ + shared-intelligence.js
+- Dispatcher : 5 workflows (mail_received, rdv_cancelled, stock_alert, patient_request, user_command)
+- Memory : memoire Supabase partagee entre agents, contexte enrichi system prompt
+- Learning : corrections utilisateur → regles, propagation locale→globale a 95% confidence
+- Agent-agenda : detection annulation, creneaux libres, optimisation planning journee
+- Agent-patient : resume patient, pre-consultation, actions en attente
+- Agent-stock : alertes rupture, meilleur prix, commande groupee par fournisseur
+- Worker scan-factures : child_process separe pour eviter crash memoire serveur
+- Migration SQL 89 : table agents_workflow + colonnes apprentissage brain_rules
+  → A EXECUTER sur Supabase Dashboard (pas d'acces SQL direct dans cette session)
+
+SECURITE CRITIQUE :
+- trustLevel dans buildAgentContext : 'full' (Claude/Mistral RGPD) ou 'none' (DeepSeek)
+- DeepSeek (serveurs chinois) recoit ZERO contexte cabinet — intent parsing pur
+- Message anonymise avant envoi DeepSeek (noms, emails, tels, pathologies → placeholders)
+- Reinjection des vrais noms APRES parsing, cote serveur JADOMI uniquement
+- Mistral (Mistral AI Paris, conforme RGPD) → trustLevel 'full', contexte complet autorise
+
+### Priorites suite Passe 87
+1. EXECUTER migration SQL 89 sur Supabase Dashboard
+2. BRANCHER copilot sur dispatcher (mail → workflow mail_received, commande → user_command)
+3. Bouton "Demarrer tournee" infirmier → ouvre directement la carte JADOMI
 4. Copilot actions directes : chercher patient, creer RDV, voir planning
 5. Enrichir le message accueil : "3 factures triees, 2 mails urgents, 1 patient a annule"
 6. Tester copilot sur mobile
@@ -4759,5 +4776,5 @@ maintenance services tiers, DEKRA, France Travail, ClearCorrect summaries
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 18 mai 2026 (Passes 84-85-86 — Cabinet Brain + Copilot + Mails + Scan)
+Derniere mise a jour : 19 mai 2026 (Passe 87 — Fourmiliere multi-agents + securite DeepSeek)
 ===============================================================
