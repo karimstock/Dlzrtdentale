@@ -149,6 +149,47 @@ function _deanonymizeResult(parsed, replacements) {
   return parsed;
 }
 
+/**
+ * DeepSeek classification générale — quand le regex detectIntent retourne 'general'
+ * Tente de classifier la requête dans un intent connu
+ */
+async function deepseekParseGeneral(message) {
+  try {
+    if (!process.env.DEEPSEEK_API_KEY) return null;
+    const OpenAI = require('openai');
+    const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: 'https://api.deepseek.com' });
+
+    const { anonymized, replacements } = _anonymizeForDeepSeek(message);
+
+    const response = await client.chat.completions.create({
+      model: 'deepseek-chat',
+      max_tokens: 100,
+      temperature: 0,
+      messages: [
+        { role: 'system', content: `Classifie cette requête d'un professionnel de santé. Retourne UNIQUEMENT du JSON.
+CATÉGORIES : mail, stock, agenda, patient, urgence, compta, comparateur, labo, rappels, traitement, stats, equipe, site, document, compose, general
+FORMAT : {"intent":"categorie","details":"précision courte"}
+EXEMPLES :
+"j'ai plus de composite" → {"intent":"stock","details":"rupture composite"}
+"qui vient demain" → {"intent":"agenda","details":"rdv demain"}
+"combien j'ai fait ce mois" → {"intent":"stats","details":"CA mensuel"}
+"dis au labo que c'est prêt" → {"intent":"compose","details":"message labo"}` },
+        { role: 'user', content: anonymized }
+      ]
+    });
+
+    const text = response.choices?.[0]?.message?.content || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    let parsed = JSON.parse(match[0]);
+    parsed = _deanonymizeResult(parsed, replacements);
+    return parsed;
+  } catch (e) {
+    console.warn('[COPILOT] DeepSeek parseGeneral error:', e.message);
+    return null;
+  }
+}
+
 async function deepseekParseIntent(message) {
   try {
     if (!process.env.DEEPSEEK_API_KEY) return null;
@@ -550,6 +591,18 @@ router.post('/message', async (req, res) => {
 
     const intent = detectIntent(message);
 
+    // Si l'intent est 'general' (regex n'a rien trouvé), DeepSeek tente de classifier
+    let finalIntent = intent;
+    if (intent === 'general') {
+      try {
+        const dsResult = await deepseekParseGeneral(message);
+        if (dsResult && dsResult.intent && dsResult.intent !== 'general') {
+          finalIntent = dsResult.intent;
+          console.log('[COPILOT] DeepSeek reclassified:', intent, '→', finalIntent);
+        }
+      } catch (_) {}
+    }
+
     // Récupérer le contexte Brain
     const { data: brain } = await db()
       .from('cabinet_brain')
@@ -567,7 +620,7 @@ router.post('/message', async (req, res) => {
     let extraContext = '';
     let actionResult = null;
 
-    switch (intent) {
+    switch (finalIntent) {
       case 'mail': {
         // RÉPONDRE DIRECTEMENT avec les données de la base — pas besoin d'IA
         try {
@@ -594,13 +647,13 @@ router.post('/message', async (req, res) => {
               const { data: found } = await query;
               const filtered = (found || []).filter(m => !isNoiseMail(m));
               const label = parsed.category || parsed.search_term || 'recherche';
-              if (filtered.length > 0) return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent, mails: filtered });
+              if (filtered.length > 0) return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent: finalIntent, mails: filtered });
               // Expliquer pourquoi 0 résultat
               const { count: totalMails } = await db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid);
               const { data: acc } = await db().from('comptes_email_societe').select('dernier_scan').eq('societe_id', sid).limit(1).maybeSingle();
               let hint = 'Aucun mail trouvé pour "' + label + '", Docteur.';
               if ((totalMails || 0) < 100) hint += '\n\nNote : JADOMI a indexé ' + (totalMails||0) + ' mails pour l\'instant. La synchronisation continue automatiquement toutes les 5 minutes et remonte progressivement dans le temps.';
-              return res.json({ reply: hint, intent });
+              return res.json({ reply: hint, intent: finalIntent });
             }
             // Si DeepSeek retourne compose_mail → rediriger vers compose
             if (parsed && parsed.action === 'compose_mail') {
@@ -620,7 +673,7 @@ router.post('/message', async (req, res) => {
             const { count: factures } = await db().from('mails_inbox').select('id', { count: 'exact', head: true }).eq('societe_id', sid).not('financial_type', 'is', null);
             return res.json({
               reply: 'Docteur, voici le résumé de votre boîte mail :\n\n- ' + (total||0) + ' mails indexés au total\n- ' + (unread||0) + ' non lus\n- ' + (needsResp||0) + ' attendent une réponse de votre part\n- ' + (factures||0) + ' documents financiers détectés\n\nDemandez-moi "mes mails importants" ou "mes factures" pour plus de détails.',
-              intent
+              intent: finalIntent
             });
           }
 
@@ -643,7 +696,7 @@ router.post('/message', async (req, res) => {
             const autres = mails.filter(m => !m.needs_response && m.priority !== 'urgent' && m.priority !== 'high' && !m.financial_type);
 
             if (mails.length === 0) {
-              return res.json({ reply: 'Aucun mail important ' + dateRange.label + '. Votre boîte est en ordre, Docteur.', intent });
+              return res.json({ reply: 'Aucun mail important ' + dateRange.label + '. Votre boîte est en ordre, Docteur.', intent: finalIntent });
             }
 
             let reply = 'Docteur, voici vos mails ' + dateRange.label + ' :\n\n';
@@ -655,7 +708,7 @@ router.post('/message', async (req, res) => {
               reply += '\n--- AUTRES (' + autres.length + ') ---\n\n';
               autres.forEach(m => { reply += formatMailLine(m); });
             }
-            return res.json({ reply, intent, mails: important.concat(autres) });
+            return res.json({ reply, intent: finalIntent, mails: important.concat(autres) });
           }
 
           // (résumé géré plus haut)
@@ -666,8 +719,8 @@ router.post('/message', async (req, res) => {
               .select('from_name, from_address, subject, date_received, category, priority, response_type, body_preview')
               .eq('societe_id', sid).eq('needs_response', true).eq('replied', false)
               .order('date_received', { ascending: false }).limit(10);
-            if (!mails || mails.length === 0) return res.json({ reply: 'Bonne nouvelle Docteur, aucun mail n\'attend de réponse. Tout est traité.', intent });
-            return res.json({ reply: mails.length + ' mails attendent votre réponse.', intent, mails });
+            if (!mails || mails.length === 0) return res.json({ reply: 'Bonne nouvelle Docteur, aucun mail n\'attend de réponse. Tout est traité.', intent: finalIntent });
+            return res.json({ reply: mails.length + ' mails attendent votre réponse.', intent: finalIntent, mails });
           }
 
           // "Factures" / "devis" / "avoir"
@@ -676,7 +729,7 @@ router.post('/message', async (req, res) => {
               .select('from_name, from_address, subject, financial_type, financial_montant, date_received, has_pdf')
               .eq('societe_id', sid).not('financial_type', 'is', null)
               .order('date_received', { ascending: false }).limit(15);
-            if (!mails || mails.length === 0) return res.json({ reply: 'Aucun document financier détecté dans vos mails récents.', intent });
+            if (!mails || mails.length === 0) return res.json({ reply: 'Aucun document financier détecté dans vos mails récents.', intent: finalIntent });
             let reply = mails.length + ' documents financiers trouvés :\n\n';
             mails.forEach(function(m) {
               reply += '- ' + (m.from_name || m.from_address) + ' : ' + (m.financial_type || '') + ' "' + m.subject + '"';
@@ -684,7 +737,7 @@ router.post('/message', async (req, res) => {
               if (m.has_pdf) reply += ' [PDF]';
               reply += '\n';
             });
-            return res.json({ reply, intent });
+            return res.json({ reply, intent: finalIntent });
           }
 
           // "Mails de [fournisseur/banque/comptable]"
@@ -696,8 +749,8 @@ router.post('/message', async (req, res) => {
               .select('from_name, from_address, subject, date_received, needs_response, has_pdf')
               .eq('societe_id', sid).eq('category', cat)
               .order('date_received', { ascending: false }).limit(10);
-            if (!mails || mails.length === 0) return res.json({ reply: 'Aucun mail de catégorie "' + cat + '" trouvé.', intent });
-            return res.json({ reply: mails.length + ' mails ' + cat + '.', intent, mails });
+            if (!mails || mails.length === 0) return res.json({ reply: 'Aucun mail de catégorie "' + cat + '" trouvé.', intent: finalIntent });
+            return res.json({ reply: mails.length + ' mails ' + cat + '.', intent: finalIntent, mails });
           }
 
           // Recherche par mots-clés ("retrouve le mail de...", "cherche reservation voiture")
@@ -710,7 +763,7 @@ router.post('/message', async (req, res) => {
               .or('subject.ilike.%' + searchTerms + '%,from_name.ilike.%' + searchTerms + '%,body_preview.ilike.%' + searchTerms + '%')
               .order('date_received', { ascending: false }).limit(10);
             if (found && found.length > 0) {
-              return res.json({ reply: found.length + ' mail(s) trouvé(s) pour "' + searchTerms + '".', intent, mails: found });
+              return res.json({ reply: found.length + ' mail(s) trouvé(s) pour "' + searchTerms + '".', intent: finalIntent, mails: found });
             }
           }
 
@@ -735,9 +788,9 @@ router.post('/message', async (req, res) => {
 
             if (filtered.length > 0) {
               const label = parsed.category ? 'catégorie ' + parsed.category : (parsed.search_term || 'recherche');
-              return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent, mails: filtered });
+              return res.json({ reply: filtered.length + ' mail(s) trouvé(s) (' + label + ').', intent: finalIntent, mails: filtered });
             }
-            return res.json({ reply: 'Aucun mail trouvé pour cette recherche, Docteur.', intent });
+            return res.json({ reply: 'Aucun mail trouvé pour cette recherche, Docteur.', intent: finalIntent });
           }
 
           // Fallback final : montrer les derniers mails
@@ -745,7 +798,7 @@ router.post('/message', async (req, res) => {
             .select('id, from_name, from_address, subject, date_received, category, priority, needs_response, has_pdf, financial_type, financial_montant, body_preview')
             .eq('societe_id', sid).eq('is_spam', false).eq('is_newsletter', false)
             .order('date_received', { ascending: false }).limit(10);
-          return res.json({ reply: 'Voici vos derniers mails.', intent, mails: recent || [] });
+          return res.json({ reply: 'Voici vos derniers mails.', intent: finalIntent, mails: recent || [] });
 
         } catch (e) {
           console.error('[COPILOT] mail error:', e.message);
@@ -771,7 +824,7 @@ router.post('/message', async (req, res) => {
           try {
             const { data: accs } = await db().from('comptes_email_societe').select('id').eq('societe_id', sid).eq('actif', true).limit(1);
             if (!accs || accs.length === 0) {
-              return res.json({ reply: 'Docteur, vous devez d\'abord connecter votre boîte mail dans "Mes mails" pour scanner les factures automatiquement.', intent });
+              return res.json({ reply: 'Docteur, vous devez d\'abord connecter votre boîte mail dans "Mes mails" pour scanner les factures automatiquement.', intent: finalIntent });
             }
             // Parser le mois demandé
             let scanMois = new Date().getMonth() + 1;
@@ -787,12 +840,12 @@ router.post('/message', async (req, res) => {
             const moisNom = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][scanMois - 1];
             return res.json({
               reply: 'Je lance le scan des factures de ' + moisNom + ' ' + scanAnnee + '. Les résultats apparaîtront dans le panneau avec des cases à cocher pour valider.',
-              intent,
+              intent: finalIntent,
               action: 'scan_factures',
               scan_params: { account_id: accs[0].id, mois: scanMois, annee: scanAnnee }
             });
           } catch (e) {
-            return res.json({ reply: 'Erreur : ' + e.message, intent });
+            return res.json({ reply: 'Erreur : ' + e.message, intent: finalIntent });
           }
         }
 
@@ -803,7 +856,7 @@ router.post('/message', async (req, res) => {
             '- "Scanne mes factures de janvier à mai" → scan multi-mois\n' +
             '- "Les mails de GACD" → retrouver un mail fournisseur\n\n' +
             'Vous pouvez aussi utiliser le module Comptabilité : jadomi.fr → Comptabilité → Scanner mes mails',
-          intent
+          intent: finalIntent
         });
       }
 
@@ -814,11 +867,11 @@ router.post('/message', async (req, res) => {
           'Bonjour Docteur. Que puis-je faire pour vous ?',
           'Bonjour Docteur, je suis à votre disposition.',
         ];
-        return res.json({ reply: greetings[Math.floor(Math.random() * greetings.length)], intent: 'greeting' });
+        return res.json({ reply: greetings[Math.floor(Math.random() * greetings.length)], intent: finalIntent });
       }
 
       case 'merci':
-        return res.json({ reply: 'Avec plaisir, Docteur. N\'hésitez pas si vous avez besoin d\'autre chose.', intent });
+        return res.json({ reply: 'Avec plaisir, Docteur. N\'hésitez pas si vous avez besoin d\'autre chose.', intent: finalIntent });
 
       case 'aide':
         return res.json({ reply: 'Docteur, voici ce que je peux faire pour vous :\n\n' +
@@ -830,7 +883,7 @@ router.post('/message', async (req, res) => {
           '- "Mail de la banque" / "du labo" / "des fournisseurs"\n' +
           '- "Retrouve le mail de..." (recherche par mots-clés)\n' +
           '- Questions sur votre cabinet, stock, agenda\n\n' +
-          'Parlez naturellement, je comprends le français courant.', intent });
+          'Parlez naturellement, je comprends le français courant.', intent: finalIntent });
 
       case 'patient': {
         // Agent Patient de la fourmilière — recherche + résumé enrichi
@@ -852,83 +905,96 @@ router.post('/message', async (req, res) => {
         break;
       }
       case 'urgence': {
-        // Agent Agenda — chercher créneaux disponibles pour urgence
+        // Réponse directe avec triage + créneaux disponibles
+        let reply = 'Docteur, pour le triage d\'urgence :\n\n';
+        reply += '- Critique (cellulite, avulsion) → immédiat\n';
+        reply += '- Urgent (abcès, fracture) → dans les 24h\n';
+        reply += '- Semi-urgent (douleur provoquée) → dans les 72h\n\n';
         try {
           const agendaAgent = require('../../lib/agents/agent-agenda');
           const today = new Date().toISOString().substring(0, 10);
           const slots = await agendaAgent.findReplacement(db(), sid, { date: today, duration: 15 });
           if (slots.success && slots.slots.length > 0) {
-            extraContext = 'Créneaux disponibles pour urgence aujourd\'hui : ' + slots.slots.map(s => s.start + '-' + s.end).join(', ') + '. ';
+            reply += 'Créneaux disponibles aujourd\'hui :\n';
+            slots.slots.forEach(s => { reply += '- ' + s.start + ' → ' + s.end + ' (' + s.duration_available + ' min)\n'; });
+          } else {
+            reply += 'Aucun créneau libre aujourd\'hui. Vérifiez demain ou déplacez un contrôle.';
           }
-        } catch (e) {
-          console.warn('[COPILOT] agent-agenda urgence error:', e.message);
-        }
-        extraContext += 'Pour le triage d\'urgence : Précision Dentaire → onglet Agenda → bouton Triage. Niveaux : critique (cellulite, avulsion = immédiat), urgent (abcès = 24h), semi-urgent (douleur provoquée = 72h).';
-        break;
+        } catch (e) {}
+        reply += '\n\nAccédez au triage : Précision Dentaire → Agenda → Triage.';
+        return res.json({ reply, intent: finalIntent });
       }
       case 'stock': {
-        // Agent Stock — résumé rapide du stock
+        // Agent Stock — réponse directe avec données réelles
         try {
           const stockAgent = require('../../lib/agents/agent-stock');
           const summary = await stockAgent.stockSummary(db(), sid);
           if (summary.success) {
-            extraContext = 'État du stock : ' + summary.summary_text + ' ';
+            let reply = 'Docteur, voici l\'état de votre stock :\n\n';
+            reply += '- ' + summary.total_refs + ' références en stock\n';
+            if (summary.low_stock_count > 0) reply += '- ' + summary.low_stock_count + ' en alerte basse\n';
+            if (summary.zero_stock_count > 0) reply += '- ' + summary.zero_stock_count + ' en rupture totale\n';
+            if (summary.expiring_soon > 0) reply += '- ' + summary.expiring_soon + ' péremption(s) proche(s)\n';
+            if (summary.expired_count > 0) reply += '- ' + summary.expired_count + ' PÉRIMÉ(S) à retirer\n';
+            if (summary.total_value != null) reply += '- Valeur estimée : ' + Number(summary.total_value).toFixed(2) + ' EUR\n';
+            reply += '\nAccédez au détail : jadomi.fr → Stock.';
+            if (summary.low_stock_count > 0) reply += '\nDites "commande" pour voir les produits à réapprovisionner.';
+            return res.json({ reply, intent: finalIntent });
           }
         } catch (e) {
           console.warn('[COPILOT] agent-stock error:', e.message);
         }
-        extraContext += 'Accédez au dashboard Stock : jadomi.fr → Stock. Alertes péremption, ruptures, panier intelligent et comparateur prix sont dans ce module.';
+        // Fallback si agent échoue
+        extraContext = 'Module Stock accessible via jadomi.fr → Stock.';
         break;
       }
       case 'agenda': {
-        // Agent Agenda — analyse de la journée + créneaux
+        // Agent Agenda — réponse directe avec données réelles
         try {
           const agendaAgent = require('../../lib/agents/agent-agenda');
           const today = new Date().toISOString().substring(0, 10);
           const dayAnalysis = await agendaAgent.optimizeDay(db(), sid, today);
           if (dayAnalysis.success) {
-            extraContext = 'Analyse du jour : ' + dayAnalysis.rdv_count + ' RDV, occupation ' + dayAnalysis.occupancy_percent + '%. ';
-            if (dayAnalysis.suggestions.length > 0) {
-              extraContext += 'Suggestions : ' + dayAnalysis.suggestions.map(s => s.message).join(' | ') + '. ';
+            let reply = 'Docteur, voici votre journée :\n\n';
+            reply += '- ' + dayAnalysis.rdv_count + ' rendez-vous\n';
+            reply += '- Taux d\'occupation : ' + dayAnalysis.occupancy_percent + '%\n';
+            if (dayAnalysis.total_gap_minutes > 0) reply += '- ' + dayAnalysis.total_gap_minutes + ' minutes de créneaux libres\n';
+            if (dayAnalysis.suggestions && dayAnalysis.suggestions.length > 0) {
+              reply += '\nSuggestions :\n';
+              dayAnalysis.suggestions.forEach(s => { reply += '- ' + s.message + '\n'; });
             }
+            reply += '\nAccédez au planning : jadomi.fr/admin/dentiste-pro → Agenda.';
+            return res.json({ reply, intent: finalIntent });
           }
         } catch (e) {
           console.warn('[COPILOT] agent-agenda error:', e.message);
         }
-        extraContext += 'Accédez à Précision Dentaire : jadomi.fr/admin/dentiste-pro → Agenda.';
+        extraContext = 'Agenda accessible via jadomi.fr/admin/dentiste-pro → Agenda.';
         break;
       }
       case 'comparateur':
-        extraContext = 'Comparateur de prix fournisseurs. Accédez à : jadomi.fr → Achats & Fournisseurs → Comparateur prix. 172 000 produits, 16 fournisseurs FR comparés.';
-        break;
+        return res.json({ reply: 'Docteur, le comparateur de prix fournisseurs est disponible.\n\n172 000 produits, 16 fournisseurs FR comparés en temps réel.\n\nAccédez à : jadomi.fr → Achats & Fournisseurs → Comparateur prix.\nDites le nom d\'un produit pour une recherche directe.', intent: finalIntent });
       case 'labo':
-        extraContext = 'Laboratoire et cas prothétiques. Accédez à Précision Dentaire → onglet Mon Labo. Suivi des cas, liaison cabinet-labo, photos teinte, messagerie labo.';
-        break;
+        return res.json({ reply: 'Docteur, le module Laboratoire vous permet de suivre vos cas prothétiques.\n\n- Suivi des cas en cours\n- Liaison cabinet-labo\n- Photos teinte et messagerie labo\n\nAccédez à : Précision Dentaire → onglet Mon Labo.', intent: finalIntent });
       case 'rappels':
-        extraContext = 'Rappels patients. Les rappels SMS/email sont gérés automatiquement dans Précision Dentaire → Rappels. Confirmation, relance non-répondus, statistiques.';
-        break;
+        return res.json({ reply: 'Docteur, les rappels patients sont gérés automatiquement.\n\n- Confirmation de RDV (SMS/email)\n- Relance des non-répondus\n- Statistiques de confirmation\n\nAccédez à : Précision Dentaire → Rappels.', intent: finalIntent });
       case 'traitement':
-        extraContext = 'Plans de traitement. Utilisez l\'agenda IA dans Précision Dentaire pour générer un plan de traitement (couronne : 4 séances, implant : 5 séances, parodontite : 5 séances). Délais inter-séances automatiques.';
-        break;
+        return res.json({ reply: 'Docteur, pour les plans de traitement :\n\n- Couronne : 4 séances type\n- Implant : 5 séances type\n- Parodontite : 5 séances type\n- Délais inter-séances calculés automatiquement\n\nAccédez à : Précision Dentaire → Agenda IA pour générer un plan.', intent: finalIntent });
       case 'stats':
-        extraContext = 'Statistiques et KPIs. Accédez au dashboard principal → Analytics. CA objectif 1 500 EUR/jour, taux occupation idéal 85%, max 5% no-show.';
-        break;
+        return res.json({ reply: 'Docteur, vos statistiques et KPIs :\n\n- CA objectif : 1 500 EUR/jour\n- Taux d\'occupation idéal : 85%\n- No-show acceptable : max 5%\n\nAccédez au détail : Dashboard principal → Analytics.', intent: finalIntent });
       case 'equipe':
-        extraContext = 'Gestion de l\'équipe. Accédez à Précision Dentaire → Mon Équipe. 6 rôles (praticien, associé, secrétaire, assistante, comptable, stagiaire) avec permissions granulaires.';
-        break;
+        return res.json({ reply: 'Docteur, la gestion de votre équipe :\n\n- 6 rôles disponibles : praticien, associé, secrétaire, assistante, comptable, stagiaire\n- Permissions granulaires par rôle\n\nAccédez à : Précision Dentaire → Mon Équipe.', intent: finalIntent });
       case 'site':
-        extraContext = 'Votre site vitrine. Gérez votre site dans le Hub Organisation → JADOMI Studio → Mon site internet. 3 forfaits : Classic 19 EUR/mois, Pro 39 EUR, Expert 69 EUR.';
-        break;
+        return res.json({ reply: 'Docteur, votre site vitrine est géré dans le Hub Organisation.\n\n- 3 forfaits : Classic 19 EUR/mois, Pro 39 EUR, Expert 69 EUR\n- 12 thèmes adaptatifs dark/light\n- Génération logo IA\n\nAccédez à : Hub Organisation → JADOMI Studio → Mon site internet.', intent: finalIntent });
       case 'document':
-        extraContext = 'Documents du cabinet. Accédez au Hub Organisation → Documents & Signature pour vos documents juridiques. Pour les documents patients (certificats, ordonnances), utilisez l\'IA Documentaire dans Précision Dentaire.';
-        break;
+        return res.json({ reply: 'Docteur, pour vos documents :\n\n- Documents juridiques : Hub Organisation → Documents & Signature\n- Documents patients (certificats, ordonnances) : Précision Dentaire → IA Documentaire\n\nPrécisez le type de document souhaité pour que je vous oriente mieux.', intent: finalIntent });
     }
 
     // Si actionResult (mail composé), retourner directement
     if (actionResult) {
       return res.json({
         reply: formatMailAction(actionResult),
-        intent,
+        intent: finalIntent,
         action: 'mail_composed',
         data: actionResult
       });
@@ -944,28 +1010,37 @@ router.post('/message', async (req, res) => {
       // Fourmilière pas encore montée ou table manquante — pas bloquant
     }
 
-    // Construire le system prompt
-    const systemPrompt = `Vous êtes JADOMI Copilot, l'assistant intelligent du cabinet "${identity.nom_cabinet || 'Cabinet dentaire'}".
-Vous accompagnez le praticien dans toutes ses tâches : mails, stock, agenda, commandes, documents.
+    // Construire le system prompt enrichi
+    const systemPrompt = `Vous êtes JADOMI Copilot, l'assistant du cabinet "${identity.nom_cabinet || 'Cabinet'}".
 
-IDENTITÉ CABINET :
+VOTRE RÔLE :
+Vous aidez le praticien avec ses tâches quotidiennes. Vous répondez UNIQUEMENT sur la base des données fournies ci-dessous. Si une information n'est pas dans le contexte, dites "Je n'ai pas cette information, Docteur."
+
+CABINET :
 - Nom : ${identity.nom_cabinet || 'Non renseigné'}
 - Ville : ${identity.ville || ''}
-- Contacts : ${contacts.map(c => c.role + ' : ' + c.nom).join(', ') || 'aucun'}
+- Contacts : ${contacts.map(c => c.role + ' : ' + c.nom + (c.email ? ' (' + c.email + ')' : '')).join(' | ') || 'aucun configuré'}
 
+QUESTION DU PRATICIEN : "${message}"
+INTENT DÉTECTÉ : ${finalIntent}
 PAGE ACTUELLE : ${context || 'inconnue'}
 
-RÈGLES ABSOLUES :
-- Vouvoiement TOUJOURS
-- Zéro emoji
-- Réponse concise (3 à 8 lignes max)
-- Si vous ne savez pas, dites-le honnêtement
-- JAMAIS inventer des données (montants, noms, dates)
-- JAMAIS donner de conseil médical
-- Quand vous renvoyez vers un module, indiquez le chemin précis
-- Adressez-vous au praticien avec respect ("Docteur", "Bonjour Docteur")
+${extraContext ? 'DONNÉES DISPONIBLES :\n' + extraContext + '\n' : ''}
+${agentMemory ? 'MÉMOIRE AGENT :\n' + agentMemory + '\n' : ''}
+RÈGLES STRICTES :
+1. Vouvoiement TOUJOURS — "Docteur" dans chaque réponse
+2. ZÉRO emoji
+3. Réponse de 3 à 6 lignes maximum — concis et actionnable
+4. JAMAIS inventer des données (montants, noms, dates) — uniquement ce qui est dans DONNÉES DISPONIBLES
+5. JAMAIS de conseil médical
+6. Si la question concerne ${finalIntent}, votre réponse DOIT parler de ${finalIntent}
+7. Si vous n'avez pas les données pour répondre, orientez vers le bon module JADOMI
+8. Terminez par une action concrète ("Dites-moi si...", "Accédez à...")
 
-${agentMemory ? 'MÉMOIRE AGENT :\n' + agentMemory + '\n' : ''}${extraContext ? 'CONTEXTE :\n' + extraContext : ''}`;
+EXEMPLES DE BONNES RÉPONSES :
+- "Docteur, votre stock compte 245 références. 3 produits sont en alerte basse. Accédez au détail via Stock → Alertes."
+- "Docteur, vous avez 12 RDV aujourd'hui, occupation 78%. Un créneau de 45 min est libre à 14h30. Souhaitez-vous y placer un patient ?"
+- "Docteur, je n'ai pas cette information dans mes données. Consultez Précision Dentaire → Patients pour la fiche complète."`;
 
     // Appel IA (Mistral d'abord)
     const iaRouter = require('../../lib/ia-router');
@@ -988,9 +1063,34 @@ ${agentMemory ? 'MÉMOIRE AGENT :\n' + agentMemory + '\n' : ''}${extraContext ? 
     const v = validateResponse(reply);
     if (!v.ok) reply = 'Je prépare une réponse adaptée. Veuillez reformuler.';
 
+    // Vérification cohérence : la réponse parle-t-elle du bon sujet ?
+    if (finalIntent !== 'general' && reply) {
+      const replyLower = reply.toLowerCase();
+      const intentKeywords = {
+        stock: ['stock', 'produit', 'référence', 'rupture', 'péremption', 'commande'],
+        agenda: ['rdv', 'rendez-vous', 'créneau', 'planning', 'journée', 'occupation'],
+        patient: ['patient', 'fiche', 'dossier', 'visite', 'historique'],
+        compta: ['facture', 'devis', 'comptab', 'chiffre', 'recette', 'dépense'],
+        urgence: ['urgence', 'triage', 'douleur', 'créneau', 'immédiat'],
+      };
+      const keywords = intentKeywords[finalIntent];
+      if (keywords && !keywords.some(k => replyLower.includes(k))) {
+        // Réponse incohérente — fallback vers réponse directe
+        console.warn('[COPILOT] Réponse incohérente pour intent=' + finalIntent + ', fallback');
+        reply = 'Docteur, je n\'ai pas pu traiter votre demande correctement. ';
+        switch(finalIntent) {
+          case 'stock': reply += 'Pour votre stock, accédez à jadomi.fr → Stock.'; break;
+          case 'agenda': reply += 'Pour votre planning, accédez à Précision Dentaire → Agenda.'; break;
+          case 'patient': reply += 'Pour la recherche patient, accédez à Précision Dentaire → Patients.'; break;
+          case 'compta': reply += 'Pour la comptabilité, accédez au Hub Organisation → Comptabilité.'; break;
+          default: reply += 'Pouvez-vous reformuler votre demande ?';
+        }
+      }
+    }
+
     // Ajouter les notifications fourmilière en attente
     const notifs = consumeNotifications(sid);
-    const response = { reply, intent };
+    const response = { reply, intent: finalIntent };
     if (notifs.length > 0) response.fourmiliere_notifications = notifs;
     res.json(response);
   } catch (e) {
