@@ -15,7 +15,7 @@ try {
   const emailService = require('../emailService');
   sendMail = emailService.sendMail;
 } catch (_) {
-  console.warn('[visio] emailService non disponible — invitations email desactivees');
+  console.warn('[visio] emailService non disponible — invitations email désactivées');
 }
 
 const BASE_URL = process.env.BASE_URL || 'https://jadomi.fr';
@@ -76,13 +76,13 @@ async function sendInviteEmail({ guestName, guestEmail, hostName, token }) {
     const url = `${BASE_URL}/visio/${token}`;
     await sendMail({
       to: guestEmail,
-      subject: 'Invitation a une consultation video — JADOMI',
+      subject: 'Invitation à une consultation vidéo — JADOMI',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
-          <h2 style="color: #111; font-weight: 600;">Consultation video JADOMI</h2>
+          <h2 style="color: #111; font-weight: 600;">Consultation vidéo JADOMI</h2>
           <p style="color: #333; line-height: 1.6;">
             Bonjour ${guestName || ''},<br><br>
-            ${hostName || 'Votre professionnel'} vous invite a une consultation video sur JADOMI.
+            ${hostName || 'Votre professionnel'} vous invite à une consultation vidéo sur JADOMI.
           </p>
           <p style="margin: 24px 0;">
             <a href="${url}" style="display: inline-block; background: #111; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 500;">
@@ -90,14 +90,14 @@ async function sendInviteEmail({ guestName, guestEmail, hostName, token }) {
             </a>
           </p>
           <p style="color: #666; font-size: 14px; line-height: 1.5;">
-            Aucun compte ni installation n'est necessaire.<br>
+            Aucun compte ni installation n'est nécessaire.<br>
             Lien direct : <a href="${url}" style="color: #111;">${url}</a>
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">JADOMI — Plateforme de sante connectee</p>
+          <p style="color: #999; font-size: 12px;">JADOMI — Plateforme de santé connectée</p>
         </div>
       `,
-      text: `Bonjour ${guestName || ''},\n\n${hostName || 'Votre professionnel'} vous invite a une consultation video.\nRejoindre : ${url}\n\nAucun compte ni installation n'est necessaire.\n\n— JADOMI`
+      text: `Bonjour ${guestName || ''},\n\n${hostName || 'Votre professionnel'} vous invite à une consultation vidéo.\nRejoindre : ${url}\n\nAucun compte ni installation n'est nécessaire.\n\n— JADOMI`
     });
     return true;
   } catch (e) {
@@ -167,7 +167,7 @@ router.post('/rooms', ...requireAuth(), async (req, res) => {
     });
   } catch (e) {
     console.error('[visio] POST /rooms error:', e.message);
-    res.status(500).json({ success: false, error: 'Erreur lors de la creation de la salle' });
+    res.status(500).json({ success: false, error: 'Erreur lors de la création de la salle' });
   }
 });
 
@@ -186,9 +186,9 @@ router.post('/rooms/:token/start', ...requireAuth(), async (req, res) => {
 
     if (fetchErr) throw fetchErr;
     if (!session) return res.status(404).json({ error: 'Salle introuvable' });
-    if (session.host_user_id !== req.user.id) return res.status(403).json({ error: 'Seul le professionnel hote peut demarrer la session' });
+    if (session.host_user_id !== req.user.id) return res.status(403).json({ error: 'Seul le professionnel hôte peut démarrer la session' });
     if (session.status === 'ended' || session.status === 'expired') {
-      return res.status(410).json({ error: 'Cette session est terminee' });
+      return res.status(410).json({ error: 'Cette session est terminée' });
     }
 
     const auditLog = appendAuditLog(session.audit_log, { action: 'host_started', ip: req.ip });
@@ -206,7 +206,7 @@ router.post('/rooms/:token/start', ...requireAuth(), async (req, res) => {
     res.json({ success: true, room: data });
   } catch (e) {
     console.error('[visio] POST /rooms/:token/start error:', e.message);
-    res.status(500).json({ success: false, error: 'Erreur lors du demarrage' });
+    res.status(500).json({ success: false, error: 'Erreur lors du démarrage' });
   }
 });
 
@@ -224,7 +224,7 @@ router.post('/rooms/:token/end', async (req, res) => {
 
     if (fetchErr) throw fetchErr;
     if (!session) return res.status(404).json({ error: 'Salle introuvable' });
-    if (session.status === 'ended') return res.json({ success: true, message: 'Session deja terminee' });
+    if (session.status === 'ended') return res.json({ success: true, message: 'Session déjà terminée' });
 
     const now = new Date();
     let actualDuration = null;
@@ -282,7 +282,7 @@ router.get('/rooms', ...requireAuth(), async (req, res) => {
     res.json({ success: true, sessions: data || [] });
   } catch (e) {
     console.error('[visio] GET /rooms error:', e.message);
-    res.status(500).json({ success: false, error: 'Erreur lors de la recuperation des sessions' });
+    res.status(500).json({ success: false, error: 'Erreur lors de la récupération des sessions' });
   }
 });
 
@@ -304,11 +304,11 @@ router.get('/rooms/:token/join', async (req, res) => {
 
     // Verifier l'expiration
     if (isRoomExpired(session) || session.status === 'expired') {
-      return res.status(410).json({ error: 'Cette consultation a expire. Veuillez contacter votre professionnel pour obtenir un nouveau lien.' });
+      return res.status(410).json({ error: 'Cette consultation a expiré. Veuillez contacter votre professionnel pour obtenir un nouveau lien.' });
     }
 
     if (session.status === 'ended') {
-      return res.status(410).json({ error: 'Cette consultation est terminee.' });
+      return res.status(410).json({ error: 'Cette consultation est terminée.' });
     }
 
     // Mettre a jour le nom de l'invite si fourni
@@ -332,7 +332,7 @@ router.get('/rooms/:token/join', async (req, res) => {
       return res.json({
         success: true,
         status: 'waiting',
-        message: 'Le professionnel n\'a pas encore demarre la consultation. Veuillez patienter.',
+        message: 'Le professionnel n\'a pas encore démarré la consultation. Veuillez patienter.',
         room: {
           token,
           host_name: session.host_name,
@@ -358,7 +358,7 @@ router.get('/rooms/:token/join', async (req, res) => {
     });
   } catch (e) {
     console.error('[visio] GET /rooms/:token/join error:', e.message);
-    res.status(500).json({ success: false, error: 'Erreur lors de la connexion a la salle' });
+    res.status(500).json({ success: false, error: 'Erreur lors de la connexion à la salle' });
   }
 });
 
@@ -371,10 +371,10 @@ router.post('/rooms/:token/consent', async (req, res) => {
     const { role, consented } = req.body || {};
 
     if (!role || !['host', 'guest'].includes(role)) {
-      return res.status(400).json({ error: 'Le champ "role" doit etre "host" ou "guest"' });
+      return res.status(400).json({ error: 'Le champ "role" doit être "host" ou "guest"' });
     }
     if (typeof consented !== 'boolean') {
-      return res.status(400).json({ error: 'Le champ "consented" doit etre un booleen' });
+      return res.status(400).json({ error: 'Le champ "consented" doit être un booléen' });
     }
 
     const { data: session, error: fetchErr } = await admin().from('visio_sessions')
@@ -505,7 +505,7 @@ router.post('/rooms/:token/invite', ...requireAuth(), async (req, res) => {
     if (fetchErr) throw fetchErr;
     if (!session) return res.status(404).json({ error: 'Salle introuvable' });
     if (session.host_user_id !== req.user.id) {
-      return res.status(403).json({ error: 'Seul le professionnel hote peut envoyer une invitation' });
+      return res.status(403).json({ error: 'Seul le professionnel hôte peut envoyer une invitation' });
     }
 
     const results = { email_sent: false, sms_sent: false };

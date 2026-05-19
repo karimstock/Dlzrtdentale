@@ -52,7 +52,7 @@ async function requireAvocat(req, res, next) {
     if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation' });
     next();
   } catch {
-    return res.status(401).json({ error: 'Authentification echouee' });
+    return res.status(401).json({ error: 'Authentification échouée' });
   }
 }
 
@@ -65,7 +65,7 @@ router.patch('/dossiers/:id/etape', requireAvocat, async (req, res) => {
 
     if (!etape || !ETAPES.includes(etape)) {
       return res.status(400).json({
-        error: 'Etape invalide. Valeurs autorisees : ' + ETAPES.join(', ')
+        error: 'Étape invalide. Valeurs autorisées : ' + ETAPES.join(', ')
       });
     }
 
@@ -77,7 +77,7 @@ router.patch('/dossiers/:id/etape', requireAvocat, async (req, res) => {
       .single();
 
     if (dErr || !dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
     const fromEtape = dossier.etape || 'nouveau';
@@ -115,7 +115,7 @@ router.patch('/dossiers/:id/etape', requireAvocat, async (req, res) => {
       .single();
 
     if (uErr) {
-      return res.status(500).json({ error: 'Erreur lors de la mise a jour du dossier' });
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour du dossier' });
     }
 
     // Enregistrer la transition
@@ -138,7 +138,7 @@ router.patch('/dossiers/:id/etape', requireAvocat, async (req, res) => {
     return res.json({
       dossier: updated,
       transition: transition || null,
-      message: 'Dossier passe de "' + fromEtape + '" a "' + etape + '".'
+      message: 'Dossier passé de "' + fromEtape + '" à "' + etape + '".'
     });
   } catch (err) {
     console.error('[workflow/etape]', err.message);
@@ -159,7 +159,7 @@ router.get('/dossiers/:id/transitions', requireAvocat, async (req, res) => {
       .single();
 
     if (!dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
     const { data: transitions, error } = await admin().from('avocat_dossier_transitions')
@@ -169,7 +169,7 @@ router.get('/dossiers/:id/transitions', requireAvocat, async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      return res.status(500).json({ error: 'Erreur lors de la recuperation des transitions' });
+      return res.status(500).json({ error: 'Erreur lors de la récupération des transitions' });
     }
 
     return res.json(transitions || []);
@@ -198,7 +198,7 @@ router.get('/deadlines', requireAvocat, async (req, res) => {
       .not('etape', 'in', '("clos","archive")');
 
     if (error) {
-      return res.status(500).json({ error: 'Erreur lors de la recuperation des dossiers' });
+      return res.status(500).json({ error: 'Erreur lors de la récupération des dossiers' });
     }
 
     // Extraire et trier les deadlines
@@ -257,7 +257,7 @@ router.get('/pipeline', requireAvocat, async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      return res.status(500).json({ error: 'Erreur lors de la recuperation du pipeline' });
+      return res.status(500).json({ error: 'Erreur lors de la récupération du pipeline' });
     }
 
     const now = new Date();
@@ -318,7 +318,7 @@ router.patch('/dossiers/:id', requireAvocat, async (req, res) => {
       .single();
 
     if (!dossier) {
-      return res.status(404).json({ error: 'Dossier non trouve' });
+      return res.status(404).json({ error: 'Dossier non trouvé' });
     }
 
     const updates = {};
@@ -326,7 +326,7 @@ router.patch('/dossiers/:id', requireAvocat, async (req, res) => {
     if (domaine !== undefined) {
       if (domaine && !DOMAINES.includes(domaine)) {
         return res.status(400).json({
-          error: 'Domaine invalide. Valeurs autorisees : ' + DOMAINES.join(', ')
+          error: 'Domaine invalide. Valeurs autorisées : ' + DOMAINES.join(', ')
         });
       }
       updates.domaine = domaine;
@@ -348,7 +348,7 @@ router.patch('/dossiers/:id', requireAvocat, async (req, res) => {
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'Aucun champ a mettre a jour' });
+      return res.status(400).json({ error: 'Aucun champ à mettre à jour' });
     }
 
     const { data: updated, error } = await admin().from('avocat_dossiers')
@@ -359,12 +359,12 @@ router.patch('/dossiers/:id', requireAvocat, async (req, res) => {
       .single();
 
     if (error) {
-      return res.status(500).json({ error: 'Erreur lors de la mise a jour' });
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour' });
     }
 
     return res.json({
       dossier: updated,
-      message: 'Dossier mis a jour.'
+      message: 'Dossier mis à jour.'
     });
   } catch (err) {
     console.error('[workflow/update]', err.message);

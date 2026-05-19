@@ -36,7 +36,7 @@ async function requireAvocat(req, res, next) {
     }
     if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation' });
     next();
-  } catch { return res.status(401).json({ error: 'Authentification echouee' }); }
+  } catch { return res.status(401).json({ error: 'Authentification échouée' }); }
 }
 
 // === HELPERS ===
@@ -72,23 +72,23 @@ function genererContenu(niveau, honoraire, jours) {
 
   if (niveau === 1) {
     return (
-      'Cher Maitre / Madame, Monsieur,\n\n' +
+      'Cher Maître / Madame, Monsieur,\n\n' +
       'Nous nous permettons de vous rappeler que la note d\'honoraires n\u00b0' + numero +
-      ' d\'un montant de ' + totalTtc + ' EUR TTC, emise le ' + dateEmission +
-      ', reste impayee a ce jour.\n\n' +
-      'Nous vous serions reconnaissants de bien vouloir proceder au reglement dans les meilleurs delais.\n\n' +
-      'Nous restons a votre disposition.'
+      ' d\'un montant de ' + totalTtc + ' EUR TTC, émise le ' + dateEmission +
+      ', reste impayée à ce jour.\n\n' +
+      'Nous vous serions reconnaissants de bien vouloir procéder au règlement dans les meilleurs délais.\n\n' +
+      'Nous restons à votre disposition.'
     );
   }
 
   if (niveau === 2) {
     return (
       'Madame, Monsieur,\n\n' +
-      'Malgre notre precedent rappel, la note d\'honoraires n\u00b0' + numero +
-      ' d\'un montant de ' + totalTtc + ' EUR TTC demeure impayee. ' +
-      'Le reglement etant desormais en retard de ' + jours + ' jours, ' +
-      'nous vous demandons de proceder au paiement sous 15 jours.\n\n' +
-      'A defaut, nous serons contraints d\'engager une procedure de recouvrement.'
+      'Malgré notre précédent rappel, la note d\'honoraires n\u00b0' + numero +
+      ' d\'un montant de ' + totalTtc + ' EUR TTC demeure impayée. ' +
+      'Le règlement étant désormais en retard de ' + jours + ' jours, ' +
+      'nous vous demandons de procéder au paiement sous 15 jours.\n\n' +
+      'À défaut, nous serons contraints d\'engager une procédure de recouvrement.'
     );
   }
 
@@ -96,12 +96,12 @@ function genererContenu(niveau, honoraire, jours) {
     return (
       'MISE EN DEMEURE\n\n' +
       'Madame, Monsieur,\n\n' +
-      'Par la presente, nous vous mettons en demeure de regler la somme de ' +
+      'Par la présente, nous vous mettons en demeure de régler la somme de ' +
       resteAPayer + ' EUR au titre de la note d\'honoraires n\u00b0' + numero +
       ' du ' + dateEmission + '.\n\n' +
-      'A defaut de reglement sous 8 jours, nous nous reserverons le droit de saisir ' +
-      'le Batonnier de l\'Ordre aux fins de taxation et de recouvrement conformement ' +
-      'a l\'article 174 du decret n\u00b091-1197.'
+      'À défaut de règlement sous 8 jours, nous nous réserverons le droit de saisir ' +
+      'le Bâtonnier de l\'Ordre aux fins de taxation et de recouvrement conformément ' +
+      'à l\'article 174 du décret n\u00b091-1197.'
     );
   }
 
@@ -193,8 +193,8 @@ router.post('/check', requireAvocat, async (req, res) => {
       relances_creees: relancesCreees,
       nb_relances: relancesCreees.length,
       message: relancesCreees.length > 0
-        ? relancesCreees.length + ' relance(s) generee(s).'
-        : 'Toutes les relances sont a jour.'
+        ? relancesCreees.length + ' relance(s) générée(s).'
+        : 'Toutes les relances sont à jour.'
     });
   } catch (err) {
     console.error('[relances/check]', err.message);
@@ -214,7 +214,7 @@ router.get('/honoraire/:honoraireId', requireAvocat, async (req, res) => {
       .eq('societe_id', req.societeId)
       .single();
 
-    if (!honoraire) return res.status(404).json({ error: 'Note d\'honoraires non trouvee' });
+    if (!honoraire) return res.status(404).json({ error: 'Note d\'honoraires non trouvée' });
 
     const { data: relances, error } = await admin().from('avocat_relances')
       .select('*')

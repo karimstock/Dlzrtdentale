@@ -39,12 +39,12 @@ function db() {
 const COMPTA_CATEGORIES = [
   { id: 'fournisseur_dentaire', label: 'Fournisseurs dentaires', keywords: ['gacd', 'henry schein', 'mega dental', 'zendo', 'dental'] },
   { id: 'charge_cabinet', label: 'Charges du cabinet', keywords: ['edf', 'engie', 'loyer', 'assurance', 'eau', 'electricite'] },
-  { id: 'telecom', label: 'Telecommunications', keywords: ['ovh', 'free', 'orange', 'sfr', 'bouygues', 'internet'] },
+  { id: 'telecom', label: 'Télécommunications', keywords: ['ovh', 'free', 'orange', 'sfr', 'bouygues', 'internet'] },
   { id: 'formation', label: 'Formation continue', keywords: ['formation', 'congres', 'dfcg', 'dpc', 'cesu'] },
-  { id: 'materiel', label: 'Materiel / Equipement', keywords: ['fauteuil', 'autoclave', 'radiographie', 'scanner', 'turbine'] },
+  { id: 'materiel', label: 'Matériel / Équipement', keywords: ['fauteuil', 'autoclave', 'radiographie', 'scanner', 'turbine'] },
   { id: 'assurance', label: 'Assurances', keywords: ['macsf', 'axa', 'allianz', 'mma', 'rcp', 'prevoyance'] },
-  { id: 'vehicule', label: 'Vehicule', keywords: ['total', 'essence', 'parking', 'autoroute', 'peage', 'carburant'] },
-  { id: 'honoraires', label: 'Honoraires recus', keywords: [] },
+  { id: 'vehicule', label: 'Véhicule', keywords: ['total', 'essence', 'parking', 'autoroute', 'peage', 'carburant'] },
+  { id: 'honoraires', label: 'Honoraires reçus', keywords: [] },
   { id: 'salaire', label: 'Salaires / Charges sociales', keywords: ['urssaf', 'carcdsf', 'prevoyance', 'cnsd', 'retraite'] },
   { id: 'autre', label: 'Autre', keywords: [] },
 ];
@@ -97,7 +97,7 @@ router.use(requireAuth());
 router.get('/entries', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { period, year, month, date } = req.query;
     const now = new Date();
@@ -183,7 +183,7 @@ router.get('/entries', async (req, res) => {
     });
   } catch (err) {
     console.error('[COMPTA] GET /entries error:', err.message);
-    res.status(500).json({ error: 'Erreur lors de la recuperation des ecritures.' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des écritures.' });
   }
 });
 
@@ -193,7 +193,7 @@ router.get('/entries', async (req, res) => {
 router.get('/summary', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const now = new Date();
     const y = parseInt(req.query.year) || now.getFullYear();
@@ -271,7 +271,7 @@ router.get('/summary', async (req, res) => {
     });
   } catch (err) {
     console.error('[COMPTA] GET /summary error:', err.message);
-    res.status(500).json({ error: 'Erreur lors du calcul de la synthese comptable.' });
+    res.status(500).json({ error: 'Erreur lors du calcul de la synthèse comptable.' });
   }
 });
 
@@ -281,7 +281,7 @@ router.get('/summary', async (req, res) => {
 router.patch('/entries/:id/validate', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { id } = req.params;
     const { validated, category } = req.body;
@@ -295,13 +295,13 @@ router.patch('/entries/:id/validate', async (req, res) => {
       .single();
 
     if (fetchErr || !doc) {
-      return res.status(404).json({ error: 'Ecriture introuvable.' });
+      return res.status(404).json({ error: 'Écriture introuvable.' });
     }
 
     // Validate category
     const validCats = COMPTA_CATEGORIES.map(c => c.id);
     if (category && !validCats.includes(category)) {
-      return res.status(400).json({ error: 'Categorie invalide.', valid_categories: validCats });
+      return res.status(400).json({ error: 'Catégorie invalide.', valid_categories: validCats });
     }
 
     const updatedMeta = { ...(doc.metadata || {}) };
@@ -318,7 +318,7 @@ router.patch('/entries/:id/validate', async (req, res) => {
 
     if (updateErr) throw updateErr;
 
-    res.json({ message: 'Ecriture validee.', entry: formatEntry(updated) });
+    res.json({ message: 'Écriture validée.', entry: formatEntry(updated) });
   } catch (err) {
     console.error('[COMPTA] PATCH /entries/:id/validate error:', err.message);
     res.status(500).json({ error: 'Erreur lors de la validation.' });
@@ -331,7 +331,7 @@ router.patch('/entries/:id/validate', async (req, res) => {
 router.patch('/entries/:id/reject', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { id } = req.params;
 
@@ -343,7 +343,7 @@ router.patch('/entries/:id/reject', async (req, res) => {
       .single();
 
     if (fetchErr || !doc) {
-      return res.status(404).json({ error: 'Ecriture introuvable.' });
+      return res.status(404).json({ error: 'Écriture introuvable.' });
     }
 
     const updatedMeta = { ...(doc.metadata || {}), compta_rejected: true };
@@ -358,7 +358,7 @@ router.patch('/entries/:id/reject', async (req, res) => {
 
     if (updateErr) throw updateErr;
 
-    res.json({ message: 'Ecriture rejetee.', entry: formatEntry(updated) });
+    res.json({ message: 'Écriture rejetée.', entry: formatEntry(updated) });
   } catch (err) {
     console.error('[COMPTA] PATCH /entries/:id/reject error:', err.message);
     res.status(500).json({ error: 'Erreur lors du rejet.' });
@@ -371,7 +371,7 @@ router.patch('/entries/:id/reject', async (req, res) => {
 router.post('/entries/manual', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { type_document, fournisseur, date, montant_ht, montant_ttc, tva, description, category } = req.body;
 
@@ -382,7 +382,7 @@ router.post('/entries/manual', async (req, res) => {
     // Validate category if provided
     const validCats = COMPTA_CATEGORIES.map(c => c.id);
     if (category && !validCats.includes(category)) {
-      return res.status(400).json({ error: 'Categorie invalide.', valid_categories: validCats });
+      return res.status(400).json({ error: 'Catégorie invalide.', valid_categories: validCats });
     }
 
     const metadata = {
@@ -415,10 +415,10 @@ router.post('/entries/manual', async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ message: 'Ecriture ajoutee.', entry: formatEntry(created) });
+    res.json({ message: 'Écriture ajoutée.', entry: formatEntry(created) });
   } catch (err) {
     console.error('[COMPTA] POST /entries/manual error:', err.message);
-    res.status(500).json({ error: 'Erreur lors de la creation de l\'ecriture.' });
+    res.status(500).json({ error: 'Erreur lors de la création de l\'écriture.' });
   }
 });
 
@@ -428,7 +428,7 @@ router.post('/entries/manual', async (req, res) => {
 router.get('/export', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const now = new Date();
     const y = parseInt(req.query.year) || now.getFullYear();
@@ -491,11 +491,11 @@ router.get('/export', async (req, res) => {
 router.post('/send-comptable', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { entry_ids, message } = req.body;
     if (!entry_ids || !Array.isArray(entry_ids) || entry_ids.length === 0) {
-      return res.status(400).json({ error: 'Veuillez selectionner au moins une ecriture.' });
+      return res.status(400).json({ error: 'Veuillez sélectionner au moins une écriture.' });
     }
 
     // Get comptable email from preferences or cabinet_brain contacts
@@ -529,7 +529,7 @@ router.post('/send-comptable', async (req, res) => {
     }
 
     if (!comptableEmail) {
-      return res.status(400).json({ error: 'Aucun email de comptable configure. Veuillez renseigner l\'email dans les preferences comptabilite.' });
+      return res.status(400).json({ error: 'Aucun email de comptable configuré. Veuillez renseigner l\'email dans les préférences comptabilité.' });
     }
 
     // Load selected entries
@@ -560,14 +560,14 @@ router.post('/send-comptable', async (req, res) => {
     const emailHtml = `
       <div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto">
         <h2 style="color:#1a1a2e">JADOMI - Documents comptables</h2>
-        ${message ? `<p>${message}</p>` : '<p>Veuillez trouver ci-dessous les documents comptables selectionnes.</p>'}
+        ${message ? `<p>${message}</p>` : '<p>Veuillez trouver ci-dessous les documents comptables sélectionnés.</p>'}
         <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:13px">
           <thead>
             <tr style="background:#f1f5f9">
               <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:left">Date</th>
               <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:left">Fournisseur</th>
               <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:left">Type</th>
-              <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:left">Categorie</th>
+              <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:left">Catégorie</th>
               <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:right">HT</th>
               <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:right">TVA</th>
               <th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:right">TTC</th>
@@ -581,7 +581,7 @@ router.post('/send-comptable', async (req, res) => {
             </tr>
           </tfoot>
         </table>
-        <p style="color:#64748b;font-size:12px">Envoi automatique depuis JADOMI - plateforme de gestion pour professionnels de sante.</p>
+        <p style="color:#64748b;font-size:12px">Envoi automatique depuis JADOMI - plateforme de gestion pour professionnels de santé.</p>
       </div>
     `;
 
@@ -593,7 +593,7 @@ router.post('/send-comptable', async (req, res) => {
         await emailService.sendEmail({
           to: comptableEmail,
           from: 'noreply@jadomi.fr',
-          subject: `JADOMI Comptabilite - ${entries.length} document(s)`,
+          subject: `JADOMI Comptabilité - ${entries.length} document(s)`,
           html: emailHtml,
         });
         sent = true;
@@ -615,20 +615,20 @@ router.post('/send-comptable', async (req, res) => {
           },
         });
         await transporter.sendMail({
-          from: '"JADOMI Comptabilite" <noreply@jadomi.fr>',
+          from: '"JADOMI Comptabilité" <noreply@jadomi.fr>',
           to: comptableEmail,
-          subject: `JADOMI Comptabilite - ${entries.length} document(s)`,
+          subject: `JADOMI Comptabilité - ${entries.length} document(s)`,
           html: emailHtml,
         });
         sent = true;
       } catch (mailErr) {
         console.error('[COMPTA] Email send failed:', mailErr.message);
-        return res.status(500).json({ error: 'Echec de l\'envoi de l\'email. Verifiez la configuration SMTP.' });
+        return res.status(500).json({ error: 'Échec de l\'envoi de l\'email. Vérifiez la configuration SMTP.' });
       }
     }
 
     res.json({
-      message: `Email envoye a ${comptableEmail} avec ${entries.length} document(s).`,
+      message: `Email envoyé à ${comptableEmail} avec ${entries.length} document(s).`,
       comptable_email: comptableEmail,
       nb_entries: entries.length,
       total_ttc: totalTTC,
@@ -645,7 +645,7 @@ router.post('/send-comptable', async (req, res) => {
 router.get('/preferences', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { data: prefDoc } = await db()
       .from('cabinet_brain_documents')
@@ -666,7 +666,7 @@ router.get('/preferences', async (req, res) => {
     });
   } catch (err) {
     console.error('[COMPTA] GET /preferences error:', err.message);
-    res.status(500).json({ error: 'Erreur lors de la lecture des preferences.' });
+    res.status(500).json({ error: 'Erreur lors de la lecture des préférences.' });
   }
 });
 
@@ -676,7 +676,7 @@ router.get('/preferences', async (req, res) => {
 router.put('/preferences', async (req, res) => {
   try {
     const sid = req.societe?.id || req.societeId;
-    if (!sid) return res.status(400).json({ error: 'Societe manquante.' });
+    if (!sid) return res.status(400).json({ error: 'Société manquante.' });
 
     const { auto_scan_enabled, auto_validate_known_fournisseurs, comptable_email } = req.body;
 
@@ -726,10 +726,10 @@ router.put('/preferences', async (req, res) => {
       if (error) throw error;
     }
 
-    res.json({ message: 'Preferences mises a jour.', preferences: updatedCompta });
+    res.json({ message: 'Préférences mises à jour.', preferences: updatedCompta });
   } catch (err) {
     console.error('[COMPTA] PUT /preferences error:', err.message);
-    res.status(500).json({ error: 'Erreur lors de la mise a jour des preferences.' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour des préférences.' });
   }
 });
 

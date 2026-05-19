@@ -36,7 +36,7 @@ async function requireAvocat(req, res, next) {
     }
     if (!req.societeId) return res.status(400).json({ error: 'Aucune organisation' });
     next();
-  } catch { return res.status(401).json({ error: 'Authentification echouee' }); }
+  } catch { return res.status(401).json({ error: 'Authentification échouée' }); }
 }
 
 // === HELPERS ===
@@ -85,7 +85,7 @@ router.post('/generate', requireAvocat, async (req, res) => {
       .eq('id', dossier_id)
       .eq('avocat_societe_id', req.societeId)
       .single();
-    if (dErr || !dossier) return res.status(404).json({ error: 'Dossier non trouve ou acces refuse' });
+    if (dErr || !dossier) return res.status(404).json({ error: 'Dossier non trouvé ou accès refusé' });
 
     const tauxHoraire = dossier.taux_horaire_defaut || 250;
 
@@ -97,9 +97,9 @@ router.post('/generate', requireAvocat, async (req, res) => {
       .is('facture_id', null)
       .order('created_at', { ascending: true });
 
-    if (eErr) return res.status(500).json({ error: 'Erreur lors de la recuperation des prestations' });
+    if (eErr) return res.status(500).json({ error: 'Erreur lors de la récupération des prestations' });
     if (!entries || entries.length === 0) {
-      return res.status(400).json({ error: 'Aucune prestation facturable non facturee pour ce dossier' });
+      return res.status(400).json({ error: 'Aucune prestation facturable non facturée pour ce dossier' });
     }
 
     // Construire les lignes d'honoraires
@@ -144,8 +144,8 @@ router.post('/generate', requireAvocat, async (req, res) => {
 
     // Mentions legales
     const mentionsLegales = tvaTaux === 0
-      ? 'TVA non applicable, article 261-4-1° du Code general des impots.'
-      : 'TVA au taux de 20 % applicable conformement a la reglementation en vigueur.';
+      ? 'TVA non applicable, article 261-4-1° du Code général des impôts.'
+      : 'TVA au taux de 20 % applicable conformément à la réglementation en vigueur.';
 
     // Inserer la note d'honoraires
     const { data: honoraire, error: hErr } = await admin().from('avocat_honoraires').insert({
@@ -169,7 +169,7 @@ router.post('/generate', requireAvocat, async (req, res) => {
       nb_relances: 0
     }).select().single();
 
-    if (hErr) return res.status(500).json({ error: 'Erreur lors de la creation de la note : ' + hErr.message });
+    if (hErr) return res.status(500).json({ error: 'Erreur lors de la création de la note : ' + hErr.message });
 
     // Marquer les time entries comme facturees
     const entryIds = entries.map(e => e.id);
@@ -185,7 +185,7 @@ router.post('/generate', requireAvocat, async (req, res) => {
       honoraire,
       nb_prestations: lignesHonoraires.length,
       nb_debours: lignesDebours.length,
-      message: 'Note d\'honoraires ' + numero + ' generee avec succes.'
+      message: 'Note d\'honoraires ' + numero + ' générée avec succès.'
     });
   } catch (err) {
     console.error('[honoraires/generate]', err.message);
@@ -259,7 +259,7 @@ router.get('/:id', requireAvocat, async (req, res) => {
       .eq('societe_id', req.societeId)
       .single();
 
-    if (error || !honoraire) return res.status(404).json({ error: 'Note d\'honoraires non trouvee' });
+    if (error || !honoraire) return res.status(404).json({ error: 'Note d\'honoraires non trouvée' });
 
     // Recuperer client et dossier
     let client = null;
@@ -296,7 +296,7 @@ router.patch('/:id/statut', requireAvocat, async (req, res) => {
     const { statut, montant_paye, mode_paiement, date_paiement } = req.body || {};
     const statutsValides = ['brouillon', 'envoyee', 'payee_partiel', 'payee', 'annulee', 'contentieux'];
     if (!statut || !statutsValides.includes(statut)) {
-      return res.status(400).json({ error: 'Statut invalide. Valeurs acceptees : ' + statutsValides.join(', ') });
+      return res.status(400).json({ error: 'Statut invalide. Valeurs acceptées : ' + statutsValides.join(', ') });
     }
 
     // Verifier existence et appartenance
@@ -330,7 +330,7 @@ router.patch('/:id/statut', requireAvocat, async (req, res) => {
       .update(updates)
       .eq('id', req.params.id);
 
-    if (uErr) return res.status(500).json({ error: 'Erreur lors de la mise a jour : ' + uErr.message });
+    if (uErr) return res.status(500).json({ error: 'Erreur lors de la mise à jour : ' + uErr.message });
 
     // Mettre a jour le montant encaisse sur le dossier
     if ((statut === 'payee' || statut === 'payee_partiel') && honoraire.dossier_id) {
@@ -354,7 +354,7 @@ router.patch('/:id/statut', requireAvocat, async (req, res) => {
       }
     }
 
-    return res.json({ success: true, statut, message: 'Statut mis a jour.' });
+    return res.json({ success: true, statut, message: 'Statut mis à jour.' });
   } catch (err) {
     console.error('[honoraires/statut]', err.message);
     return res.status(500).json({ error: 'Erreur interne' });
@@ -375,7 +375,7 @@ router.delete('/:id', requireAvocat, async (req, res) => {
 
     if (hErr || !honoraire) return res.status(404).json({ error: 'Note d\'honoraires non trouvee' });
     if (honoraire.statut !== 'brouillon') {
-      return res.status(400).json({ error: 'Seules les notes au statut brouillon peuvent etre supprimees' });
+      return res.status(400).json({ error: 'Seules les notes au statut brouillon peuvent être supprimées' });
     }
 
     // Delier les time entries
@@ -400,7 +400,7 @@ router.delete('/:id', requireAvocat, async (req, res) => {
 
     if (dErr) return res.status(500).json({ error: 'Erreur lors de la suppression : ' + dErr.message });
 
-    return res.json({ success: true, message: 'Note d\'honoraires supprimee.' });
+    return res.json({ success: true, message: 'Note d\'honoraires supprimée.' });
   } catch (err) {
     console.error('[honoraires/delete]', err.message);
     return res.status(500).json({ error: 'Erreur interne' });
