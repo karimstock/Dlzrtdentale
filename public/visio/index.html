@@ -170,6 +170,10 @@ button{font-family:var(--font);cursor:pointer;}
         &#128187;
         <span class="label">Écran</span>
       </button>
+      <button class="ctrl-btn" id="btn-transcript" onclick="toggleTranscription()" title="Transcription IA" style="display:none;">
+        &#127911;
+        <span class="label">Notes IA</span>
+      </button>
       <button class="ctrl-btn" id="btn-chat" onclick="toggleSidebar()" title="Chat">
         &#128172;
         <span class="label">Chat</span>
@@ -186,6 +190,7 @@ button{font-family:var(--font);cursor:pointer;}
     <div class="sidebar-tabs">
       <button class="sidebar-tab active" onclick="switchSidebarTab(this,'chat')">&#128172; Chat</button>
       <button class="sidebar-tab" onclick="switchSidebarTab(this,'docs')">&#128196; Documents</button>
+      <button class="sidebar-tab" onclick="switchSidebarTab(this,'transcript')" id="tab-transcript" style="display:none;">&#127911; Notes IA</button>
     </div>
     <div class="sidebar-panel active" id="panel-chat">
       <div class="chat-messages" id="chat-messages"></div>
@@ -201,6 +206,14 @@ button{font-family:var(--font);cursor:pointer;}
       <div class="doc-upload">
         <input type="file" id="doc-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;" onchange="uploadDoc()">
         <button class="doc-upload-btn" onclick="document.getElementById('doc-file').click()">&#128206; Déposer un document</button>
+      </div>
+    </div>
+    <div class="sidebar-panel" id="panel-transcript">
+      <div id="transcript-content" style="flex:1;overflow-y:auto;padding:16px;">
+        <p style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">La transcription apparaitra ici en temps réel.</p>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        <button id="btn-generate-summary" onclick="generateSummary()" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;display:none;">Générer le compte-rendu</button>
       </div>
     </div>
   </div>
@@ -219,6 +232,21 @@ button{font-family:var(--font);cursor:pointer;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- CONSENT MODAL TRANSCRIPTION -->
+<div id="consent-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:460px;text-align:center;">
+    <div style="font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:16px;">JADOMI Copilot</div>
+    <div style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px;">
+      Le professionnel souhaite activer l'assistant JADOMI pour prendre des notes automatiques pendant cette consultation.<br><br>
+      La transcription est utilisée uniquement pour générer un compte-rendu. Aucun enregistrement audio n'est conservé.
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button onclick="respondConsent(false)" style="padding:12px 24px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;cursor:pointer;font-family:var(--font);">Refuser</button>
+      <button onclick="respondConsent(true)" style="padding:12px 24px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);">Accepter</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://vsbomwjzehnfinfjvhqp.supabase.co';
@@ -452,6 +480,20 @@ async function handleSignal(sig){
       chatMessages.push(sig.data);
       renderChat();
     }
+  } else if(sig.type === 'request_consent'){
+    // Le host demande le consentement du guest pour la transcription
+    if(!isHost) handleConsentRequest();
+  } else if(sig.type === 'consent_response'){
+    // Le guest a répondu au consentement
+    if(isHost && sig.data && sig.data.accepted){
+      guestConsentReceived = true;
+      toast('Le participant a accepté la transcription', 'ok');
+    } else if(isHost && sig.data && !sig.data.accepted){
+      toast('Le participant a refusé la transcription', '');
+    }
+  } else if(sig.type === 'stop_transcription'){
+    // Le host arrête la transcription
+    if(!isHost && isTranscribing) stopSpeechRecognition();
   }
 }
 
@@ -596,6 +638,9 @@ async function launchVisio(){
   const token = localStorage.getItem('supabase_token') || localStorage.getItem('sb-access-token');
   isHost = !!token;
 
+  // Montrer le bouton de transcription pour le host
+  showTranscriptButtonIfHost();
+
   if(isHost){
     // Host — on tente de démarrer directement
     myName = 'Professionnel';
@@ -631,6 +676,229 @@ async function launchVisio(){
   });
   document.addEventListener('mouseup', () => isDragging = false);
 })();
+
+// =============================================
+// TRANSCRIPTION IA — Web Speech API
+// =============================================
+let recognition = null;
+let isTranscribing = false;
+let transcriptChunks = [];
+let guestConsentReceived = false;
+
+// Show transcript button for host (called after isHost is determined in init)
+function showTranscriptButtonIfHost() {
+  if(isHost) $('btn-transcript').style.display = 'flex';
+}
+
+function isSpeechApiSupported() {
+  return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+}
+
+function toggleTranscription() {
+  if (!isTranscribing) {
+    if (!isSpeechApiSupported()) {
+      toast('Transcription non supportée par ce navigateur (utilisez Chrome, Edge ou Safari)', 'error');
+      return;
+    }
+    if (isHost) {
+      // Demander le consentement au guest via signaling
+      sendSignal({ type: 'request_consent', from: myName });
+      // Notifier le serveur
+      fetch('/api/visio/rooms/' + visioToken + '/transcription-start', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'
+      }).catch(function(){});
+      // Démarrer la transcription côté host
+      startSpeechRecognition();
+      // Afficher l'onglet Notes IA + bouton résumé
+      $('tab-transcript').style.display = '';
+      $('btn-generate-summary').style.display = '';
+    }
+  } else {
+    stopSpeechRecognition();
+    sendSignal({ type: 'stop_transcription', from: myName });
+  }
+}
+
+function startSpeechRecognition() {
+  if (!isSpeechApiSupported()) {
+    toast('Transcription non supportée par ce navigateur', 'error');
+    return;
+  }
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = function(event) {
+    for (var i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        var text = event.results[i][0].transcript.trim();
+        if (text.length > 2) {
+          var chunk = {
+            text: text,
+            speaker: isHost ? 'host' : 'guest',
+            time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+          };
+          transcriptChunks.push(chunk);
+          renderTranscript();
+          // Envoyer au serveur
+          fetch('/api/visio/rooms/' + visioToken + '/transcription-chunk', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ text: text, speaker: isHost ? 'host' : 'guest', timestamp: Date.now() })
+          }).catch(function(){});
+        }
+      }
+    }
+  };
+
+  recognition.onerror = function(e) {
+    if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      console.warn('[Transcription] Erreur:', e.error);
+    }
+  };
+
+  recognition.onend = function() {
+    // Auto-restart si la transcription est toujours active
+    if (isTranscribing) {
+      try { recognition.start(); } catch(_) {}
+    }
+  };
+
+  try {
+    recognition.start();
+    isTranscribing = true;
+    $('btn-transcript').classList.add('active');
+    toast('Transcription activée', 'ok');
+  } catch(e) {
+    toast('Impossible de démarrer la transcription', 'error');
+  }
+}
+
+function stopSpeechRecognition() {
+  if (recognition) {
+    try { recognition.stop(); } catch(_) {}
+    recognition = null;
+  }
+  isTranscribing = false;
+  $('btn-transcript').classList.remove('active');
+  toast('Transcription arrêtée', '');
+}
+
+function renderTranscript() {
+  var panel = $('transcript-content');
+  if (!panel) return;
+  panel.innerHTML = transcriptChunks.map(function(c) {
+    return '<div style="margin-bottom:8px;font-size:13px;">'
+      + '<span style="color:var(--accent);font-weight:600;">' + esc(c.time) + ' — ' + (c.speaker === 'host' ? 'Pro' : 'Client') + '</span><br>'
+      + esc(c.text)
+      + '</div>';
+  }).join('');
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// Consentement guest
+function handleConsentRequest() {
+  var modal = $('consent-modal');
+  modal.style.display = 'flex';
+}
+
+function respondConsent(accepted) {
+  $('consent-modal').style.display = 'none';
+  sendSignal({ type: 'consent_response', data: { accepted: accepted }, from: myName });
+  if (accepted) {
+    startSpeechRecognition();
+    $('btn-transcript').style.display = 'flex';
+    $('tab-transcript').style.display = '';
+  } else {
+    toast('Transcription refusée', '');
+  }
+}
+
+// Générer le compte-rendu IA
+async function generateSummary() {
+  if (transcriptChunks.length === 0) {
+    toast('Aucune transcription à résumer', 'error');
+    return;
+  }
+
+  var btn = $('btn-generate-summary');
+  btn.textContent = 'Génération en cours...';
+  btn.disabled = true;
+
+  try {
+    var token = localStorage.getItem('supabase_token') || localStorage.getItem('sb-access-token');
+    var r = await fetch('/api/visio/rooms/' + visioToken + '/generate-summary', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    var data = await r.json();
+
+    if (!data.success) {
+      toast(data.error || 'Erreur lors de la génération', 'error');
+      btn.textContent = 'Générer le compte-rendu';
+      btn.disabled = false;
+      return;
+    }
+
+    // Afficher le résumé dans le panel
+    var panel = $('transcript-content');
+    panel.innerHTML = '<div style="padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);margin-bottom:12px;">'
+      + '<div style="font-family:var(--display);font-size:14px;font-weight:700;margin-bottom:8px;color:var(--accent);">Compte-rendu généré</div>'
+      + '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;">' + esc(data.summary) + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:8px;">'
+      + '<button onclick="saveSummary()" style="flex:1;padding:10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">Sauvegarder</button>'
+      + '<button onclick="copySummary()" style="padding:10px 16px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:var(--font);">Copier</button>'
+      + '</div>';
+
+    // Stocker le résumé pour sauvegarde
+    window._lastSummary = data.summary;
+
+    btn.textContent = 'Régénérer le compte-rendu';
+    btn.disabled = false;
+  } catch(e) {
+    toast('Erreur réseau lors de la génération', 'error');
+    btn.textContent = 'Générer le compte-rendu';
+    btn.disabled = false;
+  }
+}
+
+async function saveSummary() {
+  if (!window._lastSummary) { toast('Aucun résumé à sauvegarder', 'error'); return; }
+  try {
+    var token = localStorage.getItem('supabase_token') || localStorage.getItem('sb-access-token');
+    var r = await fetch('/api/visio/rooms/' + visioToken + '/save-summary', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ summary: window._lastSummary })
+    });
+    var data = await r.json();
+    if (data.success) {
+      toast('Compte-rendu sauvegardé', 'ok');
+    } else {
+      toast(data.error || 'Erreur lors de la sauvegarde', 'error');
+    }
+  } catch(e) {
+    toast('Erreur réseau lors de la sauvegarde', 'error');
+  }
+}
+
+function copySummary() {
+  if (!window._lastSummary) return;
+  navigator.clipboard.writeText(window._lastSummary).then(function() {
+    toast('Compte-rendu copié', 'ok');
+  }).catch(function() {
+    toast('Impossible de copier', 'error');
+  });
+}
 </script>
 </body>
 </html>

@@ -7,6 +7,20 @@ const express = require('express');
 const router = express.Router();
 const { buildSystemPrompt, validateResponse } = require('../../lib/ai-studio/jadomi-brain');
 const { sanitizeForExternalAPI } = require('../../lib/ai-studio/data-guard');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const uploadDir = path.join(__dirname, '../../uploads/copilot');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({
+  dest: uploadDir,
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.pdf','.jpg','.jpeg','.png','.gif','.doc','.docx','.xls','.xlsx','.csv','.txt'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
 
 // Auth
 function requireAuth() {
@@ -348,6 +362,138 @@ function isNoiseMail(m) {
   if (/noreply|no.reply|ne.pas.repondre/.test(from) && !/facture|commande|confirmation|paiement|r[eè]glement/.test(sub)) return true;
   return false;
 }
+
+// =============================================
+// ANALYSE DOCUMENT (helper pour upload fichier)
+// =============================================
+async function analyzeDocument(filePath, originalName) {
+  try {
+    const ext = path.extname(originalName).toLowerCase();
+    const base64 = fs.readFileSync(filePath).toString('base64');
+
+    // Determine media type
+    const mediaTypes = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif' };
+    const mediaType = mediaTypes[ext];
+
+    if (!mediaType) {
+      // Text-based files — read content
+      const text = fs.readFileSync(filePath, 'utf8').substring(0, 5000);
+      return { type: 'document', resume: 'Document texte : ' + originalName, raw_text: text };
+    }
+
+    // Vision analysis via Claude
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const contentBlock = ext === '.pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: 'Tu es un assistant de cabinet. Analyse le document. Réponds UNIQUEMENT en JSON valide : {"type":"facture|devis|courrier|ordonnance|photo|certificat|autre","emetteur":"nom","destinataire":"nom ou null","date":"AAAA-MM-JJ ou null","montant":"nombre ou null","devise":"EUR","resume":"résumé 2 lignes"}',
+      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Analyse ce document.' }] }]
+    });
+
+    const text = response.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return { type: 'autre', resume: 'Document non analysable' };
+  } catch (e) {
+    console.error('[COPILOT] analyzeDocument error:', e.message);
+    return { type: 'autre', resume: 'Erreur d\'analyse : ' + e.message };
+  }
+}
+
+// =============================================
+// POST /api/copilot/message-with-file — Upload + analyse document
+// =============================================
+router.post('/message-with-file', upload.single('file'), async (req, res) => {
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const message = req.body.message || '';
+    const context = req.body.context || '';
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier reçu' });
+    }
+
+    // 1. Analyze the file
+    const analysis = await analyzeDocument(req.file.path, req.file.originalname);
+
+    // 2. Build enriched context for the main copilot
+    const fileContext = 'DOCUMENT JOINT : ' + req.file.originalname + '\nAnalyse : ' + JSON.stringify(analysis) + '\nChemin : ' + req.file.path;
+
+    // 3. Detect if user wants to send it somewhere
+    const sendIntent = /\b(envo[iy]|transf[eè]r|forward|faire suivre|mail|partag)\w*/i.test(message);
+
+    // 4. If send intent, find the recipient from contacts
+    let recipientContext = '';
+    if (sendIntent) {
+      try {
+        const { data: brainContacts } = await db().from('cabinet_brain')
+          .select('contacts')
+          .eq('societe_id', sid)
+          .single();
+        if (brainContacts && brainContacts.contacts) {
+          recipientContext = '\nCONTACTS CONNUS : ' + JSON.stringify(brainContacts.contacts);
+        }
+      } catch (_) { /* pas bloquant */ }
+    }
+
+    // 5. Call the normal copilot logic with enriched context
+    // Load identity
+    let identity = {}, contacts = [];
+    try {
+      const { data: brainData } = await db().from('cabinet_brain')
+        .select('identity, contacts')
+        .eq('societe_id', sid)
+        .single();
+      if (brainData) { identity = brainData.identity || {}; contacts = brainData.contacts || []; }
+    } catch (_) { /* pas bloquant */ }
+
+    const iaRouter = require('../../lib/ia-router');
+    const systemPrompt = 'Vous êtes JADOMI Copilot. Le praticien vous a envoyé un document avec un message.\n\n' +
+      'IDENTITÉ CABINET : ' + (identity.nom_cabinet || 'Cabinet') + '\n' +
+      'CONTACTS : ' + (contacts.map(function(c) { return c.role + ' : ' + c.nom + (c.email ? ' (' + c.email + ')' : ''); }).join(', ') || 'aucun') + '\n\n' +
+      fileContext + recipientContext + '\n\n' +
+      'RÈGLES :\n' +
+      '- Vouvoiement TOUJOURS, zéro emoji\n' +
+      '- Si le praticien demande d\'envoyer le document : rédigez un email professionnel adapté au type de document et au destinataire\n' +
+      '- Incluez les infos extraites du document (montant, date, etc.) dans le mail\n' +
+      '- Si c\'est une facture → mail au comptable, objet avec le fournisseur et le montant\n' +
+      '- Si c\'est un courrier patient → mail adapté\n' +
+      '- Proposez le brouillon avec [Envoyer] [Modifier]\n' +
+      '- Réponse concise (3-8 lignes max)';
+
+    const userMessage = message || 'Analyse ce document';
+    let reply;
+    try {
+      reply = await iaRouter.mistralGenerate(systemPrompt, userMessage, { temperature: 0.3, maxTokens: 600 });
+    } catch (_) {
+      try {
+        reply = await iaRouter.claudeGenerate(systemPrompt, userMessage, { temperature: 0.3 });
+      } catch (__) {
+        reply = 'Document reçu : ' + req.file.originalname + '. ' + (analysis.resume || 'Analyse en cours.');
+      }
+    }
+
+    res.json({
+      reply: reply,
+      intent: sendIntent ? 'compose_mail' : 'document_analysis',
+      file_analysis: analysis,
+      file_name: req.file.originalname,
+      file_path: req.file.path,
+      file_size: req.file.size
+    });
+  } catch (e) {
+    console.error('[COPILOT] message-with-file error:', e.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // =============================================
 // POST /api/copilot/message — Point d'entrée unique

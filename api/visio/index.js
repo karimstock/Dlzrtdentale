@@ -552,4 +552,223 @@ router.post('/rooms/:token/invite', ...requireAuth(), async (req, res) => {
   }
 });
 
+// =============================================
+// 12. POST /rooms/:token/transcription-start — Activer la transcription (consentement)
+// =============================================
+router.post('/rooms/:token/transcription-start', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const { data: session, error: fetchErr } = await admin().from('visio_sessions')
+      .select('*')
+      .eq('token', token)
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!session) return res.status(404).json({ error: 'Salle introuvable' });
+
+    const auditLog = appendAuditLog(session.audit_log, { action: 'transcription_started', ip: req.ip });
+
+    await admin().from('visio_sessions')
+      .update({ audit_log: auditLog })
+      .eq('id', session.id);
+
+    // Initialise le tableau transcript dans la room in-memory
+    const room = ensureSignalingRoom(token);
+    if (!room.transcript) room.transcript = [];
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[visio] POST /rooms/:token/transcription-start error:', e.message);
+    res.status(500).json({ success: false, error: 'Erreur lors de l\'activation de la transcription' });
+  }
+});
+
+// =============================================
+// 13. POST /rooms/:token/transcription-chunk — Recevoir un fragment de transcription
+// =============================================
+router.post('/rooms/:token/transcription-chunk', (req, res) => {
+  try {
+    const { token } = req.params;
+    const { text, speaker, timestamp } = req.body || {};
+
+    if (!text || !speaker) {
+      return res.status(400).json({ error: 'Les champs "text" et "speaker" sont requis' });
+    }
+
+    const room = ensureSignalingRoom(token);
+    if (!room.transcript) room.transcript = [];
+
+    room.transcript.push({ text, speaker, timestamp: timestamp || Date.now() });
+
+    // Garder les 2000 derniers fragments max
+    if (room.transcript.length > 2000) room.transcript = room.transcript.slice(-1500);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[visio] POST /rooms/:token/transcription-chunk error:', e.message);
+    res.status(500).json({ success: false, error: 'Erreur lors de l\'enregistrement du fragment' });
+  }
+});
+
+// =============================================
+// 14. POST /rooms/:token/generate-summary — Générer un compte-rendu IA (Mistral)
+// =============================================
+let mistralGenerate = null;
+try {
+  const iaRouter = require('../../lib/ia-router');
+  mistralGenerate = iaRouter.mistralGenerate;
+} catch (_) {
+  console.warn('[visio] ia-router non disponible — génération de résumé désactivée');
+}
+
+router.post('/rooms/:token/generate-summary', ...requireAuth(), async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Vérifier que l'utilisateur est le host
+    const { data: session, error: fetchErr } = await admin().from('visio_sessions')
+      .select('*')
+      .eq('token', token)
+      .eq('societe_id', req.societe.id)
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!session) return res.status(404).json({ error: 'Salle introuvable' });
+    if (session.host_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Seul le professionnel hôte peut générer le compte-rendu' });
+    }
+
+    // Récupérer la transcription depuis la room in-memory
+    const room = signalingRooms.get(token);
+    if (!room || !room.transcript || room.transcript.length === 0) {
+      return res.status(400).json({ error: 'Aucune transcription disponible pour cette session' });
+    }
+
+    if (!mistralGenerate) {
+      return res.status(503).json({ error: 'Service de génération IA indisponible' });
+    }
+
+    // Construire la transcription complète
+    const fullTranscript = room.transcript.map(c => {
+      const time = new Date(c.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const role = c.speaker === 'host' ? 'Professionnel' : 'Client';
+      return `[${time}] ${role} : ${c.text}`;
+    }).join('\n');
+
+    // Calculer la durée
+    let duration = '';
+    if (session.started_at) {
+      const durationSec = Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000);
+      const dMin = Math.floor(durationSec / 60);
+      const dSec = durationSec % 60;
+      duration = dMin + ' min ' + dSec + ' sec';
+    }
+
+    const dateStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const systemPrompt = `Tu es un assistant de cabinet professionnel. Génère un compte-rendu structuré de cette consultation. Format :
+## Compte-rendu de consultation
+**Date :** ${dateStr}
+**Durée :** ${duration || 'Non renseignée'}
+**Participants :** ${session.host_name || 'Professionnel'} et ${session.guest_name || 'Client'}
+
+### Objet de la consultation
+(1-2 phrases)
+
+### Points discutés
+(liste à puces)
+
+### Décisions prises
+(liste à puces, ou "Aucune décision formelle")
+
+### Actions à mener
+(qui fait quoi, quand)
+
+### Prochaine étape
+(1 phrase)
+
+RÈGLES : vouvoiement, ton professionnel, JAMAIS inventer d'informations absentes de la transcription. Si un point n'est pas clair, l'indiquer.`;
+
+    const userPrompt = `Transcription de la consultation :\n${fullTranscript}`;
+
+    const summary = await mistralGenerate(systemPrompt, userPrompt, { maxTokens: 2000 });
+
+    // Audit log
+    const auditLog = appendAuditLog(session.audit_log, { action: 'summary_generated', transcript_length: room.transcript.length, ip: req.ip });
+    await admin().from('visio_sessions').update({ audit_log: auditLog }).eq('id', session.id);
+
+    res.json({
+      success: true,
+      summary: summary || '',
+      transcript_length: room.transcript.length
+    });
+  } catch (e) {
+    console.error('[visio] POST /rooms/:token/generate-summary error:', e.message);
+    res.status(500).json({ success: false, error: 'Erreur lors de la génération du compte-rendu' });
+  }
+});
+
+// =============================================
+// 15. POST /rooms/:token/save-summary — Sauvegarder le compte-rendu dans cabinet_brain_documents
+// =============================================
+router.post('/rooms/:token/save-summary', ...requireAuth(), async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { summary, dossier_id, patient_id, client_id } = req.body || {};
+
+    if (!summary) {
+      return res.status(400).json({ error: 'Le champ "summary" est requis' });
+    }
+
+    // Vérifier la session
+    const { data: session, error: fetchErr } = await admin().from('visio_sessions')
+      .select('*')
+      .eq('token', token)
+      .eq('societe_id', req.societe.id)
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!session) return res.status(404).json({ error: 'Salle introuvable' });
+
+    const dateStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    let duration = null;
+    if (session.started_at) {
+      duration = Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000);
+    }
+
+    const document = {
+      societe_id: req.societe.id,
+      title: 'Compte-rendu visio du ' + dateStr,
+      doc_type: 'compte_rendu_visio',
+      content_text: summary,
+      metadata: {
+        visio_token: token,
+        duration_seconds: duration,
+        participants: { host: session.host_name, guest: session.guest_name },
+        generated_at: new Date().toISOString()
+      },
+      created_by: req.user.id
+    };
+
+    // Liens optionnels
+    if (patient_id) document.patient_id = patient_id;
+    if (client_id) document.client_id = client_id;
+    if (dossier_id) document.metadata.dossier_id = dossier_id;
+
+    const { data, error } = await admin().from('cabinet_brain_documents').insert(document).select('id').single();
+    if (error) throw error;
+
+    // Audit log
+    const auditLog = appendAuditLog(session.audit_log, { action: 'summary_saved', document_id: data.id, ip: req.ip });
+    await admin().from('visio_sessions').update({ audit_log: auditLog }).eq('id', session.id);
+
+    res.json({ success: true, document_id: data.id });
+  } catch (e) {
+    console.error('[visio] POST /rooms/:token/save-summary error:', e.message);
+    res.status(500).json({ success: false, error: 'Erreur lors de la sauvegarde du compte-rendu' });
+  }
+});
+
 module.exports = router;
