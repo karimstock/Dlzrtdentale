@@ -4763,18 +4763,30 @@ SECURITE CRITIQUE :
 - Reinjection des vrais noms APRES parsing, cote serveur JADOMI uniquement
 - Mistral (Mistral AI Paris, conforme RGPD) → trustLevel 'full', contexte complet autorise
 
+### Branchement copilot ↔ fourmiliere (19 mai 2026)
+
+- Copilot intent 'patient' → dispatcher workflow patient_request (historique enrichi)
+- Copilot intent 'urgence' → agent-agenda findReplacement (creneaux disponibles)
+- Copilot intent 'stock' → agent-stock stockSummary (etat stock temps reel)
+- Copilot intent 'agenda' → agent-agenda optimizeDay (analyse journee + suggestions)
+- System prompt enrichi avec memoire partagee (buildAgentContext trustLevel=full)
+- Daemon mail sync → emet mail_received sur le bus fourmiliere a chaque mail
+
+### Bouton tournee infirmier (19 mai 2026)
+- "Demarrer la tournee" depuis accueil → ouvre DIRECTEMENT la carte JADOMI
+- Fetch visites du jour via /api/ide/planning/, tri par heure, startTourneeMode()
+- Plus de redirection vers le planning — la carte s'ouvre immediatement
+
 ### Priorites suite Passe 87
-1. EXECUTER migration SQL 89 sur Supabase Dashboard
-2. BRANCHER copilot sur dispatcher (mail → workflow mail_received, commande → user_command)
-3. Bouton "Demarrer tournee" infirmier → ouvre directement la carte JADOMI
-4. Copilot actions directes : chercher patient, creer RDV, voir planning
-5. Enrichir le message accueil : "3 factures triees, 2 mails urgents, 1 patient a annule"
-6. Tester copilot sur mobile
-7. Build Flutter Codemagic
-8. Push jadomi (erreur 500 GitHub)
-9. Commercial OVH HDS mercredi 21 mai
+1. EXECUTER migration SQL 89 sur Supabase Dashboard (BLOQUANT pour agents_workflow)
+2. Copilot actions directes : creer RDV, annuler RDV (avec validation praticien)
+3. Enrichir le message accueil : "3 factures triees, 2 mails urgents, 1 patient a annule"
+4. Tester copilot sur mobile
+5. Build Flutter Codemagic
+6. Push jadomi (erreur 500 GitHub)
+7. Commercial OVH HDS mercredi 21 mai
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 19 mai 2026 (Passe 87 — Fourmiliere multi-agents + securite DeepSeek)
+Derniere mise a jour : 19 mai 2026 (Passe 87 — Fourmiliere + branchement copilot + carte infirmier)
 ===============================================================
