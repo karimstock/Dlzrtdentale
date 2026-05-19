@@ -5,9 +5,17 @@
 // =============================================
 const express = require('express');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 
 const { admin, authSupabase, requireSociete } = require('../multiSocietes/middleware');
+
+// Rate limiting sur les endpoints publics (pas d'auth = risque spam)
+const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, message: { error: 'Trop de requêtes. Réessayez dans quelques minutes.' } });
+const signalLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, message: { error: 'Trop de signaux.' } });
+router.use('/rooms/:token/join', publicLimiter);
+router.use('/signal', signalLimiter);
+router.use('/chat', signalLimiter);
 
 // --- Email service (best-effort) ---
 let sendMail = null;
