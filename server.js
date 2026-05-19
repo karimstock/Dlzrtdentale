@@ -3292,10 +3292,10 @@ app.get('/api/comparateur/search', async (req, res) => {
     // Recherche par nom OU référence OU marque
     const { data, error } = await sb
       .from('scraped_prices')
-      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, price_ht, price_type, url, scraped_at')
+      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, price_ttc, price_type, url, scraped_at')
       .or(`product_name.ilike.%${q}%,reference.ilike.%${q}%,brand.ilike.%${q}%`)
       .gt('price', 0.10)
-      .order('price_ht', { ascending: true, nullsFirst: false })
+      .order('price_ttc', { ascending: true, nullsFirst: false })
       .limit(limit);
 
     if (error) throw error;
@@ -3318,20 +3318,18 @@ app.get('/api/comparateur/search', async (req, res) => {
           product_name: p.product_name,
           brand: p.brand,
           reference: p.reference,
-          best_price_ht: p.price_ht || Math.round(p.price / 1.20 * 100) / 100,
-          worst_price_ht: p.price_ht || Math.round(p.price / 1.20 * 100) / 100,
+          best_price: p.price_ttc || (p.price_type === 'ht' ? Math.round(p.price * 1.20 * 100) / 100 : p.price),
+          worst_price: p.price_ttc || (p.price_type === 'ht' ? Math.round(p.price * 1.20 * 100) / 100 : p.price),
           nb_suppliers: 0,
           offers: [],
         };
       }
-      const pht = p.price_ht || Math.round(p.price / 1.20 * 100) / 100;
-      if (pht < groups[key].best_price_ht) groups[key].best_price_ht = pht;
-      if (pht > groups[key].worst_price_ht) groups[key].worst_price_ht = pht;
+      const pttc = p.price_ttc || (p.price_type === 'ht' ? Math.round(p.price * 1.20 * 100) / 100 : p.price);
+      if (pttc < groups[key].best_price) groups[key].best_price = pttc;
+      if (pttc > groups[key].worst_price) groups[key].worst_price = pttc;
       groups[key].offers.push({
         supplier: p.supplier_name,
-        price: p.price,
-        price_ht: pht,
-        price_type: p.price_type || 'ttc',
+        price_ttc: pttc,
         price_original: p.price_original,
         discount_percent: p.discount_percent,
         url: p.url,
