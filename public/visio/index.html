@@ -131,6 +131,20 @@ button{font-family:var(--font);cursor:pointer;}
       </div>
     </div>
 
+    <!-- WAITING ROOM (salle d'attente avant connexion) -->
+    <div id="waiting-room" style="display:none;position:absolute;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+      <div style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--accent);">JADOMI</div>
+      <div id="waiting-message" style="color:var(--muted);font-size:15px;text-align:center;max-width:400px;line-height:1.6;">Chargement...</div>
+      <!-- Formulaire nom pour client externe -->
+      <div id="guest-name-form" style="display:none;text-align:center;">
+        <div style="color:var(--text);font-size:14px;margin-bottom:12px;">Veuillez indiquer votre nom pour rejoindre</div>
+        <input id="guest-name-input" type="text" placeholder="Votre nom" style="padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;font-family:var(--font);outline:none;width:280px;text-align:center;">
+        <br>
+        <button id="guest-join-btn" onclick="guestJoinRoom()" style="margin-top:12px;padding:12px 32px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;">Rejoindre la consultation</button>
+      </div>
+      <div class="spinner" id="waiting-spinner" style="margin-top:10px;"></div>
+    </div>
+
     <!-- VIDEO -->
     <div class="video-area" id="video-area">
       <div class="no-video-placeholder" id="no-video">
@@ -328,11 +342,11 @@ function sendChat(){
   chatMessages.push(chatMsg);
   renderChat();
 
-  // Send via API
-  fetch('/api/juridique/visio/signal/'+visioToken, {
+  // Send via chat API
+  fetch('/api/visio/chat/'+visioToken, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({type:'chat', data:chatMsg})
+    body:JSON.stringify({from: myName || 'Moi', message: msg})
   }).catch(_=>{});
 }
 function renderChat(){
@@ -394,9 +408,11 @@ function createPeerConnection(){
   }
 }
 
+let lastSignalTs = 0;
 async function sendSignal(signal){
   try{
-    await fetch('/api/juridique/visio/signal/'+visioToken, {
+    if(!signal.from) signal.from = myName || (isHost ? 'host' : 'guest');
+    await fetch('/api/visio/signal/'+visioToken, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(signal)
@@ -406,9 +422,11 @@ async function sendSignal(signal){
 
 async function pollSignals(){
   try{
-    const r = await fetch('/api/juridique/visio/signal/'+visioToken).then(r=>r.json());
-    const signals = r.signals || [];
-    for(const sig of signals){
+    const me = myName || (isHost ? 'host' : 'guest');
+    const r = await fetch('/api/visio/signal/'+visioToken+'?since='+lastSignalTs+'&from='+encodeURIComponent(me)).then(r=>r.json());
+    const messages = r.messages || r.signals || [];
+    for(const sig of messages){
+      if(sig.timestamp) lastSignalTs = Math.max(lastSignalTs, sig.timestamp);
       await handleSignal(sig);
     }
   }catch(_){}
@@ -437,20 +455,18 @@ async function handleSignal(sig){
   }
 }
 
-async function startCall(){
-  createPeerConnection();
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  sendSignal({type:'offer', data:offer});
-}
+// startCall est maintenant intégré dans launchVisio()
 
 function endCall(){
   if(!confirm('Terminer la consultation ?')) return;
+  // Notifier le backend
+  fetch('/api/visio/rooms/'+visioToken+'/end', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(_=>{});
   if(peerConnection){ peerConnection.close(); peerConnection = null; }
   if(localStream){ localStream.getTracks().forEach(t => t.stop()); }
   if(screenStream){ screenStream.getTracks().forEach(t => t.stop()); }
   if(timerInterval) clearInterval(timerInterval);
   if(pollingInterval) clearInterval(pollingInterval);
+  if(waitingPollInterval) clearInterval(waitingPollInterval);
   $('conn-status').className = 'conn-status disconnected';
   $('conn-status').textContent = 'Terminé';
   $('remote-video').style.display = 'none';
@@ -489,6 +505,83 @@ function closePdfViewer(){
 
 function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// GUEST JOIN — client externe entre son nom puis rejoint
+let myName = '';
+let isHost = false;
+let waitingPollInterval = null;
+
+async function guestJoinRoom(){
+  const name = ($('guest-name-input').value || '').trim();
+  if(!name || name.length < 2){ toast('Veuillez indiquer votre nom','error'); return; }
+  myName = name;
+  $('guest-name-form').style.display = 'none';
+  $('waiting-spinner').style.display = 'block';
+  $('waiting-message').textContent = 'Connexion en cours...';
+  await joinVisio(name);
+}
+
+async function joinVisio(guestName){
+  try{
+    const url = '/api/visio/rooms/'+visioToken+'/join' + (guestName ? '?name='+encodeURIComponent(guestName) : '');
+    const r = await fetch(url).then(r=>r.json());
+
+    if(r.error){
+      $('waiting-message').textContent = r.error;
+      $('waiting-spinner').style.display = 'none';
+      return;
+    }
+
+    // Salle d'attente — le pro n'a pas encore démarré
+    if(r.status === 'waiting'){
+      $('waiting-message').innerHTML = '<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">Salle d\'attente</div>'
+        + 'Le professionnel n\'a pas encore démarré la consultation.<br>Veuillez patienter, vous serez connecté automatiquement.';
+      $('waiting-spinner').style.display = 'block';
+      // Polling toutes les 3s pour attendre que le pro démarre
+      waitingPollInterval = setInterval(async () => {
+        try{
+          const check = await fetch(url).then(r=>r.json());
+          if(check.status === 'active'){
+            clearInterval(waitingPollInterval);
+            roomData = check.room || check;
+            scheduledDuration = roomData.duration_minutes || 60;
+            await launchVisio();
+          }
+        }catch(_){}
+      }, 3000);
+      return;
+    }
+
+    // Session active — on peut se connecter
+    roomData = r.room || r;
+    scheduledDuration = roomData.duration_minutes || roomData.duree || 60;
+    await launchVisio();
+  }catch(e){
+    $('waiting-message').textContent = 'Erreur de connexion : ' + (e.message || 'Vérifiez votre lien.');
+    $('waiting-spinner').style.display = 'none';
+  }
+}
+
+async function launchVisio(){
+  // Masquer la salle d'attente
+  $('waiting-room').style.display = 'none';
+  $('conn-status').textContent = 'Initialisation...';
+
+  await initMedia();
+  createPeerConnection();
+
+  // L'hôte crée l'offre, le guest attend
+  if(isHost){
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    sendSignal({type:'offer', data:offer, from: myName || 'host'});
+  }
+
+  // Poll signaling toutes les 2s
+  pollingInterval = setInterval(pollSignals, 2000);
+  $('conn-status').className = 'conn-status connecting';
+  $('conn-status').textContent = 'En attente du participant...';
+}
+
 // INIT
 (async function(){
   if(!visioToken || visioToken === 'visio'){
@@ -496,30 +589,26 @@ function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<'
     return;
   }
 
-  // Validate room
-  try{
-    const r = await fetch('/api/juridique/visio/room/'+visioToken).then(r=>r.json());
-    if(r.success === false){
-      $('no-video').innerHTML = '<div class="icon">&#128683;</div><div>'+esc(r.error||'Session invalide')+'</div>';
-      return;
-    }
-    roomData = r.room || r;
-    scheduledDuration = roomData.duree || 60;
-  }catch(e){
-    $('no-video').innerHTML = '<div class="icon">&#128683;</div><div>Impossible de valider la session</div><div style="font-size:12px;">'+esc(e.message)+'</div>';
-    return;
+  // Afficher la salle d'attente
+  $('waiting-room').style.display = 'flex';
+
+  // Vérifier si l'utilisateur est le host (a un JWT JADOMI)
+  const token = localStorage.getItem('supabase_token') || localStorage.getItem('sb-access-token');
+  isHost = !!token;
+
+  if(isHost){
+    // Host — on tente de démarrer directement
+    myName = 'Professionnel';
+    $('waiting-message').textContent = 'Connexion à la consultation...';
+    $('guest-name-form').style.display = 'none';
+    await joinVisio(null);
+  } else {
+    // Guest — demander le nom
+    $('waiting-message').textContent = 'Vous avez été invité à une consultation vidéo.';
+    $('guest-name-form').style.display = 'block';
+    $('waiting-spinner').style.display = 'none';
+    $('guest-name-input').focus();
   }
-
-  $('conn-status').textContent = 'Initialisation...';
-
-  await initMedia();
-  await startCall();
-
-  // Poll for signals every 2 seconds
-  pollingInterval = setInterval(pollSignals, 2000);
-
-  $('conn-status').className = 'conn-status connecting';
-  $('conn-status').textContent = 'En attente...';
 })();
 
 // Make local video draggable
