@@ -3292,10 +3292,10 @@ app.get('/api/comparateur/search', async (req, res) => {
     // Recherche par nom OU référence OU marque
     const { data, error } = await sb
       .from('scraped_prices')
-      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, url, scraped_at')
+      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, price_ht, price_type, url, scraped_at')
       .or(`product_name.ilike.%${q}%,reference.ilike.%${q}%,brand.ilike.%${q}%`)
       .gt('price', 0.10)
-      .order('price', { ascending: true })
+      .order('price_ht', { ascending: true, nullsFirst: false })
       .limit(limit);
 
     if (error) throw error;
@@ -3318,15 +3318,20 @@ app.get('/api/comparateur/search', async (req, res) => {
           product_name: p.product_name,
           brand: p.brand,
           reference: p.reference,
-          best_price: p.price,
-          worst_price: p.price,
+          best_price_ht: p.price_ht || Math.round(p.price / 1.20 * 100) / 100,
+          worst_price_ht: p.price_ht || Math.round(p.price / 1.20 * 100) / 100,
           nb_suppliers: 0,
           offers: [],
         };
       }
+      const pht = p.price_ht || Math.round(p.price / 1.20 * 100) / 100;
+      if (pht < groups[key].best_price_ht) groups[key].best_price_ht = pht;
+      if (pht > groups[key].worst_price_ht) groups[key].worst_price_ht = pht;
       groups[key].offers.push({
         supplier: p.supplier_name,
         price: p.price,
+        price_ht: pht,
+        price_type: p.price_type || 'ttc',
         price_original: p.price_original,
         discount_percent: p.discount_percent,
         url: p.url,
