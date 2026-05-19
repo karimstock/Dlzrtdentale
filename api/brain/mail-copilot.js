@@ -214,7 +214,22 @@ router.post('/connect', async (req, res) => {
 
       if (upsertErr) throw upsertErr;
 
-      res.json({ ok: true, total_messages: mailbox.messages, unseen: mailbox.unseen });
+      // Vérifier si c'est une première connexion (pas encore de mails importés)
+      const { data: accRow } = await db().from('comptes_email_societe')
+        .select('id').eq('societe_id', sid).eq('email', email).single();
+      const { count: existingMails } = await db().from('mails_inbox')
+        .select('id', { count: 'exact', head: true }).eq('societe_id', sid);
+      const isFirstConnection = (existingMails || 0) < 10;
+
+      res.json({
+        ok: true,
+        account_id: accRow?.id,
+        total_messages: mailbox.messages,
+        unseen: mailbox.unseen,
+        first_connection: isFirstConnection,
+        // Si première connexion, le frontend propose le bulk import + scan factures
+        suggest_import: isFirstConnection && mailbox.messages > 50
+      });
     } catch (connErr) {
       let hint = 'Vérifiez vos identifiants.';
       if (connErr.message?.includes('AUTHENTICATIONFAILED')) {
@@ -809,6 +824,170 @@ router.post('/bulk-import', async (req, res) => {
   } catch (e) {
     console.error('[MAIL-COPILOT] bulk-import error:', e.message);
     res.status(500).json({ error: 'Erreur import : ' + e.message });
+  }
+});
+
+// =============================================
+// ONBOARDING COMPLET — Chaîne tout automatiquement
+// 1. Bulk import des mails
+// 2. Scan factures (worker child_process)
+// 3. Auto-classification compta
+// Appelé quand un nouveau client connecte son email
+// Dédup intégrée : ne re-traite JAMAIS ce qui existe déjà
+// =============================================
+router.post('/onboarding-scan', async (req, res) => {
+  req.setTimeout(600000);
+  res.setTimeout(600000);
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const { account_id } = req.body;
+    if (!account_id) return res.status(400).json({ error: 'account_id requis' });
+
+    const report = { step: 'init', mails_imported: 0, factures_found: 0, categorized: 0, errors: [] };
+
+    // ── ÉTAPE 1 : Bulk import des mails ──
+    report.step = 'bulk_import';
+    try {
+      const { data: account } = await db().from('comptes_email_societe')
+        .select('*').eq('id', account_id).eq('societe_id', sid).single();
+      if (!account) throw new Error('Compte non trouvé');
+
+      const password = decryptPassword(account);
+      if (!password) throw new Error('Erreur déchiffrement');
+
+      const imapConfig = buildImapConfig(account, password);
+      imapConfig.connTimeout = 60000;
+      const client = new ImapFlow({ ...imapConfig, logger: false });
+      await client.connect();
+      const lock = await client.getMailboxLock('INBOX');
+
+      // 6 derniers mois
+      const since = new Date(Date.now() - 180 * 86400000);
+      const seqs = await client.search({ since });
+      const mails = [];
+
+      for await (const msg of client.fetch(seqs.join(','), {
+        headers: ['from', 'subject', 'date', 'message-id'], flags: true
+      }, { uid: false })) {
+        try {
+          const parsed = await simpleParser(msg.headers);
+          const fromAddr = parsed.from?.value?.[0]?.address || '';
+          const fromName = parsed.from?.value?.[0]?.name || '';
+          const messageId = parsed.messageId || msg.seq.toString();
+          const mailUid = crypto.createHash('md5').update(messageId + account.email).digest('hex');
+          const mail = { from: fromAddr, fromName, subject: parsed.subject || '', text: '', attachments: [], headers: {} };
+          const cat = scorer.classifyMailAdvanced(mail, sid);
+
+          mails.push({
+            societe_id: sid, account_id: account.id, mail_uid: mailUid,
+            message_id: messageId, from_address: fromAddr, from_name: fromName,
+            subject: parsed.subject || '(sans objet)', body_preview: '',
+            date_received: parsed.date?.toISOString() || new Date().toISOString(),
+            is_read: msg.flags?.has('\\Seen') || false,
+            category: cat.category, priority: cat.priority,
+            has_attachments: false, has_pdf: false,
+            needs_response: cat.needs_response || false,
+            response_urgency: cat.response_urgency || 'none',
+            is_spam: cat.is_spam || false, is_newsletter: cat.is_newsletter || false,
+            financial_type: cat.financial?.type || null, financial_montant: cat.financial?.montant || null,
+            metadata: { reason: cat.reason }
+          });
+        } catch (_) {}
+      }
+
+      lock.release();
+      await client.logout();
+
+      // Upsert par batch (dédup par mail_uid)
+      for (let i = 0; i < mails.length; i += 100) {
+        const batch = mails.slice(i, i + 100);
+        await db().from('mails_inbox').upsert(batch, { onConflict: 'societe_id,mail_uid' });
+      }
+      report.mails_imported = mails.length;
+      console.log(`[ONBOARDING] Étape 1 : ${mails.length} mails importés pour ${account.email}`);
+    } catch (e) {
+      report.errors.push('Import mails : ' + e.message);
+      console.error('[ONBOARDING] bulk-import error:', e.message);
+    }
+
+    // ── ÉTAPE 2 : Scan factures (child_process isolé) ──
+    report.step = 'scan_factures';
+    try {
+      const { fork } = require('child_process');
+      const path = require('path');
+      const workerPath = path.join(__dirname, '../workers/scan-factures-worker.js');
+
+      const { data: accounts } = await db().from('comptes_email_societe')
+        .select('*').eq('id', account_id).eq('societe_id', sid);
+
+      if (accounts && accounts.length > 0) {
+        await new Promise((resolve) => {
+          const worker = fork(workerPath, [], { execArgv: ['--max-old-space-size=256'], env: process.env });
+          worker.send({ mode: 'daemon', accounts });
+          worker.on('message', (msg) => {
+            if (msg.type === 'done') {
+              report.factures_found = msg.result?.totalFactures || 0;
+              console.log(`[ONBOARDING] Étape 2 : ${report.factures_found} factures détectées`);
+              if (!worker.killed) worker.kill();
+              resolve();
+            } else if (msg.type === 'error') {
+              report.errors.push('Scan factures : ' + msg.error);
+              if (!worker.killed) worker.kill();
+              resolve();
+            }
+          });
+          worker.on('error', () => resolve());
+          worker.on('exit', () => resolve());
+          setTimeout(() => { if (!worker.killed) worker.kill(); resolve(); }, 300000);
+        });
+      }
+    } catch (e) {
+      report.errors.push('Scan factures : ' + e.message);
+    }
+
+    // ── ÉTAPE 3 : Auto-classification compta ──
+    report.step = 'compta_classification';
+    try {
+      const COMPTA_KEYWORDS = {
+        fournisseur_dentaire: ['gacd','henry schein','mega dental','septodont','dentsply','kerr','ivoclar'],
+        charge_cabinet: ['edf','engie','loyer','syndic'],
+        telecom: ['ovh','free','orange','sfr','bouygues','anthropic'],
+        formation: ['formation','congres'],
+        assurance: ['macsf','axa','allianz'],
+        salaire: ['urssaf','carcdsf','prevoyance'],
+      };
+
+      const { data: docs } = await db().from('cabinet_brain_documents')
+        .select('id, title, content_text, metadata')
+        .eq('societe_id', sid)
+        .in('source', ['auto_scan', 'mail'])
+        .is('metadata->compta_category', null);
+
+      for (const doc of (docs || [])) {
+        const text = ((doc.title || '') + ' ' + (doc.content_text || '')).toLowerCase();
+        let category = 'autre';
+        for (const [cat, keywords] of Object.entries(COMPTA_KEYWORDS)) {
+          if (keywords.some(k => text.includes(k))) { category = cat; break; }
+        }
+        await db().from('cabinet_brain_documents')
+          .update({ metadata: { ...doc.metadata, compta_category: category, compta_auto_classified: true } })
+          .eq('id', doc.id);
+        report.categorized++;
+      }
+      console.log(`[ONBOARDING] Étape 3 : ${report.categorized} documents classés`);
+    } catch (e) {
+      report.errors.push('Classification compta : ' + e.message);
+    }
+
+    report.step = 'done';
+    res.json({
+      ok: true,
+      report,
+      message: `Import terminé : ${report.mails_imported} mails importés, ${report.factures_found} factures détectées, ${report.categorized} classées dans votre comptabilité.`
+    });
+  } catch (e) {
+    console.error('[ONBOARDING] global error:', e.message);
+    res.status(500).json({ error: 'Erreur onboarding : ' + e.message });
   }
 });
 
