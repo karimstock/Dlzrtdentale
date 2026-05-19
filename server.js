@@ -1091,6 +1091,12 @@ try {
   console.log('[JADOMI] Module Avocat Dashboard monte');
 } catch (e) { console.warn('[JADOMI] Avocat Dashboard non charge:', e.message); }
 
+// === JADOMI Compta Universelle — Factures auto-rangées jour/mois/année ===
+try {
+  app.use('/api/compta', require('./api/compta'));
+  console.log('[JADOMI] Module Compta Universelle monte');
+} catch (e) { console.warn('[JADOMI] Compta Universelle non charge:', e.message); }
+
 // === JADOMI Visio Universelle — Téléconsultation tous métiers ===
 try {
   app.use('/api/visio', require('./api/visio'));
