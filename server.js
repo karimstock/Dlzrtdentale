@@ -1217,6 +1217,19 @@ try {
   console.warn('[JADOMI] Module Cabinet Brain non chargé:', e.message);
 }
 
+// === JADOMI Fourmilière (multi-agents dispatcher) ===
+try {
+  const dispatcher = require('./lib/agents/dispatcher');
+  const { bus, EVENT_TYPES } = require('./lib/shared-intelligence');
+  // Écouter les événements du bus pour déclencher les workflows automatiques
+  bus.on(EVENT_TYPES.PREFERENCE_APPRISE, (data) => {
+    console.log('[FOURMILIERE] Nouvelle règle globale propagée:', data.type || 'unknown');
+  });
+  console.log('[JADOMI] Fourmilière multi-agents montée (dispatcher + memory + learning)');
+} catch (e) {
+  console.warn('[JADOMI] Fourmilière non chargée:', e.message);
+}
+
 // === JADOMI IA Documentaire (cerveau IA cabinet) ===
 try {
   app.use('/api/ia-doc', require('./api/ia-doc'));
@@ -6300,8 +6313,43 @@ app.post('/api/mail/test', requireAuth(), async (req, res) => {
 });
 
 app.post('/api/mail/scan', requireAuth(), async (req, res) => {
-  const { email, password, provider, periode, mois, annee } = req.body;
+  let { email, password, provider, periode, mois, annee, account_id } = req.body;
   const userId = req.user.id;
+
+  // Mode account_id : résoudre les credentials depuis comptes_email_societe
+  if (account_id && !password) {
+    try {
+      const sid = req.societeId || req.societe?.id || req.body.societe_id;
+      const db = supabaseAdmin || supabase;
+      const query = db.from('comptes_email_societe').select('*').eq('id', account_id);
+      if (sid) query.eq('societe_id', sid);
+      const { data: account, error: accErr } = await query.single();
+      if (accErr || !account) return res.status(404).json({ error: 'Compte email non trouvé' });
+      if (!account.actif) return res.status(400).json({ error: 'Compte email désactivé' });
+
+      // Déchiffrer le mot de passe (même algo que mail-copilot)
+      try {
+        const encKey = process.env.ENCRYPTION_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 32) || 'jadomi_default_enc_key__32chars!';
+        const key = Buffer.from(encKey.padEnd(32, '0').substring(0, 32));
+        const iv = Buffer.from(account.password_iv, 'hex');
+        const tag = Buffer.from(account.password_tag, 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        decipher.setAuthTag(tag);
+        let dec = decipher.update(account.password_chiffre, 'hex', 'utf8');
+        dec += decipher.final('utf8');
+        password = dec;
+      } catch (decErr) {
+        console.error('[SCAN] decrypt error:', decErr.message);
+        return res.status(500).json({ error: 'Impossible de déchiffrer les identifiants' });
+      }
+      email = account.email;
+      provider = account.provider;
+    } catch (e) {
+      console.error('[SCAN] account_id resolve error:', e.message);
+      return res.status(500).json({ error: 'Erreur résolution du compte' });
+    }
+  }
+
   if (!email || !password || !provider) {
     return res.status(400).json({ error: 'Email, mot de passe et provider requis' });
   }

@@ -68,19 +68,87 @@ router.post('/scan-factures', async (req, res) => {
 // =============================================
 // DEEPSEEK INTENT PARSER (pour requêtes ambiguës)
 // Coût : ~0.00003€ par requête. Quasi gratuit.
+//
+// SÉCURITÉ : DeepSeek = serveurs chinois.
+// On anonymise le message AVANT envoi :
+// - Noms propres → [NOM]
+// - Emails → [EMAIL]
+// - Téléphones → [TEL]
+// - Pathologies/données médicales → [MEDICAL]
+// DeepSeek ne reçoit que la STRUCTURE de la requête, pas les données.
+// Les vrais noms/emails sont réinjectés APRÈS dans le résultat JSON.
 // =============================================
+
+/**
+ * Anonymise un message avant envoi vers DeepSeek
+ * Extrait les données sensibles, les remplace par des placeholders,
+ * et retourne un map pour réinjection après parsing
+ */
+function _anonymizeForDeepSeek(message) {
+  const replacements = {};
+  let anonymized = message;
+  let counter = 0;
+
+  // Emails
+  anonymized = anonymized.replace(/[\w.-]+@[\w.-]+\.\w+/g, (match) => {
+    const key = `[EMAIL${counter}]`;
+    replacements[key] = match;
+    counter++;
+    return key;
+  });
+
+  // Téléphones FR (06 12 34 56 78, 06.12.34.56.78, +33612345678)
+  anonymized = anonymized.replace(/\b(?:\+33|0)[1-9][\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}\b/g, (match) => {
+    const key = `[TEL${counter}]`;
+    replacements[key] = match;
+    counter++;
+    return key;
+  });
+
+  // Données médicales sensibles (pathologies, traitements)
+  const medicalTerms = /\b(diabét\w+|cancer\w*|vih|sida|hépatite\w*|grossesse|enceinte|allergique?\s+(?:au?x?\s+)?\w+|chirurgi\w+|implant\w*|prothès\w+|traitement\s+\w+|pathologi\w+|diagnostic\w*|symptôm\w+)\b/gi;
+  anonymized = anonymized.replace(medicalTerms, (match) => {
+    const key = `[MEDICAL${counter}]`;
+    replacements[key] = match;
+    counter++;
+    return '[INFO]';
+  });
+
+  return { anonymized, replacements };
+}
+
+/**
+ * Réinjecte les données originales dans le résultat DeepSeek
+ */
+function _deanonymizeResult(parsed, replacements) {
+  if (!parsed || Object.keys(replacements).length === 0) return parsed;
+
+  // Réinjecter dans search_term, to, instruction
+  for (const field of ['search_term', 'to', 'instruction', 'patient_name']) {
+    if (parsed[field]) {
+      for (const [placeholder, original] of Object.entries(replacements)) {
+        parsed[field] = parsed[field].replace(placeholder, original);
+      }
+    }
+  }
+  return parsed;
+}
+
 async function deepseekParseIntent(message) {
   try {
     if (!process.env.DEEPSEEK_API_KEY) return null;
     const OpenAI = require('openai');
     const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: 'https://api.deepseek.com' });
 
+    // SÉCURITÉ : anonymiser avant envoi vers serveurs chinois
+    const { anonymized, replacements } = _anonymizeForDeepSeek(message);
+
     const response = await client.chat.completions.create({
       model: 'deepseek-chat',
       max_tokens: 200,
       temperature: 0,
       messages: [
-        { role: 'system', content: `Tu es un parseur d'intent pour un assistant de cabinet dentaire. Tu retournes UNIQUEMENT du JSON.
+        { role: 'system', content: `Tu es un parseur d'intent pour un assistant de cabinet. Tu retournes UNIQUEMENT du JSON.
 
 ACTIONS POSSIBLES :
 - search_mail : chercher des mails (par expéditeur, sujet, catégorie)
@@ -97,7 +165,7 @@ ACTIONS POSSIBLES :
 CATÉGORIES MAIL : fournisseur, comptable, banque, labo, patient, assurance, facture, juridique, rh, formation, ordre, impots, commercial, notaire, cpam, mutuelle, informatique, immobilier, maintenance
 
 FORMAT JSON :
-{"action":"search_mail","search_term":"nom ou mot-clé","category":"notaire","since":"2026-01-01","until":null}
+{"action":"search_mail","search_term":"mot-clé","category":"notaire","since":"2026-01-01","until":null}
 {"action":"compose_mail","to_role":"comptable","instruction":"dire que j'envoie les docs vendredi"}
 {"action":"list_mail","period":"today","filter":"important"}
 {"action":"check_agenda","date":"demain"}
@@ -108,13 +176,18 @@ RÈGLES :
 - "depuis 2 semaines" → calcule la date
 - "du mois" → since: premier jour du mois en cours
 - JAMAIS de texte avant ou après le JSON` },
-        { role: 'user', content: message }
+        { role: 'user', content: anonymized }
       ]
     });
 
     const text = response.choices?.[0]?.message?.content || '';
     const match = text.match(/\{[\s\S]*\}/);
-    return match ? JSON.parse(match[0]) : null;
+    if (!match) return null;
+
+    let parsed = JSON.parse(match[0]);
+    // Réinjecter les vrais noms/emails après parsing
+    parsed = _deanonymizeResult(parsed, replacements);
+    return parsed;
   } catch (e) {
     console.warn('[COPILOT] DeepSeek parse error:', e.message);
     return null;
@@ -711,6 +784,127 @@ ${extraContext ? 'CONTEXTE :\n' + extraContext : ''}`;
   }
 });
 
+
+// =============================================
+// DISPATCHER (préparation agents)
+// =============================================
+let dispatcher;
+try { dispatcher = require('../../lib/agents/dispatcher'); } catch(e) { /* pas encore dispo */ }
+
+// =============================================
+// GET /api/copilot/dashboard-summary — Résumé visuel pour le message d'accueil
+// =============================================
+router.get('/dashboard-summary', async (req, res) => {
+  try {
+    const sid = req.societe?.id || req.societeId;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const hour = now.getHours();
+
+    // Greeting adapté à l'heure
+    let greeting;
+    if (hour < 12) greeting = 'Bonjour Docteur, voici votre résumé du matin';
+    else if (hour < 18) greeting = 'Bonjour Docteur, voici votre résumé';
+    else greeting = 'Bonsoir Docteur, voici votre résumé';
+
+    // Toutes les requêtes en parallèle (< 500ms)
+    const [unreadRes, needsRes, facturesRes, urgentRes, agendaRes, cancelRes, stockRes, expiringRes, tasksRes, tasksUrgentRes] = await Promise.all([
+      // MAILS
+      db().from('mails_inbox').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).eq('is_read', false).eq('is_spam', false).eq('is_newsletter', false)
+        .then(r => r).catch(() => ({ count: 0 })),
+      db().from('mails_inbox').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).eq('needs_response', true).eq('replied', false)
+        .then(r => r).catch(() => ({ count: 0 })),
+      db().from('mails_inbox').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).not('financial_type', 'is', null)
+        .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+        .then(r => r).catch(() => ({ count: 0 })),
+      db().from('mails_inbox').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).eq('priority', 'urgent').eq('is_read', false)
+        .then(r => r).catch(() => ({ count: 0 })),
+      // AGENDA
+      db().from('rdv').select('id, patient_nom, heure_debut, acte_prevu')
+        .eq('societe_id', sid).gte('date_rdv', todayStart).lt('date_rdv', todayEnd)
+        .order('heure_debut', { ascending: true })
+        .then(r => r).catch(() => ({ data: null })),
+      db().from('rdv').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).gte('date_rdv', todayStart).lt('date_rdv', todayEnd)
+        .eq('statut', 'annule')
+        .then(r => r).catch(() => ({ count: 0 })),
+      // STOCK
+      db().from('produits_stock').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).not('quantite_min', 'is', null)
+        .filter('quantite', 'lt', 'quantite_min')
+        .then(r => r).catch(() => ({ count: 0 })),
+      db().from('produits_stock').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).not('date_peremption', 'is', null)
+        .lte('date_peremption', new Date(Date.now() + 30 * 86400000).toISOString())
+        .gte('date_peremption', todayStart)
+        .then(r => r).catch(() => ({ count: 0 })),
+      // TASKS
+      db().from('cabinet_brain_tasks').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).in('status', ['todo', 'pending'])
+        .then(r => r).catch(() => ({ count: 0 })),
+      db().from('cabinet_brain_tasks').select('id', { count: 'exact', head: true })
+        .eq('societe_id', sid).in('status', ['todo', 'pending']).in('priority', ['urgent', 'high'])
+        .then(r => r).catch(() => ({ count: 0 }))
+    ]);
+
+    // Prochain RDV (premier non passé)
+    const rdvList = agendaRes.data || [];
+    let nextPatient = null;
+    const nowTime = now.getHours() * 60 + now.getMinutes();
+    for (var i = 0; i < rdvList.length; i++) {
+      var r = rdvList[i];
+      if (r.heure_debut) {
+        var parts = r.heure_debut.split(':');
+        var rdvMin = parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);
+        if (rdvMin >= nowTime) {
+          nextPatient = {
+            name: r.patient_nom || 'Patient',
+            time: r.heure_debut.substring(0, 5),
+            acte: r.acte_prevu || null
+          };
+          break;
+        }
+      }
+    }
+
+    res.json({
+      mails: {
+        unread: unreadRes.count || 0,
+        needs_response: needsRes.count || 0,
+        factures_new: facturesRes.count || 0,
+        urgent: urgentRes.count || 0
+      },
+      agenda: {
+        today_count: rdvList.length,
+        next_patient: nextPatient,
+        cancellations_today: cancelRes.count || 0
+      },
+      stock: {
+        low_alerts: stockRes.count || 0,
+        expiring_soon: expiringRes.count || 0
+      },
+      tasks: {
+        pending: tasksRes.count || 0,
+        urgent: tasksUrgentRes.count || 0
+      },
+      greeting: greeting
+    });
+  } catch (e) {
+    console.error('[COPILOT] dashboard-summary error:', e.message);
+    res.json({
+      mails: { unread: 0, needs_response: 0, factures_new: 0, urgent: 0 },
+      agenda: { today_count: 0, next_patient: null, cancellations_today: 0 },
+      stock: { low_alerts: 0, expiring_soon: 0 },
+      tasks: { pending: 0, urgent: 0 },
+      greeting: 'Bonjour Docteur, comment puis-je vous aider ?'
+    });
+  }
+});
 
 // GET /api/copilot/notifications — Notifications en attente (pour le badge clignotant)
 router.get('/notifications', async (req, res) => {
