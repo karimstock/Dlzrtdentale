@@ -712,8 +712,9 @@ router.post('/bulk-import', async (req, res) => {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
 
-    const seqs = await client.search({ since: new Date('2026-01-01') });
-    const total = seqs.length;
+    const allSeqs = await client.search({ since: new Date('2026-01-01') });
+    const seqs = allSeqs.slice(-2000); // Cap à 2000 mails max (les plus récents)
+    const total = allSeqs.length;
 
     // Fetch tous les headers en bulk
     const mails = [];
@@ -861,9 +862,10 @@ router.post('/onboarding-scan', async (req, res) => {
       await client.connect();
       const lock = await client.getMailboxLock('INBOX');
 
-      // 6 derniers mois
-      const since = new Date(Date.now() - 180 * 86400000);
-      const seqs = await client.search({ since });
+      // 3 derniers mois (180 jours = trop lourd, timeout risk)
+      const since = new Date(Date.now() - 90 * 86400000);
+      const allSeqs = await client.search({ since });
+      const seqs = allSeqs.slice(0, 2000); // Cap à 2000 mails max
       const mails = [];
 
       for await (const msg of client.fetch(seqs.join(','), {

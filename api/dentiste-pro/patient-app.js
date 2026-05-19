@@ -224,10 +224,13 @@ router.get('/documents', requirePatient(), async (req, res) => {
   try {
     const { id: patientId, cabinet_id: cabinetId } = req.patient;
 
+    // SÉCURITÉ : filtrer par patient_id, pas juste cabinet_id
+    // Un patient ne doit JAMAIS voir les documents d'un autre patient
     const { data } = await admin()
       .from('cabinet_brain_documents')
       .select('id, title, doc_type, created_at, metadata')
       .eq('societe_id', cabinetId)
+      .or(`metadata->>patient_id.eq.${patientId},metadata->>client_id.eq.${patientId}`)
       .order('created_at', { ascending: false })
       .limit(50);
 

@@ -125,16 +125,20 @@ router.get('/entries', async (req, res) => {
       .select('id, title, doc_type, source, content_text, metadata, created_at')
       .eq('societe_id', sid)
       .in('doc_type', COMPTA_DOC_TYPES)
-      .order('created_at', { ascending: false });
+      .gte('created_at', dateFrom + 'T00:00:00')
+      .lte('created_at', dateTo + 'T23:59:59')
+      .order('created_at', { ascending: false })
+      .limit(500);
 
-    // Also include auto_scan / manual_compta entries regardless of doc_type
-    // We do two queries and merge
     let queryAutoScan = db()
       .from('cabinet_brain_documents')
       .select('id, title, doc_type, source, content_text, metadata, created_at')
       .eq('societe_id', sid)
       .in('source', ['auto_scan', 'manual_compta'])
-      .order('created_at', { ascending: false });
+      .gte('created_at', dateFrom + 'T00:00:00')
+      .lte('created_at', dateTo + 'T23:59:59')
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     const [res1, res2] = await Promise.all([query, queryAutoScan]);
 
