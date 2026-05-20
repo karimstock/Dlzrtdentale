@@ -327,12 +327,61 @@ module.exports = function mountSitesJadomi(app, supabase) {
     }
   });
 
-  // POST /api/studio/sites-jadomi/:id/migrer-ovh (STUB)
-  router.post('/:id/migrer-ovh', requireAuth, (req, res) => {
-    return res.json({
-      disponible: false,
-      raison: 'API OVH pas configurée. Migration disponible prochainement.'
-    });
+  // POST /api/studio/sites-jadomi/:id/migrer-ovh
+  // Délègue au module OVH Hosting — provision domaine + hébergement
+  router.post('/:id/migrer-ovh', requireAuth, async (req, res) => {
+    try {
+      const site_id = req.params.id;
+      const { domain, plan } = req.body || {};
+
+      if (!domain) {
+        return res.status(400).json({ error: 'Le paramètre domain est requis (ex: cabinet-dupont.fr)' });
+      }
+
+      // Vérification que le site appartient bien à l'utilisateur
+      const { data: site, error: siteErr } = await supabase
+        .from('sites_jadomi')
+        .select('id, nom_cabinet, statut')
+        .eq('id', site_id)
+        .eq('societe_id', req.societeId)
+        .single();
+
+      if (siteErr || !site) {
+        return res.status(404).json({ error: 'Site introuvable ou accès refusé' });
+      }
+
+      // Appel interne vers le module OVH Hosting via fetch local
+      const token = (req.headers.authorization || '').replace('Bearer ', '');
+      const port = process.env.PORT || 3001;
+      const provisionRes = await fetch(`http://localhost:${port}/api/studio/ovh/provision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'x-societe-id': req.societeId || ''
+        },
+        body: JSON.stringify({ site_id, domain, plan: plan || 'starter' })
+      });
+
+      const provisionData = await provisionRes.json();
+
+      if (!provisionRes.ok) {
+        return res.status(provisionRes.status).json(provisionData);
+      }
+
+      return res.json({
+        ok: true,
+        domain: provisionData.domain,
+        status: provisionData.status,
+        hebergement_id: provisionData.hebergement_id,
+        message: provisionData.message,
+        mode: provisionData.mode
+      });
+
+    } catch (err) {
+      console.error('[sites-jadomi] migrer-ovh error:', err.message);
+      return res.status(500).json({ error: 'Erreur interne lors de la migration OVH' });
+    }
   });
 
   app.use('/api/studio/sites-jadomi', router);

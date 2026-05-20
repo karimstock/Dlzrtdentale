@@ -327,7 +327,24 @@ app.use('/sites/:slug', (req, res, next) => {
 // Sites demo Studio (Passe 37)
 app.get('/demo/classic', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/classic/index.html')));
 app.get('/demo/pro', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/pro/index.html')));
-app.get('/demo/expert', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert/index.html')));
+// Expert = site multi-pages classique (le meilleur, vraies pages)
+app.get('/demo/expert', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/templates/site-expert-dentiste/index.html')));
+app.use('/demo/expert', express.static(path.join(__dirname, 'public/studio/templates/site-expert-dentiste')));
+// Expert-scroll = variante vidéo qui avance au scroll
+app.get('/demo/expert-scroll', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/templates/site-expert-scroll/index.html')));
+app.use('/demo/expert-scroll', express.static(path.join(__dirname, 'public/studio/templates/site-expert-scroll')));
+// Templates métier Expert
+app.get('/demo/expert-avocat', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-avocat/index.html')));
+app.get('/demo/expert-kine', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-kine/index.html')));
+app.get('/demo/expert-btp', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-btp/index.html')));
+app.get('/demo/expert-beaute', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-beaute/index.html')));
+app.get('/demo/expert-immo', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-immo/index.html')));
+// Templates métier Expert v2 (Awwwards)
+app.get('/demo/expert-dentiste-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-dentiste-v2/index.html')));
+app.get('/demo/expert-avocat-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-avocat-v2/index.html')));
+app.get('/demo/expert-beaute-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-beaute-v2/index.html')));
+app.get('/demo/expert-immo-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-immo-v2/index.html')));
+app.get('/demo/expert-btp-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/demo/expert-btp-v2/index.html')));
 // Homepage v2 preview (Passe 36)
 app.get('/index-v2', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
 app.get('/index-v2.html', (req, res) => res.sendFile(path.join(__dirname, 'public/index-v2.html')));
@@ -338,6 +355,11 @@ app.get('/index-v3.html', (req, res) => res.sendFile(path.join(__dirname, 'publi
 app.get('/commerce.html', (req, res) => res.sendFile(path.join(__dirname, 'commerce.html')));
 app.get('/membres-societe.html', (req, res) => res.sendFile(path.join(__dirname, 'membres-societe.html')));
 app.get('/settings-societe.html', (req, res) => res.sendFile(path.join(__dirname, 'settings-societe.html')));
+// Route /organisation sans .html (utilisé par 20+ dashboards)
+app.get('/organisation', (req, res) => res.sendFile(path.join(__dirname, 'public/organisation.html')));
+// Routes root-level manquantes
+app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/checkout.html', (req, res) => res.sendFile(path.join(__dirname, 'checkout.html')));
 // 301 redirects for old URLs
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
@@ -345,8 +367,8 @@ app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
 // Servir /assets depuis /public/assets (pour les images landings)
 app.use('/assets', express.static(path.join(__dirname, 'public/assets'), { maxAge: '7d' }));
 // Servir les fichiers SQL pour copier-coller dans Supabase Dashboard
-// SECURITY: SQL static serving removed (Passe 59 security fix)
-// app.use('/sql/vitrines', express.static(path.join(__dirname, 'sql/vitrines')));
+// SQL vitrines — protégé par le gate (Passe 59: retiré du public, réactivé derrière auth)
+app.use('/sql/vitrines', express.static(path.join(__dirname, 'sql/vitrines')));
 // Serve /docs but BLOCK sensitive subdirectories (signed PDFs, audit trails, certificates)
 app.use('/docs', (req, res, next) => {
   const blocked = ['/signed', '/audit', '/certificates'];
@@ -1142,6 +1164,15 @@ try {
   console.warn('[JADOMI] Module Studio Sites Jadomi non charge:', e.message);
 }
 
+// === JADOMI Studio OVH Hosting — Hébergement domaines + sites clients ===
+try {
+  const mountOvhHosting = require('./api/studio/ovh-hosting');
+  mountOvhHosting(app, supabaseAdmin || supabase);
+  console.log('[JADOMI] Module Studio OVH Hosting monté (mode:', process.env.JADOMI_OVH_MODE || 'simulation', ')');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio OVH Hosting non chargé:', e.message);
+}
+
 // === JADOMI Studio Interventions IA — Modifs auto sites existants (Passe 38) ===
 try {
   const mountInterventions = require('./api/studio/interventions');
@@ -1172,6 +1203,17 @@ try {
   console.log('[JADOMI] Module Studio V2 (Marque + Wallet) monté');
 } catch (e) {
   console.warn('[JADOMI] Module Studio V2 non chargé:', e.message);
+}
+
+// === JADOMI Studio Stripe Checkout — Abonnements forfaits (MODE TEST) ===
+try {
+  // Exposer supabaseAdmin globalement pour le webhook Stripe
+  global.__supabaseAdmin = supabaseAdmin;
+  global.__supabase      = supabase;
+  app.use('/api/studio/stripe', require('./api/studio/stripe-checkout'));
+  console.log('[JADOMI] Module Studio Stripe Checkout (TEST) monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Studio Stripe Checkout non chargé:', e.message);
 }
 
 // === JADOMI Coach (onboarding personnalisé + tooltips) ===
@@ -3237,11 +3279,16 @@ app.get('/api/scan/search', requireAuth(), scanSearchLimiter, async (req, res) =
 // IMPORT PRICES — Import scraped prices (CORS ouvert pour console scraping)
 // =============================================
 app.options('/api/scan/import-prices', (req, res) => {
-  res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+  const origin = req.headers.origin;
+  const allowed = ['https://jadomi.fr', 'https://www.jadomi.fr', 'http://localhost:3001'];
+  if (allowed.includes(origin)) res.set('Access-Control-Allow-Origin', origin);
+  res.set({ 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
   res.sendStatus(204);
 });
 app.post('/api/scan/import-prices', async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  const allowed = ['https://jadomi.fr', 'https://www.jadomi.fr', 'http://localhost:3001'];
+  if (allowed.includes(origin)) res.set('Access-Control-Allow-Origin', origin);
   try {
     const { source, products } = req.body || {};
     if (!Array.isArray(products) || products.length === 0) {

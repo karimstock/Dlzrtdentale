@@ -95,7 +95,7 @@
   .jcp-chat-side{min-width:auto;border-right:none;border-bottom:1px solid ${BORDER};max-height:45vh;}
   .jcp-panel-side{width:100%!important;max-height:45vh;}
   .jcp-panel-side.empty{height:0;}
-  .jcp-fab{bottom:16px;right:16px;width:50px;height:50px}
+  .jcp-fab{bottom:80px;right:16px;width:50px;height:50px}
   .jcp-messages{max-height:none;}
 }
 `;
@@ -422,7 +422,7 @@
       html += '<div class="jcp-draft-field"><div class="jcp-draft-label">Message</div><div class="jcp-draft-body" contenteditable="true" id="jcp-draft-body">' + esc(data.body || '').replace(/\n/g, '<br>') + '</div></div>';
       html += '<div class="jcp-card-actions" style="margin-top:14px;">';
       if (data.to) html += '<button class="jcp-card-btn jcp-card-btn-primary" onclick="window.__jcpSendDraft()" id="jcp-send-draft-btn">Envoyer</button>';
-      html += '<button class="jcp-card-btn jcp-card-btn-ghost" onclick="window.__jcpSend(\'modifie le mail : \')">Modifier via chat</button>';
+      html += '<button class="jcp-card-btn jcp-card-btn-ghost" onclick="window.__jcpModifyDraft()">Modifier via chat</button>';
       html += '</div>';
       if (data.need_email) html += '<div style="color:#f59e0b;font-size:11px;margin-top:10px;">Email du destinataire inconnu. Renseignez-le dans Mon cabinet.</div>';
       html += '</div>';
@@ -550,7 +550,14 @@
       isWaiting = true; sendBtn.disabled = true;
       showTyping();
 
-      fetch('/api/copilot/message', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ message: msg, context: ctx }) })
+      // Si on modifie un brouillon, injecter le contexte
+      var payload = { message: msg, context: ctx };
+      if (window.__jcpDraftContext) {
+        payload.message = 'modifie ce brouillon selon ma demande : "' + msg + '"\n\nBROUILLON ACTUEL :\nDestinataire: ' + (window.__jcpDraftContext.to || '') + '\nObjet: ' + (window.__jcpDraftContext.subject || '') + '\nCorps:\n' + (window.__jcpDraftContext.body || '');
+        payload.draft_context = window.__jcpDraftContext;
+        window.__jcpDraftContext = null;
+      }
+      fetch('/api/copilot/message', { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) })
         .then(function (r) { return r.ok ? r.json() : r.text().then(function (t) { throw new Error(t); }); })
         .then(function (data) {
           hideTyping(); isWaiting = false; sendBtn.disabled = false;
@@ -613,6 +620,24 @@
           addMsg('Erreur : ' + e.message, false);
           if (btn) { btn.textContent = 'Envoyer'; btn.disabled = false; }
         });
+    };
+
+    // Modifier le brouillon via chat — garde le contexte
+    window.__jcpModifyDraft = function () {
+      if (!currentDraft) { addMsg('Pas de brouillon à modifier.', false); return; }
+      var bodyEl = document.getElementById('jcp-draft-body');
+      var body = bodyEl ? bodyEl.innerText : currentDraft.body;
+      addMsg('Voici votre brouillon actuel. Dites-moi ce que vous souhaitez changer :\n\nDestinataire : ' + (currentDraft.to || '?') + '\nObjet : ' + (currentDraft.subject || '') + '\n\n' + body, false);
+      input.value = '';
+      input.placeholder = 'Ex: enlève le Cordialement, tutoie-la, ajoute un PS...';
+      input.focus();
+      // Injecter le contexte du brouillon pour le prochain envoi
+      window.__jcpDraftContext = {
+        to: currentDraft.to,
+        to_name: currentDraft.to_name,
+        subject: currentDraft.subject,
+        body: body
+      };
     };
 
     // ================================================================

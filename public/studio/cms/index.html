@@ -431,6 +431,64 @@ function renderDashboard() {
         </div>
         <div class="card" id="history-list"></div>
       </div>
+
+      <!-- Horaires section -->
+      <div class="section-view" id="sec-horaires">
+        <div class="card-title" style="font-size:15px;font-weight:700;margin-bottom:16px;">
+          <span>&#128339;</span> Horaires d'ouverture
+          <button class="btn-secondary" style="margin-left:auto;font-size:11px;padding:6px 12px;" onclick="showSection('dashboard')">Retour</button>
+        </div>
+        <div class="editor-wrap">
+          <div class="editor-tabs card" id="horaires-tabs">
+            <div class="editor-tab active" onclick="loadSection('horaires', this)">&#128339; Horaires</div>
+          </div>
+          <div class="editor-content" id="editor-content-horaires">
+            <div class="loading"><div class="spinner"></div>Chargement...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact section -->
+      <div class="section-view" id="sec-contact">
+        <div class="card-title" style="font-size:15px;font-weight:700;margin-bottom:16px;">
+          <span>&#128222;</span> Informations de contact
+          <button class="btn-secondary" style="margin-left:auto;font-size:11px;padding:6px 12px;" onclick="showSection('dashboard')">Retour</button>
+        </div>
+        <div class="editor-wrap">
+          <div class="editor-tabs card" id="contact-tabs">
+            <div class="editor-tab active" onclick="loadSection('contact', this)">&#128222; Contact</div>
+          </div>
+          <div class="editor-content" id="editor-content-contact">
+            <div class="loading"><div class="spinner"></div>Chargement...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blog section (Expert uniquement) -->
+      <div class="section-view" id="sec-blog">
+        <div class="card-title" style="font-size:15px;font-weight:700;margin-bottom:16px;">
+          <span>&#128221;</span> Articles de blog
+          <button class="btn-secondary" style="margin-left:auto;font-size:11px;padding:6px 12px;" onclick="showSection('dashboard')">Retour</button>
+        </div>
+        <div class="card" style="text-align:center;padding:40px;">
+          <div style="font-size:32px;margin-bottom:12px;">&#128221;</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Gestion du blog</div>
+          <div style="font-size:13px;color:var(--text2);">La gestion complète des articles est disponible dans votre formule Expert.</div>
+        </div>
+      </div>
+
+      <!-- Options Expert section -->
+      <div class="section-view" id="sec-expert">
+        <div class="card-title" style="font-size:15px;font-weight:700;margin-bottom:16px;">
+          <span>&#9733;</span> Options Expert
+          <button class="btn-secondary" style="margin-left:auto;font-size:11px;padding:6px 12px;" onclick="showSection('dashboard')">Retour</button>
+        </div>
+        <div class="card" style="text-align:center;padding:40px;">
+          <div style="font-size:32px;margin-bottom:12px;">&#9733;</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Options Expert</div>
+          <div style="font-size:13px;color:var(--text2);">Multi-langue, A/B testing et analytics avancées disponibles depuis votre espace Expert.</div>
+        </div>
+      </div>
     </div>
 
     <!-- Historique recentes (dashboard home) -->
@@ -613,15 +671,20 @@ function showSection(section) {
   const dashboard = document.getElementById('sec-dashboard');
   const actionsGrid = document.getElementById('actions-grid');
 
-  if (section === 'dashboard' || section === 'editor' || section === 'photos' || section === 'history') {
-    if (dashboard) dashboard.style.display = section === 'dashboard' ? 'block' : 'none';
-    if (actionsGrid) actionsGrid.parentElement.style.display = section === 'dashboard' ? 'grid' : 'none';
-  }
+  const isDashboard = section === 'dashboard';
+  if (dashboard) dashboard.style.display = isDashboard ? 'block' : 'none';
+  if (actionsGrid) actionsGrid.parentElement.style.display = isDashboard ? 'grid' : 'none';
 
   if (section === 'editor') {
     loadSection('hero');
   } else if (section === 'photos') {
     loadPhotos();
+  } else if (section === 'horaires') {
+    const c = document.getElementById('editor-content-horaires');
+    if (c) { c.innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>'; loadSectionInto('horaires', c); }
+  } else if (section === 'contact') {
+    const c = document.getElementById('editor-content-contact');
+    if (c) { c.innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>'; loadSectionInto('contact', c); }
   }
 }
 
@@ -669,6 +732,35 @@ async function loadSection(section, tabEl) {
     `;
   } catch (e) {
     content.innerHTML = '<div style="padding:20px;color:var(--danger);">Erreur : ' + (e.message || e.error || 'inconnue') + '</div>';
+  }
+}
+
+async function loadSectionInto(section, container) {
+  try {
+    const data = await apiCall('GET', '/contenus/' + section);
+    if (!data || !data.length) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:30px;color:var(--text2);">
+          <p>Aucun contenu dans cette section.</p>
+          <button class="btn-primary" style="margin-top:12px;" onclick="addContent('${section}')">Ajouter du contenu</button>
+        </div>`;
+      return;
+    }
+    container.innerHTML = data.map(item => `
+      <div class="field-group" data-id="${item.id}">
+        <div class="field-label">${item.cle.replace(/_/g, ' ')}</div>
+        ${item.type === 'texte' || item.type === 'html' ?
+          `<textarea class="field-input" onchange="markDirty('${item.id}')" data-original="${encodeURIComponent(item.valeur || '')}">${item.valeur || ''}</textarea>` :
+          `<input class="field-input" type="text" value="${item.valeur || ''}" onchange="markDirty('${item.id}')" data-original="${encodeURIComponent(item.valeur || '')}">`
+        }
+      </div>
+    `).join('') + `
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn-primary" onclick="saveSection('${section}')">Publier les modifications</button>
+        <button class="btn-secondary" onclick="showSection('dashboard')">Annuler</button>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = '<div style="padding:20px;color:var(--danger);">Erreur : ' + (e.message || e.error || 'inconnue') + '</div>';
   }
 }
 
