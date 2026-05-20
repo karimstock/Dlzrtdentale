@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 20 mai 2026
-**Derniere passe** : Passe 90 (20 mai 2026) — Securite RLS urgente + Armure protection + Fix mobile organisation
+**Derniere passe** : Passe 91 (20 mai 2026) — 12 templates Awwwards + Stripe + OVH + audit complet + Copilot ameliore
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4955,7 +4955,50 @@ SECURITE CRITIQUE :
 
 **SQL en attente d'execution (besoin mot de passe BDD ou MCP Supabase)**
 
+### Passe 91 (20 mai 2026 soir) — Session monstre : Templates + Stripe + OVH + Audit
+
+SECURITE (full vert 22/22) :
+- Nginx backups nettoyes, logrotate PM2, DocuSeal 127.0.0.1, 33 updates systeme
+
+AUDIT LIENS (30+ corrections) :
+- Booking fetch URLs, route /organisation, MR 9 metiers, ancres cassees
+- BTP /expert/→/artisan/, boutons openOrgaPerso morts, vitrines vs dashboards
+
+COPILOT AMELIORE :
+- Mail perso vs pro (detection automatique ton)
+- Modifier via chat garde le brouillon
+- Demandes creatives (coeurs ASCII)
+- Bouton mobile remonte (bottom:80px)
+
+12 TEMPLATES CREES :
+- 5 v1 metier : avocat, kine, BTP, beaute, immo
+- 5 v2 Awwwards : dentiste (2253L dark/light), avocat (Cormorant), beaute (Vogue), immo (carrousel), BTP (industrial)
+- Exploded view implant (scroll animation)
+- 52 photos reelles dans dentiste v2
+
+9 VIDEOS VIDU GENEREES :
+- Walkthrough avocat, beaute, BTP, immo, kine, ortho, prothesiste + dentaire
+
+MODULE CREATION SITES COMPLET :
+- Stripe test mode (checkout + webhook + abonnements)
+- OVH simulation (check domaine + provisioning + deploy)
+- Onboarding : templates filtres par metier client + carousel
+- Bugs fixes : collision ID step-2, 18 fautes orthographe, 4 sections CMS
+- Table site_hebergements creee
+
+INFRA :
+- Agent briefing cree (.claude/agent-briefing.md) pour que les sous-agents aient le contexte JADOMI
+- Briefing enregistre en memoire pour toutes les futures sessions
+
+A FAIRE (Passe 92+) :
+- Exploded view : remplacer formes CSS par vraies images NanoBanana (vis, pilier, couronne)
+- IoT : brancher Home Assistant + Hikvision quand fondateur est au cabinet
+- OVH production : creer compte partenaire, ajouter cles API
+- Stripe production : switch cles test → live
+- Generer photos metier (avocat, BTP, beaute, immo) via NanoBanana/Gemini
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 20 mai 2026 (Passe 90 — Securite RLS urgente + Armure protection + Fix mobile)
+Derniere mise a jour : 20 mai 2026 (Passe 91 — Templates Awwwards + Stripe + OVH + audit complet)
+===============================================================
 ===============================================================
