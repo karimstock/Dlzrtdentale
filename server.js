@@ -4974,6 +4974,32 @@ app.post('/api/internal/security-report', async (req, res) => {
   }
 });
 
+// GET /api/admin/rls-audit — Audit RLS de toutes les tables publiques
+app.get('/api/admin/rls-audit', requireAuth(), async (req, res) => {
+  try {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Accès refusé - admin uniquement' });
+    }
+    const db = supabaseAdmin || supabase;
+    // Appeler la fonction d'audit RLS
+    const { data, error } = await db.rpc('jadomi_rls_vulnerabilities');
+    if (error) {
+      // Fallback si la fonction n'existe pas encore
+      return res.json({ warning: 'Fonction jadomi_rls_vulnerabilities non déployée. Exécutez ARMURE_RLS_GUARDIAN.sql sur Supabase.' });
+    }
+    const vulnerable = (data || []).length;
+    res.json({
+      status: vulnerable === 0 ? 'SECURE' : 'VULNERABLE',
+      vulnerable_count: vulnerable,
+      tables: data || [],
+      checked_at: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('[rls-audit]', e.message);
+    res.status(500).json({ error: 'Erreur audit RLS' });
+  }
+});
+
 // POST /api/admin/send-documents — Envoyer les dossiers par email
 app.post('/api/admin/send-documents', requireAuth(), async (req, res) => {
   try {

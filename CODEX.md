@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 19 mai 2026
-**Derniere passe** : Passe 88 (19 mai 2026) — Fourmiliere + Avocat + Visio + Copilot + Compta + Code Teams
+**Derniere mise a jour** : 20 mai 2026
+**Derniere passe** : Passe 90 (20 mai 2026) — Securite RLS urgente + Armure protection + Fix mobile organisation
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -2287,6 +2287,10 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 - [x] Audit securite massif : 221 vulns identifiees, 136 corrigees sur 50 fichiers (Passe 54)
 - [x] Infrastructure securite : headers, TLS 1.2+, UFW, backups, health check, integrite SHA-256 (Passe 54)
 - [x] Supabase RLS : 39 policies deployees et testees (Passe 54)
+- [x] Audit RLS complet : 93 tables sans RLS identifiees + SQL correctif genere (Passe 90)
+- [x] Armure RLS Guardian : event trigger auto-RLS + audit quotidien + endpoint admin (Passe 90)
+- [ ] Executer sql/security/FIX_RLS_ALL_TABLES.sql dans Supabase (93 tables)
+- [ ] Executer sql/security/ARMURE_RLS_GUARDIAN.sql dans Supabase (protection permanente)
 - [x] MFA/2FA TOTP : endpoints + dashboard + Supabase admin active (Passe 54)
 - [x] BASEPLAN v2.0 : 3 documents fondateur reecrits (Passe 54)
 - [x] Dashboard securite + documents + 2FA parametres (Passe 54)
@@ -2396,6 +2400,7 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 ===============================================================
 
 ## Bugs a corriger
+- **CRITIQUE** : 93 tables sans RLS — SQL correctif pret, attente execution (Passe 90)
 - Migration SQL 89 a verifier si executee proprement (agents_workflow)
 - UI dashboard preferences fourmiliere pas encore cree (backend only)
 - Push + SMS effectifs dans recasage auto du dispatcher (emet evenement mais pas encore les notifs reelles)
@@ -4928,7 +4933,29 @@ SECURITE CRITIQUE :
 
 **Etat disque : 89% (11 Go libres) apres nettoyage backups + npm cache**
 
+### Passe 90 (20 mai 2026) — Securite RLS urgente + Armure protection + Fix mobile organisation
+
+**Contexte : alerte Supabase "rls_disabled_in_public" recue par email**
+
+**Audit securite RLS complet :**
+- 93 tables sans RLS identifiees sur 374 (critique — donnees patients, factures, wallets exposees)
+- SQL correctif genere : sql/security/FIX_RLS_ALL_TABLES.sql (ALTER TABLE + GRANT + policies)
+- Policies intelligentes : societe_id, user_id, lecture seule, admin only selon type de table
+
+**Armure RLS Guardian (protection permanente) :**
+- sql/security/ARMURE_RLS_GUARDIAN.sql : event trigger auto-RLS sur CREATE TABLE
+- Fonctions jadomi_rls_audit() + jadomi_rls_vulnerabilities() pour scan quotidien
+- Endpoint GET /api/admin/rls-audit (server.js)
+- Script cron scripts/rls-guardian-check.js (7h03 quotidien, alerte email)
+
+**Fix bug mobile organisation.html :**
+- Probleme : .mob-menu-overlay{display:block!important} forcait overlay noir permanent
+- Tout l'ecran assombri et fige sur mobile, seul Copilot visible (z-index 99990)
+- Fix : classe .mob-menu-visible au lieu de !important, paddingTop mobile
+
+**SQL en attente d'execution (besoin mot de passe BDD ou MCP Supabase)**
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 19 mai 2026 (Passe 89 — Videos HyperFrames + Code Teams Flutter + Fixes)
+Derniere mise a jour : 20 mai 2026 (Passe 90 — Securite RLS urgente + Armure protection + Fix mobile)
 ===============================================================
