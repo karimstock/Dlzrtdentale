@@ -796,6 +796,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="showMailConnect()" class="btn bp bs" style="font-size:11px;padding:6px 14px;">+ Connecter</button>
+        <button id="btn-bulk-import-mail" onclick="showBulkImportModal()" class="btn" style="font-size:11px;padding:6px 14px;background:linear-gradient(135deg,#d4a017,#0d9488);color:#fff;border:none;border-radius:8px;cursor:pointer;display:none;">Importer mes mails</button>
       </div>
     </div>
     <div id="mail-accounts-list" style="margin-top:10px;display:none;"></div>
@@ -1826,6 +1827,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
     <div class="ar-grid">
       <a class="ar-card" href="/juridique/dashboard.html" data-kw="juridique avocat droit"><div class="ar-ico">⚖️</div><div class="ar-name">Juridique</div><div class="ar-desc">Dashboard juridique</div></a>
       <a class="ar-card" href="/juridique/clients.html" data-kw="clients juridique"><div class="ar-ico">👥</div><div class="ar-name">Clients Juridique</div><div class="ar-desc">Gestion clients</div></a>
+      <a class="ar-card" href="/avocat/dashboard" data-kw="avocat chronometre dossiers honoraires relances"><div class="ar-ico">&#9879;&#65039;</div><div class="ar-name">Espace Avocat</div><div class="ar-desc">Chrono, dossiers, honoraires</div></a>
       <a class="ar-card" href="/avocat/coffre" data-kw="avocat coffre fort documents chiffre securise"><div class="ar-ico">🔐</div><div class="ar-name">Coffre-fort Avocat</div><div class="ar-desc">Documents chiffrés AES-256</div></a>
       <a class="ar-card" href="/juridique/agenda.html" data-kw="agenda avocat rendez-vous"><div class="ar-ico">📅</div><div class="ar-name">Agenda Juridique</div><div class="ar-desc">Rendez-vous &amp; planning</div></a>
     </div>
@@ -4405,6 +4407,8 @@ async function loadMailAccounts() {
       html+='</div></div>';
     });
     el.innerHTML=html;
+    var bulkBtn=document.getElementById('btn-bulk-import-mail');
+    if(bulkBtn) bulkBtn.style.display='inline-block';
     loadMailDigest();
     loadMailInbox();
   } catch(e){console.error('[MAIL] loadAccounts error:',e);}
@@ -4485,6 +4489,9 @@ async function connectMailAccount(){
     document.getElementById('mail-connect-form').style.display='none';
     document.getElementById('mail-password').value='';
     loadMailAccounts();
+    if(data.suggest_import) {
+      showBulkImportModal(data.total_messages);
+    }
   } catch(e){
     console.error('[MAIL-CONNECT] exception:', e);
     msg.textContent='Erreur réseau : ' + e.message;
@@ -4803,7 +4810,189 @@ async function saveFourmilierePrefs(){
     toast('Préférences Fourmilière enregistrées');
   }catch(e){toast('Erreur lors de la sauvegarde');}
 }
+
+// ═══ BULK IMPORT MODAL ═══
+function showBulkImportModal(totalMails) {
+  var modal = document.getElementById('modal-bulk-import');
+  if(!modal) return;
+  // Reset state
+  document.getElementById('bulk-import-intro').style.display = 'block';
+  document.getElementById('bulk-import-progress').style.display = 'none';
+  document.getElementById('bulk-import-result').style.display = 'none';
+  document.getElementById('bulk-import-btn-start').disabled = false;
+  document.getElementById('bulk-import-btn-start').textContent = 'Lancer l\'importation';
+  // Update count
+  var countEl = document.getElementById('bulk-import-count');
+  if(countEl && totalMails) countEl.textContent = totalMails;
+  else if(countEl) countEl.textContent = 'tous vos';
+  modal.style.display = 'flex';
+}
+
+function closeBulkImportModal() {
+  var modal = document.getElementById('modal-bulk-import');
+  if(modal) modal.style.display = 'none';
+}
+
+async function startBulkImport() {
+  var btn = document.getElementById('bulk-import-btn-start');
+  btn.disabled = true;
+  btn.textContent = 'Importation en cours...';
+  document.getElementById('bulk-import-intro').style.display = 'none';
+  document.getElementById('bulk-import-progress').style.display = 'block';
+
+  var phases = [
+    { id: 'bulk-phase-1', label: 'Importation des mails...', pct: 33 },
+    { id: 'bulk-phase-2', label: 'Détection des factures...', pct: 66 },
+    { id: 'bulk-phase-3', label: 'Classification comptable...', pct: 100 }
+  ];
+  var bar = document.getElementById('bulk-import-bar');
+
+  // Phase 1 — visual
+  document.getElementById('bulk-phase-1').classList.add('bulk-phase-active');
+  bar.style.width = '10%';
+
+  try {
+    // Animate phase 1
+    bar.style.width = '33%';
+    document.getElementById('bulk-phase-1').classList.add('bulk-phase-active');
+
+    var res = await brainFetch('/mail/onboarding-scan', { method: 'POST' });
+
+    // Phase 2
+    bar.style.width = '66%';
+    document.getElementById('bulk-phase-1').classList.remove('bulk-phase-active');
+    document.getElementById('bulk-phase-1').classList.add('bulk-phase-done');
+    document.getElementById('bulk-phase-2').classList.add('bulk-phase-active');
+
+    await new Promise(function(r){ setTimeout(r, 800); });
+
+    // Phase 3
+    bar.style.width = '100%';
+    document.getElementById('bulk-phase-2').classList.remove('bulk-phase-active');
+    document.getElementById('bulk-phase-2').classList.add('bulk-phase-done');
+    document.getElementById('bulk-phase-3').classList.add('bulk-phase-active');
+
+    await new Promise(function(r){ setTimeout(r, 600); });
+    document.getElementById('bulk-phase-3').classList.remove('bulk-phase-active');
+    document.getElementById('bulk-phase-3').classList.add('bulk-phase-done');
+
+    // Show result
+    document.getElementById('bulk-import-progress').style.display = 'none';
+    document.getElementById('bulk-import-result').style.display = 'block';
+    var mails = (res && res.imported) || 0;
+    var factures = (res && res.factures) || 0;
+    var classees = (res && res.classees) || 0;
+    document.getElementById('bulk-result-text').innerHTML =
+      '<strong>' + mails + '</strong> mails importés, <strong>' + factures + '</strong> factures détectées, <strong>' + classees + '</strong> classées automatiquement.';
+
+    // Refresh lists
+    loadMailAccounts();
+  } catch(e) {
+    console.error('[BULK-IMPORT] error:', e);
+    document.getElementById('bulk-import-progress').style.display = 'none';
+    document.getElementById('bulk-import-result').style.display = 'block';
+    document.getElementById('bulk-result-text').innerHTML =
+      '<span style="color:#ef4444;">Une erreur est survenue lors de l\'importation. Veuillez réessayer.</span>';
+  }
+}
 </script>
+
+<!-- Modal Bulk Import Mails -->
+<style>
+#modal-bulk-import {
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+#modal-bulk-import .bulk-card {
+  background:var(--bg2,#1a1a2e);border:1px solid var(--border,#2a2a4a);
+  border-radius:16px;padding:32px;max-width:480px;width:90%;
+  box-shadow:0 24px 64px rgba(0,0,0,.5);
+}
+#modal-bulk-import .bulk-title {
+  font-size:18px;font-weight:700;color:var(--text,#fff);margin-bottom:8px;
+}
+#modal-bulk-import .bulk-desc {
+  font-size:14px;color:var(--text3,#888);line-height:1.6;margin-bottom:24px;
+}
+#modal-bulk-import .bulk-bar-track {
+  width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:8px;
+  overflow:hidden;margin-bottom:16px;
+}
+#modal-bulk-import .bulk-bar-fill {
+  height:100%;width:0%;border-radius:8px;
+  background:linear-gradient(90deg,#d4a017,#0d9488);
+  transition:width .8s cubic-bezier(.16,1,.3,1);
+}
+#modal-bulk-import .bulk-phase {
+  font-size:13px;color:var(--text3,#888);padding:4px 0;display:flex;align-items:center;gap:8px;
+  opacity:.4;transition:opacity .3s ease;
+}
+#modal-bulk-import .bulk-phase-active { opacity:1;color:var(--accent,#d4a017);font-weight:600; }
+#modal-bulk-import .bulk-phase-done { opacity:.7;color:#10b981; }
+#modal-bulk-import .bulk-phase-done::before { content:'\2713 '; }
+#modal-bulk-import .bulk-btns {
+  display:flex;gap:12px;justify-content:flex-end;margin-top:20px;
+}
+#modal-bulk-import .bulk-btn-primary {
+  background:linear-gradient(135deg,#d4a017,#0d9488);color:#fff;border:none;
+  padding:10px 24px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+#modal-bulk-import .bulk-btn-primary:hover { transform:translateY(-1px);box-shadow:0 4px 16px rgba(212,160,23,.3); }
+#modal-bulk-import .bulk-btn-primary:disabled { opacity:.5;cursor:not-allowed;transform:none; }
+#modal-bulk-import .bulk-btn-secondary {
+  background:transparent;border:1px solid var(--border,#2a2a4a);color:var(--text3,#888);
+  padding:10px 20px;border-radius:10px;font-size:14px;cursor:pointer;
+  transition:border-color .2s ease;
+}
+#modal-bulk-import .bulk-btn-secondary:hover { border-color:var(--text3,#888); }
+#modal-bulk-import .bulk-result {
+  background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);
+  border-radius:12px;padding:20px;text-align:center;
+}
+#modal-bulk-import .bulk-result-title {
+  font-size:16px;font-weight:700;color:#10b981;margin-bottom:8px;
+}
+</style>
+
+<div id="modal-bulk-import">
+  <div class="bulk-card">
+    <div class="bulk-title">Importation automatique de vos mails</div>
+
+    <!-- Intro -->
+    <div id="bulk-import-intro">
+      <div class="bulk-desc">
+        JADOMI peut analyser vos <strong id="bulk-import-count">0</strong> mails pour extraire automatiquement vos factures et documents importants. Cette opération prend environ 30 à 60 secondes.
+      </div>
+      <div class="bulk-btns">
+        <button class="bulk-btn-secondary" onclick="closeBulkImportModal()">Plus tard</button>
+        <button class="bulk-btn-primary" id="bulk-import-btn-start" onclick="startBulkImport()">Lancer l'importation</button>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div id="bulk-import-progress" style="display:none;">
+      <div class="bulk-bar-track"><div class="bulk-bar-fill" id="bulk-import-bar"></div></div>
+      <div class="bulk-phase" id="bulk-phase-1">Importation des mails...</div>
+      <div class="bulk-phase" id="bulk-phase-2">Détection des factures...</div>
+      <div class="bulk-phase" id="bulk-phase-3">Classification comptable...</div>
+    </div>
+
+    <!-- Result -->
+    <div id="bulk-import-result" style="display:none;">
+      <div class="bulk-result">
+        <div class="bulk-result-title">Importation terminée</div>
+        <div id="bulk-result-text" style="font-size:14px;color:var(--text,#fff);line-height:1.6;"></div>
+      </div>
+      <div class="bulk-btns" style="margin-top:16px;">
+        <button class="bulk-btn-primary" onclick="closeBulkImportModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
 
 <script>
 // ── Mobile navigation ──

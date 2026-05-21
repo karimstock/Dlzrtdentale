@@ -89,6 +89,20 @@
 .jcp-draft-body{font-size:13px;color:${TEXT};padding:10px;background:${BG3};border:1px solid ${BORDER};border-radius:8px;min-height:100px;white-space:pre-wrap;line-height:1.6;}
 .jcp-draft-body[contenteditable]{outline:none;cursor:text;}.jcp-draft-body[contenteditable]:focus{border-color:${ACCENT};}
 
+/* Bouton attachment */
+.jcp-attach-btn{width:34px;height:34px;border-radius:10px;border:1px solid ${BORDER};background:transparent;color:${TEXT2};cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}.jcp-attach-btn:hover{border-color:${ACCENT};color:${ACCENT}}.jcp-attach-btn svg{width:16px;height:16px;fill:currentColor}
+
+/* Drag-over */
+.jcp-input-area.drag-over{border-top:2px dashed ${ACCENT};background:rgba(99,102,241,.08);}
+
+/* Bandeau fichier sélectionné */
+.jcp-file-preview{display:flex;align-items:center;gap:8px;padding:6px 14px;background:${BG3};border-top:1px solid ${BORDER};font-size:12px;color:${TEXT};flex-shrink:0;}
+.jcp-file-preview-icon{width:28px;height:28px;border-radius:6px;background:rgba(99,102,241,.15);color:${ACCENT};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
+.jcp-file-preview-info{flex:1;min-width:0;overflow:hidden;}
+.jcp-file-preview-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.jcp-file-preview-size{font-size:10px;color:${TEXT2};}
+.jcp-file-preview-remove{width:22px;height:22px;border-radius:6px;border:none;background:rgba(239,68,68,.15);color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;transition:background .2s;}.jcp-file-preview-remove:hover{background:rgba(239,68,68,.3);}
+
 @media(max-width:768px){
   .jcp-panel{right:0;bottom:0;left:0;width:100%;max-height:92vh;border-radius:20px 20px 0 0;}
   .jcp-body{flex-direction:column;}
@@ -107,7 +121,8 @@
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
     send: '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>',
     mic: '<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>',
-    stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+    stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    attach: '<svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>'
   };
 
   // Auth
@@ -181,10 +196,13 @@
           '<div class="jcp-panel-side-content" id="jcp-side-content"></div>' +
         '</div>' +
       '</div>' +
-      '<div class="jcp-input-area">' +
+      '<div class="jcp-file-preview" id="jcp-file-preview" style="display:none;"></div>' +
+      '<div class="jcp-input-area" id="jcp-input-area">' +
+        '<button class="jcp-attach-btn" id="jcp-attach" title="Joindre un fichier">' + IC.attach + '</button>' +
         '<button class="jcp-mic" id="jcp-mic" title="Dicter">' + IC.mic + '</button>' +
         '<input class="jcp-input" id="jcp-input" type="text" placeholder="Demandez quelque chose..." autocomplete="off">' +
         '<button class="jcp-send" id="jcp-send">' + IC.send + '</button>' +
+        '<input type="file" id="jcp-file-input" style="display:none;" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv,.txt">' +
       '</div>';
 
     document.body.appendChild(fab);
@@ -197,9 +215,89 @@
     var sidePanel = document.getElementById('jcp-side');
     var sideContent = document.getElementById('jcp-side-content');
     var sideTitle = document.getElementById('jcp-side-title');
+    var attachBtn = document.getElementById('jcp-attach');
+    var fileInput = document.getElementById('jcp-file-input');
+    var filePreview = document.getElementById('jcp-file-preview');
+    var inputArea = document.getElementById('jcp-input-area');
     var isOpen = false, isWaiting = false;
     var ctx = detectContext();
     var currentDraft = null;
+    var selectedFile = null;
+
+    // ================================================================
+    // FILE UPLOAD + DRAG-DROP
+    // ================================================================
+    var FILE_ICONS = { pdf: 'PDF', jpg: 'IMG', jpeg: 'IMG', png: 'IMG', doc: 'DOC', docx: 'DOC', xls: 'XLS', xlsx: 'XLS', csv: 'CSV', txt: 'TXT' };
+    var ALLOWED_EXT = ['pdf','jpg','jpeg','png','doc','docx','xls','xlsx','csv','txt'];
+    var MAX_SIZE = 25 * 1024 * 1024; // 25 MB
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' o';
+      if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' Ko';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' Mo';
+    }
+
+    function getFileExt(name) {
+      var parts = (name || '').split('.');
+      return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+    }
+
+    function selectFile(file) {
+      if (!file) return;
+      var ext = getFileExt(file.name);
+      if (ALLOWED_EXT.indexOf(ext) === -1) {
+        addMsg('Type de fichier non accepté. Formats autorisés : PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, CSV, TXT.', false);
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        addMsg('Fichier trop volumineux (max 25 Mo).', false);
+        return;
+      }
+      selectedFile = file;
+      var icon = FILE_ICONS[ext] || 'FIC';
+      filePreview.innerHTML =
+        '<div class="jcp-file-preview-icon">' + esc(icon) + '</div>' +
+        '<div class="jcp-file-preview-info">' +
+          '<div class="jcp-file-preview-name">' + esc(file.name) + '</div>' +
+          '<div class="jcp-file-preview-size">' + formatFileSize(file.size) + '</div>' +
+        '</div>' +
+        '<button class="jcp-file-preview-remove" id="jcp-file-remove" title="Retirer le fichier">X</button>';
+      filePreview.style.display = 'flex';
+      document.getElementById('jcp-file-remove').onclick = clearFile;
+    }
+
+    function clearFile() {
+      selectedFile = null;
+      filePreview.style.display = 'none';
+      filePreview.innerHTML = '';
+      fileInput.value = '';
+    }
+
+    // Bouton clip → ouvre le sélecteur
+    attachBtn.onclick = function () { fileInput.click(); };
+    fileInput.onchange = function () {
+      if (fileInput.files && fileInput.files[0]) selectFile(fileInput.files[0]);
+    };
+
+    // Drag & drop sur la zone input
+    inputArea.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      inputArea.classList.add('drag-over');
+    });
+    inputArea.addEventListener('dragleave', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      inputArea.classList.remove('drag-over');
+    });
+    inputArea.addEventListener('drop', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      inputArea.classList.remove('drag-over');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        selectFile(e.dataTransfer.files[0]);
+      }
+    });
 
     // Toggle
     function toggle() {
@@ -544,11 +642,42 @@
     // ================================================================
     function send(text) {
       var msg = text || input.value.trim();
-      if (!msg || isWaiting) return;
+      if (!msg && !selectedFile) return;
+      if (isWaiting) return;
+      if (!msg) msg = 'Analyse ce fichier';
       input.value = '';
-      addMsg(esc(msg), true);
+      addMsg(esc(msg) + (selectedFile ? '<br><span style="font-size:11px;color:' + TEXT2 + ';">Fichier : ' + esc(selectedFile.name) + '</span>' : ''), true);
       isWaiting = true; sendBtn.disabled = true;
       showTyping();
+
+      // Si un fichier est sélectionné → FormData vers /api/copilot/message-with-file
+      if (selectedFile) {
+        var fd = new FormData();
+        fd.append('file', selectedFile);
+        fd.append('message', msg);
+        fd.append('context', ctx);
+        var fileHeaders = { 'Authorization': 'Bearer ' + (_cpToken || ''), 'X-Societe-Id': _cpSocieteId || '' };
+        clearFile();
+        fetch('/api/copilot/message-with-file', { method: 'POST', headers: fileHeaders, body: fd })
+          .then(function (r) { return r.ok ? r.json() : r.text().then(function (t) { throw new Error(t); }); })
+          .then(function (data) {
+            hideTyping(); isWaiting = false; sendBtn.disabled = false;
+            if (data.file_analysis) {
+              addMsg(String(data.file_analysis).replace(/\n/g, '<br>'), false);
+            }
+            if (data.reply) {
+              addMsg(String(data.reply).replace(/\n/g, '<br>'), false);
+            }
+            if (!data.file_analysis && !data.reply) {
+              addMsg('Fichier reçu et traité.', false);
+            }
+          })
+          .catch(function (e) {
+            hideTyping(); isWaiting = false; sendBtn.disabled = false;
+            addMsg('Erreur : ' + esc(e.message).substring(0, 80), false);
+          });
+        return;
+      }
 
       // Si on modifie un brouillon, injecter le contexte
       var payload = { message: msg, context: ctx };

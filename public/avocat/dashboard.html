@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI Avocat — Espace Avocat</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --creme:#FAF5EB;--or:#C9A961;--or-dim:rgba(201,169,97,.12);
+  --nuit:#0A1628;--blanc:#FFFFFF;--ink:#1a1814;--ink-s:#5C5C70;
+  --ink-d:#8E8E9E;--line:rgba(26,24,20,.08);--success:#16A34A;
+  --danger:#EF4444;--info:#3B82F6;--warning:#F59E0B;--r:12px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+body{font-family:'Inter',sans-serif;background:var(--creme);color:var(--ink);min-height:100vh;}
+.container{max-width:1080px;margin:0 auto;padding:24px 20px 80px;}
+h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margin-bottom:4px;}
+.back{font-size:13px;color:var(--ink-s);display:inline-block;margin-bottom:16px;text-decoration:none;}
+.back:hover{color:var(--or);}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0 24px;}
+.kpi{background:var(--blanc);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;transition:transform .3s var(--ease),box-shadow .3s var(--ease);}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 16px var(--or-dim);}
+.kpi-label{font-size:11px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.kpi-value{font-size:22px;font-weight:700;color:var(--nuit);}
+.kpi-sub{font-size:11px;color:var(--ink-s);margin-top:2px;}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:20px;}
+.tab{padding:10px 20px;font-size:13px;font-weight:600;color:var(--ink-d);cursor:pointer;border-bottom:2px solid transparent;transition:all .3s var(--ease);user-select:none;}
+.tab:hover{color:var(--ink);}
+.tab.active{color:var(--or);border-bottom-color:var(--or);}
+.tab-panel{display:none;animation:fadeIn .4s var(--ease);}
+.tab-panel.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* Shared */
+.card{background:var(--blanc);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px;}
+.btn{padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s var(--ease);}
+.btn-gold{background:var(--or);color:var(--blanc);}.btn-gold:hover{box-shadow:0 4px 12px var(--or-dim);}
+.btn-s{background:transparent;border:1px solid var(--line);color:var(--ink-s);padding:6px 14px;font-size:12px;}
+.btn-s:hover{border-color:var(--or);color:var(--or);}
+.btn-danger{background:rgba(239,68,68,.08);color:var(--danger);border:1px solid rgba(239,68,68,.15);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--ink-d);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;background:var(--blanc);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--or);}
+.field textarea{resize:vertical;min-height:60px;}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:10px;font-weight:600;white-space:nowrap;}
+.badge-nouveau{background:rgba(59,130,246,.1);color:var(--info);}
+.badge-en_cours{background:rgba(201,169,97,.15);color:#9A7B30;}
+.badge-mise_en_etat{background:rgba(139,92,246,.1);color:#8B5CF6;}
+.badge-audience{background:rgba(245,158,11,.1);color:var(--warning);}
+.badge-delibere{background:rgba(236,72,153,.1);color:#EC4899;}
+.badge-jugement{background:rgba(16,185,129,.1);color:#10B981;}
+.badge-appel{background:rgba(249,115,22,.1);color:#F97316;}
+.badge-execution{background:rgba(20,184,166,.1);color:#14B8A6;}
+.badge-clos{background:rgba(107,114,128,.1);color:#6B7280;}
+.badge-archive{background:rgba(107,114,128,.06);color:#9CA3AF;}
+.badge-brouillon{background:rgba(107,114,128,.1);color:#6B7280;}
+.badge-envoyee{background:rgba(59,130,246,.1);color:var(--info);}
+.badge-payee_partiel{background:rgba(245,158,11,.1);color:var(--warning);}
+.badge-payee{background:rgba(22,163,74,.1);color:var(--success);}
+.badge-annulee{background:rgba(239,68,68,.1);color:var(--danger);}
+.badge-contentieux{background:rgba(127,29,29,.12);color:#7F1D1D;}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:1px solid var(--line);}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tr:hover{background:var(--or-dim);}
+tr{cursor:default;transition:background .15s;}
+
+/* Timer */
+.timer-display{font-size:56px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--nuit);text-align:center;padding:24px 0;letter-spacing:2px;}
+.timer-display.running{animation:timerPulse 2s ease-in-out infinite;}
+@keyframes timerPulse{0%,100%{opacity:1;}50%{opacity:.7;}}
+.timer-controls{display:flex;justify-content:center;gap:12px;margin-bottom:20px;}
+.timer-meta{text-align:center;font-size:12px;color:var(--ink-s);margin-bottom:16px;}
+
+/* Filters */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+.filters input,.filters select{padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;background:var(--blanc);}
+.filters input:focus,.filters select:focus{outline:none;border-color:var(--or);}
+
+/* Side panel */
+.overlay{position:fixed;inset:0;background:rgba(10,22,40,.4);z-index:90;display:none;animation:fadeOverlay .3s var(--ease);}
+.overlay.show{display:block;}
+@keyframes fadeOverlay{from{opacity:0;}to{opacity:1;}}
+.side-panel{position:fixed;top:0;right:-460px;width:440px;max-width:90vw;height:100vh;background:var(--blanc);z-index:100;box-shadow:-8px 0 32px rgba(0,0,0,.12);transition:right .4s var(--ease);overflow-y:auto;padding:28px 24px;}
+.side-panel.open{right:0;}
+.side-panel h2{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:16px;}
+.panel-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-d);padding:4px 8px;}
+.panel-section{margin-bottom:18px;}
+.panel-section h4{font-size:11px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(10,22,40,.5);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--blanc);border-radius:var(--r);padding:28px;max-width:540px;width:90vw;max-height:85vh;overflow-y:auto;animation:modalIn .35s var(--ease);}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal h2{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;margin-bottom:16px;}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--nuit);color:var(--blanc);padding:12px 20px;border-radius:8px;font-size:13px;z-index:300;opacity:0;transition:opacity .3s var(--ease);pointer-events:none;}
+.toast.show{opacity:1;}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--ink-d);font-size:13px;}
+
+/* Toggle switch */
+.toggle{position:relative;width:36px;height:20px;display:inline-block;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle .slider{position:absolute;inset:0;background:var(--line);border-radius:20px;cursor:pointer;transition:.3s var(--ease);}
+.toggle .slider::before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;background:var(--blanc);border-radius:50%;transition:.3s var(--ease);}
+.toggle input:checked+.slider{background:var(--or);}
+.toggle input:checked+.slider::before{transform:translateX(16px);}
+
+.footer{text-align:center;padding:24px 0;font-size:11px;color:var(--ink-d);}
+
+/* Responsive */
+@media(max-width:768px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tab{white-space:nowrap;padding:10px 14px;font-size:12px;}
+  .timer-display{font-size:40px;}
+  .side-panel{width:100vw;max-width:100vw;}
+  .filters{flex-direction:column;}
+  .filters input,.filters select{width:100%;}
+  .container{padding:16px 12px 60px;}
+}
+@media(max-width:480px){
+  .kpis{grid-template-columns:1fr 1fr;}
+  .kpi-value{font-size:18px;}
+  h1{font-size:24px;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="/organisation.html" class="back" aria-label="Retour au tableau de bord">&larr; Retour au dashboard</a>
+  <h1>Espace Avocat</h1>
+  <p style="font-size:13px;color:var(--ink-s);margin-bottom:8px;">Gestion de votre activité — Chronomètre, dossiers, honoraires et relances.</p>
+
+  <!-- KPIs -->
+  <div class="kpis" id="kpis">
+    <div class="kpi"><div class="kpi-label">CA du mois</div><div class="kpi-value" id="kpi-ca">--</div></div>
+    <div class="kpi"><div class="kpi-label">Taux d'encaissement</div><div class="kpi-value" id="kpi-encaissement">--</div></div>
+    <div class="kpi"><div class="kpi-label">Dossiers actifs</div><div class="kpi-value" id="kpi-dossiers">--</div></div>
+    <div class="kpi"><div class="kpi-label">Heures facturables</div><div class="kpi-value" id="kpi-heures">--</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" role="tablist">
+    <div class="tab active" data-tab="chrono" role="tab" aria-selected="true">Chronomètre</div>
+    <div class="tab" data-tab="dossiers" role="tab" aria-selected="false">Mes Dossiers</div>
+    <div class="tab" data-tab="honoraires" role="tab" aria-selected="false">Honoraires</div>
+    <div class="tab" data-tab="relances" role="tab" aria-selected="false">Relances</div>
+  </div>
+
+  <!-- TAB 1: Chronometre -->
+  <div class="tab-panel active" id="panel-chrono">
+    <div class="card">
+      <div class="timer-display" id="timer-display">00:00:00</div>
+      <div class="timer-meta" id="timer-meta"></div>
+      <div class="timer-controls">
+        <div class="field" style="margin:0;width:200px;">
+          <select id="timer-dossier" aria-label="Sélectionner un dossier">
+            <option value="">-- Dossier --</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" id="btn-timer" onclick="toggleTimer()">Demarrer</button>
+      </div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="btn btn-s" onclick="openManualEntry()">+ Saisie manuelle</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">Dernières saisies</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Dossier</th><th>Description</th><th>Duree</th><th>Montant</th><th>Facturable</th><th></th></tr></thead>
+          <tbody id="entries-body"><tr><td colspan="7" class="empty">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Mes Dossiers -->
+  <div class="tab-panel" id="panel-dossiers">
+    <div class="filters">
+      <input type="text" id="filter-search" placeholder="Rechercher..." aria-label="Rechercher un dossier" style="flex:1;min-width:160px;">
+      <select id="filter-etape" aria-label="Filtrer par etape">
+        <option value="">Toutes les etapes</option>
+        <option value="nouveau">Nouveau</option>
+        <option value="en_cours">En cours</option>
+        <option value="mise_en_etat">Mise en état</option>
+        <option value="audience">Audience</option>
+        <option value="delibere">Délibéré</option>
+        <option value="jugement">Jugement</option>
+        <option value="appel">Appel</option>
+        <option value="execution">Exécution</option>
+        <option value="clos">Clos</option>
+        <option value="archive">Archive</option>
+      </select>
+      <select id="filter-domaine" aria-label="Filtrer par domaine">
+        <option value="">Tous les domaines</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Reference</th><th>Titre</th><th>Client</th><th>Domaine</th><th>Etape</th><th>Ouverture</th><th>Taux h.</th></tr></thead>
+          <tbody id="dossiers-body"><tr><td colspan="7" class="empty">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: Honoraires -->
+  <div class="tab-panel" id="panel-honoraires">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:700;">Notes d'honoraires</h3>
+      <button class="btn btn-gold" onclick="openGenererHonoraires()">Générer une note</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Numero</th><th>Client</th><th>Dossier</th><th>Date</th><th>Total TTC</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="honoraires-body"><tr><td colspan="7" class="empty">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: Relances -->
+  <div class="tab-panel" id="panel-relances">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:700;">Factures en retard</h3>
+      <button class="btn btn-gold" onclick="lancerRelances()">Lancer les relances auto</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Client</th><th>Note</th><th>Montant du</th><th>Jours de retard</th><th>Niveau</th><th>Derniere relance</th></tr></thead>
+          <tbody id="relances-body"><tr><td colspan="6" class="empty">Chargement...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">JADOMI Avocat &mdash; Espace confidentiel</div>
+</div>
+
+<!-- Side Panel (dossier detail) -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="side-panel" id="side-panel" role="dialog" aria-label="Detail du dossier">
+  <button class="panel-close" onclick="closePanel()" aria-label="Fermer">&times;</button>
+  <div id="panel-content"></div>
+</div>
+
+<!-- Modal: Saisie manuelle -->
+<div class="modal-bg" id="modal-manual" onclick="if(event.target===this)closeModal('modal-manual')">
+  <div class="modal">
+    <h2>Saisie manuelle</h2>
+    <div class="field"><label>Dossier</label><select id="manual-dossier"></select></div>
+    <div class="field"><label>Description</label><textarea id="manual-desc" placeholder="Description de la prestation..."></textarea></div>
+    <div style="display:flex;gap:12px;">
+      <div class="field" style="flex:1;"><label>Duree (minutes)</label><input type="number" id="manual-duree" min="1" value="30"></div>
+      <div class="field" style="flex:1;"><label>Date</label><input type="date" id="manual-date"></div>
+    </div>
+    <div class="field"><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;"><input type="checkbox" id="manual-facturable" checked> Facturable</label></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-s" onclick="closeModal('modal-manual')">Annuler</button>
+      <button class="btn btn-gold" onclick="submitManualEntry()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Generer honoraires -->
+<div class="modal-bg" id="modal-honoraires" onclick="if(event.target===this)closeModal('modal-honoraires')">
+  <div class="modal">
+    <h2>Générer une note d'honoraires</h2>
+    <div class="field"><label>Dossier</label><select id="hon-dossier"></select></div>
+    <div style="display:flex;gap:12px;">
+      <div class="field" style="flex:1;"><label>Debut de periode</label><input type="date" id="hon-debut"></div>
+      <div class="field" style="flex:1;"><label>Fin de periode</label><input type="date" id="hon-fin"></div>
+    </div>
+    <div class="field"><label>Lignes supplementaires (optionnel)</label><textarea id="hon-lignes" placeholder="Ex: Consultation telephonique - 150 EUR"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-s" onclick="closeModal('modal-honoraires')">Annuler</button>
+      <button class="btn btn-gold" onclick="submitGenererHonoraires()">Generer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========== CONFIG ========== */
+var API = '';
+var timerInterval = null;
+var timerStart = null;
+var timerRunning = false;
+var timerEntryId = null;
+var allDossiers = [];
+var allDomaines = [];
+
+function getHeaders() {
+  var token = localStorage.getItem('sb-token') || localStorage.getItem('supabase_token');
+  var societeId = localStorage.getItem('societe_id');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + (token || ''),
+    'X-Societe-Id': societeId || ''
+  };
+}
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+function formatDuration(seconds) {
+  var h = Math.floor(seconds / 3600);
+  var m = Math.floor((seconds % 3600) / 60);
+  var s = Math.floor(seconds % 60);
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function formatDate(d) {
+  if (!d) return '--';
+  try { return new Date(d).toLocaleDateString('fr-FR'); } catch (e) { return d; }
+}
+
+function formatMoney(v) {
+  if (v == null) return '--';
+  return Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' EUR';
+}
+
+function etapeLabel(e) {
+  var map = {
+    nouveau: 'Nouveau', en_cours: 'En cours', mise_en_etat: 'Mise en état',
+    audience: 'Audience', delibere: 'Délibéré', jugement: 'Jugement',
+    appel: 'Appel', execution: 'Exécution', clos: 'Clos', archive: 'Archive'
+  };
+  return map[e] || e || '--';
+}
+
+function statutLabel(s) {
+  var map = {
+    brouillon: 'Brouillon', envoyee: 'Envoyee', payee_partiel: 'Paiement partiel',
+    payee: 'Payee', annulee: 'Annulee', contentieux: 'Contentieux'
+  };
+  return map[s] || s || '--';
+}
+
+/* ========== TABS ========== */
+document.querySelectorAll('.tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    tab.setAttribute('aria-selected', 'true');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* ========== FETCH HELPERS ========== */
+function apiFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign(getHeaders(), opts.headers || {});
+  return fetch(API + url, opts).then(function(r) {
+    if (!r.ok) throw new Error('Erreur ' + r.status);
+    return r.json();
+  });
+}
+
+/* ========== LOAD KPIs ========== */
+function loadKPIs() {
+  apiFetch('/api/avocat/dashboard/stats').then(function(data) {
+    var s = data.stats || data;
+    document.getElementById('kpi-ca').textContent = s.ca_mois != null ? formatMoney(s.ca_mois) : '--';
+    document.getElementById('kpi-encaissement').textContent = s.taux_encaissement != null ? Math.round(s.taux_encaissement) + ' %' : '--';
+    document.getElementById('kpi-dossiers').textContent = s.dossiers_actifs != null ? s.dossiers_actifs : '--';
+    document.getElementById('kpi-heures').textContent = s.heures_facturables != null ? Number(s.heures_facturables).toFixed(1) + ' h' : '--';
+  }).catch(function() {
+    document.getElementById('kpi-ca').textContent = '--';
+  });
+}
+
+/* ========== LOAD DOSSIERS (shared) ========== */
+function loadDossiersDropdowns() {
+  apiFetch('/api/avocat/coffre/dossiers').then(function(data) {
+    var list = data.dossiers || data || [];
+    allDossiers = list;
+    var selects = ['timer-dossier', 'manual-dossier', 'hon-dossier'];
+    selects.forEach(function(id) {
+      var sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Dossier --</option>';
+      list.forEach(function(d) {
+        var o = document.createElement('option');
+        o.value = d.id;
+        o.textContent = (d.reference || '') + ' - ' + (d.titre || d.title || 'Sans titre');
+        sel.appendChild(o);
+      });
+    });
+  }).catch(function() {});
+}
+
+/* ========== CHRONOMETRE ========== */
+function checkRunningTimer() {
+  apiFetch('/api/avocat/time/running').then(function(data) {
+    var entry = data.entry || data;
+    if (entry && entry.id && !entry.end_time) {
+      timerRunning = true;
+      timerEntryId = entry.id;
+      timerStart = new Date(entry.start_time);
+      document.getElementById('btn-timer').textContent = 'Arreter';
+      document.getElementById('timer-display').classList.add('running');
+      if (entry.dossier_id) document.getElementById('timer-dossier').value = entry.dossier_id;
+      document.getElementById('timer-meta').textContent = 'Chronometre en cours depuis ' + timerStart.toLocaleTimeString('fr-FR');
+      startTimerDisplay();
+    }
+  }).catch(function() {});
+}
+
+function startTimerDisplay() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(function() {
+    var elapsed = Math.floor((Date.now() - timerStart.getTime()) / 1000);
+    document.getElementById('timer-display').textContent = formatDuration(elapsed);
+  }, 1000);
+}
+
+function toggleTimer() {
+  if (timerRunning) {
+    stopTimer();
+  } else {
+    startTimer();
+  }
+}
+
+function startTimer() {
+  var dossierId = document.getElementById('timer-dossier').value;
+  if (!dossierId) { toast('Veuillez sélectionner un dossier.'); return; }
+  apiFetch('/api/avocat/time/start', {
+    method: 'POST',
+    body: JSON.stringify({ dossier_id: dossierId })
+  }).then(function(data) {
+    var entry = data.entry || data;
+    timerRunning = true;
+    timerEntryId = entry.id;
+    timerStart = new Date(entry.start_time || Date.now());
+    document.getElementById('btn-timer').textContent = 'Arreter';
+    document.getElementById('timer-display').classList.add('running');
+    document.getElementById('timer-meta').textContent = 'Chronomètre démarré';
+    startTimerDisplay();
+    toast('Chronomètre démarré.');
+  }).catch(function() { toast('Erreur au demarrage du chronometre.'); });
+}
+
+function stopTimer() {
+  apiFetch('/api/avocat/time/stop', {
+    method: 'POST',
+    body: JSON.stringify({ entry_id: timerEntryId })
+  }).then(function() {
+    timerRunning = false;
+    timerEntryId = null;
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('btn-timer').textContent = 'Demarrer';
+    document.getElementById('timer-display').classList.remove('running');
+    document.getElementById('timer-meta').textContent = 'Chronomètre arrêté.';
+    toast('Chronomètre arrêté. Saisie enregistrée.');
+    loadEntries();
+    loadKPIs();
+  }).catch(function() { toast('Erreur lors de l\'arret du chronometre.'); });
+}
+
+function loadEntries() {
+  apiFetch('/api/avocat/time/entries').then(function(data) {
+    var entries = data.entries || data || [];
+    var tbody = document.getElementById('entries-body');
+    if (!entries.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucune saisie pour le moment.</td></tr>'; return; }
+    tbody.innerHTML = entries.map(function(e) {
+      var dur = e.duration_minutes ? e.duration_minutes + ' min' : '--';
+      var montant = e.amount != null ? formatMoney(e.amount) : '--';
+      var checked = e.billable !== false ? 'checked' : '';
+      return '<tr>' +
+        '<td>' + formatDate(e.start_time || e.date || e.created_at) + '</td>' +
+        '<td style="font-size:12px;">' + (e.dossier_reference || e.dossier_titre || '--') + '</td>' +
+        '<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (e.description || '--') + '</td>' +
+        '<td>' + dur + '</td>' +
+        '<td>' + montant + '</td>' +
+        '<td><label class="toggle"><input type="checkbox" ' + checked + ' onchange="toggleBillable(\'' + e.id + '\',this.checked)"><span class="slider"></span></label></td>' +
+        '<td><button class="btn btn-s" style="padding:4px 8px;font-size:11px;" onclick="deleteEntry(\'' + e.id + '\')">Supprimer</button></td>' +
+        '</tr>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('entries-body').innerHTML = '<tr><td colspan="7" class="empty">Impossible de charger les saisies.</td></tr>';
+  });
+}
+
+function toggleBillable(id, val) {
+  apiFetch('/api/avocat/time/entries/' + id, {
+    method: 'PATCH',
+    body: JSON.stringify({ billable: val })
+  }).then(function() {
+    toast(val ? 'Saisie marquée comme facturable.' : 'Saisie marquée non facturable.');
+  }).catch(function() { toast('Erreur de mise a jour.'); });
+}
+
+function deleteEntry(id) {
+  if (!confirm('Voulez-vous supprimer cette saisie ?')) return;
+  apiFetch('/api/avocat/time/entries/' + id, { method: 'DELETE' }).then(function() {
+    toast('Saisie supprimée.');
+    loadEntries();
+    loadKPIs();
+  }).catch(function() { toast('Erreur lors de la suppression.'); });
+}
+
+/* Manual entry */
+function openManualEntry() {
+  document.getElementById('manual-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('manual-desc').value = '';
+  document.getElementById('manual-duree').value = '30';
+  document.getElementById('manual-facturable').checked = true;
+  document.getElementById('modal-manual').classList.add('show');
+}
+
+function submitManualEntry() {
+  var dossierId = document.getElementById('manual-dossier').value;
+  var desc = document.getElementById('manual-desc').value.trim();
+  var duree = parseInt(document.getElementById('manual-duree').value, 10);
+  var date = document.getElementById('manual-date').value;
+  var facturable = document.getElementById('manual-facturable').checked;
+  if (!dossierId) { toast('Veuillez sélectionner un dossier.'); return; }
+  if (!duree || duree < 1) { toast('Veuillez indiquer une duree valide.'); return; }
+  apiFetch('/api/avocat/time/entries', {
+    method: 'POST',
+    body: JSON.stringify({ dossier_id: dossierId, description: desc, duration_minutes: duree, date: date, billable: facturable })
+  }).then(function() {
+    closeModal('modal-manual');
+    toast('Saisie manuelle enregistrée.');
+    loadEntries();
+    loadKPIs();
+  }).catch(function() { toast('Erreur lors de l\'enregistrement.'); });
+}
+
+/* ========== DOSSIERS ========== */
+var pipelineData = [];
+function loadPipeline() {
+  apiFetch('/api/avocat/workflow/pipeline').then(function(data) {
+    pipelineData = data.dossiers || data || [];
+    collectDomaines(pipelineData);
+    renderDossiers();
+  }).catch(function() {
+    document.getElementById('dossiers-body').innerHTML = '<tr><td colspan="7" class="empty">Impossible de charger les dossiers.</td></tr>';
+  });
+}
+
+function collectDomaines(list) {
+  var set = {};
+  list.forEach(function(d) { if (d.domaine) set[d.domaine] = 1; });
+  allDomaines = Object.keys(set).sort();
+  var sel = document.getElementById('filter-domaine');
+  sel.innerHTML = '<option value="">Tous les domaines</option>';
+  allDomaines.forEach(function(dom) {
+    var o = document.createElement('option');
+    o.value = dom;
+    o.textContent = dom.charAt(0).toUpperCase() + dom.slice(1);
+    sel.appendChild(o);
+  });
+}
+
+function renderDossiers() {
+  var search = document.getElementById('filter-search').value.toLowerCase();
+  var etape = document.getElementById('filter-etape').value;
+  var domaine = document.getElementById('filter-domaine').value;
+  var filtered = pipelineData.filter(function(d) {
+    if (etape && d.etape !== etape) return false;
+    if (domaine && d.domaine !== domaine) return false;
+    if (search) {
+      var haystack = ((d.reference || '') + ' ' + (d.titre || d.title || '') + ' ' + (d.client_nom || '') + ' ' + (d.domaine || '')).toLowerCase();
+      if (haystack.indexOf(search) === -1) return false;
+    }
+    return true;
+  });
+  var tbody = document.getElementById('dossiers-body');
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucun dossier ne correspond aux filtres.</td></tr>'; return; }
+  tbody.innerHTML = filtered.map(function(d) {
+    return '<tr onclick="openDossierPanel(\'' + d.id + '\')" style="cursor:pointer;">' +
+      '<td style="font-weight:600;font-size:12px;">' + (d.reference || '--') + '</td>' +
+      '<td>' + (d.titre || d.title || '--') + '</td>' +
+      '<td style="font-size:12px;">' + (d.client_nom || '--') + '</td>' +
+      '<td style="font-size:12px;">' + (d.domaine || '--') + '</td>' +
+      '<td><span class="badge badge-' + (d.etape || 'nouveau') + '">' + etapeLabel(d.etape) + '</span></td>' +
+      '<td style="font-size:12px;">' + formatDate(d.date_ouverture || d.created_at) + '</td>' +
+      '<td style="font-size:12px;">' + (d.taux_horaire ? d.taux_horaire + ' EUR/h' : '--') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+document.getElementById('filter-search').addEventListener('input', renderDossiers);
+document.getElementById('filter-etape').addEventListener('change', renderDossiers);
+document.getElementById('filter-domaine').addEventListener('change', renderDossiers);
+
+/* Dossier side panel */
+function openDossierPanel(id) {
+  var d = pipelineData.find(function(x) { return x.id === id; });
+  if (!d) return;
+  var etapes = ['nouveau','en_cours','mise_en_etat','audience','delibere','jugement','appel','execution','clos','archive'];
+  var html = '<h2>' + (d.titre || d.title || 'Dossier') + '</h2>' +
+    '<div class="panel-section"><h4>Informations</h4>' +
+    '<p style="font-size:13px;margin-bottom:4px;"><strong>Reference :</strong> ' + (d.reference || '--') + '</p>' +
+    '<p style="font-size:13px;margin-bottom:4px;"><strong>Client :</strong> ' + (d.client_nom || '--') + '</p>' +
+    '<p style="font-size:13px;margin-bottom:4px;"><strong>Domaine :</strong> ' + (d.domaine || '--') + '</p>' +
+    '<p style="font-size:13px;margin-bottom:4px;"><strong>Taux horaire :</strong> ' + (d.taux_horaire ? d.taux_horaire + ' EUR/h' : '--') + '</p>' +
+    '<p style="font-size:13px;margin-bottom:4px;"><strong>Ouverture :</strong> ' + formatDate(d.date_ouverture || d.created_at) + '</p>' +
+    '</div>' +
+    '<div class="panel-section"><h4>Etape actuelle</h4>' +
+    '<p style="margin-bottom:10px;"><span class="badge badge-' + (d.etape || 'nouveau') + '">' + etapeLabel(d.etape) + '</span></p>' +
+    '<div class="field"><label>Changer l\'etape</label><select id="panel-etape" style="width:100%;">' +
+    etapes.map(function(e) { return '<option value="' + e + '"' + (e === d.etape ? ' selected' : '') + '>' + etapeLabel(e) + '</option>'; }).join('') +
+    '</select></div>' +
+    '<button class="btn btn-gold" style="width:100%;" onclick="changeEtape(\'' + d.id + '\')">Mettre a jour l\'etape</button>' +
+    '</div>' +
+    '<div class="panel-section" id="panel-deadlines"><h4>Echeances</h4><p class="empty" style="font-size:12px;">Chargement...</p></div>';
+  document.getElementById('panel-content').innerHTML = html;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('side-panel').classList.add('open');
+  loadDeadlines(id);
+}
+
+function loadDeadlines(dossierId) {
+  apiFetch('/api/avocat/workflow/deadlines').then(function(data) {
+    var deadlines = (data.deadlines || data || []).filter(function(dl) { return dl.dossier_id === dossierId; });
+    var container = document.getElementById('panel-deadlines');
+    if (!deadlines.length) {
+      container.innerHTML = '<h4>Echeances</h4><p style="font-size:12px;color:var(--ink-d);">Aucune echeance pour ce dossier.</p>';
+      return;
+    }
+    container.innerHTML = '<h4>Echeances</h4>' + deadlines.map(function(dl) {
+      var isPast = dl.date_echeance && new Date(dl.date_echeance) < new Date();
+      return '<div style="padding:8px 12px;border-left:3px solid ' + (isPast ? 'var(--danger)' : 'var(--or)') + ';margin:6px 0;font-size:12px;">' +
+        '<strong>' + formatDate(dl.date_echeance) + '</strong> — ' + (dl.description || dl.type || 'Echeance') +
+        '</div>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('panel-deadlines').innerHTML = '<h4>Echeances</h4><p style="font-size:12px;color:var(--danger);">Erreur de chargement.</p>';
+  });
+}
+
+function changeEtape(id) {
+  var newEtape = document.getElementById('panel-etape').value;
+  apiFetch('/api/avocat/workflow/dossiers/' + id + '/etape', {
+    method: 'PATCH',
+    body: JSON.stringify({ etape: newEtape })
+  }).then(function() {
+    toast('Étape mise à jour.');
+    closePanel();
+    loadPipeline();
+  }).catch(function() { toast('Erreur lors du changement d\'etape.'); });
+}
+
+function closePanel() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('side-panel').classList.remove('open');
+}
+
+/* ========== HONORAIRES ========== */
+function loadHonoraires() {
+  apiFetch('/api/avocat/honoraires').then(function(data) {
+    var list = data.honoraires || data || [];
+    var tbody = document.getElementById('honoraires-body');
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucune note d\'honoraires.</td></tr>'; return; }
+    tbody.innerHTML = list.map(function(h) {
+      return '<tr>' +
+        '<td style="font-weight:600;font-size:12px;">' + (h.numero || '--') + '</td>' +
+        '<td style="font-size:12px;">' + (h.client_nom || '--') + '</td>' +
+        '<td style="font-size:12px;">' + (h.dossier_reference || h.dossier_titre || '--') + '</td>' +
+        '<td style="font-size:12px;">' + formatDate(h.date_emission || h.created_at) + '</td>' +
+        '<td style="font-weight:600;">' + formatMoney(h.total_ttc) + '</td>' +
+        '<td><span class="badge badge-' + (h.statut || 'brouillon') + '">' + statutLabel(h.statut) + '</span></td>' +
+        '<td><select class="btn-s" style="font-size:11px;padding:4px 8px;border-radius:6px;" onchange="changeStatutHonoraires(\'' + h.id + '\',this.value)">' +
+        ['brouillon','envoyee','payee_partiel','payee','annulee','contentieux'].map(function(s) {
+          return '<option value="' + s + '"' + (s === h.statut ? ' selected' : '') + '>' + statutLabel(s) + '</option>';
+        }).join('') +
+        '</select></td>' +
+        '</tr>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('honoraires-body').innerHTML = '<tr><td colspan="7" class="empty">Impossible de charger les honoraires.</td></tr>';
+  });
+}
+
+function changeStatutHonoraires(id, statut) {
+  apiFetch('/api/avocat/honoraires/' + id + '/statut', {
+    method: 'PATCH',
+    body: JSON.stringify({ statut: statut })
+  }).then(function() {
+    toast('Statut mis à jour.');
+    loadHonoraires();
+    loadKPIs();
+  }).catch(function() { toast('Erreur lors du changement de statut.'); });
+}
+
+function openGenererHonoraires() {
+  var today = new Date();
+  var debut = new Date(today.getFullYear(), today.getMonth(), 1);
+  document.getElementById('hon-debut').value = debut.toISOString().slice(0, 10);
+  document.getElementById('hon-fin').value = today.toISOString().slice(0, 10);
+  document.getElementById('hon-lignes').value = '';
+  document.getElementById('modal-honoraires').classList.add('show');
+}
+
+function submitGenererHonoraires() {
+  var dossierId = document.getElementById('hon-dossier').value;
+  var debut = document.getElementById('hon-debut').value;
+  var fin = document.getElementById('hon-fin').value;
+  var lignes = document.getElementById('hon-lignes').value.trim();
+  if (!dossierId) { toast('Veuillez sélectionner un dossier.'); return; }
+  if (!debut || !fin) { toast('Veuillez indiquer la periode.'); return; }
+  var body = { dossier_id: dossierId, date_debut: debut, date_fin: fin };
+  if (lignes) body.lignes_supplementaires = lignes;
+  apiFetch('/api/avocat/honoraires/generate', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  }).then(function() {
+    closeModal('modal-honoraires');
+    toast('Note d\'honoraires générée.');
+    loadHonoraires();
+    loadKPIs();
+  }).catch(function() { toast('Erreur lors de la generation.'); });
+}
+
+/* ========== RELANCES ========== */
+function loadRelances() {
+  apiFetch('/api/avocat/relances/pending').then(function(data) {
+    var list = data.relances || data || [];
+    var tbody = document.getElementById('relances-body');
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Aucune facture en retard. Félicitations.</td></tr>'; return; }
+    tbody.innerHTML = list.map(function(r) {
+      var niveauColor = r.jours_retard > 60 ? 'var(--danger)' : r.jours_retard > 30 ? 'var(--warning)' : 'var(--info)';
+      return '<tr>' +
+        '<td style="font-size:12px;">' + (r.client_nom || '--') + '</td>' +
+        '<td style="font-size:12px;">' + (r.honoraire_numero || r.note_numero || '--') + '</td>' +
+        '<td style="font-weight:600;">' + formatMoney(r.montant_du || r.montant) + '</td>' +
+        '<td style="font-weight:600;color:' + niveauColor + ';">' + (r.jours_retard || '--') + ' j</td>' +
+        '<td><span class="badge" style="background:rgba(0,0,0,.06);">Niveau ' + (r.niveau || r.niveau_relance || 1) + '</span></td>' +
+        '<td style="font-size:12px;">' + formatDate(r.derniere_relance || r.updated_at) + '</td>' +
+        '</tr>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('relances-body').innerHTML = '<tr><td colspan="6" class="empty">Impossible de charger les relances.</td></tr>';
+  });
+}
+
+function lancerRelances() {
+  if (!confirm('Voulez-vous lancer les relances automatiques pour toutes les factures en retard ?')) return;
+  apiFetch('/api/avocat/relances/check', { method: 'POST' }).then(function(data) {
+    var count = data.relances_envoyees || data.count || 0;
+    toast(count + ' relance(s) envoyée(s).');
+    loadRelances();
+  }).catch(function() { toast('Erreur lors de l\'envoi des relances.'); });
+}
+
+/* ========== MODAL ========== */
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+/* ========== INIT ========== */
+function init() {
+  try {
+    loadKPIs();
+    loadDossiersDropdowns();
+    checkRunningTimer();
+    loadEntries();
+    loadPipeline();
+    loadHonoraires();
+    loadRelances();
+  } catch (e) {
+    console.error('Erreur d\'initialisation :', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
