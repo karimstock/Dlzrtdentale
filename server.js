@@ -297,7 +297,8 @@ app.get('/communaute', (req, res) => res.sendFile(path.join(__dirname, 'public/s
 // JADOMI Equipment — Offres groupees (Passe 59)
 app.get('/equipment/offres', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/offres.html')));
 app.get('/equipment/propose', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/propose.html')));
-// JADOMI Avocat Expert - Coffre-fort (Passe 44C)
+// JADOMI Avocat Expert - Coffre-fort (Passe 44C) + Dashboard (Passe 92)
+app.get('/avocat/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/dashboard.html')));
 app.get('/avocat/coffre', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/coffre.html')));
 app.get('/espace-client', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
 app.get('/espace-client/', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
@@ -1112,6 +1113,26 @@ try {
   app.use('/api/avocat/dashboard', require('./api/avocat/dashboard'));
   console.log('[JADOMI] Module Avocat Dashboard monte');
 } catch (e) { console.warn('[JADOMI] Avocat Dashboard non charge:', e.message); }
+// Avocat — Legal Engine (Pièces, Upload, Analyse IA) — Passe 92
+try {
+  const multer = require('multer');
+  const avocatUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      cb(null, allowed.includes(file.mimetype));
+    }
+  });
+  const legalEngine = require('./api/avocat/legal-engine');
+  app.use('/api/avocat/legal', (req, res, next) => { req.avocatUpload = avocatUpload; next(); }, legalEngine);
+  console.log('[JADOMI] Module Avocat Legal Engine (upload + analyse IA) monte');
+} catch (e) { console.warn('[JADOMI] Avocat Legal Engine non charge:', e.message); }
+// Avocat — Analyses IA avancees (timeline, contradictions, pieces manquantes, resume, audience)
+try {
+  app.use('/api/avocat/analyses', require('./api/avocat/analyses'));
+  console.log('[JADOMI] Module Avocat Analyses IA monte');
+} catch (e) { console.warn('[JADOMI] Avocat Analyses non charge:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
