@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 20 mai 2026
-**Derniere passe** : Passe 91 (20 mai 2026) — 12 templates Awwwards + Stripe + OVH + audit complet + Copilot ameliore
+**Derniere mise a jour** : 21 mai 2026
+**Derniere passe** : Passe 92 (21 mai 2026) — Jadomi Legal Engine complet + Dashboard Avocat 12 onglets + Flutter + Copilot Headless
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4990,15 +4990,71 @@ INFRA :
 - Agent briefing cree (.claude/agent-briefing.md) pour que les sous-agents aient le contexte JADOMI
 - Briefing enregistre en memoire pour toutes les futures sessions
 
-A FAIRE (Passe 92+) :
-- Exploded view : remplacer formes CSS par vraies images NanoBanana (vis, pilier, couronne)
+### Passe 92 (21 mai 2026) — Jadomi Legal Engine + Dashboard Avocat + Flutter + Copilot Headless
+
+**Matin (11h-16h) — Passe 92a :**
+- Dashboard Avocat initial : 4→8 onglets (+ Coffre-fort, Visio, Espace Client, Assistant IA)
+- Copilot upload fichier + onboarding bulk import
+- Images realistes Gemini exploded view implant (vis, pilier, couronne, coupe anatomique)
+- App Flutter refonte : splash, navigation MapLibre, tournee IDE, login, home drawer
+- Configuration IA (ex-Fourmiliere) dans Parametres Flutter
+- Copilot Unifie + Claude Code Headless Sonnet + streaming SSE + fix 502/400
+
+**Apres-midi (19h40) — Passe 92b :**
+- Dashboard Avocat : chatbot IA juridique integre (prompts IRAC, citations colorees)
+- Fix IDE planning : JOIN ide_patients pour noms/adresses
+- Accents corriges, tabs scrollables mobile
+
+**Soir (21h-22h) — Passe 92c : JADOMI LEGAL ENGINE (Code Teams 5 builders) :**
+
+SQL (6 tables, RLS, GRANT, indexes) :
+- avocat_pieces : documents rattaches aux dossiers (14 types, OCR, importance)
+- avocat_analyses : analyses IA structurees (7 types, score confiance, JSON)
+- avocat_timeline_events : chronologie auto (13 types evenements)
+- avocat_contradictions : detection incoherences (6 types, gravite, actions)
+- avocat_pieces_manquantes : pieces suggerees par l'IA
+- avocat_audit_logs : tracabilite complete
+
+Backend (15 endpoints, 2 fichiers) :
+- api/avocat/legal-engine.js : upload pieces multer 25MB, extraction PDF, appel Claude structure
+- api/avocat/analyses.js : timeline auto, contradictions, pieces manquantes, resume, audience
+
+Dashboard UI refonte premium (1179→2028 lignes, 12 onglets) :
+- Design Awwwards : gradient header SVG, multi-layer shadows, gold accents
+- 8 onglets existants conserves intacts
+- 4 nouveaux : Pieces (drag-drop), Timeline (frise verticale), Risques (score SVG), Audience (print)
+- Garde-fou juridique permanent sur chaque onglet IA
+- Badges confiance vert/orange/rouge
+
+- Couronne zircone implant : image Gemini remplacee (vraie prothese, pas dent naturelle)
+- server.js : 2 routes montees (Legal Engine + Analyses IA) + route /avocat/dashboard
+
+**Fichiers crees/modifies :**
+- sql/juridique/02_legal_engine.sql (266L)
+- api/avocat/legal-engine.js (660L)
+- api/avocat/analyses.js (468L)
+- public/avocat/dashboard.html (2028L)
+- server.js (+18L)
+- public/assets/images/implant/couronne-zircone.png (remplacee)
+
+### Bugs connus apres Passe 92
+- Exploded view implant : couronne OK mais animation scroll a polir (non prioritaire)
+- Visio dans dashboard avocat : placeholder, pas branchee sur vrai service (Jitsi/Daily.co)
+- OCR images : marque qualite_ocr='faible', Claude Vision en phase 2
+- Bucket Supabase Storage 'avocat-pieces' : a creer manuellement si pas existant
+
+A FAIRE (Passe 93+) :
 - IoT : brancher Home Assistant + Hikvision quand fondateur est au cabinet
 - OVH production : creer compte partenaire, ajouter cles API
 - Stripe production : switch cles test → live
 - Generer photos metier (avocat, BTP, beaute, immo) via NanoBanana/Gemini
+- Visio avocat : brancher sur Jitsi ou Daily.co
+- OCR Claude Vision pour les scans/images uploadees
+- Anonymisation des donnees avant appel IA (option toggle)
+- Bucket Supabase Storage 'avocat-pieces' a creer
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 20 mai 2026 (Passe 91 — Templates Awwwards + Stripe + OVH + audit complet)
+Derniere mise a jour : 21 mai 2026 (Passe 92 — Jadomi Legal Engine + Dashboard Avocat 12 onglets)
 ===============================================================
 ===============================================================
