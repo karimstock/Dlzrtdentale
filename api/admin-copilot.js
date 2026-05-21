@@ -9,7 +9,7 @@ const { execFile } = require('child_process');
 const { createClient } = require('@supabase/supabase-js');
 
 const ADMIN_EMAIL = 'karim_bahmed@yahoo.fr';
-const MAX_BUDGET = 1.00; // $1 max par requête
+const MAX_BUDGET = 5.00; // Sécurité anti-boucle (inclus dans l'abonnement Max)
 const TIMEOUT_MS = 120000; // 2 min max
 
 let _admin = null;
@@ -90,6 +90,7 @@ function runClaudeCode(prompt) {
       '--max-budget-usd', String(MAX_BUDGET),
       '--dangerously-skip-permissions',
       '--no-session-persistence',
+      '--model', 'sonnet', // Sonnet = 5x plus rapide qu'Opus, suffisant pour les commandes admin
     ];
 
     const child = execFile('claude', args, {
