@@ -9803,8 +9803,8 @@ app.get('/api/ide/planning/:date', requireAuth(), async (req, res) => {
     const dateStr = req.params.date; // YYYY-MM-DD
     if (!_ideValidDate(dateStr)) return res.status(400).json({ error: 'Format de date invalide (YYYY-MM-DD).' });
 
-    // Check if visits exist for this date
-    let { data: visites, error } = await db.from('ide_visites').select('*')
+    // Check if visits exist for this date (JOIN patients for names)
+    let { data: visites, error } = await db.from('ide_visites').select('*, ide_patients(nom, prenom, adresse, ville, telephone)')
       .eq('cabinet_id', cabinetId).eq('date', dateStr).order('ordre_dans_tournee');
     if (error) throw error;
 

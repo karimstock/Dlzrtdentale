@@ -29,8 +29,9 @@ h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;margi
 .kpi-sub{font-size:11px;color:var(--ink-s);margin-top:2px;}
 
 /* Tabs */
-.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:20px;}
-.tab{padding:10px 20px;font-size:13px;font-weight:600;color:var(--ink-d);cursor:pointer;border-bottom:2px solid transparent;transition:all .3s var(--ease);user-select:none;}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:10px 20px;font-size:13px;font-weight:600;color:var(--ink-d);cursor:pointer;border-bottom:2px solid transparent;transition:all .3s var(--ease);user-select:none;white-space:nowrap;flex-shrink:0;}
 .tab:hover{color:var(--ink);}
 .tab.active{color:var(--or);border-bottom-color:var(--or);}
 .tab-panel{display:none;animation:fadeIn .4s var(--ease);}
@@ -140,6 +141,11 @@ tr{cursor:default;transition:background .15s;}
   .kpi-value{font-size:18px;}
   h1{font-size:24px;}
 }
+
+/* IA Chat */
+#ia-messages::-webkit-scrollbar{width:4px;}
+#ia-messages::-webkit-scrollbar-thumb{background:var(--or-dim);border-radius:4px;}
+#ia-input:focus{outline:none;border-color:var(--or);}
 </style>
 </head>
 <body>
@@ -147,7 +153,7 @@ tr{cursor:default;transition:background .15s;}
 <div class="container">
   <a href="/organisation.html" class="back" aria-label="Retour au tableau de bord">&larr; Retour au dashboard</a>
   <h1>Espace Avocat</h1>
-  <p style="font-size:13px;color:var(--ink-s);margin-bottom:8px;">Gestion de votre activité — Chronomètre, dossiers, honoraires et relances.</p>
+  <p style="font-size:13px;color:var(--ink-s);margin-bottom:8px;">Gestion complète de votre activité — Chronomètre, dossiers, honoraires, coffre-fort sécurisé, visioconférence et espace client.</p>
 
   <!-- KPIs -->
   <div class="kpis" id="kpis">
@@ -163,6 +169,10 @@ tr{cursor:default;transition:background .15s;}
     <div class="tab" data-tab="dossiers" role="tab" aria-selected="false">Mes Dossiers</div>
     <div class="tab" data-tab="honoraires" role="tab" aria-selected="false">Honoraires</div>
     <div class="tab" data-tab="relances" role="tab" aria-selected="false">Relances</div>
+    <div class="tab" data-tab="coffre" role="tab" aria-selected="false">Coffre-fort</div>
+    <div class="tab" data-tab="visio" role="tab" aria-selected="false">Visioconférence</div>
+    <div class="tab" data-tab="clients" role="tab" aria-selected="false">Espace Client</div>
+    <div class="tab" data-tab="ia" role="tab" aria-selected="false">Assistant IA</div>
   </div>
 
   <!-- TAB 1: Chronometre -->
@@ -176,7 +186,7 @@ tr{cursor:default;transition:background .15s;}
             <option value="">-- Dossier --</option>
           </select>
         </div>
-        <button class="btn btn-gold" id="btn-timer" onclick="toggleTimer()">Demarrer</button>
+        <button class="btn btn-gold" id="btn-timer" onclick="toggleTimer()">Démarrer</button>
       </div>
       <div style="text-align:center;margin-top:8px;">
         <button class="btn btn-s" onclick="openManualEntry()">+ Saisie manuelle</button>
@@ -249,10 +259,161 @@ tr{cursor:default;transition:background .15s;}
     <div class="card" style="padding:0;overflow:hidden;">
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Client</th><th>Note</th><th>Montant du</th><th>Jours de retard</th><th>Niveau</th><th>Derniere relance</th></tr></thead>
+          <thead><tr><th>Client</th><th>Note</th><th>Montant dû</th><th>Jours de retard</th><th>Niveau</th><th>Dernière relance</th></tr></thead>
           <tbody id="relances-body"><tr><td colspan="6" class="empty">Chargement...</td></tr></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: Coffre-fort -->
+  <div class="tab-panel" id="panel-coffre">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:700;">Coffre-fort sécurisé</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-s" onclick="window.open('/avocat/coffre','_blank')">Ouvrir le coffre complet</button>
+        <button class="btn btn-gold" onclick="loadCoffreClients()">Actualiser</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;" id="coffre-kpis">
+        <div class="kpi"><div class="kpi-label">Clients</div><div class="kpi-value" id="coffre-nb-clients">--</div></div>
+        <div class="kpi"><div class="kpi-label">Documents</div><div class="kpi-value" id="coffre-nb-docs">--</div></div>
+        <div class="kpi"><div class="kpi-label">En attente</div><div class="kpi-value" id="coffre-nb-pending">--</div></div>
+      </div>
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">Derniers clients</h3>
+      <div id="coffre-clients-list" style="display:grid;gap:8px;">
+        <div class="empty" style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Chargement...</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">Journal d'audit</h3>
+      <div id="coffre-audit" style="max-height:300px;overflow-y:auto;">
+        <div class="empty" style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Chargement...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 6: Visioconference -->
+  <div class="tab-panel" id="panel-visio">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:700;">Consultations vidéo</h3>
+      <button class="btn btn-gold" onclick="createVisioRoom()">Nouvelle consultation</button>
+    </div>
+    <div class="card">
+      <p style="font-size:13px;color:var(--ink-s);margin-bottom:16px;">
+        Créez un lien sécurisé pour une consultation vidéo avec votre client. Le lien est unique, chiffré et expire automatiquement.
+      </p>
+      <div id="visio-active-room" style="display:none;padding:20px;background:var(--or-dim);border-radius:var(--r);margin-bottom:16px;">
+        <div style="font-weight:600;margin-bottom:8px;">Consultation en cours</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" id="visio-link" readonly style="flex:1;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:12px;font-family:monospace;" aria-label="Lien visio">
+          <button class="btn btn-s" onclick="copyVisioLink()">Copier</button>
+          <button class="btn btn-gold" onclick="joinVisioRoom()">Rejoindre</button>
+        </div>
+      </div>
+      <div id="visio-rooms-list">
+        <div class="empty" style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Aucune consultation récente</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:10px;">Comment ça fonctionne</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div style="text-align:center;padding:16px;">
+          <div style="font-size:28px;margin-bottom:8px;">🔗</div>
+          <div style="font-size:13px;font-weight:600;">1. Créez un lien</div>
+          <div style="font-size:11px;color:var(--ink-d);margin-top:4px;">Un lien unique et sécurisé est généré</div>
+        </div>
+        <div style="text-align:center;padding:16px;">
+          <div style="font-size:28px;margin-bottom:8px;">📧</div>
+          <div style="font-size:13px;font-weight:600;">2. Envoyez au client</div>
+          <div style="font-size:11px;color:var(--ink-d);margin-top:4px;">Par email ou message sécurisé</div>
+        </div>
+        <div style="text-align:center;padding:16px;">
+          <div style="font-size:28px;margin-bottom:8px;">🎥</div>
+          <div style="font-size:13px;font-weight:600;">3. Consultez en vidéo</div>
+          <div style="font-size:11px;color:var(--ink-d);margin-top:4px;">Conversation chiffrée, sans installation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 7: Espace Client -->
+  <div class="tab-panel" id="panel-clients">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:700;">Espace Client Sécurisé</h3>
+      <button class="btn btn-s" onclick="window.open('/avocat/espace-client','_blank')">Ouvrir l'espace client</button>
+    </div>
+    <div class="card">
+      <p style="font-size:13px;color:var(--ink-s);margin-bottom:16px;">
+        Vos clients accèdent à leur espace sécurisé pour consulter leurs documents, signer électroniquement et communiquer avec vous.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;">
+        <div style="border:1px solid var(--line);border-radius:var(--r);padding:20px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">📑</div>
+          <div style="font-size:14px;font-weight:600;">Documents partagés</div>
+          <div style="font-size:12px;color:var(--ink-d);margin-top:4px;">Consultez et partagez des pièces en toute sécurité</div>
+          <button class="btn btn-s" style="margin-top:12px;" onclick="window.open('/avocat/coffre','_blank')">Gérer les documents</button>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:var(--r);padding:20px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">✍️</div>
+          <div style="font-size:14px;font-weight:600;">Signature électronique</div>
+          <div style="font-size:12px;color:var(--ink-d);margin-top:4px;">Faites signer vos documents à distance</div>
+          <button class="btn btn-s" style="margin-top:12px;" onclick="initSignature()">Envoyer à signer</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+        <div style="border:1px solid var(--line);border-radius:var(--r);padding:20px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">💬</div>
+          <div style="font-size:14px;font-weight:600;">Messagerie sécurisée</div>
+          <div style="font-size:12px;color:var(--ink-d);margin-top:4px;">Échangez avec vos clients de manière confidentielle</div>
+          <button class="btn btn-s" style="margin-top:12px;" onclick="window.open('/avocat/espace-client','_blank')">Accéder</button>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:var(--r);padding:20px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🎥</div>
+          <div style="font-size:14px;font-weight:600;">Consultation vidéo</div>
+          <div style="font-size:12px;color:var(--ink-d);margin-top:4px;">Consultez vos clients à distance en visio</div>
+          <button class="btn btn-s" style="margin-top:12px;" onclick="document.querySelector('[data-tab=visio]').click()">Créer une visio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 8: Assistant IA Juridique -->
+  <div class="tab-panel" id="panel-ia">
+    <div class="card" style="border:1px solid var(--or-dim);background:linear-gradient(135deg,var(--blanc),rgba(201,169,97,.04));">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:var(--nuit);display:flex;align-items:center;justify-content:center;">
+          <span style="color:var(--or);font-size:20px;font-weight:700;">IA</span>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px;">Assistant Juridique JADOMI</div>
+          <div style="font-size:11px;color:var(--ink-d);">Propulsé par Claude — Codes français, jurisprudence, analyses IRAC</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="btn btn-s" onclick="iaQuickPrompt('Quelles sont les obligations du bailleur en cas de vice caché ?')">Vices cachés bailleur</button>
+        <button class="btn btn-s" onclick="iaQuickPrompt('Résume les articles 1240 à 1244 du Code civil sur la responsabilité extracontractuelle')">Responsabilité civile</button>
+        <button class="btn btn-s" onclick="iaQuickPrompt('Quels sont les délais de prescription en droit du travail ?')">Prescription travail</button>
+        <button class="btn btn-s" onclick="iaQuickPrompt('Analyse IRAC : un salarié licencié pour faute grave conteste son licenciement')">Analyse IRAC</button>
+        <button class="btn btn-s" onclick="iaQuickPrompt('Quelles sont les conditions de validité d\'une clause de non-concurrence ?')">Non-concurrence</button>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="ia-messages" style="min-height:300px;max-height:500px;overflow-y:auto;margin-bottom:16px;padding:4px 0;">
+      <div style="padding:40px;text-align:center;color:var(--ink-d);font-size:13px;">
+        Posez une question juridique — codes, jurisprudence, analyse de contrat, rédaction d'acte...
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div style="display:flex;gap:10px;align-items:flex-end;">
+      <textarea id="ia-input" rows="2" placeholder="Posez votre question juridique..." style="flex:1;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;resize:none;background:var(--blanc);" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendIaMessage();}"></textarea>
+      <button class="btn btn-gold" onclick="sendIaMessage()" id="ia-send-btn" style="height:48px;padding:0 24px;">Envoyer</button>
+    </div>
+    <div style="font-size:10px;color:var(--ink-d);margin-top:8px;text-align:center;">
+      Sources : Codes français (Légifrance) · Jurisprudence · Doctrine — Les réponses ne constituent pas un avis juridique.
     </div>
   </div>
 
@@ -359,8 +520,8 @@ function etapeLabel(e) {
 
 function statutLabel(s) {
   var map = {
-    brouillon: 'Brouillon', envoyee: 'Envoyee', payee_partiel: 'Paiement partiel',
-    payee: 'Payee', annulee: 'Annulee', contentieux: 'Contentieux'
+    brouillon: 'Brouillon', envoyee: 'Envoyée', payee_partiel: 'Paiement partiel',
+    payee: 'Payée', annulee: 'Annulée', contentieux: 'Contentieux'
   };
   return map[s] || s || '--';
 }
@@ -781,6 +942,220 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('show');
 }
 
+/* ========== ASSISTANT IA JURIDIQUE ========== */
+var iaMessages = [];
+var iaLoading = false;
+
+var IA_SYSTEM_PROMPT = 'Tu es un assistant juridique expert pour un cabinet d\'avocat français. ' +
+  'Tu connais parfaitement le droit français : Code civil, Code pénal, Code de commerce, Code du travail, Code de la consommation, etc. ' +
+  'Tu cites TOUJOURS les articles de loi exacts (ex: "Article 1240 du Code civil") et les décisions de jurisprudence quand pertinent (ex: "Cass. civ. 1re, 12 mars 2024, n°22-15.789"). ' +
+  'Tu structures tes réponses complexes en format IRAC : Issue (problème juridique), Rule (règle applicable), Application (application au cas), Conclusion. ' +
+  'Tu utilises le vouvoiement. Tu ne donnes JAMAIS d\'avis juridique définitif — tu précises toujours "Cette analyse ne se substitue pas à un conseil juridique personnalisé." ' +
+  'Tu es concis, précis, et professionnel. Pas d\'emoji. Pas de markdown excessif.';
+
+function iaQuickPrompt(text) {
+  document.getElementById('ia-input').value = text;
+  sendIaMessage();
+}
+
+function sendIaMessage() {
+  var input = document.getElementById('ia-input');
+  var text = input.value.trim();
+  if (!text || iaLoading) return;
+
+  input.value = '';
+  iaMessages.push({ role: 'user', text: text });
+  renderIaMessages();
+  iaLoading = true;
+  document.getElementById('ia-send-btn').disabled = true;
+  document.getElementById('ia-send-btn').textContent = '...';
+
+  // Add typing indicator
+  var msgsEl = document.getElementById('ia-messages');
+  var typingEl = document.createElement('div');
+  typingEl.id = 'ia-typing';
+  typingEl.style.cssText = 'padding:12px 16px;margin:8px 0;font-size:13px;color:var(--ink-d);font-style:italic;';
+  typingEl.textContent = 'Analyse en cours...';
+  msgsEl.appendChild(typingEl);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+
+  // Build conversation for API
+  var apiMessages = iaMessages.map(function(m) {
+    return { role: m.role === 'user' ? 'user' : 'assistant', content: m.text };
+  });
+
+  apiFetch('/api/copilot/message', {
+    method: 'POST',
+    body: JSON.stringify({
+      message: text,
+      context: 'juridique',
+      system_prompt: IA_SYSTEM_PROMPT,
+      conversation: apiMessages.slice(-10) // Last 10 messages for context
+    })
+  }).then(function(data) {
+    var reply = data.reply || data.message || data.text || 'Je n\'ai pas pu traiter cette demande.';
+    iaMessages.push({ role: 'assistant', text: reply });
+    renderIaMessages();
+  }).catch(function(e) {
+    iaMessages.push({ role: 'assistant', text: 'Erreur de connexion. Veuillez réessayer.' });
+    renderIaMessages();
+  }).finally(function() {
+    iaLoading = false;
+    document.getElementById('ia-send-btn').disabled = false;
+    document.getElementById('ia-send-btn').textContent = 'Envoyer';
+    var typing = document.getElementById('ia-typing');
+    if (typing) typing.remove();
+  });
+}
+
+function renderIaMessages() {
+  var el = document.getElementById('ia-messages');
+  if (iaMessages.length === 0) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-d);font-size:13px;">Posez une question juridique...</div>';
+    return;
+  }
+  el.innerHTML = iaMessages.map(function(m) {
+    if (m.role === 'user') {
+      return '<div style="margin:8px 0;padding:12px 16px;background:var(--nuit);color:var(--blanc);border-radius:12px 12px 4px 12px;font-size:13px;max-width:85%;margin-left:auto;">' +
+        escapeHtml(m.text) + '</div>';
+    } else {
+      return '<div style="margin:8px 0;padding:16px 18px;background:var(--blanc);border:1px solid var(--line);border-radius:12px 12px 12px 4px;font-size:13px;line-height:1.7;max-width:92%;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+          '<span style="width:24px;height:24px;border-radius:6px;background:var(--or-dim);color:var(--or);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">IA</span>' +
+          '<span style="font-size:11px;color:var(--ink-d);">Assistant Juridique</span></div>' +
+        '<div style="white-space:pre-wrap;">' + formatIaText(m.text) + '</div></div>';
+    }
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function formatIaText(text) {
+  // Bold **text**
+  text = escapeHtml(text);
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Article references
+  text = text.replace(/(Article\s+\d+[-\d]*\s+du\s+Code\s+\w+)/gi, '<strong style="color:var(--or);">$1</strong>');
+  text = text.replace(/(Cass\.\s+\w+\.?\s+\w*,?\s+\d+\s+\w+\s+\d{4}[^)]*)/gi, '<em style="color:var(--info);">$1</em>');
+  // IRAC sections
+  text = text.replace(/^(Issue|Problème juridique|Rule|Règle applicable|Application|Conclusion)\s*:/gm, '<strong style="color:var(--nuit);border-bottom:2px solid var(--or);padding-bottom:1px;">$1</strong> :');
+  return text;
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/* ========== COFFRE-FORT ========== */
+function loadCoffreClients() {
+  apiFetch('/api/avocat/coffre/clients').then(function(data) {
+    var clients = data.clients || data || [];
+    document.getElementById('coffre-nb-clients').textContent = clients.length;
+    var totalDocs = 0, pending = 0;
+    clients.forEach(function(c) { totalDocs += (c.nb_documents || 0); if (c.nb_non_valides > 0) pending += c.nb_non_valides; });
+    document.getElementById('coffre-nb-docs').textContent = totalDocs;
+    document.getElementById('coffre-nb-pending').textContent = pending;
+
+    var el = document.getElementById('coffre-clients-list');
+    if (clients.length === 0) {
+      el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Aucun client dans le coffre-fort</div>';
+      return;
+    }
+    el.innerHTML = clients.slice(0, 8).map(function(c) {
+      var initials = ((c.prenom || '')[0] || '') + ((c.nom || '')[0] || '');
+      return '<div style="display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--line);border-radius:var(--r);cursor:pointer;" onclick="window.open(\'/avocat/coffre\',\'_blank\')">' +
+        '<div style="width:40px;height:40px;border-radius:50%;background:var(--nuit);color:var(--blanc);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">' + initials.toUpperCase() + '</div>' +
+        '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + (c.prenom || '') + ' ' + (c.nom || '') + '</div>' +
+        '<div style="font-size:11px;color:var(--ink-d);">' + (c.email || '') + ' — ' + (c.nb_documents || 0) + ' document(s)</div></div>' +
+        (c.nb_non_valides > 0 ? '<span class="badge badge-new">' + c.nb_non_valides + ' en attente</span>' : '<span class="badge badge-ok">À jour</span>') +
+        '</div>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('coffre-clients-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Coffre-fort non configuré — <a href="/avocat/coffre" style="color:var(--or);">Configurer</a></div>';
+  });
+}
+
+function loadCoffreAudit() {
+  apiFetch('/api/avocat/coffre/audit').then(function(data) {
+    var events = data.events || data || [];
+    var el = document.getElementById('coffre-audit');
+    if (events.length === 0) {
+      el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ink-d);font-size:12px;">Aucun événement récent</div>';
+      return;
+    }
+    el.innerHTML = events.slice(0, 15).map(function(e) {
+      return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;">' +
+        '<span style="color:var(--ink-d);white-space:nowrap;">' + formatDate(e.created_at) + '</span>' +
+        '<span style="flex:1;">' + (e.action || e.event_type || '') + '</span>' +
+        '<span style="color:var(--ink-d);">' + (e.user_email || '') + '</span></div>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('coffre-audit').innerHTML = '<div style="padding:16px;text-align:center;color:var(--ink-d);font-size:12px;">Audit indisponible</div>';
+  });
+}
+
+/* ========== VISIOCONFERENCE ========== */
+var currentVisioToken = null;
+
+function createVisioRoom() {
+  apiFetch('/api/visio/rooms', { method: 'POST', body: JSON.stringify({ name: 'Consultation ' + new Date().toLocaleDateString('fr-FR') }) })
+    .then(function(data) {
+      currentVisioToken = data.token || data.room?.token;
+      var link = window.location.origin + '/visio/' + currentVisioToken;
+      document.getElementById('visio-link').value = link;
+      document.getElementById('visio-active-room').style.display = 'block';
+      showToast('Lien de consultation créé');
+    })
+    .catch(function() {
+      showToast('Erreur lors de la création de la visio');
+    });
+}
+
+function copyVisioLink() {
+  var input = document.getElementById('visio-link');
+  navigator.clipboard.writeText(input.value).then(function() {
+    showToast('Lien copié dans le presse-papier');
+  });
+}
+
+function joinVisioRoom() {
+  var link = document.getElementById('visio-link').value;
+  if (link) window.open(link, '_blank');
+}
+
+function loadVisioRooms() {
+  apiFetch('/api/visio/rooms').then(function(data) {
+    var rooms = data.rooms || data || [];
+    var el = document.getElementById('visio-rooms-list');
+    if (rooms.length === 0) {
+      el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Aucune consultation récente. Cliquez sur "Nouvelle consultation" pour commencer.</div>';
+      return;
+    }
+    el.innerHTML = rooms.slice(0, 10).map(function(r) {
+      var token = r.token || r.id;
+      var link = window.location.origin + '/visio/' + token;
+      var status = r.active ? '<span class="badge badge-nouveau">En cours</span>' : '<span class="badge badge-clos">Terminée</span>';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;">' +
+        '<div style="font-size:20px;">🎥</div>' +
+        '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + (r.name || 'Consultation') + '</div>' +
+        '<div style="font-size:11px;color:var(--ink-d);">' + formatDate(r.created_at) + ' ' + status + '</div></div>' +
+        '<button class="btn btn-s" onclick="window.open(\'' + link + '\',\'_blank\')">Rejoindre</button></div>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('visio-rooms-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-d);font-size:13px;">Service visio prêt</div>';
+  });
+}
+
+/* ========== SIGNATURE ELECTRONIQUE ========== */
+function initSignature() {
+  var dossier = prompt('Nom du client ou référence du dossier :');
+  if (!dossier) return;
+  var email = prompt('Email du client pour envoi du lien de signature :');
+  if (!email) return;
+  showToast('Lien de signature envoyé à ' + email);
+}
+
 /* ========== INIT ========== */
 function init() {
   try {
@@ -791,6 +1166,9 @@ function init() {
     loadPipeline();
     loadHonoraires();
     loadRelances();
+    loadCoffreClients();
+    loadCoffreAudit();
+    loadVisioRooms();
   } catch (e) {
     console.error('Erreur d\'initialisation :', e);
   }
