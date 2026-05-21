@@ -1112,6 +1112,10 @@ try {
   app.use('/api/avocat/dashboard', require('./api/avocat/dashboard'));
   console.log('[JADOMI] Module Avocat Dashboard monte');
 } catch (e) { console.warn('[JADOMI] Avocat Dashboard non charge:', e.message); }
+try {
+  app.use('/api/admin-copilot', require('./api/admin-copilot'));
+  console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
+} catch (e) { console.warn('[JADOMI] Admin Copilot non chargé:', e.message); }
 
 // === JADOMI Compta Universelle — Factures auto-rangées jour/mois/année ===
 try {
