@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 22 mai 2026
-**Derniere passe** : Passe 93 (22 mai 2026) — Audit complet module Avocat : 9 API, 12 onglets, 5840 lignes, 6 bugs frontend identifies
+**Derniere passe** : Passe 93 (22 mai 2026) — Mega-session : 22 commits, 17 modules Avocat, Legifrance+Judilibre, Simulateur PRO, Enquetes internes, Copilot Live, Dashboard V2
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5072,21 +5072,111 @@ Etat actuel du module Avocat :
 - Middleware requireAvocat duplique 9 fois (meme code exact) → a factoriser
 - Visio : placeholder non branche
 
+### Passe 93 suite (22 mai 2026) — Mega-session Avocat complète
+
+**22 commits, ~10 000 lignes, 17 modules Avocat en production.**
+
+INTEGRATION PISTE / LEGIFRANCE / JUDILIBRE :
+- OAuth2 PISTE connecte (piste-auth.js, legifrance.js, judilibre.js)
+- 562 799 decisions Cour de cassation accessibles temps reel
+- 30 672 articles Code du travail, 1 160 711 textes JORF
+- 15 endpoints legal-data (codes, jurisprudence, JORF, recherche unifiee)
+- API testee en production : token OK, recherches OK
+
+IA JURIDIQUE RAG :
+- legal-rag.js : enrichit les reponses IA avec sources reelles AVANT appel Claude
+- ia-juridique.js : assistant IA qui cite les VRAIS articles, jamais de faux
+- code-travail-base.js : 16 articles fondamentaux + 6 arrets de principe pre-charges
+- Routeur multi-provider (legal-ia-router.js) : Ollama 0€ → DeepSeek 0.14€ → Mistral 0.25€ → Claude 3€
+- 7 agents IA formes (agents-formation.js) + BOSS Claude superviseur
+
+VEILLE JURIDIQUE + MEMOIRE :
+- 3 formateurs IA (veilleur/indexeur/connecteur) cron 6h03 quotidien
+- Ingestion massive : 436 decisions indexees, 35 themes couverts
+- Memoire par dossier (legal_dossier_memory) + veille contextuelle
+- Cout ingestion : 0.15$ pour 436 decisions (DeepSeek)
+
+SIMULATEUR DROIT DU TRAVAIL PRO (1628 lignes) :
+- 4 types contrat (CDI/CDD/interim/apprentissage)
+- 12 motifs rupture avec consequences exactes
+- 10 CCN formules exactes (Syntec, Metallurgie, Commerce gros, HCR, BTP×3, Banque, Pharmacie, Transport)
+- 6 statuts (ouvrier → cadre dirigeant)
+- Bareme Macron 30 paliers + TPE
+- Regime fiscal complet (80 duodecies, CSG/CRDS, cotisations, 30% RC)
+
+STRATEGIE DE DEPART (636 lignes) :
+- 7 scenarios compares (demission → PSE) avec classement fiscal
+- Optimiseur de montage (ventilation indemnite + non-concurrence + outplacement)
+
+COPILOT AVOCAT (5 assistants, 600 lignes) :
+- classify-attachment : auto-classement pieces par dossier (Mistral RGPD)
+- draft-response : brouillons reponse 7 types (Mistral)
+- detect-deadlines : extraction delais + alertes (Ollama 0€)
+- summarize-mail : resume 5 lignes + faits + timeline (Mistral)
+- draft-conclusions : squelette I/II/III (Claude)
+
+ENQUETES INTERNES :
+- enquete-transcription.js : Whisper verbatim (0.36$/h), croisement automatique Claude
+- enquete-post-traitement.js : 80+ corrections juridiques dictionnaire + IA, identification interlocuteurs, export Word 3 formats
+- Formation complete : 3 rapports recherche (theorique + pratique + tous types), guides entretiens (95 questions), 7 modeles documents
+
+COPILOT LIVE (406 lignes) :
+- Web Speech API temps reel (fr-FR, continuous)
+- Detection live : dates, montants, noms, durees
+- 20 pistes juridiques auto (licenciement, harcelement, discrimination...)
+- Suggestions de questions (DeepSeek)
+- Alertes urgentes (suicide → 3114, violence)
+- Compte-rendu automatique fin de session (Mistral RGPD)
+- Question rapide a l'IA pendant la consultation
+
+MEMOIRE AGENTS 3 COUCHES :
+- agent-memory.js : court terme (prompt caching) + moyen terme (sessions) + long terme (learnings)
+- Boucle apprentissage : correction → stockage → validation → promotion en rule
+- Tables : agent_learnings + agent_sessions
+
+DASHBOARD V2 :
+- Sidebar fixe (nuit) + header KPIs + contenu (creme)
+- 17 sections (gestion + intelligence juridique + outils avances)
+- Simulateur, Copilot Live, Enquetes integres
+- Design Linear/Notion/Vercel, glassmorphism, Cormorant Garamond + Inter
+- Route /avocat/dashboard → V2, /avocat/dashboard-v1 → ancien
+
+TABLES SUPABASE CREEES (10 nouvelles) :
+- legal_data_cache, legal_api_calls, legal_dossier_memory, legal_veille_log
+- agent_learnings, agent_sessions
+- enquete_transcriptions, enquete_croisements
+- copilot_live_sessions
+- + colonne veille_keywords sur avocat_dossiers
+
+FIX :
+- 6 bugs mismatch frontend/backend dashboard V1 corriges
+- 70+ accents corriges
+- JORF endpoint corrige (fond: JORF + UN_DES_MOTS)
+- Modele Claude corrige (claude-sonnet-4-6 sans date)
+- Disque nettoye : 70% → 54% (+15 Go recuperes)
+
+FICHIERS CREES (25+) :
+- lib/legal-providers/ : piste-auth.js, legifrance.js, judilibre.js, legal-rag.js, legal-ia-router.js, legal-formateurs.js, legal-ingestion.js, agents-formation.js, code-travail-base.js
+- api/avocat/ : legal-data.js, veille-juridique.js, ia-juridique.js, copilot-avocat.js, simulateur-travail.js, strategie-depart.js, enquete-transcription.js, enquete-post-traitement.js, copilot-live.js
+- public/avocat/dashboard-v2.html
+- sql/ : 03_legal_data_cache.sql, 04_legal_memory_veille.sql, 01_agent_learnings.sql, EXECUTE_ALL_LEGAL.sql
+
+CLES .env AJOUTEES :
+- PISTE_API_KEY, PISTE_API_SECRET, PISTE_OAUTH_CLIENT_ID, PISTE_OAUTH_CLIENT_SECRET
+
 A FAIRE (Passe 94+) :
-- CORRIGER les 6 bugs mismatch frontend/backend dashboard avocat (PRIORITAIRE)
-- CORRIGER les accents manquants dans dashboard.html (regle orthographe ZERO TOLERANCE)
-- Factoriser requireAvocat dans un fichier partage (lib/auth-avocat.js)
-- IoT : brancher Home Assistant + Hikvision quand fondateur est au cabinet
-- OVH production : creer compte partenaire, ajouter cles API
-- Stripe production : switch cles test → live
-- Generer photos metier (avocat, BTP, beaute, immo) via NanoBanana/Gemini
-- Visio avocat : brancher sur Jitsi ou Daily.co
-- OCR Claude Vision pour les scans/images uploadees
-- Anonymisation des donnees avant appel IA (option toggle)
-- Bucket Supabase Storage 'avocat-pieces' a creer
+- Module enquetes internes complet (7 composants : signalement Sapin II, cadrage, entretiens, qualification, rapport, contradictoire, suivi)
+- Simulateur pension alimentaire + prestation compensatoire (droit famille, 15 000 avocats)
+- Calculateur Dintilhac (prejudice corporel, 14 000 avocats)
+- Audit social automatise (checklist 200 points)
+- Factoriser requireAvocat (duplique 17 fois)
+- Dashboard V2 : polir UI, tester tous les endpoints
+- IoT : brancher Home Assistant + Hikvision
+- OVH production : cles API
+- Stripe production : test → live
+- Visio : brancher Jitsi ou Daily.co
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 22 mai 2026 (Passe 93 — Audit complet module Avocat)
-===============================================================
+Derniere mise a jour : 22 mai 2026 (Passe 93 — 22 commits, 17 modules Avocat, Dashboard V2)
 ===============================================================
