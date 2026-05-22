@@ -1133,6 +1133,11 @@ try {
   app.use('/api/avocat/analyses', require('./api/avocat/analyses'));
   console.log('[JADOMI] Module Avocat Analyses IA monte');
 } catch (e) { console.warn('[JADOMI] Avocat Analyses non charge:', e.message); }
+// Avocat — Donnees juridiques Legifrance + Judilibre (PISTE OAuth2)
+try {
+  app.use('/api/avocat/legal-data', require('./api/avocat/legal-data'));
+  console.log('[JADOMI] Module Avocat Legal Data (Legifrance + Judilibre) monte');
+} catch (e) { console.warn('[JADOMI] Avocat Legal Data non charge:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
