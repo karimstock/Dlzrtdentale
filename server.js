@@ -297,8 +297,9 @@ app.get('/communaute', (req, res) => res.sendFile(path.join(__dirname, 'public/s
 // JADOMI Equipment — Offres groupees (Passe 59)
 app.get('/equipment/offres', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/offres.html')));
 app.get('/equipment/propose', (req, res) => res.sendFile(path.join(__dirname, 'public/equipment/propose.html')));
-// JADOMI Avocat Expert - Coffre-fort (Passe 44C) + Dashboard (Passe 92)
-app.get('/avocat/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/dashboard.html')));
+// JADOMI Avocat Expert - Coffre-fort (Passe 44C) + Dashboard V2 (Passe 93)
+app.get('/avocat/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/dashboard-v2.html')));
+app.get('/avocat/dashboard-v1', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/dashboard.html')));
 app.get('/avocat/coffre', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/coffre.html')));
 app.get('/espace-client', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
 app.get('/espace-client/', (req, res) => res.sendFile(path.join(__dirname, 'public/avocat/espace-client.html')));
