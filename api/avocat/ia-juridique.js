@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const { enrichWithLegalData } = require('../../lib/legal-providers/legal-rag');
+const legalRouter = require('../../lib/legal-providers/legal-ia-router');
 
 let _admin = null;
 function admin() {
@@ -105,41 +106,36 @@ router.post('/message', requireAvocat, async (req, res) => {
     // Message actuel
     messages.push({ role: 'user', content: message });
 
-    // 4. Appel Claude
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return res.status(503).json({ error: 'Clé API Anthropic non configurée' });
-    }
-
+    // 4. Déterminer le provider selon la complexité
     const startTime = Date.now();
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages
-      })
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.error('[ia-juridique] Claude error:', response.status, errBody.substring(0, 200));
-      return res.status(502).json({ error: 'Erreur IA. Réessayez.' });
-    }
-
-    const claudeResponse = await response.json();
     let reply = '';
-    if (claudeResponse.content && Array.isArray(claudeResponse.content)) {
-      for (const block of claudeResponse.content) {
-        if (block.type === 'text') reply += block.text;
+    let usedProvider = 'claude';
+
+    // Questions simples (définition, article précis) → Mistral (RGPD, pas cher)
+    // Questions complexes (analyse, IRAC, contradictions) → Claude
+    const isSimple = message.length < 100 &&
+      !/(analyse|irac|contrad|compar|risqu|audience|prépare|résumé dossier)/i.test(message) &&
+      /(article|définition|qu'est-ce|c'est quoi|délai|prescription)/i.test(message);
+
+    const userPrompt = messages.map(m => m.role + ': ' + m.content).join('\n');
+
+    if (isSimple) {
+      // Mistral pour les questions simples (RGPD + 12x moins cher)
+      try {
+        const { result, provider } = await legalRouter.dispatch('summarize_dossier', systemPrompt, userPrompt, { maxTokens: 2000 });
+        reply = result;
+        usedProvider = provider;
+      } catch {
+        // Fallback Claude si Mistral échoue
+        const { result } = await legalRouter.dispatch('legal_chat', systemPrompt, userPrompt, { maxTokens: 4096 });
+        reply = result;
+        usedProvider = 'claude';
       }
+    } else {
+      // Claude pour les analyses complexes
+      const { result, provider } = await legalRouter.dispatch('legal_chat', systemPrompt, userPrompt, { maxTokens: 4096 });
+      reply = result;
+      usedProvider = provider;
     }
 
     const durationMs = Date.now() - startTime;
@@ -159,9 +155,9 @@ router.post('/message', requireAvocat, async (req, res) => {
       })),
       sources_count: enrichment.sources.length,
       keywords: enrichment.keywords,
-      model: MODEL,
+      provider: usedProvider,
       duration_ms: durationMs,
-      tokens: claudeResponse.usage || null
+      cost_estimate: legalRouter.estimateCost(usedProvider, message.length * 2, (reply || '').length)
     });
   } catch (err) {
     console.error('[ia-juridique/message]', err.message);
