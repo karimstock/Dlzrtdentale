@@ -1158,6 +1158,11 @@ try {
   app.use('/api/avocat/simulateur', require('./api/avocat/simulateur-travail'));
   console.log('[JADOMI] Module Avocat Simulateur Droit du Travail monte');
 } catch (e) { console.warn('[JADOMI] Avocat Simulateur non charge:', e.message); }
+// Avocat — Stratégie de départ + Optimisation fiscale/sociale
+try {
+  app.use('/api/avocat/strategie', require('./api/avocat/strategie-depart'));
+  console.log('[JADOMI] Module Avocat Stratégie de Départ monte');
+} catch (e) { console.warn('[JADOMI] Avocat Stratégie non chargé:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
