@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const { veilleJuridique, veilleTousDossiers, enrichWithLegalData } = require('../../lib/legal-providers/legal-rag');
+const { sessionFormation, sessionFormationGlobale } = require('../../lib/legal-providers/legal-formateurs');
 
 let _admin = null;
 function admin() {
@@ -221,6 +222,32 @@ router.post('/enrich', requireAvocat, async (req, res) => {
   } catch (err) {
     console.error('[veille-juridique/enrich]', err.message);
     return res.status(500).json({ error: 'Erreur enrichissement' });
+  }
+});
+
+// ================================================
+// POST /formateurs — Lancer une session de formation IA (3 formateurs)
+// ================================================
+router.post('/formateurs', requireAvocat, async (req, res) => {
+  try {
+    const result = await sessionFormation(req.societeId);
+    return res.json(result);
+  } catch (err) {
+    console.error('[veille-juridique/formateurs]', err.message);
+    return res.status(500).json({ error: 'Erreur session formation' });
+  }
+});
+
+// ================================================
+// POST /formateurs-globale — Lancer la formation pour TOUS les cabinets (admin)
+// ================================================
+router.post('/formateurs-globale', requireAvocat, async (req, res) => {
+  try {
+    const result = await sessionFormationGlobale();
+    return res.json(result);
+  } catch (err) {
+    console.error('[veille-juridique/formateurs-globale]', err.message);
+    return res.status(500).json({ error: 'Erreur formation globale' });
   }
 });
 

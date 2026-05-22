@@ -2786,6 +2786,19 @@ try {
       }
     });
     console.log('[JADOMI] CRON nettoyage R2 programmé (03h00 quotidien)');
+
+    // CRON Formateurs IA juridiques — 6h03 quotidien
+    cronLib.schedule('3 6 * * *', async () => {
+      try {
+        const { sessionFormationGlobale } = require('./lib/legal-providers/legal-formateurs');
+        console.log('[FORMATEURS] Session formation juridique quotidienne...');
+        const result = await sessionFormationGlobale();
+        console.log('[FORMATEURS] Terminé:', result.cabinets, 'cabinets,', JSON.stringify(result.results?.map(r => r.formateurs?.map(f => f.formateur + ':' + (f.saved || f.enriched || f.links_found || 0)).join(','))));
+      } catch (e) {
+        console.error('[FORMATEURS] Erreur:', e.message);
+      }
+    });
+    console.log('[JADOMI] CRON formateurs IA juridiques programmé (06h03 quotidien)');
   } catch (cronErr) {
     console.warn('[JADOMI] CRON R2 non configuré:', cronErr.message);
   }
