@@ -8,6 +8,7 @@ const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const { veilleJuridique, veilleTousDossiers, enrichWithLegalData } = require('../../lib/legal-providers/legal-rag');
 const { sessionFormation, sessionFormationGlobale } = require('../../lib/legal-providers/legal-formateurs');
+const { ingestMassive, getIngestionStats } = require('../../lib/legal-providers/legal-ingestion');
 
 let _admin = null;
 function admin() {
@@ -248,6 +249,35 @@ router.post('/formateurs-globale', requireAvocat, async (req, res) => {
   } catch (err) {
     console.error('[veille-juridique/formateurs-globale]', err.message);
     return res.status(500).json({ error: 'Erreur formation globale' });
+  }
+});
+
+// ================================================
+// POST /ingestion — Lancer l'ingestion massive de jurisprudence
+// ================================================
+router.post('/ingestion', requireAvocat, async (req, res) => {
+  try {
+    const { max_par_theme, date_debut } = req.body || {};
+    const result = await ingestMassive({
+      maxParTheme: max_par_theme || 20,
+      dateDebut: date_debut || '2024-01-01'
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error('[veille-juridique/ingestion]', err.message);
+    return res.status(500).json({ error: 'Erreur ingestion' });
+  }
+});
+
+// ================================================
+// GET /ingestion/stats — Stats de ce qui est en base
+// ================================================
+router.get('/ingestion/stats', requireAvocat, async (req, res) => {
+  try {
+    const stats = await getIngestionStats();
+    return res.json(stats);
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur stats' });
   }
 });
 
