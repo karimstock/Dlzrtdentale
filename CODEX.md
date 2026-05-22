@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 21 mai 2026
-**Derniere passe** : Passe 92 (21 mai 2026) — Jadomi Legal Engine complet + Dashboard Avocat 12 onglets + Flutter + Copilot Headless
+**Derniere mise a jour** : 22 mai 2026
+**Derniere passe** : Passe 93 (22 mai 2026) — Audit complet module Avocat : 9 API, 12 onglets, 5840 lignes, 6 bugs frontend identifies
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5043,7 +5043,39 @@ Dashboard UI refonte premium (1179→2028 lignes, 12 onglets) :
 - OCR images : marque qualite_ocr='faible', Claude Vision en phase 2
 - Bucket Supabase Storage 'avocat-pieces' : a creer manuellement si pas existant
 
-A FAIRE (Passe 93+) :
+### Passe 93 (22 mai 2026) — Audit complet module Avocat
+
+**Audit de relecture integrale du code Avocat (9 fichiers API + 1 dashboard HTML) :**
+
+Etat actuel du module Avocat :
+- 9 fichiers API backend (~3 812 lignes) : legal-engine.js(660L), analyses.js(468L), dashboard.js(387L), workflow.js(375L), timetracking.js(374L), honoraires.js(410L), relances.js(302L), coffre.js(483L), espace-client.js(353L)
+- 1 dashboard HTML (~2 028 lignes) : public/avocat/dashboard.html — 12 onglets
+- 2 pages secondaires : coffre.html, espace-client.html
+- 2 fichiers SQL : 01_juridique_module.sql, 02_legal_engine.sql (6 tables Legal Engine)
+- Total module : ~5 840 lignes
+
+**6 bugs frontend/backend mismatch identifies :**
+1. KPIs : frontend cherche ca_mois/taux_encaissement, API retourne ca_mois_courant/taux_recouvrement → KPIs affichent "--"
+2. Entries chrono : frontend cherche amount/billable/start_time/dossier_reference, API retourne montant/facturable/started_at/relation joinee
+3. toggleBillable envoie {billable:val}, API attend {facturable:val} → toggle ne marche pas
+4. Pipeline : API retourne {pipeline:{},counts:{}} groupe par etape, frontend attend un tableau plat
+5. Relances : frontend cherche data.relances, API retourne {pending:[...]}
+6. Accents manquants dans textes HTML : "Chronometre", "Demarrer", "Selectionner", "etape", "Delibere", "securise", "Generer", "Visioconference" — violation regle orthographe
+
+**Points forts confirmes :**
+- Securite : AES-256-GCM coffre, double auth OTP, audit trail, timing-safe compare, path traversal check
+- IA : Claude Sonnet analyse dossier JSON structure, score confiance, disclaimer juridique obligatoire
+- Workflow : 10 etapes, auto-calcul delai appel 30j, deadlines
+- Facturation : TVA 20% ou exo art. 261-4-1° CGI, NH-YYYY-XXXX, relances 3 niveaux
+
+**Dette technique identifiee :**
+- Middleware requireAvocat duplique 9 fois (meme code exact) → a factoriser
+- Visio : placeholder non branche
+
+A FAIRE (Passe 94+) :
+- CORRIGER les 6 bugs mismatch frontend/backend dashboard avocat (PRIORITAIRE)
+- CORRIGER les accents manquants dans dashboard.html (regle orthographe ZERO TOLERANCE)
+- Factoriser requireAvocat dans un fichier partage (lib/auth-avocat.js)
 - IoT : brancher Home Assistant + Hikvision quand fondateur est au cabinet
 - OVH production : creer compte partenaire, ajouter cles API
 - Stripe production : switch cles test → live
@@ -5055,6 +5087,6 @@ A FAIRE (Passe 93+) :
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 21 mai 2026 (Passe 92 — Jadomi Legal Engine + Dashboard Avocat 12 onglets)
+Derniere mise a jour : 22 mai 2026 (Passe 93 — Audit complet module Avocat)
 ===============================================================
 ===============================================================
