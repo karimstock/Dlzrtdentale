@@ -1163,6 +1163,11 @@ try {
   app.use('/api/avocat/strategie', require('./api/avocat/strategie-depart'));
   console.log('[JADOMI] Module Avocat Stratégie de Départ monte');
 } catch (e) { console.warn('[JADOMI] Avocat Stratégie non chargé:', e.message); }
+// Avocat — Enquête interne : transcription verbatim + croisement auditions
+try {
+  app.use('/api/avocat/enquete', require('./api/avocat/enquete-transcription'));
+  console.log('[JADOMI] Module Avocat Enquête Transcription + Croisement monte');
+} catch (e) { console.warn('[JADOMI] Avocat Enquête non chargé:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
