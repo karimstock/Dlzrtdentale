@@ -1148,6 +1148,16 @@ try {
   app.use('/api/avocat/ia', require('./api/avocat/ia-juridique'));
   console.log('[JADOMI] Module Avocat IA Juridique (RAG) monte');
 } catch (e) { console.warn('[JADOMI] Avocat IA Juridique non charge:', e.message); }
+// Avocat — Copilot Avocat (classement, réponses, délais, résumé, conclusions)
+try {
+  app.use('/api/avocat/copilot', require('./api/avocat/copilot-avocat'));
+  console.log('[JADOMI] Module Avocat Copilot (5 assistants) monte');
+} catch (e) { console.warn('[JADOMI] Avocat Copilot non charge:', e.message); }
+// Avocat — Simulateur Droit du Travail (indemnités, barème Macron, fiscal, transaction)
+try {
+  app.use('/api/avocat/simulateur', require('./api/avocat/simulateur-travail'));
+  console.log('[JADOMI] Module Avocat Simulateur Droit du Travail monte');
+} catch (e) { console.warn('[JADOMI] Avocat Simulateur non charge:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
