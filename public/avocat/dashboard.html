@@ -1463,20 +1463,27 @@ function sendIaMessage() {
     return { role: m.role === 'user' ? 'user' : 'assistant', content: m.text };
   });
 
-  apiFetch('/api/copilot/message', {
+  apiFetch('/api/avocat/ia/message', {
     method: 'POST',
     body: JSON.stringify({
       message: text,
-      context: 'juridique',
-      system_prompt: IA_SYSTEM_PROMPT,
-      conversation: apiMessages.slice(-10) // Last 10 messages for context
+      conversation: apiMessages.slice(-10)
     })
   }).then(function(data) {
     var reply = data.reply || data.message || data.text || 'Je n\'ai pas pu traiter cette demande.';
+
+    // Afficher les sources si disponibles
+    if (data.sources && data.sources.length > 0) {
+      reply += '\n\n---\n**Sources vérifiées** (' + data.sources.length + ') :\n';
+      data.sources.forEach(function(s, i) {
+        reply += (i + 1) + '. ' + s.ref + '\n';
+      });
+    }
+
     iaMessages.push({ role: 'assistant', text: reply });
     renderIaMessages();
   }).catch(function(e) {
-    iaMessages.push({ role: 'assistant', text: 'Erreur de connexion. Veuillez reessayer.' });
+    iaMessages.push({ role: 'assistant', text: 'Erreur de connexion. Veuillez réessayer.' });
     renderIaMessages();
   }).finally(function() {
     iaLoading = false;

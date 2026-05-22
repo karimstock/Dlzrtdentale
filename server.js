@@ -1138,6 +1138,16 @@ try {
   app.use('/api/avocat/legal-data', require('./api/avocat/legal-data'));
   console.log('[JADOMI] Module Avocat Legal Data (Legifrance + Judilibre) monte');
 } catch (e) { console.warn('[JADOMI] Avocat Legal Data non charge:', e.message); }
+// Avocat — Veille juridique + Memoire dossier + RAG
+try {
+  app.use('/api/avocat/veille', require('./api/avocat/veille-juridique'));
+  console.log('[JADOMI] Module Avocat Veille Juridique monte');
+} catch (e) { console.warn('[JADOMI] Avocat Veille non charge:', e.message); }
+// Avocat — IA Juridique enrichie (RAG Legifrance + Judilibre)
+try {
+  app.use('/api/avocat/ia', require('./api/avocat/ia-juridique'));
+  console.log('[JADOMI] Module Avocat IA Juridique (RAG) monte');
+} catch (e) { console.warn('[JADOMI] Avocat IA Juridique non charge:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
