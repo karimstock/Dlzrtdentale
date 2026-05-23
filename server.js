@@ -1177,6 +1177,40 @@ try {
   app.use('/api/avocat/live', require('./api/avocat/copilot-live'));
   console.log('[JADOMI] Module Avocat Copilot Live (consultation temps réel) monte');
 } catch (e) { console.warn('[JADOMI] Avocat Live non chargé:', e.message); }
+// === PASSE 94 — Home Page Intelligente + Scoring + Génération Docs ===
+try {
+  app.use('/api/avocat/home', require('./api/avocat/home-juridique'));
+  console.log('[JADOMI] Module Avocat Home Juridique (page accueil intelligente) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Home non chargé:', e.message); }
+try {
+  app.use('/api/avocat/scoring', require('./api/avocat/scoring-dossier'));
+  console.log('[JADOMI] Module Avocat Scoring Dossier (solidité multi-critères) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Scoring non chargé:', e.message); }
+try {
+  app.use('/api/avocat/documents', require('./api/avocat/generation-docs'));
+  console.log('[JADOMI] Module Avocat Génération Documentaire (8 templates prud\'homaux) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Documents non chargé:', e.message); }
+// === PASSE 95-98 — Visio + Knowledge Graph + Audience + Secrétaire + Vérification ===
+try {
+  app.use('/api/avocat/visio', require('./api/avocat/visio'));
+  console.log('[JADOMI] Module Avocat Visio (Jitsi Meet) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Visio non chargé:', e.message); }
+try {
+  app.use('/api/avocat/knowledge', require('./api/avocat/knowledge-graph'));
+  console.log('[JADOMI] Module Avocat Knowledge Graph + Mémoire collective monté');
+} catch (e) { console.warn('[JADOMI] Avocat Knowledge non chargé:', e.message); }
+try {
+  app.use('/api/avocat/audience', require('./api/avocat/audience-mobile'));
+  console.log('[JADOMI] Module Avocat Mode Audience (fiche mobile) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Audience non chargé:', e.message); }
+try {
+  app.use('/api/avocat/secretaire', require('./api/avocat/secretaire-juridique'));
+  console.log('[JADOMI] Module Avocat Secrétaire Juridique (12 commandes rapides) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Secrétaire non chargé:', e.message); }
+try {
+  app.use('/api/avocat/verification', require('./api/avocat/verification-docs'));
+  console.log('[JADOMI] Module Avocat Vérification Anti-erreurs monté');
+} catch (e) { console.warn('[JADOMI] Avocat Vérification non chargé:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
