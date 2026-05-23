@@ -259,7 +259,7 @@ router.patch('/coffre/otp-preferences', requireAvocat, async (req, res) => {
 // POST /coffre/clients — Creer un client + envoyer invitation
 router.post('/coffre/clients', requireAvocat, async (req, res) => {
   try {
-    const { nom, prenom, email, telephone, dossier_titre, dossier_type } = req.body || {};
+    const { civilite, nom, prenom, email, telephone, adresse, dossier_titre, dossier_type } = req.body || {};
     if (!nom || !email) return res.status(400).json({ error: 'Nom et email requis' });
 
     // Generer password temporaire
@@ -267,9 +267,13 @@ router.post('/coffre/clients', requireAvocat, async (req, res) => {
     const passwordHash = hashPassword(tempPassword);
 
     // Creer client
-    const { data: client, error: cErr } = await admin().from('avocat_clients').insert({
-      avocat_societe_id: req.societeId, nom, prenom, email, telephone, password_hash: passwordHash, statut: 'invite'
-    }).select().single();
+    const insertData = {
+      avocat_societe_id: req.societeId, nom, prenom, email, telephone,
+      password_hash: passwordHash, statut: 'invite'
+    };
+    if (civilite) insertData.civilite = civilite;
+    if (adresse) insertData.adresse = adresse;
+    const { data: client, error: cErr } = await admin().from('avocat_clients').insert(insertData).select().single();
     if (cErr) return res.status(500).json({ error: cErr.message });
 
     // Creer dossier si demande
@@ -323,16 +327,43 @@ router.get('/coffre/dossiers', requireAvocat, async (req, res) => {
   return res.json(data || []);
 });
 
-// POST /coffre/dossiers — Creer un dossier (sans client)
+// POST /coffre/dossiers — Creer un dossier (avec ou sans client)
 router.post('/coffre/dossiers', requireAvocat, async (req, res) => {
   try {
-    const { titre, type } = req.body || {};
+    const { titre, type, domaine, juridiction, section_cph, numero_rg,
+      convention_collective, stade_procedural, employeur_nom, employeur_adresse,
+      employeur_siret, avocat_adverse, date_audience, notes, client_id } = req.body || {};
     if (!titre) return res.status(400).json({ error: 'Titre requis' });
-    const ref = 'GEN-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
-    const { data: d, error } = await admin().from('avocat_dossiers').insert({
-      avocat_societe_id: req.societeId, client_id: null, reference: ref,
-      titre, type: type || 'general'
-    }).select().single();
+
+    // Si client_id fourni, verifier qu'il appartient a la societe
+    if (client_id) {
+      const { data: clientCheck } = await admin().from('avocat_clients')
+        .select('id').eq('id', client_id).eq('avocat_societe_id', req.societeId).single();
+      if (!clientCheck) return res.status(400).json({ error: 'Client non trouvé dans votre organisation' });
+    }
+
+    const ref = (client_id ? 'DOS' : 'GEN') + '-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
+    const insertData = {
+      avocat_societe_id: req.societeId,
+      client_id: client_id || null,
+      reference: ref,
+      titre,
+      type: type || 'general'
+    };
+    if (domaine) insertData.domaine = domaine;
+    if (juridiction) insertData.juridiction = juridiction;
+    if (section_cph) insertData.section_cph = section_cph;
+    if (numero_rg) insertData.numero_rg = numero_rg;
+    if (convention_collective) insertData.convention_collective = convention_collective;
+    if (stade_procedural) insertData.stade_procedural = stade_procedural;
+    if (employeur_nom) insertData.employeur_nom = employeur_nom;
+    if (employeur_adresse) insertData.employeur_adresse = employeur_adresse;
+    if (employeur_siret) insertData.employeur_siret = employeur_siret;
+    if (avocat_adverse) insertData.avocat_adverse = avocat_adverse;
+    if (date_audience) insertData.date_audience = date_audience;
+    if (notes) insertData.notes = notes;
+
+    const { data: d, error } = await admin().from('avocat_dossiers').insert(insertData).select().single();
     if (error) return res.status(500).json({ error: error.message });
     await logAudit(req.userId, 'avocat', 'dossier_create', 'dossier', d.id, req, true, { titre });
     return res.status(201).json(d);
