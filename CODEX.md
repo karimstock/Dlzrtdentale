@@ -5278,7 +5278,97 @@ A FAIRE (Passe 100+) :
 - OVH production : cles API
 - Stripe production : test → live
 
+### Passe 100 (23 mai 2026) — Restructuration architecture + Dossier Vivant + Moteur Strategique
+
+SIDEBAR NETTOYEE (24 → 11 onglets) :
+- Cabinet : Accueil, Dossiers, Clients, Agenda
+- Finances : Honoraires, Relances, Chronometre
+- Outils : Copilot IA, Recherche, Visio, Coffre, Entete cabinet, Memoire Cabinet
+- Tout le reste vit dans le DOSSIER VIVANT (plein ecran quand on clique sur un dossier)
+
+DOSSIER VIVANT (OS du dossier juridique) :
+- Vue plein ecran avec 8 onglets contextualises sur le dossier
+- Vue d'ensemble, Timeline, Pieces, Mails (filtre email client), Strategie, Documents, Honoraires, Agenda
+- Header sticky : RG, section CPH, juridiction, score solidite
+- Copilot IA contextualise sur le dossier actif
+- 774 lignes ajoutees
+
+MOTEUR DOCUMENTAIRE INTELLIGENT (api/avocat/documents.js — 1637 lignes) :
+- 10 types documents : conclusions, requete CPH, courrier client/confrere, bordereau, convention honoraires, renvoi, note audience, mise en demeure, attestation
+- Entete cabinet configurable (14 champs)
+- Variables contextuelles par dossier
+- Verification anti-erreur avant export
+- Honoraires manuels (sans time entries)
+
+COPILOT IA JURIDIQUE :
+- 3 onglets : Chat IA / Boite mail IMAP / Analyser document
+- Connexion IMAP (Gmail, Outlook, OVH Pro, Yahoo)
+- Tri auto mails (client, juridiction, fournisseur, urgent)
+- Brouillon IA, classer dans dossier
+
+AGENDA MULTI-COULEUR :
+- 8 types (audience=rouge, echeance=orange, rdv_client=bleu, confrere=violet, rappel=gris, delibere=rose, mediation=vert, expertise=cyan)
+- 3 vues : mois/semaine/jour
+- Creneaux en ligne pour clients
+
+UI COMPLETES (5 nouveaux onglets) :
+- Mode Juge (5 jauges SVG), Mode Adversaire, Mode Negociation
+- Memoire Cabinet (preferences + apprentissage style)
+- Questions IA (10 types × 8-10 questions)
+
+TIMELINE INTERACTIVE :
+- Alternee gauche/droite, badges colores, filtres, importance etoiles
+
+HONORAIRES ENRICHIS :
+- 4 KPIs, filtres, badges statuts, detail + email
+
+Email client OBLIGATOIRE a la creation
+
+COMMITS : f6a8770, 31618a4, 7b5ec38, 6e9589b, 2a03af4, d084bd9, d222025
+
+Dashboard V2 : 4809 lignes (vs 1177 au debut de la session)
+
+=== VISION PRODUIT CLE — MOTEUR INTELLIGENCE STRATEGIQUE ===
+
+Decide le 23 mai 2026 avec le fondateur. C'est LA bombe JADOMI.
+Voir memoire : project_moteur_strategique.md
+
+CONCEPT : Chaque dossier = cas strategique exploitable.
+Le dossier contient : contexte, preuves structurees, strategie, actions procedurales, issue finale, post-mortem, enseignements.
+
+3 NIVEAUX :
+1. Memoire privee cabinet (MVP) — apprend des dossiers clos du cabinet
+2. Patterns anonymises + GPS multi-chemins (Phase 2)
+3. Reseau Strategique JADOMI donnant-donnant (V2-V3)
+
+6 COUCHES PAR DOSSIER :
+1. Contexte enrichi (12 types contentieux, 6 statuts, 6 types employeur, CCN, secteur)
+2. Preuves structurees (18 types, force probatoire, axe strategique, statut)
+3. Strategie utilisee (principale/secondaires/abandonnee/adverse)
+4. Actions procedurales (10 types, consequence strategique)
+5. Issue finale (montants par axe, resultat detaille)
+6. Post-mortem obligatoire (retour experience, enseignements, pattern extrait)
+
+IMPORT DECISION dans le dossier :
+- Jugement CPH, arret CA, protocole transactionnel
+- Parse montants par chef de demande, motivation, articles
+
+GPS STRATEGIQUE MULTI-CHEMINS :
+- N chemins par dossier (harcelement, obligation securite, heures sup, negociation)
+- Chaque chemin : solidite, preuves, risques, taux reussite cabinet, tendance reseau
+
+ROADMAP :
+- Phase 1 : tables + onglets Dossier Vivant (issue, post-mortem, import)
+- Phase 2 : similarite, GPS, stats cabinet, scoring explicable
+- Phase 3 : reseau anonymise, opt-in, patterns partages
+
+A FAIRE PHASE 1 :
+- Enrichir avocat_dossiers (+15 champs strategiques)
+- Creer tables : avocat_strategies, avocat_issues, avocat_post_mortem, avocat_patterns
+- Onglets Dossier Vivant : Issue finale, Post-mortem, Import decision, Dossiers similaires
+- Backend API moteur strategique
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 23 mai 2026 (Passe 99 — Frontend avocat complet, Visio native, Tracker email)
+Derniere mise a jour : 23 mai 2026 (Passe 100 — Restructuration + Dossier Vivant + Vision Moteur Strategique)
 ===============================================================
