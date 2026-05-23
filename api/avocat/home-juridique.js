@@ -94,7 +94,7 @@ router.get('/jurisprudence-semaine', requireAvocat, async (req, res) => {
     const cached = await getCache('jurisprudence_semaine', null);
     if (cached) return res.json(cached);
 
-    const dateStart = daysAgo(7);
+    const dateStart = daysAgo(30); // 30 jours pour avoir suffisamment de décisions
     const dateEnd = daysAgo(0);
 
     let searchResult;
@@ -563,6 +563,230 @@ router.get('/tendances', requireAvocat, async (req, res) => {
   } catch (err) {
     console.error('[home-juridique/tendances]', err.message);
     return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ================================================
+// GET /a-retenir-public — Synthèse hebdomadaire SANS AUTH
+// ================================================
+router.get('/a-retenir-public', async (req, res) => {
+  try {
+    const cached = await getCache('a_retenir', null);
+    if (cached) return res.json(cached);
+
+    const { data: recentDecisions } = await admin().from('legal_data_cache')
+      .select('contenu_extrait, titre')
+      .eq('source', 'judilibre')
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    const decisionsTexte = (recentDecisions || [])
+      .map((row, i) => `[${i + 1}] ${row.titre || 'Décision'} : ${(row.contenu_extrait || '').substring(0, 200)}`)
+      .join('\n');
+
+    if (!decisionsTexte.trim()) {
+      // Fallback : utiliser le cache de jurisprudence_semaine
+      const jurisCache = await getCache('jurisprudence_semaine', null);
+      if (jurisCache && jurisCache.decisions) {
+        const points = jurisCache.decisions.map(d => d.resume_faits || '').filter(Boolean);
+        return res.json({ points, generee_le: new Date().toISOString() });
+      }
+      return res.json({ points: ['La synthèse hebdomadaire sera disponible après l\'indexation des premières décisions.'], generee_le: new Date().toISOString() });
+    }
+
+    if (!dispatch) return res.json({ points: ['Service IA non disponible.'], generee_le: new Date().toISOString() });
+
+    const systemPrompt = `Vous êtes un expert en droit social français. À partir des décisions récentes de la Cour de cassation, rédigez 5 à 7 points "à retenir" pour un avocat prud'homal.
+Chaque point doit être concis (1-2 phrases), actionnable et pertinent.
+Retournez un JSON strict : {"points":["Point 1","Point 2",...]}
+Vouvoiement obligatoire. Pas d'émoji. Accents corrects.`;
+
+    const { result: iaResult } = await dispatch('summarize_jurisprudence', systemPrompt,
+      `Voici les 20 dernières décisions de la chambre sociale :\n\n${decisionsTexte.substring(0, 4000)}`,
+      { maxTokens: 800 });
+
+    let points = [];
+    try { const m = iaResult.match(/\{[\s\S]*\}/); if (m) points = JSON.parse(m[0]).points || []; } catch {}
+    if (!points.length) points = ['La synthèse est en cours de génération.'];
+
+    const result = { points, nb_decisions_analysees: (recentDecisions || []).length, generee_le: new Date().toISOString() };
+    await setCache('a_retenir', null, result);
+    return res.json(result);
+  } catch (err) {
+    console.error('[home-juridique/a-retenir-public]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ================================================
+// GET /tendances-public — Tendances SANS AUTH
+// ================================================
+router.get('/tendances-public', async (req, res) => {
+  try {
+    const cached = await getCache('tendances', null);
+    if (cached) return res.json(cached);
+
+    // Générer à partir du cache jurisprudence existant
+    const jurisCache = await getCache('jurisprudence_semaine', null);
+    const decisions = jurisCache ? jurisCache.decisions || [] : [];
+
+    const themes = [
+      { mot_cle: 'licenciement', label: 'Licenciement' },
+      { mot_cle: 'harcèlement', label: 'Harcèlement' },
+      { mot_cle: 'heures supplémentaires', label: 'Heures supplémentaires' },
+      { mot_cle: 'inaptitude', label: 'Inaptitude' },
+      { mot_cle: 'discrimination', label: 'Discrimination' },
+      { mot_cle: 'faute grave', label: 'Faute grave' }
+    ];
+
+    const tendances = themes.map(t => {
+      let count = 0;
+      for (const d of decisions) {
+        const txt = JSON.stringify(d).toLowerCase();
+        if (txt.includes(t.mot_cle.toLowerCase())) count++;
+      }
+      return { theme: t.label, mot_cle: t.mot_cle, count_90j: count, count_precedent: 0, evolution_percent: 0 };
+    });
+
+    // Enrichir avec les données du cache legal_data_cache si disponible
+    try {
+      const il_y_a_90j = daysAgo(90);
+      const { data: recent } = await admin().from('legal_data_cache')
+        .select('contenu_extrait').eq('source', 'judilibre').gte('updated_at', il_y_a_90j);
+
+      if (recent && recent.length > 5) {
+        for (const t of tendances) {
+          let c = 0;
+          for (const row of recent) {
+            if ((row.contenu_extrait || '').toLowerCase().includes(t.mot_cle.toLowerCase())) c++;
+          }
+          if (c > t.count_90j) t.count_90j = c;
+        }
+      }
+    } catch {}
+
+    tendances.sort((a, b) => b.count_90j - a.count_90j);
+
+    const result = {
+      tendances,
+      total_decisions_analysees: decisions.length,
+      generee_le: new Date().toISOString()
+    };
+
+    await setCache('tendances', null, result);
+    return res.json(result);
+  } catch (err) {
+    console.error('[home-juridique/tendances-public]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ================================================
+// GET /jurisprudence-publique
+// Version SANS AUTH — données publiques Judilibre (open data)
+// Permet d'afficher la veille même sans connexion
+// ================================================
+router.get('/jurisprudence-publique', async (req, res) => {
+  try {
+    const cached = await getCache('jurisprudence_semaine', null);
+    if (cached) return res.json(cached);
+
+    const dateStart = daysAgo(30);
+    const dateEnd = daysAgo(0);
+
+    let searchResult;
+    try {
+      searchResult = await judilibre.search('travail', {
+        chambre: 'soc',
+        dateDebut: dateStart,
+        dateFin: dateEnd,
+        pageSize: 10,
+        sort: 'date',
+        order: 'desc'
+      });
+    } catch (err) {
+      console.error('[home-juridique] Judilibre search error:', err.message);
+      return res.json({ decisions: [], message: 'Service Judilibre temporairement indisponible.' });
+    }
+
+    const decisions = (searchResult.results || []).slice(0, 5);
+    const analysees = [];
+
+    for (const dec of decisions) {
+      try {
+        const systemPrompt = `Vous êtes un expert en droit du travail français. Analysez cette décision de la Cour de cassation, chambre sociale. Répondez en JSON strict :
+{"resume_faits":"Résumé en 3 lignes","points_cles":["Point 1","Point 2"],"impact_pratique":"Impact en 2 lignes","score_importance":3}
+Vouvoiement obligatoire. Pas d'émoji.`;
+        const texteDecision = dec.text || dec.summary || dec.titre || dec.number || '';
+        const userPrompt = `Décision : ${dec.number || 'N/A'} du ${dec.decision_date || dec.date || 'date inconnue'}\nTexte : ${texteDecision.substring(0, 3000)}`;
+        const { result } = await dispatch('summarize_jurisprudence', systemPrompt, userPrompt, { maxTokens: 600 });
+        let analyse = {};
+        try { const m = result.match(/\{[\s\S]*\}/); if (m) analyse = JSON.parse(m[0]); } catch {}
+        analysees.push({
+          id: dec.id || null, numero: dec.number || null, date: dec.decision_date || dec.date || null,
+          titre: 'Cass. soc., ' + (dec.decision_date || dec.date || '') + ', n° ' + (dec.number || ''),
+          chambre: 'sociale',
+          resume_faits: analyse.resume_faits || 'Décision récente de la chambre sociale.',
+          points_cles: analyse.points_cles || [],
+          impact_pratique: analyse.impact_pratique || '',
+          score_importance: Math.min(5, Math.max(1, analyse.score_importance || 3))
+        });
+      } catch {
+        analysees.push({
+          id: dec.id, numero: dec.number, date: dec.decision_date || dec.date,
+          titre: 'Cass. soc., ' + (dec.decision_date || dec.date || '') + ', n° ' + (dec.number || ''),
+          chambre: 'sociale', resume_faits: 'Analyse en cours.', points_cles: [], impact_pratique: '', score_importance: 3
+        });
+      }
+    }
+
+    const result = { decisions: analysees, periode: { debut: dateStart, fin: dateEnd }, total_trouvees: searchResult.total || 0, generee_le: new Date().toISOString() };
+    await setCache('jurisprudence_semaine', null, result);
+    return res.json(result);
+  } catch (err) {
+    console.error('[home-juridique/jurisprudence-publique]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ================================================
+// GET /decision/:id — Texte intégral d'une décision (public, open data)
+// ================================================
+router.get('/decision/:id', async (req, res) => {
+  try {
+    const decision = await judilibre.getDecision(req.params.id);
+    if (!decision || !decision.text) {
+      return res.status(404).json({ error: 'Décision non trouvée' });
+    }
+
+    // Structurer les zones si disponibles
+    const zones = decision.zones || {};
+    const structure = {};
+    for (const [key, value] of Object.entries(zones)) {
+      if (Array.isArray(value)) {
+        structure[key] = value.map(v => decision.text.substring(v.start, v.end)).join('\n');
+      }
+    }
+
+    return res.json({
+      id: decision.id,
+      numero: decision.number,
+      date: decision.decision_date,
+      ecli: decision.ecli,
+      juridiction: decision.jurisdiction,
+      chambre: decision.chamber,
+      formation: decision.formation,
+      solution: decision.solution,
+      type: decision.type,
+      texte_integral: decision.text,
+      zones: structure,
+      visa: decision.visa || [],
+      rapprochements: decision.rapprochements || [],
+      titres_sommaires: decision.titlesAndSummaries || []
+    });
+  } catch (err) {
+    console.error('[home-juridique/decision]', err.message);
+    return res.status(500).json({ error: 'Erreur lors du chargement de la décision' });
   }
 });
 

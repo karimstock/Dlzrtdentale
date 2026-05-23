@@ -561,7 +561,66 @@ tr:hover{background:rgba(201,169,97,.04);}
 <!-- Modal: Upload piece -->
 <div class="modal-bg" id="modal-upload-piece" onclick="if(event.target===this)closeModal('modal-upload-piece')"><div class="modal"><h2>Ajouter une piece</h2><div class="field"><label>Fichier</label><input type="file" id="piece-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.odt,.rtf"></div><div class="field"><label>Dossier</label><select id="piece-dossier"></select></div><div class="field"><label>Type</label><select id="piece-type"><option value="contrat">Contrat</option><option value="mail">Mail</option><option value="courrier">Courrier</option><option value="conclusion">Conclusion</option><option value="jugement">Jugement</option><option value="attestation">Attestation</option><option value="piece_adverse">Piece adverse</option><option value="piece_client">Piece client</option><option value="autre">Autre</option></select></div><div class="field"><label>Importance</label><select id="piece-importance"><option value="faible">Faible</option><option value="moyenne" selected>Moyenne</option><option value="elevee">Elevee</option></select></div><div class="field"><label>Date du document</label><input type="date" id="piece-date"></div><div class="field"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;"><input type="checkbox" id="piece-a-verifier"> A verifier</label></div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="btn btn-s" onclick="closeModal('modal-upload-piece')">Annuler</button><button class="btn btn-gold" onclick="uploadPiece()">Envoyer</button></div></div></div>
 
+<!-- COPILOT FLOTTANT — Analyse documents + IA -->
+<div id="copilot-fab" onclick="toggleCopilotPanel()" style="position:fixed;bottom:28px;right:28px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--nuit),var(--nuit-soft));color:var(--or);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 32px rgba(10,22,40,.25);z-index:100;transition:all .3s var(--ease);font-size:22px;font-weight:700;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">IA</div>
+
+<div id="copilot-panel" style="display:none;position:fixed;bottom:96px;right:28px;width:420px;max-height:70vh;background:var(--blanc);border-radius:var(--r-lg);box-shadow:0 12px 48px rgba(10,22,40,.15);z-index:100;overflow:hidden;animation:v2FadeIn .3s var(--ease);">
+  <div style="padding:16px 20px;background:linear-gradient(135deg,var(--nuit),var(--nuit-soft));color:var(--blanc);display:flex;justify-content:space-between;align-items:center;">
+    <div><div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:var(--or);">JADOMI Copilot</div><div style="font-size:11px;color:rgba(255,255,255,.5);">Assistant juridique IA</div></div>
+    <button onclick="toggleCopilotPanel()" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:20px;padding:4px;">&times;</button>
+  </div>
+
+  <!-- Onglets -->
+  <div style="display:flex;border-bottom:1px solid var(--line);">
+    <div class="copilot-tab active" data-tab="chat" onclick="switchCopilotTab('chat')" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid var(--or);color:var(--nuit);">Question IA</div>
+    <div class="copilot-tab" data-tab="analyse" onclick="switchCopilotTab('analyse')" style="flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--ink-d);">Analyser un document</div>
+  </div>
+
+  <!-- Tab Chat -->
+  <div id="copilot-tab-chat" style="padding:16px;">
+    <div id="copilot-messages" style="min-height:150px;max-height:300px;overflow-y:auto;margin-bottom:12px;font-size:13px;">
+      <div style="color:var(--ink-d);font-size:12px;text-align:center;padding:20px;">Posez une question juridique...</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="copilot-input" placeholder="Votre question..." style="flex:1;padding:10px 14px;border:1px solid var(--line-strong);border-radius:8px;font-size:13px;" onkeydown="if(event.key==='Enter')sendCopilotMessage()">
+      <button class="btn btn-gold" onclick="sendCopilotMessage()" style="padding:10px 16px;">Envoyer</button>
+    </div>
+  </div>
+
+  <!-- Tab Analyse Document -->
+  <div id="copilot-tab-analyse" style="padding:16px;display:none;">
+    <div style="font-size:13px;color:var(--ink-s);margin-bottom:12px;">Uploadez les conclusions adverses ou tout document juridique. L'IA d&eacute;tecte les failles, cherche la jurisprudence contraire et r&eacute;dige un projet de r&eacute;ponse.</div>
+    <div id="copilot-dropzone" style="border:2px dashed var(--line-strong);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .3s var(--ease);" onclick="document.getElementById('copilot-file').click()" ondragover="event.preventDefault();this.style.borderColor='var(--or)';this.style.background='var(--or-dim)'" ondragleave="this.style.borderColor='var(--line-strong)';this.style.background=''" ondrop="event.preventDefault();this.style.borderColor='var(--line-strong)';this.style.background='';handleCopilotDrop(event)">
+      <div style="font-size:24px;margin-bottom:8px;">&#128196;</div>
+      <div style="font-size:13px;font-weight:600;color:var(--nuit);">Glissez un document ici</div>
+      <div style="font-size:11px;color:var(--ink-d);margin-top:4px;">PDF, texte, image (max 25 Mo)</div>
+    </div>
+    <input type="file" id="copilot-file" accept=".pdf,.txt,.jpg,.jpeg,.png" style="display:none" onchange="handleCopilotFile(this)">
+    <div style="text-align:center;margin:12px 0;font-size:11px;color:var(--ink-d);">ou</div>
+    <textarea id="copilot-texte-adverse" rows="4" placeholder="Collez le texte des conclusions adverses ici..." style="width:100%;padding:10px 14px;border:1px solid var(--line-strong);border-radius:8px;font-size:13px;resize:none;font-family:'Inter',sans-serif;"></textarea>
+    <button class="btn btn-gold" onclick="lancerAnalyseAdverse()" style="width:100%;margin-top:12px;padding:12px;" id="btn-analyse-adverse">Analyser les &eacute;critures adverses</button>
+    <div id="copilot-analyse-result" style="margin-top:12px;max-height:300px;overflow-y:auto;"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+
+<!-- Modal: Décision complète Judilibre -->
+<div class="modal-bg" id="modal-decision" onclick="if(event.target===this)closeModal('modal-decision')" style="display:none;">
+<div class="modal" style="max-width:800px;max-height:85vh;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h2 id="modal-decision-titre" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--nuit);margin:0;">D&eacute;cision</h2>
+    <button class="btn btn-s" onclick="closeModal('modal-decision')" style="padding:6px 14px;">Fermer</button>
+  </div>
+  <div id="modal-decision-content" style="font-size:14px;line-height:1.7;color:var(--ink);white-space:pre-wrap;font-family:'Inter',sans-serif;">
+    Chargement de la d&eacute;cision...
+  </div>
+  <div style="display:flex;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <button class="btn btn-gold" onclick="copierDecision()">Copier le texte</button>
+    <button class="btn btn-s" onclick="telechargerDecision()">T&eacute;l&eacute;charger (.txt)</button>
+  </div>
+</div>
+</div>
 
 <script>
 var API='',timerInterval=null,timerStart=null,timerRunning=false,timerEntryId=null,allDossiers=[],allDomaines=[];
@@ -697,13 +756,167 @@ function exporterWord(id){var t=enqueteTranscriptions.find(function(x){return x.
 function croiserAuditions(){if(enqueteTranscriptions.length<2){toast('Il faut au moins 2 transcriptions.');return;}var btn=document.getElementById('btn-croiser');btn.disabled=true;btn.textContent='Analyse...';var texts=enqueteTranscriptions.map(function(t){return{filename:t.filename,text:t.text.substring(0,2000)};});apiFetch('/api/avocat/enquete/croiser',{method:'POST',body:JSON.stringify({auditions:texts})}).then(function(data){renderCroisement(data);}).catch(function(){apiFetch('/api/avocat/ia/message',{method:'POST',body:JSON.stringify({message:'Compare ces auditions, identifie contradictions, concordances, faits isoles. JSON: {"contradictions":[],"concordances":[],"faits_isoles":[]}. Auditions : '+JSON.stringify(texts)})}).then(function(data){try{renderCroisement(JSON.parse(data.reply||'{}'));}catch(e){document.getElementById('enquete-croisement').innerHTML='<div style="font-size:13px;white-space:pre-wrap;">'+escapeHtml(data.reply||'Erreur.')+'</div>';}}).catch(function(){toast('Erreur.');});}).finally(function(){btn.disabled=false;btn.textContent='Croiser les auditions';});}
 function renderCroisement(data){var el=document.getElementById('enquete-croisement'),h='';var ct=data.contradictions||[];if(ct.length){h+='<div class="section-title" style="color:var(--danger);margin-top:12px;">Contradictions</div>';ct.forEach(function(c){h+='<div class="enquete-contradiction"><div style="font-size:13px;font-weight:600;">'+escapeHtml(typeof c==='string'?c:c.titre||c.description||'')+'</div></div>';});}var co=data.concordances||[];if(co.length){h+='<div class="section-title" style="color:var(--success);margin-top:16px;">Concordances</div>';co.forEach(function(c){h+='<div class="enquete-concordance"><div style="font-size:13px;">'+escapeHtml(typeof c==='string'?c:c.titre||c.description||'')+'</div></div>';});}var fi=data.faits_isoles||data.isoles||[];if(fi.length){h+='<div class="section-title" style="color:var(--ink-d);margin-top:16px;">Faits isoles</div>';fi.forEach(function(f){h+='<div class="enquete-isole"><div style="font-size:13px;">'+escapeHtml(typeof f==='string'?f:f.titre||f.description||'')+'</div></div>';});}if(!h)h='<div class="empty">Aucun resultat.</div>';el.innerHTML=h;}
 
+/* === COPILOT FLOTTANT === */
+function toggleCopilotPanel(){var p=document.getElementById('copilot-panel');p.style.display=p.style.display==='none'?'block':'none';}
+function switchCopilotTab(tab){
+  document.querySelectorAll('.copilot-tab').forEach(function(t){t.style.borderBottomColor='transparent';t.style.color='var(--ink-d)';});
+  document.querySelector('.copilot-tab[data-tab="'+tab+'"]').style.borderBottomColor='var(--or)';
+  document.querySelector('.copilot-tab[data-tab="'+tab+'"]').style.color='var(--nuit)';
+  document.getElementById('copilot-tab-chat').style.display=tab==='chat'?'block':'none';
+  document.getElementById('copilot-tab-analyse').style.display=tab==='analyse'?'block':'none';
+}
+function sendCopilotMessage(){
+  var input=document.getElementById('copilot-input');
+  var msg=input.value.trim();if(!msg)return;
+  var el=document.getElementById('copilot-messages');
+  el.innerHTML+='<div style="margin-bottom:8px;text-align:right;"><span style="background:var(--or-dim);padding:8px 12px;border-radius:12px 12px 0 12px;font-size:13px;display:inline-block;max-width:85%;">'+escapeHtml(msg)+'</span></div>';
+  el.innerHTML+='<div style="margin-bottom:8px;" id="copilot-loading"><span style="background:var(--creme-warm);padding:8px 12px;border-radius:12px 12px 12px 0;font-size:13px;display:inline-block;color:var(--ink-d);">R\u00e9flexion...</span></div>';
+  el.scrollTop=el.scrollHeight;
+  input.value='';
+  apiFetch('/api/avocat/ia/message',{method:'POST',body:JSON.stringify({message:msg})}).then(function(data){
+    var ld=document.getElementById('copilot-loading');if(ld)ld.remove();
+    var reply=data.reply||data.text||data.response||'Pas de r\u00e9ponse.';
+    el.innerHTML+='<div style="margin-bottom:8px;"><span style="background:var(--creme-warm);padding:8px 12px;border-radius:12px 12px 12px 0;font-size:13px;display:inline-block;max-width:85%;line-height:1.5;">'+reply.replace(/\n/g,'<br>')+'</span></div>';
+    el.scrollTop=el.scrollHeight;
+  }).catch(function(){
+    var ld=document.getElementById('copilot-loading');if(ld)ld.remove();
+    el.innerHTML+='<div style="margin-bottom:8px;"><span style="background:var(--danger-bg);padding:8px 12px;border-radius:12px;font-size:13px;display:inline-block;color:var(--danger);">Erreur. V\u00e9rifiez votre connexion.</span></div>';
+  });
+}
+function handleCopilotDrop(e){var files=e.dataTransfer.files;if(files.length)handleCopilotFileObj(files[0]);}
+function handleCopilotFile(input){if(input.files.length)handleCopilotFileObj(input.files[0]);}
+function handleCopilotFileObj(file){
+  document.getElementById('copilot-dropzone').innerHTML='<div style="font-size:13px;font-weight:600;color:var(--nuit);">'+escapeHtml(file.name)+'</div><div style="font-size:11px;color:var(--ink-d);margin-top:4px;">'+Math.round(file.size/1024)+' Ko — Pr\u00eat pour l\'analyse</div>';
+  window._copilotFile=file;
+}
+function lancerAnalyseAdverse(){
+  var btn=document.getElementById('btn-analyse-adverse');
+  var resultEl=document.getElementById('copilot-analyse-result');
+  btn.disabled=true;btn.textContent='Analyse en cours...';
+  resultEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-d);font-size:13px;">L\'IA analyse le document, recherche la jurisprudence contraire et r\u00e9dige un projet de r\u00e9ponse...<br><br>Cela peut prendre 30 \u00e0 60 secondes.</div>';
+
+  var fd=new FormData();
+  if(window._copilotFile){fd.append('document',window._copilotFile);}
+  var texte=document.getElementById('copilot-texte-adverse').value;
+  if(texte)fd.append('texte',texte);
+
+  var headers=getHeadersMultipart();
+  fetch('/api/avocat/adverse/analyser',{method:'POST',headers:headers,body:fd})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.error){resultEl.innerHTML='<div style="color:var(--danger);font-size:13px;">'+escapeHtml(data.error)+'</div>';return;}
+
+    var html='';
+    /* Score adverse */
+    var score=data.analyse.score_solidite_adverse||0;
+    var scoreColor=score>70?'var(--danger)':score>40?'var(--warning)':'var(--success)';
+    html+='<div style="text-align:center;margin-bottom:16px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-d);">Solidit\u00e9 adverse</div><div style="font-size:36px;font-weight:700;color:'+scoreColor+';">'+score+'/100</div></div>';
+
+    /* Failles */
+    var failles=data.analyse.failles_detectees||[];
+    if(failles.length){
+      html+='<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:700;color:var(--success);margin-bottom:6px;">FAILLES D\u00c9TECT\u00c9ES ('+failles.length+')</div>';
+      failles.forEach(function(f){
+        var col=f.gravite==='critique'?'var(--danger)':f.gravite==='importante'?'var(--warning)':'var(--ink-d)';
+        html+='<div style="padding:8px;border-left:3px solid '+col+';background:rgba(0,0,0,.02);border-radius:0 var(--r-sm) var(--r-sm) 0;margin-bottom:4px;font-size:12px;"><strong>'+escapeHtml(f.faille)+'</strong><div style="color:var(--ink-d);margin-top:2px;">'+escapeHtml(f.comment_exploiter||f.explication||'')+'</div></div>';
+      });html+='</div>';}
+
+    /* Jurisprudence contraire */
+    var juris=data.jurisprudence_contraire||[];
+    if(juris.length){
+      html+='<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:700;color:var(--or-dark);margin-bottom:6px;">JURISPRUDENCE CONTRAIRE ('+juris.length+')</div>';
+      juris.forEach(function(j){
+        html+='<div style="padding:8px;background:var(--or-dim);border-radius:var(--r-sm);margin-bottom:4px;font-size:12px;"><strong>'+escapeHtml(j.reference)+'</strong><div style="margin-top:2px;">'+escapeHtml(j.utilisation||'')+'</div></div>';
+      });html+='</div>';}
+
+    /* Bouton voir réponse complète */
+    if(data.projet_reponse){
+      html+='<button class="btn btn-gold" style="width:100%;margin-top:8px;" onclick="ouvrirReponseAdverse()">Voir le projet de r\u00e9ponse r\u00e9dig\u00e9 par l\'IA</button>';
+      window._projetReponseAdverse=data.projet_reponse;
+    }
+
+    resultEl.innerHTML=html;
+  })
+  .catch(function(e){resultEl.innerHTML='<div style="color:var(--danger);font-size:13px;">Erreur : '+escapeHtml(e.message||'Connexion requise')+'</div>';})
+  .finally(function(){btn.disabled=false;btn.textContent='Analyser les \u00e9critures adverses';});
+}
+function ouvrirReponseAdverse(){
+  if(!window._projetReponseAdverse)return;
+  var modal=document.getElementById('modal-decision');
+  modal.style.display='flex';
+  document.getElementById('modal-decision-titre').textContent='Projet de r\u00e9ponse — G\u00e9n\u00e9r\u00e9 par JADOMI IA';
+  document.getElementById('modal-decision-content').innerHTML=window._projetReponseAdverse;
+  _decisionTexte=window._projetReponseAdverse.replace(/<[^>]+>/g,'');
+}
+
+/* === MODAL DÉCISION COMPLÈTE (Judilibre) === */
+var _decisionTexte='';
+function voirDecisionComplete(id,numero){
+  var modal=document.getElementById('modal-decision');
+  var titre=document.getElementById('modal-decision-titre');
+  var content=document.getElementById('modal-decision-content');
+  modal.style.display='flex';
+  titre.textContent='Cass. soc., n\u00b0 '+numero;
+  content.textContent='Chargement de la d\u00e9cision compl\u00e8te depuis Judilibre...';
+  _decisionTexte='';
+
+  fetch('/api/avocat/home/decision/'+encodeURIComponent(id))
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+  .then(function(data){
+    var texte=data.texte_integral||'';
+    if(!texte){
+      content.textContent='Le texte int\u00e9gral n\'est pas disponible.';
+      return;
+    }
+    _decisionTexte=texte;
+    titre.textContent='Cass. soc., '+(data.date||'')+', n\u00b0 '+(data.numero||numero);
+
+    /* Affichage structuré si zones disponibles */
+    var zones=data.zones||{};
+    var html='';
+    if(zones.introduction){html+='<div style="margin-bottom:16px;"><h3 style="font-size:13px;font-weight:700;color:var(--or-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Introduction</h3><div style="font-size:14px;line-height:1.7;">'+escapeHtml(zones.introduction)+'</div></div>';}
+    if(zones.expose){html+='<div style="margin-bottom:16px;"><h3 style="font-size:13px;font-weight:700;color:var(--or-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Expos\u00e9 du litige</h3><div style="font-size:14px;line-height:1.7;">'+escapeHtml(zones.expose)+'</div></div>';}
+    if(zones.motivations){html+='<div style="margin-bottom:16px;"><h3 style="font-size:13px;font-weight:700;color:var(--or-dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Motivations</h3><div style="font-size:14px;line-height:1.7;">'+escapeHtml(zones.motivations)+'</div></div>';}
+    if(zones.dispositif){html+='<div style="margin-bottom:16px;padding:14px;background:var(--creme-warm);border-radius:var(--r-sm);border-left:3px solid var(--or);"><h3 style="font-size:13px;font-weight:700;color:var(--nuit);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Dispositif</h3><div style="font-size:14px;line-height:1.7;font-weight:500;">'+escapeHtml(zones.dispositif)+'</div></div>';}
+
+    /* Métadonnées */
+    html+='<div style="margin-top:16px;padding:12px;background:rgba(0,0,0,.02);border-radius:var(--r-sm);font-size:12px;color:var(--ink-d);">';
+    if(data.ecli)html+='<div><strong>ECLI :</strong> '+escapeHtml(data.ecli)+'</div>';
+    if(data.solution)html+='<div><strong>Solution :</strong> '+escapeHtml(data.solution)+'</div>';
+    if(data.formation)html+='<div><strong>Formation :</strong> '+escapeHtml(data.formation)+'</div>';
+    html+='</div>';
+
+    if(html){content.innerHTML=html;}
+    else{content.style.whiteSpace='pre-wrap';content.textContent=texte;}
+  })
+  .catch(function(e){
+    content.textContent='Erreur de chargement de la d\u00e9cision. R\u00e9essayez.';
+    console.error('Decision load error:', e);
+  });
+}
+function copierDecision(){
+  if(_decisionTexte){navigator.clipboard.writeText(_decisionTexte).then(function(){toast('D\u00e9cision copi\u00e9e.');});}
+}
+function telechargerDecision(){
+  if(!_decisionTexte)return;
+  var blob=new Blob([_decisionTexte],{type:'text/plain'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download='decision_cass_soc.txt';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('T\u00e9l\u00e9chargement lanc\u00e9.');
+}
+function copierReference(ref){
+  navigator.clipboard.writeText(ref).then(function(){toast('R\u00e9f\u00e9rence copi\u00e9e : '+ref);});
+}
+function closeModal(id){document.getElementById(id).style.display='none';}
+
 /* ACCUEIL — HOME PAGE INTELLIGENTE (Passe 94) */
 function loadAccueil(){
 var now=new Date();var jours=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];var moisN=['janvier','f\u00e9vrier','mars','avril','mai','juin','juillet','ao\u00fbt','septembre','octobre','novembre','d\u00e9cembre'];
 document.getElementById('welcome-date').textContent=jours[now.getDay()]+' '+now.getDate()+' '+moisN[now.getMonth()]+' '+now.getFullYear();
 
-/* 1. Jurisprudence de la semaine */
-apiFetch('/api/avocat/home/jurisprudence-semaine').then(function(data){
+/* 1. Jurisprudence de la semaine — endpoint public (pas besoin d'auth) */
+fetch('/api/avocat/home/jurisprudence-publique').then(function(r){return r.json();}).then(function(data){
   var el=document.getElementById('juris-semaine-list');
   var per=document.getElementById('juris-periode');
   if(per&&data.periode)per.textContent='Du '+data.periode.debut+' au '+data.periode.fin;
@@ -711,19 +924,24 @@ apiFetch('/api/avocat/home/jurisprudence-semaine').then(function(data){
   if(!decs.length){el.innerHTML='<div class="empty" style="padding:16px;">Aucune d\u00e9cision r\u00e9cente de la chambre sociale.</div>';return;}
   el.innerHTML=decs.map(function(d){
     var etoiles='';for(var i=0;i<(d.score_importance||3);i++)etoiles+='\u2605';
-    return'<div style="border:1px solid var(--line);border-radius:var(--r-sm);padding:14px;background:var(--blanc);transition:all .3s var(--ease);">'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'+
-    '<div style="font-weight:700;font-size:13px;color:var(--nuit);">Cass. soc. '+(d.numero||'')+' \u2014 '+(d.date||'')+'</div>'+
-    '<span style="color:var(--or);font-size:12px;letter-spacing:1px;">'+etoiles+'</span></div>'+
-    '<div style="font-size:12px;color:var(--ink-s);margin-bottom:8px;line-height:1.5;">'+(d.resume_faits||'')+'</div>'+
-    (d.points_cles&&d.points_cles.length?'<div style="margin-bottom:6px;">'+d.points_cles.map(function(p){return'<div style="font-size:11px;color:var(--nuit);padding:2px 0;">\u2022 '+escapeHtml(p)+'</div>';}).join('')+'</div>':'')+
-    (d.impact_pratique?'<div style="font-size:11px;color:var(--or-dark);font-style:italic;">Impact : '+escapeHtml(d.impact_pratique)+'</div>':'')+
-    '</div>';
+    return'<div style="border:1px solid var(--line);border-radius:var(--r);padding:20px;background:var(--blanc);transition:all .3s var(--ease);cursor:pointer;" onmouseenter="this.style.boxShadow=\'var(--shadow-md)\'" onmouseleave="this.style.boxShadow=\'none\'">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
+    '<div style="font-weight:700;font-size:15px;color:var(--nuit);">Cass. soc., '+(d.date||'')+', n\u00b0 '+(d.numero||'')+'</div>'+
+    '<span style="color:var(--or);font-size:14px;letter-spacing:2px;">'+etoiles+'</span></div>'+
+    '<div style="font-size:14px;color:var(--ink-s);margin-bottom:12px;line-height:1.6;">'+(d.resume_faits||'')+'</div>'+
+    (d.points_cles&&d.points_cles.length?'<div style="margin-bottom:10px;padding:10px 14px;background:var(--creme-warm);border-radius:var(--r-sm);">'+
+    '<div style="font-size:11px;font-weight:700;color:var(--nuit);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Points cl\u00e9s</div>'+
+    d.points_cles.map(function(p){return'<div style="font-size:13px;color:var(--nuit);padding:3px 0;line-height:1.5;">\u2022 '+escapeHtml(p)+'</div>';}).join('')+'</div>':'')+
+    (d.impact_pratique?'<div style="font-size:13px;color:var(--or-dark);font-style:italic;margin-bottom:12px;line-height:1.5;"><strong>Impact pratique :</strong> '+escapeHtml(d.impact_pratique)+'</div>':'')+
+    '<div style="display:flex;gap:8px;margin-top:8px;">'+
+    '<button class="btn btn-s" onclick="event.stopPropagation();voirDecisionComplete(\''+(d.id||'')+'\',\''+(d.numero||'')+'\')">Voir la d\u00e9cision compl\u00e8te</button>'+
+    '<button class="btn btn-s" style="background:var(--or-dim);color:var(--or-dark);" onclick="event.stopPropagation();copierReference(\'Cass. soc., '+(d.date||'')+', n\u00b0 '+(d.numero||'')+'\')">Copier la r\u00e9f\u00e9rence</button>'+
+    '</div></div>';
   }).join('');
 }).catch(function(e){document.getElementById('juris-semaine-list').innerHTML='<div class="empty" style="padding:16px;">Service de veille temporairement indisponible.</div>';});
 
-/* 2. A retenir cette semaine */
-apiFetch('/api/avocat/home/a-retenir').then(function(data){
+/* 2. A retenir cette semaine — endpoint public */
+fetch('/api/avocat/home/a-retenir-public').then(function(r){return r.json();}).then(function(data){
   var el=document.getElementById('a-retenir-list');
   var pts=data.points||[];
   if(!pts.length){el.innerHTML='<div class="empty" style="padding:12px;">Aucune synth\u00e8se disponible.</div>';return;}
@@ -732,9 +950,9 @@ apiFetch('/api/avocat/home/a-retenir').then(function(data){
     '<div style="width:6px;height:6px;border-radius:50%;background:var(--info);margin-top:6px;flex-shrink:0;"></div>'+
     '<div style="font-size:12px;color:var(--ink);line-height:1.5;">'+escapeHtml(p)+'</div></div>';
   }).join('');
-}).catch(function(){});
+}).catch(function(){document.getElementById('a-retenir-list').innerHTML='<div class="empty" style="padding:12px;font-size:13px;color:var(--ink-d);">Synth\u00e8se en cours de g\u00e9n\u00e9ration...</div>';});
 
-/* 3. Alertes strategiques */
+/* 3. Alertes strategiques — fallback si pas connecté */
 apiFetch('/api/avocat/home/alertes').then(function(data){
   var el=document.getElementById('alertes-list');
   var ct=document.getElementById('alertes-count');
@@ -749,7 +967,7 @@ apiFetch('/api/avocat/home/alertes').then(function(data){
     '<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--nuit);">'+escapeHtml(a.titre)+'</div>'+
     '<div style="font-size:11px;color:var(--ink-d);margin-top:2px;">'+escapeHtml(a.description)+'</div></div></div>';
   }).join('');
-}).catch(function(){});
+}).catch(function(){document.getElementById('alertes-list').innerHTML='<div class="empty" style="padding:12px;font-size:12px;color:var(--ink-d);">Connectez-vous pour voir vos alertes.</div>';});
 
 /* 4. Dossiers prioritaires */
 apiFetch('/api/avocat/home/dossiers-prioritaires').then(function(data){
@@ -767,10 +985,10 @@ apiFetch('/api/avocat/home/dossiers-prioritaires').then(function(data){
     (badges?'<div style="margin-top:4px;">'+badges+'</div>':'')+
     '</div><div style="text-align:right;"><div style="font-size:18px;font-weight:700;color:'+(d.score_urgence>=80?'var(--danger)':d.score_urgence>=40?'var(--warning)':'var(--ink-d)')+';">'+d.score_urgence+'</div><div style="font-size:9px;color:var(--ink-d);">urgence</div></div></div>';
   }).join('');
-}).catch(function(){});
+}).catch(function(){document.getElementById('dossiers-prioritaires-list').innerHTML='<div class="empty" style="padding:12px;font-size:12px;color:var(--ink-d);">Connectez-vous pour voir vos dossiers prioritaires.</div>';});
 
-/* 5. Tendances prud'homales */
-apiFetch('/api/avocat/home/tendances').then(function(data){
+/* 5. Tendances prud'homales — endpoint public */
+fetch('/api/avocat/home/tendances-public').then(function(r){return r.json();}).then(function(data){
   var el=document.getElementById('tendances-list');
   var tds=data.tendances||[];
   if(!tds.length){el.innerHTML='<div class="empty" style="padding:12px;">Aucune donn\u00e9e de tendance.</div>';return;}
@@ -785,7 +1003,7 @@ apiFetch('/api/avocat/home/tendances').then(function(data){
     '<div style="width:32px;text-align:right;font-size:12px;font-weight:700;color:var(--nuit);">'+t.count_90j+'</div>'+
     '<div style="width:45px;text-align:right;font-size:11px;font-weight:600;color:'+evolColor+';">'+evolSign+evol+'%</div></div>';
   }).join('');
-}).catch(function(){});
+}).catch(function(){document.getElementById('tendances-list').innerHTML='<div class="empty" style="padding:12px;font-size:13px;color:var(--ink-d);">Tendances en cours de calcul...</div>';});
 }
 
 document.addEventListener('DOMContentLoaded',function(){var ri=document.getElementById('rech-query');if(ri)ri.addEventListener('keydown',function(e){if(e.key==='Enter')lancerRecherche();});});

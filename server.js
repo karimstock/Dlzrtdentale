@@ -1212,6 +1212,18 @@ try {
   console.log('[JADOMI] Module Avocat Vérification Anti-erreurs monté');
 } catch (e) { console.warn('[JADOMI] Avocat Vérification non chargé:', e.message); }
 try {
+  app.use('/api/avocat/adverse', require('./api/avocat/analyse-adverse'));
+  console.log('[JADOMI] Module Avocat Analyse Adverse (killer feature) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Analyse Adverse non chargé:', e.message); }
+try {
+  app.use('/api/avocat/juge', require('./api/avocat/mode-juge'));
+  console.log('[JADOMI] Module Avocat Mode Juge (simulation évaluation) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Mode Juge non chargé:', e.message); }
+try {
+  app.use('/api/avocat/cabinet', require('./api/avocat/memoire-cabinet'));
+  console.log('[JADOMI] Module Avocat Mémoire Cabinet (préférences + style) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Mémoire Cabinet non chargé:', e.message); }
+try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
 } catch (e) { console.warn('[JADOMI] Admin Copilot non chargé:', e.message); }
