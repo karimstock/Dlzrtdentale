@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 23 mai 2026
-**Derniere passe** : Passe 94-98 (23 mai 2026) — Bloomberg prud'homal : 8 modules, 40 endpoints, 5 tables, Home Page Intelligente, Scoring, Generation Docs, Visio Jitsi, Knowledge Graph, Audience Mobile, Secretaire Juridique, Anti-erreurs
+**Derniere passe** : Passe 99 (23 mai 2026) — Frontend avocat complet (Nouveau Client + Dossier + Agenda + Simulateur V2), Visio native WebRTC P2P (zero tiers), Tracker ouverture email, Invitation premium
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5229,21 +5229,56 @@ TABLES SUPABASE CREEES (5 nouvelles) :
 AUSSI CETTE SESSION :
 - Creation SASU JADOMI sur LegalPlace (12 activites NAF declarees)
 
-A FAIRE (Passe 99+) :
+### Passe 99 (23 mai 2026) — Frontend avocat complet + Visio native + Tracker email
+
+VISIO NATIVE WebRTC (remplace Jitsi) :
+- WebRTC P2P chiffre bout en bout, ZERO tiers externe, RGPD natif
+- Signaling WebSocket /ws/visio (Node.js natif, pas de lib externe)
+- Page /visio/:roomId avec camera, micro, partage ecran, audio seul
+- STUN Google + TURN serveur configurable
+- api/avocat/visio.js : 426 lignes, 7 endpoints
+
+INVITATION EMAIL PREMIUM :
+- Modal "Inviter par email" (nom client, email, date, heure, nom avocat)
+- Email HTML premium depuis noreply@jadomi.fr (branding JADOMI dore)
+- Fix bug : sendEmail→sendMail (le service exportait sendMail)
+- Pixel tracker invisible (image 1x1 GIF base64, UUID unique)
+- GET /track/:trackId (public, sans auth) → marque metadata.opened=true + opened_at
+- GET /statut-invitation/:roomId → l'avocat voit si client a ouvert
+- Badge "Email lu" (vert) / "Email envoye" (orange) dans liste consultations
+
+FRONTEND DASHBOARD V2 (1177→1750 lignes, +573) :
+- Modal Nouveau Client : 6 champs (nom, prenom, email, tel, entreprise, poste)
+- Modal Nouveau Dossier : 13 champs (type contentieux, client dropdown, juridiction CPH, section, RG, CCN, employeur, anciennete, salaire, grade, stade procedural)
+- Onglet Agenda : calendrier mensuel navigable, badges audiences (rouge) + echeances (orange), ajout evenement, types (audience/echeance/rdv/rappel)
+- Simulateur V2 : 10 scenarios (licenciement cause reelle, eco, inaptitude, faute grave, harcelement, discrimination, rupture conventionnelle, prise acte, travail dissimule, requalification CDD), bareme Macron, jauges visuelles, optimisation fiscale, recherche decisions similaires
+- API coffre.js : POST /clients et POST /dossiers avec validation
+- Fix "Chargement..." infini → "Connectez-vous" si pas de token apres 2s
+
+COMMITS :
+- d084bd9 feat(visio): Tracker ouverture email + fix sendMail
+- d222025 feat(avocat): Frontend complet — Nouveau client, Dossier, Agenda, Simulateur V2
+- 016b7db feat(visio): Plateforme visio JADOMI native WebRTC P2P
+
+A FAIRE (Passe 100+) :
+- MOTEUR DOCUMENTAIRE INTELLIGENT : entetes contextuelles, conclusions, rappel des faits, courriers, assignations auto-generes depuis dossier vivant (18 modules decrits dans le master prompt)
+- Dossier vivant : vue complete timeline + pieces + strategie + scoring connectes
+- Questions intelligentes par type de contentieux (backend existe, pas de UI)
 - Module enquetes internes complet (7 composants Sapin II)
 - Simulateur pension alimentaire + prestation compensatoire
 - Calculateur Dintilhac (prejudice corporel)
 - Audit social automatise (checklist 200 points)
-- Factoriser requireAvocat (duplique 25+ fois maintenant)
-- Dashboard V2 : integrer les 5 nouveaux modules dans le frontend
+- Factoriser requireAvocat (duplique 25+ fois)
+- Frontend Knowledge Graph (D3.js/Cytoscape)
+- Frontend Secretaire (panel commandes rapides)
+- Frontend Verification (bouton "verifier avant envoi")
+- Mode audience temps reel
+- Anti-hallucination (niveaux : verifie/probable/a verifier/non source)
 - IoT : brancher Home Assistant + Hikvision
 - OVH production : cles API
 - Stripe production : test → live
-- Frontend Knowledge Graph (visualisation D3.js/Cytoscape)
-- Frontend Secretaire (panel commandes rapides dans sidebar)
-- Frontend Verification (bouton "verifier avant envoi" sur chaque document)
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 23 mai 2026 (Passe 94-98 — Bloomberg prud'homal, 8 modules, 40 endpoints)
+Derniere mise a jour : 23 mai 2026 (Passe 99 — Frontend avocat complet, Visio native, Tracker email)
 ===============================================================
