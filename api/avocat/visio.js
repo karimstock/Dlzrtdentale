@@ -108,10 +108,15 @@ router.post('/rooms', requireAvocat, async (req, res) => {
       return res.status(500).json({ error: 'Impossible de creer la salle de visio' });
     }
 
+    // Lien propre jadomi.fr/visio/ROOM_ID (pas le lien Jitsi brut)
+    const shortUrl = `https://jadomi.fr/visio/${roomId}`;
+    const shortClientUrl = `https://jadomi.fr/visio/${roomId}?role=client`;
+
     res.json({
       room_id: roomId,
-      room_url: roomUrl,
-      client_url: clientUrl,
+      room_url: shortUrl,
+      client_url: shortClientUrl,
+      jitsi_url: roomUrl,
       titre: data.titre
     });
   } catch (err) {

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Consultation vidéo sécurisée</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0A1628;--surface:#132040;--surface2:#1a2d50;
+  --or:#C9A961;--or-dim:rgba(201,169,97,.12);--or-glow:rgba(201,169,97,.25);
+  --blanc:#fff;--text:#f1f5f9;--muted:#94a3b8;
+  --success:#16A34A;--danger:#EF4444;--info:#3B82F6;
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --r:12px;
+}
+body{font-family:'Inter',sans-serif;background:#000;color:var(--text);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;}
+
+/* TOP BAR */
+.top{height:52px;background:linear-gradient(135deg,var(--bg),var(--surface));display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid rgba(201,169,97,.15);z-index:10;position:relative;}
+.top::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--or-dim),transparent);}
+.logo{font-size:17px;font-weight:700;color:var(--or);letter-spacing:-.5px;}
+.logo span{color:rgba(255,255,255,.4);font-weight:400;font-size:13px;margin-left:6px;}
+.top-info{display:flex;align-items:center;gap:16px;}
+.timer{font-size:15px;font-weight:700;color:var(--text);letter-spacing:1px;font-variant-numeric:tabular-nums;}
+.status{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;}
+.status-waiting{background:rgba(245,158,11,.15);color:#F59E0B;}
+.status-connected{background:rgba(22,163,74,.15);color:var(--success);}
+.status-error{background:rgba(239,68,68,.15);color:var(--danger);}
+.secure-badge{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+
+/* LAYOUT */
+.layout{display:flex;height:calc(100vh - 52px);}
+.video-area{flex:1;position:relative;background:#000;display:flex;align-items:center;justify-content:center;}
+.sidebar{width:340px;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;transition:width .3s var(--ease);}
+.sidebar.hidden{width:0;overflow:hidden;border:none;}
+
+/* VIDEOS */
+#remoteVideo{width:100%;height:100%;object-fit:contain;background:#111;}
+#localVideo{position:absolute;bottom:100px;right:20px;width:220px;height:165px;border-radius:var(--r);border:2px solid var(--or-dim);object-fit:cover;background:var(--surface);z-index:3;transition:all .3s var(--ease);box-shadow:0 8px 32px rgba(0,0,0,.5);}
+#localVideo:hover{transform:scale(1.03);border-color:var(--or);}
+.waiting-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);z-index:1;}
+.waiting-screen .icon{font-size:64px;margin-bottom:16px;opacity:.3;}
+.waiting-screen .msg{font-size:15px;font-weight:500;}
+.waiting-screen .sub{font-size:12px;margin-top:8px;color:rgba(255,255,255,.3);}
+.waiting-screen .link-box{margin-top:24px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;max-width:500px;}
+.waiting-screen .link-box input{flex:1;background:none;border:none;color:var(--text);font-size:12px;font-family:monospace;outline:none;}
+.waiting-screen .link-box button{background:var(--or);color:var(--bg);border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* CONTROLS */
+.controls{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:10;padding:12px 20px;background:rgba(10,10,15,.85);backdrop-filter:blur(12px);border-radius:20px;border:1px solid var(--line);}
+.ctrl{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;position:relative;}
+.ctrl:hover{border-color:var(--or);background:var(--or-dim);}
+.ctrl.active{background:var(--or);border-color:var(--or);color:var(--bg);}
+.ctrl.muted{background:rgba(239,68,68,.2);border-color:var(--danger);color:var(--danger);}
+.ctrl.hangup{background:var(--danger);border-color:var(--danger);color:#fff;width:56px;}
+.ctrl.hangup:hover{background:#dc2626;}
+.ctrl .tip{position:absolute;bottom:-22px;font-size:9px;color:var(--muted);white-space:nowrap;font-weight:600;opacity:0;transition:opacity .2s;}
+.ctrl:hover .tip{opacity:1;}
+.ctrl svg{width:20px;height:20px;}
+
+/* SIDEBAR TABS */
+.side-tabs{display:flex;border-bottom:1px solid var(--line);}
+.side-tab{flex:1;padding:12px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;}
+.side-tab.active{color:var(--or);border-bottom-color:var(--or);}
+
+/* CHAT */
+.chat-area{flex:1;overflow-y:auto;padding:12px;}
+.chat-msg{margin-bottom:10px;}
+.chat-msg .from{font-size:10px;font-weight:700;color:var(--or);margin-bottom:2px;}
+.chat-msg .text{font-size:13px;line-height:1.5;background:var(--surface2);padding:8px 12px;border-radius:10px;color:var(--text);}
+.chat-msg.me .text{background:var(--or-dim);border:1px solid rgba(201,169,97,.2);}
+.chat-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);}
+.chat-input input{flex:1;padding:10px 14px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:13px;outline:none;}
+.chat-input input:focus{border-color:var(--or);}
+.chat-input button{background:var(--or);color:var(--bg);border:none;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:13px;}
+
+/* FILES */
+.file-zone{padding:12px;}
+.file-drop{border:2px dashed var(--line);border-radius:var(--r);padding:32px;text-align:center;cursor:pointer;transition:all .3s;}
+.file-drop:hover,.file-drop.active{border-color:var(--or);background:var(--or-dim);}
+.file-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface2);border-radius:8px;margin-top:8px;}
+.file-item .name{flex:1;font-size:12px;font-weight:500;}
+.file-item .size{font-size:10px;color:var(--muted);}
+.file-progress{height:3px;background:var(--line);border-radius:2px;margin-top:4px;overflow:hidden;}
+.file-progress .bar{height:100%;background:var(--or);border-radius:2px;transition:width .3s;}
+
+/* RECORDING */
+.rec-indicator{display:none;position:absolute;top:12px;left:12px;background:rgba(239,68,68,.9);padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;color:#fff;z-index:5;animation:recPulse 1.5s ease-in-out infinite;}
+@keyframes recPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{position:fixed;right:0;top:52px;bottom:0;width:100%;z-index:20;transform:translateX(100%);}
+  .sidebar.open{transform:translateX(0);}
+  #localVideo{width:120px;height:90px;bottom:90px;right:12px;}
+  .controls{bottom:16px;padding:10px 14px;gap:8px;}
+  .ctrl{width:42px;height:42px;}
+}
+</style>
+</head>
+<body>
+<!-- TOP BAR -->
+<div class="top">
+  <div class="logo">JADOMI <span>Consultation vid&eacute;o</span></div>
+  <div class="top-info">
+    <div class="timer" id="timer">00:00</div>
+    <div class="status status-waiting" id="status">En attente</div>
+    <div class="secure-badge">&#128274; Chiffr&eacute; de bout en bout</div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <!-- VIDEO -->
+  <div class="video-area">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay playsinline muted></video>
+
+    <div class="waiting-screen" id="waitingScreen">
+      <div class="icon">&#128247;</div>
+      <div class="msg" id="waitingMsg">En attente de votre correspondant...</div>
+      <div class="sub">Partagez le lien ci-dessous pour inviter votre client</div>
+      <div class="link-box">
+        <input type="text" id="shareLink" readonly>
+        <button onclick="copyLink()">Copier</button>
+      </div>
+    </div>
+
+    <div class="rec-indicator" id="recIndicator">&#9679; Enregistrement en cours</div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <div class="ctrl" id="btnMic" onclick="toggleMic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span class="tip">Micro</span>
+      </div>
+      <div class="ctrl" id="btnCam" onclick="toggleCam()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span class="tip">Cam&eacute;ra</span>
+      </div>
+      <div class="ctrl" id="btnScreen" onclick="toggleScreen()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span class="tip">&Eacute;cran</span>
+      </div>
+      <div class="ctrl" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span class="tip">Chat</span>
+      </div>
+      <div class="ctrl" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        <span class="tip">Fichier</span>
+      </div>
+      <div class="ctrl hangup" onclick="hangUp()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l-3.41-2.6z"/></svg>
+        <span class="tip">Raccrocher</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="side-tabs">
+      <button class="side-tab active" onclick="switchTab('chat')">Chat</button>
+      <button class="side-tab" onclick="switchTab('files')">Fichiers</button>
+    </div>
+    <div id="tabChat" style="flex:1;display:flex;flex-direction:column;">
+      <div class="chat-area" id="chatMessages"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Message..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button onclick="sendChat()">Envoyer</button>
+      </div>
+    </div>
+    <div id="tabFiles" style="flex:1;display:none;flex-direction:column;">
+      <div class="file-zone">
+        <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('active')" ondragleave="this.classList.remove('active')" ondrop="event.preventDefault();this.classList.remove('active');handleFiles(event.dataTransfer.files)">
+          <div style="font-size:24px;margin-bottom:8px;">&#128206;</div>
+          <div style="font-size:13px;font-weight:600;">Glissez un fichier ici</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">ou cliquez pour s&eacute;lectionner</div>
+        </div>
+        <div id="fileList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" style="display:none" onchange="handleFiles(this.files)" multiple>
+
+<script>
+// ================================================
+// JADOMI VISIO — WebRTC P2P natif
+// ================================================
+
+var ROOM_ID = location.pathname.split('/').pop() || 'default';
+var ROLE = new URLSearchParams(location.search).get('role') || 'avocat';
+var NAME = ROLE === 'client' ? 'Client' : 'Avocat';
+var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/visio';
+
+var ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
+
+var localStream = null, screenStream = null, pc = null, ws = null;
+var dataChannel = null, fileChannel = null;
+var micEnabled = true, camEnabled = true, screenSharing = false;
+var timerStart = null, timerInterval = null;
+var connected = false;
+
+// Lien de partage
+document.getElementById('shareLink').value = location.origin + '/visio/' + ROOM_ID + '?role=client';
+
+// ================================================
+// MEDIA
+// ================================================
+async function startMedia() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    document.getElementById('localVideo').srcObject = localStream;
+  } catch (e) {
+    setStatus('Cam\u00e9ra/micro non autoris\u00e9(s)', 'error');
+    console.error('[visio] Media error:', e);
+  }
+}
+
+// ================================================
+// PEER CONNECTION
+// ================================================
+function createPC() {
+  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+  if (localStream) {
+    localStream.getTracks().forEach(function(track) { pc.addTrack(track, localStream); });
+  }
+
+  pc.ontrack = function(e) {
+    document.getElementById('remoteVideo').srcObject = e.streams[0];
+    document.getElementById('waitingScreen').style.display = 'none';
+    if (!timerStart) startTimer();
+    setStatus('Connect\u00e9', 'connected');
+    connected = true;
+  };
+
+  pc.onicecandidate = function(e) {
+    if (e.candidate && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
+    }
+  };
+
+  pc.oniceconnectionstatechange = function() {
+    var state = pc.iceConnectionState;
+    if (state === 'disconnected') {
+      setStatus('Reconnexion...', 'waiting');
+      setTimeout(function() {
+        if (pc && pc.iceConnectionState === 'disconnected') iceRestart();
+      }, 4000);
+    }
+    if (state === 'failed') iceRestart();
+    if (state === 'connected' || state === 'completed') setStatus('Connect\u00e9', 'connected');
+  };
+
+  // DataChannel pour chat
+  dataChannel = pc.createDataChannel('chat', { ordered: true });
+  dataChannel.onmessage = function(e) { displayChat(JSON.parse(e.data)); };
+
+  // DataChannel pour fichiers
+  fileChannel = pc.createDataChannel('fileTransfer', { ordered: true });
+  fileChannel.binaryType = 'arraybuffer';
+  fileChannel.onmessage = handleFileMessage;
+
+  pc.ondatachannel = function(e) {
+    var ch = e.channel;
+    if (ch.label === 'chat') {
+      ch.onmessage = function(ev) { displayChat(JSON.parse(ev.data)); };
+    }
+    if (ch.label === 'fileTransfer') {
+      ch.binaryType = 'arraybuffer';
+      ch.onmessage = handleFileMessage;
+      fileChannel = ch;
+    }
+  };
+}
+
+async function createOffer() {
+  createPC();
+  var offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  ws.send(JSON.stringify({ type: 'offer', sdp: offer }));
+}
+
+async function handleOffer(msg) {
+  createPC();
+  await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+  var answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  ws.send(JSON.stringify({ type: 'answer', sdp: answer }));
+}
+
+async function iceRestart() {
+  if (!pc) return;
+  try {
+    var offer = await pc.createOffer({ iceRestart: true });
+    await pc.setLocalDescription(offer);
+    ws.send(JSON.stringify({ type: 'offer', sdp: offer }));
+  } catch (e) { console.error('[visio] ICE restart failed:', e); }
+}
+
+// ================================================
+// SIGNALING
+// ================================================
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ type: 'join', room: ROOM_ID, role: ROLE, name: NAME }));
+  };
+
+  ws.onmessage = async function(e) {
+    var msg = JSON.parse(e.data);
+    switch (msg.type) {
+      case 'joined':
+        if (msg.peers > 0) await createOffer();
+        break;
+      case 'peer-joined':
+        addSystemMsg(msg.name + ' a rejoint la consultation.');
+        await createOffer();
+        break;
+      case 'offer':
+        await handleOffer(msg);
+        break;
+      case 'answer':
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+        break;
+      case 'ice-candidate':
+        if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        break;
+      case 'peer-left':
+        addSystemMsg(msg.name + ' a quitt\u00e9 la consultation.');
+        document.getElementById('remoteVideo').srcObject = null;
+        document.getElementById('waitingScreen').style.display = 'flex';
+        setStatus('Correspondant d\u00e9connect\u00e9', 'waiting');
+        connected = false;
+        break;
+      case 'chat':
+        displayChat(msg);
+        break;
+      case 'screen-share-started':
+        addSystemMsg(msg.from + ' partage son \u00e9cran.');
+        break;
+      case 'screen-share-stopped':
+        addSystemMsg(msg.from + ' a arr\u00eat\u00e9 le partage d\'\u00e9cran.');
+        break;
+      case 'error':
+        setStatus(msg.message, 'error');
+        break;
+    }
+  };
+
+  ws.onclose = function() {
+    if (connected) setStatus('D\u00e9connect\u00e9 — reconnexion...', 'waiting');
+    setTimeout(connectWS, 3000);
+  };
+}
+
+// ================================================
+// CONTROLS
+// ================================================
+function toggleMic() {
+  if (!localStream) return;
+  var track = localStream.getAudioTracks()[0];
+  if (!track) return;
+  micEnabled = !micEnabled;
+  track.enabled = micEnabled;
+  document.getElementById('btnMic').className = micEnabled ? 'ctrl' : 'ctrl muted';
+}
+
+function toggleCam() {
+  if (!localStream) return;
+  var track = localStream.getVideoTracks()[0];
+  if (!track) return;
+  camEnabled = !camEnabled;
+  track.enabled = camEnabled;
+  document.getElementById('btnCam').className = camEnabled ? 'ctrl' : 'ctrl muted';
+}
+
+async function toggleScreen() {
+  if (screenSharing) {
+    // Arreter le partage
+    if (screenStream) screenStream.getTracks().forEach(function(t) { t.stop(); });
+    var camTrack = localStream.getVideoTracks()[0];
+    var sender = pc.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; });
+    if (sender && camTrack) await sender.replaceTrack(camTrack);
+    screenSharing = false;
+    document.getElementById('btnScreen').className = 'ctrl';
+    if (ws) ws.send(JSON.stringify({ type: 'screen-share-stopped' }));
+    return;
+  }
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    var screenTrack = screenStream.getVideoTracks()[0];
+    var sender = pc.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; });
+    if (sender) await sender.replaceTrack(screenTrack);
+    screenSharing = true;
+    document.getElementById('btnScreen').className = 'ctrl active';
+    if (ws) ws.send(JSON.stringify({ type: 'screen-share-started' }));
+    screenTrack.onended = function() { toggleScreen(); };
+  } catch (e) {
+    console.error('[visio] Screen share error:', e);
+  }
+}
+
+function toggleSidebar() {
+  var sb = document.getElementById('sidebar');
+  sb.classList.toggle('hidden');
+  if (window.innerWidth <= 768) sb.classList.toggle('open');
+}
+
+function hangUp() {
+  if (pc) pc.close();
+  if (ws) ws.close();
+  if (localStream) localStream.getTracks().forEach(function(t) { t.stop(); });
+  if (screenStream) screenStream.getTracks().forEach(function(t) { t.stop(); });
+  stopTimer();
+  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;background:var(--bg);color:var(--text);font-family:Inter,sans-serif;"><div style="font-size:18px;font-weight:600;margin-bottom:12px;">Consultation termin\u00e9e</div><div style="font-size:13px;color:var(--muted);margin-bottom:24px;">Dur\u00e9e : ' + document.getElementById('timer').textContent + '</div><a href="/avocat/dashboard" style="color:var(--or);text-decoration:none;font-weight:600;">Retour au dashboard</a></div>';
+}
+
+// ================================================
+// CHAT
+// ================================================
+function sendChat() {
+  var input = document.getElementById('chatInput');
+  var text = input.value.trim();
+  if (!text) return;
+  // Via DataChannel si ouvert, sinon WebSocket
+  var msg = { type: 'chat', from: NAME, text: text, timestamp: Date.now() };
+  if (dataChannel && dataChannel.readyState === 'open') {
+    dataChannel.send(JSON.stringify(msg));
+  } else if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(msg));
+  }
+  displayChat({ from: NAME, text: text, timestamp: Date.now(), me: true });
+  input.value = '';
+}
+
+function displayChat(msg) {
+  var el = document.getElementById('chatMessages');
+  var isMe = msg.me || msg.from === NAME;
+  el.innerHTML += '<div class="chat-msg ' + (isMe ? 'me' : '') + '"><div class="from">' + esc(msg.from || '') + '</div><div class="text">' + esc(msg.text || '') + '</div></div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+function addSystemMsg(text) {
+  var el = document.getElementById('chatMessages');
+  el.innerHTML += '<div style="text-align:center;font-size:11px;color:var(--muted);padding:8px;">' + esc(text) + '</div>';
+  el.scrollTop = el.scrollHeight;
+}
+
+// ================================================
+// FILE TRANSFER (P2P via DataChannel)
+// ================================================
+var CHUNK_SIZE = 16384;
+var receivingFile = null, receivedChunks = [], receivedSize = 0;
+
+function handleFiles(files) {
+  if (!files || !files.length) return;
+  for (var i = 0; i < files.length; i++) sendFile(files[i]);
+}
+
+async function sendFile(file) {
+  if (!fileChannel || fileChannel.readyState !== 'open') {
+    addSystemMsg('Transfert impossible : connexion non \u00e9tablie.');
+    return;
+  }
+  // Metadata
+  fileChannel.send(JSON.stringify({ type: 'file-meta', name: file.name, size: file.size, mimeType: file.type }));
+  addSystemMsg('Envoi de ' + file.name + ' (' + Math.round(file.size / 1024) + ' Ko)...');
+
+  var buffer = await file.arrayBuffer();
+  var offset = 0;
+  while (offset < buffer.byteLength) {
+    if (fileChannel.bufferedAmount > 4 * 1024 * 1024) {
+      await new Promise(function(resolve) {
+        fileChannel.bufferedAmountLowThreshold = 1024 * 1024;
+        fileChannel.onbufferedamountlow = resolve;
+      });
+    }
+    fileChannel.send(buffer.slice(offset, offset + CHUNK_SIZE));
+    offset += CHUNK_SIZE;
+  }
+  fileChannel.send(JSON.stringify({ type: 'file-end' }));
+  addFileToList(file.name, file.size, 'envoy\u00e9');
+}
+
+function handleFileMessage(e) {
+  if (typeof e.data === 'string') {
+    var msg = JSON.parse(e.data);
+    if (msg.type === 'file-meta') {
+      receivingFile = msg;
+      receivedChunks = [];
+      receivedSize = 0;
+      addSystemMsg('R\u00e9ception de ' + msg.name + '...');
+    } else if (msg.type === 'file-end' && receivingFile) {
+      var blob = new Blob(receivedChunks, { type: receivingFile.mimeType });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = receivingFile.name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      addFileToList(receivingFile.name, receivingFile.size, 're\u00e7u');
+      addSystemMsg(receivingFile.name + ' re\u00e7u.');
+      receivingFile = null;
+    }
+  } else {
+    receivedChunks.push(e.data);
+    receivedSize += e.data.byteLength;
+  }
+}
+
+function addFileToList(name, size, status) {
+  var el = document.getElementById('fileList');
+  el.innerHTML += '<div class="file-item"><div class="name">' + esc(name) + '</div><div class="size">' + Math.round(size / 1024) + ' Ko — ' + status + '</div></div>';
+}
+
+// ================================================
+// SIDEBAR TABS
+// ================================================
+function switchTab(tab) {
+  document.querySelectorAll('.side-tab').forEach(function(t, i) {
+    t.className = 'side-tab' + (i === (tab === 'chat' ? 0 : 1) ? ' active' : '');
+  });
+  document.getElementById('tabChat').style.display = tab === 'chat' ? 'flex' : 'none';
+  document.getElementById('tabFiles').style.display = tab === 'files' ? 'flex' : 'none';
+}
+
+// ================================================
+// UTILS
+// ================================================
+function setStatus(text, type) {
+  var el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status status-' + (type || 'waiting');
+}
+
+function startTimer() {
+  timerStart = Date.now();
+  timerInterval = setInterval(function() {
+    var s = Math.floor((Date.now() - timerStart) / 1000);
+    var m = Math.floor(s / 60); s = s % 60;
+    document.getElementById('timer').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }, 1000);
+}
+
+function stopTimer() { if (timerInterval) clearInterval(timerInterval); }
+
+function copyLink() {
+  var input = document.getElementById('shareLink');
+  navigator.clipboard.writeText(input.value).then(function() { addSystemMsg('Lien copi\u00e9.'); });
+}
+
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Masquer partage d'ecran sur mobile
+if (/iPhone|iPad|Android/i.test(navigator.userAgent)) {
+  document.getElementById('btnScreen').style.display = 'none';
+}
+
+// ================================================
+// INIT
+// ================================================
+startMedia().then(connectWS);
+</script>
+</body>
+</html>

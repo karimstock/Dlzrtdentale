@@ -215,7 +215,7 @@ app.use((req, res, next) => {
   //   '/btp', '/sci', '/createurs', '/coiffeurs'];
   // const isPublic = publicPaths.includes(req.path) || publicPaths.includes(req.path.replace(/\.html$/, ''));
   // const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebot|twitterbot|linkedinbot/i.test(req.headers['user-agent'] || '');
-  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit')) {
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/')) {
     return next();
   }
   // Vérifier le cookie
@@ -1240,9 +1240,15 @@ try {
   console.log('[JADOMI] Module Visio Universelle monte');
 } catch (e) { console.warn('[JADOMI] Visio Universelle non charge:', e.message); }
 
-// Route publique — page visio (client externe accède sans auth)
+// Route publique — page visio JADOMI native (P2P WebRTC, zéro tiers)
 app.get('/visio/:token', (req, res) => {
-  res.sendFile(require('path').join(__dirname, 'public/visio/index.html'));
+  const token = req.params.token;
+  if (token.startsWith('jadomi-')) {
+    // Visio JADOMI native — P2P WebRTC
+    res.sendFile(require('path').join(__dirname, 'public/visio/jadomi-visio.html'));
+  } else {
+    res.sendFile(require('path').join(__dirname, 'public/visio/index.html'));
+  }
 });
 
 // === JADOMI Studio Video Generator — Vidu AI ===
@@ -13526,7 +13532,15 @@ app.post('/api/ide/alertes-route', requireAuth(), async (req, res) => {
 // =============================================
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
+  const httpServer = require('http').createServer(app);
+
+  // Attacher le signaling WebRTC (visio P2P native JADOMI)
+  try {
+    const { attachSignaling } = require('./lib/visio-signaling');
+    attachSignaling(httpServer);
+  } catch (e) { console.warn('[JADOMI] Visio signaling non chargé:', e.message); }
+
+  httpServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
