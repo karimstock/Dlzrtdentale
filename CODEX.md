@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 22 mai 2026
-**Derniere passe** : Passe 93 (22 mai 2026) — Mega-session : 22 commits, 17 modules Avocat, Legifrance+Judilibre, Simulateur PRO, Enquetes internes, Copilot Live, Dashboard V2
+**Derniere mise a jour** : 23 mai 2026
+**Derniere passe** : Passe 94-98 (23 mai 2026) — Bloomberg prud'homal : 8 modules, 40 endpoints, 5 tables, Home Page Intelligente, Scoring, Generation Docs, Visio Jitsi, Knowledge Graph, Audience Mobile, Secretaire Juridique, Anti-erreurs
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5164,19 +5164,86 @@ FICHIERS CREES (25+) :
 CLES .env AJOUTEES :
 - PISTE_API_KEY, PISTE_API_SECRET, PISTE_OAUTH_CLIENT_ID, PISTE_OAUTH_CLIENT_SECRET
 
-A FAIRE (Passe 94+) :
-- Module enquetes internes complet (7 composants : signalement Sapin II, cadrage, entretiens, qualification, rapport, contradictoire, suivi)
-- Simulateur pension alimentaire + prestation compensatoire (droit famille, 15 000 avocats)
-- Calculateur Dintilhac (prejudice corporel, 14 000 avocats)
+### Passe 94-98 (23 mai 2026) — Bloomberg prud'homal complet
+
+**8 modules crees, 40 endpoints, 5 tables SQL, +5 043 lignes :**
+
+HOME PAGE INTELLIGENTE (/api/avocat/home) :
+- GET /jurisprudence-semaine : Judilibre chambre sociale + analyse DeepSeek (cache 24h)
+- GET /a-retenir : synthese IA hebdomadaire 5-7 bullet points
+- GET /alertes : agregation deadlines + contradictions + pieces manquantes + veille
+- GET /dossiers-prioritaires : top 5 tries par score urgence (audience/deadline/pieces/contradictions)
+- GET /tendances : 6 themes prud'homaux, evolution % sur 90 jours
+- Dashboard V2 : section Accueil refaite avec 5 blocs dynamiques
+
+SCORING SOLIDITE DOSSIER (/api/avocat/scoring) :
+- POST /calculer/:dossierId : 5 scores (preuves 30%, coherence 20%, risques 25%, strategie 25%)
+- GET /scores/:dossierId + /scores-batch
+- POST /recommandations/:dossierId : 3-5 actions IA pour ameliorer le dossier
+
+GENERATION DOCUMENTAIRE (/api/avocat/documents) :
+- 8 templates prudhomaux : requete CPH, conclusions, bordereau, mise en demeure, demande renvoi, courrier client, courrier confrere, note audience
+- POST /generer : template + IA hybride (Mistral RGPD)
+- POST /generer-ia/:dossierId : generation 100% Claude
+- lib/legal-providers/templates-prudhomaux.js (8 templates HTML complets)
+
+VISIO AVOCAT (/api/avocat/visio) :
+- Jitsi Meet integration (gratuit, pas de cle API)
+- POST /rooms : creation salle avec config Jitsi optimisee
+- POST /rooms/:id/invite : lien client avec displayName
+- GET /embed/:id : iframe integration
+- Table avocat_visio_rooms
+
+KNOWLEDGE GRAPH + MEMOIRE COLLECTIVE (/api/avocat/knowledge) :
+- POST /graph/build/:dossierId : graphe noeuds/relations via DeepSeek
+- POST /memoire/apprendre/:dossierId : analyse anonymisee dossiers clos
+- GET /memoire/rechercher : recherche par domaine/contentieux/mots-cles
+- GET /memoire/tendances : patterns strategies gagnantes
+- Table avocat_memoire_collective (anonymisee obligatoirement)
+
+MODE AUDIENCE MOBILE (/api/avocat/audience) :
+- POST /preparer/:dossierId : fiche synthetique via Claude (points forts/faibles, jurisprudences, anticipation adverse)
+- GET /checklist/:dossierId : 8 verifications pre-audience auto
+- POST /notes/:dossierId : prise de notes pendant audience
+- Optimise lecture mobile (texte court, listes)
+
+SECRETAIRE JURIDIQUE (/api/avocat/secretaire) :
+- 12 commandes rapides (requete, conclusions, bordereau, mise en demeure, renvoi, courrier client, confrere, substitution, transmission, RPVA, note audience, convocation)
+- POST /executer : template ou Mistral selon commande
+- POST /executer-batch : execution parallele multi-commandes
+- POST /personnaliser : modification IA sur document existant
+
+VERIFICATION ANTI-ERREURS (/api/avocat/verification) :
+- POST /verifier/:documentId : 15 controles (RG, juridiction, noms, dates, coherence, IA optionnel)
+- POST /verifier-dossier/:dossierId : audit global pre-audience (7 checks)
+- POST /verifier-pieces/:dossierId : completude par type contentieux (licenciement/harcelement/heures supp/inaptitude)
+- GET /rapport/:dossierId : rapport HTML complet
+
+TABLES SUPABASE CREEES (5 nouvelles) :
+- avocat_dossier_scores (scoring multi-criteres)
+- avocat_home_cache (cache home page 24h)
+- avocat_documents_generes (documents generes)
+- avocat_visio_rooms (salles Jitsi)
+- avocat_memoire_collective (enseignements anonymises)
+
+AUSSI CETTE SESSION :
+- Creation SASU JADOMI sur LegalPlace (12 activites NAF declarees)
+
+A FAIRE (Passe 99+) :
+- Module enquetes internes complet (7 composants Sapin II)
+- Simulateur pension alimentaire + prestation compensatoire
+- Calculateur Dintilhac (prejudice corporel)
 - Audit social automatise (checklist 200 points)
-- Factoriser requireAvocat (duplique 17 fois)
-- Dashboard V2 : polir UI, tester tous les endpoints
+- Factoriser requireAvocat (duplique 25+ fois maintenant)
+- Dashboard V2 : integrer les 5 nouveaux modules dans le frontend
 - IoT : brancher Home Assistant + Hikvision
 - OVH production : cles API
 - Stripe production : test → live
-- Visio : brancher Jitsi ou Daily.co
+- Frontend Knowledge Graph (visualisation D3.js/Cytoscape)
+- Frontend Secretaire (panel commandes rapides dans sidebar)
+- Frontend Verification (bouton "verifier avant envoi" sur chaque document)
 
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 22 mai 2026 (Passe 93 — 22 commits, 17 modules Avocat, Dashboard V2)
+Derniere mise a jour : 23 mai 2026 (Passe 94-98 — Bloomberg prud'homal, 8 modules, 40 endpoints)
 ===============================================================
