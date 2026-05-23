@@ -1190,6 +1190,10 @@ try {
   app.use('/api/avocat/documents', require('./api/avocat/generation-docs'));
   console.log('[JADOMI] Module Avocat Génération Documentaire (8 templates prud\'homaux) monté');
 } catch (e) { console.warn('[JADOMI] Avocat Documents non chargé:', e.message); }
+try {
+  app.use('/api/avocat/doc-engine', require('./api/avocat/documents'));
+  console.log('[JADOMI] Module Avocat Doc Engine (entêtes + moteur documentaire + honoraires manuels) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Documents non chargé:', e.message); }
 // === PASSE 95-98 — Visio + Knowledge Graph + Audience + Secrétaire + Vérification ===
 try {
   app.use('/api/avocat/visio', require('./api/avocat/visio'));
