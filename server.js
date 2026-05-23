@@ -1194,6 +1194,10 @@ try {
   app.use('/api/avocat/doc-engine', require('./api/avocat/documents'));
   console.log('[JADOMI] Module Avocat Doc Engine (entêtes + moteur documentaire + honoraires manuels) monté');
 } catch (e) { console.warn('[JADOMI] Avocat Documents non chargé:', e.message); }
+try {
+  app.use('/api/avocat/strategique', require('./api/avocat/moteur-strategique'));
+  console.log('[JADOMI] Module Avocat Moteur Stratégique (GPS prud\'homal, preuves, issues, post-mortem, patterns) monté');
+} catch (e) { console.warn('[JADOMI] Avocat Moteur Stratégique non chargé:', e.message); }
 // === PASSE 95-98 — Visio + Knowledge Graph + Audience + Secrétaire + Vérification ===
 try {
   app.use('/api/avocat/visio', require('./api/avocat/visio'));
@@ -1227,6 +1231,10 @@ try {
   app.use('/api/avocat/cabinet', require('./api/avocat/memoire-cabinet'));
   console.log('[JADOMI] Module Avocat Mémoire Cabinet (préférences + style) monté');
 } catch (e) { console.warn('[JADOMI] Avocat Mémoire Cabinet non chargé:', e.message); }
+try {
+  app.use('/api/avocat/moteur-strategique', require('./api/avocat/moteur-strategique'));
+  console.log('[JADOMI] Module Moteur Stratégique Prud\'homal monté');
+} catch (e) { console.warn('[JADOMI] Moteur Stratégique non chargé:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
