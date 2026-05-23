@@ -1670,4 +1670,419 @@ router.get('/dossier/:dossierId/alertes', requireAvocat, async (req, res) => {
   }
 });
 
+// =========================================================
+// SECTION 11 — MOTEUR DE SIMILARITÉ
+// =========================================================
+
+/**
+ * GET /dossier/:dossierId/similaires
+ * Calcule un score de similarité 0-100 entre le dossier cible et tous les
+ * dossiers du cabinet. Retourne les 15 dossiers les plus proches (score >= 40)
+ * avec leur issue finale et des insights agrégés.
+ */
+router.get('/dossier/:dossierId/similaires', requireAvocat, async (req, res) => {
+  try {
+    const { dossierId } = req.params;
+
+    // --- 1. Charger le dossier cible ---
+    let cible = null;
+    try {
+      const { data, error } = await admin()
+        .from('avocat_dossiers')
+        .select('id, titre, reference, type_contentieux, anciennete_mois, salaire_brut, type_employeur, section_cph, juridiction, strategie_principale, etape')
+        .eq('id', dossierId)
+        .eq('societe_id', req.societeId)
+        .single();
+      if (!error) cible = data;
+    } catch {}
+
+    if (!cible) {
+      return res.status(404).json({ error: 'Dossier introuvable' });
+    }
+
+    // --- 2. Charger tous les autres dossiers du cabinet ---
+    let tousLesDossiers = [];
+    try {
+      const { data } = await admin()
+        .from('avocat_dossiers')
+        .select('id, titre, reference, type_contentieux, anciennete_mois, salaire_brut, type_employeur, section_cph, juridiction, strategie_principale, etape')
+        .eq('societe_id', req.societeId)
+        .neq('id', dossierId);
+      tousLesDossiers = data || [];
+    } catch {}
+
+    // --- 3. Charger toutes les issues du cabinet ---
+    let issuesMap = {};
+    try {
+      const { data } = await admin()
+        .from('avocat_issues')
+        .select('dossier_id, resultat_global, montant_obtenu')
+        .eq('societe_id', req.societeId);
+      if (data) {
+        data.forEach(i => { issuesMap[i.dossier_id] = i; });
+      }
+    } catch {}
+
+    // --- 4. Calculer les scores ---
+    const scored = tousLesDossiers.map(d => {
+      let score = 0;
+
+      // type_contentieux identique = +30
+      if (cible.type_contentieux && d.type_contentieux === cible.type_contentieux) score += 30;
+
+      // même tranche ancienneté (±24 mois) = +15
+      if (cible.anciennete_mois != null && d.anciennete_mois != null) {
+        if (Math.abs(d.anciennete_mois - cible.anciennete_mois) <= 24) score += 15;
+      }
+
+      // même tranche salaire (±30%) = +15
+      if (cible.salaire_brut != null && d.salaire_brut != null && cible.salaire_brut > 0) {
+        const ratio = Math.abs(d.salaire_brut - cible.salaire_brut) / cible.salaire_brut;
+        if (ratio <= 0.30) score += 15;
+      }
+
+      // même type_employeur = +10
+      if (cible.type_employeur && d.type_employeur === cible.type_employeur) score += 10;
+
+      // même section_cph = +10
+      if (cible.section_cph && d.section_cph === cible.section_cph) score += 10;
+
+      // même juridiction = +10
+      if (cible.juridiction && d.juridiction === cible.juridiction) score += 10;
+
+      // même stratégie principale = +10
+      if (cible.strategie_principale && d.strategie_principale === cible.strategie_principale) score += 10;
+
+      const issue = issuesMap[d.id] || null;
+      return {
+        id: d.id,
+        titre: d.titre,
+        reference: d.reference,
+        type_contentieux: d.type_contentieux,
+        score_similarite: score,
+        etape: d.etape,
+        strategie_principale: d.strategie_principale,
+        issue: issue
+          ? { resultat_global: issue.resultat_global, montant_obtenu: issue.montant_obtenu || null }
+          : null
+      };
+    });
+
+    // --- 5. Filtrer >= 40, trier, limiter à 15 ---
+    const similaires = scored
+      .filter(d => d.score_similarite >= 40)
+      .sort((a, b) => b.score_similarite - a.score_similarite)
+      .slice(0, 15);
+
+    // --- 6. Insights agrégés ---
+    const clos = similaires.filter(d => d.issue);
+    const transactions = clos.filter(d => d.issue.resultat_global === 'transaction').length;
+    const taux_transaction = clos.length > 0 ? Math.round((transactions / clos.length) * 100) : 0;
+
+    const montantsObtenus = clos.filter(d => d.issue.montant_obtenu > 0).map(d => d.issue.montant_obtenu);
+    const montant_moyen_obtenu = montantsObtenus.length > 0
+      ? Math.round(montantsObtenus.reduce((a, b) => a + b, 0) / montantsObtenus.length)
+      : 0;
+
+    // Stratégie la plus efficace parmi les dossiers gagnés ou transactés
+    const dossiersSucces = clos.filter(d => ['gagne', 'transaction'].includes(d.issue.resultat_global));
+    const compteStrategies = {};
+    dossiersSucces.forEach(d => {
+      if (d.strategie_principale) {
+        compteStrategies[d.strategie_principale] = (compteStrategies[d.strategie_principale] || 0) + 1;
+      }
+    });
+    const strategie_plus_efficace = Object.entries(compteStrategies).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+    // Preuves décisives fréquentes : chercher dans les dossiers similaires clos avec succès
+    let preuves_decisives_frequentes = [];
+    if (dossiersSucces.length > 0) {
+      try {
+        const idsDossiers = dossiersSucces.map(d => d.id);
+        const { data: preuvesData } = await admin()
+          .from('avocat_preuves')
+          .select('type_preuve')
+          .eq('societe_id', req.societeId)
+          .eq('statut', 'decisive')
+          .in('dossier_id', idsDossiers);
+        if (preuvesData && preuvesData.length > 0) {
+          const comptePreuves = {};
+          preuvesData.forEach(p => {
+            comptePreuves[p.type_preuve] = (comptePreuves[p.type_preuve] || 0) + 1;
+          });
+          preuves_decisives_frequentes = Object.entries(comptePreuves)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([type]) => type);
+        }
+      } catch {}
+    }
+
+    return res.json({
+      dossier_cible: { id: cible.id, titre: cible.titre },
+      similaires,
+      nb_similaires: similaires.length,
+      insights: {
+        taux_transaction,
+        montant_moyen_obtenu,
+        strategie_plus_efficace,
+        preuves_decisives_frequentes
+      }
+    });
+  } catch (err) {
+    console.error('[moteur-strategique/similaires]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// =========================================================
+// SECTION 12 — DASHBOARD STATISTIQUES ENRICHI
+// =========================================================
+
+/**
+ * GET /stats/dashboard
+ * Dashboard complet : cabinet, résultats, finances, stratégies, preuves,
+ * contentieux, tendances trimestrielles.
+ * Complète le GET /stats existant avec beaucoup plus de données.
+ */
+router.get('/stats/dashboard', requireAvocat, async (req, res) => {
+  try {
+    // Valeurs par défaut (fallback si tables vides)
+    const dashboard = {
+      cabinet: {
+        nb_dossiers_total: 0,
+        nb_dossiers_actifs: 0,
+        nb_dossiers_clos: 0,
+        nb_avec_issue: 0,
+        nb_avec_post_mortem: 0
+      },
+      resultats: {
+        nb_gagnes: 0,
+        nb_perdus: 0,
+        nb_transactions: 0,
+        nb_accords_partiels: 0,
+        taux_succes: 0,
+        taux_transaction: 0
+      },
+      finances: {
+        montant_total_demande: 0,
+        montant_total_obtenu: 0,
+        montant_moyen_obtenu: 0,
+        article_700_moyen: 0,
+        ratio_obtenu_demande: 0
+      },
+      strategies: {
+        top_5_efficaces: [],
+        top_5_fragiles: []
+      },
+      preuves: {
+        top_5_decisives: [],
+        types_les_plus_frequents: []
+      },
+      contentieux: {
+        repartition: []
+      },
+      tendances: {
+        montant_moyen_par_trimestre: []
+      }
+    };
+
+    try {
+      // === CABINET ===
+      const { data: dossiers } = await admin()
+        .from('avocat_dossiers')
+        .select('id, etape')
+        .eq('societe_id', req.societeId);
+
+      if (dossiers && dossiers.length > 0) {
+        dashboard.cabinet.nb_dossiers_total = dossiers.length;
+        dashboard.cabinet.nb_dossiers_actifs = dossiers.filter(d => d.etape !== 'clos').length;
+        dashboard.cabinet.nb_dossiers_clos = dossiers.filter(d => d.etape === 'clos').length;
+      }
+
+      // === ISSUES ===
+      const { data: issues } = await admin()
+        .from('avocat_issues')
+        .select('dossier_id, resultat_global, montant_obtenu, montant_demande, article_700, cree_le')
+        .eq('societe_id', req.societeId);
+
+      if (issues && issues.length > 0) {
+        dashboard.cabinet.nb_avec_issue = issues.length;
+
+        const gagnes = issues.filter(i => i.resultat_global === 'gagne');
+        const perdus = issues.filter(i => i.resultat_global === 'perdu');
+        const transactions = issues.filter(i => i.resultat_global === 'transaction');
+        const accords = issues.filter(i => i.resultat_global === 'accord_partiel');
+        const totalClos = issues.length;
+
+        dashboard.resultats.nb_gagnes = gagnes.length;
+        dashboard.resultats.nb_perdus = perdus.length;
+        dashboard.resultats.nb_transactions = transactions.length;
+        dashboard.resultats.nb_accords_partiels = accords.length;
+        dashboard.resultats.taux_succes = totalClos > 0
+          ? Math.round(((gagnes.length + transactions.length) / totalClos) * 100)
+          : 0;
+        dashboard.resultats.taux_transaction = totalClos > 0
+          ? Math.round((transactions.length / totalClos) * 100)
+          : 0;
+
+        // Finances
+        const totalObtenu = issues.reduce((s, i) => s + (i.montant_obtenu || 0), 0);
+        const totalDemande = issues.reduce((s, i) => s + (i.montant_demande || 0), 0);
+        const montantsObtenus = issues.filter(i => (i.montant_obtenu || 0) > 0).map(i => i.montant_obtenu);
+        const articles700 = issues.filter(i => (i.article_700 || 0) > 0).map(i => i.article_700);
+
+        dashboard.finances.montant_total_demande = Math.round(totalDemande);
+        dashboard.finances.montant_total_obtenu = Math.round(totalObtenu);
+        dashboard.finances.montant_moyen_obtenu = montantsObtenus.length > 0
+          ? Math.round(montantsObtenus.reduce((a, b) => a + b, 0) / montantsObtenus.length)
+          : 0;
+        dashboard.finances.article_700_moyen = articles700.length > 0
+          ? Math.round(articles700.reduce((a, b) => a + b, 0) / articles700.length)
+          : 0;
+        dashboard.finances.ratio_obtenu_demande = totalDemande > 0
+          ? Math.round((totalObtenu / totalDemande) * 100)
+          : 0;
+
+        // Tendances trimestrielles
+        const trimestresMap = {};
+        issues.forEach(i => {
+          if (!i.cree_le || !i.montant_obtenu) return;
+          const d = new Date(i.cree_le);
+          const q = Math.ceil((d.getMonth() + 1) / 3);
+          const clef = `${d.getFullYear()}-Q${q}`;
+          if (!trimestresMap[clef]) trimestresMap[clef] = { total: 0, count: 0 };
+          trimestresMap[clef].total += i.montant_obtenu;
+          trimestresMap[clef].count += 1;
+        });
+        dashboard.tendances.montant_moyen_par_trimestre = Object.entries(trimestresMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([trimestre, v]) => ({
+            trimestre,
+            montant_moyen: Math.round(v.total / v.count)
+          }));
+      }
+
+      // === POST-MORTEM ===
+      try {
+        const { data: pm } = await admin()
+          .from('avocat_post_mortem')
+          .select('id')
+          .eq('societe_id', req.societeId);
+        dashboard.cabinet.nb_avec_post_mortem = pm ? pm.length : 0;
+      } catch {}
+
+      // === STRATÉGIES ===
+      const { data: strategies } = await admin()
+        .from('avocat_strategies')
+        .select('type_strategie, dossier_id')
+        .eq('societe_id', req.societeId);
+
+      if (strategies && strategies.length > 0) {
+        // Construire un set des dossier_id des issues gagnées / transactées
+        const issuesClotures = {};
+        (issues || []).forEach(i => {
+          issuesClotures[i.dossier_id] = i.resultat_global;
+        });
+
+        const strategieStats = {};
+        strategies.forEach(s => {
+          const t = s.type_strategie;
+          if (!t) return;
+          if (!strategieStats[t]) strategieStats[t] = { nb: 0, succes: 0, echecs: 0 };
+          strategieStats[t].nb += 1;
+          const res = issuesClotures[s.dossier_id];
+          if (res === 'gagne' || res === 'transaction') strategieStats[t].succes += 1;
+          if (res === 'perdu') strategieStats[t].echecs += 1;
+        });
+
+        const lignesStrategies = Object.entries(strategieStats).map(([type, v]) => ({
+          type,
+          nb_utilisations: v.nb,
+          taux_succes: v.nb > 0 ? Math.round((v.succes / v.nb) * 100) : 0,
+          taux_echec: v.nb > 0 ? Math.round((v.echecs / v.nb) * 100) : 0
+        }));
+
+        dashboard.strategies.top_5_efficaces = lignesStrategies
+          .filter(l => l.nb_utilisations > 0)
+          .sort((a, b) => b.taux_succes - a.taux_succes)
+          .slice(0, 5)
+          .map(({ type, nb_utilisations, taux_succes }) => ({ type, nb_utilisations, taux_succes }));
+
+        dashboard.strategies.top_5_fragiles = lignesStrategies
+          .filter(l => l.nb_utilisations > 0)
+          .sort((a, b) => b.taux_echec - a.taux_echec)
+          .slice(0, 5)
+          .map(({ type, nb_utilisations, taux_echec }) => ({ type, nb_utilisations, taux_echec }));
+      }
+
+      // === PREUVES ===
+      const { data: preuves } = await admin()
+        .from('avocat_preuves')
+        .select('type_preuve, statut')
+        .eq('societe_id', req.societeId);
+
+      if (preuves && preuves.length > 0) {
+        const decisives = {};
+        const frequences = {};
+
+        preuves.forEach(p => {
+          const t = p.type_preuve;
+          if (!t) return;
+          frequences[t] = (frequences[t] || 0) + 1;
+          if (p.statut === 'decisive') {
+            decisives[t] = (decisives[t] || 0) + 1;
+          }
+        });
+
+        dashboard.preuves.top_5_decisives = Object.entries(decisives)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([type, nb_fois_decisive]) => ({ type, nb_fois_decisive }));
+
+        dashboard.preuves.types_les_plus_frequents = Object.entries(frequences)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([type, nb]) => ({ type, nb }));
+      }
+
+      // === CONTENTIEUX — répartition depuis dossiers ===
+      const { data: dossiersCx } = await admin()
+        .from('avocat_dossiers')
+        .select('id, type_contentieux')
+        .eq('societe_id', req.societeId);
+
+      if (dossiersCx && dossiersCx.length > 0) {
+        const issuesMap2 = {};
+        (issues || []).forEach(i => { issuesMap2[i.dossier_id] = i.resultat_global; });
+
+        const cxStats = {};
+        dossiersCx.forEach(d => {
+          const cx = d.type_contentieux || 'non_renseigne';
+          if (!cxStats[cx]) cxStats[cx] = { nb: 0, succes: 0 };
+          cxStats[cx].nb += 1;
+          const res = issuesMap2[d.id];
+          if (res === 'gagne' || res === 'transaction') cxStats[cx].succes += 1;
+        });
+
+        dashboard.contentieux.repartition = Object.entries(cxStats)
+          .sort((a, b) => b[1].nb - a[1].nb)
+          .map(([type, v]) => ({
+            type,
+            nb: v.nb,
+            taux_succes: v.nb > 0 ? Math.round((v.succes / v.nb) * 100) : 0
+          }));
+      }
+
+    } catch (dbErr) {
+      console.warn('[moteur-strategique/stats/dashboard] DB indisponible, dashboard partiel:', dbErr.message);
+    }
+
+    return res.json({ dashboard, calcule_le: now() });
+  } catch (err) {
+    console.error('[moteur-strategique/stats/dashboard]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
 module.exports = router;

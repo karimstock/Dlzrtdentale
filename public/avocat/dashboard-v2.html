@@ -588,6 +588,20 @@ tr:hover{background:rgba(201,169,97,.04);}
       <div style="font-size:13px;color:var(--ink-d);margin-bottom:20px;text-align:center;">D&eacute;marrez une consultation Live avec transcription et analyse en temps r&eacute;el.</div>
       <button class="btn btn-gold" style="padding:14px 32px;font-size:14px;" onclick="switchSection('live')">D&eacute;marrer une consultation Live</button>
     </div>
+
+    <!-- STATISTIQUES DU CABINET -->
+    <div class="card card-no-hover" style="margin-bottom:0;" id="accueil-cabinet-stats-card">
+      <div class="card-header">
+        <span class="card-title" style="font-family:'Cormorant Garamond',serif;font-size:18px;">Performance du cabinet</span>
+        <button class="btn btn-s" onclick="loadAccueilCabinetStats()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualiser
+        </button>
+      </div>
+      <div id="accueil-cabinet-stats-content">
+        <div class="empty" style="padding:24px;">Chargement des statistiques&hellip;</div>
+      </div>
+    </div>
   </div>
 
   <!-- CHRONOMETRE -->
@@ -2312,6 +2326,7 @@ function switchDossierTab(tab){
   else if(tab==='issue')loadDossierIssue(id);
   else if(tab==='import'){/* import : formulaire vide, pas de chargement */}
   else if(tab==='postmortem')loadDossierPostMortem(id);
+  else if(tab==='similaires')loadDossierSimilaires(id);
 }
 
 function loadDossierOverview(id){
@@ -2906,6 +2921,72 @@ function saveDossierPostMortem(id){
       if(patContent)patContent.textContent=pm.pattern_extrait;
     }
   }).catch(function(){toast('Erreur lors de la sauvegarde du post-mortem.');});
+}
+
+/* ===== DOSSIERS SIMILAIRES ===== */
+
+function loadDossierSimilaires(id){
+  if(!id)return;
+  var listEl = document.getElementById('dv-similaires-list');
+  var countEl = document.getElementById('dv-similaires-count');
+  if(listEl)listEl.innerHTML='<div class="empty" style="padding:32px;">Recherche des dossiers similaires\u2026</div>';
+  apiFetch('/api/avocat/strategique/dossier/'+id+'/similaires').then(function(data){
+    var similaires = data.similaires||data||[];
+    var insights = data.insights||{};
+    if(countEl)countEl.textContent=similaires.length;
+    /* KPIs insights */
+    var tt=document.getElementById('dv-sim-taux-transaction');
+    var mm=document.getElementById('dv-sim-montant-moyen');
+    var se=document.getElementById('dv-sim-strategie-eff');
+    var pd=document.getElementById('dv-sim-preuve-dec');
+    if(tt)tt.textContent=insights.taux_transaction!=null?Math.round(insights.taux_transaction)+'%':'--';
+    if(mm)mm.textContent=insights.montant_moyen!=null?new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(insights.montant_moyen):'--';
+    if(se)se.textContent=insights.strategie_efficace||'--';
+    if(pd)pd.textContent=insights.preuve_decisive||'--';
+    if(!similaires.length){
+      if(listEl)listEl.innerHTML='<div class="empty" style="padding:32px;">Aucun dossier similaire trouv\u00e9 dans la base.</div>';
+      return;
+    }
+    var html='';
+    similaires.forEach(function(dos){
+      var score=parseInt(dos.score_similarite||dos.score)||0;
+      var scoreColor=score>=70?'var(--success)':score>=40?'var(--warning)':'var(--danger)';
+      var issueBadge='';
+      var issue=dos.issue||dos.issue_finale||'';
+      if(issue==='gagne'||issue==='gagné'){issueBadge='<span class="badge" style="background:rgba(22,163,74,.1);color:var(--success);">Gagné</span>';}
+      else if(issue==='perdu'||issue==='perd'){issueBadge='<span class="badge" style="background:rgba(239,68,68,.1);color:var(--danger);">Perdu</span>';}
+      else if(issue==='transaction'){issueBadge='<span class="badge" style="background:rgba(245,158,11,.1);color:var(--warning);">Transaction</span>';}
+      else if(issue){issueBadge='<span class="badge badge-brouillon">'+escapeHtml(issue)+'</span>';}
+      var montantHtml='';
+      if(dos.montant_obtenu){montantHtml='<span style="font-size:12px;font-weight:700;color:var(--success);">&nbsp;&mdash;&nbsp;'+new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(dos.montant_obtenu)+'</span>';}
+      var typeContentieux=dos.type_contentieux||dos.domaine||'';
+      var typeBadge=typeContentieux?'<span class="badge badge-en_cours" style="font-size:10px;">'+escapeHtml(typeContentieux)+'</span>':'';
+      html+='<div class="dv-card" style="margin-bottom:12px;cursor:default;">';
+      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">';
+      html+='<div style="flex:1;min-width:0;">';
+      html+='<div style="font-size:14px;font-weight:700;color:var(--nuit);margin-bottom:4px;">'+escapeHtml(dos.titre||dos.nom||'Dossier sans titre');
+      if(dos.reference)html+=' <span style="font-size:11px;font-weight:500;color:var(--ink-d);">['+escapeHtml(dos.reference)+']</span>';
+      html+='</div>';
+      html+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'+typeBadge+issueBadge+montantHtml+'</div>';
+      if(dos.strategie)html+='<div style="font-size:12px;color:var(--ink-s);margin-top:4px;"><strong style="color:var(--nuit);">Strat\u00e9gie&nbsp;:</strong> '+escapeHtml(dos.strategie)+'</div>';
+      if(dos.etape)html+='<div style="font-size:11px;color:var(--ink-d);margin-top:4px;">\u00c9tape actuelle&nbsp;: <strong>'+escapeHtml(dos.etape)+'</strong></div>';
+      html+='</div>';
+      /* Score de similarité */
+      html+='<div style="text-align:center;flex-shrink:0;width:72px;">';
+      html+='<div style="font-size:18px;font-weight:700;color:'+scoreColor+';">'+score+'%</div>';
+      html+='<div style="font-size:9px;color:var(--ink-d);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;">similarit\u00e9</div>';
+      html+='<div style="height:5px;border-radius:3px;background:var(--line);overflow:hidden;">';
+      html+='<div style="height:5px;border-radius:3px;background:'+scoreColor+';width:'+Math.min(100,score)+'%;transition:width 1s var(--ease);"></div>';
+      html+='</div>';
+      html+='</div>';
+      html+='</div>';
+      html+='</div>';
+    });
+    if(listEl)listEl.innerHTML=html;
+  }).catch(function(){
+    if(listEl)listEl.innerHTML='<div class="empty" style="padding:32px;">Erreur de chargement des dossiers similaires.</div>';
+    if(countEl)countEl.textContent='0';
+  });
 }
 
 /* ===== FIN ONGLETS STRATÉGIQUES ===== */
@@ -4442,6 +4523,124 @@ fetch('/api/avocat/home/tendances-public').then(function(r){return r.json();}).t
 }).catch(function(){document.getElementById('tendances-list').innerHTML='<div class="empty" style="padding:12px;font-size:13px;color:var(--ink-d);">Tendances en cours de calcul...</div>';});
 }
 
+/* ===== STATISTIQUES CABINET — PAGE ACCUEIL ===== */
+function loadAccueilCabinetStats(){
+  var el=document.getElementById('accueil-cabinet-stats-content');
+  if(!el)return;
+  el.innerHTML='<div class="empty" style="padding:24px;">Chargement\u2026</div>';
+  apiFetch('/api/avocat/strategique/stats/dashboard').then(function(data){
+    var s=data.stats||data||{};
+    /* Formateur montant */
+    function fmt(v){return v!=null?new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v):'--';}
+    function pct(v){return v!=null?Math.round(v)+'%':'--';}
+    /* --- Rang 1 : KPIs dossiers --- */
+    var total=s.total_dossiers!=null?s.total_dossiers:'--';
+    var actifs=s.dossiers_actifs!=null?s.dossiers_actifs:'--';
+    var clos=s.dossiers_clos!=null?s.dossiers_clos:'--';
+    var avecPm=s.dossiers_avec_postmortem!=null?s.dossiers_avec_postmortem:'--';
+    /* --- Rang 2 : taux --- */
+    var tauxSucces=s.taux_succes!=null?Math.round(s.taux_succes):null;
+    var tauxTransaction=pct(s.taux_transaction);
+    var ratioObtenu=s.ratio_obtenu_demande!=null?Math.round(s.ratio_obtenu_demande*100)/100+'x':'--';
+    /* --- Rang 3 : montants --- */
+    var montantMoyen=fmt(s.montant_moyen_obtenu);
+    var art700Moyen=fmt(s.art700_moyen);
+    /* --- Tops --- */
+    var topStrategies=s.top_strategies||[];
+    var topPreuves=s.top_preuves||[];
+    var repartitionContentieux=s.repartition_contentieux||[];
+    /* Jauge circulaire SVG inline pour taux succès */
+    var gaugeHtml='--';
+    if(tauxSucces!=null){
+      var circumference=2*Math.PI*22;
+      var offset=circumference*(1-tauxSucces/100);
+      var gaugeColor=tauxSucces>=70?'var(--success)':tauxSucces>=40?'var(--warning)':'var(--danger)';
+      gaugeHtml='<div style="position:relative;display:inline-block;width:60px;height:60px;">'
+        +'<svg width="60" height="60" viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="var(--line)" stroke-width="6"/><circle cx="30" cy="30" r="22" fill="none" stroke="'+gaugeColor+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+circumference+'" stroke-dashoffset="'+offset+'" transform="rotate(-90 30 30)" style="transition:stroke-dashoffset 1.2s var(--ease);"/></svg>'
+        +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+gaugeColor+';">'+tauxSucces+'%</div>'
+        +'</div>';
+    }
+    /* Fonction barres horizontales */
+    function renderBars(items,labelKey,valueKey,unit,color){
+      if(!items||!items.length)return'<div style="font-size:12px;color:var(--ink-d);padding:8px 0;">Aucune donn\u00e9e disponible.</div>';
+      var maxVal=Math.max.apply(null,items.map(function(x){return parseFloat(x[valueKey])||0;}))||1;
+      return items.map(function(it){
+        var val=parseFloat(it[valueKey])||0;
+        var barW=Math.max(4,Math.round((val/maxVal)*100));
+        var disp=unit==='%'?Math.round(val)+'%':unit==='n'?val:val;
+        return'<div style="margin-bottom:10px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
+          +'<span style="font-size:12px;font-weight:600;color:var(--nuit);">'+escapeHtml(String(it[labelKey]||''))+'</span>'
+          +'<span style="font-size:12px;font-weight:700;color:'+color+';">'+disp+'</span>'
+          +'</div>'
+          +'<div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;">'
+          +'<div style="width:'+barW+'%;height:8px;background:'+color+';border-radius:4px;transition:width .7s var(--ease);"></div>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+    }
+    /* Répartition contentieux : nb + taux succès */
+    function renderContentieux(items){
+      if(!items||!items.length)return'<div style="font-size:12px;color:var(--ink-d);padding:8px 0;">Aucune donn\u00e9e disponible.</div>';
+      var maxNb=Math.max.apply(null,items.map(function(x){return x.nb||0;}))||1;
+      return items.map(function(it){
+        var pctSucces=it.taux_succes!=null?Math.round(it.taux_succes)+'%':'--';
+        var col=it.taux_succes>=70?'var(--success)':it.taux_succes>=40?'var(--warning)':'var(--danger)';
+        var barW=Math.max(4,Math.round(((it.nb||0)/maxNb)*100));
+        return'<div style="margin-bottom:10px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
+          +'<span style="font-size:12px;font-weight:600;color:var(--nuit);">'+escapeHtml(String(it.type||it.contentieux||''))+'</span>'
+          +'<span style="font-size:11px;color:var(--ink-d);">'+it.nb+' dossier'+(it.nb>1?'s':'')+' &mdash; <strong style="color:'+col+';">'+pctSucces+'</strong></span>'
+          +'</div>'
+          +'<div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;">'
+          +'<div style="width:'+barW+'%;height:8px;background:var(--or);border-radius:4px;transition:width .7s var(--ease);"></div>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+    }
+    /* HTML final */
+    el.innerHTML=
+      /* Rang 1 */
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Dossiers total</div><div style="font-size:24px;font-weight:700;color:var(--nuit);">'+total+'</div></div>'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Actifs</div><div style="font-size:24px;font-weight:700;color:var(--info);">'+actifs+'</div></div>'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Clos</div><div style="font-size:24px;font-weight:700;color:var(--ink-s);">'+clos+'</div></div>'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Avec post-mortem</div><div style="font-size:24px;font-weight:700;color:var(--or-dark);">'+avecPm+'</div></div>'
+      +'</div>'
+      /* Rang 2 */
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">'
+        +'<div style="display:flex;flex-direction:column;align-items:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Taux de succ&egrave;s</div>'+gaugeHtml+'</div>'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Taux transaction</div><div style="font-size:24px;font-weight:700;color:var(--warning);">'+tauxTransaction+'</div></div>'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Ratio obtenu&nbsp;/&nbsp;demand&eacute;</div><div style="font-size:24px;font-weight:700;color:var(--nuit);">'+ratioObtenu+'</div></div>'
+      +'</div>'
+      /* Rang 3 */
+      +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;">'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Montant moyen obtenu</div><div style="font-size:22px;font-weight:700;color:var(--success);">'+montantMoyen+'</div></div>'
+        +'<div style="text-align:center;padding:14px;background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:var(--r);"><div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Article 700 moyen</div><div style="font-size:22px;font-weight:700;color:var(--nuit);">'+art700Moyen+'</div></div>'
+      +'</div>'
+      /* 3 cards en grille */
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">'
+        /* Top stratégies */
+        +'<div style="background:rgba(255,255,255,.8);border:1px solid var(--line);border-radius:var(--r);padding:16px;">'
+          +'<div style="font-size:12px;font-weight:700;color:var(--nuit);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);">Top strat&eacute;gies</div>'
+          +renderBars(topStrategies,'strategie','taux_succes','%','var(--info)')
+        +'</div>'
+        /* Top preuves décisives */
+        +'<div style="background:rgba(255,255,255,.8);border:1px solid var(--line);border-radius:var(--r);padding:16px;">'
+          +'<div style="font-size:12px;font-weight:700;color:var(--nuit);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);">Top preuves d&eacute;cisives</div>'
+          +renderBars(topPreuves,'preuve','nb','n','var(--success)')
+        +'</div>'
+        /* Répartition contentieux */
+        +'<div style="background:rgba(255,255,255,.8);border:1px solid var(--line);border-radius:var(--r);padding:16px;">'
+          +'<div style="font-size:12px;font-weight:700;color:var(--nuit);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);">R&eacute;partition contentieux</div>'
+          +renderContentieux(repartitionContentieux)
+        +'</div>'
+      +'</div>';
+  }).catch(function(){
+    if(el)el.innerHTML='<div class="empty" style="padding:24px;">Erreur de chargement des statistiques du cabinet.</div>';
+  });
+}
+
 document.addEventListener('DOMContentLoaded',function(){var ri=document.getElementById('rech-query');if(ri)ri.addEventListener('keydown',function(e){if(e.key==='Enter')lancerRecherche();});});
 
 /* === NOUVEAU DOSSIER === */
@@ -4858,7 +5057,7 @@ function init(){
   loadAccueil();
   /* Le reste : seulement si connecté */
   if(authed){
-    try{loadKPIs();loadDossiersDropdowns();checkRunningTimer();loadEntries();loadPipeline();loadHonoraires();loadRelances();loadCoffreClients();loadCoffreAudit();loadVisioRooms();loadTaxonomyChambres();loadAgenda();loadEntete();loadDocumentsGeneres();loadCabinetPreferences();loadCabinetStats();}catch(e){console.error('Init error:',e);}
+    try{loadKPIs();loadDossiersDropdowns();checkRunningTimer();loadEntries();loadPipeline();loadHonoraires();loadRelances();loadCoffreClients();loadCoffreAudit();loadVisioRooms();loadTaxonomyChambres();loadAgenda();loadEntete();loadDocumentsGeneres();loadCabinetPreferences();loadCabinetStats();loadAccueilCabinetStats();}catch(e){console.error('Init error:',e);}
   }
 }
 document.addEventListener('DOMContentLoaded',init);
@@ -4947,6 +5146,10 @@ document.addEventListener('DOMContentLoaded',init);
     <div class="dv-tab" data-tab="postmortem" onclick="switchDossierTab('postmortem')">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
       Post-mortem
+    </div>
+    <div class="dv-tab" data-tab="similaires" onclick="switchDossierTab('similaires')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+      Similaires
     </div>
   </div>
 
@@ -5611,6 +5814,54 @@ document.addEventListener('DOMContentLoaded',init);
       </div>
 
     </div><!-- /postmortem -->
+
+    <!-- ===== TAB : DOSSIERS SIMILAIRES ===== -->
+    <div class="dv-tab-content" data-tab="similaires">
+
+      <!-- En-tête -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--nuit);">Dossiers similaires</span>
+          <span id="dv-similaires-count" style="background:var(--or-dim);color:var(--or-dark);border:1px solid rgba(201,169,97,.25);font-size:11px;font-weight:700;padding:2px 10px;border-radius:12px;">0</span>
+        </div>
+        <button class="btn btn-s" onclick="loadDossierSimilaires(currentDossierVivantId)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualiser
+        </button>
+      </div>
+
+      <!-- Card Insights globaux -->
+      <div class="dv-card" id="dv-similaires-insights" style="margin-bottom:16px;">
+        <div class="dv-card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--nuit)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Insights des dossiers similaires
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;" id="dv-similaires-kpis">
+          <div style="text-align:center;padding:12px;background:rgba(255,255,255,.6);border-radius:var(--r-sm);border:1px solid var(--line);">
+            <div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Taux transaction</div>
+            <div style="font-size:22px;font-weight:700;color:var(--nuit);" id="dv-sim-taux-transaction">--</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(255,255,255,.6);border-radius:var(--r-sm);border:1px solid var(--line);">
+            <div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Montant moyen</div>
+            <div style="font-size:22px;font-weight:700;color:var(--nuit);" id="dv-sim-montant-moyen">--</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(255,255,255,.6);border-radius:var(--r-sm);border:1px solid var(--line);">
+            <div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Strat&eacute;gie efficace</div>
+            <div style="font-size:13px;font-weight:700;color:var(--nuit);line-height:1.3;" id="dv-sim-strategie-eff">--</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:rgba(255,255,255,.6);border-radius:var(--r-sm);border:1px solid var(--line);">
+            <div style="font-size:10px;font-weight:600;color:var(--ink-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Preuve d&eacute;cisive</div>
+            <div style="font-size:13px;font-weight:700;color:var(--nuit);line-height:1.3;" id="dv-sim-preuve-dec">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Liste des dossiers similaires -->
+      <div id="dv-similaires-list">
+        <div class="empty" style="padding:32px;">Cliquez sur &laquo;&nbsp;Actualiser&nbsp;&raquo; pour charger les dossiers similaires.</div>
+      </div>
+
+    </div><!-- /similaires -->
 
   </div><!-- /.dv-body -->
 </div><!-- /#dossier-vivant -->
