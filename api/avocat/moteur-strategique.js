@@ -12,6 +12,46 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
+// === MISTRAL IA (RGPD — données restent en UE) ===
+let _mistral = null;
+function getMistral() {
+  if (!_mistral && process.env.MISTRAL_API_KEY) {
+    const { Mistral } = require('@mistralai/mistralai');
+    _mistral = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
+  }
+  return _mistral;
+}
+
+/**
+ * Appel Mistral avec system + user prompt, retourne texte ou JSON
+ * Toutes les données sensibles restent en UE (serveurs Mistral Paris)
+ */
+async function callMistralStrategique(systemPrompt, userPrompt, options = {}) {
+  const client = getMistral();
+  if (!client) return null; // Fallback si pas de clé
+
+  try {
+    const resp = await client.chat.complete({
+      model: options.model || 'mistral-small-latest',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      maxTokens: options.maxTokens || 1500,
+      temperature: options.temperature ?? 0.3,
+      responseFormat: options.json ? { type: 'json_object' } : undefined
+    });
+    const content = resp.choices?.[0]?.message?.content || '';
+    if (options.json) {
+      try { return JSON.parse(content); } catch { return null; }
+    }
+    return content;
+  } catch (err) {
+    console.warn('[mistral-strategique] Erreur:', err.message);
+    return null;
+  }
+}
+
 // === SINGLETON SUPABASE ADMIN ===
 let _admin = null;
 function admin() {
@@ -720,18 +760,72 @@ router.post('/dossier/:dossierId/import-decision', requireAvocat, async (req, re
       return res.status(400).json({ error: 'decision_type invalide. Valeurs : jugement_cph, arret_ca, protocole_transactionnel' });
     }
 
-    // Extraire les montants du texte
-    const montantsExtraits = parseMontantsDecision(decision_texte);
-
-    // Déterminer le résultat global basé sur le texte
-    const textLower = decision_texte.toLowerCase();
+    // Extraire les montants — d'abord Mistral (intelligent), fallback regex
+    let montantsExtraits = null;
     let resultat_global = 'inconnu';
-    if (textLower.includes('déboute') || textLower.includes('rejette')) {
-      resultat_global = 'perdu';
-    } else if (textLower.includes('condamne') || textLower.includes('alloue')) {
-      resultat_global = 'gagne';
-    } else if (decision_type === 'protocole_transactionnel') {
-      resultat_global = 'transaction';
+    let analyse_ia = null;
+
+    // Tentative Mistral (RGPD — données restent en UE)
+    const mistralResult = await callMistralStrategique(
+      `Tu es un assistant juridique français spécialisé en droit du travail prud'homal.
+Tu analyses des décisions de justice (jugements CPH, arrêts CA) ou des protocoles transactionnels.
+Tu dois extraire TOUS les montants alloués/convenus, chef par chef.
+Tu dois déterminer si le salarié a gagné, perdu, ou obtenu un accord partiel.
+Réponds UNIQUEMENT en JSON valide, sans commentaire.`,
+      `Analyse cette décision (${decision_type}) et extrais les montants :
+
+${decision_texte.substring(0, 6000)}
+
+Réponds en JSON :
+{
+  "resultat_global": "gagne|perdu|transaction|accord_partiel|rejet",
+  "montant_total": 0,
+  "article_700": 0,
+  "rappels_salaire": 0,
+  "dommages_interets": 0,
+  "indemnite_licenciement": 0,
+  "indemnite_preavis": 0,
+  "conges_payes": 0,
+  "heures_supplementaires": 0,
+  "details": [{"chef": "...", "montant": 0, "accordé": true}],
+  "motivation_cle": "résumé de la motivation principale du juge",
+  "articles_vises": ["L.1235-3", "..."]
+}`,
+      { json: true, maxTokens: 2000 }
+    );
+
+    if (mistralResult && mistralResult.resultat_global) {
+      // Mistral a réussi — utiliser ses résultats
+      montantsExtraits = {
+        montant_obtenu_total: mistralResult.montant_total || 0,
+        article_700: mistralResult.article_700 || 0,
+        rappels_salaire: mistralResult.rappels_salaire || 0,
+        dommages_interets: mistralResult.dommages_interets || 0,
+        indemnite_licenciement: mistralResult.indemnite_licenciement || 0,
+        indemnite_preavis: mistralResult.indemnite_preavis || 0,
+        conges_payes: mistralResult.conges_payes || 0,
+        heures_supplementaires: mistralResult.heures_supplementaires || 0,
+        details: mistralResult.details || [],
+        source: 'mistral_ia'
+      };
+      resultat_global = mistralResult.resultat_global;
+      analyse_ia = {
+        motivation_cle: mistralResult.motivation_cle || null,
+        articles_vises: mistralResult.articles_vises || []
+      };
+    } else {
+      // Fallback regex
+      montantsExtraits = parseMontantsDecision(decision_texte);
+      montantsExtraits.source = 'regex_fallback';
+
+      const textLower = decision_texte.toLowerCase();
+      if (textLower.includes('déboute') || textLower.includes('rejette')) {
+        resultat_global = 'perdu';
+      } else if (textLower.includes('condamne') || textLower.includes('alloue')) {
+        resultat_global = 'gagne';
+      } else if (decision_type === 'protocole_transactionnel') {
+        resultat_global = 'transaction';
+      }
     }
 
     // Construire le payload d'issue à partir des montants extraits
@@ -794,7 +888,9 @@ router.post('/dossier/:dossierId/import-decision', requireAvocat, async (req, re
     return res.status(200).json({
       issue,
       montants_extraits: montantsExtraits,
-      message: `Décision importée. ${Object.keys(montantsExtraits).length} élément(s) financier(s) détecté(s).`
+      analyse_ia: analyse_ia || null,
+      source: montantsExtraits.source || 'regex_fallback',
+      message: `Décision importée (${montantsExtraits.source === 'mistral_ia' ? 'analyse IA Mistral' : 'extraction regex'}). ${(montantsExtraits.details || []).length} chef(s) de demande détecté(s).`
     });
   } catch (err) {
     console.error('[moteur-strategique/import-decision]', err.message);
@@ -858,10 +954,70 @@ router.post('/dossier/:dossierId/post-mortem', requireAvocat, async (req, res) =
       type_contentieux, taille_entreprise, secteur_activite
     } = req.body || {};
 
-    const { resume, pattern } = genererResumeEtPattern(
-      { ...req.body, type_contentieux, taille_entreprise, secteur_activite },
-      dossierId
+    // Générer résumé + pattern — Mistral si disponible, sinon local
+    let resume, pattern;
+    const mistralPostMortem = await callMistralStrategique(
+      `Tu es un assistant juridique français. Tu analyses le retour d'expérience d'un dossier prud'homal clôturé.
+Tu dois produire :
+1. Un résumé stratégique concis (5 lignes max)
+2. Un pattern abstrait anonymisé (aucune donnée personnelle)
+Réponds en JSON.`,
+      `Dossier clôturé — retour d'expérience :
+- Type contentieux : ${type_contentieux || 'non précisé'}
+- Ce qui a fonctionné : ${JSON.stringify(ce_qui_a_fonctionne || 'non précisé')}
+- Ce qui a échoué : ${JSON.stringify(ce_qui_a_echoue || 'non précisé')}
+- Preuve décisive : ${preuve_decisive || 'non précisée'}
+- Preuve manquante : ${preuve_manquante || 'non précisée'}
+- Stratégie efficace : ${strategie_efficace || 'non précisée'}
+- Stratégie inutile : ${strategie_inutile || 'non précisée'}
+- Erreurs à éviter : ${erreurs_a_eviter || 'non précisées'}
+- Négociation préférable : ${negociation_preferable}
+- Enseignement principal : ${enseignement_principal || 'non précisé'}
+- Rentabilité : ${rentabilite || 'non précisée'}
+
+Réponds en JSON :
+{
+  "resume_strategique": "...",
+  "pattern": {
+    "type_contentieux": "...",
+    "strategie_efficace": "...",
+    "strategie_fragile": "...",
+    "preuves_decisives": ["..."],
+    "preuves_manquantes": ["..."],
+    "issue_frequente": "...",
+    "enseignement_cle": "...",
+    "fiabilite": "fiable"
+  }
+}`,
+      { json: true, maxTokens: 1000 }
     );
+
+    if (mistralPostMortem && mistralPostMortem.resume_strategique) {
+      resume = mistralPostMortem.resume_strategique;
+      pattern = {
+        id: genId(),
+        source: 'cabinet',
+        type_contentieux: mistralPostMortem.pattern?.type_contentieux || type_contentieux || 'autre',
+        strategie_efficace: mistralPostMortem.pattern?.strategie_efficace || strategie_efficace,
+        strategie_fragile: mistralPostMortem.pattern?.strategie_fragile || strategie_inutile,
+        preuves_decisives: mistralPostMortem.pattern?.preuves_decisives || [],
+        preuves_manquantes: mistralPostMortem.pattern?.preuves_manquantes || [],
+        issue_frequente: mistralPostMortem.pattern?.issue_frequente || null,
+        enseignement_cle: mistralPostMortem.pattern?.enseignement_cle || enseignement_principal,
+        fiabilite: mistralPostMortem.pattern?.fiabilite || 'fiable',
+        nb_dossiers_source: 1,
+        created_at: now(),
+        generated_by: 'mistral_ia'
+      };
+    } else {
+      // Fallback local
+      const localResult = genererResumeEtPattern(
+        { ...req.body, type_contentieux, taille_entreprise, secteur_activite },
+        dossierId
+      );
+      resume = localResult.resume;
+      pattern = localResult.pattern;
+    }
 
     const payload = {
       societe_id: req.societeId,
@@ -1313,6 +1469,203 @@ router.get('/dossier/:dossierId/complet', requireAvocat, async (req, res) => {
     });
   } catch (err) {
     console.error('[moteur-strategique/complet]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ================================================
+// POST /dossier/:dossierId/gps — GPS stratégique multi-chemins (Mistral IA)
+// ================================================
+router.post('/dossier/:dossierId/gps', requireAvocat, async (req, res) => {
+  try {
+    const { dossierId } = req.params;
+
+    // 1. Charger le contexte complet du dossier
+    let contexte = null;
+    try {
+      const { data } = await admin().from('avocat_dossiers')
+        .select('*').eq('id', dossierId).single();
+      contexte = data;
+    } catch {}
+    if (!contexte) contexte = readLocal('contexte', req.societeId, dossierId);
+    if (!contexte) return res.status(404).json({ error: 'Dossier non trouvé' });
+
+    // 2. Charger les preuves
+    let preuves = [];
+    try {
+      const { data } = await admin().from('avocat_preuves')
+        .select('*').eq('dossier_id', dossierId).eq('societe_id', req.societeId);
+      preuves = data || [];
+    } catch {}
+    if (!preuves.length) preuves = readLocal('preuves', req.societeId, dossierId) || [];
+
+    // 3. Charger les patterns cabinet pour enrichir
+    let patterns = [];
+    try {
+      const { data } = await admin().from('avocat_patterns')
+        .select('*').eq('societe_id', req.societeId).order('nb_dossiers_source', { ascending: false }).limit(20);
+      patterns = data || [];
+    } catch {}
+    if (!patterns.length) patterns = readLocal('patterns', req.societeId, null) || [];
+
+    // 4. Construire le prompt pour Mistral
+    const preuvesResume = preuves.map(p => `- ${p.type_preuve} (force: ${p.force_probatoire}/5, axe: ${p.axe_strategique || 'non défini'}, statut: ${p.statut})`).join('\n');
+    const patternsResume = patterns.slice(0, 5).map(p => `- Pattern "${p.type_contentieux}": stratégie efficace=${p.strategie_efficace}, fragile=${p.strategie_fragile}, issue=${p.issue_frequente}`).join('\n');
+
+    const gpsResult = await callMistralStrategique(
+      `Tu es un GPS stratégique prud'homal français expert. Tu analyses un dossier et proposes plusieurs chemins stratégiques avec leur solidité.
+RÈGLES ABSOLUES :
+- Tu ne dois JAMAIS inventer de jurisprudence
+- Chaque recommandation doit indiquer son niveau de confiance
+- Tu dois toujours dire "validation avocat obligatoire"
+- Si les données sont insuffisantes, le dire clairement
+Réponds en JSON.`,
+
+      `DOSSIER À ANALYSER :
+Type contentieux : ${contexte.type_contentieux || contexte.type || 'non précisé'}
+Ancienneté : ${contexte.anciennete_mois || '?'} mois
+Salaire brut : ${contexte.salaire_brut || '?'} €
+Statut : ${contexte.statut_salarie || '?'}
+Type employeur : ${contexte.type_employeur || '?'} (${contexte.taille_entreprise || '?'} salariés)
+Secteur : ${contexte.secteur_activite || '?'}
+Convention collective : ${contexte.convention_collective || '?'}
+Juridiction : ${contexte.juridiction || '?'} — Section : ${contexte.section_cph || '?'}
+Stade procédural : ${contexte.stade_procedural || '?'}
+Stratégie principale envisagée : ${contexte.strategie_principale || '?'}
+
+PREUVES DISPONIBLES (${preuves.length}) :
+${preuvesResume || 'Aucune preuve structurée'}
+
+PATTERNS CABINET (expérience passée) :
+${patternsResume || 'Aucun pattern — premier dossier du cabinet'}
+
+Propose 4 chemins stratégiques en JSON :
+{
+  "chemins": [
+    {
+      "nom": "Chemin A : ...",
+      "axe_juridique": "harcelement|obligation_securite|heures_sup|discrimination|procedure|negociation|...",
+      "solidite": 75,
+      "preuves_presentes": ["mail tardif", "..."],
+      "preuves_manquantes": ["attestation", "..."],
+      "risques": "...",
+      "chances_succes": "moyenne",
+      "montant_indicatif_min": 0,
+      "montant_indicatif_max": 0,
+      "strategie_recommandee": "...",
+      "issue_probable": "transaction|jugement|...",
+      "confiance": "fiable|a_verifier|fragile"
+    }
+  ],
+  "chemin_recommande": 0,
+  "synthese": "En 3 lignes, la recommandation globale",
+  "donnees_insuffisantes": false,
+  "source": "analyse IA + patterns cabinet"
+}`,
+      { json: true, maxTokens: 3000, temperature: 0.4 }
+    );
+
+    if (gpsResult && gpsResult.chemins) {
+      return res.json({
+        gps: gpsResult,
+        nb_preuves: preuves.length,
+        nb_patterns_cabinet: patterns.length,
+        source: 'mistral_ia_rgpd',
+        avertissement: 'Estimation indicative — validation avocat obligatoire. Les données restent hébergées en Union Européenne (Mistral AI, Paris).'
+      });
+    }
+
+    // Fallback sans IA — chemins basiques basés sur les preuves
+    const cheminsBasiques = [
+      { nom: 'Chemin A : Licenciement sans cause', axe_juridique: contexte.type_contentieux || 'licenciement', solidite: 50, preuves_presentes: preuves.filter(p => p.force_probatoire >= 3).map(p => p.type_preuve), preuves_manquantes: [], risques: 'À évaluer par l\'avocat', confiance: 'insuffisant' },
+      { nom: 'Chemin B : Négociation', axe_juridique: 'negociation', solidite: 60, preuves_presentes: [], preuves_manquantes: [], risques: 'Dépend du rapport de force', confiance: 'a_verifier' }
+    ];
+
+    return res.json({
+      gps: { chemins: cheminsBasiques, synthese: 'Données insuffisantes pour une analyse IA complète. Veuillez enrichir le contexte et les preuves.', donnees_insuffisantes: true, source: 'fallback_local' },
+      nb_preuves: preuves.length,
+      source: 'fallback_local',
+      avertissement: 'Estimation très approximative — enrichissez les preuves et le contexte pour une analyse IA complète.'
+    });
+  } catch (err) {
+    console.error('[moteur-strategique/gps]', err.message);
+    return res.status(500).json({ error: 'Erreur interne' });
+  }
+});
+
+// ================================================
+// GET /dossier/:dossierId/alertes — Alertes intelligentes contextuelles
+// ================================================
+router.get('/dossier/:dossierId/alertes', requireAvocat, async (req, res) => {
+  try {
+    const { dossierId } = req.params;
+    const alertes = [];
+
+    // Charger contexte
+    let contexte = null;
+    try {
+      const { data } = await admin().from('avocat_dossiers').select('*').eq('id', dossierId).single();
+      contexte = data;
+    } catch {}
+    if (!contexte) contexte = readLocal('contexte', req.societeId, dossierId);
+
+    if (contexte) {
+      // Alerte audience proche
+      if (contexte.date_audience) {
+        const jours = Math.ceil((new Date(contexte.date_audience) - new Date()) / 86400000);
+        if (jours >= 0 && jours <= 30) {
+          alertes.push({ type: 'audience_proche', urgence: jours <= 7 ? 'critique' : 'important', message: `Audience dans ${jours} jour(s)`, date: contexte.date_audience });
+        }
+      }
+      // Alerte prescription
+      if (contexte.anciennete_mois && contexte.created_at) {
+        const moisDepuisCreation = Math.ceil((new Date() - new Date(contexte.created_at)) / (30 * 86400000));
+        if (moisDepuisCreation > 20) {
+          alertes.push({ type: 'prescription_proche', urgence: 'critique', message: 'Attention — vérifier les délais de prescription (24 mois en prud\'homal)' });
+        }
+      }
+      // Alerte contexte incomplet
+      const champsManquants = [];
+      if (!contexte.type_contentieux) champsManquants.push('type de contentieux');
+      if (!contexte.salaire_brut) champsManquants.push('salaire brut');
+      if (!contexte.anciennete_mois) champsManquants.push('ancienneté');
+      if (!contexte.convention_collective) champsManquants.push('convention collective');
+      if (champsManquants.length > 0) {
+        alertes.push({ type: 'contexte_incomplet', urgence: 'info', message: `Champs manquants : ${champsManquants.join(', ')}` });
+      }
+    }
+
+    // Preuves manquantes
+    let preuves = [];
+    try {
+      const { data } = await admin().from('avocat_preuves').select('type_preuve, statut').eq('dossier_id', dossierId).eq('societe_id', req.societeId);
+      preuves = data || [];
+    } catch {}
+    if (!preuves.length) preuves = readLocal('preuves', req.societeId, dossierId) || [];
+
+    const preuvesDecisives = preuves.filter(p => p.statut === 'decisive');
+    const preuvesAVerifier = preuves.filter(p => p.statut === 'a_verifier');
+    if (preuvesAVerifier.length > 0) {
+      alertes.push({ type: 'preuves_a_verifier', urgence: 'important', message: `${preuvesAVerifier.length} preuve(s) à vérifier` });
+    }
+    if (preuves.length === 0) {
+      alertes.push({ type: 'aucune_preuve', urgence: 'critique', message: 'Aucune preuve structurée — enrichissez le dossier' });
+    }
+
+    // Issue manquante
+    let issue = null;
+    try {
+      const { data } = await admin().from('avocat_issues').select('id').eq('dossier_id', dossierId).eq('societe_id', req.societeId).single();
+      issue = data;
+    } catch {}
+
+    if (contexte && contexte.etape === 'clos' && !issue) {
+      alertes.push({ type: 'issue_manquante', urgence: 'important', message: 'Dossier clos sans issue finale — complétez pour enrichir la mémoire cabinet' });
+    }
+
+    return res.json({ alertes, nb_alertes: alertes.length });
+  } catch (err) {
+    console.error('[moteur-strategique/alertes]', err.message);
     return res.status(500).json({ error: 'Erreur interne' });
   }
 });
