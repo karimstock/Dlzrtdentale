@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 23 mai 2026
-**Derniere passe** : Passe 99 (23 mai 2026) — Frontend avocat complet (Nouveau Client + Dossier + Agenda + Simulateur V2), Visio native WebRTC P2P (zero tiers), Tracker ouverture email, Invitation premium
+**Derniere mise a jour** : 24 mai 2026
+**Derniere passe** : Session Formation 24 mai — Slides IA 2026 (5 fonctions + comparatif marques + Panda) + Slide image cabinet (Dodi 2025)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5368,7 +5368,34 @@ A FAIRE PHASE 1 :
 - Onglets Dossier Vivant : Issue finale, Post-mortem, Import decision, Dossiers similaires
 - Backend API moteur strategique
 
+## Session Formation 24 mai 2026 — Slides IA + Image cabinet
+
+### Formation dentisterie numerique (27 juin 2026)
+Fichier : public/formation/index.html (97 slides Reveal.js)
+Commits ce jour : 3 (session + chronologies + slide IA)
+
+### Slide 10 — "L'IA change la donne" (REFAITE)
+- Titre : "En 2026, l'IA ne comble plus les trous. Elle ameliore l'empreinte."
+- Col. gauche : 5 fonctions IA (detection caries, filtrage soft tissue,
+  limites prep auto -32% remakes, design couronne 4x plus rapide, heatmap guidage)
+- Col. droite : 5 marques comparees (TRIOS 6 25K, Primescan 2 20K,
+  Medit i900 10K, Panda Smart 8K, iTero Lumina 22K) — meme IA partout
+- Punchline : "Ce n'est plus la camera. C'est l'IA derriere."
+- Source principale : Roth et al. 2025, Journal of Dentistry (120 scans TRIOS 5)
+- Notes orales completes avec pauses et montee dramatique
+
+### Slide 11 — "Le numerique c'est aussi l'image du cabinet"
+- Etude Dodi 2025, Dentistry Journal (597 patients) :
+  91.9% preferent numerique, 77.6% paient plus cher
+- 4 freins + reponses sourcees (budget/prothesiste/age/silicone)
+- France 25-30% vs Nordiques 60-70%
+
+### Images ajoutees (PMC open access)
+- ai-mesh-before-after.jpg (point clouds 5-20% manquant)
+- ai-mesh-overlay.jpg (reconstruction deep learning)
+- scan-deviation-colormap.jpg, scan-superimposition.jpg, scan-clean-colormap.jpg
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 23 mai 2026 (Passe 100 — Restructuration + Dossier Vivant + Vision Moteur Strategique)
+Derniere mise a jour : 24 mai 2026 (Session Formation — Slides IA + Image cabinet)
 ===============================================================
