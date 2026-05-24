@@ -215,7 +215,7 @@ app.use((req, res, next) => {
   //   '/btp', '/sci', '/createurs', '/coiffeurs'];
   // const isPublic = publicPaths.includes(req.path) || publicPaths.includes(req.path.replace(/\.html$/, ''));
   // const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebot|twitterbot|linkedinbot/i.test(req.headers['user-agent'] || '');
-  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/')) {
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/formation') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/')) {
     return next();
   }
   // Vérifier le cookie
@@ -1235,6 +1235,14 @@ try {
   app.use('/api/avocat/moteur-strategique', require('./api/avocat/moteur-strategique'));
   console.log('[JADOMI] Module Moteur Stratégique Prud\'homal monté');
 } catch (e) { console.warn('[JADOMI] Moteur Stratégique non chargé:', e.message); }
+try {
+  app.use('/api/avocat/enquete-interne', require('./api/avocat/enquete-interne'));
+  console.log('[JADOMI] Module Enquête Interne (harcèlement, discrimination, Sapin II) monté');
+} catch (e) { console.warn('[JADOMI] Enquête Interne non chargé:', e.message); }
+try {
+  app.use('/api/avocat/trames', require('./api/avocat/trames'));
+  console.log('[JADOMI] Module Trames Documentaires (conclusions, courriers, modèles) monté');
+} catch (e) { console.warn('[JADOMI] Trames Documentaires non chargé:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');

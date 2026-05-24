@@ -97,12 +97,17 @@ const upload = multer({
       'application/vnd.ms-excel', // xls
       'text/csv',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+      'application/vnd.ms-powerpoint', // ppt
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', // vidéos
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', // audio
       'application/x-rar-compressed', 'application/vnd.rar', // rar
       'application/zip', 'application/x-zip-compressed', // zip
       'application/x-7z-compressed', // 7z
+      'application/octet-stream', // fichiers binaires génériques
     ];
     if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Formats : PDF, JPG, PNG, WebP, RAR, ZIP, 7Z, XLSX, CSV, DOCX'));
+    else cb(new Error('Formats : PDF, JPG, PNG, WebP, PPTX, PPT, MP4, WebM, MOV, AVI, MKV, MP3, WAV, RAR, ZIP, 7Z, XLSX, CSV, DOCX'));
   }
 });
 
@@ -815,8 +820,26 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
       }
     }
 
-    // Détection type de fichier (PDF vs Image)
+    // Détection type de fichier (PDF vs Image vs Autre)
     const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff'].includes(req.file.mimetype);
+    const isPdf = req.file.mimetype === 'application/pdf';
+    const isOtherDoc = !isImage && !isPdf;
+
+    // AUTRES FICHIERS (PowerPoint, vidéos, audio, Word, Excel...) : stockage simple sans parsing
+    if (isOtherDoc) {
+      console.log(`[scan-dashboard] Fichier non-PDF stocké: ${req.file.originalname} (${req.file.mimetype})`);
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      let docType = 'document';
+      if (['.pptx', '.ppt'].includes(ext)) docType = 'powerpoint';
+      else if (['.mp4', '.webm', '.mov', '.avi', '.mkv'].includes(ext)) docType = 'video';
+      else if (['.mp3', '.wav', '.ogg'].includes(ext)) docType = 'audio';
+      else if (['.docx', '.doc'].includes(ext)) docType = 'word';
+      else if (['.xlsx', '.xls', '.csv'].includes(ext)) docType = 'tableur';
+      const meta = loadMeta();
+      meta[req.file.filename] = { brand: brand, docType, originalName: req.file.originalname, uploadedAt: new Date().toISOString(), size: req.file.size, mimetype: req.file.mimetype };
+      saveMeta(meta);
+      return res.json({ ok: true, filename: req.file.filename, originalName: req.file.originalname, brand, docType, pages: 0, totalLines: 0, products: [], textPreview: `Fichier ${docType} stocké avec succès (${sizeMb} Mo)` });
+    }
 
     // IMAGES : analyse via DeepSeek Vision / OCR
     if (isImage) {
