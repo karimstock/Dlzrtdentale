@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Code</title>
+<link rel="icon" href="/favicon.ico">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a28;--border:#2a2a3a;
+  --gold:#c9a84c;--blue:#29b6f6;--green:#2dc653;--red:#e53935;
+  --text:#e8e8f0;--text2:#8888aa;--mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;overflow:hidden}
+
+/* Auth */
+#auth-gate{display:flex;align-items:center;justify-content:center;height:100vh}
+#auth-gate .card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:48px;text-align:center;max-width:400px;width:100%}
+#auth-gate h1{font-size:28px;font-weight:800;color:var(--gold);margin-bottom:8px}
+#auth-gate p{color:var(--text2);font-size:14px;margin-bottom:24px}
+#auth-gate input{width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:12px;outline:none;transition:border .2s}
+#auth-gate input:focus{border-color:var(--gold)}
+#auth-gate button{width:100%;padding:12px;background:var(--gold);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer}
+#auth-gate button:hover{opacity:.85}
+#auth-gate .error{color:var(--red);font-size:12px;margin-top:8px}
+.step{display:none}.step.active{display:block}
+.mfa-inputs{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+.mfa-inputs input{width:44px;height:52px;text-align:center;font-size:22px;font-weight:700;font-family:var(--mono);padding:0}
+.mfa-label{color:var(--text2);font-size:13px;margin-bottom:20px}
+
+/* Layout */
+#app{display:none;height:100vh;flex-direction:column}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar .logo{font-size:16px;font-weight:800;color:var(--gold)}
+.topbar .logo span{color:var(--text2);font-weight:400;font-size:11px;margin-left:6px}
+.live-stats{display:flex;align-items:center;gap:14px;margin-left:auto;font-size:11px;font-family:var(--mono);color:var(--text2)}
+.live-stats .stat{display:flex;align-items:center;gap:4px}
+.live-stats .stat b{color:var(--text)}
+.live-stats .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.live-stats .dot.off{background:var(--red)}
+.live-stats .dot.working{background:var(--gold);animation:pulse .8s infinite}
+.btn-sm{background:none;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+.btn-sm:hover{border-color:var(--gold);color:var(--gold)}
+.btn-sm.danger:hover{border-color:var(--red);color:var(--red)}
+
+/* Teams sidebar */
+.teams-bar{width:54px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0;overflow-y:auto}
+.team-btn{width:42px;height:42px;border-radius:10px;border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .2s;position:relative}
+.team-btn:hover{border-color:var(--gold);background:rgba(201,168,76,.06)}
+.team-btn:active{transform:scale(.95)}
+.team-btn .t-icon{font-size:18px;line-height:1}
+.team-btn .t-label{font-size:7px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;line-height:1}
+.team-btn:hover .t-label{color:var(--gold)}
+.team-btn.running{border-color:var(--gold);animation:pulse .8s infinite}
+.team-btn.running .t-label{color:var(--gold)}
+.teams-sep{width:28px;height:1px;background:var(--border);margin:4px 0}
+
+/* Tabs */
+.tabs{display:flex;align-items:center;gap:4px;padding:6px 16px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.tab{padding:8px 18px;font-size:13px;color:var(--text2);background:transparent;border:1px solid transparent;border-radius:8px 8px 0 0;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;font-weight:500}
+.tab.active{background:var(--bg2);color:var(--text);border-color:var(--border);border-bottom-color:var(--bg2);font-weight:700}
+.tab.done{animation:flashGreen 2s ease}
+.tab .x{font-size:11px;opacity:.3;cursor:pointer;padding:2px 4px}.tab .x:hover{opacity:1;color:var(--red)}
+.tab-boss{padding:8px 16px;font-size:13px;color:var(--gold);background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px 8px 0 0;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}
+.tab-boss:hover{background:rgba(201,168,76,.12)}
+.tab-boss.active{background:var(--bg2);border-bottom-color:var(--bg2)}
+.tab-boss .boss-count{background:var(--gold);color:#000;font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.tab-add{padding:6px 14px;font-size:16px;color:var(--text2);background:none;border:1px dashed var(--border);border-radius:8px;cursor:pointer}
+.tab-add:hover{color:var(--gold);border-color:var(--gold)}
+.tab-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+
+/* Boss panel */
+#boss-panel{display:none;flex:1;flex-direction:column;overflow:hidden;background:var(--bg)}
+#boss-panel.active{display:flex}
+.boss-header{padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.boss-header h2{font-size:16px;font-weight:800;color:var(--gold)}
+.boss-header .boss-stats{display:flex;gap:12px;margin-left:auto;font-size:11px;color:var(--text2)}
+.boss-header .boss-stats b{color:var(--text)}
+.boss-refresh{background:none;border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+.boss-refresh:hover{border-color:var(--gold);color:var(--gold)}
+.boss-tasks{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.boss-task{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.boss-task-head{display:flex;align-items:center;gap:10px}
+.boss-task-head .bt-team{font-size:10px;font-weight:700;color:var(--blue);background:rgba(41,182,246,.1);padding:2px 8px;border-radius:4px;text-transform:uppercase}
+.boss-task-head .bt-title{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.boss-task-head .bt-priority{font-size:10px;color:var(--text2)}
+.boss-task-head .bt-status{font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px}
+.bt-status.running{color:var(--gold);background:rgba(201,168,76,.1)}
+.bt-status.pending{color:var(--text2);background:rgba(255,255,255,.05)}
+.bt-status.review{color:#ff9800;background:rgba(255,152,0,.1);animation:pulse 1.5s infinite}
+.bt-status.done{color:var(--green);background:rgba(45,198,83,.1)}
+.bt-status.failed{color:var(--red);background:rgba(229,57,53,.1)}
+.bt-status.paused{color:var(--text2);background:rgba(255,255,255,.03)}
+.boss-task-body{font-size:11px;color:var(--text2);line-height:1.5;max-height:80px;overflow:hidden}
+.boss-task-meta{font-size:10px;color:var(--text2);display:flex;gap:12px;opacity:.6}
+.boss-task-actions{display:flex;gap:6px;margin-top:4px}
+.btn-approve{background:var(--green);color:#000;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer}
+.btn-approve:hover{opacity:.85}
+.btn-reject{background:none;border:1px solid var(--red);color:var(--red);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer}
+.btn-reject:hover{background:rgba(229,57,53,.1)}
+
+/* Main split */
+.main{flex:1;display:flex;overflow:hidden}
+
+/* Chat */
+.chat{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
+.msg{max-width:88%;animation:fadeIn .25s ease}
+.msg.user{align-self:flex-end}
+.msg.assistant{align-self:flex-start;width:100%;max-width:100%}
+.bubble{padding:12px 16px;border-radius:10px;font-size:13.5px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.msg.user .bubble{background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.15)}
+.msg.assistant .bubble{background:var(--bg2);border:1px solid var(--border)}
+.msg .files{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.file-tag{font-size:10px;color:var(--blue);background:rgba(41,182,246,.08);border:1px solid rgba(41,182,246,.12);padding:2px 7px;border-radius:3px}
+
+/* Live activity feed inside assistant message */
+.activity{margin-top:8px;border-top:1px solid var(--border);padding-top:8px}
+.act-item{font-size:11px;padding:4px 0;color:var(--text2);display:flex;align-items:flex-start;gap:6px;font-family:var(--mono);animation:fadeIn .2s ease}
+.act-item .icon{flex-shrink:0;width:16px;text-align:center}
+.act-item.tool .icon{color:var(--blue)}
+.act-item.result .icon{color:var(--green)}
+.act-item.error .icon{color:var(--red)}
+.act-item .detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:600px}
+
+/* Meta line */
+.meta{font-size:10px;color:var(--text2);margin-top:6px;display:flex;gap:10px;opacity:.5}
+
+/* Streaming */
+.streaming-bar{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:11px;color:var(--text2);background:rgba(201,168,76,.03);border-left:3px solid var(--gold);margin:4px 0;border-radius:0 6px 6px 0;animation:fadeIn .2s}
+.streaming-bar .dots span{display:inline-block;width:5px;height:5px;background:var(--gold);border-radius:50%;margin:0 1px;animation:blink 1.4s infinite both}
+.streaming-bar .dots span:nth-child(2){animation-delay:.2s}
+.streaming-bar .dots span:nth-child(3){animation-delay:.4s}
+
+/* Input */
+.input-area{padding:12px 16px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.input-row{display:flex;gap:8px;align-items:flex-end}
+.input-wrap{flex:1;position:relative}
+textarea{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13.5px;font-family:inherit;resize:none;outline:none;min-height:46px;max-height:180px;line-height:1.5}
+textarea:focus{border-color:var(--gold)}
+textarea::placeholder{color:var(--text2)}
+.btn-send{width:42px;height:42px;background:var(--gold);border:none;border-radius:9px;color:#000;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-send:disabled{opacity:.2;cursor:not-allowed}
+.btn-voice{width:42px;height:42px;background:none;border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.btn-voice:hover{border-color:var(--gold);color:var(--gold)}
+.btn-voice.recording{border-color:var(--red);color:var(--red);animation:pulse .8s infinite;background:rgba(229,57,53,.08)}
+.bottom-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.btn-attach{background:none;border:none;color:var(--text2);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px}
+.btn-attach:hover{color:var(--gold)}
+.pending-files{display:flex;flex-wrap:wrap;gap:3px}
+.pf{font-size:10px;background:rgba(41,182,246,.08);color:var(--blue);border:1px solid rgba(41,182,246,.1);padding:2px 6px;border-radius:3px;display:flex;align-items:center;gap:3px}
+.pf .rm{cursor:pointer;opacity:.4}.pf .rm:hover{opacity:1;color:var(--red)}
+
+/* Right panel */
+.right-panel{width:280px;border-left:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.right-panel.hidden{display:none}
+.rp-header{padding:10px 14px;font-size:12px;font-weight:700;color:var(--gold);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.rp-tabs{display:flex;border-bottom:1px solid var(--border)}
+.rp-tab{flex:1;padding:8px;font-size:10px;text-align:center;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent}
+.rp-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.rp-content{flex:1;overflow-y:auto;padding:10px}
+.rp-item{font-size:11px;color:var(--text2);padding:6px 8px;border-radius:4px;margin-bottom:4px;background:rgba(255,255,255,.02);border:1px solid var(--border);display:flex;align-items:center;gap:6px}
+.rp-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rp-item .size{color:var(--text2);font-size:9px;flex-shrink:0}
+.rp-item .time{color:var(--text2);font-size:9px;flex-shrink:0}
+.rp-empty{color:var(--text2);font-size:11px;text-align:center;padding:20px;opacity:.5}
+
+/* Multi-agent grid */
+#multi-view{display:none;flex:1;flex-direction:column;overflow:hidden}
+#multi-view.active{display:flex}
+.multi-header{padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.multi-header .title{font-size:13px;font-weight:700;color:var(--gold)}
+.multi-header .plan-summary{font-size:11px;color:var(--text2);flex:1}
+.multi-header .btn-back{font-size:11px}
+.workers-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1px;background:var(--border);overflow:auto}
+.worker-pane{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;min-height:200px}
+.worker-head{padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.worker-head .w-num{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#000;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.worker-head .w-title{font-size:11px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.worker-head .w-status{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.worker-head .w-status.running{color:var(--gold);background:rgba(201,168,76,.1)}
+.worker-head .w-status.done{color:var(--green);background:rgba(45,198,83,.1)}
+.worker-head .w-status.error{color:var(--red);background:rgba(229,57,53,.1)}
+.worker-head .w-status.pending{color:var(--text2);background:rgba(255,255,255,.05)}
+.worker-body{flex:1;overflow-y:auto;padding:10px;font-size:11.5px;font-family:var(--mono);line-height:1.6;color:var(--text2)}
+.worker-body .w-text{color:var(--text);white-space:pre-wrap;word-break:break-word}
+.worker-body .w-tool{color:var(--blue);padding:2px 0}
+.worker-body .w-result{color:var(--green);padding:2px 0;opacity:.7}
+.worker-body .w-error{color:var(--red)}
+.worker-meta{padding:6px 12px;background:var(--bg2);border-top:1px solid var(--border);font-size:9px;color:var(--text2);display:flex;gap:10px;flex-shrink:0}
+
+/* Drop overlay */
+.drop-overlay{position:fixed;inset:0;background:rgba(10,10,15,.92);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;border:3px dashed var(--gold);margin:16px;border-radius:16px}
+.drop-overlay.active{display:flex}
+.drop-overlay .icon{font-size:48px;color:var(--gold)}
+.drop-overlay .label{font-size:18px;font-weight:700;color:var(--gold)}
+
+/* Code in messages */
+.bubble code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:12px}
+.bubble pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;margin:6px 0;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.5}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+@keyframes flashGreen{0%{box-shadow:0 0 0 0 rgba(45,198,83,.5)}50%{box-shadow:0 0 12px 4px rgba(45,198,83,.4)}100%{box-shadow:none}}
+@keyframes borderFlash{0%,100%{border-color:var(--border)}50%{border-color:var(--green)}}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+@media(max-width:900px){.right-panel{display:none !important}.msg{max-width:95%}}
+</style>
+</head>
+<body>
+
+<!-- Auth -->
+<div id="auth-gate">
+<div class="card">
+  <div class="step active" id="step-login">
+    <h1>JADOMI Code</h1>
+    <p>Connexion administrateur requise</p>
+    <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="auth-pass" placeholder="Mot de passe" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button id="auth-btn" onclick="doLogin()">Se connecter</button>
+    <div class="error" id="auth-error"></div>
+  </div>
+  <div class="step" id="step-mfa">
+    <div style="font-size:36px;margin-bottom:10px;opacity:.6">&#x1F512;</div>
+    <h1>V&eacute;rification</h1>
+    <p class="mfa-label">Code Authenticator</p>
+    <div class="mfa-inputs">
+      <input type="text" maxlength="1" inputmode="numeric" class="mfa-digit" data-idx="0">
+      <input type="text" maxlength="1" inputmode="numeric" class="mfa-digit" data-idx="1">
+      <input type="text" maxlength="1" inputmode="numeric" class="mfa-digit" data-idx="2">
+      <input type="text" maxlength="1" inputmode="numeric" class="mfa-digit" data-idx="3">
+      <input type="text" maxlength="1" inputmode="numeric" class="mfa-digit" data-idx="4">
+      <input type="text" maxlength="1" inputmode="numeric" class="mfa-digit" data-idx="5">
+    </div>
+    <button id="mfa-btn" onclick="doMfaVerify()">V&eacute;rifier</button>
+    <div class="error" id="mfa-error"></div>
+  </div>
+</div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="topbar">
+    <div class="logo">JADOMI Code <span>v2</span></div>
+    <div class="live-stats">
+      <div class="stat"><div class="dot" id="dot"></div><span id="status-text">En ligne</span></div>
+      <div class="stat" id="live-tokens" title="Tokens utilis&eacute;s cette fen&ecirc;tre">&#x1F4CA; <b id="tokens-used">0</b> <span style="opacity:.5">/ 4M</span></div>
+      <div class="stat" id="live-quota" title="Barre de quota"><div style="width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div id="quota-bar" style="height:100%;width:0%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div>
+      <div class="stat" id="live-reset" title="Reset du quota">&#x23F0; <b id="reset-timer">--:--</b></div>
+      <div class="stat" id="live-time"></div>
+    </div>
+    <button class="btn-sm" onclick="togglePanel()">&#x2630; Panneau</button>
+    <button class="btn-sm danger" onclick="doLogout()">Quitter</button>
+  </div>
+
+  <div class="tabs" id="tabs-bar">
+    <div class="tab-boss" id="tab-boss" onclick="toggleBoss()">&#x1F916; Boss <span class="boss-count" id="boss-count">0</span></div>
+    <button class="tab-add" onclick="addTab()">+</button>
+  </div>
+
+  <!-- Boss Panel -->
+  <div id="boss-panel">
+    <div class="boss-header">
+      <h2>&#x1F916; JADOMI Boss</h2>
+      <div class="boss-stats">
+        <span>Running: <b id="bs-running">0</b></span>
+        <span>Pending: <b id="bs-pending">0</b></span>
+        <span>Review: <b id="bs-review">0</b></span>
+        <span>Done: <b id="bs-done">0</b></span>
+      </div>
+      <button class="boss-refresh" onclick="loadBossQueue()">Rafra&icirc;chir</button>
+    </div>
+    <!-- Boss chat input -->
+    <div style="padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
+      <input type="text" id="boss-input" placeholder="Parlez au Boss... ex: Lance un audit s&eacute;cu + corrige les bugs formation" style="flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none" onkeydown="if(event.key==='Enter')talkToBoss()">
+      <button onclick="talkToBoss()" style="padding:10px 20px;background:var(--gold);color:#000;font-weight:700;font-size:13px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap">Envoyer au Boss</button>
+    </div>
+    <!-- Boss messages + tasks -->
+    <div id="boss-messages" style="padding:8px 16px;display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto"></div>
+    <div class="boss-tasks" id="boss-tasks" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <div class="main">
+    <!-- Teams sidebar -->
+    <div class="teams-bar" id="teams-bar">
+      <button class="team-btn" onclick="teamAction('dev')" title="Dev Team — Code, features, bugs">
+        <span class="t-icon">&#x1F528;</span><span class="t-label">Dev</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('security')" title="Security — Audit OWASP complet">
+        <span class="t-icon">&#x1F6E1;</span><span class="t-label">S&eacute;cu</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('legal')" title="Legal — CGV, contrats, RGPD">
+        <span class="t-icon">&#x2696;</span><span class="t-label">Legal</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('finance')" title="Finance — Factures, compta, KPIs">
+        <span class="t-icon">&#x1F4B0;</span><span class="t-label">Fin</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('ops')" title="Ops — Deploy, monitoring, health">
+        <span class="t-icon">&#x2699;</span><span class="t-label">Ops</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('marketing')" title="Marketing — SEO, contenu, landing">
+        <span class="t-icon">&#x1F4E3;</span><span class="t-label">Mkt</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('support')" title="Support — Emails, tickets, relances">
+        <span class="t-icon">&#x1F4E8;</span><span class="t-label">Mail</span>
+      </button>
+      <div class="teams-sep"></div>
+      <button class="team-btn" onclick="teamAction('formation')" title="Formation — Slides, contenu, notes orales">
+        <span class="t-icon">&#x1F393;</span><span class="t-label">Form</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('product')" title="Product — Roadmap, CODEX, priorisation">
+        <span class="t-icon">&#x1F4CB;</span><span class="t-label">Prod</span>
+      </button>
+      <button class="team-btn" onclick="teamAction('allteams')" title="ALL TEAMS — Mission globale multi-&eacute;quipes">
+        <span class="t-icon">&#x26A1;</span><span class="t-label" style="color:var(--gold)">ALL</span>
+      </button>
+    </div>
+    <div class="chat">
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <div class="input-row">
+          <div class="input-wrap">
+            <textarea id="input" rows="1" placeholder="Demandez quelque chose..." onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
+          </div>
+          <button class="btn-voice" id="btn-voice" onclick="toggleVoice()" title="Dicter (vocal)">&#x1F3A4;</button>
+          <button class="btn-send" id="btn-send" onclick="sendMessage()" title="Envoyer">&#x27A4;</button>
+        </div>
+        <div class="bottom-row">
+          <button class="btn-attach" onclick="launchMulti()" style="color:var(--gold);border:1px solid rgba(201,168,76,.3);border-radius:4px;padding:2px 8px">&#x26A1; Multi-Agents</button>
+<select id="model-select" style="background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;outline:none;cursor:pointer">
+<option value="haiku" selected>Haiku (rapide)</option>
+<option value="sonnet">Sonnet (standard)</option>
+<option value="opus">Opus (puissant)</option>
+</select>
+<button class="btn-attach" onclick="document.getElementById('file-input').click()">&#x1F4CE; Fichiers</button>
+          <input type="file" id="file-input" multiple hidden onchange="handleFileSelect(event)">
+          <div class="pending-files" id="pending-files"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel: uploads + sessions history -->
+    <div class="right-panel" id="right-panel">
+      <div class="rp-header">Historique <button class="btn-sm" onclick="togglePanel()" style="padding:1px 6px;font-size:10px">&times;</button></div>
+      <div class="rp-tabs">
+        <div class="rp-tab active" data-rp="uploads" onclick="switchRp('uploads')">Uploads</div>
+        <div class="rp-tab" data-rp="sessions" onclick="switchRp('sessions')">Sessions</div>
+      </div>
+      <div class="rp-content" id="rp-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Multi-agent view -->
+<div id="multi-view">
+  <div class="multi-header">
+    <span class="title">Multi-Agents</span>
+    <span class="plan-summary" id="plan-summary"></span>
+    <button class="btn-sm btn-back" onclick="exitMulti()">Retour chat</button>
+  </div>
+  <div class="workers-grid" id="workers-grid"></div>
+</div>
+
+<!-- Drop overlay -->
+<div class="drop-overlay" id="drop-overlay">
+  <div class="icon">&#x1F4C1;</div>
+  <div class="label">D&eacute;posez vos fichiers ici</div>
+</div>
+
+<script>
+// === CONFIG ===
+var db;
+try { db = supabase.createClient('https://vsbomwjzehnfinfjvhqp.supabase.co','sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF'); } catch(e) { console.error(e); }
+
+var token=null, isStreaming=false, pendingFiles=[], mfaFactorId=null;
+var currentTab=null, tabCounter=0;
+var recognition=null, isRecording=false;
+var totalTokens=0, totalCost=0;
+var rpMode='uploads';
+var QUOTA_MAX=4000000; // Max 20x ~ 4M tokens per 5h window
+var WINDOW_MS=5*60*60*1000; // 5 hours
+
+// Load quota from localStorage (persists across page reloads within window)
+function loadQuota(){
+  var q=JSON.parse(localStorage.getItem(STORE_KEY+'quota')||'{}');
+  var now=Date.now();
+  // Reset if window expired
+  if(!q.windowStart || (now - q.windowStart) > WINDOW_MS){
+    q = {windowStart: now, used: 0};
+    localStorage.setItem(STORE_KEY+'quota', JSON.stringify(q));
+  }
+  totalTokens = q.used || 0;
+  updateQuotaUI();
+}
+function saveQuota(){
+  var q=JSON.parse(localStorage.getItem(STORE_KEY+'quota')||'{}');
+  q.used = totalTokens;
+  if(!q.windowStart) q.windowStart = Date.now();
+  localStorage.setItem(STORE_KEY+'quota', JSON.stringify(q));
+}
+function updateQuotaUI(){
+  var el=document.getElementById('tokens-used');
+  if(el) el.textContent = totalTokens >= 1000000 ? (totalTokens/1000000).toFixed(1)+'M' : totalTokens >= 1000 ? (totalTokens/1000).toFixed(0)+'K' : totalTokens;
+  var bar=document.getElementById('quota-bar');
+  if(bar){
+    var pct=Math.min((totalTokens/QUOTA_MAX)*100, 100);
+    bar.style.width=pct+'%';
+    bar.style.background = pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--gold)' : 'var(--green)';
+  }
+}
+function startResetTimer(){
+  setInterval(function(){
+    var q=JSON.parse(localStorage.getItem(STORE_KEY+'quota')||'{}');
+    if(!q.windowStart) return;
+    var elapsed=Date.now()-q.windowStart;
+    var remaining=Math.max(0, WINDOW_MS - elapsed);
+    if(remaining<=0){
+      // Window reset
+      totalTokens=0; saveQuota(); updateQuotaUI();
+      document.getElementById('reset-timer').textContent='Reset !';
+      return;
+    }
+    var h=Math.floor(remaining/3600000);
+    var m=Math.floor((remaining%3600000)/60000);
+    var s=Math.floor((remaining%60000)/1000);
+    document.getElementById('reset-timer').textContent=h+'h'+String(m).padStart(2,'0')+'m'+String(s).padStart(2,'0');
+  }, 1000);
+}
+
+// === STORAGE ===
+var STORE_KEY='jadomi_code_';
+function saveState(){
+  var tabs=[];
+  document.querySelectorAll('.tab[data-id]').forEach(function(t){
+    var id=t.dataset.id, msgs=JSON.parse(localStorage.getItem(STORE_KEY+'tab_'+id)||'[]');
+    tabs.push({id:id, name:t.querySelector('.tname')?.textContent||'Session '+id});
+  });
+  localStorage.setItem(STORE_KEY+'tabs',JSON.stringify(tabs));
+  localStorage.setItem(STORE_KEY+'current',currentTab);
+}
+function loadTabs(){
+  var tabs=JSON.parse(localStorage.getItem(STORE_KEY+'tabs')||'[]');
+  if(tabs.length===0){ addTab(); return; }
+  tabs.forEach(function(t){ createTab(t.id, t.name); tabCounter=Math.max(tabCounter,parseInt(t.id)); });
+  var cur=localStorage.getItem(STORE_KEY+'current');
+  switchTab(cur && document.querySelector('.tab[data-id="'+cur+'"]') ? cur : tabs[0].id);
+}
+function saveMsgs(tabId, msgs){ localStorage.setItem(STORE_KEY+'tab_'+tabId, JSON.stringify(msgs)); }
+function loadMsgs(tabId){ return JSON.parse(localStorage.getItem(STORE_KEY+'tab_'+tabId)||'[]'); }
+function saveUpload(f){
+  var list=JSON.parse(localStorage.getItem(STORE_KEY+'uploads')||'[]');
+  list.unshift({name:f.name, path:f.path, size:f.size, date:new Date().toISOString()});
+  if(list.length>50) list=list.slice(0,50);
+  localStorage.setItem(STORE_KEY+'uploads',JSON.stringify(list));
+}
+
+// === AUTH ===
+async function checkSession(){
+  if(!db)return;
+  var r=await db.auth.getSession();
+  if(r.data?.session){ token=r.data.session.access_token; if(await checkMfa()) showApp(r.data.session.user.email); }
+}
+async function checkMfa(){
+  try{
+    var r=await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(!r.error && r.data.currentLevel==='aal1' && r.data.nextLevel==='aal2'){ showMfaStep(); return false; }
+  }catch(e){}
+  return true;
+}
+async function doLogin(){
+  var em=document.getElementById('auth-email').value.trim(), pw=document.getElementById('auth-pass').value, err=document.getElementById('auth-error');
+  err.textContent='';
+  if(!em||!pw){err.textContent='Email et mot de passe requis';return;}
+  document.getElementById('auth-btn').textContent='Connexion...';
+  var r=await db.auth.signInWithPassword({email:em,password:pw});
+  document.getElementById('auth-btn').textContent='Se connecter';
+  if(r.error){err.textContent=r.error.message;return;}
+  token=r.data.session.access_token;
+  if(await checkMfa()) showApp(r.data.user.email);
+}
+async function showMfaStep(){
+  var r=await db.auth.mfa.listFactors();
+  if(r.error||!r.data.totp?.length){var s=await db.auth.getSession();if(s.data?.session)showApp(s.data.session.user.email);return;}
+  mfaFactorId=(r.data.totp.find(function(f){return f.status==='verified'})||r.data.totp[0]).id;
+  document.getElementById('step-login').classList.remove('active');
+  document.getElementById('step-mfa').classList.add('active');
+  setTimeout(function(){document.querySelector('.mfa-digit[data-idx="0"]').focus();},100);
+  setupMfa();
+}
+function setupMfa(){
+  var digs=document.querySelectorAll('.mfa-digit');
+  digs.forEach(function(inp,i){
+    inp.oninput=function(e){var v=e.target.value.replace(/\D/g,'');e.target.value=v;if(v&&i<5)digs[i+1].focus();var c=Array.from(digs).map(function(d){return d.value}).join('');if(c.length===6)doMfaVerify();};
+    inp.onkeydown=function(e){if(e.key==='Backspace'&&!e.target.value&&i>0){digs[i-1].focus();digs[i-1].value='';}};
+    inp.onpaste=function(e){e.preventDefault();var p=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6);for(var j=0;j<p.length;j++)if(digs[j])digs[j].value=p[j];if(p.length===6)doMfaVerify();};
+  });
+}
+async function doMfaVerify(){
+  var code=Array.from(document.querySelectorAll('.mfa-digit')).map(function(d){return d.value}).join(''),err=document.getElementById('mfa-error');
+  err.textContent='';if(code.length!==6)return;
+  document.getElementById('mfa-btn').textContent='...';
+  try{
+    var ch=await db.auth.mfa.challenge({factorId:mfaFactorId});if(ch.error){err.textContent=ch.error.message;return;}
+    var v=await db.auth.mfa.verify({factorId:mfaFactorId,challengeId:ch.data.id,code:code});
+    if(v.error){err.textContent='Code invalide';document.querySelectorAll('.mfa-digit').forEach(function(d){d.value=''});document.querySelector('.mfa-digit').focus();document.getElementById('mfa-btn').textContent='V\u00e9rifier';return;}
+    var s=await db.auth.getSession();if(s.data?.session){token=s.data.session.access_token;showApp(s.data.session.user.email);}
+  }catch(e){err.textContent=e.message;}
+  document.getElementById('mfa-btn').textContent='V\u00e9rifier';
+}
+function showApp(email){
+  document.getElementById('auth-gate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  loadTabs();
+  loadQuota();
+  startResetTimer();
+  startBossPolling();
+  document.getElementById('input').focus();
+}
+async function doLogout(){await db.auth.signOut();token=null;location.reload();}
+
+// === TABS ===
+function createTab(id, name){
+  var bar=document.getElementById('tabs-bar'), btn=bar.querySelector('.tab-add');
+  var t=document.createElement('div');t.className='tab';t.dataset.id=id;
+  t.innerHTML='<span class="tname">'+esc(name||'Session '+id)+'</span> <span class="x" onclick="closeTab(event,\''+id+'\')">&times;</span>';
+  t.onclick=function(e){if(!e.target.classList.contains('x'))switchTab(id);};
+  bar.insertBefore(t,btn);
+}
+function addTab(){
+  tabCounter++;var id=String(tabCounter);
+  createTab(id,'Session '+id);
+  saveMsgs(id,[]);
+  switchTab(id);
+  saveState();
+}
+function switchTab(id){
+  currentTab=id;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.id===id);});
+  renderMessages();
+  saveState();
+}
+function closeTab(e,id){
+  e.stopPropagation();
+  var all=document.querySelectorAll('.tab[data-id]');
+  if(all.length<=1)return;
+  document.querySelector('.tab[data-id="'+id+'"]')?.remove();
+  localStorage.removeItem(STORE_KEY+'tab_'+id);
+  if(currentTab===id){var first=document.querySelector('.tab[data-id]');if(first)switchTab(first.dataset.id);}
+  saveState();
+}
+
+// === MESSAGES ===
+function renderMessages(){
+  var el=document.getElementById('messages'), msgs=loadMsgs(currentTab);
+  el.innerHTML='';
+  if(msgs.length===0){
+    el.innerHTML='<div class="msg assistant"><div class="bubble">Bienvenue dans <b>JADOMI Code</b>. Projet <code>/home/ubuntu/jadomi</code>. Envoyez un message, glissez des fichiers, ou dictez en vocal.</div></div>';
+  }
+  msgs.forEach(function(m){el.innerHTML+=renderMsg(m);});
+  el.scrollTop=el.scrollHeight;
+}
+function renderMsg(m){
+  if(m.role==='user'){
+    var h='<div class="msg user"><div class="bubble">'+esc(m.text)+'</div>';
+    if(m.files?.length) h+='<div class="files">'+m.files.map(function(f){return '<span class="file-tag">'+esc(f.name)+'</span>';}).join('')+'</div>';
+    return h+'</div>';
+  }
+  if(m.role==='assistant'){
+    var h='<div class="msg assistant"><div class="bubble">'+fmtMd(m.text||'')+'</div>';
+    if(m.activity?.length){
+      h+='<div class="activity">';
+      m.activity.forEach(function(a){
+        if(a.t==='tool') h+='<div class="act-item tool"><span class="icon">&#x2699;</span><span class="detail"><b>'+esc(a.name)+'</b> '+esc(a.input||'')+'</span></div>';
+        else if(a.t==='result') h+='<div class="act-item result"><span class="icon">&#x2713;</span><span class="detail">'+esc(a.preview||'OK')+'</span></div>';
+        else if(a.t==='error') h+='<div class="act-item error"><span class="icon">&#x2717;</span><span class="detail">'+esc(a.preview||'')+'</span></div>';
+      });
+      h+='</div>';
+    }
+    if(m.meta) h+='<div class="meta"><span>'+esc(m.meta.model)+'</span><span>'+m.meta.tokens+' tokens</span><span>'+m.meta.cost+'</span><span>'+m.meta.duration+'</span></div>';
+    return h+'</div>';
+  }
+  return '';
+}
+
+// === SEND ===
+async function sendMessage(){
+  var inp=document.getElementById('input'), text=inp.value.trim();
+  if(!text&&!pendingFiles.length)return;
+  if(isStreaming)return;
+  isStreaming=true;
+  document.getElementById('btn-send').disabled=true;
+  setStatus('working');
+
+  var msgs=loadMsgs(currentTab);
+  var userMsg={role:'user',text:text||'(fichiers)',files:pendingFiles.map(function(f){return{name:f.name,size:f.size};})};
+  msgs.push(userMsg);saveMsgs(currentTab,msgs);
+  var filesToSend=[].concat(pendingFiles);pendingFiles=[];document.getElementById('pending-files').innerHTML='';
+  inp.value='';autoGrow(inp);
+  renderMessages();
+
+  // Upload
+  var uploaded=[];
+  if(filesToSend.length){
+    addLiveBar('Upload des fichiers...');
+    uploaded=await uploadFiles(filesToSend);
+    uploaded.forEach(saveUpload);
+  }
+
+  // Stream
+  var t0=Date.now();
+  addLiveBar('Claude Code travaille...');
+  var endpoint=uploaded.length?'/api/admin-copilot/stream-with-files':'/api/admin-copilot/stream';
+  var selModel=document.getElementById('model-select').value||'sonnet';
+  var body=uploaded.length?{message:text||'Analyse ces fichiers',files:uploaded,model:selModel,sessionId:currentTab}:{message:text,model:selModel,sessionId:currentTab};
+  var aMsg={role:'assistant',text:'',activity:[],meta:null};
+
+  try{
+    var res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    var reader=res.body.getReader(),dec=new TextDecoder(),buf='';
+    while(true){
+      var chunk=await reader.read();if(chunk.done)break;
+      buf+=dec.decode(chunk.value,{stream:true});
+      var lines=buf.split('\n');buf=lines.pop()||'';
+      lines.forEach(function(line){
+        if(!line.startsWith('data: '))return;
+        try{var ev=JSON.parse(line.slice(6));processEvent(ev,aMsg,t0);}catch(e){}
+      });
+    }
+  }catch(e){aMsg.text+='Erreur: '+e.message;}
+
+  removeLiveBar();
+  var elapsed=((Date.now()-t0)/1000).toFixed(1);
+  if(!aMsg.meta) aMsg.meta={model:'sonnet',tokens:'?',cost:'?',duration:elapsed+'s'};
+  msgs.push(aMsg);saveMsgs(currentTab,msgs);
+  renderMessages();
+
+  // Save session to server
+  saveSessionToServer(currentTab, msgs);
+
+  // Done notification
+  isStreaming=false;
+  document.getElementById('btn-send').disabled=false;
+  setStatus('online');
+  notifyDone();
+  inp.focus();
+  if(rpMode==='uploads')renderRp();
+}
+
+// === SESSION AUTO-SAVE (fire & forget) ===
+function saveSessionToServer(tabId, messages){
+  try{
+    var last5=messages.slice(-5).map(function(m){return{role:m.role,content:m.text||''};});
+    fetch('/api/boss/save-session',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({session_name:'Session '+tabId,messages:last5})
+    }).catch(function(){});
+  }catch(e){}
+}
+
+function processEvent(ev,msg,t0){
+  var elapsed=((Date.now()-t0)/1000).toFixed(1)+'s';
+  switch(ev.type){
+    case 'init':
+      updateLiveBar('Mod\u00e8le '+ev.model+' | '+ev.tools+' outils');
+      break;
+    case 'assistant':
+      if(ev.parts)ev.parts.forEach(function(p){
+        if(p.type==='text'){msg.text+=p.text;updateLiveBar('Ecrit... ('+elapsed+')');}
+        if(p.type==='tool_call'){msg.activity.push({t:'tool',name:p.tool,input:p.input||''});updateLiveBar(p.tool+' '+((p.input||'').substring(0,60)));}
+      });
+      if(ev.tokens){
+        var tk=(ev.tokens.input||0)+(ev.tokens.output||0);
+        document.querySelector('#live-tokens b').textContent=tk.toLocaleString();
+      }
+      break;
+    case 'tool_result':
+      msg.activity.push({t:ev.success?'result':'error',preview:(ev.preview||'').substring(0,120)});
+      updateLiveBar('R\u00e9sultat '+ev.tool+' ('+elapsed+')');
+      break;
+    case 'result':
+      if(ev.text&&!msg.text) msg.text=ev.text;
+      var tk2=(ev.tokens?.input||0)+(ev.tokens?.output||0);
+      totalTokens+=tk2;totalCost+=(ev.cost_usd||0);
+      msg.meta={model:ev.model||'sonnet',tokens:tk2.toLocaleString(),cost:'Max 20x',duration:ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':elapsed};
+      saveQuota(); updateQuotaUI();
+      break;
+    case 'log':updateLiveBar(ev.text?.substring(0,80)||'');break;
+    case 'error':msg.text+='\nErreur: '+(ev.text||'');break;
+  }
+  document.getElementById('live-time').textContent=elapsed;
+}
+
+// === FILE UPLOAD ===
+async function uploadFiles(files){
+  var fd=new FormData();files.forEach(function(f){fd.append('files',f.raw);});
+  try{var r=await fetch('/api/admin-copilot/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});var d=await r.json();return d.files||[];}
+  catch(e){return [];}
+}
+function handleFileSelect(e){Array.from(e.target.files).forEach(function(f){pendingFiles.push({name:f.name,size:f.size,raw:f});});renderPF();e.target.value='';}
+function removePF(i){pendingFiles.splice(i,1);renderPF();}
+function renderPF(){
+  document.getElementById('pending-files').innerHTML=pendingFiles.map(function(f,i){
+    return '<span class="pf">'+esc(f.name)+' ('+fmtSize(f.size)+') <span class="rm" onclick="removePF('+i+')">&times;</span></span>';
+  }).join('');
+}
+
+// === DRAG DROP ===
+var dragC=0;
+document.addEventListener('dragenter',function(e){e.preventDefault();dragC++;document.getElementById('drop-overlay').classList.add('active');});
+document.addEventListener('dragleave',function(e){e.preventDefault();dragC--;if(dragC<=0){dragC=0;document.getElementById('drop-overlay').classList.remove('active');}});
+document.addEventListener('dragover',function(e){e.preventDefault();});
+document.addEventListener('drop',function(e){e.preventDefault();dragC=0;document.getElementById('drop-overlay').classList.remove('active');
+  Array.from(e.dataTransfer.files).forEach(function(f){pendingFiles.push({name:f.name,size:f.size,raw:f});});renderPF();});
+
+// === VOICE ===
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){alert('Speech non support\u00e9 sur ce navigateur');return;}
+  if(isRecording){recognition.stop();return;}
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();recognition.lang='fr-FR';recognition.continuous=true;recognition.interimResults=true;
+  recognition.onresult=function(e){
+    var txt='';for(var i=e.resultIndex;i<e.results.length;i++)txt+=e.results[i][0].transcript;
+    document.getElementById('input').value=txt;autoGrow(document.getElementById('input'));
+  };
+  recognition.onend=function(){isRecording=false;document.getElementById('btn-voice').classList.remove('recording');};
+  recognition.start();isRecording=true;document.getElementById('btn-voice').classList.add('recording');
+}
+
+// === LIVE BAR ===
+function addLiveBar(text){removeLiveBar();var el=document.getElementById('messages'),d=document.createElement('div');d.id='live-bar';d.className='streaming-bar';d.innerHTML='<div class="dots"><span></span><span></span><span></span></div><span id="live-text">'+esc(text)+'</span>';el.appendChild(d);el.scrollTop=el.scrollHeight;}
+function updateLiveBar(t){var e=document.getElementById('live-text');if(e)e.textContent=t.substring(0,100);var m=document.getElementById('messages');if(m)m.scrollTop=m.scrollHeight;}
+function removeLiveBar(){var e=document.getElementById('live-bar');if(e)e.remove();}
+
+// === STATUS ===
+function setStatus(s){
+  var d=document.getElementById('dot'),t=document.getElementById('status-text');
+  d.className='dot'+(s==='working'?' working':s==='off'?' off':'');
+  t.textContent=s==='working'?'Travaille...':s==='off'?'Hors ligne':'En ligne';
+}
+
+// === NOTIFY DONE ===
+function notifyDone(){
+  // Flash tab green
+  var tab=document.querySelector('.tab[data-id="'+currentTab+'"]');
+  if(tab){tab.classList.remove('done');void tab.offsetWidth;tab.classList.add('done');}
+  // Flash title
+  var orig=document.title,flash=setInterval(function(){document.title=document.title===orig?'[ TERMINE ] JADOMI Code':orig;},500);
+  setTimeout(function(){clearInterval(flash);document.title=orig;},4000);
+  // Sound
+  try{var a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=0.08;o.start();o.stop(a.currentTime+0.12);}catch(e){}
+}
+
+// === RIGHT PANEL ===
+function togglePanel(){document.getElementById('right-panel').classList.toggle('hidden');renderRp();}
+function switchRp(mode){rpMode=mode;document.querySelectorAll('.rp-tab').forEach(function(t){t.classList.toggle('active',t.dataset.rp===mode);});renderRp();}
+function renderRp(){
+  var el=document.getElementById('rp-content');
+  if(rpMode==='uploads'){
+    var list=JSON.parse(localStorage.getItem(STORE_KEY+'uploads')||'[]');
+    if(!list.length){el.innerHTML='<div class="rp-empty">Aucun fichier upload&eacute;</div>';return;}
+    el.innerHTML=list.map(function(f){
+      var d=new Date(f.date);
+      return '<div class="rp-item"><span class="name" title="'+esc(f.path||'')+'">'+esc(f.name)+'</span><span class="size">'+fmtSize(f.size)+'</span><span class="time">'+d.toLocaleDateString('fr')+'</span></div>';
+    }).join('');
+  } else {
+    var tabs=JSON.parse(localStorage.getItem(STORE_KEY+'tabs')||'[]');
+    el.innerHTML=tabs.map(function(t){
+      var msgs=loadMsgs(t.id),count=msgs.length;
+      return '<div class="rp-item" style="cursor:pointer" onclick="switchTab(\''+t.id+'\')"><span class="name">'+esc(t.name)+'</span><span class="size">'+count+' msgs</span></div>';
+    }).join('')||'<div class="rp-empty">Aucune session</div>';
+  }
+}
+
+// === HELPERS ===
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,180)+'px';}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtSize(b){if(b<1024)return b+' o';if(b<1048576)return(b/1024).toFixed(0)+' Ko';return(b/1048576).toFixed(1)+' Mo';}
+function fmtMd(t){var h=esc(t);h=h.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>');h=h.replace(/`([^`]+)`/g,'<code>$1</code>');h=h.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');return h;}
+
+// === BOSS PANEL ===
+var bossVisible=false;
+var bossInterval=null;
+
+function toggleBoss(){
+  bossVisible=!bossVisible;
+  document.getElementById('boss-panel').classList.toggle('active',bossVisible);
+  document.getElementById('tab-boss').classList.toggle('active',bossVisible);
+  // Hide/show main chat
+  document.querySelector('.main').style.display=bossVisible?'none':'flex';
+  document.getElementById('multi-view').style.display='none';
+  if(bossVisible){
+    loadBossQueue();
+    if(!bossInterval) bossInterval=setInterval(loadBossQueue,8000); // refresh every 8s
+  } else {
+    if(bossInterval){clearInterval(bossInterval);bossInterval=null;}
+  }
+}
+
+async function loadBossQueue(){
+  if(!token)return;
+  try{
+    var res=await fetch('/api/boss/queue',{headers:{'Authorization':'Bearer '+token}});
+    var data=await res.json();
+    var tasks=data.tasks||[];
+    renderBossTasks(tasks);
+    // Update stats
+    var stats={running:0,pending:0,review:0,done:0,failed:0,paused:0};
+    tasks.forEach(function(t){stats[t.status]=(stats[t.status]||0)+1;});
+    document.getElementById('bs-running').textContent=stats.running;
+    document.getElementById('bs-pending').textContent=stats.pending;
+    document.getElementById('bs-review').textContent=stats.review;
+    document.getElementById('bs-done').textContent=stats.done;
+    // Update tab badge
+    var active=stats.running+stats.pending+stats.review;
+    document.getElementById('boss-count').textContent=active;
+    document.getElementById('boss-count').style.display=active>0?'inline':'none';
+  }catch(e){console.error('Boss queue error:',e);}
+}
+
+function renderBossTasks(tasks){
+  var el=document.getElementById('boss-tasks');
+  if(!tasks.length){el.innerHTML='<div style="text-align:center;color:var(--text2);padding:40px;font-size:13px">Aucune t&acirc;che dans la queue.<br>Utilisez les boutons team pour lancer des missions.</div>';return;}
+  el.innerHTML=tasks.map(function(t){
+    var statusLabel={running:'En cours',pending:'En attente',review:'Approbation',done:'Termin\u00e9',failed:'\u00c9chou\u00e9',paused:'Pause\u00e9'}[t.status]||t.status;
+    var html='<div class="boss-task">';
+    html+='<div class="boss-task-head">';
+    html+='<span class="bt-team">'+esc(t.team)+'</span>';
+    html+='<span class="bt-title">'+esc(t.title)+'</span>';
+    html+='<span class="bt-priority">P'+t.priority+'</span>';
+    html+='<span class="bt-status '+t.status+'">'+statusLabel+'</span>';
+    html+='</div>';
+    if(t.result_summary) html+='<div class="boss-task-body">'+esc(t.result_summary.substring(0,300))+'</div>';
+    if(t.error) html+='<div class="boss-task-body" style="color:var(--red)">'+esc(t.error)+'</div>';
+    if(t.duration_ms||t.tokens_used) html+='<div class="boss-task-meta"><span>'+((t.duration_ms||0)/1000).toFixed(1)+'s</span><span>'+((t.tokens_used||0)).toLocaleString()+' tokens</span></div>';
+    if(t.status==='review'){
+      html+='<div class="boss-task-actions">';
+      html+='<button class="btn-approve" onclick="bossApprove(\''+t.id+'\')">Approuver</button>';
+      html+='<button class="btn-reject" onclick="bossReject(\''+t.id+'\')">Rejeter</button>';
+      html+='</div>';
+    }
+    html+='</div>';
+    return html;
+  }).join('');
+}
+
+async function bossApprove(id){
+  await fetch('/api/boss/approve/'+id,{method:'POST',headers:{'Authorization':'Bearer '+token}});
+  loadBossQueue();
+}
+
+async function bossReject(id){
+  var reason=prompt('Raison du rejet (optionnel):');
+  await fetch('/api/boss/reject/'+id,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({reason:reason||''})});
+  loadBossQueue();
+}
+
+// === TALK TO BOSS ===
+async function talkToBoss(){
+  var inp=document.getElementById('boss-input');
+  var text=inp.value.trim();
+  if(!text)return;
+  inp.value='';
+
+  var msgEl=document.getElementById('boss-messages');
+  msgEl.innerHTML+='<div style="font-size:12px;color:var(--text);padding:4px 8px;background:rgba(201,168,76,.06);border-radius:6px;border-left:3px solid var(--gold)"><b>Vous :</b> '+esc(text)+'</div>';
+
+  // Show thinking
+  msgEl.innerHTML+='<div id="boss-thinking" style="font-size:11px;color:var(--gold);padding:4px 8px;display:flex;align-items:center;gap:6px"><div class="dots"><span></span><span></span><span></span></div> Le Boss analyse et planifie...</div>';
+  msgEl.scrollTop=msgEl.scrollHeight;
+
+  try{
+    // Call planner
+    var res=await fetch('/api/admin-copilot/multi/plan',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({task:text})
+    });
+    var plan=await res.json();
+
+    document.getElementById('boss-thinking')?.remove();
+
+    if(plan.error||!plan.tasks||!plan.tasks.length){
+      msgEl.innerHTML+='<div style="font-size:11px;color:var(--red);padding:4px 8px">Boss : Je n\'ai pas pu planifier. '+(plan.error||'')+'</div>';
+      return;
+    }
+
+    // Show plan
+    var planHtml='<div style="font-size:12px;color:var(--green);padding:6px 8px;background:rgba(45,198,83,.06);border-radius:6px;border-left:3px solid var(--green)">';
+    planHtml+='<b>Boss :</b> '+esc(plan.plan_summary||'Plan cr\u00e9\u00e9')+'<br>';
+    planHtml+='<div style="margin-top:4px;font-size:11px;color:var(--text2)">';
+    plan.tasks.forEach(function(t,i){
+      planHtml+=(i+1)+'. <b>['+esc(t.model||'sonnet')+']</b> '+esc(t.title)+'<br>';
+    });
+    planHtml+='</div></div>';
+    msgEl.innerHTML+=planHtml;
+    msgEl.scrollTop=msgEl.scrollHeight;
+
+    // Add tasks to queue
+    for(var i=0;i<plan.tasks.length;i++){
+      var t=plan.tasks[i];
+      await fetch('/api/boss/add',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({
+          team: detectTeam(t.title+' '+t.prompt),
+          title: t.title,
+          prompt: t.prompt,
+          model: t.model||'sonnet',
+          priority: Math.max(5, 9-i), // first task = highest priority
+          needs_approval: true
+        })
+      });
+    }
+
+    msgEl.innerHTML+='<div style="font-size:11px;color:var(--gold);padding:4px 8px">'+plan.tasks.length+' t\u00e2ches ajout\u00e9es \u00e0 la queue. Le daemon va les prendre automatiquement.</div>';
+
+    // Refresh queue
+    setTimeout(loadBossQueue, 2000);
+
+  }catch(e){
+    document.getElementById('boss-thinking')?.remove();
+    msgEl.innerHTML+='<div style="font-size:11px;color:var(--red);padding:4px 8px">Erreur : '+esc(e.message)+'</div>';
+  }
+}
+
+function detectTeam(text){
+  var t=text.toLowerCase();
+  if(t.match(/formation|slide|reveal|dentist/)) return 'formation';
+  if(t.match(/securi|audit|owasp|rls|xss|inject/)) return 'security';
+  if(t.match(/legal|cgv|rgpd|avocat|mention/)) return 'legal';
+  if(t.match(/factur|compta|financ|kpi|stripe|prix/)) return 'finance';
+  if(t.match(/pm2|deploy|ssl|nginx|backup|serveur|health/)) return 'ops';
+  if(t.match(/seo|landing|market|email.*camp|contenu/)) return 'marketing';
+  if(t.match(/email|support|ticket|chatbot|relance/)) return 'support';
+  if(t.match(/roadmap|codex|feature|prioris/)) return 'product';
+  return 'dev';
+}
+
+// Auto-load boss count on app start
+function startBossPolling(){
+  loadBossQueue();
+  setInterval(function(){
+    if(!bossVisible) loadBossQueue(); // Just update badge count even when hidden
+  }, 30000);
+}
+
+// === TEAMS ===
+var TEAMS = {
+  dev: {
+    name: 'Dev Team',
+    prompt: 'Tu es le lead dev JADOMI. ',
+    presets: [
+      {label:'Fix bugs ouverts', prompt:'Lis CODEX.md section 10 (bugs connus) et corrige les 3 bugs les plus critiques. Pour chaque bug : diagnostic, fix, test.'},
+      {label:'Feature demand\u00e9e', prompt:'Le fondateur veut une nouvelle feature. Demande les d\u00e9tails puis impl\u00e9mente avec le protocole Code Teams (Architecte \u2192 Builders \u2192 Reviewers).'},
+      {label:'Refactor', prompt:'Identifie le fichier le plus critique qui a besoin de refactoring (trop long, dupliqu\u00e9, fragile). Propose un plan puis ex\u00e9cute.'},
+    ]
+  },
+  security: {
+    name: 'Security Team',
+    prompt: 'Tu es le RSSI JADOMI. ',
+    presets: [
+      {label:'Audit complet', prompt:'Lance un audit s\u00e9curit\u00e9 complet : v\u00e9rifie les headers HTTP, les injections SQL, XSS, CSRF, les secrets expos\u00e9s, les ports ouverts, SSL, RLS Supabase. Rapport avec severit\u00e9 CRITICAL/HIGH/MEDIUM/LOW.'},
+      {label:'Check .env + secrets', prompt:'V\u00e9rifie que aucun secret, cl\u00e9 API ou mot de passe n\'est expos\u00e9 dans le code public (HTML, JS c\u00f4t\u00e9 client). Scanne tous les fichiers public/.'},
+      {label:'Audit RLS Supabase', prompt:'V\u00e9rifie que TOUTES les tables Supabase ont RLS activ\u00e9 + policies + GRANT corrects selon les r\u00e8gles CLAUDE.md.'},
+    ]
+  },
+  legal: {
+    name: 'Legal Team',
+    prompt: 'Tu es le conseiller juridique JADOMI. ',
+    presets: [
+      {label:'MAJ CGV', prompt:'Relis les CGV actuelles dans public/ et v\u00e9rifie la conformit\u00e9 RGPD 2026. Propose les corrections n\u00e9cessaires.'},
+      {label:'Mentions l\u00e9gales', prompt:'V\u00e9rifie que toutes les pages publiques (landing, tarifs, etc.) ont les mentions l\u00e9gales conformes. contact@jadomi.fr pour le public, jamais l\'email admin.'},
+      {label:'Dossier avocat', prompt:'Mets \u00e0 jour le dossier avocat (docs/DOSSIER-AVOCAT-JADOMI.html) avec les derni\u00e8res features livr\u00e9es.'},
+    ]
+  },
+  finance: {
+    name: 'Finance Team',
+    prompt: 'Tu es le DAF JADOMI. ',
+    presets: [
+      {label:'Scan factures', prompt:'V\u00e9rifie le module scan-dashboard : test upload PDF, extraction donn\u00e9es, stockage Supabase. Rapport de fonctionnement.'},
+      {label:'KPIs business', prompt:'Analyse les donn\u00e9es Supabase : nombre d\'utilisateurs, soci\u00e9t\u00e9s cr\u00e9\u00e9es, produits en stock, commandes. G\u00e9n\u00e8re un rapport KPI.'},
+      {label:'Pricing check', prompt:'Relis la page tarifs et v\u00e9rifie la coh\u00e9rence des 4 tiers (29/79/179/279\u20ac) avec les features propos\u00e9es.'},
+    ]
+  },
+  ops: {
+    name: 'Ops Team',
+    prompt: 'Tu es le DevOps JADOMI. ',
+    presets: [
+      {label:'Health check', prompt:'V\u00e9rifie : PM2 status, espace disque, m\u00e9moire, CPU, logs d\'erreurs r\u00e9cents, uptime, certificat SSL. Rapport sant\u00e9 serveur.'},
+      {label:'PM2 reload', prompt:'V\u00e9rifie la syntaxe de server.js (node -c), puis fais un pm2 reload jadomi. Confirme que le serveur est up.'},
+      {label:'Backup', prompt:'Cr\u00e9e un backup horodat\u00e9 de server.js, index.html, organisation.html, landing.html. Liste les fichiers cr\u00e9\u00e9s.'},
+    ]
+  },
+  marketing: {
+    name: 'Marketing Team',
+    prompt: 'Tu es le CMO JADOMI. ',
+    presets: [
+      {label:'Audit SEO', prompt:'Analyse la landing page jadomi.fr : title, meta, h1, vitesse, mobile, structured data. Score + recommandations.'},
+      {label:'Contenu landing', prompt:'Am\u00e9liore les textes de la landing page : copy plus percutant, preuves sociales, CTA clairs. Style Vercel/Linear.'},
+      {label:'Email campaign', prompt:'R\u00e9dige un email marketing pour les dentistes ciblant les \u00e9conomies de 1840\u20ac/an. Ton professionnel, vouvoiement, z\u00e9ro emoji.'},
+    ]
+  },
+  support: {
+    name: 'Support Team',
+    prompt: 'Tu es le responsable support JADOMI. ',
+    presets: [
+      {label:'Check emails', prompt:'V\u00e9rifie la configuration email (SMTP, noreply@jadomi.fr, contact@jadomi.fr). Teste l\'envoi. Rapport.'},
+      {label:'Chatbot audit', prompt:'Teste le chatbot IA int\u00e9gr\u00e9 aux sites vitrines : r\u00e9ponses, ton, redirection contact si question complexe.'},
+    ]
+  },
+  formation: {
+    name: 'Formation Team',
+    prompt: 'Tu travailles sur la formation dentisterie num\u00e9rique (27 juin 2026). Fichier: public/formation/index.html (97 slides Reveal.js). ',
+    presets: [
+      {label:'Enrichir Section IA + Chinois', prompt:'Enrichis la Section 8 (Donn\u00e9es/IA, slides S42-S45) avec les scanners chinois : Panda Smart (138g, 9990\u20ac), Shining 3D Elite (photogramm\u00e9trie), AlliedStar (rachet\u00e9 par Straumann), Launca (z\u00e9ro abonnement). Ajoute 1-2 nouvelles slides HTML Reveal.js dans public/formation/index.html.'},
+      {label:'V\u00e9rifier sources', prompt:'V\u00e9rifie toutes les sources cit\u00e9es dans les notes orales (aside class=notes) de public/formation/index.html. Pour chaque r\u00e9f\u00e9rence (auteur, ann\u00e9e, journal) : confirme ou corrige.'},
+      {label:'Orthographe slides', prompt:'V\u00e9rifie l\'orthographe et les accents de TOUTES les slides et notes orales dans public/formation/index.html. Corrige les erreurs. Z\u00e9ro tol\u00e9rance.'},
+    ]
+  },
+  product: {
+    name: 'Product Team',
+    prompt: 'Tu es le CPO JADOMI. ',
+    presets: [
+      {label:'Roadmap update', prompt:'Lis CODEX.md section 8 (roadmap) et propose les 5 prochaines priorit\u00e9s en fonction de l\'\u00e9tat actuel du projet.'},
+      {label:'Feature audit', prompt:'Liste toutes les features annonc\u00e9es sur la landing page et v\u00e9rifie lesquelles sont r\u00e9ellement impl\u00e9ment\u00e9es vs placeholder.'},
+      {label:'CODEX sync', prompt:'V\u00e9rifie que le CODEX.md est \u00e0 jour avec l\'\u00e9tat r\u00e9el du code. Compare les modules d\u00e9crits vs les fichiers existants.'},
+    ]
+  },
+  allteams: {
+    name: 'ALL TEAMS',
+    prompt: 'Tu es le CEO IA de JADOMI. Coordonne TOUTES les \u00e9quipes. ',
+    presets: [
+      {label:'Rapport global', prompt:'G\u00e9n\u00e8re un rapport d\'\u00e9tat complet de JADOMI : sant\u00e9 serveur, bugs ouverts, s\u00e9curit\u00e9, roadmap, KPIs. Format executive summary.'},
+      {label:'Morning standup', prompt:'Fais un standup meeting IA : qu\'est-ce qui a \u00e9t\u00e9 fait r\u00e9cemment (git log), qu\'est-ce qui bloque (bugs), qu\'est-ce qu\'on fait aujourd\'hui (priorit\u00e9s CODEX).'},
+    ]
+  }
+};
+
+function teamAction(teamId){
+  var team = TEAMS[teamId];
+  if(!team) return;
+
+  // Build preset buttons HTML
+  var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:500px;width:90%">';
+  html += '<div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:4px">'+esc(team.name)+'</div>';
+  html += '<div style="font-size:11px;color:var(--text2);margin-bottom:16px">Choisissez une action ou \u00e9crivez votre propre demande</div>';
+
+  // Preset buttons
+  team.presets.forEach(function(p){
+    html += '<button onclick="teamLaunch(\''+teamId+'\',\''+btoa(unescape(encodeURIComponent(p.prompt)))+'\')" style="display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;cursor:pointer;transition:all .15s"';
+    html += ' onmouseover="this.style.borderColor=\'var(--gold)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+    html += '<div style="font-weight:700;margin-bottom:2px">'+esc(p.label)+'</div>';
+    html += '<div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.prompt.substring(0,80))+'...</div>';
+    html += '</button>';
+  });
+
+  // Custom input
+  html += '<div style="margin-top:12px;display:flex;gap:6px">';
+  html += '<input type="text" id="team-custom" placeholder="Ou tapez votre demande..." style="flex:1;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none" onkeydown="if(event.key===\'Enter\')teamLaunchCustom(\''+teamId+'\')">';
+  html += '<button onclick="teamLaunchCustom(\''+teamId+'\')" style="padding:10px 16px;background:var(--gold);color:#000;font-weight:700;font-size:12px;border:none;border-radius:8px;cursor:pointer">Go</button>';
+  html += '</div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  setTimeout(function(){var inp=document.getElementById('team-custom');if(inp)inp.focus();},100);
+}
+
+function teamLaunch(teamId, promptB64){
+  // Close modal
+  document.querySelector('[onclick*="this.remove"]')?.remove();
+  var team = TEAMS[teamId];
+  var prompt = decodeURIComponent(escape(atob(promptB64)));
+  var fullPrompt = team.prompt + prompt;
+
+  // Put in input and launch multi-agents
+  document.getElementById('input').value = fullPrompt;
+  launchMulti();
+}
+
+function teamLaunchCustom(teamId){
+  var inp = document.getElementById('team-custom');
+  if(!inp || !inp.value.trim()) return;
+  document.querySelector('[onclick*="this.remove"]')?.remove();
+  var team = TEAMS[teamId];
+  document.getElementById('input').value = team.prompt + inp.value.trim();
+  launchMulti();
+}
+
+// === MULTI-AGENTS ===
+var multiActive=false;
+
+async function launchMulti(){
+  var inp=document.getElementById('input');
+  var task=inp.value.trim();
+  if(!task){alert('Entrez une t\u00e2che avant de lancer Multi-Agents');return;}
+  if(isStreaming)return;
+
+  inp.value='';autoGrow(inp);
+  isStreaming=true;
+  setStatus('working');
+
+  // Show multi view
+  document.querySelector('.main').style.display='none';
+  document.getElementById('multi-view').classList.add('active');
+  multiActive=true;
+  document.getElementById('plan-summary').textContent='Planification en cours...';
+  document.getElementById('workers-grid').innerHTML='<div style="padding:40px;text-align:center;color:var(--text2);grid-column:1/-1"><div class="streaming-bar" style="justify-content:center"><div class="dots"><span></span><span></span><span></span></div><span>L\'orchestrateur analyse la t\u00e2che...</span></div></div>';
+
+  // Phase 1: Plan
+  try{
+    var planRes=await fetch('/api/admin-copilot/multi/plan',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({task:task})
+    });
+    var plan=await planRes.json();
+
+    if(plan.error||!plan.tasks||!plan.tasks.length){
+      document.getElementById('workers-grid').innerHTML='<div style="padding:40px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de planification: '+(plan.error||'aucune t\u00e2che')+'<br><pre style="text-align:left;margin-top:10px;font-size:10px;color:var(--text2)">'+esc(plan.raw||'')+'</pre></div>';
+      isStreaming=false;setStatus('online');return;
+    }
+
+    document.getElementById('plan-summary').textContent=plan.plan_summary||plan.tasks.length+' agents';
+
+    // Create worker panes
+    var grid=document.getElementById('workers-grid');
+    grid.innerHTML='';
+    plan.tasks.forEach(function(t,i){
+      grid.innerHTML+='<div class="worker-pane" id="wp-'+t.id+'">'+
+        '<div class="worker-head">'+
+          '<div class="w-num">'+(i+1)+'</div>'+
+          '<div class="w-title">'+esc(t.title)+'</div>'+
+          '<div class="w-status pending" id="ws-'+t.id+'">En attente</div>'+
+        '</div>'+
+        '<div class="worker-body" id="wb-'+t.id+'"></div>'+
+        '<div class="worker-meta" id="wm-'+t.id+'"></div>'+
+      '</div>';
+    });
+
+    // Phase 2: Launch workers in parallel
+    var promises=plan.tasks.map(function(t){ return runWorker(t); });
+    await Promise.all(promises);
+
+    // All done
+    document.getElementById('plan-summary').textContent=(plan.plan_summary||'')+' — Termin\u00e9 !';
+    notifyDone();
+
+  }catch(e){
+    document.getElementById('workers-grid').innerHTML='<div style="padding:40px;text-align:center;color:var(--red);grid-column:1/-1">Erreur: '+esc(e.message)+'</div>';
+  }
+
+  isStreaming=false;setStatus('online');
+}
+
+function runWorker(task){
+  return new Promise(function(resolve){
+    var statusEl=document.getElementById('ws-'+task.id);
+    var bodyEl=document.getElementById('wb-'+task.id);
+    var metaEl=document.getElementById('wm-'+task.id);
+    if(statusEl){statusEl.textContent='En cours';statusEl.className='w-status running';}
+
+    fetch('/api/admin-copilot/multi/worker',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({prompt:task.prompt, model:task.model||'sonnet', workerId:task.id})
+    }).then(function(res){
+      var reader=res.body.getReader(), dec=new TextDecoder(), buf='';
+      function read(){
+        reader.read().then(function(r){
+          if(r.done){resolve();return;}
+          buf+=dec.decode(r.value,{stream:true});
+          var lines=buf.split('\n');buf=lines.pop()||'';
+          lines.forEach(function(line){
+            if(!line.startsWith('data: '))return;
+            try{var ev=JSON.parse(line.slice(6));handleWorkerEvent(ev,task.id,bodyEl,statusEl,metaEl);}catch(e){}
+          });
+          read();
+        }).catch(function(){resolve();});
+      }
+      read();
+    }).catch(function(e){
+      if(bodyEl)bodyEl.innerHTML+='<div class="w-error">Erreur: '+esc(e.message)+'</div>';
+      if(statusEl){statusEl.textContent='Erreur';statusEl.className='w-status error';}
+      resolve();
+    });
+  });
+}
+
+function handleWorkerEvent(ev,wid,bodyEl,statusEl,metaEl){
+  if(!bodyEl)return;
+  switch(ev.type){
+    case 'init':
+      bodyEl.innerHTML+='<div style="color:var(--text2);opacity:.5">Mod\u00e8le '+esc(ev.model||'')+' | '+ev.tools+' outils</div>';
+      break;
+    case 'assistant':
+      if(ev.parts)ev.parts.forEach(function(p){
+        if(p.type==='text') bodyEl.innerHTML+='<div class="w-text">'+esc(p.text)+'</div>';
+        if(p.type==='tool_call') bodyEl.innerHTML+='<div class="w-tool">&#x2699; '+esc(p.tool)+' '+esc(p.input||'')+'</div>';
+      });
+      break;
+    case 'tool_result':
+      bodyEl.innerHTML+='<div class="w-result">'+(ev.success?'&#x2713;':'&#x2717;')+' '+esc((ev.preview||'').substring(0,80))+'</div>';
+      break;
+    case 'result':
+      if(ev.text) bodyEl.innerHTML+='<div class="w-text" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'+fmtMd(ev.text)+'</div>';
+      if(metaEl) metaEl.textContent=(ev.model||'')+'  |  '+(ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':'')+'  |  '+((ev.tokens?.input||0)+(ev.tokens?.output||0))+' tokens';
+      var tk=(ev.tokens?.input||0)+(ev.tokens?.output||0);
+      totalTokens+=tk;saveQuota();updateQuotaUI();
+      break;
+    case 'worker_done':
+      if(statusEl){statusEl.textContent='Termin\u00e9';statusEl.className='w-status done';}
+      var pane=document.getElementById('wp-'+wid);
+      if(pane)pane.style.animation='flashGreen 2s ease';
+      break;
+    case 'error':
+      bodyEl.innerHTML+='<div class="w-error">Erreur: '+esc(ev.text||'')+'</div>';
+      if(statusEl){statusEl.textContent='Erreur';statusEl.className='w-status error';}
+      break;
+  }
+  bodyEl.scrollTop=bodyEl.scrollHeight;
+}
+
+function exitMulti(){
+  multiActive=false;
+  document.getElementById('multi-view').classList.remove('active');
+  document.querySelector('.main').style.display='flex';
+}
+
+// === INIT ===
+checkSession();
+if(db)db.auth.onAuthStateChange(function(ev,s){if(s)token=s.access_token;});
+</script>
+</body>
+</html>

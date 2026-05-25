@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JADOMI Boss — Dashboard</title>
+<link rel="icon" href="/favicon.ico">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a28;--border:#2a2a3a;
+  --gold:#c9a84c;--blue:#29b6f6;--green:#2dc653;--red:#e53935;
+  --orange:#ff9800;--purple:#ab47bc;--cyan:#00bcd4;
+  --text:#e8e8f0;--text2:#8888aa;--mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif}
+
+/* Auth gate */
+#auth-gate{display:flex;align-items:center;justify-content:center;height:100vh}
+#auth-gate .card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:48px;text-align:center;max-width:400px;width:90%}
+#auth-gate h1{font-size:24px;font-weight:800;color:var(--gold);margin-bottom:8px}
+#auth-gate p{color:var(--text2);font-size:13px;margin-bottom:24px}
+#auth-gate input{width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:12px;outline:none;transition:border .2s}
+#auth-gate input:focus{border-color:var(--gold)}
+#auth-gate button{width:100%;padding:12px;background:var(--gold);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer}
+#auth-gate button:hover{opacity:.85}
+#auth-gate .error{color:var(--red);font-size:12px;margin-top:8px}
+.step{display:none}.step.active{display:block}
+.mfa-inputs{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+.mfa-inputs input{width:44px;height:52px;text-align:center;font-size:22px;font-weight:700;font-family:var(--mono);padding:0}
+.mfa-label{color:var(--text2);font-size:13px;margin-bottom:20px}
+
+/* Dashboard */
+#dashboard{display:none;min-height:100vh;flex-direction:column}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.topbar .logo{font-size:18px;font-weight:800;color:var(--gold)}
+.topbar .logo span{color:var(--text2);font-weight:400;font-size:12px;margin-left:8px}
+.topbar .refresh-info{margin-left:auto;font-size:11px;color:var(--text2);font-family:var(--mono);display:flex;align-items:center;gap:8px}
+.topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.topbar .back-link{color:var(--gold);text-decoration:none;font-size:13px;font-weight:600;margin-left:16px;padding:6px 14px;border:1px solid rgba(201,168,76,.3);border-radius:8px;transition:all .2s}
+.topbar .back-link:hover{background:rgba(201,168,76,.1);border-color:var(--gold)}
+
+/* Content */
+.content{padding:20px 24px;overflow-y:auto;flex:1}
+
+/* KPI cards */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;transition:border-color .3s cubic-bezier(.16,1,.3,1)}
+.kpi-card:hover{border-color:var(--gold)}
+.kpi-card .kpi-value{font-size:32px;font-weight:800;font-family:var(--mono);line-height:1.2}
+.kpi-card .kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:6px;font-weight:600}
+.kpi-card.gold .kpi-value{color:var(--gold)}
+.kpi-card.blue .kpi-value{color:var(--blue)}
+.kpi-card.green .kpi-value{color:var(--green)}
+.kpi-card.red .kpi-value{color:var(--red)}
+.kpi-card.purple .kpi-value{color:var(--purple)}
+.kpi-card.cyan .kpi-value{color:var(--cyan)}
+
+/* Charts row */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px}
+.chart-card h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px}
+.chart-wrap{position:relative;height:260px}
+
+/* Panels row */
+.panels-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;max-height:400px;overflow-y:auto}
+.panel h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;position:sticky;top:0;background:var(--bg2);padding-bottom:8px}
+
+/* Task list */
+.task-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.task-item:last-child{border-bottom:none}
+.task-team{font-size:10px;font-weight:700;color:var(--gold);font-family:var(--mono);text-transform:uppercase;min-width:60px}
+.task-title{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-duration{font-size:11px;color:var(--text2);font-family:var(--mono);min-width:50px;text-align:right}
+
+/* Status badge */
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px}
+.badge-done{background:rgba(45,198,83,.15);color:var(--green)}
+.badge-running{background:rgba(201,168,76,.15);color:var(--gold)}
+.badge-pending{background:rgba(41,182,246,.15);color:var(--blue)}
+.badge-review{background:rgba(171,71,188,.15);color:var(--purple)}
+.badge-failed{background:rgba(229,57,53,.15);color:var(--red)}
+.badge-paused{background:rgba(136,136,170,.15);color:var(--text2)}
+
+/* Learning list */
+.learning-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.learning-item:last-child{border-bottom:none}
+.learning-icon{font-size:16px;min-width:24px;text-align:center;line-height:1.4}
+.learning-title{font-size:13px;flex:1}
+.learning-date{font-size:10px;color:var(--text2);font-family:var(--mono);min-width:70px;text-align:right}
+
+/* Scrollbar */
+.panel::-webkit-scrollbar{width:4px}
+.panel::-webkit-scrollbar-track{background:transparent}
+.panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* Responsive */
+@media(max-width:1024px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .charts-row,.panels-row{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .content{padding:12px}
+  .kpi-card .kpi-value{font-size:24px}
+  .topbar{padding:10px 12px;flex-wrap:wrap}
+}
+
+/* Pulse animation */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.loading{animation:pulse 1.2s infinite}
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="auth-gate">
+  <div class="card">
+    <h1>JADOMI Boss</h1>
+    <p>Dashboard analytique</p>
+    <div id="step-login" class="step active">
+      <input type="email" id="email" placeholder="Email" autocomplete="email">
+      <input type="password" id="password" placeholder="Mot de passe" autocomplete="current-password">
+      <button onclick="doLogin()">Connexion</button>
+      <div id="login-error" class="error"></div>
+    </div>
+    <div id="step-mfa" class="step">
+      <p class="mfa-label">Code TOTP</p>
+      <div class="mfa-inputs">
+        <input type="text" maxlength="1" inputmode="numeric" aria-label="Code chiffre 1">
+        <input type="text" maxlength="1" inputmode="numeric" aria-label="Code chiffre 2">
+        <input type="text" maxlength="1" inputmode="numeric" aria-label="Code chiffre 3">
+        <input type="text" maxlength="1" inputmode="numeric" aria-label="Code chiffre 4">
+        <input type="text" maxlength="1" inputmode="numeric" aria-label="Code chiffre 5">
+        <input type="text" maxlength="1" inputmode="numeric" aria-label="Code chiffre 6">
+      </div>
+      <button onclick="doMFA()">Valider</button>
+      <div id="mfa-error" class="error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="logo">JADOMI Boss <span>Dashboard</span></div>
+    <div class="refresh-info">
+      <span class="dot"></span>
+      <span id="last-refresh">--</span>
+    </div>
+    <a href="/code/" class="back-link" aria-label="Retour a JADOMI Code">Code</a>
+  </div>
+
+  <div class="content">
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <div class="kpi-card gold">
+        <div class="kpi-value loading" id="kpi-total">--</div>
+        <div class="kpi-label">Total taches</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-value loading" id="kpi-running">--</div>
+        <div class="kpi-label">En cours</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-value loading" id="kpi-success">--</div>
+        <div class="kpi-label">Taux succes</div>
+      </div>
+      <div class="kpi-card cyan">
+        <div class="kpi-value loading" id="kpi-duration">--</div>
+        <div class="kpi-label">Duree moy. (s)</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-value loading" id="kpi-tokens">--</div>
+        <div class="kpi-label">Tokens utilises</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-value loading" id="kpi-learnings">--</div>
+        <div class="kpi-label">Learnings</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Taches par statut</h3>
+        <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Taches par equipe</h3>
+        <div class="chart-wrap"><canvas id="chart-team"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Panels Row -->
+    <div class="panels-row">
+      <div class="panel">
+        <h3>10 dernieres taches</h3>
+        <div id="recent-tasks"><div class="loading" style="color:var(--text2);font-size:13px;padding:20px 0;text-align:center">Chargement...</div></div>
+      </div>
+      <div class="panel">
+        <h3>10 derniers learnings</h3>
+        <div id="recent-learnings"><div class="loading" style="color:var(--text2);font-size:13px;padding:20px 0;text-align:center">Chargement...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Auth ── */
+let db, token;
+try {
+  db = supabase.createClient(
+    'https://vsbomwjzehnfinfjvhqp.supabase.co',
+    'sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF'
+  );
+} catch(e) { console.error(e); }
+
+let mfaChallengeId = null;
+
+async function doLogin() {
+  const email = document.getElementById('email').value.trim();
+  const pwd = document.getElementById('password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !pwd) { errEl.textContent = 'Remplissez tous les champs'; return; }
+
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pwd });
+    if (error) { errEl.textContent = error.message; return; }
+
+    // MFA check
+    const factors = data.session ? null : null;
+    if (data.session) {
+      token = data.session.access_token;
+      showDashboard();
+      return;
+    }
+
+    // MFA required
+    if (data.user && !data.session) {
+      // Supabase v2 MFA flow
+      const { data: mfaData } = await db.auth.mfa.challenge({ factorId: data.user.factors?.[0]?.id });
+      if (mfaData) {
+        mfaChallengeId = mfaData.id;
+        document.getElementById('step-login').classList.remove('active');
+        document.getElementById('step-mfa').classList.add('active');
+        document.querySelector('.mfa-inputs input').focus();
+      }
+    }
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+async function doMFA() {
+  const inputs = document.querySelectorAll('.mfa-inputs input');
+  const code = Array.from(inputs).map(i => i.value).join('');
+  const errEl = document.getElementById('mfa-error');
+  errEl.textContent = '';
+  if (code.length !== 6) { errEl.textContent = 'Code a 6 chiffres requis'; return; }
+
+  try {
+    const { data, error } = await db.auth.mfa.verify({ factorId: mfaChallengeId, challengeId: mfaChallengeId, code });
+    if (error) { errEl.textContent = error.message; return; }
+    token = data.session.access_token;
+    showDashboard();
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+// MFA input auto-advance
+document.querySelectorAll('.mfa-inputs input').forEach((inp, i, all) => {
+  inp.addEventListener('input', () => { if (inp.value && i < 5) all[i+1].focus(); });
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !inp.value && i > 0) all[i-1].focus(); });
+});
+
+// Check existing session
+(async () => {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session) { token = session.access_token; showDashboard(); }
+  } catch(e) {}
+})();
+
+/* ── Dashboard ── */
+let statusChart = null, teamChart = null;
+
+function showDashboard() {
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'flex';
+  fetchAll();
+  setInterval(fetchAll, 10000);
+}
+
+async function apiFetch(endpoint) {
+  const r = await fetch('/api/boss/' + endpoint, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+function formatNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '--';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'maintenant';
+  if (mins < 60) return mins + 'min';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h';
+  return Math.floor(hrs / 24) + 'j';
+}
+
+const STATUS_COLORS = {
+  pending: '#29b6f6', running: '#c9a84c', review: '#ab47bc',
+  done: '#2dc653', failed: '#e53935', paused: '#8888aa'
+};
+
+const TEAM_COLORS = [
+  '#c9a84c','#29b6f6','#2dc653','#e53935','#ab47bc',
+  '#00bcd4','#ff9800','#ec407a','#66bb6a'
+];
+
+const TYPE_ICONS = {
+  success: '<span style="color:var(--green)">&#10003;</span>',
+  error: '<span style="color:var(--red)">&#10007;</span>',
+  pattern: '<span style="color:var(--blue)">&#9670;</span>',
+  rule: '<span style="color:var(--orange)">&#9632;</span>',
+  tip: '<span style="color:var(--cyan)">&#9733;</span>',
+  info: '<span style="color:var(--text2)">&#9679;</span>'
+};
+
+async function fetchAll() {
+  try {
+    const [analytics, queue, learnings] = await Promise.all([
+      apiFetch('analytics'),
+      apiFetch('queue'),
+      apiFetch('learnings')
+    ]);
+
+    // KPIs
+    const kpiEl = (id) => document.getElementById(id);
+    kpiEl('kpi-total').textContent = formatNum(analytics.total || 0);
+    kpiEl('kpi-total').classList.remove('loading');
+    kpiEl('kpi-running').textContent = analytics.running || 0;
+    kpiEl('kpi-running').classList.remove('loading');
+    kpiEl('kpi-success').textContent = (analytics.successRate || 0) + '%';
+    kpiEl('kpi-success').classList.remove('loading');
+    kpiEl('kpi-duration').textContent = analytics.avgDuration || 0;
+    kpiEl('kpi-duration').classList.remove('loading');
+    kpiEl('kpi-tokens').textContent = formatNum(analytics.totalTokens || 0);
+    kpiEl('kpi-tokens').classList.remove('loading');
+    kpiEl('kpi-learnings').textContent = formatNum(analytics.learningsCount || 0);
+    kpiEl('kpi-learnings').classList.remove('loading');
+
+    // Status doughnut
+    const statusLabels = Object.keys(analytics.byStatus || {});
+    const statusData = statusLabels.map(s => analytics.byStatus[s]);
+    const statusColors = statusLabels.map(s => STATUS_COLORS[s] || '#555');
+
+    if (statusChart) {
+      statusChart.data.labels = statusLabels;
+      statusChart.data.datasets[0].data = statusData;
+      statusChart.data.datasets[0].backgroundColor = statusColors;
+      statusChart.update('none');
+    } else {
+      statusChart = new Chart(document.getElementById('chart-status'), {
+        type: 'doughnut',
+        data: {
+          labels: statusLabels,
+          datasets: [{ data: statusData, backgroundColor: statusColors, borderWidth: 0 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'right', labels: { color: '#e8e8f0', font: { size: 11 }, padding: 12 } }
+          }
+        }
+      });
+    }
+
+    // Team bar chart
+    const teamLabels = Object.keys(analytics.byTeam || {});
+    const teamData = teamLabels.map(t => analytics.byTeam[t]);
+    const teamColors = teamLabels.map((_, i) => TEAM_COLORS[i % TEAM_COLORS.length]);
+
+    if (teamChart) {
+      teamChart.data.labels = teamLabels;
+      teamChart.data.datasets[0].data = teamData;
+      teamChart.data.datasets[0].backgroundColor = teamColors;
+      teamChart.update('none');
+    } else {
+      teamChart = new Chart(document.getElementById('chart-team'), {
+        type: 'bar',
+        data: {
+          labels: teamLabels,
+          datasets: [{ data: teamData, backgroundColor: teamColors, borderRadius: 6, maxBarThickness: 40 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8888aa', font: { size: 10 } }, grid: { display: false }, border: { color: '#2a2a3a' } },
+            y: { ticks: { color: '#8888aa', font: { size: 10 }, stepSize: 1 }, grid: { color: 'rgba(42,42,58,.5)' }, border: { color: '#2a2a3a' } }
+          }
+        }
+      });
+    }
+
+    // Recent tasks
+    const tasks = (queue.tasks || []).slice(0, 10);
+    const tasksHtml = tasks.length ? tasks.map(t => {
+      const dur = t.duration_ms ? (t.duration_ms / 1000).toFixed(1) + 's' : '--';
+      return '<div class="task-item">' +
+        '<span class="task-team">' + (t.team || 'dev') + '</span>' +
+        '<span class="badge badge-' + t.status + '">' + t.status + '</span>' +
+        '<span class="task-title" title="' + (t.title || '').replace(/"/g, '&quot;') + '">' + (t.title || '--') + '</span>' +
+        '<span class="task-duration">' + dur + '</span>' +
+      '</div>';
+    }).join('') : '<div style="color:var(--text2);font-size:13px;padding:20px 0;text-align:center">Aucune tache</div>';
+    document.getElementById('recent-tasks').innerHTML = tasksHtml;
+
+    // Recent learnings
+    const lrns = learnings.learnings || [];
+    const lrnsHtml = lrns.length ? lrns.map(l => {
+      const icon = TYPE_ICONS[l.type] || TYPE_ICONS.info;
+      return '<div class="learning-item">' +
+        '<span class="learning-icon">' + icon + '</span>' +
+        '<span class="learning-title">' + (l.title || '--') + '</span>' +
+        '<span class="learning-date">' + timeAgo(l.created_at) + '</span>' +
+      '</div>';
+    }).join('') : '<div style="color:var(--text2);font-size:13px;padding:20px 0;text-align:center">Aucun learning</div>';
+    document.getElementById('recent-learnings').innerHTML = lrnsHtml;
+
+    // Timestamp
+    document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString('fr-FR');
+
+  } catch(e) {
+    console.error('[Dashboard] Erreur:', e);
+  }
+}
+
+// Enter key on login
+document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('email').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('password').focus(); });
+</script>
+</body>
+</html>

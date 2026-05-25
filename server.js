@@ -215,7 +215,7 @@ app.use((req, res, next) => {
   //   '/btp', '/sci', '/createurs', '/coiffeurs'];
   // const isPublic = publicPaths.includes(req.path) || publicPaths.includes(req.path.replace(/\.html$/, ''));
   // const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebot|twitterbot|linkedinbot/i.test(req.headers['user-agent'] || '');
-  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/formation') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/')) {
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/formation') || req.path.startsWith('/code') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/')) {
     return next();
   }
   // Vérifier le cookie
@@ -1245,7 +1245,9 @@ try {
 } catch (e) { console.warn('[JADOMI] Trames Documentaires non chargé:', e.message); }
 try {
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
-  console.log('[JADOMI] Module Admin Copilot (Claude Code Headless) monté');
+  app.use('/api/admin-copilot/multi', require('./api/admin-copilot-multi'));
+  app.use('/api/boss', require('./api/boss'));
+  console.log('[JADOMI] Module Admin Copilot (Claude Code Headless + Multi-Agents + Boss) monté');
 } catch (e) { console.warn('[JADOMI] Admin Copilot non chargé:', e.message); }
 
 // === JADOMI Compta Universelle — Factures auto-rangées jour/mois/année ===
