@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 24 mai 2026
-**Derniere passe** : Session Formation 24 mai — Slides IA 2026 (5 fonctions + comparatif marques + Panda) + Slide image cabinet (Dodi 2025)
+**Derniere mise a jour** : 25 mai 2026
+**Derniere passe** : Session 25 mai — JADOMI Code multi-agents complet + Formation (Ere de la donnee, Smile Cloud, theme Zendo)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5395,6 +5395,34 @@ Commits ce jour : 3 (session + chronologies + slide IA)
 - ai-mesh-overlay.jpg (reconstruction deep learning)
 - scan-deviation-colormap.jpg, scan-superimposition.jpg, scan-clean-colormap.jpg
 
+## Session 25 mai 2026 — JADOMI Code + Formation
+
+### JADOMI Code (systeme multi-agents autonome)
+- Interface web : jadomi.fr/code/ (auth Supabase + MFA TOTP)
+- Chat streaming SSE, multi-agents grille, vocal, drag&drop fichiers
+- Boss daemon 24/7 (tmux) : queue taches, auto-retry, review IA haiku
+- 10 teams qualifiees (dev, secu, legal, finance, ops, marketing, support, formation, product, all)
+- Brain compresse 604 tokens, file index 1009 fichiers, vector store 2632 chunks pgvector
+- Context router ~1500 tokens/worker, session memory, memoire collective
+- Hooks auto-review, cron scheduler (audit lundi, health daily, KPIs vendredi)
+- Dashboard analytics : jadomi.fr/code/dashboard.html
+- API: admin-copilot (stream/upload), boss (queue/approve/reject), formation-editor
+- Passe par abonnement Max 20x uniquement (pas API payante)
+
+### Formation dentisterie numerique (104 slides)
+- Restructuration complete : cas cliniques en climax
+- Slide video cordon cinema plein ecran (auto-play)
+- Stats France corrigees : ~40% (UFSBD/Comident 2023), Nordiques >60%
+- Prix Panda corrige : a partir de 9990 euros
+- Slide IA "critere de choix" deplacee apres section cameras (#19)
+- Section "Ere de la donnee" : titre + 3 etudes sourcees (Cantu, Krois, Mangano) + 3 niveaux IA
+- Slide #12 refaite : triangulation vs confocal (HTML, style Zendo)
+- 4 slides Smile Cloud ajoutees (intro, photos, videos cote a cote, confrontation IA vs reel, conclusion)
+- Theme Zendo CSS global (fond noir, cards glassmorphism violet degrade)
+- Editeur formation API (slides, upload images)
+- Launca supprimee (pas connue)
+
+Derniere mise a jour : 25 mai 2026 (Session JADOMI Code + Formation)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
 Derniere mise a jour : 24 mai 2026 (Session Formation — Slides IA + Image cabinet)
