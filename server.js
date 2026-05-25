@@ -1251,6 +1251,7 @@ try {
   console.log('[JADOMI] Module Trames Documentaires (conclusions, courriers, modèles) monté');
 } catch (e) { console.warn('[JADOMI] Trames Documentaires non chargé:', e.message); }
 try {
+  app.use('/api/formation', require('./api/formation-editor'));
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   app.use('/api/admin-copilot/multi', require('./api/admin-copilot-multi'));
   app.use('/api/boss', require('./api/boss'));

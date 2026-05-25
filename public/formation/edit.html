@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JADOMI — Éditeur Formation</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#e8e8f0;font-family:-apple-system,sans-serif}
+.topbar{display:flex;align-items:center;gap:16px;padding:12px 20px;background:#12121a;border-bottom:1px solid #2a2a3a;position:fixed;top:0;left:0;right:0;z-index:100}
+.topbar h1{font-size:18px;font-weight:800;color:#c9a84c}
+.topbar a{color:#29b6f6;font-size:13px;text-decoration:none}
+.topbar .count{color:#888;font-size:13px;margin-left:auto}
+.main{display:flex;margin-top:52px;height:calc(100vh - 52px)}
+.sidebar{width:260px;border-right:1px solid #2a2a3a;overflow-y:auto;flex-shrink:0;background:#0f0f17}
+.slide-item{padding:10px 14px;border-bottom:1px solid #1a1a28;cursor:pointer;display:flex;gap:10px;align-items:center;transition:background .15s}
+.slide-item:hover{background:rgba(201,168,76,.06)}
+.slide-item.active{background:rgba(41,182,246,.08);border-left:3px solid #29b6f6}
+.slide-item .num{font-size:11px;color:#888;font-weight:700;min-width:24px}
+.slide-item .info{flex:1;overflow:hidden}
+.slide-item .title{font-size:12px;font-weight:600;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slide-item .type{font-size:10px;color:#888}
+.editor{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.editor-toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#12121a;border-bottom:1px solid #2a2a3a}
+.editor-toolbar button{padding:6px 14px;background:none;border:1px solid #2a2a3a;color:#e8e8f0;border-radius:6px;font-size:12px;cursor:pointer}
+.editor-toolbar button:hover{border-color:#c9a84c;color:#c9a84c}
+.editor-toolbar button.save{background:#c9a84c;color:#000;border-color:#c9a84c;font-weight:700}
+.editor-toolbar button.save:hover{opacity:.85}
+.editor-toolbar .status{font-size:11px;color:#888;margin-left:auto}
+.editor-split{flex:1;display:flex;overflow:hidden}
+.code-area{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.code-area textarea{flex:1;background:#0a0a0f;color:#e8e8f0;border:none;padding:12px;font-family:'SF Mono','Fira Code',monospace;font-size:12px;line-height:1.6;resize:none;outline:none}
+.preview-area{flex:1;border-left:1px solid #2a2a3a;overflow:hidden}
+.preview-area iframe{width:100%;height:100%;border:none;background:#000}
+.notes-area{border-top:1px solid #2a2a3a;padding:10px 16px;max-height:150px;overflow-y:auto}
+.notes-area label{font-size:10px;font-weight:700;color:#c9a84c;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px}
+.notes-area textarea{width:100%;height:80px;background:#0f0f17;color:#e8e8f0;border:1px solid #2a2a3a;border-radius:6px;padding:8px;font-size:12px;line-height:1.5;resize:vertical;outline:none;font-family:inherit}
+.upload-bar{padding:8px 16px;background:#12121a;border-top:1px solid #2a2a3a;display:flex;gap:8px;align-items:center}
+.upload-bar button{padding:5px 12px;background:none;border:1px solid #2a2a3a;color:#888;border-radius:6px;font-size:11px;cursor:pointer}
+.upload-bar button:hover{border-color:#29b6f6;color:#29b6f6}
+.upload-bar .files{font-size:11px;color:#888;flex:1}
+.auth{display:flex;align-items:center;justify-content:center;height:100vh}
+.auth .card{background:#12121a;border:1px solid #2a2a3a;border-radius:12px;padding:40px;text-align:center;max-width:360px}
+.auth h2{color:#c9a84c;margin-bottom:16px}
+.auth input{width:100%;padding:10px;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:6px;color:#e8e8f0;font-size:14px;margin-bottom:10px;outline:none}
+.auth button{width:100%;padding:10px;background:#c9a84c;color:#000;font-weight:700;border:none;border-radius:6px;cursor:pointer}
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;animation:fadeIn .3s}
+.toast.ok{background:#2dc653;color:#000}
+.toast.err{background:#e53935;color:#fff}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div id="auth" class="auth">
+<div class="card">
+<h2>Éditeur Formation</h2>
+<input type="email" id="em" placeholder="Email" value="karim_bahmed@yahoo.fr">
+<input type="password" id="pw" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')login()">
+<button onclick="login()">Connexion</button>
+</div>
+</div>
+
+<div id="app" style="display:none">
+<div class="topbar">
+<h1>Éditeur Formation</h1>
+<a href="/formation/" target="_blank">Voir la formation →</a>
+<span class="count" id="count"></span>
+</div>
+<div class="main">
+<div class="sidebar" id="sidebar"></div>
+<div class="editor">
+<div class="editor-toolbar">
+<button onclick="saveSlide()" class="save">Sauvegarder</button>
+<button onclick="refreshPreview()">Actualiser preview</button>
+<button onclick="document.getElementById('fileInput').click()">Upload image</button>
+<input type="file" id="fileInput" hidden accept="image/*,video/*" onchange="uploadFile(event)">
+<span class="status" id="status">Prêt</span>
+</div>
+<div class="editor-split">
+<div class="code-area">
+<textarea id="code" oninput="codeChanged=true"></textarea>
+</div>
+<div class="preview-area">
+<iframe id="preview"></iframe>
+</div>
+</div>
+<div class="notes-area">
+<label>Notes orales (visible uniquement en mode présentateur)</label>
+<textarea id="notes" placeholder="Notes orales..."></textarea>
+</div>
+<div class="upload-bar">
+<button onclick="document.getElementById('fileInput2').click()">+ Image/Vidéo</button>
+<input type="file" id="fileInput2" hidden accept="image/*,video/*" onchange="uploadFile(event)">
+<div class="files" id="uploaded-files"></div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+var db=supabase.createClient('https://vsbomwjzehnfinfjvhqp.supabase.co','sb_publishable_RcfR0_sq5Z-oWK97ij27Yw_tGfur7UF');
+var token=null,slides=[],currentIdx=-1,codeChanged=false;
+
+async function login(){
+  var r=await db.auth.signInWithPassword({email:document.getElementById('em').value,password:document.getElementById('pw').value});
+  if(r.error){alert(r.error.message);return;}
+  token=r.data.session.access_token;
+  document.getElementById('auth').style.display='none';
+  document.getElementById('app').style.display='block';
+  loadSlides();
+}
+
+async function checkSession(){
+  var r=await db.auth.getSession();
+  if(r.data?.session){token=r.data.session.access_token;document.getElementById('auth').style.display='none';document.getElementById('app').style.display='block';loadSlides();}
+}
+
+async function loadSlides(){
+  var r=await fetch('/api/formation/slides',{headers:{'Authorization':'Bearer '+token}});
+  var d=await r.json();
+  slides=d.slides||[];
+  document.getElementById('count').textContent=d.total+' slides';
+  var sb=document.getElementById('sidebar');
+  sb.innerHTML=slides.map(function(s,i){
+    return '<div class="slide-item'+(i===currentIdx?' active':'')+'" onclick="selectSlide('+i+')"><span class="num">#'+i+'</span><div class="info"><div class="title">'+(s.title||s.notesPreview||'Slide '+i)+'</div><div class="type">'+(s.type==='pptx'?'PPTX img:'+s.slideImg:'HTML custom')+(s.hasVideo?' +video':'')+'</div></div></div>';
+  }).join('');
+}
+
+async function selectSlide(idx){
+  if(codeChanged&&currentIdx>=0){if(!confirm('Modifications non sauvegardées. Continuer ?'))return;}
+  currentIdx=idx;
+  codeChanged=false;
+  document.querySelectorAll('.slide-item').forEach(function(el,i){el.classList.toggle('active',i===idx);});
+  var r=await fetch('/api/formation/slide/'+idx,{headers:{'Authorization':'Bearer '+token}});
+  var d=await r.json();
+  document.getElementById('code').value=d.html;
+  // Extract notes
+  var notesMatch=d.html.match(/<aside class="notes">([\s\S]*?)<\/aside>/);
+  document.getElementById('notes').value=notesMatch?notesMatch[1].replace(/<br>/g,'\n').replace(/<[^>]+>/g,'').replace(/\\'/g,"'"):'';
+  refreshPreview();
+  document.getElementById('status').textContent='Slide #'+idx+' chargée';
+}
+
+function refreshPreview(){
+  var code=document.getElementById('code').value;
+  var iframe=document.getElementById('preview');
+  var doc=iframe.contentDocument||iframe.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#08080D;color:#fff;font-family:system-ui,sans-serif;width:1280px;height:720px;transform-origin:top left;transform:scale(0.5);overflow:hidden}</style></head><body>'+code+'</body></html>');
+  doc.close();
+}
+
+async function saveSlide(){
+  if(currentIdx<0)return;
+  var code=document.getElementById('code').value;
+  document.getElementById('status').textContent='Sauvegarde...';
+  var r=await fetch('/api/formation/slide/'+currentIdx,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({html:code})
+  });
+  var d=await r.json();
+  if(d.success){
+    codeChanged=false;
+    document.getElementById('status').textContent='Sauvegardé !';
+    toast('Slide #'+currentIdx+' sauvegardée','ok');
+  } else {
+    document.getElementById('status').textContent='Erreur: '+d.error;
+    toast('Erreur: '+d.error,'err');
+  }
+}
+
+async function uploadFile(e){
+  var file=e.target.files[0];if(!file)return;
+  var fd=new FormData();fd.append('file',file);
+  document.getElementById('status').textContent='Upload '+file.name+'...';
+  var r=await fetch('/api/formation/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+  var d=await r.json();
+  if(d.success){
+    document.getElementById('uploaded-files').innerHTML+='<span style="color:#29b6f6">'+d.path+' </span>';
+    document.getElementById('status').textContent='Uploadé: '+d.path;
+    toast(d.path+' uploadé','ok');
+    // Copy path to clipboard
+    navigator.clipboard.writeText(d.path).catch(function(){});
+  }
+  e.target.value='';
+}
+
+function toast(msg,type){
+  var t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  document.body.appendChild(t);setTimeout(function(){t.remove();},3000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveSlide();}
+});
+
+checkSession();
+</script>
+</body>
+</html>
