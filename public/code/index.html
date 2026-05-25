@@ -623,25 +623,56 @@ async function sendMessage(){
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify(body)
     });
-    var fullText=await res.text();
-    fullText.split('\n').forEach(function(line){
-      if(!line.startsWith('data: '))return;
-      try{
-        var ev=JSON.parse(line.slice(6));
-        if(ev.type==='assistant'&&ev.parts){
-          ev.parts.forEach(function(p){
-            if(p.type==='text'&&p.text) aMsg.text+=p.text;
-            if(p.type==='tool_call') aMsg.activity.push({t:'tool',name:p.tool,input:p.input||''});
-          });
-        }
-        if(ev.type==='tool_result') aMsg.activity.push({t:ev.success?'result':'error',preview:(ev.preview||'').substring(0,120)});
-        if(ev.type==='result'){
-          if(ev.text&&!aMsg.text) aMsg.text=ev.text;
-          var tk=(ev.tokens?.input_tokens||0)+(ev.tokens?.output_tokens||0);
-          aMsg.meta={model:ev.model||selModel,tokens:tk.toLocaleString(),cost:'Max 20x',duration:ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':'?'};
-        }
-      }catch(e){}
-    });
+    // Try streaming first, fallback to full text
+    if(res.body&&res.body.getReader){
+      var reader=res.body.getReader(),dec=new TextDecoder(),buf='',gotData=false;
+      while(true){
+        var chunk=await reader.read();
+        if(chunk.done)break;
+        buf+=dec.decode(chunk.value,{stream:true});
+        var lines=buf.split('\n');buf=lines.pop()||'';
+        lines.forEach(function(line){
+          if(!line.startsWith('data: '))return;
+          try{
+            var ev=JSON.parse(line.slice(6));
+            gotData=true;
+            if(ev.type==='assistant'&&ev.parts){
+              ev.parts.forEach(function(p){
+                if(p.type==='text'&&p.text){aMsg.text+=p.text;updateLiveBar(aMsg.text.substring(aMsg.text.length-60));}
+                if(p.type==='tool_call'){aMsg.activity.push({t:'tool',name:p.tool,input:p.input||''});updateLiveBar(p.tool+' '+((p.input||'').substring(0,40)));}
+              });
+            }
+            if(ev.type==='tool_result') aMsg.activity.push({t:ev.success?'result':'error',preview:(ev.preview||'').substring(0,120)});
+            if(ev.type==='result'){
+              if(ev.text&&!aMsg.text) aMsg.text=ev.text;
+              var tk=(ev.tokens?.input_tokens||0)+(ev.tokens?.output_tokens||0);
+              aMsg.meta={model:ev.model||selModel,tokens:tk.toLocaleString(),cost:'Max 20x',duration:ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':'?'};
+            }
+          }catch(e){}
+        });
+      }
+      // Fallback: if getReader gave no data, re-fetch as text
+      if(!gotData){
+        var res2=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+        var ft=await res2.text();
+        ft.split('\n').forEach(function(line){
+          if(!line.startsWith('data: '))return;
+          try{var ev=JSON.parse(line.slice(6));
+            if(ev.type==='assistant'&&ev.parts)ev.parts.forEach(function(p){if(p.type==='text'&&p.text)aMsg.text+=p.text;});
+            if(ev.type==='result'){if(ev.text&&!aMsg.text)aMsg.text=ev.text;var tk=(ev.tokens?.input_tokens||0)+(ev.tokens?.output_tokens||0);aMsg.meta={model:ev.model||selModel,tokens:tk.toLocaleString(),cost:'Max 20x',duration:ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':'?'};}
+          }catch(e){}
+        });
+      }
+    } else {
+      var ft=await res.text();
+      ft.split('\n').forEach(function(line){
+        if(!line.startsWith('data: '))return;
+        try{var ev=JSON.parse(line.slice(6));
+          if(ev.type==='assistant'&&ev.parts)ev.parts.forEach(function(p){if(p.type==='text'&&p.text)aMsg.text+=p.text;});
+          if(ev.type==='result'){if(ev.text&&!aMsg.text)aMsg.text=ev.text;var tk=(ev.tokens?.input_tokens||0)+(ev.tokens?.output_tokens||0);aMsg.meta={model:ev.model||selModel,tokens:tk.toLocaleString(),cost:'Max 20x',duration:ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':'?'};}
+        }catch(e){}
+      });
+    }
   }catch(e){aMsg.text+='Erreur: '+e.message;}
 
   removeLiveBar();

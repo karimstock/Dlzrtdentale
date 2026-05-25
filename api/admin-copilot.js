@@ -86,6 +86,7 @@ router.post('/fast', requireAdmin, (req, res) => {
   ], {
     cwd: '/home/ubuntu/jadomi',
     env: { ...process.env, HOME: '/home/ubuntu', ANTHROPIC_API_KEY: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
     timeout: TIMEOUT_MS,
   });
 
@@ -154,11 +155,12 @@ router.post('/stream', requireAdmin, (req, res) => {
 
   args.push('--no-session-persistence');
 
-  console.log(`[ADMIN-COPILOT] Model: ${useModel}`);
+  console.log(`[ADMIN-COPILOT] Model: ${useModel} | Session: ${sessionUUID}`);
 
   const child = spawn('claude', args, {
     cwd: '/home/ubuntu/jadomi',
     env: { ...process.env, HOME: '/home/ubuntu', ANTHROPIC_API_KEY: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
     timeout: TIMEOUT_MS,
   });
 
@@ -238,6 +240,7 @@ router.post('/message', requireAdmin, (req, res) => {
   const child = spawn('claude', args, {
     cwd: '/home/ubuntu/jadomi',
     env: { ...process.env, HOME: '/home/ubuntu', ANTHROPIC_API_KEY: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
     timeout: TIMEOUT_MS,
   });
 
@@ -423,6 +426,7 @@ router.post('/stream-with-files', requireAdmin, (req, res) => {
   const child = spawn('claude', args, {
     cwd: '/home/ubuntu/jadomi',
     env: { ...process.env, HOME: '/home/ubuntu', ANTHROPIC_API_KEY: '' },
+    stdio: ['ignore', 'pipe', 'pipe'],
     timeout: TIMEOUT_MS,
   });
 
