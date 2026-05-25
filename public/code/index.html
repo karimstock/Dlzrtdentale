@@ -74,8 +74,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .tab-right{margin-left:auto;display:flex;gap:6px;align-items:center}
 
 /* Boss panel */
-#boss-panel{display:none;flex:1;flex-direction:column;overflow:hidden;background:var(--bg)}
-#boss-panel.active{display:flex}
+#boss-panel{flex:1;flex-direction:column;overflow:hidden;background:var(--bg)}
 .boss-header{padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
 .boss-header h2{font-size:16px;font-weight:800;color:var(--gold)}
 .boss-header .boss-stats{display:flex;gap:12px;margin-left:auto;font-size:11px;color:var(--text2)}
@@ -263,28 +262,6 @@ textarea::placeholder{color:var(--text2)}
   <div class="tabs" id="tabs-bar">
     <div class="tab-boss" id="tab-boss" onclick="toggleBoss()">&#x1F916; Boss <span class="boss-count" id="boss-count">0</span></div>
     <button class="tab-add" onclick="addTab()">+</button>
-  </div>
-
-  <!-- Boss Panel -->
-  <div id="boss-panel">
-    <div class="boss-header">
-      <h2>&#x1F916; JADOMI Boss</h2>
-      <div class="boss-stats">
-        <span>Running: <b id="bs-running">0</b></span>
-        <span>Pending: <b id="bs-pending">0</b></span>
-        <span>Review: <b id="bs-review">0</b></span>
-        <span>Done: <b id="bs-done">0</b></span>
-      </div>
-      <button class="boss-refresh" onclick="loadBossQueue()">Rafra&icirc;chir</button>
-    </div>
-    <!-- Boss chat input -->
-    <div style="padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
-      <input type="text" id="boss-input" placeholder="Parlez au Boss... ex: Lance un audit s&eacute;cu + corrige les bugs formation" style="flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none" onkeydown="if(event.key==='Enter')talkToBoss()">
-      <button onclick="talkToBoss()" style="padding:10px 20px;background:var(--gold);color:#000;font-weight:700;font-size:13px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap">Envoyer au Boss</button>
-    </div>
-    <!-- Boss messages + tasks -->
-    <div id="boss-messages" style="padding:8px 16px;display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto"></div>
-    <div class="boss-tasks" id="boss-tasks" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px"></div>
   </div>
 
   <div class="main">
@@ -542,6 +519,17 @@ function addTab(){
 }
 function switchTab(id){
   currentTab=id;
+  // Close Boss panel if open
+  if(bossVisible){
+    bossVisible=false;
+    document.getElementById('boss-panel').style.display='none';
+    document.getElementById('tab-boss').classList.remove('active');
+    document.querySelector('.chat').style.display='flex';
+    if(bossInterval){clearInterval(bossInterval);bossInterval=null;}
+  }
+  // Close multi-view if open
+  document.getElementById('multi-view').classList.remove('active');
+  document.querySelector('.chat').style.display='flex';
   document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.id===id);});
   renderMessages();
   saveState();
@@ -618,26 +606,52 @@ async function sendMessage(){
   addLiveBar('Claude Code travaille...');
   var endpoint=uploaded.length?'/api/admin-copilot/stream-with-files':'/api/admin-copilot/stream';
   var selModel=document.getElementById('model-select').value||'sonnet';
-  var body=uploaded.length?{message:text||'Analyse ces fichiers',files:uploaded,model:selModel,sessionId:currentTab}:{message:text,model:selModel,sessionId:currentTab};
+
+  // Boss mode: simple prefix, keep it short for speed
+  var msgToSend=text;
+  if(currentTab==='boss'){
+    msgToSend='[Tu es le Boss JADOMI, reponds en francais concis] '+text;
+    selModel='haiku';
+  }
+
+  var body=uploaded.length?{message:msgToSend||'Analyse ces fichiers',files:uploaded,model:selModel,sessionId:currentTab}:{message:msgToSend,model:selModel,sessionId:currentTab};
   var aMsg={role:'assistant',text:'',activity:[],meta:null};
 
   try{
-    var res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-    var reader=res.body.getReader(),dec=new TextDecoder(),buf='';
-    while(true){
-      var chunk=await reader.read();if(chunk.done)break;
-      buf+=dec.decode(chunk.value,{stream:true});
-      var lines=buf.split('\n');buf=lines.pop()||'';
-      lines.forEach(function(line){
-        if(!line.startsWith('data: '))return;
-        try{var ev=JSON.parse(line.slice(6));processEvent(ev,aMsg,t0);}catch(e){}
-      });
-    }
+    var res=await fetch(endpoint,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify(body)
+    });
+    var fullText=await res.text();
+    fullText.split('\n').forEach(function(line){
+      if(!line.startsWith('data: '))return;
+      try{
+        var ev=JSON.parse(line.slice(6));
+        if(ev.type==='assistant'&&ev.parts){
+          ev.parts.forEach(function(p){
+            if(p.type==='text'&&p.text) aMsg.text+=p.text;
+            if(p.type==='tool_call') aMsg.activity.push({t:'tool',name:p.tool,input:p.input||''});
+          });
+        }
+        if(ev.type==='tool_result') aMsg.activity.push({t:ev.success?'result':'error',preview:(ev.preview||'').substring(0,120)});
+        if(ev.type==='result'){
+          if(ev.text&&!aMsg.text) aMsg.text=ev.text;
+          var tk=(ev.tokens?.input_tokens||0)+(ev.tokens?.output_tokens||0);
+          aMsg.meta={model:ev.model||selModel,tokens:tk.toLocaleString(),cost:'Max 20x',duration:ev.duration_ms?(ev.duration_ms/1000).toFixed(1)+'s':'?'};
+        }
+      }catch(e){}
+    });
   }catch(e){aMsg.text+='Erreur: '+e.message;}
 
   removeLiveBar();
   var elapsed=((Date.now()-t0)/1000).toFixed(1);
-  if(!aMsg.meta) aMsg.meta={model:'sonnet',tokens:'?',cost:'?',duration:elapsed+'s'};
+  console.log('[JADOMI-CODE] aMsg:', aMsg.text?.substring(0,50));
+  if(!aMsg.meta) aMsg.meta={model:selModel,tokens:'?',cost:'Max 20x',duration:elapsed+'s'};
+  // Parse boss commands if in boss session
+  if(currentTab==='boss' && aMsg.text){
+    aMsg.text = parseBossCommands(aMsg.text, document.getElementById('messages'));
+  }
   msgs.push(aMsg);saveMsgs(currentTab,msgs);
   renderMessages();
 
@@ -770,6 +784,21 @@ function renderRp(){
       var d=new Date(f.date);
       return '<div class="rp-item"><span class="name" title="'+esc(f.path||'')+'">'+esc(f.name)+'</span><span class="size">'+fmtSize(f.size)+'</span><span class="time">'+d.toLocaleDateString('fr')+'</span></div>';
     }).join('');
+  } else if(rpMode==='boss-queue'){
+    // Show task queue in right panel
+    el.innerHTML='<div style="text-align:center;padding:8px;font-size:11px;color:var(--text2)">Chargement...</div>';
+    fetch('/api/boss/queue',{headers:{'Authorization':'Bearer '+token}}).then(function(r){return r.json();}).then(function(data){
+      var tasks=data.tasks||[];
+      if(!tasks.length){el.innerHTML='<div class="rp-empty">Queue vide</div>';return;}
+      el.innerHTML=tasks.slice(0,15).map(function(t){
+        var col=t.status==='done'?'var(--green)':t.status==='running'?'var(--gold)':t.status==='review'?'#ff9800':t.status==='failed'?'var(--red)':'var(--text2)';
+        var html='<div class="rp-item" style="flex-direction:column;align-items:flex-start;gap:2px">';
+        html+='<div style="display:flex;align-items:center;gap:6px;width:100%"><span style="font-size:9px;color:var(--blue);font-weight:700;text-transform:uppercase">'+esc(t.team)+'</span><span class="name" style="font-size:11px">'+esc(t.title)+'</span><span style="font-size:9px;color:'+col+';font-weight:700;margin-left:auto">'+esc(t.status)+'</span></div>';
+        if(t.status==='review')html+='<div style="display:flex;gap:4px;margin-top:2px"><button class="btn-approve" style="padding:3px 8px;font-size:10px" onclick="bossApprove(\''+t.id+'\')">OK</button><button class="btn-reject" style="padding:2px 6px;font-size:10px" onclick="bossReject(\''+t.id+'\')">Non</button></div>';
+        html+='</div>';
+        return html;
+      }).join('');
+    }).catch(function(){el.innerHTML='<div class="rp-empty">Erreur chargement</div>';});
   } else {
     var tabs=JSON.parse(localStorage.getItem(STORE_KEY+'tabs')||'[]');
     el.innerHTML=tabs.map(function(t){
@@ -791,18 +820,23 @@ var bossVisible=false;
 var bossInterval=null;
 
 function toggleBoss(){
-  bossVisible=!bossVisible;
-  document.getElementById('boss-panel').classList.toggle('active',bossVisible);
-  document.getElementById('tab-boss').classList.toggle('active',bossVisible);
-  // Hide/show main chat
-  document.querySelector('.main').style.display=bossVisible?'none':'flex';
-  document.getElementById('multi-view').style.display='none';
-  if(bossVisible){
-    loadBossQueue();
-    if(!bossInterval) bossInterval=setInterval(loadBossQueue,8000); // refresh every 8s
-  } else {
-    if(bossInterval){clearInterval(bossInterval);bossInterval=null;}
+  // Create or switch to the Boss session tab
+  var bossTabId = 'boss';
+  var existing = document.querySelector('.tab[data-id="boss"]');
+  if(!existing){
+    createTab('boss', 'Boss');
+    // Pre-fill with boss welcome message
+    saveMsgs('boss', [{role:'assistant', text:'Je suis le Boss JADOMI. Je g\u00e8re 10 \u00e9quipes (dev, s\u00e9cu, legal, finance, ops, marketing, support, formation, product). Dites-moi ce que vous voulez et je dispatche.'}]);
   }
+  switchTab('boss');
+
+  // Show queue in right panel
+  document.getElementById('right-panel').classList.remove('hidden');
+  switchRp('boss-queue');
+
+  // Start polling queue
+  loadBossQueue();
+  if(!bossInterval) bossInterval=setInterval(loadBossQueue,8000);
 }
 
 async function loadBossQueue(){
@@ -811,45 +845,15 @@ async function loadBossQueue(){
     var res=await fetch('/api/boss/queue',{headers:{'Authorization':'Bearer '+token}});
     var data=await res.json();
     var tasks=data.tasks||[];
-    renderBossTasks(tasks);
-    // Update stats
+    // Update tab badge only
     var stats={running:0,pending:0,review:0,done:0,failed:0,paused:0};
     tasks.forEach(function(t){stats[t.status]=(stats[t.status]||0)+1;});
-    document.getElementById('bs-running').textContent=stats.running;
-    document.getElementById('bs-pending').textContent=stats.pending;
-    document.getElementById('bs-review').textContent=stats.review;
-    document.getElementById('bs-done').textContent=stats.done;
-    // Update tab badge
     var active=stats.running+stats.pending+stats.review;
-    document.getElementById('boss-count').textContent=active;
-    document.getElementById('boss-count').style.display=active>0?'inline':'none';
-  }catch(e){console.error('Boss queue error:',e);}
-}
-
-function renderBossTasks(tasks){
-  var el=document.getElementById('boss-tasks');
-  if(!tasks.length){el.innerHTML='<div style="text-align:center;color:var(--text2);padding:40px;font-size:13px">Aucune t&acirc;che dans la queue.<br>Utilisez les boutons team pour lancer des missions.</div>';return;}
-  el.innerHTML=tasks.map(function(t){
-    var statusLabel={running:'En cours',pending:'En attente',review:'Approbation',done:'Termin\u00e9',failed:'\u00c9chou\u00e9',paused:'Pause\u00e9'}[t.status]||t.status;
-    var html='<div class="boss-task">';
-    html+='<div class="boss-task-head">';
-    html+='<span class="bt-team">'+esc(t.team)+'</span>';
-    html+='<span class="bt-title">'+esc(t.title)+'</span>';
-    html+='<span class="bt-priority">P'+t.priority+'</span>';
-    html+='<span class="bt-status '+t.status+'">'+statusLabel+'</span>';
-    html+='</div>';
-    if(t.result_summary) html+='<div class="boss-task-body">'+esc(t.result_summary.substring(0,300))+'</div>';
-    if(t.error) html+='<div class="boss-task-body" style="color:var(--red)">'+esc(t.error)+'</div>';
-    if(t.duration_ms||t.tokens_used) html+='<div class="boss-task-meta"><span>'+((t.duration_ms||0)/1000).toFixed(1)+'s</span><span>'+((t.tokens_used||0)).toLocaleString()+' tokens</span></div>';
-    if(t.status==='review'){
-      html+='<div class="boss-task-actions">';
-      html+='<button class="btn-approve" onclick="bossApprove(\''+t.id+'\')">Approuver</button>';
-      html+='<button class="btn-reject" onclick="bossReject(\''+t.id+'\')">Rejeter</button>';
-      html+='</div>';
-    }
-    html+='</div>';
-    return html;
-  }).join('');
+    var badge=document.getElementById('boss-count');
+    if(badge){badge.textContent=active;badge.style.display=active>0?'inline':'none';}
+    // If boss-queue panel is showing, render there
+    if(rpMode==='boss-queue') renderRp();
+  }catch(e){}
 }
 
 async function bossApprove(id){
@@ -864,6 +868,53 @@ async function bossReject(id){
 }
 
 // === TALK TO BOSS ===
+var bossHistory=[];
+
+function parseBossCommands(reply, msgEl){
+  var clean = reply;
+
+  // [OPEN_SESSION:nom] → ouvre un nouvel onglet
+  var sessionMatches = reply.match(/\[OPEN_SESSION:([^\]]+)\]/g);
+  if(sessionMatches){
+    sessionMatches.forEach(function(m){
+      var name = m.replace('[OPEN_SESSION:','').replace(']','');
+      tabCounter++;
+      var id = String(tabCounter);
+      createTab(id, name);
+      saveMsgs(id, []);
+      saveState();
+      msgEl.innerHTML+='<div style="font-size:11px;color:var(--green);padding:4px 8px">Session "'+esc(name)+'" ouverte</div>';
+      clean = clean.replace(m, '');
+    });
+  }
+
+  // [LAUNCH:team:titre:prompt] → lance une tâche
+  var launchMatches = reply.match(/\[LAUNCH:([^\]]+)\]/g);
+  if(launchMatches){
+    launchMatches.forEach(function(m){
+      var parts = m.replace('[LAUNCH:','').replace(']','').split(':');
+      if(parts.length >= 3){
+        var team = parts[0], title = parts[1], prompt = parts.slice(2).join(':');
+        fetch('/api/boss/add',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({team:team, title:title, prompt:prompt, model:'sonnet', priority:7, needs_approval:true})
+        });
+        msgEl.innerHTML+='<div style="font-size:11px;color:var(--gold);padding:4px 8px">T\u00e2che lanc\u00e9e: ['+esc(team)+'] '+esc(title)+'</div>';
+      }
+      clean = clean.replace(m, '');
+    });
+  }
+
+  // [STATUS] → refresh la queue
+  if(reply.includes('[STATUS]')){
+    loadBossQueue();
+    clean = clean.replace(/\[STATUS\]/g, '');
+  }
+
+  return clean.trim();
+}
+
 async function talkToBoss(){
   var inp=document.getElementById('boss-input');
   var text=inp.value.trim();
@@ -872,60 +923,109 @@ async function talkToBoss(){
 
   var msgEl=document.getElementById('boss-messages');
   msgEl.innerHTML+='<div style="font-size:12px;color:var(--text);padding:4px 8px;background:rgba(201,168,76,.06);border-radius:6px;border-left:3px solid var(--gold)"><b>Vous :</b> '+esc(text)+'</div>';
+  bossHistory.push({role:'user',text:text});
 
-  // Show thinking
-  msgEl.innerHTML+='<div id="boss-thinking" style="font-size:11px;color:var(--gold);padding:4px 8px;display:flex;align-items:center;gap:6px"><div class="dots"><span></span><span></span><span></span></div> Le Boss analyse et planifie...</div>';
-  msgEl.scrollTop=msgEl.scrollHeight;
+  // Detect: is this a MISSION (action to do) or just CHAT?
+  var isMission = /lance|fais|corrige|cr[eé]e|modifie|ajoute|supprime|audit|deploy|enrichi|v[eé]rifie|analyse|g[eé]n[eè]re|met[s]? [aà] jour|refactor|fix|build|scan|teste/i.test(text) && text.length > 20;
 
-  try{
-    // Call planner
-    var res=await fetch('/api/admin-copilot/multi/plan',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({task:text})
-    });
-    var plan=await res.json();
-
-    document.getElementById('boss-thinking')?.remove();
-
-    if(plan.error||!plan.tasks||!plan.tasks.length){
-      msgEl.innerHTML+='<div style="font-size:11px;color:var(--red);padding:4px 8px">Boss : Je n\'ai pas pu planifier. '+(plan.error||'')+'</div>';
-      return;
-    }
-
-    // Show plan
-    var planHtml='<div style="font-size:12px;color:var(--green);padding:6px 8px;background:rgba(45,198,83,.06);border-radius:6px;border-left:3px solid var(--green)">';
-    planHtml+='<b>Boss :</b> '+esc(plan.plan_summary||'Plan cr\u00e9\u00e9')+'<br>';
-    planHtml+='<div style="margin-top:4px;font-size:11px;color:var(--text2)">';
-    plan.tasks.forEach(function(t,i){
-      planHtml+=(i+1)+'. <b>['+esc(t.model||'sonnet')+']</b> '+esc(t.title)+'<br>';
-    });
-    planHtml+='</div></div>';
-    msgEl.innerHTML+=planHtml;
+  if(isMission){
+    // MODE MISSION — planifie et dispatch
+    msgEl.innerHTML+='<div id="boss-thinking" style="font-size:11px;color:var(--gold);padding:4px 8px;display:flex;align-items:center;gap:6px"><div class="dots"><span></span><span></span><span></span></div> Le Boss planifie la mission...</div>';
     msgEl.scrollTop=msgEl.scrollHeight;
 
-    // Add tasks to queue
-    for(var i=0;i<plan.tasks.length;i++){
-      var t=plan.tasks[i];
-      await fetch('/api/boss/add',{
+    try{
+      var res=await fetch('/api/admin-copilot/multi/plan',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({
-          team: detectTeam(t.title+' '+t.prompt),
-          title: t.title,
-          prompt: t.prompt,
-          model: t.model||'sonnet',
-          priority: Math.max(5, 9-i), // first task = highest priority
-          needs_approval: true
-        })
+        body:JSON.stringify({task:text})
+      });
+      var plan=await res.json();
+      document.getElementById('boss-thinking')?.remove();
+
+      if(plan.error||!plan.tasks||!plan.tasks.length){
+        // Fallback to chat if planner fails
+        await bossChatFallback(text, msgEl);
+        return;
+      }
+
+      var planHtml='<div style="font-size:12px;color:var(--green);padding:6px 8px;background:rgba(45,198,83,.06);border-radius:6px;border-left:3px solid var(--green)">';
+      planHtml+='<b>Boss :</b> '+esc(plan.plan_summary||'Mission planifi\u00e9e')+'<br>';
+      planHtml+='<div style="margin-top:4px;font-size:11px;color:var(--text2)">';
+      plan.tasks.forEach(function(t,i){
+        planHtml+=(i+1)+'. <b>['+esc(t.model||'sonnet')+']</b> '+esc(t.title)+'<br>';
+      });
+      planHtml+='</div></div>';
+      msgEl.innerHTML+=planHtml;
+      bossHistory.push({role:'assistant',text:plan.plan_summary});
+
+      for(var i=0;i<plan.tasks.length;i++){
+        var t=plan.tasks[i];
+        await fetch('/api/boss/add',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({
+            team: detectTeam(t.title+' '+t.prompt),
+            title: t.title, prompt: t.prompt,
+            model: t.model||'sonnet',
+            priority: Math.max(5, 9-i),
+            needs_approval: true
+          })
+        });
+      }
+      msgEl.innerHTML+='<div style="font-size:11px;color:var(--gold);padding:4px 8px">'+plan.tasks.length+' t\u00e2ches lanc\u00e9es. Le daemon travaille.</div>';
+      setTimeout(loadBossQueue, 2000);
+
+    }catch(e){
+      document.getElementById('boss-thinking')?.remove();
+      await bossChatFallback(text, msgEl);
+    }
+  } else {
+    // MODE CHAT — conversation normale avec le Boss
+    await bossChatFallback(text, msgEl);
+  }
+  msgEl.scrollTop=msgEl.scrollHeight;
+}
+
+async function bossChatFallback(text, msgEl){
+  msgEl.innerHTML+='<div id="boss-thinking" style="font-size:11px;color:var(--gold);padding:4px 8px;display:flex;align-items:center;gap:6px"><div class="dots"><span></span><span></span><span></span></div> Boss r\u00e9fl\u00e9chit...</div>';
+
+  var bossPrompt='Tu es le BOSS de JADOMI Code, un syst\u00e8me multi-agents autonome. Tu g\u00e8res 10 \u00e9quipes (dev, s\u00e9cu, legal, finance, ops, marketing, support, formation, product, all).\n\nTu as acc\u00e8s \u00e0 des COMMANDES SPECIALES que tu peux utiliser en r\u00e9pondant avec des balises:\n- [OPEN_SESSION:nom] → ouvre un nouvel onglet de travail\n- [LAUNCH:team:titre:prompt] → lance une t\u00e2che dans la queue\n- [STATUS] → donne le statut de la queue\n\nR\u00e9ponds en fran\u00e7ais, concis, style patron bienveillant. Le projet est JADOMI, SaaS B2B sant\u00e9.\n\nMessage du fondateur: '+text;
+
+  try{
+    var res=await fetch('/api/admin-copilot/stream',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({message:bossPrompt, model:'haiku'})
+    });
+
+    document.getElementById('boss-thinking')?.remove();
+    var reader=res.body.getReader(), dec=new TextDecoder(), buf='', reply='';
+
+    while(true){
+      var chunk=await reader.read();
+      if(chunk.done)break;
+      buf+=dec.decode(chunk.value,{stream:true});
+      var lines=buf.split('\n');buf=lines.pop()||'';
+      lines.forEach(function(line){
+        if(!line.startsWith('data: '))return;
+        try{
+          var ev=JSON.parse(line.slice(6));
+          if(ev.type==='assistant'&&ev.parts){
+            ev.parts.forEach(function(p){if(p.type==='text')reply+=p.text;});
+          }
+          if(ev.type==='result'&&ev.text&&!reply)reply=ev.text;
+        }catch(e){}
       });
     }
 
-    msgEl.innerHTML+='<div style="font-size:11px;color:var(--gold);padding:4px 8px">'+plan.tasks.length+' t\u00e2ches ajout\u00e9es \u00e0 la queue. Le daemon va les prendre automatiquement.</div>';
-
-    // Refresh queue
-    setTimeout(loadBossQueue, 2000);
-
+    if(reply){
+      // Parse boss commands from reply
+      var cleanReply = parseBossCommands(reply, msgEl);
+      msgEl.innerHTML+='<div style="font-size:12px;color:var(--text);padding:6px 8px;background:rgba(41,182,246,.06);border-radius:6px;border-left:3px solid var(--blue)"><b>Boss :</b> '+fmtMd(cleanReply)+'</div>';
+      bossHistory.push({role:'assistant',text:cleanReply});
+    } else {
+      msgEl.innerHTML+='<div style="font-size:11px;color:var(--text2);padding:4px 8px">Boss : (pas de r\u00e9ponse)</div>';
+    }
   }catch(e){
     document.getElementById('boss-thinking')?.remove();
     msgEl.innerHTML+='<div style="font-size:11px;color:var(--red);padding:4px 8px">Erreur : '+esc(e.message)+'</div>';

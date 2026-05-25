@@ -10,6 +10,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+let brain;
+try { brain = require('../lib/brain'); } catch(e) { brain = null; }
+
 // Upload config — fichiers envoyés via JADOMI Code
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'code');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -52,6 +55,72 @@ async function requireAdmin(req, res, next) {
 }
 
 /**
+ * POST /api/admin-copilot/fast
+ * Chat RAPIDE via spawn haiku direct + streaming SSE
+ * Passe par l'abonnement Max — 0€ de surcoût
+ */
+router.post('/fast', requireAdmin, (req, res) => {
+  const { message, model } = req.body || {};
+  if (!message) return res.status(400).json({ error: 'Message requis' });
+
+  const useModel = ['haiku', 'sonnet', 'opus'].includes(model) ? model : 'haiku';
+
+  console.log(`[FAST] ${useModel}: "${message.substring(0, 60)}..."`);
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'Cache-Control': 'no-cache, no-transform',
+    'Content-Encoding': 'identity',
+  });
+
+  const child = spawn('claude', [
+    '-p', message.trim(),
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--model', useModel,
+    '--dangerously-skip-permissions',
+    '--no-session-persistence',
+  ], {
+    cwd: '/home/ubuntu/jadomi',
+    env: { ...process.env, HOME: '/home/ubuntu', ANTHROPIC_API_KEY: '' },
+    timeout: TIMEOUT_MS,
+  });
+
+  let buffer = '';
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        const sseEvent = transformEvent(event);
+        if (sseEvent) res.write('data: ' + JSON.stringify(sseEvent) + '\n\n');
+      } catch {}
+    }
+  });
+
+  child.stderr.on('data', () => {});
+
+  child.on('close', (code) => {
+    res.write('data: ' + JSON.stringify({ type: 'done', exitCode: code }) + '\n\n');
+    res.end();
+  });
+  child.on('error', (err) => {
+    res.write('data: ' + JSON.stringify({ type: 'error', text: err.message }) + '\n\n');
+    res.end();
+  });
+
+  const timer = setTimeout(() => { child.kill('SIGTERM'); res.end(); }, TIMEOUT_MS);
+  child.on('close', () => clearTimeout(timer));
+  req.on('close', () => { child.kill('SIGTERM'); clearTimeout(timer); });
+});
+
+/**
  * POST /api/admin-copilot/stream
  * SSE streaming — envoie les événements Claude Code en temps réel
  */
@@ -70,6 +139,8 @@ router.post('/stream', requireAdmin, (req, res) => {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',
+    'Cache-Control': 'no-cache, no-transform',
+    'Content-Encoding': 'identity',
   });
 
   const args = [
@@ -81,12 +152,7 @@ router.post('/stream', requireAdmin, (req, res) => {
     '--dangerously-skip-permissions',
   ];
 
-  // Session persistence — conversations plus rapides après le 1er message
-  if (sessionId) {
-    args.push('--session-id', String(sessionId));
-  } else {
-    args.push('--no-session-persistence');
-  }
+  args.push('--no-session-persistence');
 
   console.log(`[ADMIN-COPILOT] Model: ${useModel}`);
 
@@ -340,6 +406,8 @@ router.post('/stream-with-files', requireAdmin, (req, res) => {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',
+    'Cache-Control': 'no-cache, no-transform',
+    'Content-Encoding': 'identity',
   });
 
   const args = [

@@ -17,7 +17,14 @@ app.set('trust proxy', 1);
 
 // === Performance: gzip/brotli compression ===
 const compression = require('compression');
-app.use(compression({ threshold: 1024 })); // compress responses > 1KB
+app.use(compression({
+  threshold: 1024,
+  filter: (req, res) => {
+    // Ne PAS compresser les SSE (streaming) — ça buffer et tue le temps réel
+    if (req.path.includes('/admin-copilot/') || req.headers.accept === 'text/event-stream') return false;
+    return compression.filter(req, res);
+  }
+}));
 
 // === PWA Patient — MUST be first (before Helmet, CORS, etc.) ===
 const fs = require('fs');
