@@ -98,7 +98,7 @@ router.put('/slide/:index', requireAdmin, (req, res) => {
   }
 });
 
-// POST /api/formation/upload — upload image
+// POST /api/formation/upload — upload image (admin auth)
 const upload = multer({
   dest: IMAGES_DIR,
   limits: { fileSize: 20 * 1024 * 1024 },
@@ -111,6 +111,25 @@ router.post('/upload', requireAdmin, upload.single('file'), (req, res) => {
   fs.renameSync(req.file.path, dest);
   console.log('[FORMATION-EDITOR] Image uploaded:', name);
   res.json({ success: true, path: 'images/' + name, name });
+});
+
+// POST /api/formation/upload-video — upload vidéo depuis téléphone (code secret)
+const UPLOAD_CODE = 'jadomi2026';
+const uploadVideo = multer({
+  dest: IMAGES_DIR,
+  limits: { fileSize: 500 * 1024 * 1024 },
+});
+router.post('/upload-video', uploadVideo.single('file'), (req, res) => {
+  const code = req.query.code || req.body.code || '';
+  if (code !== UPLOAD_CODE) return res.status(403).json({ error: 'Code incorrect' });
+  if (!req.file) return res.status(400).json({ error: 'Fichier requis' });
+  const origName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const name = Date.now() + '-' + origName;
+  const dest = path.join(IMAGES_DIR, name);
+  fs.renameSync(req.file.path, dest);
+  const sizeMB = (req.file.size / (1024 * 1024)).toFixed(1);
+  console.log(`[FORMATION-UPLOAD] Video uploaded: ${name} (${sizeMB} MB)`);
+  res.json({ success: true, path: 'images/' + name, name, size: sizeMB + ' MB' });
 });
 
 // GET /api/formation/images — liste les images
