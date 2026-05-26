@@ -166,7 +166,7 @@ global.jadomiCache = { get: getCached, map: _cache };
 // === Performance: request timeout for API routes (30s, longer for uploads/IMAP) ===
 app.use('/api/', (req, res, next) => {
   // Exempt upload and long-running routes from short timeout
-  const longRoutes = ['/api/documents/upload', '/api/media', '/api/scan-yahoo', '/api/scan-gmail'];
+  const longRoutes = ['/api/documents/upload', '/api/media', '/api/scan-yahoo', '/api/scan-gmail', '/api/avocat/plaidoirie', '/api/avocat/copilot'];
   if (longRoutes.some(r => req.originalUrl.startsWith(r))) {
     return next(); // These routes set their own timeout or use multer
   }
@@ -1250,6 +1250,10 @@ try {
   app.use('/api/avocat/trames', require('./api/avocat/trames'));
   console.log('[JADOMI] Module Trames Documentaires (conclusions, courriers, modèles) monté');
 } catch (e) { console.warn('[JADOMI] Trames Documentaires non chargé:', e.message); }
+try {
+  app.use('/api/avocat/plaidoirie', require('./api/avocat/plaidoirie'));
+  console.log('[JADOMI] Module Orchestrateur Plaidoirie (conclusions IA + score juge) monté');
+} catch (e) { console.warn('[JADOMI] Orchestrateur Plaidoirie non chargé:', e.message); }
 try {
   app.use('/api/formation', require('./api/formation-editor'));
   app.use('/api/admin-copilot', require('./api/admin-copilot'));

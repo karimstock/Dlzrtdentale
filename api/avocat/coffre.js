@@ -256,11 +256,14 @@ router.patch('/coffre/otp-preferences', requireAvocat, async (req, res) => {
 // CLIENTS — CRUD
 // ================================================
 
-// POST /coffre/clients — Creer un client + envoyer invitation
+// POST /coffre/clients — Creer un client (personne physique ou societe) + envoyer invitation
 router.post('/coffre/clients', requireAvocat, async (req, res) => {
   try {
-    const { civilite, nom, prenom, email, telephone, adresse, dossier_titre, dossier_type } = req.body || {};
-    if (!nom || !email) return res.status(400).json({ error: 'Nom et email requis' });
+    const { civilite, nom, prenom, email, telephone, adresse, dossier_titre, dossier_type,
+      type_client, raison_sociale, siret, forme_juridique, representant_nom, representant_prenom } = req.body || {};
+    const isSociete = type_client === 'societe';
+    const displayNom = isSociete ? (raison_sociale || nom) : nom;
+    if (!displayNom || !email) return res.status(400).json({ error: isSociete ? 'Raison sociale et email requis' : 'Nom et email requis' });
 
     // Generer password temporaire
     const tempPassword = crypto.randomBytes(10).toString('base64url');
@@ -268,11 +271,21 @@ router.post('/coffre/clients', requireAvocat, async (req, res) => {
 
     // Creer client
     const insertData = {
-      avocat_societe_id: req.societeId, nom, prenom, email, telephone,
+      avocat_societe_id: req.societeId,
+      nom: displayNom, prenom: isSociete ? null : prenom,
+      email, telephone,
+      type_client: isSociete ? 'societe' : 'personne',
       password_hash: passwordHash, statut: 'invite'
     };
     if (civilite) insertData.civilite = civilite;
     if (adresse) insertData.adresse = adresse;
+    if (isSociete) {
+      if (raison_sociale) insertData.raison_sociale = raison_sociale;
+      if (siret) insertData.siret = siret;
+      if (forme_juridique) insertData.forme_juridique = forme_juridique;
+      if (representant_nom) insertData.representant_nom = representant_nom;
+      if (representant_prenom) insertData.representant_prenom = representant_prenom;
+    }
     const { data: client, error: cErr } = await admin().from('avocat_clients').insert(insertData).select().single();
     if (cErr) return res.status(500).json({ error: cErr.message });
 
@@ -309,7 +322,7 @@ router.post('/coffre/clients', requireAvocat, async (req, res) => {
 // GET /coffre/clients — Liste des clients
 router.get('/coffre/clients', requireAvocat, async (req, res) => {
   const { data, error } = await admin().from('avocat_clients')
-    .select('id, nom, prenom, email, telephone, statut, last_login, created_at')
+    .select('id, nom, prenom, email, telephone, statut, last_login, created_at, type_client, raison_sociale, siret, forme_juridique, civilite, adresse, representant_nom, representant_prenom')
     .eq('avocat_societe_id', req.societeId).order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: 'Erreur interne' });
   return res.json(data || []);
@@ -330,7 +343,7 @@ router.get('/coffre/dossiers', requireAvocat, async (req, res) => {
 // POST /coffre/dossiers — Creer un dossier (avec ou sans client)
 router.post('/coffre/dossiers', requireAvocat, async (req, res) => {
   try {
-    const { titre, type, domaine, juridiction, section_cph, numero_rg,
+    const { titre, type, type_contentieux, domaine, juridiction, section_cph, numero_rg,
       convention_collective, stade_procedural, employeur_nom, employeur_adresse,
       employeur_siret, avocat_adverse, date_audience, notes, client_id } = req.body || {};
     if (!titre) return res.status(400).json({ error: 'Titre requis' });
@@ -348,7 +361,8 @@ router.post('/coffre/dossiers', requireAvocat, async (req, res) => {
       client_id: client_id || null,
       reference: ref,
       titre,
-      type: type || 'general'
+      type: type || 'general',
+      type_contentieux: type_contentieux || null
     };
     if (domaine) insertData.domaine = domaine;
     if (juridiction) insertData.juridiction = juridiction;
