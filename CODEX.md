@@ -4,7 +4,7 @@
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
 **Derniere mise a jour** : 25 mai 2026
-**Derniere passe** : Session 25 mai — JADOMI Code multi-agents complet + Formation (Ere de la donnee, Smile Cloud, theme Zendo)
+**Derniere passe** : Session 26 mai — Avocat : fix client/dossier, orchestrateur plaidoirie IA, dashboard intelligent (signal IA + groupement)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5423,7 +5423,43 @@ Commits ce jour : 3 (session + chronologies + slide IA)
 - Launca supprimee (pas connue)
 
 Derniere mise a jour : 25 mai 2026 (Session JADOMI Code + Formation)
+
+## Session 26 mai 2026 — Avocat : Client/Dossier + Plaidoirie IA + Dashboard intelligent
+
+### Bug fix creation client/dossier
+- ALTER TABLE avocat_clients : ajout civilite, adresse, type_client, raison_sociale, siret, forme_juridique, representant_nom, representant_prenom
+- ALTER TABLE avocat_dossiers : ajout notes
+- Support client societe (toggle personne physique / societe dans le modal)
+- Fix mapping type_contentieux frontend → backend (coffre.js)
+- GET /api/avocat/coffre/clients retourne maintenant tous les champs societe
+
+### Orchestrateur Plaidoirie IA (nouveau : api/avocat/plaidoirie.js — 471 lignes)
+- POST /api/avocat/plaidoirie/prepare — endpoint unique qui orchestre :
+  1. Chargement dossier + pieces + client
+  2. Analyse timeline + contradictions + pieces manquantes
+  3. Chargement trame custom (si selectionnee) ou template par defaut
+  4. Generation conclusions IA via Claude (faits, discussion avec fondements juridiques, par ces motifs)
+  5. Score juge automatique (0-100) + ameliorations suggerees
+- Onglet "Plaidoirie IA" dans le Dossier Vivant (dashboard-v2.html)
+- Boutons Copier + Imprimer
+- Teste : score 85/100, 4 arguments, pieces citees par numero
+- Timeout Express exempte pour /api/avocat/plaidoirie et /api/avocat/copilot
+
+### Dashboard Dossiers intelligent
+- Signal IA sur chaque dossier : conseil contextuel selon etape + date audience
+  (ex: "Audience dans 5j — Verifiez vos conclusions et pieces")
+- Grouper par : client / etape / type contentieux (en-tete visuel + compteur)
+- Colonne "Signal IA" dans la vue tableau (remplace "Taux h.")
+- Client affiche en gras dans chaque card dossier
+
+### Fichiers modifies (4)
+- api/avocat/coffre.js (28 lignes)
+- api/avocat/plaidoirie.js (471 lignes, nouveau)
+- public/avocat/dashboard-v2.html (+2500 lignes)
+- server.js (6 lignes)
+
+Derniere mise a jour : 26 mai 2026 (Session Avocat — Client/Dossier + Plaidoirie IA + Dashboard intelligent)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 24 mai 2026 (Session Formation — Slides IA + Image cabinet)
+Derniere mise a jour : 26 mai 2026 (Session Avocat — Client/Dossier + Plaidoirie IA + Dashboard intelligent)
 ===============================================================
