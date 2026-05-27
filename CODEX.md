@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 25 mai 2026
-**Derniere passe** : Session 26 mai — Avocat : fix client/dossier, orchestrateur plaidoirie IA, dashboard intelligent (signal IA + groupement)
+**Derniere mise a jour** : 27 mai 2026
+**Derniere passe** : Session 27 mai — Formation : montage video pro chemin de scan (portrait + flou lateral + PiP PC + musique orchestrale)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5458,8 +5458,32 @@ Derniere mise a jour : 25 mai 2026 (Session JADOMI Code + Formation)
 - public/avocat/dashboard-v2.html (+2500 lignes)
 - server.js (6 lignes)
 
-Derniere mise a jour : 26 mai 2026 (Session Avocat — Client/Dossier + Plaidoirie IA + Dashboard intelligent)
+## Session 27 mai 2026 — Formation : montage video pro chemin de scan
+
+### Montage video complet (montage-scan-complet.mp4 — 29 MB, 3m32)
+- 5 segments ffmpeg : maxillaire (99s), mandibule (67s), occlusion (22s), verification (10s), correction IA (20s)
+- Videos bouche filmees en PORTRAIT (Honor Porsche Design, rotate=90) → flou lateral style YouTube
+- Fenetre PC en PiP bas droite (520x268) avec bordure cyan, apparait synchro au moment du scan
+- Labels Playfair Display (titres) + Inter (corps) integres dans la video
+- Musique orchestrale fond (mixkit, libre de droits) volume 18%, fondu entree/sortie
+- Flash "Correction par IA" en dore 1 seconde au moment cle (3:00 sur video PC)
+
+### Slide intro + video plein ecran
+- Slide #23 : titre "Le chemin de scan" en Playfair Display, badge "Cas reel filme au cabinet"
+- Slide #24 : video plein ecran autoplay (muted → unmute 150ms, contourne blocage navigateur)
+
+### Corrections
+- Panda Free → Panda Smart dans toute la presentation (17 occurrences)
+
+### Timings valides par le fondateur
+- Maxillaire : bouche 0:00-1:39 (prep 0-26s visible), PC 0:06-1:19 (apparait a 26s)
+- Mandibule : bouche 0:00-1:07 (sechage 0-6s visible), PC 1:55-2:56 (apparait a 6s)
+- Occlusion : bouche 0:00-0:22, PC 3:31-3:49 (apparait a 2s)
+- Verification : PC 5:26-5:36 (10s)
+- Correction IA : PC 2:50-3:10 (20s, inclut dedoublement 36/37 + correction + manipulation)
+
+Derniere mise a jour : 27 mai 2026 (Session Formation — Montage video pro chemin de scan)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 26 mai 2026 (Session Avocat — Client/Dossier + Plaidoirie IA + Dashboard intelligent)
+Derniere mise a jour : 27 mai 2026 (Session Formation — Montage video pro chemin de scan)
 ===============================================================
