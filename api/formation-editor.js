@@ -117,7 +117,7 @@ router.post('/upload', requireAdmin, upload.single('file'), (req, res) => {
 const UPLOAD_CODE = 'jadomi2026';
 const uploadVideo = multer({
   dest: IMAGES_DIR,
-  limits: { fileSize: 500 * 1024 * 1024 },
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 },
 });
 router.post('/upload-video', uploadVideo.single('file'), (req, res) => {
   const code = req.query.code || req.body.code || '';
