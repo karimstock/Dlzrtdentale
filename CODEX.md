@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 27 mai 2026
-**Derniere passe** : Session 27 mai — Formation : montage video pro chemin de scan (portrait + flou lateral + PiP PC + musique orchestrale)
+**Derniere mise a jour** : 28 mai 2026
+**Derniere passe** : Session 28 mai — Formation : refonte tissus mous + videos labo prothesiste + animation 3 technologies cameras
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5482,8 +5482,52 @@ Derniere mise a jour : 25 mai 2026 (Session JADOMI Code + Formation)
 - Verification : PC 5:26-5:36 (10s)
 - Correction IA : PC 2:50-3:10 (20s, inclut dedoublement 36/37 + correction + manipulation)
 
-Derniere mise a jour : 27 mai 2026 (Session Formation — Montage video pro chemin de scan)
+## Session 28 mai 2026 — Formation : tissus mous + labo prothesiste + technologies cameras
+
+### Refonte section Gestion des Tissus (section 04)
+- 6 slides narratives fideles au prompt fondateur (parcours personnel)
+  1. Le numerique ne pardonne pas (+ 4 photos STL 3D : sang, gencive, coloration)
+  2. Ma premiere erreur : le produit miracle (+ 3 photos STL pate mal eliminee)
+  3. Le vrai tournant : biotype gingival (PTFE vs cordon + Ruggiero 2025)
+  4. Stabiliser plutot qu'agresser (Astringedent + temporisation + BOPT)
+  5. Cas clinique bridge maxillaire (comparatif 6 produits)
+  6. Video montage complet (2min, musique orchestrale, titres incrustes)
+- Video cordon gardee (slide cinema plein ecran)
+- Montage ffmpeg v3 : extraits precis v1 (teflon 0:00-0:20, 3:02-3:10, 6:00-6:15, 7:00-7:13, 8:16-8:21)
+  + v2 pate VOCO (0:15-0:40) + v3 rincage (0:03-0:17) + v4 scan (0:03-0:12)
+  + photos PiP (bobine, limites plein ecran 4s, scan ecran)
+  + son clinique coupe, musique orchestrale 18% seule
+  + flou lateral pro sur videos portrait
+
+### Section Vision du Laboratoire
+- Slide titre ajoutee (style gradient bleu + dore #C9A84C)
+- CAS 4 gencive : photos N&B remplacees par video couleur (47s)
+- 2 nouvelles slides ajoutees :
+  - Video rectification prothesiste (3min05, cinema plein ecran)
+  - Punchline "Rectification = Supposition = Perte de precision"
+- CAS 2 trous + CAS 6 difference : deja en video couleur (session precedente)
+
+### Animation 3 technologies cameras
+- 1 slide SVG animee remplace 3 slides texte separees
+- Triangulation (#29B6F6) + Confocale (#C9A84C) + Stereophotogrammetrie (#2DC653)
+- Animations SVG bouclables (faisceaux, plans focaux, nuage de points)
+
+### Corrections slides
+- Chronologies 1/2/3 : dots recalcules (max 129px), CSS cx-dot-desc absolu, SVG ajuste
+- Slide #3 camera : video inline (fix flottement Reveal.js background)
+- Slide #9 : titres gauche = titres droite (6 cards alignees)
+- Shining 3D enleve de slide chemin de scan
+- 7 slides redondantes supprimees (115 → 111 slides)
+- Cas Reda deplace vers section Cas Cliniques (plus dans section IA)
+
+### Infrastructure
+- Upload limit : 500Mo → 2Go (multer + nginx)
+- nginx : proxy_request_buffering off pour uploads rapides
+- nginx : location /api/formation/upload-video avec timeout 900s
+- Nettoyage disque : rushes scan supprimes (~750Mo liberes)
+
+Derniere mise a jour : 28 mai 2026 (Session Formation — Tissus mous + Labo prothesiste)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 27 mai 2026 (Session Formation — Montage video pro chemin de scan)
+Derniere mise a jour : 28 mai 2026 (Session Formation — Tissus mous + Labo prothesiste)
 ===============================================================
