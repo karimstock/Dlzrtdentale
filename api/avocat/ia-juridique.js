@@ -124,7 +124,9 @@ router.post('/message', requireAvocat, async (req, res) => {
 
     // Questions simples (définition, article précis) → Mistral (RGPD, pas cher)
     // Questions complexes (analyse, IRAC, contradictions) → Claude
-    const isSimple = message.length < 100 &&
+    // Questions indemnités/rupture/fiscal → TOUJOURS Claude (Mistral pas au niveau)
+    const isIndemnites = /(indemnit|transaction|exon[eé]r|rupture|licenciement.*social|fiscal|csg|crds|pass|igr|ifc|pv.*conciliation|diff[eé]r[eé]|contribution.*patronale|bar[eè]me|supra.?l[eé]gale|faute.*grave.*transaction|r[eé]gime.*social)/i.test(message);
+    const isSimple = !isIndemnites && message.length < 100 &&
       !/(analyse|irac|contrad|compar|risqu|audience|prépare|résumé dossier)/i.test(message) &&
       /(article|définition|qu'est-ce|c'est quoi|délai|prescription)/i.test(message);
 

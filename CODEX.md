@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 28 mai 2026
-**Derniere passe** : Session 28 mai — Formation : refonte tissus mous + videos labo prothesiste + animation 3 technologies cameras
+**Derniere mise a jour** : 1er juin 2026
+**Derniere passe** : Session 1er juin — Audit fonctionnel Dentiste + Prothesiste (18 onglets, 29 routes, 29 tables OK, fix chat.js)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5526,8 +5526,84 @@ Derniere mise a jour : 25 mai 2026 (Session JADOMI Code + Formation)
 - nginx : location /api/formation/upload-video avec timeout 900s
 - Nettoyage disque : rushes scan supprimes (~750Mo liberes)
 
-Derniere mise a jour : 28 mai 2026 (Session Formation — Tissus mous + Labo prothesiste)
+## Session 1er juin 2026 — Audit fonctionnel Dentiste + Prothesiste
+
+### Audit Dashboard Dentiste Pro — 100% fonctionnel
+- 18 onglets sidebar audites : accueil, dashboard, agenda, patients, cases,
+  mon-labo, triangle, chat, reseau, batch, waitlist, rappels, equipe,
+  connector, ia-doc, ia-config, stats, config — TOUS OK
+- 29 routes API dentiste-pro testees — TOUTES repondent (200 ou 401 auth)
+- 29 tables Supabase referencees — TOUTES existent
+- 5 fichiers JS (copilot, tab-agenda, tab-cases, tab-triangle, tab-reseau) — OK
+- 3 liens navigation (organisation, login, profil equipe) — OK
+
+### Bug fixe : chat.js table inexistante
+- api/dentiste-pro/chat.js:29 referencait `societes_membres` (table inexistante)
+- Remplace par `user_societe_roles` (table existante et utilisee partout ailleurs)
+- Le chat praticien-patient fonctionne maintenant correctement
+
+### Audit Prothesiste / Labo — tout monte
+- 30 pages frontend labo chargent (dashboard, stock, production, facturation,
+  catalogue, expeditions, bons-livraison, suivi-livreurs, techniciens, livreur-app)
+- 27 modules API montes (rush 7 routes, labo 6 modules, commandes)
+- PWA livreur operationnelle
+
+### Auth gate preservee
+- Le fondateur avait mis un mot de passe pour garder le site prive
+- Les vitrines metier restent protegees par l'auth gate (voulu)
+
+### Session 2 juin 2026 — Formation Deficab + JADOMI IA Avocat enrichi
+
+#### Formation Deficab HTML (private/formation/formation-complete-deficab.html)
+- 1682 lignes, 18 sections orales completes, 68 diapos PDF cliquables
+- 3 videos Whisper transcrites (~4h, 5649 segments)
+- 11 notes de verification rouge (cross-check droit positif) + 9 notes orange (opinions Boudin)
+- Boudin : 9/10 concordances avec le droit positif, tous les arrets verifies
+- Protection par mot de passe (cookie deficab_auth, 30 jours)
+- Fichier deplace dans private/formation/ (hors public/)
+- Routes Express : GET /formation/formation-complete-deficab + POST /formation/deficab-auth
+
+#### Simulateur indemnites enrichi (api/avocat/simulateur-indemnites.js — 1551 lignes)
+- 5 endpoints : /simuler, /comparer, /bareme-ifc, /pass/:annee, /indemnite-legale
+- Methode Boudin 4 etapes complete
+- 9 ameliorations : bug RC retraite corrige, faute grave + preavis, IT execution separee,
+  arret 2025, AT/MP, net imposable ameliore, alertes Boudin, references JP
+
+#### JADOMI IA Formation Deficab (api/avocat/formation-deficab-ia.js)
+- Endpoint : /api/avocat/formation-deficab-ia/message (POST, streaming SSE)
+- Modele : Claude Sonnet 4.6 (bon rapport qualite/prix)
+- Knowledge base : data/formation-deficab-knowledge.js (757 lignes, 25 691 chars)
+  - 13 sections : methode 4 etapes, 15 cas specifiques, bareme IFC, differe chomage
+  - 8 opinions Boudin signalees, 8 arrets verifies, 12 exemples few-shot
+- RAG Legifrance + Judilibre integre
+- Auth : cookie deficab_auth (pas de Bearer token)
+- Widget chatbot integre dans la page formation (bouton flottant, streaming temps reel)
+- Rate limiting : 20 msg/min + 50 msg/jour par IP
+- 3 niveaux de filtrage GRATUIT avant appel IA :
+  1. Bavardage (salut, merci, bye) → reponse polie, 0 euro
+  2. Hors sujet (meteo, recettes) → recadrage + suggestions juridiques, 0 euro
+  3. Juridique → Claude Sonnet avec knowledge Boudin + RAG, ~0.04 euro
+- Cout estime : 1-6 euros/avocat/mois selon usage
+
+#### IA Juridique principale enrichie (api/avocat/ia-juridique.js)
+- Modele corrige : claude-sonnet-4-6 (au lieu de claude-sonnet-4-6-20250514)
+- Injection automatique knowledge Boudin quand question sur indemnites de rupture
+- Routage intelligent : Mistral pour questions simples, Claude Sonnet OBLIGATOIRE
+  pour tout ce qui touche aux indemnites/rupture/fiscal (regex de detection)
+- Mistral reste pour : definitions, articles, prescriptions (~0.01 euro)
+- Claude Sonnet pour : analyses, indemnites, montages (~0.04 euro)
+
+#### Commits session 2 juin 2026
+- 757ace7 feat(formation): V2+V3 transcrites et injectees
+- dc16170 feat(formation): refonte COMPLETE du contenu oral
+- 823529a feat(formation): notes de verification juridique
+- b2a343b feat(avocat): enrichir simulateur indemnites — 9 ameliorations
+- e303618 feat(formation): protection par mot de passe
+- 19cabae feat(avocat): JADOMI IA Formation Deficab — chatbot expert
+- a226361 feat(avocat): knowledge base Boudin enrichi — 757 lignes
+
+Derniere mise a jour : 2 juin 2026 (Session Formation Deficab + JADOMI IA Avocat)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 28 mai 2026 (Session Formation — Tissus mous + Labo prothesiste)
+Derniere mise a jour : 2 juin 2026 (Session Formation Deficab + JADOMI IA Avocat)
 ===============================================================
