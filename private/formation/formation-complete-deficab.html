@@ -1676,6 +1676,338 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowLeft') navSlide(e, -1);
   if (e.key === 'ArrowRight') navSlide(e, 1);
 });
+
+// ================================================================
+// JADOMI IA — Chatbot Formation Déficab
+// ================================================================
+(function() {
+  'use strict';
+  const ACCENT = '#8B2D2D';
+  const API_URL = '/api/avocat/formation-deficab-ia/message';
+  let conversation = [];
+  let isOpen = false;
+  let isTyping = false;
+
+  // --- Inject CSS ---
+  const style = document.createElement('style');
+  style.textContent = `
+    .deficab-fab {
+      position:fixed;bottom:24px;right:24px;z-index:99990;
+      width:60px;height:60px;border-radius:50%;border:none;
+      background:linear-gradient(135deg,${ACCENT},#5C1A1A);color:#fff;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 8px 30px rgba(139,45,45,.4);
+      transition:all .4s cubic-bezier(.16,1,.3,1);
+      font-size:24px;
+    }
+    .deficab-fab:hover{transform:scale(1.08);box-shadow:0 12px 40px rgba(139,45,45,.55)}
+    .deficab-fab::before{
+      content:"";position:absolute;inset:-4px;border-radius:50%;
+      border:2px solid ${ACCENT};opacity:0;
+      animation:deficabPulse 2.5s cubic-bezier(.16,1,.3,1) infinite;
+    }
+    @keyframes deficabPulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
+    .deficab-fab.open::before{animation:none;opacity:0}
+
+    .deficab-panel {
+      position:fixed;bottom:100px;right:24px;z-index:99991;
+      width:420px;max-height:600px;height:600px;
+      background:#1a1917;border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;overflow:hidden;
+      display:flex;flex-direction:column;
+      box-shadow:0 25px 60px rgba(0,0,0,.5);
+      opacity:0;transform:translateY(20px) scale(.96);pointer-events:none;
+      transition:opacity .35s cubic-bezier(.16,1,.3,1),transform .35s cubic-bezier(.16,1,.3,1);
+    }
+    .deficab-panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+
+    .deficab-header {
+      padding:16px 18px;display:flex;align-items:center;gap:12px;
+      background:linear-gradient(135deg,${ACCENT},#5C1A1A);flex-shrink:0;
+    }
+    .deficab-header-icon {
+      width:38px;height:38px;border-radius:10px;
+      background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;
+      font-size:20px;
+    }
+    .deficab-header-info{flex:1}
+    .deficab-header-name{font-size:14px;font-weight:600;color:#fff}
+    .deficab-header-status{font-size:11px;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:5px}
+    .deficab-status-dot{width:6px;height:6px;border-radius:50%;background:#22c55e}
+    .deficab-close{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;padding:6px;font-size:18px}
+    .deficab-close:hover{color:#fff}
+
+    .deficab-messages {
+      flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;
+      scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1) transparent;
+    }
+    .deficab-msg {
+      max-width:85%;padding:12px 16px;border-radius:12px;font-size:13.5px;line-height:1.6;
+      animation:deficabFade .3s ease;
+    }
+    @keyframes deficabFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .deficab-msg.user {
+      align-self:flex-end;background:${ACCENT};color:#fff;border-bottom-right-radius:4px;
+    }
+    .deficab-msg.assistant {
+      align-self:flex-start;background:#2a2826;color:#e8e6e0;border-bottom-left-radius:4px;
+    }
+    .deficab-msg.assistant strong{color:#D4A843}
+    .deficab-msg.assistant code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;font-size:12px}
+    .deficab-msg.assistant ul,.deficab-msg.assistant ol{padding-left:18px;margin:6px 0}
+    .deficab-msg.assistant li{margin:3px 0}
+
+    .deficab-typing {
+      align-self:flex-start;padding:12px 16px;background:#2a2826;border-radius:12px;
+      display:none;gap:4px;align-items:center;
+    }
+    .deficab-typing.visible{display:flex}
+    .deficab-typing span {
+      width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);
+      animation:deficabDot 1.4s ease-in-out infinite;
+    }
+    .deficab-typing span:nth-child(2){animation-delay:.2s}
+    .deficab-typing span:nth-child(3){animation-delay:.4s}
+    @keyframes deficabDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+    .deficab-suggestions {
+      padding:8px 16px;display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+    .deficab-suggestions button {
+      background:rgba(139,45,45,.15);border:1px solid rgba(139,45,45,.3);
+      color:#e8e6e0;padding:6px 12px;border-radius:20px;font-size:12px;
+      cursor:pointer;transition:all .2s;white-space:nowrap;
+    }
+    .deficab-suggestions button:hover{background:rgba(139,45,45,.3);border-color:${ACCENT}}
+
+    .deficab-input-area {
+      padding:12px 16px;display:flex;gap:8px;align-items:flex-end;
+      border-top:1px solid rgba(255,255,255,.06);flex-shrink:0;
+      background:#1a1917;
+    }
+    .deficab-input-area textarea {
+      flex:1;background:#2a2826;border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;padding:10px 14px;color:#e8e6e0;font-size:14px;
+      resize:none;min-height:42px;max-height:120px;outline:none;
+      font-family:inherit;line-height:1.4;
+      transition:border-color .2s;
+    }
+    .deficab-input-area textarea:focus{border-color:${ACCENT}}
+    .deficab-input-area textarea::placeholder{color:rgba(255,255,255,.3)}
+    .deficab-send {
+      width:40px;height:40px;border-radius:10px;border:none;
+      background:${ACCENT};color:#fff;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .2s;flex-shrink:0;
+    }
+    .deficab-send:hover{background:#5C1A1A}
+    .deficab-send:disabled{opacity:.4;cursor:not-allowed}
+    .deficab-send svg{width:18px;height:18px;fill:currentColor}
+
+    @media(max-width:480px){
+      .deficab-panel{width:calc(100vw - 16px);right:8px;bottom:80px;max-height:80vh;height:80vh}
+      .deficab-fab{bottom:16px;right:16px;width:52px;height:52px}
+    }
+  `;
+  document.head.appendChild(style);
+
+  // --- Create DOM ---
+  // FAB
+  const fab = document.createElement('button');
+  fab.className = 'deficab-fab';
+  fab.innerHTML = '⚖️';
+  fab.title = 'JADOMI IA — Posez vos questions sur la formation';
+  fab.onclick = togglePanel;
+  document.body.appendChild(fab);
+
+  // Panel
+  const panel = document.createElement('div');
+  panel.className = 'deficab-panel';
+  panel.innerHTML = `
+    <div class="deficab-header">
+      <div class="deficab-header-icon">⚖️</div>
+      <div class="deficab-header-info">
+        <div class="deficab-header-name">JADOMI IA — Formation Déficab</div>
+        <div class="deficab-header-status"><span class="deficab-status-dot"></span>Spécialiste indemnités de rupture</div>
+      </div>
+      <button class="deficab-close" onclick="this.closest('.deficab-panel').classList.remove('open');document.querySelector('.deficab-fab').classList.remove('open')">✕</button>
+    </div>
+    <div class="deficab-messages" id="deficabMsgs">
+      <div class="deficab-msg assistant">
+        Bonjour Maître,<br><br>
+        Je suis l'assistant JADOMI spécialisé dans le <strong>régime social et fiscal des indemnités de rupture</strong>, formé sur le contenu intégral de la formation Déficab de Maître Boudin.<br><br>
+        Posez-moi vos questions sur les calculs d'exonération, les montages transactionnels, les PV de conciliation, ou tout autre point abordé dans la formation.
+      </div>
+      <div class="deficab-typing" id="deficabTyping"><span></span><span></span><span></span></div>
+    </div>
+    <div class="deficab-suggestions" id="deficabSugg">
+      <button onclick="deficabAsk(this.textContent)">Comment calculer l'exonération IR ?</button>
+      <button onclick="deficabAsk(this.textContent)">Transaction vs PV de conciliation ?</button>
+      <button onclick="deficabAsk(this.textContent)">Faute grave + transaction ?</button>
+      <button onclick="deficabAsk(this.textContent)">Différé chômage sur IT ?</button>
+      <button onclick="deficabAsk(this.textContent)">RC post-réforme 2023 ?</button>
+    </div>
+    <div class="deficab-input-area">
+      <textarea id="deficabInput" placeholder="Posez votre question..." rows="1"></textarea>
+      <button class="deficab-send" id="deficabSend" onclick="deficabSendMsg()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  function togglePanel() {
+    isOpen = !isOpen;
+    fab.classList.toggle('open', isOpen);
+    panel.classList.toggle('open', isOpen);
+    if (isOpen) setTimeout(() => document.getElementById('deficabInput').focus(), 300);
+  }
+
+  // Auto-resize textarea
+  const input = document.getElementById('deficabInput');
+  input.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); deficabSendMsg(); }
+  });
+
+  // --- API Functions ---
+  window.deficabAsk = function(text) {
+    document.getElementById('deficabInput').value = text;
+    deficabSendMsg();
+    // Hide suggestions after first use
+    document.getElementById('deficabSugg').style.display = 'none';
+  };
+
+  window.deficabSendMsg = async function() {
+    const input = document.getElementById('deficabInput');
+    const msg = (input.value || '').trim();
+    if (!msg || isTyping) return;
+
+    // Add user message
+    addMessage('user', msg);
+    conversation.push({ role: 'user', content: msg });
+    input.value = '';
+    input.style.height = 'auto';
+
+    // Show typing
+    isTyping = true;
+    document.getElementById('deficabSend').disabled = true;
+    const typing = document.getElementById('deficabTyping');
+    typing.classList.add('visible');
+    scrollToBottom();
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, conversation: conversation.slice(-20) }),
+        credentials: 'same-origin'
+      });
+
+      if (!res.ok) throw new Error('Erreur ' + res.status);
+
+      // Check if streaming (SSE) or JSON
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream')) {
+        // Streaming SSE
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullReply = '';
+        let msgEl = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content || parsed.token) {
+                  fullReply += (parsed.content || parsed.token);
+                  if (!msgEl) {
+                    typing.classList.remove('visible');
+                    msgEl = addMessage('assistant', '');
+                  }
+                  msgEl.innerHTML = formatMarkdown(fullReply);
+                  scrollToBottom();
+                }
+                if (parsed.type === 'done' && parsed.sources) {
+                  // Show sources badge
+                  if (parsed.sources.length > 0 && msgEl) {
+                    const srcDiv = document.createElement('div');
+                    srcDiv.style.cssText = 'margin-top:8px;font-size:11px;color:#9c9890;border-top:1px solid rgba(255,255,255,.06);padding-top:6px';
+                    srcDiv.innerHTML = '📚 ' + parsed.sources.length + ' source(s) juridique(s) vérifiée(s)';
+                    msgEl.appendChild(srcDiv);
+                  }
+                }
+              } catch {}
+            }
+          }
+        }
+        if (fullReply) conversation.push({ role: 'assistant', content: fullReply });
+      } else {
+        // Standard JSON response
+        const data = await res.json();
+        typing.classList.remove('visible');
+        const msgEl = addMessage('assistant', formatMarkdown(data.reply || 'Désolé, je n\'ai pas pu répondre.'));
+        if (data.sources_count > 0) {
+          const srcDiv = document.createElement('div');
+          srcDiv.style.cssText = 'margin-top:8px;font-size:11px;color:#9c9890;border-top:1px solid rgba(255,255,255,.06);padding-top:6px';
+          srcDiv.innerHTML = '📚 ' + data.sources_count + ' source(s) juridique(s) vérifiée(s)';
+          msgEl.appendChild(srcDiv);
+        }
+        conversation.push({ role: 'assistant', content: data.reply });
+      }
+    } catch (err) {
+      typing.classList.remove('visible');
+      addMessage('assistant', 'Désolé, une erreur est survenue. Veuillez réessayer.');
+      console.error('[JADOMI IA]', err);
+    }
+
+    isTyping = false;
+    document.getElementById('deficabSend').disabled = false;
+    scrollToBottom();
+  };
+
+  function addMessage(role, content) {
+    const msgs = document.getElementById('deficabMsgs');
+    const typing = document.getElementById('deficabTyping');
+    const el = document.createElement('div');
+    el.className = 'deficab-msg ' + role;
+    if (role === 'assistant') {
+      el.innerHTML = content;
+    } else {
+      el.textContent = content;
+    }
+    msgs.insertBefore(el, typing);
+    scrollToBottom();
+    return el;
+  }
+
+  function scrollToBottom() {
+    const msgs = document.getElementById('deficabMsgs');
+    requestAnimationFrame(() => msgs.scrollTop = msgs.scrollHeight);
+  }
+
+  function formatMarkdown(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/^- (.+)/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+      .replace(/\n{2,}/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  }
+})();
 </script>
 
 </body>

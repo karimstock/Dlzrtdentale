@@ -1529,6 +1529,10 @@ try {
   console.log('[JADOMI] Module Orchestrateur Plaidoirie (conclusions IA + score juge) monté');
 } catch (e) { console.warn('[JADOMI] Orchestrateur Plaidoirie non chargé:', e.message); }
 try {
+  app.use('/api/avocat/formation-deficab-ia', require('./api/avocat/formation-deficab-ia'));
+  console.log('[JADOMI] Module Formation Déficab IA (chatbot Boudin + RAG) monté');
+} catch (e) { console.warn('[JADOMI] Formation Déficab IA non chargé:', e.message); }
+try {
   app.use('/api/formation', require('./api/formation-editor'));
   app.use('/api/admin-copilot', require('./api/admin-copilot'));
   app.use('/api/admin-copilot/multi', require('./api/admin-copilot-multi'));

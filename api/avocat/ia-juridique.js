@@ -66,7 +66,7 @@ FORMAT DE CITATION :
 
 IMPORTANT : Les sources ci-dessous sont des données RÉELLES provenant de Légifrance et de la Cour de cassation (Judilibre). Elles sont fiables mais doivent être vérifiées par l'avocat dans leur contexte d'application.`;
 
-const MODEL = 'claude-sonnet-4-6-20250514';
+const MODEL = 'claude-sonnet-4-6';
 
 // ================================================
 // POST /message — Chat IA juridique enrichi par RAG
@@ -84,6 +84,17 @@ router.post('/message', requireAvocat, async (req, res) => {
 
     // 2. Construire le system prompt enrichi
     let systemPrompt = SYSTEM_PROMPT;
+
+    // Injection connaissance Déficab si la question porte sur les indemnités de rupture
+    if (/(indemnit|transaction|exon[eé]r|rupture|licenciement.*social|fiscal|csg|crds|pass|igr|ifc|pv.*conciliation|diff[eé]r[eé]|contribution.*patronale|barème|supra.?l[eé]gale|faute.*grave.*transaction|r[eé]gime.*social)/i.test(message)) {
+      try {
+        const deficabKB = require('../../data/formation-deficab-knowledge');
+        if (deficabKB.DEFICAB_SYSTEM_PROMPT) {
+          systemPrompt += '\n\n[CONNAISSANCE SPÉCIALISÉE — FORMATION DÉFICAB]\n' + deficabKB.DEFICAB_SYSTEM_PROMPT.substring(0, 6000);
+        }
+      } catch {}
+    }
+
     if (enrichment.context) {
       systemPrompt += '\n\n' + enrichment.context;
     } else {
