@@ -222,7 +222,7 @@ app.use((req, res, next) => {
   //   '/btp', '/sci', '/createurs', '/coiffeurs'];
   // const isPublic = publicPaths.includes(req.path) || publicPaths.includes(req.path.replace(/\.html$/, ''));
   // const isBot = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebot|twitterbot|linkedinbot/i.test(req.headers['user-agent'] || '');
-  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/formation') || req.path.startsWith('/code') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/')) {
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map|json|webmanifest|xml|txt|pdf|mp3|mp4|webp|gif|eot|wasm)$/) || req.path.startsWith('/api/') || req.path === '/robots.txt' || req.path === '/comparateur' || req.path.startsWith('/studio') || req.path.startsWith('/formation') || req.path.startsWith('/code') || req.path.startsWith('/app-preview') || req.path.startsWith('/canvaskit') || req.path.startsWith('/visio/') || req.path.startsWith('/dental-evolution')) {
     return next();
   }
   // Vérifier le cookie
@@ -373,6 +373,27 @@ app.get('/checkout.html', (req, res) => res.sendFile(path.join(__dirname, 'check
 app.get('/dentistes', (req, res) => res.redirect(301, '/chirurgiens-dentistes'));
 app.get('/prothesistes', (req, res) => res.redirect(301, '/prothesistes-dentaires'));
 app.get('/coiffeurs', (req, res) => res.redirect(301, '/services-bien-etre'));
+// === Protection par mot de passe — Formation Déficab ===
+const DEFICAB_PASSWORD = 'imranjadoukarim';
+const DEFICAB_COOKIE = 'deficab_auth';
+const DEFICAB_PATH = '/formation/formation-complete-deficab.html';
+
+app.get([DEFICAB_PATH, '/formation/formation-complete-deficab'], (req, res) => {
+  if (req.cookies && req.cookies[DEFICAB_COOKIE] === 'ok') {
+    return res.sendFile(path.join(__dirname, 'private/formation/formation-complete-deficab.html'));
+  }
+  const error = req.query.err === '1';
+  res.status(401).send(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Formation Déficab — Accès protégé</title><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;background:#0a0a0f;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{background:rgba(22,22,31,.9);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:48px 40px;width:100%;max-width:420px;text-align:center;backdrop-filter:blur(20px);box-shadow:0 24px 48px rgba(0,0,0,.4)}.logo{font-family:Syne,sans-serif;font-size:28px;font-weight:800;background:linear-gradient(135deg,#0d9488,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:6px}.subtitle{font-size:14px;color:#737373;margin-bottom:24px}input{width:100%;padding:14px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#e5e5e5;font-size:16px;outline:none;transition:border-color .2s;margin-bottom:16px}input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.15)}button{width:100%;padding:14px;background:#0d9488;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s}button:hover{background:#0f766e}.error{color:#ef4444;font-size:13px;margin-bottom:12px}.lock{font-size:40px;margin-bottom:16px}</style></head><body><div class="card"><div class="lock">🔒</div><div class="logo">Formation Déficab</div><div class="subtitle">Régime social et fiscal des indemnités de rupture<br>Accès réservé</div>${error ? '<div class="error">Mot de passe incorrect</div>' : ''}<form method="POST" action="/formation/deficab-auth"><input type="password" name="password" placeholder="Mot de passe" autofocus autocomplete="current-password"><button type="submit">Accéder à la formation</button></form></div></body></html>`);
+});
+
+app.post('/formation/deficab-auth', express.urlencoded({ extended: false }), (req, res) => {
+  if (req.body && req.body.password === DEFICAB_PASSWORD) {
+    res.cookie(DEFICAB_COOKIE, 'ok', { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
+    return res.redirect('/formation/formation-complete-deficab');
+  }
+  res.redirect('/formation/formation-complete-deficab?err=1');
+});
+
 // Servir /assets depuis /public/assets (pour les images landings)
 app.use('/assets', express.static(path.join(__dirname, 'public/assets'), { maxAge: '7d' }));
 // Servir les fichiers SQL pour copier-coller dans Supabase Dashboard
@@ -398,6 +419,254 @@ app.use(express.static(path.join(__dirname, 'public'), {
     }
   }
 }));
+
+// --- Dental Evolution : page commande server-side (zero JS) ---
+app.get('/dental-evolution/commander', (req, res) => {
+  const nom = req.query.nom || '';
+  const prenom = req.query.prenom || '';
+  const dr = (prenom && nom) ? 'Dr ' + prenom + ' ' + nom : (nom ? 'Dr ' + nom : '');
+
+  function mailto(q, price, label) {
+    const total = (price * q).toFixed(2).replace('.', ',');
+    const aig = q * 20;
+    const s = encodeURIComponent('Commande ' + q + ' boites Aiguilles ZENDO 30G' + (dr ? ' - ' + dr : ''));
+    const b = encodeURIComponent('Bonjour,\n\nJe souhaite commander :\n\n- ' + q + ' boites d\'aiguilles d\'irrigation ZENDO 30G a double sortie laterale\n- Prix : ' + price.toFixed(2) + ' EUR TTC / boite (' + label + ')\n- Total : ' + total + ' EUR TTC\n- Soit ' + aig + ' aiguilles\n\nMerci de me confirmer la disponibilite et le delai de livraison.\n\nCordialement,\n' + (dr || '___') + '\n');
+    return 'mailto:contact@dentalevolution.fr?subject=' + s + '&body=' + b;
+  }
+
+  function qbtn(q, price, label, cls) {
+    const total = (price * q).toFixed(2).replace('.', ',');
+    return '<a class="qb' + (cls ? ' ' + cls : '') + '" href="' + mailto(q, price, label) + '">' + q + ' bte' + (q > 1 ? 's' : '') + '<small>' + total + '\u20ac</small></a>';
+  }
+
+  let btns1 = '', btns2 = '', btns3 = '';
+  for (let i = 1; i <= 9; i++) btns1 += qbtn(i, 34.90, 'Decouverte', '');
+  for (let i = 10; i <= 19; i++) btns2 += qbtn(i, 27.90, 'Pro -20%', '');
+  [20,25,30,40,50,60,80,100].forEach(q => { btns3 += qbtn(q, 24.90, 'Volume -29%', 'dark'); });
+
+  res.send(`<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Commander — Dental Evolution</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',Arial,sans-serif;background:#e8f2f9;color:#0a2a42}
+.page{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+.hdr{text-align:center;padding:20px 0}.hdr img{height:72px}
+.hdr-sub{font-size:9px;color:#7baac8;letter-spacing:3px;text-transform:uppercase;margin-top:8px;font-weight:600}
+.product{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);margin-bottom:20px}
+.product img{width:100%;display:block}
+.product-info{padding:20px 24px}
+.product-name{font-size:20px;font-weight:900;letter-spacing:-0.5px}.product-name span{color:#1a6fa0}
+.product-desc{font-size:12px;color:#7baac8;margin-top:4px}
+.stitle{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:#1a6fa0;font-weight:800;text-align:center;margin:0 0 16px}
+.tier{background:#fff;border-radius:16px;padding:20px;margin-bottom:6px;box-shadow:0 2px 12px rgba(0,0,0,0.04);border:2px solid transparent}
+.tier.t2{border-color:#2ca7df;box-shadow:0 4px 20px rgba(44,167,223,0.12)}
+.tier.t3{background:#0a2a42;color:#fff}
+.tier-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.tier-badge{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:20px;display:inline-block;margin-bottom:4px}
+.b1{background:#f0f4f8;color:#7baac8}.b2{background:#2ca7df;color:#fff}.b3{background:linear-gradient(135deg,#c9a961,#a68930);color:#fff}
+.tier-range{font-size:11px;color:#7baac8}.t3 .tier-range{color:rgba(255,255,255,0.5)}
+.qty-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+a.qb{display:block;text-align:center;padding:14px 4px;border-radius:10px;background:#f4f8fb;border:1px solid #e4ecf2;text-decoration:none;color:#0a2a42;font-weight:800;font-size:15px}
+a.qb:active{background:#2ca7df;color:#fff;border-color:#2ca7df}
+a.qb small{display:block;font-size:9px;font-weight:600;color:#a3c4d8;margin-top:3px}
+a.qb:active small{color:rgba(255,255,255,0.7)}
+a.qb.dark{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.1);color:#fff}
+a.qb.dark small{color:rgba(255,255,255,0.35)}
+a.qb.dark:active{background:#2ca7df;border-color:#2ca7df}
+.tip{background:linear-gradient(135deg,#fff8e6,#fef3d0);border:1px solid #f0d98c;border-radius:10px;padding:10px 14px;margin:0 0 6px;font-size:10px;color:#7a6520;line-height:1.6}.tip b{color:#5a4a10}
+.contact{background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:space-between;margin-top:16px}
+.contact-name{font-size:13px;font-weight:800}.contact-role{font-size:9px;color:#7baac8}
+.contact-right{text-align:right}
+.contact-tel{font-size:13px;font-weight:700;color:#1a6fa0;text-decoration:none}
+.contact-mail{font-size:9px;color:#7baac8;text-decoration:none;display:block;margin-top:2px}
+.ftr{text-align:center;padding:16px 0 0}.ftr-brand{font-size:9px;letter-spacing:3px;color:#a3c4d8;font-weight:600}
+.ftr-addr{font-size:8px;color:#c4d6e4;margin-top:4px}
+</style></head><body><div class="page">
+<div class="hdr"><img src="/dental-evolution/logo.png" alt="Dental Evolution"><div class="hdr-sub">${dr ? dr + ' — ' : ''}Commander en ligne</div></div>
+<div class="product"><img src="/dental-evolution/hero.png" alt="Aiguilles ZENDO 30G"><div class="product-info"><div class="product-name">Aiguilles d'irrigation <span>ZENDO 30G</span></div><div class="product-desc">Double sortie lat\u00e9rale — Bo\u00eete de 20 aiguilles st\u00e9riles</div></div></div>
+<div class="stitle">Choisissez votre quantit\u00e9</div>
+<div class="tier"><div class="tier-head"><div><div class="tier-badge b1">D\u00e9couverte</div><div class="tier-range">34,90\u20ac TTC / bo\u00eete</div></div></div><div class="qty-grid">${btns1}</div></div>
+<div class="tip"><b>Astuce :</b> A partir de 8 bo\u00eetes, passez \u00e0 10 : m\u00eame prix, <b>2 bo\u00eetes offertes</b>.</div>
+<div class="tier t2"><div class="tier-head"><div><div class="tier-badge b2">Le + command\u00e9 — \u221220%</div><div class="tier-range">27,90\u20ac TTC / bo\u00eete</div></div></div><div class="qty-grid">${btns2}</div></div>
+<div class="tip"><b>Astuce :</b> A partir de 18 bo\u00eetes, passez \u00e0 20 : m\u00eame prix, <b>2 bo\u00eetes offertes</b>.</div>
+<div class="tier t3"><div class="tier-head"><div><div class="tier-badge b3">Tarif volume — \u221229%</div><div class="tier-range">24,90\u20ac TTC / bo\u00eete</div></div></div><div class="qty-grid">${btns3}</div></div>
+<div class="contact"><div><div class="contact-name">Nassim AMRANE</div><div class="contact-role">Pr\u00e9sident — Dental Evolution</div></div><div class="contact-right"><a class="contact-tel" href="tel:+33759622758">07 59 62 27 58</a><a class="contact-mail" href="mailto:contact@dentalevolution.fr">contact@dentalevolution.fr</a></div></div>
+<div class="ftr"><div class="ftr-brand">DENTAL EVOLUTION</div><div class="ftr-addr">11 avenue de l'Harmonie, Park Plaza II B\u00e2t. B, 59650 Villeneuve-d'Ascq</div></div>
+</div></body></html>`);
+});
+
+// --- Dental Evolution : Jeu concours collecte emails ---
+app.get('/dental-evolution/jeu-concours', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Jeu Concours — Dental Evolution</title>
+<meta name="description" content="Tentez de gagner 10 bo\u00eetes d'aiguilles d'irrigation ZENDO 30G d'une valeur de 279\u20ac. Participation gratuite r\u00e9serv\u00e9e aux professionnels.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',Arial,sans-serif;background:#0a2a42;color:#fff;min-height:100vh}
+.page{max-width:480px;margin:0 auto;padding:24px 16px 40px}
+.logo{text-align:center;padding:20px 0}
+.logo img{height:64px}
+.hero{position:relative;border-radius:20px;overflow:hidden;margin-bottom:24px}
+.hero img{width:100%;display:block}
+.hero-badge{position:absolute;top:16px;right:16px;background:linear-gradient(135deg,#c9a961,#a68930);color:#fff;font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border-radius:20px}
+.card{background:#fff;border-radius:20px;padding:32px 24px;color:#0a2a42;box-shadow:0 8px 40px rgba(0,0,0,0.3)}
+.card-title{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#2ca7df;font-weight:800;text-align:center;margin-bottom:8px}
+.card h2{font-size:24px;font-weight:900;text-align:center;letter-spacing:-0.5px;line-height:1.3;margin-bottom:6px}
+.card h2 span{color:#2ca7df}
+.card-value{text-align:center;font-size:13px;color:#7baac8;margin-bottom:24px}
+.card-value b{color:#0a2a42;font-size:18px;font-weight:900}
+.prize{display:flex;align-items:center;gap:16px;background:#f4f8fb;border-radius:14px;padding:16px;margin-bottom:24px}
+.prize img{width:80px;height:80px;object-fit:cover;border-radius:10px}
+.prize-text{flex:1}
+.prize-text h4{font-size:14px;font-weight:800;margin-bottom:4px}
+.prize-text p{font-size:11px;color:#7baac8;line-height:1.5}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;font-weight:700;color:#7baac8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.form-group input{width:100%;padding:14px 16px;border:2px solid #e4ecf2;border-radius:12px;font-size:15px;font-family:'Inter',sans-serif;font-weight:600;color:#0a2a42;transition:border-color 0.2s}
+.form-group input:focus{outline:none;border-color:#2ca7df}
+.form-group input::placeholder{color:#c4d6e4;font-weight:400}
+.btn{width:100%;padding:16px;background:linear-gradient(135deg,#2ca7df,#1a8fc4);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:800;font-family:'Inter',sans-serif;cursor:pointer;letter-spacing:0.5px;transition:transform 0.15s,box-shadow 0.15s;box-shadow:0 4px 20px rgba(44,167,223,0.3)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(44,167,223,0.4)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.legal{font-size:9px;color:#a3c4d8;text-align:center;margin-top:16px;line-height:1.6}
+.success{display:none;text-align:center;padding:20px 0}
+.success .check{width:64px;height:64px;background:#2ca7df;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px}
+.success h3{font-size:20px;font-weight:900;margin-bottom:8px}
+.success p{font-size:13px;color:#7baac8;line-height:1.6}
+.error{color:#e74c3c;font-size:12px;text-align:center;margin-top:8px;display:none}
+.count{text-align:center;margin-top:20px;padding:12px;background:rgba(44,167,223,0.1);border-radius:12px}
+.count span{font-size:11px;color:#7baac8}.count b{color:#2ca7df;font-size:14px}
+</style></head><body>
+<div class="page">
+<div class="logo"><img src="/dental-evolution/logo.png" alt="Dental Evolution"></div>
+<div class="hero">
+  <img src="/dental-evolution/hero.png" alt="Aiguilles ZENDO 30G">
+  <div class="hero-badge">Jeu concours</div>
+</div>
+<div class="card">
+  <div class="card-title">Jeu concours gratuit</div>
+  <h2>Gagnez <span>10 bo\u00eetes</span> d'aiguilles ZENDO 30G</h2>
+  <div class="card-value">D'une valeur de <b>279\u20ac TTC</b></div>
+  <div class="prize">
+    <img src="/dental-evolution/photo-boite-zendo.jpeg" alt="Bo\u00eete ZENDO">
+    <div class="prize-text">
+      <h4>200 aiguilles st\u00e9riles</h4>
+      <p>Double sortie lat\u00e9rale 30G<br>Compatibles NaOCl, EDTA, CHX</p>
+    </div>
+  </div>
+  <div id="formSection">
+    <form id="contestForm" onsubmit="return submitForm(event)">
+      <div class="form-group">
+        <label>Nom</label>
+        <input type="text" name="nom" placeholder="Votre nom" required>
+      </div>
+      <div class="form-group">
+        <label>Pr\u00e9nom</label>
+        <input type="text" name="prenom" placeholder="Votre pr\u00e9nom" required>
+      </div>
+      <div class="form-group">
+        <label>Email professionnel</label>
+        <input type="email" name="email" placeholder="votre@email.fr" required>
+      </div>
+      <button type="submit" class="btn" id="submitBtn">Participer au tirage au sort</button>
+      <div class="error" id="errorMsg"></div>
+    </form>
+    <div class="legal">
+      En participant, vous acceptez de recevoir ponctuellement des offres de Dental Evolution.<br>
+      Tirage au sort le 30 juin 2026. R\u00e8glement sur simple demande.<br>
+      R\u00e9serv\u00e9 aux professionnels de sant\u00e9.
+    </div>
+  </div>
+  <div class="success" id="successSection">
+    <div class="check">\u2713</div>
+    <h3>Participation enregistr\u00e9e !</h3>
+    <p>Merci Docteur. Vous \u00eates inscrit(e) au tirage au sort.<br>Le gagnant sera contact\u00e9 par email le 30 juin 2026.</p>
+  </div>
+</div>
+<div class="count">
+  <span>D\u00e9j\u00e0</span> <b id="participantCount">...</b> <span>participants</span>
+</div>
+</div>
+<script>
+async function submitForm(e){
+  e.preventDefault();
+  var btn=document.getElementById('submitBtn');
+  var err=document.getElementById('errorMsg');
+  btn.disabled=true;btn.textContent='Envoi...';err.style.display='none';
+  var fd=new FormData(e.target);
+  var data={nom:fd.get('nom'),prenom:fd.get('prenom'),email:fd.get('email')};
+  try{
+    var r=await fetch('/dental-evolution/jeu-concours/participer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    var j=await r.json();
+    if(j.ok){
+      document.getElementById('formSection').style.display='none';
+      document.getElementById('successSection').style.display='block';
+      if(j.count) document.getElementById('participantCount').textContent=j.count;
+    } else {
+      err.textContent=j.error||'Erreur, veuillez r\u00e9essayer.';err.style.display='block';
+      btn.disabled=false;btn.textContent='Participer au tirage au sort';
+    }
+  }catch(ex){
+    err.textContent='Erreur r\u00e9seau, veuillez r\u00e9essayer.';err.style.display='block';
+    btn.disabled=false;btn.textContent='Participer au tirage au sort';
+  }
+  return false;
+}
+fetch('/dental-evolution/jeu-concours/count').then(r=>r.json()).then(j=>{
+  if(j.count) document.getElementById('participantCount').textContent=j.count;
+}).catch(()=>{});
+</script>
+</body></html>`);
+});
+
+// API : enregistrer participation jeu concours
+app.post('/dental-evolution/jeu-concours/participer', express.json(), (req, res) => {
+  const { nom, prenom, email } = req.body || {};
+  if (!nom || !prenom || !email || !email.includes('@')) {
+    return res.json({ ok: false, error: 'Veuillez remplir tous les champs.' });
+  }
+
+  const fs = require('fs');
+  const filePath = path.join(__dirname, 'mailing/dental-evolution/jeu-concours-participants.json');
+  let participants = [];
+  try { participants = JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch(e) {}
+
+  // Vérifier doublon email
+  if (participants.find(p => p.email.toLowerCase() === email.toLowerCase())) {
+    return res.json({ ok: false, error: 'Vous participez d\u00e9j\u00e0 au jeu concours.' });
+  }
+
+  participants.push({
+    nom: nom.trim(),
+    prenom: prenom.trim(),
+    email: email.trim().toLowerCase(),
+    date: new Date().toISOString(),
+    ip: req.ip
+  });
+
+  fs.writeFileSync(filePath, JSON.stringify(participants, null, 2));
+  res.json({ ok: true, count: participants.length });
+});
+
+// API : compteur participants
+app.get('/dental-evolution/jeu-concours/count', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(__dirname, 'mailing/dental-evolution/jeu-concours-participants.json');
+  try {
+    const participants = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    res.json({ count: participants.length });
+  } catch(e) {
+    res.json({ count: 0 });
+  }
+});
+
+// Servir les assets Dental Evolution
+app.use('/dental-evolution', express.static(path.join(__dirname, 'mailing/dental-evolution')));
 
 // --- Anthropic Claude client ---
 const anthropic = new Anthropic({
@@ -1166,6 +1435,11 @@ try {
   app.use('/api/avocat/simulateur', require('./api/avocat/simulateur-travail'));
   console.log('[JADOMI] Module Avocat Simulateur Droit du Travail monte');
 } catch (e) { console.warn('[JADOMI] Avocat Simulateur non charge:', e.message); }
+// Avocat — Simulateur Régime Social et Fiscal des Indemnités de Rupture (Déficab/Boudin)
+try {
+  app.use('/api/avocat/simulateur-indemnites', require('./api/avocat/simulateur-indemnites'));
+  console.log('[JADOMI] Module Avocat Simulateur Indemnités Rupture monté');
+} catch (e) { console.warn('[JADOMI] Avocat Simulateur Indemnités non chargé:', e.message); }
 // Avocat — Stratégie de départ + Optimisation fiscale/sociale
 try {
   app.use('/api/avocat/strategie', require('./api/avocat/strategie-depart'));
