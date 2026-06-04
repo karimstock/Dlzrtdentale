@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 1er juin 2026
-**Derniere passe** : Session 1er juin — Audit fonctionnel Dentiste + Prothesiste (18 onglets, 29 routes, 29 tables OK, fix chat.js)
+**Derniere mise a jour** : 4 juin 2026
+**Derniere passe** : Session 4 juin — Refonte scan FaceMatch (point cloud LiDAR) + auth gate Qonto + nettoyage disque
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -5603,7 +5603,61 @@ Derniere mise a jour : 25 mai 2026 (Session JADOMI Code + Formation)
 - a226361 feat(avocat): knowledge base Boudin enrichi — 757 lignes
 
 Derniere mise a jour : 2 juin 2026 (Session Formation Deficab + JADOMI IA Avocat)
+
+## Session 4 juin 2026 — Refonte scan FaceMatch + auth gate Qonto + disque
+
+### Refonte complete scan LiDAR FaceMatch (5 commits)
+Diagnostic : l'approche ARKit sceneReconstruction (.mesh) est concue pour
+scanner des PIECES, pas des visages. Mesh trop low-res, bloque a 3-8%.
+
+**Nouvelle approche : point cloud direct depuis depth map LiDAR**
+- Desactive sceneReconstruction, active sceneDepth uniquement
+- Extraction directe du depth map (256x192 @ 60Hz, 49K mesures/frame)
+- Deprojection pixels depth → points 3D world space via camera intrinsics
+- Grille 3D 1.5mm deduplication multi-frames
+- Triangulation organisee (2x2 quad → 2 triangles, edge filter 10mm)
+- Couleurs RGB projetees depuis camera (cache a 2Hz)
+- Normales calculees depuis faces du mesh
+
+**Mode 2 passes (comme Qlone Dental)**
+- Passe 1 : scan tete complete 360° (30-40cm), 50K points cible
+- Passe 2 : zoom sourire (8-25cm) pour detail dents 2x plus precis
+- Bouton "Sourire" → "Terminer" (ou "Passer" si pas besoin)
+- Les 2 passes fusionnent dans la meme grille 3D
+
+**UI mise a jour**
+- Passe 1 : chips "Tete" + "360°" vert, gros % progress
+- Passe 2 : chips "Zoom dents" jaune, compteur points
+- Bouton capture adapte par passe (vert/jaune)
+- Plus d'auto-capture : l'utilisateur decide quand c'est bon
+
+**Fichiers modifies (repo karimstock/facematch-ios)**
+- FaceMatch/Capture/FaceScanSession.swift (reecrit ~750 lignes)
+- FaceMatch/Capture/FaceScanARView.swift (simplifie, plus de mesh overlay)
+- FaceMatch/Views/ScanView.swift (UI 2 passes)
+- CFBundleVersion bumpe a 11
+
+### Auth gate jadomi.fr desactivee temporairement
+- Qonto demande a voir le site pour validation du compte pro JADOMI SAS
+- Auth gate commentee dans server.js (middleware verrou)
+- Backup horodate cree avant modification
+- A REACTIVER des que Qonto valide
+
+### Nettoyage disque VPS (97G/97G → 78G/97G)
+- Disque 100% plein detecte (14 Mo libres)
+- 4 backups daily supprimes (~11.6G liberes)
+- 1 backup weekly supprime (~2.9G libere)
+- Logs PM2 tronques
+- Backup le plus recent (4 juin) conserve
+- data/gudid/extracted/ (16G XML) non touche (fondateur refuse)
+
+### Ouverture compte Qonto
+- Societe JADOMI SAS — ENF Active, forfait Smart 289€/an HT
+- Depot capital en cours, certificat sous 12h apres validation
+- Reponse a Qonto redigee : JADOMI = SaaS, pas marketplace
+
+Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 2 juin 2026 (Session Formation Deficab + JADOMI IA Avocat)
+Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
 ===============================================================
