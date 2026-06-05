@@ -205,5 +205,92 @@ module.exports = function mountOvhMail(app, supabase, requireAuth) {
     }
   });
 
+  // ================================================
+  // POST /api/studio/ovh/mail/redirect
+  // Créer une redirection email (alias gratuit)
+  // Ex: direction@cabinet-dupont.fr → dr.dupont@gmail.com
+  // Body : { domain, from_name, to_email }
+  // ================================================
+  router.post('/redirect', requireAuth, async (req, res) => {
+    try {
+      const { domain, from_name, to_email } = req.body || {};
+      if (!domain || !from_name || !to_email) {
+        return res.status(400).json({ error: 'domain, from_name et to_email requis' });
+      }
+
+      const ovh = getOvhClient();
+      if (!ovh) return res.status(503).json({ error: 'API OVH non configurée' });
+
+      const fromEmail = `${from_name.trim().toLowerCase()}@${domain.trim().toLowerCase()}`;
+
+      await ovh.requestPromised('POST', `/email/domain/${domain}/redirection`, {
+        from: fromEmail,
+        to: to_email.trim().toLowerCase(),
+        localCopy: false
+      });
+
+      console.log(`[OVH Mail] Redirection ${fromEmail} → ${to_email}`);
+
+      return res.json({
+        ok: true,
+        from: fromEmail,
+        to: to_email,
+        message: `Tous les mails envoyés à ${fromEmail} seront redirigés vers ${to_email}.`
+      });
+
+    } catch (err) {
+      console.error('[OVH Mail] redirect error:', err.message);
+      return res.status(500).json({ error: 'Erreur création redirection', detail: err.message });
+    }
+  });
+
+  // ================================================
+  // GET /api/studio/ovh/mail/redirections/:domain
+  // Lister les redirections d'un domaine
+  // ================================================
+  router.get('/redirections/:domain', requireAuth, async (req, res) => {
+    try {
+      const { domain } = req.params;
+      const ovh = getOvhClient();
+      if (!ovh) return res.status(503).json({ error: 'API OVH non configurée' });
+
+      const ids = await ovh.requestPromised('GET', `/email/domain/${domain}/redirection`);
+      const redirections = await Promise.all(
+        ids.map(async id => {
+          try {
+            return await ovh.requestPromised('GET', `/email/domain/${domain}/redirection/${id}`);
+          } catch (_) {
+            return { id };
+          }
+        })
+      );
+
+      return res.json({ domain, redirections });
+
+    } catch (err) {
+      console.error('[OVH Mail] redirections list error:', err.message);
+      return res.status(500).json({ error: 'Erreur liste redirections' });
+    }
+  });
+
+  // ================================================
+  // DELETE /api/studio/ovh/mail/redirect/:domain/:id
+  // Supprimer une redirection
+  // ================================================
+  router.delete('/redirect/:domain/:id', requireAuth, async (req, res) => {
+    try {
+      const { domain, id } = req.params;
+      const ovh = getOvhClient();
+      if (!ovh) return res.status(503).json({ error: 'API OVH non configurée' });
+
+      await ovh.requestPromised('DELETE', `/email/domain/${domain}/redirection/${id}`);
+      return res.json({ ok: true, message: 'Redirection supprimée' });
+
+    } catch (err) {
+      console.error('[OVH Mail] redirect delete error:', err.message);
+      return res.status(500).json({ error: 'Erreur suppression redirection' });
+    }
+  });
+
   app.use('/api/studio/ovh/mail', router);
 };

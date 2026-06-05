@@ -125,6 +125,18 @@ module.exports = function mountOvhDns(app, supabase, requireAuth) {
         } catch (e) {
           errors.push('CNAME autoconfig: ' + e.message);
         }
+
+        // DMARC (anti-spam — les mails sans DMARC tombent en spam chez Gmail)
+        try {
+          await ovh.requestPromised('POST', `/domain/zone/${zone}/record`, {
+            fieldType: 'TXT', subDomain: '_dmarc',
+            target: '"v=DMARC1; p=quarantine; rua=mailto:contact@jadomi.fr; sp=quarantine; adkim=r; aspf=r; pct=100"',
+            ttl: 3600
+          });
+          created.push('DMARC');
+        } catch (e) {
+          errors.push('DMARC: ' + e.message);
+        }
       }
 
       // --- 4. Appliquer les changements DNS ---
@@ -172,6 +184,132 @@ module.exports = function mountOvhDns(app, supabase, requireAuth) {
     } catch (err) {
       console.error('[OVH DNS] records error:', err.message);
       return res.status(500).json({ error: 'Erreur lecture DNS' });
+    }
+  });
+
+  // ================================================
+  // POST /api/studio/ovh/dns/setup-dkim
+  // Activer DKIM sur un domaine client
+  // Le DKIM signe cryptographiquement chaque mail sortant
+  // → les serveurs destinataires vérifient que le mail vient bien du domaine
+  // Body : { domain }
+  // ================================================
+  router.post('/setup-dkim', requireAuth, async (req, res) => {
+    try {
+      const { domain } = req.body || {};
+      if (!domain) return res.status(400).json({ error: 'domain requis' });
+
+      const ovh = getOvhClient();
+      if (!ovh) return res.status(503).json({ error: 'API OVH non configurée' });
+
+      const zone = domain.trim().toLowerCase();
+      const results = { created: [], errors: [] };
+
+      // OVH Email MX Plan gère le DKIM automatiquement via l'API /email/domain
+      // On doit activer le DKIM sur le service email du domaine
+      try {
+        // Vérifier si le service email existe
+        await ovh.requestPromised('GET', `/email/domain/${zone}`);
+
+        // Lister les DKIM existants
+        const existingDkim = await ovh.requestPromised('GET', `/email/domain/${zone}/dkim`).catch(() => []);
+
+        if (existingDkim.length > 0) {
+          results.created.push('DKIM déjà actif (' + existingDkim.length + ' clés)');
+        } else {
+          // Activer DKIM via l'API OVH
+          try {
+            await ovh.requestPromised('POST', `/email/domain/${zone}/dkim`, {
+              autoconfig: true,
+              autoEnableDKIM: true
+            });
+            results.created.push('DKIM activé (autoconfig)');
+          } catch (e) {
+            // Si l'API DKIM n'est pas dispo, on ajoute manuellement les CNAME
+            // OVH utilise des CNAME qui pointent vers leurs serveurs DKIM
+            const selectors = ['selector1', 'selector2'];
+            for (const sel of selectors) {
+              try {
+                await ovh.requestPromised('POST', `/domain/zone/${zone}/record`, {
+                  fieldType: 'CNAME',
+                  subDomain: `${sel}._domainkey`,
+                  target: `${sel}._domainkey.${zone}.dkim.mail.ovh.net.`,
+                  ttl: 3600
+                });
+                results.created.push(`DKIM CNAME ${sel}`);
+              } catch (e2) {
+                results.errors.push(`DKIM ${sel}: ${e2.message}`);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        results.errors.push('Service email non trouvé pour ' + zone + ': ' + e.message);
+      }
+
+      // Rafraîchir la zone
+      try {
+        await ovh.requestPromised('POST', `/domain/zone/${zone}/refresh`);
+      } catch (_) {}
+
+      console.log(`[OVH DNS] DKIM ${zone} : ${results.created.length} OK, ${results.errors.length} erreurs`);
+
+      return res.json({
+        ok: results.errors.length === 0,
+        domain: zone,
+        ...results,
+        message: results.errors.length === 0
+          ? `DKIM activé pour ${zone}. Les mails ne tomberont plus en spam.`
+          : `DKIM partiellement configuré.`
+      });
+
+    } catch (err) {
+      console.error('[OVH DNS] setup-dkim error:', err.message);
+      return res.status(500).json({ error: 'Erreur activation DKIM' });
+    }
+  });
+
+  // ================================================
+  // GET /api/studio/ovh/dns/audit/:domain
+  // Audit anti-spam complet d'un domaine (SPF + DKIM + DMARC)
+  // ================================================
+  router.get('/audit/:domain', requireAuth, async (req, res) => {
+    try {
+      const { domain } = req.params;
+      const ovh = getOvhClient();
+      if (!ovh) return res.status(503).json({ error: 'API OVH non configurée' });
+
+      const ids = await ovh.requestPromised('GET', `/domain/zone/${domain}/record`);
+      const records = await Promise.all(
+        ids.map(id => ovh.requestPromised('GET', `/domain/zone/${domain}/record/${id}`))
+      );
+
+      const spf = records.filter(r => r.fieldType === 'SPF' || (r.fieldType === 'TXT' && (r.target || '').includes('spf')));
+      const dkim = records.filter(r => (r.subDomain || '').includes('_domainkey'));
+      const dmarc = records.filter(r => r.subDomain === '_dmarc');
+      const mx = records.filter(r => r.fieldType === 'MX');
+
+      const score = (spf.length > 0 ? 25 : 0) + (dkim.length > 0 ? 25 : 0) + (dmarc.length > 0 ? 25 : 0) + (mx.length > 0 ? 25 : 0);
+
+      return res.json({
+        domain,
+        score,
+        score_label: score === 100 ? 'Excellent' : score >= 75 ? 'Bon' : score >= 50 ? 'Moyen' : 'Mauvais',
+        spf: { ok: spf.length > 0, count: spf.length, records: spf },
+        dkim: { ok: dkim.length > 0, count: dkim.length, records: dkim },
+        dmarc: { ok: dmarc.length > 0, count: dmarc.length, records: dmarc },
+        mx: { ok: mx.length > 0, count: mx.length, records: mx },
+        missing: [
+          ...(spf.length === 0 ? ['SPF'] : []),
+          ...(dkim.length === 0 ? ['DKIM'] : []),
+          ...(dmarc.length === 0 ? ['DMARC'] : []),
+          ...(mx.length === 0 ? ['MX'] : [])
+        ]
+      });
+
+    } catch (err) {
+      console.error('[OVH DNS] audit error:', err.message);
+      return res.status(500).json({ error: 'Erreur audit DNS' });
     }
   });
 
