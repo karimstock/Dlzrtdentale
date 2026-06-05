@@ -60,7 +60,7 @@ const IMAP_CONFIGS = {
   gmail:   { host: 'imap.gmail.com',       port: 993 },
   outlook: { host: 'outlook.office365.com', port: 993 },
   yahoo:   { host: 'imap.mail.yahoo.com',  port: 993 },
-  ovh:     { host: 'ssl0.ovh.net',         port: 993 },
+  ovh:     { host: 'pro2.mail.ovh.net',     port: 993 },
   orange:  { host: 'imap.orange.fr',       port: 993 },
   free:    { host: 'imap.free.fr',         port: 993 },
 };
@@ -69,7 +69,7 @@ const SMTP_CONFIGS = {
   gmail:   { host: 'smtp.gmail.com',        port: 587 },
   outlook: { host: 'smtp-mail.outlook.com', port: 587 },
   yahoo:   { host: 'smtp.mail.yahoo.com',   port: 587 },
-  ovh:     { host: 'pro1.mail.ovh.net',     port: 587 },
+  ovh:     { host: 'pro2.mail.ovh.net',     port: 587 },
   orange:  { host: 'smtp.orange.fr',        port: 587 },
   free:    { host: 'smtp.free.fr',          port: 587 },
 };

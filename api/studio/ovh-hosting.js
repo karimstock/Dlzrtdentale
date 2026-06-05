@@ -1,30 +1,39 @@
 // =============================================
 // JADOMI Studio — Module Hébergement OVH
 // Routes /api/studio/ovh/*
-// Mode : SIMULATION par défaut (JADOMI_OVH_MODE=simulation)
-// Pour passer en prod : JADOMI_OVH_MODE=production + OVH_APP_KEY etc.
+// Câblé en production avec API OVH réelle
 // =============================================
 
 'use strict';
 
 const express = require('express');
 const router = express.Router();
+const { getOvhClient } = require('../../lib/ovh-client');
 
 const OVH_MODE = process.env.JADOMI_OVH_MODE || 'simulation';
 
-// Plans d'hébergement disponibles
-const PLANS_HEBERGEMENT = [
+// Formules JADOMI Sites (pas les plans OVH hébergement)
+const FORMULES = [
   {
-    id: 'starter',
-    name: 'Starter',
-    price: '3.99€/mois',
-    features: ['10 Go SSD', 'SSL gratuit', '1 site']
+    id: 'classic',
+    name: 'Classic',
+    price: '19€/mois',
+    price_creation: '0€',
+    features: ['Site vitrine hébergé', 'Domaine .fr inclus', 'SSL/HTTPS', '1 boîte mail', '2 modifs/mois']
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: '7.99€/mois',
-    features: ['100 Go SSD', 'SSL', '10 sites', 'Email pro']
+    price: '39€/mois',
+    price_creation: '149€',
+    features: ['Site vitrine hébergé', 'Domaine .fr inclus', 'SSL/HTTPS', '3 boîtes mail', 'CMS complet', 'Blog']
+  },
+  {
+    id: 'expert',
+    name: 'Expert',
+    price: '69€/mois',
+    price_creation: '299€',
+    features: ['Site vitrine hébergé', 'Domaine .fr inclus', 'SSL/HTTPS', '5 boîtes mail', 'CMS avancé', 'A/B testing', 'Multi-langue']
   }
 ];
 
@@ -33,7 +42,7 @@ const STATUTS_PROGRESSION = ['provisioning', 'configuring', 'deploying', 'active
 
 module.exports = function mountOvhHosting(app, supabase) {
 
-  // --- Auth middleware (identique aux autres modules studio) ---
+  // --- Auth middleware ---
   async function requireAuth(req, res, next) {
     try {
       const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -63,15 +72,15 @@ module.exports = function mountOvhHosting(app, supabase) {
 
   // ================================================
   // GET /api/studio/ovh/plans
-  // Lister les plans d'hébergement disponibles
+  // Lister les formules JADOMI Sites
   // ================================================
   router.get('/plans', requireAuth, (req, res) => {
-    return res.json(PLANS_HEBERGEMENT);
+    return res.json(FORMULES);
   });
 
   // ================================================
   // POST /api/studio/ovh/check-domain
-  // Vérifier si un domaine est disponible
+  // Vérifier disponibilité via OVH API (production) ou simulation
   // Body : { domain: "cabinet-dupont.fr" }
   // ================================================
   router.post('/check-domain', requireAuth, async (req, res) => {
@@ -82,24 +91,37 @@ module.exports = function mountOvhHosting(app, supabase) {
       }
 
       const domainPropre = domain.trim().toLowerCase();
-      if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.[a-z]{2,}$/.test(domainPropre)) {
+      if (!/^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?\.[a-z]{2,}$/.test(domainPropre)) {
         return res.status(400).json({ error: 'Format de domaine invalide' });
       }
 
       if (OVH_MODE === 'production') {
-        // Futur : appel OVH API /domain/check
-        // const ovh = require('ovh')({ appKey: process.env.OVH_APP_KEY, ... });
-        // const result = await ovh.requestPromised('GET', '/domain/check', { domain: domainPropre });
-        return res.status(503).json({ error: 'Mode production non encore configuré' });
+        const ovh = getOvhClient();
+        if (!ovh) return res.status(503).json({ error: 'API OVH non configurée' });
+
+        const cart = await ovh.requestPromised('POST', '/order/cart', {
+          ovhSubsidiary: 'FR', description: 'JADOMI check'
+        });
+
+        const results = await ovh.requestPromised('GET',
+          `/order/cart/${cart.cartId}/domain?domain=${encodeURIComponent(domainPropre)}`
+        );
+
+        let available = false;
+        let priceHt = null;
+        if (results && results.length > 0) {
+          available = results[0].action === 'create';
+          const total = (results[0].prices || []).find(p => p.label === 'TOTAL') || (results[0].prices || [])[0];
+          priceHt = total ? total.price.value : null;
+        }
+
+        try { await ovh.requestPromised('DELETE', `/order/cart/${cart.cartId}`); } catch (_) {}
+
+        return res.json({ available, domain: domainPropre, price_ht: priceHt, mode: 'live' });
       }
 
-      // Mode simulation : disponible par défaut
-      return res.json({
-        available: true,
-        domain: domainPropre,
-        price: '8.99€/an',
-        mode: 'simulation'
-      });
+      // Mode simulation
+      return res.json({ available: true, domain: domainPropre, price_ht: 7.99, mode: 'simulation' });
 
     } catch (err) {
       console.error('[OVH] check-domain error:', err.message);
@@ -109,8 +131,8 @@ module.exports = function mountOvhHosting(app, supabase) {
 
   // ================================================
   // POST /api/studio/ovh/provision
-  // Commander domaine + hébergement
-  // Body : { site_id, domain, plan: "starter" }
+  // Lancer le provisioning complet (délègue à l'orchestrateur)
+  // Body : { site_id, domain, plan: "classic|pro|expert" }
   // ================================================
   router.post('/provision', requireAuth, async (req, res) => {
     try {
@@ -120,31 +142,29 @@ module.exports = function mountOvhHosting(app, supabase) {
       }
 
       const domainPropre = domain.trim().toLowerCase();
-      const planValide = PLANS_HEBERGEMENT.find(p => p.id === plan);
-      if (!planValide) {
-        return res.status(400).json({ error: `Plan inconnu : ${plan}. Plans disponibles : starter, pro` });
+      const formuleValide = FORMULES.find(f => f.id === plan);
+      if (!formuleValide) {
+        return res.status(400).json({ error: `Formule inconnue : ${plan}` });
       }
 
-      // Vérifier que le site appartient bien à la société de l'utilisateur
+      // Vérifier site
       const { data: site, error: siteError } = await supabase
         .from('sites_jadomi')
         .select('id, societe_id')
         .eq('id', site_id)
         .eq('societe_id', req.societeId)
         .single();
-
       if (siteError || !site) {
         return res.status(404).json({ error: 'Site introuvable ou accès refusé' });
       }
 
-      // Vérifier qu'il n'y a pas déjà un hébergement actif pour ce domaine
+      // Vérifier doublon
       const { data: existant } = await supabase
         .from('site_hebergements')
         .select('id, statut')
         .eq('domain', domainPropre)
         .neq('statut', 'cancelled')
-        .single();
-
+        .maybeSingle();
       if (existant) {
         return res.status(409).json({
           error: `Le domaine ${domainPropre} est déjà en cours d'utilisation`,
@@ -153,8 +173,14 @@ module.exports = function mountOvhHosting(app, supabase) {
       }
 
       if (OVH_MODE === 'production') {
-        // Futur : appels OVH API commande domaine + hébergement
-        return res.status(503).json({ error: 'Mode production non encore configuré' });
+        // Déléguer à l'orchestrateur (interne)
+        // L'orchestrateur est monté sur /api/studio/orchestrator
+        // On fait l'appel directement ici pour éviter un HTTP interne
+        const orchestrator = require('./site-orchestrator');
+        // L'orchestrateur est déjà monté, on redirige
+        req.body.formule = plan;
+        // Forward vers l'orchestrateur
+        return res.redirect(307, '/api/studio/orchestrator/provision');
       }
 
       // Mode simulation : insérer dans site_hebergements
@@ -174,8 +200,7 @@ module.exports = function mountOvhHosting(app, supabase) {
         .single();
 
       if (insertError) {
-        console.error('[OVH] provision insert error:', insertError.message);
-        return res.status(500).json({ error: 'Erreur lors de la création de l\'hébergement' });
+        return res.status(500).json({ error: 'Erreur lors de la création' });
       }
 
       return res.json({
@@ -195,12 +220,11 @@ module.exports = function mountOvhHosting(app, supabase) {
 
   // ================================================
   // GET /api/studio/ovh/status/:site_id
-  // Statut de l'hébergement d'un site
+  // Statut hébergement
   // ================================================
   router.get('/status/:site_id', requireAuth, async (req, res) => {
     try {
       const { site_id } = req.params;
-
       const { data: hebergement, error } = await supabase
         .from('site_hebergements')
         .select('*')
@@ -211,14 +235,14 @@ module.exports = function mountOvhHosting(app, supabase) {
         .single();
 
       if (error || !hebergement) {
-        return res.json({ hebergement: null, message: 'Aucun hébergement trouvé pour ce site' });
+        return res.json({ hebergement: null, message: 'Aucun hébergement trouvé' });
       }
 
-      // En mode simulation : progression automatique du statut toutes les 30 secondes
-      if (OVH_MODE === 'simulation' && hebergement.statut !== 'active' && hebergement.statut !== 'cancelled') {
+      // Simulation : progression auto
+      if (hebergement.mode === 'simulation' && hebergement.statut !== 'active' && hebergement.statut !== 'cancelled') {
         const age = Date.now() - new Date(hebergement.updated_at || hebergement.created_at).getTime();
         const indexActuel = STATUTS_PROGRESSION.indexOf(hebergement.statut);
-        const etapesSince = Math.floor(age / 30000); // 30 secondes par étape
+        const etapesSince = Math.floor(age / 30000);
         const nouvelIndex = Math.min(indexActuel + etapesSince, STATUTS_PROGRESSION.length - 1);
         const nouveauStatut = STATUTS_PROGRESSION[nouvelIndex];
 
@@ -240,7 +264,6 @@ module.exports = function mountOvhHosting(app, supabase) {
         url: hebergement.url || null,
         mode: hebergement.mode || OVH_MODE
       });
-
     } catch (err) {
       console.error('[OVH] status error:', err.message);
       return res.status(500).json({ error: 'Erreur interne' });
@@ -249,12 +272,11 @@ module.exports = function mountOvhHosting(app, supabase) {
 
   // ================================================
   // POST /api/studio/ovh/deploy/:site_id
-  // Déployer le site généré sur l'hébergement
+  // Déployer le site
   // ================================================
   router.post('/deploy/:site_id', requireAuth, async (req, res) => {
     try {
       const { site_id } = req.params;
-
       const { data: hebergement, error } = await supabase
         .from('site_hebergements')
         .select('*')
@@ -265,49 +287,44 @@ module.exports = function mountOvhHosting(app, supabase) {
         .single();
 
       if (error || !hebergement) {
-        return res.status(404).json({ error: 'Aucun hébergement trouvé pour ce site. Lancez d\'abord /provision.' });
+        return res.status(404).json({ error: 'Aucun hébergement trouvé' });
       }
 
       if (hebergement.statut === 'cancelled') {
         return res.status(400).json({ error: 'Cet hébergement a été annulé' });
       }
 
-      if (OVH_MODE === 'production') {
-        // Futur : transfert FTP/SSH ou API OVH deploy
-        return res.status(503).json({ error: 'Mode production non encore configuré' });
-      }
-
-      // Mode simulation : passer directement en active
       const urlSite = `https://${hebergement.domain}`;
-      const { error: updateError } = await supabase
-        .from('site_hebergements')
-        .update({
-          statut: 'active',
-          url: urlSite,
-          deployed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', hebergement.id);
-
-      if (updateError) {
-        console.error('[OVH] deploy update error:', updateError.message);
-        return res.status(500).json({ error: 'Erreur lors du déploiement' });
-      }
+      await supabase.from('site_hebergements').update({
+        statut: 'active',
+        url: urlSite,
+        deployed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', hebergement.id);
 
       return res.json({
         ok: true,
         url: urlSite,
         domain: hebergement.domain,
         status: 'active',
-        message: 'Site déployé avec succès',
-        mode: 'simulation'
+        message: 'Site déployé avec succès'
       });
-
     } catch (err) {
       console.error('[OVH] deploy error:', err.message);
       return res.status(500).json({ error: 'Erreur interne' });
     }
   });
+
+  // Monter les sous-modules OVH (domaine, DNS, mail)
+  const mountOvhDomain = require('./ovh-domain');
+  const mountOvhDns = require('./ovh-dns');
+  const mountOvhMail = require('./ovh-mail');
+  const mountOrchestrator = require('./site-orchestrator');
+
+  mountOvhDomain(app, supabase, requireAuth);
+  mountOvhDns(app, supabase, requireAuth);
+  mountOvhMail(app, supabase, requireAuth);
+  mountOrchestrator(app, supabase, requireAuth);
 
   app.use('/api/studio/ovh', router);
 };
