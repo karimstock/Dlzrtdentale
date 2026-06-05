@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 4 juin 2026
-**Derniere passe** : Session 4 juin — Refonte scan FaceMatch (point cloud LiDAR) + auth gate Qonto + nettoyage disque
+**Derniere mise a jour** : 5 juin 2026
+**Derniere passe** : Session 5 juin — Pipeline OVH complet sites clients + SEO + anti-spam + formulaire contact
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -4985,6 +4985,110 @@ MODULE CREATION SITES COMPLET :
 - Onboarding : templates filtres par metier client + carousel
 - Bugs fixes : collision ID step-2, 18 fautes orthographe, 4 sections CMS
 - Table site_hebergements creee
+
+===============================================================
+# MODULE CREATION SITES INTERNET — REFERENCE COMPLETE
+===============================================================
+
+## Architecture pipeline (session 5 juin 2026)
+
+### Flux complet post-paiement (1 seul appel API)
+POST /api/studio/orchestrator/provision { site_id, domain, formule }
+  1. Achat domaine OVH via panier API (~7-9EUR/an .fr)
+  2. Attente zone DNS (polling 10s x 30 tentatives)
+  3. Config DNS auto : A → VPS 141.94.10.182, MX (5 serveurs), SPF, DMARC, SRV autodiscover, CNAME autoconfig
+  4. Generation site HTML (site-generator.js : template + sections + theme)
+  5. Setup Nginx vhost + Let's Encrypt SSL auto (scripts/setup-client-domain.sh)
+  6. Creation boites mail OVH MX Plan (1/3/5 selon formule)
+  7. Email de bienvenue au client avec identifiants mail
+  8. Statut → active, site live sur https://domaine-client.fr
+
+### Formules tarifaires
+- Classic 19EUR/mois (0EUR creation) : site + domaine + SSL + 1 boite mail + 2 modifs/mois
+- Pro 39EUR/mois (149EUR creation) : + 3 boites mail + CMS complet + blog
+- Expert 69EUR/mois (299EUR creation) : + 5 boites mail + CMS avance + A/B testing + multi-langue
+
+### Fichiers backend (API)
+- lib/ovh-client.js : client OVH API singleton partage (appKey, appSecret, consumerKey)
+- api/studio/ovh-hosting.js : module principal, monte tous les sous-modules, auth middleware
+- api/studio/ovh-domain.js : /check, /suggest, /purchase, /list (achat domaines)
+- api/studio/ovh-dns.js : /setup, /records/:domain, /setup-dkim, /audit/:domain
+- api/studio/ovh-mail.js : /create, /list/:domain, /reset-password, /delete, /redirect, /redirections/:domain
+- api/studio/site-orchestrator.js : pipeline complet 8 etapes, async, retry-ssl, retry-mail
+- api/studio/contact-form.js : formulaire contact public, honeypot, rate limit, email notif
+- api/studio/stripe-checkout.js : Stripe checkout + webhook + abonnements
+- api/studio/sites-jadomi/index.js : CRUD sites, themes, sections, upload, publier, rollback
+- api/studio/cms/index.js : CMS dashboard, middleware forfait/quotas
+- api/vitrines/chat.js : chatbot onboarding IA (23 professions, Claude Sonnet)
+- api/vitrines/domains.js : suggestions domaines, check DNS, OVH live check
+- api/vitrines/generate-section.js : generation contenu IA par metier
+- services/site-generator.js : moteur HTML (template + sections + CSS theme + sitemap + robots.txt + GA)
+- services/ia-assistant.js : suggestions texte/palette/photos (Claude + Pexels)
+- scripts/setup-client-domain.sh : Nginx vhost + certbot SSL + headers securite
+
+### Fichiers SQL
+- sql/vitrines/33_passe33_modules_analysis.sql (4 tables)
+- sql/vitrines/39_cms_formules.sql (7 tables : studio_forfaits, studio_abonnements, site_contenus, site_contenus_historique, site_photos, site_demandes_modif, site_analyses)
+- sql/studio/42_sites_crees_jadomi.sql (sites_jadomi, sites_jadomi_sections, sites_jadomi_versions, suggestions_ia)
+- sql/studio/43_themes_sites_tier.sql (themes_sites : 60 seeds classic/pro/expert)
+- sql/studio/05_site_hebergements.sql (hebergement OVH, statut, domain, plan)
+- sql/studio/06_site_contact_submissions.sql (soumissions formulaire contact + RLS + GRANT)
+
+### Themes (68 themes premium)
+- 20 par metier (dentiste, avocat, sante...), repartis Classic (4) / Pro (6) / Expert (10)
+- Architecture : templates/themes/_base/template.html + CSS par theme
+- Styles : Clean, Swiss, Nordic, Zen, Ocean Deep, Obsidian, Aurora, Versailles, Film Noir, Bauhaus, Glassmorphism, Wabi-Sabi...
+
+### SEO integre (session 5 juin)
+- Open Graph meta tags (og:title, og:description, og:image, og:url, og:type, og:locale)
+- Twitter Cards (twitter:card, twitter:title, twitter:description, twitter:image)
+- JSON-LD LocalBusiness schema (nom, description, telephone, adresse, email, url)
+- Canonical URL, robots meta (index, follow)
+- Favicon support (placeholder)
+- robots.txt genere automatiquement
+- sitemap.xml avec lastmod + changefreq + priority
+- Google Analytics injectable (champ ga_tracking_id dans section SEO)
+
+### Anti-spam email (session 5 juin)
+- jadomi.fr : score 100/100 (SPF + DKIM 2 cles + DMARC + 5 MX)
+- Domaines clients : DMARC auto dans le setup DNS
+- DKIM activable via /api/studio/ovh/dns/setup-dkim
+- Audit anti-spam par domaine : /api/studio/ovh/dns/audit/:domain
+- Redirections email gratuites (direction@, compta@, rdv@ → Gmail perso)
+
+### API OVH (cles production)
+- Application : JADOMI Sites (56157972695d0137)
+- Droits : full access (GET/POST/PUT/DELETE sur /*)
+- Consumer Key : 9e386f8ceb79a599e47191a9ecf06a50
+- Compte OVH : bk1405647-ovh (karim bahmed)
+- Domaines existants : jadomi.fr, jadomi.be, facematch.dental
+- Email Pro : pro2.mail.ovh.net (noreply@jadomi.fr, contact@jadomi.fr)
+- VPS IP : 141.94.10.182
+
+### Formulaire de contact (session 5 juin)
+- Endpoint public : POST /api/sites/contact/submit (pas d'auth)
+- Honeypot anti-bot (champ website invisible)
+- Rate limit : 5 soumissions par IP par heure
+- Sanitisation XSS (strip HTML tags)
+- Stockage : table site_contact_submissions (avec RLS)
+- Notification email automatique au proprietaire du site
+- Frontend : formulaire integre dans template base
+
+### TODO RESTANT POUR PRODUCTION
+- [ ] Executer SQL 06_site_contact_submissions.sql dans Supabase
+- [ ] Monter contact-form.js dans server.js (route /api/sites/contact)
+- [ ] Tester pipeline E2E complet (achat domaine → site live)
+- [ ] Configurer moyen de paiement OVH (CB) pour achats domaines auto
+- [ ] Installer certbot sur VPS si pas deja fait (sudo apt install certbot python3-certbot-nginx)
+- [ ] Ajouter WYSIWYG editor dans CMS Pro/Expert (Quill.js ou TipTap)
+- [ ] Optimisation images : WebP auto via sharp (deja installe)
+- [ ] CDN pour /sites-clients/ (Cloudflare ou R2)
+- [ ] Dashboard admin : vue des provisioning en cours/echoues
+- [ ] Retry automatique si DNS/mail/SSL echoue (state machine avec exponential backoff)
+- [ ] Integration Google Search Console (soumettre sitemap auto)
+- [ ] Widget RDV integrable (Doctolib embed ou Calendly)
+- [ ] Module avis Google Business Profile (scrape + affichage)
+- [ ] Multi-langue (traduction Claude, infrastructure DB existante)
 
 INFRA :
 - Agent briefing cree (.claude/agent-briefing.md) pour que les sous-agents aient le contexte JADOMI
