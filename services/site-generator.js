@@ -43,7 +43,11 @@ function buildRenderData(site, sections, theme) {
     photo_hero: '',
     photo_cabinet: '',
     photo_equipe: '',
-    logo_url: ''
+    logo_url: '',
+    favicon_url: '',
+    ga_tracking_id: '',
+    canonical_url: '',
+    og_image: ''
   };
 
   // Remplir depuis les sections
@@ -87,8 +91,16 @@ function buildRenderData(site, sections, theme) {
       case 'about':
         if (!data.description_courte) data.description_courte = val.texte || '';
         break;
+      case 'seo':
+        data.favicon_url = val.favicon || data.favicon_url;
+        data.ga_tracking_id = val.ga_id || data.ga_tracking_id;
+        break;
     }
   }
+
+  // Champs SEO déduits après parsing des sections
+  if (!data.canonical_url) data.canonical_url = data.url_jadomi;
+  if (!data.og_image) data.og_image = data.photo_hero;
 
   return data;
 }
@@ -150,10 +162,20 @@ async function genererSite(siteId, supabase) {
     html = html.replace('</head>', `<style>${styleCss}</style>\n</head>`);
   }
 
+  // Injecter Google Analytics si configuré
+  if (renderData.ga_tracking_id) {
+    const gaScript = `<script async src="https://www.googletagmanager.com/gtag/js?id=${renderData.ga_tracking_id}"></script>\n<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${renderData.ga_tracking_id}');</script>\n`;
+    html = html.replace('</head>', gaScript + '</head>');
+  }
+
   // 4. Écrire dans /sites-clients/
   const siteDir = path.join(SITES_DIR, site.slug);
   if (!fs.existsSync(siteDir)) fs.mkdirSync(siteDir, { recursive: true });
   fs.writeFileSync(path.join(siteDir, 'index.html'), html, 'utf8');
+
+  // Générer robots.txt
+  const robotsTxt = `User-agent: *\nAllow: /\nSitemap: ${renderData.url_jadomi}sitemap.xml\n`;
+  fs.writeFileSync(path.join(siteDir, 'robots.txt'), robotsTxt, 'utf8');
 
   // Copier les assets du theme
   const themeAssetsDir = path.join(themeDir, 'assets');
@@ -165,10 +187,11 @@ async function genererSite(siteId, supabase) {
     }
   }
 
-  // 5. Générer sitemap.xml
+  // 5. Générer sitemap.xml (lastmod en ISO 8601 complet)
+  const isoNow = new Date().toISOString();
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${renderData.url_jadomi}</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod></url>
+  <url><loc>${renderData.url_jadomi}</loc><lastmod>${isoNow}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
 </urlset>`;
   fs.writeFileSync(path.join(siteDir, 'sitemap.xml'), sitemap, 'utf8');
 

@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{nom_cabinet}}</title>
 <meta name="description" content="{{description_courte}}">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="{{url_jadomi}}">
+<link rel="icon" href="{{favicon_url}}" type="image/png">
+<!-- Open Graph -->
+<meta property="og:title" content="{{nom_cabinet}}">
+<meta property="og:description" content="{{description_courte}}">
+<meta property="og:image" content="{{photo_hero}}">
+<meta property="og:url" content="{{url_jadomi}}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{nom_cabinet}}">
+<meta name="twitter:description" content="{{description_courte}}">
+<meta name="twitter:image" content="{{photo_hero}}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family={{typo_display}}:ital,wght@0,400;0,700;1,700&family={{typo_body}}:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -108,6 +123,22 @@ button{font-family:var(--font-body);cursor:pointer;border:none;}
 /* === THEME CSS (injecte par le generateur) === */
 {{theme_css}}
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "{{nom_cabinet}}",
+  "description": "{{description_courte}}",
+  "image": "{{photo_hero}}",
+  "url": "{{url_jadomi}}",
+  "telephone": "{{telephone}}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{adresse}}"
+  },
+  "email": "{{email}}"
+}
+</script>
 </head>
 <body>
 
@@ -196,6 +227,34 @@ button{font-family:var(--font-body);cursor:pointer;border:none;}
 </div>
 </section>
 
+<!-- CONTACT FORM -->
+<section id="contact-form" style="padding:60px 20px;max-width:600px;margin:0 auto">
+  <h2 style="text-align:center;margin-bottom:32px">Nous contacter</h2>
+  <form id="jadomi-contact-form" onsubmit="return submitContactForm(event)">
+    <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+    <div style="margin-bottom:16px">
+      <label style="display:block;margin-bottom:4px;font-weight:600">Nom</label>
+      <input type="text" name="name" required style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;margin-bottom:4px;font-weight:600">Email</label>
+      <input type="email" name="email" required style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;margin-bottom:4px;font-weight:600">Téléphone</label>
+      <input type="tel" name="phone" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;margin-bottom:4px;font-weight:600">Message</label>
+      <textarea name="message" required rows="4" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;resize:vertical"></textarea>
+    </div>
+    <button type="submit" style="width:100%;padding:14px;background:{{couleur_primaire}};color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer">
+      Envoyer
+    </button>
+    <p id="contact-msg" style="text-align:center;margin-top:12px;display:none"></p>
+  </form>
+</section>
+
 <!-- FOOTER -->
 <footer class="footer">
   <div class="container">
@@ -214,6 +273,24 @@ document.querySelectorAll('.services-grid .service-card, .team-grid .team-card')
 // Nav scroll effect
 const nav=document.getElementById('main-nav');
 window.addEventListener('scroll',()=>{nav.classList.toggle('scrolled',window.scrollY>20);},{passive:true});
+</script>
+<script>
+function submitContactForm(e){
+  e.preventDefault();
+  var f=e.target,d=new FormData(f);
+  if(d.get('website'))return false;
+  var msg=document.getElementById('contact-msg');
+  msg.style.display='block';msg.style.color='#666';msg.textContent='Envoi en cours...';
+  fetch('/api/sites/contact/submit',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({slug:'{{slug}}',name:d.get('name'),email:d.get('email'),phone:d.get('phone'),message:d.get('message'),website:d.get('website')})
+  }).then(function(r){return r.json()}).then(function(j){
+    if(j.ok){msg.style.color='#27ae60';msg.textContent='Votre message a bien été envoyé.';f.reset();}
+    else{msg.style.color='#c0392b';msg.textContent=j.error||'Une erreur est survenue.';}
+  }).catch(function(){msg.style.color='#c0392b';msg.textContent='Erreur réseau, veuillez réessayer.';});
+  return false;
+}
 </script>
 </body>
 </html>
