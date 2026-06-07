@@ -94,7 +94,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/app-preview')) {
     res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;");
   } else {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://www.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://vsbomwjzehnfinfjvhqp.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://cdn.jsdelivr.net https://unpkg.com https://*.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://router.project-osrm.org https://www.gstatic.com; frame-src 'self' https://js.stripe.com http://localhost:3100; worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net https://www.gstatic.com;");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js.stripe.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://www.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://vsbomwjzehnfinfjvhqp.supabase.co https://api.anthropic.com https://api.openai.com https://api.stripe.com wss://*.supabase.co https://nominatim.openstreetmap.org https://*.tile.openstreetmap.org https://cdn.jsdelivr.net https://unpkg.com https://*.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://tiles.openfreemap.org https://api.tomtom.com https://*.openfreemap.org https://fonts.openmaptiles.org https://www.gstatic.com; frame-src 'self' https://js.stripe.com http://localhost:3100; worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net https://www.gstatic.com;");
   }
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   if (req.path.startsWith('/api/')) {
@@ -211,8 +211,9 @@ app.post('/gate', express.urlencoded({ extended: false }), (req, res) => {
   return res.redirect('/?gate=error');
 });
 
-// Middleware verrou — bloque tout sauf assets statiques
-app.use((req, res, next) => {
+// Middleware verrou — TEMPORAIREMENT DÉSACTIVÉ pour vérification Qonto (4 juin 2026)
+// À RÉACTIVER dès validation Qonto : décommenter le bloc ci-dessous
+/* app.use((req, res, next) => {
   // Laisser passer les assets, API, webhooks, robots.txt, pages publiques
   // Pages publiques — DÉCOMMENTER QUAND PRÊT AU LANCEMENT PUBLIC :
   // const publicPaths = ['/', '/landing', '/chirurgiens-dentistes', '/dentistes', '/prothesistes-dentaires',
@@ -232,7 +233,7 @@ app.use((req, res, next) => {
   // Pas de cookie → afficher la page verrou
   const error = req.query.gate === 'error';
   return res.status(401).send(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JADOMI — Accès protégé</title><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;background:#0a0a0f;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{background:rgba(22,22,31,.9);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:48px 40px;width:100%;max-width:400px;text-align:center;backdrop-filter:blur(20px);box-shadow:0 24px 48px rgba(0,0,0,.4)}.logo{font-family:Syne,sans-serif;font-size:32px;font-weight:800;background:linear-gradient(135deg,#0d9488,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}.subtitle{font-size:14px;color:#737373;margin-bottom:32px}input{width:100%;padding:14px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#e5e5e5;font-size:16px;font-family:Inter,sans-serif;outline:none;transition:border-color .2s;margin-bottom:16px}input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.15)}button{width:100%;padding:14px;background:#0d9488;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;transition:background .2s}button:hover{background:#0f766e}.error{color:#ef4444;font-size:13px;margin-bottom:12px}</style></head><body><div class="card"><div class="logo">JADOMI</div><div class="subtitle">Accès réservé au fondateur</div>${error ? '<div class="error">Mot de passe incorrect</div>' : ''}<form method="POST" action="/gate"><input type="hidden" name="redirect" value="${req.originalUrl}"><input type="password" name="password" placeholder="Mot de passe" autofocus autocomplete="current-password"><button type="submit">Accéder</button></form></div></body></html>`);
-});
+}); */
 
 // Middleware : strip .html extension et rediriger vers URL propre (conserve les query params)
 // 302 (pas 301) pour ne pas casser le bouton retour du navigateur
@@ -292,6 +293,8 @@ app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'p
 app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
+app.get('/studio/mon-site/builder', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/builder.html')));
+app.get('/studio/mon-site/configurateur', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/configurateur.html')));
 // SEO Landing pages — Soins infirmiers par ville (dynamic route)
 app.get('/soins/:ville', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/ide/soins-ville.html'));
@@ -1643,7 +1646,7 @@ try {
   // Exposer supabaseAdmin globalement pour le webhook Stripe
   global.__supabaseAdmin = supabaseAdmin;
   global.__supabase      = supabase;
-  app.use('/api/studio/stripe', require('./api/studio/stripe-checkout'));
+  app.use('/api/studio/stripe', authSupabase ? authSupabase() : (req, res, next) => next(), require('./api/studio/stripe-checkout'));
   console.log('[JADOMI] Module Studio Stripe Checkout (TEST) monté');
 } catch (e) {
   console.warn('[JADOMI] Module Studio Stripe Checkout non chargé:', e.message);
@@ -3785,7 +3788,7 @@ app.get('/api/comparateur/search', async (req, res) => {
     // Recherche par nom OU référence OU marque
     const { data, error } = await sb
       .from('scraped_prices')
-      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, price_ttc, price_type, url, scraped_at')
+      .select('supplier_name, product_name, brand, reference, price, price_original, discount_percent, price_ttc, price_type, url, scraped_at, matched_product_id')
       .or(`product_name.ilike.%${q}%,reference.ilike.%${q}%,brand.ilike.%${q}%`)
       .gt('price', 0.10)
       .order('price_ttc', { ascending: true, nullsFirst: false })
@@ -3796,8 +3799,8 @@ app.get('/api/comparateur/search', async (req, res) => {
     // Grouper par produit similaire (même ref fabricant ou nom proche)
     const groups = {};
     for (const p of (data || [])) {
-      // Clé de groupement : ref fabricant ou nom normalisé
-      const refKey = p.reference && p.reference.length > 3 ? p.reference.replace(/^0+/, '') : null;
+      // Clé de groupement : groupe cross-matching (moteur embeddings+Qwen) > ref > nom normalisé
+      const refKey = p.matched_product_id || (p.reference && p.reference.length > 3 ? p.reference.replace(/^0+/, '') : null);
       const nameKey = p.product_name.toLowerCase()
         .replace(/[-–—]/g, ' ')
         .replace(/\s+/g, ' ')
@@ -3900,6 +3903,37 @@ app.get('/api/comparateur/stats', async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: 'Erreur stats' });
+  }
+});
+
+// GET /api/comparateur/semantic?q=... — Recherche sémantique RAG (100% locale)
+// Comprend le langage naturel : "composite pour molaire pas cher", "NiTi mandibule"...
+app.get('/api/comparateur/semantic', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q || q.length < 3) return res.status(400).json({ error: 'Recherche trop courte (min 3 caractères)' });
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    // require lazy : better-sqlite3 chargé uniquement au premier appel
+    const rag = require('./lib/rag');
+    const hits = await rag.searchProducts(q, limit);
+    res.json({
+      query: q,
+      mode: 'semantic',
+      index: rag.status().products,
+      results: hits.map(h => ({
+        product_name: h.product_name,
+        brand: h.brand,
+        category: h.category,
+        supplier: h.supplier_name,
+        reference: h.reference,
+        price_ttc: h.price_ttc,
+        url: h.url,
+        score: Math.round((1 - h.distance / 2) * 100) / 100, // distance cosinus → score lisible
+      })),
+    });
+  } catch (e) {
+    console.error('[comparateur] semantic error:', e.message);
+    res.status(500).json({ error: 'Erreur recherche sémantique' });
   }
 });
 

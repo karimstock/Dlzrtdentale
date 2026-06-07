@@ -634,7 +634,8 @@ async function notifierDentistesDepart(tourneeId, prothesisteId) {
 }
 
 // POST /api/labo/tournees/:id/demarrer — Démarrer la tournée
-router.post('/:id/demarrer', async (req, res) => {
+// :id contraint aux UUID — sinon Express avale /app/demarrer (id="app") → crash uuid
+router.post('/:id([0-9a-fA-F-]{36})/demarrer', async (req, res) => {
   try {
     const { data, error } = await admin()
       .from('labo_tournees_livreur')
@@ -660,7 +661,8 @@ router.post('/:id/demarrer', async (req, res) => {
 });
 
 // POST /api/labo/tournees/:id/terminer — Terminer la tournée
-router.post('/:id/terminer', async (req, res) => {
+// :id contraint aux UUID — sinon Express avale /app/terminer (id="app") → crash uuid
+router.post('/:id([0-9a-fA-F-]{36})/terminer', async (req, res) => {
   try {
     const { data, error } = await admin()
       .from('labo_tournees_livreur')
