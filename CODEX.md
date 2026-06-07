@@ -5761,7 +5761,136 @@ scanner des PIECES, pas des visages. Mesh trop low-res, bloque a 3-8%.
 - Reponse a Qonto redigee : JADOMI = SaaS, pas marketplace
 
 Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
+
+## Session 7 juin 2026 — Nouveau serveur RISE-M + Reveil de Qwen
+
+### Migration OVH RISE-M validee (jadomi-srv, IP 217.182.132.136)
+- Ryzen 9 9900X 16c/32t, 64 Go DDR5, 467 Go RAID NVMe (18% utilise)
+- DNS jadomi.fr + jadomi.be bascules, HTTPS 200, PM2 stable, 11 crontabs migres
+- Double-run 7 jours jusqu'au ~14 juin, puis couper ancien VPS 141.94.10.182
+- ATTENTION : le .git de /home/ubuntu/jadomi n'a PAS ete migre — recuperer
+  l'historique git depuis l'ancien VPS AVANT de le couper
+- A FAIRE : verifier SMTP/SPF avec la nouvelle IP
+
+### Securite durcie (le serveur etait sorti de migration SANS firewall)
+- UFW active : deny par defaut, seuls 22/80/443 ouverts
+- fail2ban installe + actif (jail sshd)
+- OSRM Docker rebinde 127.0.0.1:5000 (Docker contourne UFW — recree avec
+  -p 127.0.0.1:5000:5000, memes params, routing teste OK)
+- Ollama deja en 127.0.0.1 only, SSH cles uniquement
+
+### Nouveau cerveau IA local : qwen3.6:35b-a3b (MoE)
+- Benchmarks CPU reels : qwen3.6:35b-a3b = 20,9 tok/s (35B total, 3B actifs/token)
+  vs qwen2.5:32b dense = 3,1 tok/s (teste puis supprime) vs llama3.1:8b = 12,6 tok/s
+- Lecon : sur CPU le goulot = bande passante DDR5 → MoE obligatoire
+- PIEGE : qwen3.6 est un modele "thinking" → think:false OBLIGATOIRE dans
+  l'appel API sinon il raisonne 2000+ tokens avant de repondre (2 min vs 5 s)
+- DeepSeek API : ON GARDE tant qu'il y a du credit (43,64 $ verifie), toujours
+  bride par Data Guard. Quand epuise → basculer local, NE PAS recharger
+
+### Reveil de Qwen — le niveau Ollama etait MORT depuis la migration
+- DECOUVERTE : ia-router.js et legal-ia-router.js pointaient sur qwen2.5:14b,
+  analyzer.js sur mistral:7b — modeles PAS installes sur le nouveau serveur
+- Chaque appel Ollama echouait ("model not found") → fuite vers Mistral/Claude payants
+- 3 fichiers corriges (backups dans backups/reveil-qwen-20260607/) :
+  1. lib/ia-router.js : OLLAMA_MODEL=qwen3.6:35b-a3b, FAST=llama3.1:8b,
+     ollamaGenerate enrichi (think:false, options.system, options.json=schema
+     JSON impose via format Ollama, timeout 120s), OLLAMA_SCHEMAS ajoutes,
+     OLLAMA_TASKS reecrites avec few-shot + schemas (normalizeProduct,
+     extractStructured, classifyProduct, matchProducts, generatePatientMessage
+     avec JADOMI_BASE_PROMPT en system)
+  2. lib/legal-providers/legal-ia-router.js : meme modele + think:false + timeout 120s
+  3. lib/scrape-ia/analyzer.js : meme modele + think:false (API /api/chat)
+- Tests reels valides : normalisation produit JSON parfait, "la seize" dicte
+  → dent 16 FDI, gutta-percha → endodontie en 1,2 s, SMS patient vouvoiement
+  parfait, cross-match Septanest 2 fournisseurs → 100/100
+- pm2 reload jadomi OK, site 200
+- Reviewer agent passe derriere (methode Builder/Reviewer)
+
+### Prochaines etapes Qwen warrior (plan valide fondateur)
+- Phase 2 : RAG avec nomic-embed-text (deja installe) sur les 225K produits,
+  CCAM, jurisprudence — pgvector Supabase
+- Phase 3 : outils (lookup Supabase, calculs exacts)
+- Phase 4 : fine-tuning LoRA "Qwen-JADOMI" — dataset genere par Claude depuis
+  les vraies taches, GPU loue quelques heures
+
+PAS DE COMMIT GIT : le depot .git n'existe plus sur ce serveur (voir ci-dessus)
+
+### Suite de soiree (apres coupure SSH) — RAG + Moteur cross-matching
+
+**Phase 2 Qwen : RAG 100% local DEPLOYE**
+- Decision : stockage vectoriel LOCAL (SQLite + sqlite-vec v0.1.9) au lieu de
+  pgvector Supabase — pas d'acces DDL cette session (MCP OAuth perdu avec
+  .claude.json) ET de toute facon meilleur : recherche sub-ms, zero reseau,
+  souverainete totale Roubaix
+- npm install better-sqlite3 sqlite-vec (PIEGE sqlite-vec : rowid exige un
+  BigInt, sinon "Only integers are allowed")
+- Nouveau module lib/rag/ : embedder.js (nomic-embed-text, prefixes
+  search_document:/search_query: obligatoires), store.js (SQLite WAL,
+  data/rag/products.db), index.js (searchProducts, buildContext, status)
+- scripts/rag-index-products.js : indexe scraped_prices (238 329 produits,
+  pas 225K !) via REST keyset pagination, resumable (meta.last_sb_id),
+  105 embeds/s → ~40 min
+- ia-router : OLLAMA_TASKS.searchCatalog + answerCatalog (RAG + Qwen repond
+  avec les vraies donnees — teste : compare les prix, calcule le prix unitaire
+  des boites, zero invention)
+- Endpoint public GET /api/comparateur/semantic?q= (recherche langage naturel,
+  "NiTi mandibule" trouve les arcs nickel-titane inferieurs) — DEPLOYE, site 200
+
+**Moteur cross-matching produits (scripts/match-products.js) — LE chantier
+"1 produit = N revendeurs" reclame par le fondateur**
+- DECOUVERTE : les colonnes matched_product_id, matched_gtin, match_confidence,
+  manufacturer_ref existent dans scraped_prices depuis le debut — TOUTES NULL.
+  Chaque fournisseur a sa ref interne (GACD=SAP 18 chiffres, doctorstrong=slug,
+  dentalree=V-856/014C) → aucun croisement possible par ref
+- Pipeline : candidats par embeddings (KNN, dist<0.32) → signature variants
+  (nombres, teintes, tailles) → comparaison des MOTS → zone grise → verdict Qwen
+  (cache match_verdicts, jamais re-juge) → union-find → PATCH Supabase groupe
+- CALIBRATION CRITIQUE (3 iterations, verification VISUELLE a chaque fois) :
+  1. Distance seule = piege : "Olive n°21" vs "n°23" d=0.230 (proches mais
+     produits differents) → tokens numeriques differents = rejet auto
+  2. Nombres egaux ne suffisent PAS : "Gradia 2.7ml CV" vs "BW" = teintes
+     differentes → tout mot different en code court (CV, BW, LG, UG) ou
+     couleur = rejet auto
+  3. AVEC/SANS retires des stopwords ("Avec Torque" ≠ "Sans Torque")
+- Resultat echantillon 3000 produits : 760 groupes multi-fournisseurs propres
+  (ex: IPS E-Max Ceram NO3 a 189,16€ chez doctorstrong+doctorai+megadental)
+- /api/comparateur/search groupe maintenant par matched_product_id en priorite
+- Matching complet lance en arriere-plan apres fin d'indexation
+
+**Tournee livreur : TESTABLE SUR IPHONE (zero code touche)**
+- Le diagnostic agent annoncait un bug de routage 401 — FAUX, verifie moi-meme :
+  la route /api/labo/tournees/app/tournee marche, 401 = token invalide normal
+- Vrai blocage : aucune tournee du jour en base. Cree tournee test (Antoine
+  LEROY, Labo Prothese du Nord) + 4 demandes de passage + 4 arrets
+  Lille/Roubaix via REST
+- PIEGES constraints : creneau='matin' (pas 'journee'), navigation_app
+  n'accepte PAS 'jadomi' (constraint a corriger — regle fondateur carte JADOMI
+  par defaut !), type_passage='recuperation' (pas 'collecte'), demande_id NOT NULL
+- Lien test envoye au fondateur : /labo/livreur-app?token=95796182...
+
+**Diagnostics Passe FONCTIONNEL (3 agents, lecture seule) — fixes EN ATTENTE
+de validation fondateur, fichier par fichier**
+1. Invitation assistantes (api/dentiste-pro/team.js) : construit a 99% MAIS
+   (a) email d'invitation avale les erreurs en silence (ligne ~657),
+   (b) CRITIQUE : accept-invitation ne cree PAS la ligne user_societe_roles
+   → l'assistante ne peut pas acceder au dashboard apres creation de compte,
+   (c) header X-Societe-Id a verifier dans apiFetch de dentiste-pro.html
+2. Tournees IDE : admin n'a pas de cabinet IDE → 404 sur toutes les API IDE.
+   Geoloc iOS : timeout 5s trop court, toast erreur invisible
+3. FaceMatch : le serveur est PRET et n'a JAMAIS recu un seul upload (dossier
+   uploads vide, logs vides). Le code iOS est dans le repo GitHub
+   karimstock/facematch-ios (PAS sur le serveur), refonte 4 juin (point cloud
+   depth map, build 11). Symptome "detecte visage puis rien" = regression
+   probable dans FaceScanSession.swift apres la refonte. Demander au fondateur :
+   TestFlight ou Xcode direct ?
+
+**Recuperation .git ancien VPS** : cle ed25519 generee sur jadomi-srv, commande
+one-liner donnee au fondateur pour autoriser la cle sur 141.94.10.182 (AVANT
+le 14 juin). NB : facematch-ios est sur GitHub karimstock → verifier si jadomi
+y est aussi.
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
+Derniere mise a jour : 7 juin 2026 (Session RISE-M + Qwen + RAG + cross-matching)
 ===============================================================
