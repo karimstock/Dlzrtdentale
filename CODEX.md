@@ -5761,7 +5761,59 @@ scanner des PIECES, pas des visages. Mesh trop low-res, bloque a 3-8%.
 - Reponse a Qonto redigee : JADOMI = SaaS, pas marketplace
 
 Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
+
+## Session 9 juin 2026 — FaceMatch refonte complete + concurrent Giantix/Qlone
+
+### Concurrent identifie : Giantix (giantix.com)
+- Logiciel gestion cabinet dentaire tout-en-un, IA "Orelia"
+- Telephonie IA 24/7, transcription consultations, analyse radios
+- Pas un concurrent direct (gestion cabinet), mais confirme le marche IA dentaire
+
+### Concurrent scan : Qlone Dental
+- Scan 3D facial par photogrammetrie, export exocad/3Shape
+- JADOMI FaceMatch vise a faire mieux : LiDAR + texture 4K + auto
+
+### Refonte complete scan FaceMatch (10+ commits)
+
+**Remplacement ObjectCaptureSession → LiDAR direct**
+- ObjectCaptureSession (objets statiques) ne marchait pas pour visages vivants
+- Nouveau : capture depth LiDAR frame par frame (4fps, 60 max)
+- Sourire obligatoire avant scan, auto-finish quand couverture complete
+
+**UX premium 2026**
+- Silhouette anatomique visage (bezier curves avec oreilles/tempes/machoire)
+- Points verts LiDAR temps reel (SceneKit point cloud, ~1400 pts, 10fps)
+- CoreHaptics : vibration continue + pulse par capture + countdown
+- Auto-start : sourire+distance OK 2s → 3-2-1 → scan auto
+- Scanning line animee + glow pulsant + corner brackets
+
+**Texture baking 4K (serveur)**
+- xatlas UV unwrap + projection multi-vues → atlas 4096x4096
+- Export OBJ + MTL + face_texture.png
+- Pipeline : TSDF → Poisson → xatlas → texture bake
+
+**Rendu PBR (iOS)**
+- ColoredMeshPreviewView.swift cree + ajoute au xcodeproj
+- PBR materials, studio lighting 3 pts, HDR bloom, auto-rotation
+- Charge PLY (vertex colors) ou OBJ+texture (4K)
+
+**Streaming temps reel**
+- Endpoints : /stream/start, /stream/frame, /stream/finish
+- Chaque frame uploadee pendant le scan en background
+- Reconstruction quasi-instantanee apres scan
+
+**Bugs fixes**
+- python-multipart limite 1024KB → endpoint JSON /api/reconstruct/json
+- np.frombuffer read-only → .copy() ajoute
+- CoreHaptics.framework ajoute au xcodeproj
+
+**Bug en cours a la fin de session**
+- Upload bloque a 10% → le build TestFlight n'a pas encore le fix JSON
+- Prochain build devrait regler le probleme
+- Serveur port 8001 relance manuellement (pas PM2)
+
+Derniere mise a jour : 9 juin 2026 (Session FaceMatch refonte + Giantix)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
+Derniere mise a jour : 9 juin 2026 (Session FaceMatch refonte + Giantix)
 ===============================================================
