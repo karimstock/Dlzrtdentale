@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 5 juin 2026
-**Derniere passe** : Session 5 juin — Pipeline OVH complet sites clients + SEO + anti-spam + formulaire contact
+**Derniere mise a jour** : 10 juin 2026
+**Derniere passe** : Session 10 juin — FaceMatch fix pipeline complet (streaming JSON + PM2 + veille iOS)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -2410,6 +2410,9 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
+- ~~FaceMatch upload 10% puis echoue~~ [CORRIGE Session 10 juin — streaming JSON]
+- ~~FaceMatch serveur port 8001 pas persistant~~ [CORRIGE — PM2 facematch-implant]
+- FaceMatch : tester scan end-to-end avec nouveau build TestFlight (build en cours 10 juin)
 - CSP unsafe-inline (dette technique — a remplacer par nonces/hashes quand refacto frontend)
 - ~~npm xlsx abandonne (6 CVEs)~~ [CORRIGE Passe 64 — migre vers exceljs]
 - STRIPE_WEBHOOK_SECRET non configure (webhook rejete si absent — configurer dans Stripe Dashboard)
@@ -5807,13 +5810,49 @@ Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
 - np.frombuffer read-only → .copy() ajoute
 - CoreHaptics.framework ajoute au xcodeproj
 
-**Bug en cours a la fin de session**
-- Upload bloque a 10% → le build TestFlight n'a pas encore le fix JSON
-- Prochain build devrait regler le probleme
-- Serveur port 8001 relance manuellement (pas PM2)
+**Bug en cours a la fin de session 9 juin**
+- ~~Upload bloque a 10%~~ [CORRIGE Session 10 juin]
+- ~~Serveur port 8001 relance manuellement~~ [CORRIGE — PM2 facematch-implant]
 
-Derniere mise a jour : 9 juin 2026 (Session FaceMatch refonte + Giantix)
+## Session 10 juin 2026 — FaceMatch fix pipeline complet
+
+### Diagnostic et corrections (4 fixes)
+
+**1. Serveur port 8001 DOWN (CORRIGE)**
+- modules/app.py (reconstruction, implants) n'etait pas lance
+- nginx routait /api/reconstruct → port 8001 → connection refused → 502
+- Fix : ajoute a PM2 sous nom "facematch-implant", pm2 save fait
+
+**2. stream/frame → 400 Bad Request (CORRIGE)**
+- python-multipart bloquait sur champs Form >256KB (depth_data_b64, rgb_jpeg_b64)
+- Fix serveur : stream/start, stream/frame, stream/finish convertis en JSON (Request body)
+- Fix iOS : UploadService.swift — multipart → JSON pour les 3 endpoints streaming
+- Teste OK : 516KB/frame, reponse 200 en <1s
+
+**3. Batch upload 50 Mo → connexion perdue (CORRIGE)**
+- reconstructFromKeyframes() envoyait 60 keyframes en 1 JSON blob (~50 Mo)
+- Sur mobile = timeout/connexion perdue systematiquement
+- Fix : remplace par streaming frame-by-frame (stream/start → 60x stream/frame → stream/finish)
+- Progression visible : "Envoi capture 12/60..." avec barre de progression reelle
+
+**4. App se met en veille pendant le scan (CORRIGE)**
+- UIApplication.shared.isIdleTimerDisabled = true dans ScanView.onAppear
+- Remis a false dans onDisappear
+
+### Fichiers modifies
+- facematch-api/modules/reconstruction/router.py (stream endpoints → JSON)
+- facematch-ios/FaceMatch/API/UploadService.swift (multipart → JSON + batch → streaming)
+- facematch-ios/FaceMatch/Views/ScanView.swift (idle timer + progression detaillee)
+
+### Etat a la fin de session
+- Serveur OK (PM2 facematch-implant port 8001)
+- Streaming JSON teste OK cote serveur
+- 3 commits pushes sur facematch-ios (idle timer + JSON streaming + batch fallback)
+- Build Codemagic en cours → TestFlight dans ~15 min
+- **A TESTER** : nouveau scan complet end-to-end avec le nouveau build
+
+Derniere mise a jour : 10 juin 2026 (Session FaceMatch fix pipeline)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 9 juin 2026 (Session FaceMatch refonte + Giantix)
+Derniere mise a jour : 10 juin 2026 (Session FaceMatch fix pipeline)
 ===============================================================
