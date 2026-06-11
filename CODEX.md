@@ -5852,7 +5852,57 @@ Derniere mise a jour : 4 juin 2026 (Session FaceMatch + Qonto + disque)
 - **A TESTER** : nouveau scan complet end-to-end avec le nouveau build
 
 Derniere mise a jour : 10 juin 2026 (Session FaceMatch fix pipeline)
+
+## Session 11 juin 2026 — FaceMatch reconstruction 3D (gros debug)
+
+### Problemes identifies et corriges
+1. **stream/finish bloquant** → rendu ASYNC (retourne job_id, polling toutes les 2s)
+2. **Texture baking O(n⁴)** → SUPPRIME (utilisait des boucles pixel par pixel impossibles)
+3. **Intrinsics cx/cy** → ARKit met cx en [2][0] pas [0][2] (matrice transposee vs CV standard)
+4. **Image resolution** → iOS envoyait 1024px redimensionne mais intrinsics pour 1920px original. Fix: envoi original_width/original_height
+5. **Depth 1.5m** → capture murs/meubles. Reduit a 50cm (visage only)
+6. **60 frames / 15 sec** → pas le temps de tourner. Monte a 120 frames / 40 sec
+7. **FLIP_YZ manquant** → ARKit Y-up/Z-back vs Open3D Y-down/Z-forward. Ajout `FLIP_YZ @ np.linalg.inv(pose)`
+8. **PLY double** → Three.js ne lit pas float64. Export ASCII
+9. **PM2 sans venv** → transformers introuvable. Reconfigure avec venv/bin/python3
+10. **Codemagic build 281** → doublon. Offset monte a 300
+
+### Architecture actuelle
+- **Serveur** : TSDF Open3D + Poisson lissage + vertex colors
+- **Viewer web** : Three.js PLYLoader sur /view/{job_id} — zero telecharge mobile
+- **iOS** : polling async avec progress step-by-step (5 etapes visuelles)
+- **PM2** : facematch-implant avec venv Python (transformers precharge au startup)
+
+### Etat fin de session — PAS ENCORE FONCTIONNEL
+- Le FLIP_YZ reduit le volume (143cm → 56cm) mais le mesh fait encore 56cm au lieu de ~20cm pour un visage
+- Les frames s'alignent mieux mais pas parfaitement
+- Hypotheses restantes a tester :
+  - Le flip est peut-etre au mauvais endroit (pose @ flip vs flip @ inv(pose))
+  - Il manque peut-etre la rotation orientation (portrait/paysage) dans la pose
+  - Les intrinsics sont peut-etre pour une resolution intermediaire, pas capturedImage
+  - Il faudrait tester avec le repo StrayVisualizer (reference GitHub confirmee fonctionnelle)
+- Le viewer 3D web marche (Three.js) mais montre un mesh deforme pas un visage
+
+### Commits iOS (build TestFlight 383+)
+- f0cf59b async polling + progress UI
+- 02f74c3 messages pro (pas de jargon)
+- ed3f791 fix intrinsics original_width
+- 97ba3ea 120 captures / 40s
+- 784a701 fix build number offset
+- 7b9d430 qualite max voxels + 2048px RGB
+- 068c6f0 download timeout 120s
+- 8b4b3ba viewer web 3D (WebViewer3D.swift)
+
+### Prochaine session — TODO
+- [ ] Cloner StrayVisualizer (GitHub kekeblom/StrayVisualizer) et comparer le pipeline
+- [ ] Tester les 3 variantes de flip : flip@inv(pose), inv(pose@flip), inv(pose) sans flip
+- [ ] Verifier si camera.viewMatrix(for: .portrait) est necessaire au lieu de camera.transform
+- [ ] Logger les intrinsics reelles envoyees par iOS (fx, fy, cx, cy, orig_w, orig_h)
+- [ ] Ajouter le confidence map ARKit (filtrer les pixels LiDAR bruites)
+- [ ] Si TSDF ne marche toujours pas : tester ARMeshAnchor (mesh direct ARKit sans serveur)
+
+Derniere mise a jour : 11 juin 2026 (Session FaceMatch reconstruction debug)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 10 juin 2026 (Session FaceMatch fix pipeline)
+Derniere mise a jour : 11 juin 2026 (Session FaceMatch reconstruction debug)
 ===============================================================
