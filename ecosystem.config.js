@@ -24,5 +24,22 @@ module.exports = {
     // Graceful
     kill_timeout: 5000,
     listen_timeout: 10000
+  }, {
+    // Sync Judilibre — toutes les 12h (conformité CGU article V, 72h max)
+    name: 'judilibre-sync',
+    script: 'lib/legal-providers/judilibre-sync.js',
+    cwd: '/home/ubuntu/jadomi',
+    exec_mode: 'fork',
+    instances: 1,
+    autorestart: false,
+    watch: false,
+    cron_restart: '0 */12 * * *',  // toutes les 12h (00:00 et 12:00)
+    env: {
+      NODE_ENV: 'production'
+    },
+    error_file: '/home/ubuntu/.pm2/logs/judilibre-sync-error.log',
+    out_file: '/home/ubuntu/.pm2/logs/judilibre-sync-out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    merge_logs: true
   }]
 };
