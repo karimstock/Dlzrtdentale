@@ -211,8 +211,9 @@ app.post('/gate', express.urlencoded({ extended: false }), (req, res) => {
   return res.redirect('/?gate=error');
 });
 
-// Middleware verrou — bloque tout sauf assets statiques
-app.use((req, res, next) => {
+// Middleware verrou — TEMPORAIREMENT DÉSACTIVÉ pour vérification Qonto (4 juin 2026)
+// À RÉACTIVER dès validation Qonto : décommenter le bloc ci-dessous
+/* app.use((req, res, next) => {
   // Laisser passer les assets, API, webhooks, robots.txt, pages publiques
   // Pages publiques — DÉCOMMENTER QUAND PRÊT AU LANCEMENT PUBLIC :
   // const publicPaths = ['/', '/landing', '/chirurgiens-dentistes', '/dentistes', '/prothesistes-dentaires',
@@ -232,7 +233,7 @@ app.use((req, res, next) => {
   // Pas de cookie → afficher la page verrou
   const error = req.query.gate === 'error';
   return res.status(401).send(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JADOMI — Accès protégé</title><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;background:#0a0a0f;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{background:rgba(22,22,31,.9);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:48px 40px;width:100%;max-width:400px;text-align:center;backdrop-filter:blur(20px);box-shadow:0 24px 48px rgba(0,0,0,.4)}.logo{font-family:Syne,sans-serif;font-size:32px;font-weight:800;background:linear-gradient(135deg,#0d9488,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;margin-bottom:8px}.subtitle{font-size:14px;color:#737373;margin-bottom:32px}input{width:100%;padding:14px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#e5e5e5;font-size:16px;font-family:Inter,sans-serif;outline:none;transition:border-color .2s;margin-bottom:16px}input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.15)}button{width:100%;padding:14px;background:#0d9488;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;transition:background .2s}button:hover{background:#0f766e}.error{color:#ef4444;font-size:13px;margin-bottom:12px}</style></head><body><div class="card"><div class="logo">JADOMI</div><div class="subtitle">Accès réservé au fondateur</div>${error ? '<div class="error">Mot de passe incorrect</div>' : ''}<form method="POST" action="/gate"><input type="hidden" name="redirect" value="${req.originalUrl}"><input type="password" name="password" placeholder="Mot de passe" autofocus autocomplete="current-password"><button type="submit">Accéder</button></form></div></body></html>`);
-});
+}); */
 
 // Middleware : strip .html extension et rediriger vers URL propre (conserve les query params)
 // 302 (pas 301) pour ne pas casser le bouton retour du navigateur
@@ -263,6 +264,8 @@ app.get('/professions-paramedicales', (req, res) => res.sendFile(path.join(__dir
 app.get('/services-bien-etre', (req, res) => res.sendFile(path.join(__dirname, 'public/services-bien-etre.html')));
 // JADOMI Dentiste Pro Dashboard
 app.get('/admin/dentiste-pro', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/dentiste-pro.html')));
+// JADOMI Radio Plan — Analyse radio + plan de traitement IA
+app.get('/radio-plan', (req, res) => res.sendFile(path.join(__dirname, 'public/radio-plan.html')));
 app.get('/admin/jadomi-ia', (req, res) => { res.set('Cache-Control', 'no-store'); res.sendFile(path.join(__dirname, 'public/admin/jadomi-ia.html')); });
 // JADOMI Rappels automatiques (Passe 70)
 app.get('/rappels', (req, res) => res.sendFile(path.join(__dirname, 'public/rappels.html')));
@@ -292,6 +295,8 @@ app.get('/studio/mes-sites/', (req, res) => res.sendFile(path.join(__dirname, 'p
 app.get('/studio/mon-site', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/index.html')));
 app.get('/studio/mon-site/creer', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/creer.html')));
+app.get('/studio/mon-site/builder', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/builder.html')));
+app.get('/studio/mon-site/configurateur', (req, res) => res.sendFile(path.join(__dirname, 'public/studio/mon-site/configurateur.html')));
 // SEO Landing pages — Soins infirmiers par ville (dynamic route)
 app.get('/soins/:ville', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/ide/soins-ville.html'));
@@ -1643,7 +1648,7 @@ try {
   // Exposer supabaseAdmin globalement pour le webhook Stripe
   global.__supabaseAdmin = supabaseAdmin;
   global.__supabase      = supabase;
-  app.use('/api/studio/stripe', require('./api/studio/stripe-checkout'));
+  app.use('/api/studio/stripe', authSupabase ? authSupabase() : (req, res, next) => next(), require('./api/studio/stripe-checkout'));
   console.log('[JADOMI] Module Studio Stripe Checkout (TEST) monté');
 } catch (e) {
   console.warn('[JADOMI] Module Studio Stripe Checkout non chargé:', e.message);
@@ -1681,6 +1686,14 @@ try {
   console.log('[JADOMI] Module Client Portal monté');
 } catch (e) {
   console.warn('[JADOMI] Module Client Portal non chargé:', e.message);
+}
+
+// === JADOMI Radio Plan — Analyse radio & plan de traitement IA ===
+try {
+  app.use('/api/radio-plan', require('./api/radio-plan'));
+  console.log('[JADOMI] Module Radio Plan monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Radio Plan non chargé:', e.message);
 }
 
 // === JADOMI Agenda IA (agenda intelligent) ===
