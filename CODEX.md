@@ -3,8 +3,8 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 5 juin 2026
-**Derniere passe** : Session 5 juin — Pipeline OVH complet sites clients + SEO + anti-spam + formulaire contact
+**Derniere mise a jour** : 10 juin 2026
+**Derniere passe** : Session 10 juin — FaceMatch fix pipeline complet (streaming JSON + PM2 + veille iOS)
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
 
 ===============================================================
@@ -2410,6 +2410,9 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
 - OVH necessite 3 cles dans .env (Karim doit les generer sur eu.api.ovh.com/createToken/)
 - Test mobile iOS a verifier (autoplay video parfois bloque Safari)
+- ~~FaceMatch upload 10% puis echoue~~ [CORRIGE Session 10 juin — streaming JSON]
+- ~~FaceMatch serveur port 8001 pas persistant~~ [CORRIGE — PM2 facematch-implant]
+- FaceMatch : tester scan end-to-end avec nouveau build TestFlight (build en cours 10 juin)
 - CSP unsafe-inline (dette technique — a remplacer par nonces/hashes quand refacto frontend)
 - ~~npm xlsx abandonne (6 CVEs)~~ [CORRIGE Passe 64 — migre vers exceljs]
 - STRIPE_WEBHOOK_SECRET non configure (webhook rejete si absent — configurer dans Stripe Dashboard)
@@ -5890,7 +5893,175 @@ one-liner donnee au fondateur pour autoriser la cle sur 141.94.10.182 (AVANT
 le 14 juin). NB : facematch-ios est sur GitHub karimstock → verifier si jadomi
 y est aussi.
 
+## Session 9 juin 2026 — FaceMatch refonte complete + concurrent Giantix/Qlone
+
+### Concurrent identifie : Giantix (giantix.com)
+- Logiciel gestion cabinet dentaire tout-en-un, IA "Orelia"
+- Telephonie IA 24/7, transcription consultations, analyse radios
+- Pas un concurrent direct (gestion cabinet), mais confirme le marche IA dentaire
+
+### Concurrent scan : Qlone Dental
+- Scan 3D facial par photogrammetrie, export exocad/3Shape
+- JADOMI FaceMatch vise a faire mieux : LiDAR + texture 4K + auto
+
+### Refonte complete scan FaceMatch (10+ commits)
+
+**Remplacement ObjectCaptureSession → LiDAR direct**
+- ObjectCaptureSession (objets statiques) ne marchait pas pour visages vivants
+- Nouveau : capture depth LiDAR frame par frame (4fps, 60 max)
+- Sourire obligatoire avant scan, auto-finish quand couverture complete
+
+**UX premium 2026**
+- Silhouette anatomique visage (bezier curves avec oreilles/tempes/machoire)
+- Points verts LiDAR temps reel (SceneKit point cloud, ~1400 pts, 10fps)
+- CoreHaptics : vibration continue + pulse par capture + countdown
+- Auto-start : sourire+distance OK 2s → 3-2-1 → scan auto
+- Scanning line animee + glow pulsant + corner brackets
+
+**Texture baking 4K (serveur)**
+- xatlas UV unwrap + projection multi-vues → atlas 4096x4096
+- Export OBJ + MTL + face_texture.png
+- Pipeline : TSDF → Poisson → xatlas → texture bake
+
+**Rendu PBR (iOS)**
+- ColoredMeshPreviewView.swift cree + ajoute au xcodeproj
+- PBR materials, studio lighting 3 pts, HDR bloom, auto-rotation
+- Charge PLY (vertex colors) ou OBJ+texture (4K)
+
+**Streaming temps reel**
+- Endpoints : /stream/start, /stream/frame, /stream/finish
+- Chaque frame uploadee pendant le scan en background
+- Reconstruction quasi-instantanee apres scan
+
+**Bugs fixes**
+- python-multipart limite 1024KB → endpoint JSON /api/reconstruct/json
+- np.frombuffer read-only → .copy() ajoute
+- CoreHaptics.framework ajoute au xcodeproj
+
+**Bug en cours a la fin de session 9 juin**
+- ~~Upload bloque a 10%~~ [CORRIGE Session 10 juin]
+- ~~Serveur port 8001 relance manuellement~~ [CORRIGE — PM2 facematch-implant]
+
+## Session 10 juin 2026 — FaceMatch fix pipeline complet
+
+### Diagnostic et corrections (4 fixes)
+
+**1. Serveur port 8001 DOWN (CORRIGE)**
+- modules/app.py (reconstruction, implants) n'etait pas lance
+- nginx routait /api/reconstruct → port 8001 → connection refused → 502
+- Fix : ajoute a PM2 sous nom "facematch-implant", pm2 save fait
+
+**2. stream/frame → 400 Bad Request (CORRIGE)**
+- python-multipart bloquait sur champs Form >256KB (depth_data_b64, rgb_jpeg_b64)
+- Fix serveur : stream/start, stream/frame, stream/finish convertis en JSON (Request body)
+- Fix iOS : UploadService.swift — multipart → JSON pour les 3 endpoints streaming
+- Teste OK : 516KB/frame, reponse 200 en <1s
+
+**3. Batch upload 50 Mo → connexion perdue (CORRIGE)**
+- reconstructFromKeyframes() envoyait 60 keyframes en 1 JSON blob (~50 Mo)
+- Sur mobile = timeout/connexion perdue systematiquement
+- Fix : remplace par streaming frame-by-frame (stream/start → 60x stream/frame → stream/finish)
+- Progression visible : "Envoi capture 12/60..." avec barre de progression reelle
+
+**4. App se met en veille pendant le scan (CORRIGE)**
+- UIApplication.shared.isIdleTimerDisabled = true dans ScanView.onAppear
+- Remis a false dans onDisappear
+
+### Fichiers modifies
+- facematch-api/modules/reconstruction/router.py (stream endpoints → JSON)
+- facematch-ios/FaceMatch/API/UploadService.swift (multipart → JSON + batch → streaming)
+- facematch-ios/FaceMatch/Views/ScanView.swift (idle timer + progression detaillee)
+
+### Etat a la fin de session
+- Serveur OK (PM2 facematch-implant port 8001)
+- Streaming JSON teste OK cote serveur
+- 3 commits pushes sur facematch-ios (idle timer + JSON streaming + batch fallback)
+- Build Codemagic en cours → TestFlight dans ~15 min
+- **A TESTER** : nouveau scan complet end-to-end avec le nouveau build
+
+Derniere mise a jour : 10 juin 2026 (Session FaceMatch fix pipeline)
+
+## Session 11 juin 2026 — FaceMatch reconstruction 3D (gros debug)
+
+### Problemes identifies et corriges
+1. **stream/finish bloquant** → rendu ASYNC (retourne job_id, polling toutes les 2s)
+2. **Texture baking O(n⁴)** → SUPPRIME (utilisait des boucles pixel par pixel impossibles)
+3. **Intrinsics cx/cy** → ARKit met cx en [2][0] pas [0][2] (matrice transposee vs CV standard)
+4. **Image resolution** → iOS envoyait 1024px redimensionne mais intrinsics pour 1920px original. Fix: envoi original_width/original_height
+5. **Depth 1.5m** → capture murs/meubles. Reduit a 50cm (visage only)
+6. **60 frames / 15 sec** → pas le temps de tourner. Monte a 120 frames / 40 sec
+7. **FLIP_YZ manquant** → ARKit Y-up/Z-back vs Open3D Y-down/Z-forward. Ajout `FLIP_YZ @ np.linalg.inv(pose)`
+8. **PLY double** → Three.js ne lit pas float64. Export ASCII
+9. **PM2 sans venv** → transformers introuvable. Reconfigure avec venv/bin/python3
+10. **Codemagic build 281** → doublon. Offset monte a 300
+
+### Architecture actuelle
+- **Serveur** : TSDF Open3D + Poisson lissage + vertex colors
+- **Viewer web** : Three.js PLYLoader sur /view/{job_id} — zero telecharge mobile
+- **iOS** : polling async avec progress step-by-step (5 etapes visuelles)
+- **PM2** : facematch-implant avec venv Python (transformers precharge au startup)
+
+### Etat fin de session — PAS ENCORE FONCTIONNEL
+- Le FLIP_YZ reduit le volume (143cm → 56cm) mais le mesh fait encore 56cm au lieu de ~20cm pour un visage
+- Les frames s'alignent mieux mais pas parfaitement
+- Hypotheses restantes a tester :
+  - Le flip est peut-etre au mauvais endroit (pose @ flip vs flip @ inv(pose))
+  - Il manque peut-etre la rotation orientation (portrait/paysage) dans la pose
+  - Les intrinsics sont peut-etre pour une resolution intermediaire, pas capturedImage
+  - Il faudrait tester avec le repo StrayVisualizer (reference GitHub confirmee fonctionnelle)
+- Le viewer 3D web marche (Three.js) mais montre un mesh deforme pas un visage
+
+### Commits iOS (build TestFlight 383+)
+- f0cf59b async polling + progress UI
+- 02f74c3 messages pro (pas de jargon)
+- ed3f791 fix intrinsics original_width
+- 97ba3ea 120 captures / 40s
+- 784a701 fix build number offset
+- 7b9d430 qualite max voxels + 2048px RGB
+- 068c6f0 download timeout 120s
+- 8b4b3ba viewer web 3D (WebViewer3D.swift)
+
+### Prochaine session — TODO
+- [ ] Cloner StrayVisualizer (GitHub kekeblom/StrayVisualizer) et comparer le pipeline
+- [ ] Tester les 3 variantes de flip : flip@inv(pose), inv(pose@flip), inv(pose) sans flip
+- [ ] Verifier si camera.viewMatrix(for: .portrait) est necessaire au lieu de camera.transform
+- [ ] Logger les intrinsics reelles envoyees par iOS (fx, fy, cx, cy, orig_w, orig_h)
+- [ ] Ajouter le confidence map ARKit (filtrer les pixels LiDAR bruites)
+- [ ] Si TSDF ne marche toujours pas : tester ARMeshAnchor (mesh direct ARKit sans serveur)
+
+Derniere mise a jour : 11 juin 2026 (Session FaceMatch reconstruction debug)
+## Session 12 juin 2026 — Reconciliation serveurs (ancien->nouveau) + Judilibre sync
+
+### Contexte : deux serveurs avaient diverge depuis la migration
+- Migration 7 juin -> ancien VPS (141.94.10.182) et nouveau (jadomi-srv 217.182.132.136)
+  ont travaille en parallele pendant le double-run, branche feat/multi-societes forkee
+  a partir de l'ancetre commun f96dbc4 (session 5 juin)
+- Nouveau serveur (prod, DNS bascule) : 2 commits propres = RAG 238K + cross-matching (7 juin)
+- Ancien serveur : 4 commits propres = FaceMatch docs (sessions 9/10/11) + Judilibre (12 juin)
+- origin (karimstock/Dlzrtdentale) en retard de 316 commits sur les deux
+
+### Reconciliation faite (serveur-a-serveur, sans passer par origin disque-plein)
+- Backup nouveau serveur AVANT : tag git backup-new-srv-20260612 (= 5d2499d)
+- Ancien serveur ajoute en remote git lecture seule (oldsrv via SSH ed25519), fetch
+- git merge --no-ff oldsrv/feat/multi-societes dans feat/multi-societes du nouveau serveur
+- Seul conflit : CODEX.md (sessions des deux cotes) -> resolu en gardant TOUT (7+9+10+11 juin)
+- Verifie : zero chevauchement entre les fichiers des commits ancien et les modifs
+  non-committees locales (api/dentiste-pro/*, lib/boss, lib/brain, api/studio/* du 6-8 juin)
+  -> ces modifs en cours sont preservees intactes
+
+### Judilibre sync (origine : mail SDER Cour de cassation, 20 decisions modifiees)
+- lib/legal-providers/judilibre.js : + getTransactionalHistory + getAllTransactionalHistory
+- lib/legal-providers/judilibre-sync.js (NOUVEAU) : job sync auto + purgeAndRefresh
+- api/avocat/legal-data.js : + 3 endpoints admin (POST /judilibre/sync, GET /sync/status,
+  POST /judilibre/purge)
+- ecosystem.config.js : + cron PM2 judilibre-sync toutes les 12h
+- scripts/judilibre-purge-20260612.js : purge one-shot des 20 decisions
+- ATTENTION : endpoint PISTE /transactionalHistory retourne 403 (scope/permissions du
+  compte PISTE, PAS un bug serveur). Mail envoye au SDER pour l'acces. En attendant,
+  purge manuelle via POST /api/avocat/legal-data/judilibre/purge fonctionne.
+- Mail de reponse envoye a anonymisation.sder.courdecassation@justice.fr
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 7 juin 2026 (Session RISE-M + Qwen + RAG + cross-matching)
+Derniere mise a jour : 12 juin 2026 (Reconciliation serveurs + Judilibre sync)
 ===============================================================

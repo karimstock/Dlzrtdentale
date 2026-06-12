@@ -332,6 +332,74 @@ router.get('/search', requireAvocat, async (req, res) => {
 });
 
 // ================================================
+// SYNC JUDILIBRE — Synchronisation transactionalHistory
+// POST /judilibre/sync — lance la sync (admin only)
+// GET  /judilibre/sync/status — dernier rapport
+// POST /judilibre/purge — purge décisions spécifiques
+// ================================================
+const { syncJudilibre, purgeAndRefresh } = require('../../lib/legal-providers/judilibre-sync');
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'karim_bahmed@yahoo.fr';
+
+async function requireAdmin(req, res, next) {
+  try {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Token requis' });
+    const { data: { user }, error } = await admin().auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Token invalide' });
+    if (user.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Accès réservé admin' });
+    req.userId = user.id;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Authentification échouée' });
+  }
+}
+
+let _lastSyncReport = null;
+
+router.post('/judilibre/sync', requireAdmin, async (req, res) => {
+  try {
+    const hoursBack = parseInt(req.body.hoursBack) || 24;
+    const report = await syncJudilibre(hoursBack);
+    _lastSyncReport = { ...report, timestamp: new Date().toISOString() };
+    return res.json({ status: 'ok', report });
+  } catch (err) {
+    console.error('[legal-data/judilibre/sync]', err.message);
+    return res.status(500).json({ error: 'Erreur sync : ' + err.message });
+  }
+});
+
+router.get('/judilibre/sync/status', requireAdmin, async (req, res) => {
+  return res.json({
+    lastSync: _lastSyncReport,
+    cacheStats: await getCacheStats()
+  });
+});
+
+router.post('/judilibre/purge', requireAdmin, async (req, res) => {
+  try {
+    const { decisionIds } = req.body;
+    if (!decisionIds || !Array.isArray(decisionIds) || !decisionIds.length) {
+      return res.status(400).json({ error: 'decisionIds[] requis' });
+    }
+    const report = await purgeAndRefresh(decisionIds);
+    return res.json({ status: 'ok', report });
+  } catch (err) {
+    console.error('[legal-data/judilibre/purge]', err.message);
+    return res.status(500).json({ error: 'Erreur purge : ' + err.message });
+  }
+});
+
+async function getCacheStats() {
+  try {
+    const { count } = await admin().from('legal_data_cache')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'judilibre');
+    return { judilibre_cached: count || 0 };
+  } catch { return { judilibre_cached: 'erreur' }; }
+}
+
+// ================================================
 // HEALTH CHECK — Vérifier la connexion PISTE
 // GET /health
 // ================================================
