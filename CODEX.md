@@ -6112,7 +6112,50 @@ Derniere mise a jour : 11 juin 2026 (Session FaceMatch reconstruction debug)
 - Prochaines priorites a definir par le fondateur
 
 Derniere mise a jour : 12 juin 2026 (Session reconciliation + Radio Plan IA)
+
+## Session 13 juin 2026 — JCI rapatrie + teste + push GitHub (nouveau serveur Ryzen)
+
+### Contexte : reprise sur le NOUVEAU VPS (217.182.132.136), JCI etait reste sur l'ancien
+- Le commit JCI (6083c01) + radio-plan (b116cf5) + gitignore XML (6961763) avaient ete
+  faits sur l'ancien serveur (141.94.10.182) mais JAMAIS rapatries ici
+- Diagnostic : ce serveur etait sur a68cf20 (merge), historiques diverges depuis 300389e
+
+### Rapatriement JCI (commit merge 689f97a)
+- git fetch oldsrv (remote SSH vers l'ancien serveur)
+- git merge oldsrv/feat/multi-societes -> 1 seul conflit (CODEX.md, sessions des 2 cotes),
+  resolu en gardant TOUT le contenu des deux sessions du 12 juin
+- 17 fichiers JCI + radio-plan rapatries, node -c OK sur tous
+- pm2 reload jadomi -> JCI EN PRODUCTION : GET /api/jci/plugins renvoie les 5 plugins
+- Modifs non-committees preexistantes du working tree : preservees intactes (zero chevauchement)
+
+### Test debat end-to-end JCI (plugin dental) — VALIDE
+- scripts/jci-test-debate.js : pipeline complet sans appel LLM (le moteur orchestre, ne genere pas)
+- Flux : createDebate -> 4 opinions independantes -> 2 contradictions (dont risk_assessor veto)
+  -> 1 tour de debat -> synthese -> Trust Engine -> decision
+- Resultat : Trust=wait (52% confiance, contradictions non resolues) -> decision ATTENDRE
+  (= le moteur sait dire "j'attends" au lieu de trancher a tort, comportement JCI attendu)
+- Persistance verifiee sur Supabase : jci_debates (1), jci_opinions (7), jci_decisions (1 ATTENDRE)
+
+### Push GitHub — RESOLU (le blocage des gros fichiers dans l'historique)
+- Cause : 39 fichiers >100MB dans l'historique (limite hard GitHub) = data/gudid (700MB jsonl,
+  504MB zip, ~32 XML), 6 catalogues PDF uploads/flyers, 5 videos formation >100MB
+- Methode validee par le fondateur : git-filter-repo sur un CLONE BARE separe (jadomi-clean.git),
+  le working tree /home/ubuntu/jadomi JAMAIS touche (videos + WIP sur disque intacts)
+- Nettoyage : strip blobs >100MB + suppression complete data/gudid -> .git 5GB -> 2.7GB
+- Videos formation <100MB (video-01/02) CONSERVEES comme demande
+- Push incremental par 32 checkpoints (limite 2GB/push GitHub) : feat/multi-societes synchronise
+  sur origin (tip d7483f3), JCI verifie present sur GitHub via API, 0 fichier >100MB
+- Tag de sauvegarde : pre-github-cleanup-20260613-1259 (sur 689f97a)
+
+### ATTENTION — point ouvert : working tree diverge d'origin
+- Le depot de travail /home/ubuntu/jadomi a TOUJOURS l'ancien historique lourd (5GB)
+  et ne partage plus aucun SHA avec origin (qui a l'historique nettoye)
+- Pour repush incremental futur : soit re-cleaner+pousser depuis un clone bare, soit
+  realigner le working tree sur l'historique nettoye (en preservant le WIP) — A DECIDER
+- jadomi-clean.git conserve sur disque comme repo "propre" de reference
+
+Derniere mise a jour : 13 juin 2026 (JCI rapatrie + teste + push GitHub propre)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 12 juin 2026 (Session reconciliation + Radio Plan IA)
+Derniere mise a jour : 13 juin 2026 (JCI rapatrie + teste + push GitHub propre)
 ===============================================================
