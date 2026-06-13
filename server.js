@@ -1545,6 +1545,12 @@ try {
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless + Multi-Agents + Boss) monté');
 } catch (e) { console.warn('[JADOMI] Admin Copilot non chargé:', e.message); }
 
+// === JCI — JADOMI Core Intelligence (moteur d'intelligence collective) ===
+try {
+  app.use('/api/jci', require('./api/jci'));
+  console.log('[JADOMI] JCI Core Intelligence monte (graph, debate, trust, reputation, audit)');
+} catch (e) { console.warn('[JADOMI] JCI non charge:', e.message); }
+
 // === JADOMI Compta Universelle — Factures auto-rangées jour/mois/année ===
 try {
   app.use('/api/compta', require('./api/compta'));
