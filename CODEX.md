@@ -6061,7 +6061,58 @@ Derniere mise a jour : 11 juin 2026 (Session FaceMatch reconstruction debug)
   purge manuelle via POST /api/avocat/legal-data/judilibre/purge fonctionne.
 - Mail de reponse envoye a anonymisation.sder.courdecassation@justice.fr
 
+## Session 12 juin 2026 — Reconciliation serveurs + Radio Plan IA + Judilibre
+
+### Reconciliation des deux serveurs (migration VPS)
+- Ancien serveur (disque plein) et nouveau serveur avaient diverge depuis le 5 juin
+- Ancien : FaceMatch docs (9-11 juin) + Judilibre sync (12 juin)
+- Nouveau : RAG 238K + cross-matching (7 juin)
+- Solution : ajout ancien comme remote git SSH, merge direct serveur-a-serveur
+- Backup prealable (tag backup-new-srv-20260612), merge a68cf20
+- Zero conflit sauf CODEX.md (resolu manuellement)
+
+### Judilibre deploye en production
+- .env avait deja les cles PISTE + Supabase
+- PM2 : jadomi recharge + process cron judilibre-sync (12h)
+- 403 sur /transactionalHistory = scope pas encore accorde par le SDER
+- Mail deja envoye au SDER pour obtenir l'endpoint
+- Purge des 20 decisions SDER = INUTILE (cache = Cassation uniquement, pas d'appel)
+
+### Concurrent Giantix — analyse complete du flyer
+- Flyer recupere depuis boite Yahoo via IMAP (mail-sync-daemon)
+- Giantix = tout-en-un cabinet : RH, dossier clinique, stocks, TPE, portail correspondant
+- IA "Orelia" : assistant 24/7, analyse radios, dictee, stats
+- **Conclusion : JADOMI a deja toutes les features IA de Giantix + des exclusives**
+  - Exclusif JADOMI : FaceMatch 3D, comparateur prix 1.4M produits, mail copilot, triage urgence IA, traduction 99 langues
+
+### Radio Plan IA — NOUVELLE FEATURE (en prod)
+- **Concept** : capture ecran radio Vatech → Claude Vision analyse → plan de traitement auto
+- **Parcours** : bouton capture ecran (Screen Capture API) + dictee vocale (Web Speech API) → Claude Sonnet Vision → plan de traitement structure (phases, actes, dents FDI, durees)
+- **Fichiers crees** :
+  - `api/radio-plan.js` — API analyse (Claude Vision + catalogue 80+ actes)
+  - `public/radio-plan.html` — Interface capture + dictee + resultats
+- **Onglets ajoutes** :
+  - Dashboard dentiste-pro : onglet "Radio Plan" avec badge IA
+  - Dashboard organisation : onglet "Radio Plan IA" dans accordeon "Mon Cabinet"
+- **URL directe** : jadomi.fr/radio-plan
+- **Cout** : ~0.04$ par analyse (negligeable)
+- **Dictee optionnelle** : le praticien peut ajouter des observations non visibles a la radio (caries debutantes, mobilites, sondages)
+
+### Etat de la production
+- jadomi.fr HTTP 200, port 3001
+- Mail sync daemon : 9967 mails synchro, 3 comptes actifs
+- 1 486 272 produits en catalogue
+- Module Radio Plan IA : en ligne et fonctionnel
+- FaceMatch API : pas en PM2 sur ce serveur (a remonter si besoin)
+
+### Audit honnete des features
+- **Beaucoup de features a 80% mais 0% terminee end-to-end**
+- Decision : finir une feature a 100% avant d'en commencer une nouvelle
+- Radio Plan IA = premiere feature terminee et deployee end-to-end
+- Prochaines priorites a definir par le fondateur
+
+Derniere mise a jour : 12 juin 2026 (Session reconciliation + Radio Plan IA)
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 12 juin 2026 (Reconciliation serveurs + Judilibre sync)
+Derniere mise a jour : 12 juin 2026 (Session reconciliation + Radio Plan IA)
 ===============================================================

@@ -264,6 +264,8 @@ app.get('/professions-paramedicales', (req, res) => res.sendFile(path.join(__dir
 app.get('/services-bien-etre', (req, res) => res.sendFile(path.join(__dirname, 'public/services-bien-etre.html')));
 // JADOMI Dentiste Pro Dashboard
 app.get('/admin/dentiste-pro', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/dentiste-pro.html')));
+// JADOMI Radio Plan — Analyse radio + plan de traitement IA
+app.get('/radio-plan', (req, res) => res.sendFile(path.join(__dirname, 'public/radio-plan.html')));
 app.get('/admin/jadomi-ia', (req, res) => { res.set('Cache-Control', 'no-store'); res.sendFile(path.join(__dirname, 'public/admin/jadomi-ia.html')); });
 // JADOMI Rappels automatiques (Passe 70)
 app.get('/rappels', (req, res) => res.sendFile(path.join(__dirname, 'public/rappels.html')));
@@ -1543,6 +1545,12 @@ try {
   console.log('[JADOMI] Module Admin Copilot (Claude Code Headless + Multi-Agents + Boss) monté');
 } catch (e) { console.warn('[JADOMI] Admin Copilot non chargé:', e.message); }
 
+// === JCI — JADOMI Core Intelligence (moteur d'intelligence collective) ===
+try {
+  app.use('/api/jci', require('./api/jci'));
+  console.log('[JADOMI] JCI Core Intelligence monte (graph, debate, trust, reputation, audit)');
+} catch (e) { console.warn('[JADOMI] JCI non charge:', e.message); }
+
 // === JADOMI Compta Universelle — Factures auto-rangées jour/mois/année ===
 try {
   app.use('/api/compta', require('./api/compta'));
@@ -1684,6 +1692,14 @@ try {
   console.log('[JADOMI] Module Client Portal monté');
 } catch (e) {
   console.warn('[JADOMI] Module Client Portal non chargé:', e.message);
+}
+
+// === JADOMI Radio Plan — Analyse radio & plan de traitement IA ===
+try {
+  app.use('/api/radio-plan', require('./api/radio-plan'));
+  console.log('[JADOMI] Module Radio Plan monté');
+} catch (e) {
+  console.warn('[JADOMI] Module Radio Plan non chargé:', e.message);
 }
 
 // === JADOMI Agenda IA (agenda intelligent) ===
