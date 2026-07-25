@@ -767,6 +767,16 @@ Violation = incident de production. Zero tolerance.
 # 6. HISTORIQUE DES PASSES
 ===============================================================
 
+## Session 25 juillet 2026 (fin) — AUDIT DE VITALITE de la plateforme + PLAN DE LIVRAISON SEPTEMBRE
+Branche `feat/multi-societes`. Demande fondateur : « analyse JADOMI, regarde sur quoi on est fort » puis « le prompt complet pour que JADOMI soit livrable en septembre, surtout FaceMatch ».
+- **NOUVEL OUTIL `scripts/_audit_vitalite.js`** : compte les lignes REELLES de chacune des **430 tables** declarees dans `sql/` et les regroupe par module. Principe : un module fort n'est pas un module qui a beaucoup de code, c'est un module ou de la vraie donnee circule. N'imprime que des noms de tables et des compteurs.
+- **RESULTAT MESURE** : **319 tables sur 430 sont VIDES (74 %)**, 111 portent de la donnee (26 %). La force est concentree : `products_database` **1 487 281** lignes + `scraped_prices` 255 930 + `product_clusters` 155 236 = **97 % de toute la donnee de la plateforme** ; puis `patients_jadomi` 7 738, `dentiste_pro_agenda` 2 054, `dke_ccam_*` ~2 600. La **compta** est le module le plus sain : petite (306 lignes) mais **zero table vide**. Le decor : Labo 44 tables dont 36 vides, Sites/CMS/Studio 39 dont 24, Avocat 30 dont 23, IDE 12 dont 7.
+- **DIAGNOSTIC** : JADOMI n'a pas un probleme de qualite, il a un probleme de **largeur** — 11 metiers ouverts, 2 ou 3 qui portent de la donnee reelle. Le module Equipe l'illustre (1848 lignes de backend, 26 routes, et 2 fiches de DEMO en base).
+- **FACEMATCH — etat verifie** : le RECEPTEUR fonctionne (`POST /api/facematch/publish` monte et **garde**, 401 sans jeton, `FACEMATCH_PUBLISH_SECRET` defini ; `GET /twin/:token` ; page `/j/:token` avec viewer Three.js local). Le fix COLMAP est commite (`999dcdd`, DLL manquantes / 0xC0000135). **MAIS `uploads/facematch/` contient 0 jumeau** : la chaine n'a JAMAIS tourne de bout en bout. Le service `facematch-api` est arrete, la prod `141.94.10.182` ne repond ni sur 8000 ni sur 3000, et le fix COLMAP n'a jamais ete valide sur une vraie session. **Ce qui recoit marche, ce qui produit n'a jamais livre une seule reconstruction.**
+- **NOUVEAU DOCUMENT `docs/PLAN-LIVRAISON-SEPTEMBRE-2026.md`** (a relire au debut de chaque session d'ici la livraison) : 38 jours, perimetre FERME a 4 chantiers (FaceMatch, cabinet dentaire reel, compta, achats en direct), tout le reste GELE en ligne sans developpement. FaceMatch decoupe en 6 lots, **chacun avec sa PREUVE mesuree** (un lot n'est pas fait parce que le code est ecrit). Definition de livrable : « un dentiste tiers installe, scanne un patient, le patient ouvre son visage 3D sur son telephone — sans developpeur ». Regle transverse degagee des 3 bugs les plus couteux du projet (COLMAP sans DLL, noeud RTX ecarte en silence, 400 avale par le front) : **un echec doit etre BRUYANT**.
+- **ENCAISSEMENT — la societe JADOMI existe et le compte bancaire Qonto est ouvert** (annonce fondateur du 25 juillet). Etat Stripe VERIFIE en direct par l'API (pas un rapport) : compte « Environnement de test JADOMI » FR/EUR, cle `sk_test_` (**mode TEST**), `charges_enabled` **NON**, `payouts_enabled` **NON**, **0 tarif**, `STRIPE_WEBHOOK_SECRET` **absent** — et **`STRIPE_PUBLISHABLE_KEY` absente aussi** (sans elle aucun formulaire de paiement ne s'affiche cote client). **Aucun euro n'est encaissable aujourd'hui.** Ajoute au plan comme chantier n°2 : activation Stripe avec le SIREN + l'IBAN Qonto (24-48 h de verification, action fondateur), decision du modele de prix, bascule des DEUX cles en production, webhook + son secret (**sans lui, un paiement reussi n'ouvre rien : le client paie sans rien recevoir**), puis un premier paiement reel rembourse. PREUVE exigee : un euro debite + le module ouvert par le webhook + le virement visible sur Qonto.
+- Document envoye par email au fondateur (karim_bahmed@yahoo.fr).
+
 ## Session 25 juillet 2026 (suite) — Module salaries : audit de l'existant + les 7 roles enfin dans l'ecran
 Branche `feat/multi-societes`, commit `3dd4a45`. Demande fondateur : « on reprend le module salarie, relis tout ce qu'on a fait » puis « verifie, tu veux construire des choses existantes ».
 - **AUDIT — ce qui existe VRAIMENT** (verifie en base, pas deduit du code) : le module salaries est `api/dentiste-pro/team.js` (**1848 lignes, 26 routes**) — invitation par email + token, permissions granulaires sur 14 modules, 7 roles avec presets, onboarding, roster, journee vivante (taches, habitudes, capture vocale, copilote souverain), Doctolib. Ecrans `public/equipe/` (ma-journee, profil, onboarding, composer, invitation, connexion-doctolib). Table `dentiste_pro_team`, SQL `51_roles_permissions.sql`. **Rien a construire : tout est la.**
@@ -8603,3 +8613,91 @@ fonctionnel sur jadomi.fr (/live-translate/ public, regie.html, conferencier.htm
 tarifs.html, aucun lien depuis le site, et le lien de regie + les cles doivent
 encore etre generes cote serveur. Un client ne peut ni le decouvrir, ni l'acheter,
 ni recuperer son acces seul.
+
+===============================================================
+# SYNCHRONISATION IMAGE / SOUS-TITRE — PAR CONSTRUCTION (25 juil)
+===============================================================
+RECADRAGE FONDATEUR : "tu m'as dit qu'impossible qu'on batte ce qui se fait de
+mieux au monde, et ca j'aime pas cette vision, je veux etre le meilleur. Fais en
+sorte que la traduction soit synchro a la perfection avec la video."
+=> Reponse : on ne se bat pas sur LEUR terrain (nombre de langues, certifications)
+   mais sur la SYNCHRO, ou personne ne fait serieusement le travail.
+
+LE VRAI PROBLEME : les deux retards etaient INDEPENDANTS. Video LL-HLS ~2-4 s,
+traduction ~2,4 s. Ils tombaient ensemble PAR CHANCE, puis derivaient. Ce n'etait
+pas de la synchronisation, c'etait une coincidence de latences.
+
+CE QUI REND LA VRAIE SYNCHRO POSSIBLE : le flux LL-HLS porte une HORLOGE ABSOLUE
+(#EXT-X-PROGRAM-DATE-TIME, verifie : 2026-07-25T14:41:07.362Z). On sait donc a
+quelle seconde du monde reel correspond l'image affichee.
+
+CHAINE POSEE :
+ 1. La REGIE annonce toutes les 4 s : "a cet instant, j'avais envoye X ms
+    d'audio" ({type:'horloge'}). Immunise contre la gigue reseau et le tampon.
+ 2. Le SERVEUR capte input_audio_buffer.speech_started -> audio_start_ms, borne
+    EXACTE du debut de parole DANS L'AUDIO (l'heure d'arrivee d'un message
+    dependrait du reseau, pas l'instant ou la phrase a ete dite).
+ 3. instantParole() ramene cette position a une heure reelle. Garde-fou : un
+    ecart > 120 s (horloge decalee, reprise de session) retombe sur "maintenant".
+ 4. Chaque sous-titre porte tParole.
+ 5. Le LECTEUR calcule l'heure de l'image affichee
+    (fragment.programDateTime + (currentTime - fragment.start)) et n'affiche
+    chaque sous-titre QUE lorsque l'image atteint cet instant.
+    Sans video, ou si l'heure de l'image est inconnue : affichage immediat —
+    mieux vaut un sous-titre en avance qu'un ecran vide. Retard maxi 3 s.
+
+PREUVE : parole reellement prononcee a 14:43:00.481 ; sous-titre horodate
+14:43:00.295 — 186 ms d'ecart, qui correspondent a l'amorce (pre-roll) gardee en
+reserve par la regie. 1/1 sous-titre horodate, 1/1 dans la plage reelle.
+===============================================================
+
+===============================================================
+# LE MODULE DEVIENT UN PRODUIT — 3 CHANTIERS (25 juil)
+===============================================================
+"go les 3 a la suite" : page produit, activation depuis l'espace, facturation.
+
+1) PAGE PRODUIT  public/traduction-live.html
+   Identite JADOMI reprise telle quelle (noir #050508 / or #C9A961, Inter).
+   Argumentaire fonde sur des faits MESURES, pas des promesses : "tiers apical"
+   vs "the radical third party", 13/13 termes, 2,4 s, 6 langues, 450 spectateurs,
+   0 EUR par participant supplementaire. Tableau comparatif honnete : les
+   generalistes traduisent bien, ils ne savent pas de quoi la salle a parle.
+
+2) ESPACE FORMATEUR  public/traduction-live-espace.html + api/multiSocietes/traductionLive.js
+   GET  /api/traduction-live/acces    -> etat + 3 liens + coordonnees de diffusion
+   POST /api/traduction-live/activer  -> ouvre/ferme le module (proprietaire/associe)
+   POST /api/traduction-live/souscrire-> session de paiement Stripe
+   POST /api/live-translate/auth-video-> appele par le serveur media
+   DEUX CLES DISTINCTES, signees (HMAC) sur l'identifiant de societe :
+     - cle de SALLE   : rattache la conference au cerveau/liste du formateur ;
+     - cle de DIFFUSION : autorise a pousser la video (elle est collee dans OBS,
+       donc plus exposee — une fuite ne doit pas ouvrir le reste).
+   Rien a stocker, rien a revoquer table par table.
+
+3) FACTURATION
+   Le module reste FERME tant que le paiement n'est pas confirme : c'est le
+   webhook Stripe qui l'ouvre (metadata.module='traduction_live'), pas une action
+   de l'utilisateur. Branchement ADDITIF dans billing.js : un abonnement a un
+   MODULE n'ecrase plus le plan de la societe.
+   Sans STRIPE_PRICE_TRADUCTION_LIVE, la route le DIT clairement au lieu
+   d'echouer sans raison lisible.
+
+TROIS DEFAUTS TROUVES ET CORRIGES EN CHEMIN :
+ a) "local uniquement" CONTOURNABLE : derriere nginx l'adresse vue par
+    l'application est toujours locale. Ce qui distingue un vrai appel local,
+    c'est l'ABSENCE des en-tetes de proxy. Verifie : 403 depuis l'exterieur.
+ b) ROLE : la plateforme utilise 'proprietaire'/'associe' (francais), pas
+    'owner'/'admin' — le controle aurait refuse l'activation au proprietaire.
+ c) Le middleware maison pose le role dans req.role, PAS req.societe.role.
+
+PREUVE DE BOUT EN BOUT (vrai compte, vrai jeton) :
+  acces  -> liens et cles generes pour DENTALEVOLUTION
+  module DESACTIVE -> liens retires ET diffusion video REFUSEE (403)
+  module REACTIVE  -> diffusion video AUTORISEE (204)
+  cle de diffusion inventee, ou societe sans le module : aucun flux cree.
+C'est la que mord la facturation : sans abonnement, rien ne passe.
+
+RESTE : creer le prix Stripe (STRIPE_PRICE_TRADUCTION_LIVE) et ajouter le lien
+vers la page produit depuis tarifs.html (non fait : ne pas toucher a la
+navigation existante sans accord).
+===============================================================
